@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 
+import ee.tuleva.onboarding.investment.check.tracking.ConsecutiveBreachTracker.ConsecutiveBreachInfo;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.Map;
@@ -27,6 +28,18 @@ record EscalationSection(
         result.escalationCashDrag(),
         result.escalationFeeDrag(),
         result.escalationResidual());
+  }
+
+  static EscalationSection ofEndedStreak(ConsecutiveBreachInfo streak) {
+    return new EscalationSection(
+        streak.count(),
+        streak.compoundedTd(),
+        streak.compoundedFundReturn(),
+        streak.compoundedBenchmarkReturn(),
+        streak.contributionByIsin(),
+        streak.cashDragSum(),
+        streak.feeDragSum(),
+        streak.residualSum());
   }
 
   String describe() {

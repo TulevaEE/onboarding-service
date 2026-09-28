@@ -193,6 +193,29 @@ class ConsecutiveBreachTrackerTest {
   }
 
   @Test
+  void aCleanDayCarriesTheStreakItEndedWhileItsOwnStreakStaysAtZero() {
+    var endedStreak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.006012"),
+            new BigDecimal("0.006012"),
+            BigDecimal.ZERO,
+            java.util.Map.of("IE00BFG1TM61", new BigDecimal("0.004")),
+            new BigDecimal("-0.0003"),
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            false,
+            false,
+            false);
+
+    var result = tracker.updateConsecutiveCount(nonBreachingResult(), endedStreak);
+
+    assertThat(result.endedStreak()).isEqualTo(endedStreak);
+    assertThat(result.consecutiveBreachDays()).isZero();
+    assertThat(result.consecutiveNetTd()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
   void aResultCarryingNoComponentBreakdownStillGetsItsEscalationTotals() {
     var breachingWithoutComponents =
         TrackingDifferenceResult.builder()

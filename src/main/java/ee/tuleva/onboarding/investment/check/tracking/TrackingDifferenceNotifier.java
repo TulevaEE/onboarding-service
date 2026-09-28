@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  private static final int SISEKORD_4_P_11_7_FIRST_ESCALATING_BREACH_DAY = 4;
+  private static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
   private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final String PUBLISHED_WITHOUT_VALIDATION =
@@ -249,11 +249,15 @@ class TrackingDifferenceNotifier {
             INVESTMENT);
         return;
       }
-      if (alertableResults.stream().noneMatch(TrackingDifferenceResult::hasAnyBreach)) {
+      var verdicts =
+          alertableResults.stream()
+              .map(result -> Verdict.of(result, escalationRule(result.checkDate())))
+              .toList();
+      if (verdicts.stream().noneMatch(Verdict::alerts)) {
         notificationService.sendMessage(formatAllWithinLimits(alertableResults), INVESTMENT);
         return;
       }
-      notificationService.sendMessage(formatBreaches(alertableResults), INVESTMENT);
+      notificationService.sendMessage(formatAlerts(verdicts), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
@@ -283,40 +287,57 @@ class TrackingDifferenceNotifier {
     return message.toString();
   }
 
-  private String formatBreaches(List<TrackingDifferenceResult> alertableResults) {
-    var message = new StringBuilder("🛑 TD BREACH DETECTED\n");
-    var hasEscalation = false;
-    var decidedOnFallbackConfig = false;
-
-    for (var result : alertableResults) {
-      if (!result.hasAnyBreach()) {
-        message.append(formatCountWarnings(result));
-        continue;
-      }
-
-      var rule = escalationRule(result.checkDate());
-      var escalation = rule.escalates(result);
-      if (escalation) {
-        hasEscalation = true;
-        decidedOnFallbackConfig = decidedOnFallbackConfig || rule.fallback();
-      }
-
-      message
-          .append(new BreachMessageFormatter(result, escalation, redemptionCycle(result)).format())
-          .append(formatCountWarnings(result))
-          .append(formatBenchmarkGap(result));
+  private String formatAlerts(List<Verdict> verdicts) {
+    var message = new StringBuilder();
+    verdicts.forEach(verdict -> message.append(formatAlert(verdict)));
+    if (verdicts.stream().anyMatch(Verdict::breached)) {
+      message.insert(0, "🛑 TD BREACH DETECTED\n");
     }
-
-    if (hasEscalation) {
+    if (verdicts.stream().anyMatch(Verdict::escalation)) {
       message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
     }
-    if (decidedOnFallbackConfig) {
+    if (verdicts.stream().anyMatch(Verdict::decidedOnFallback)) {
       message.append(
           "\n⚠️ The escalation parameters are not configured, so this was decided on built-in"
               + " fallback constants rather than the configured rule. Seed"
               + " ESCALATION_THRESHOLD_DAYS and ESCALATION_NET_TD_THRESHOLD.");
     }
     return message.toString();
+  }
+
+  private String formatAlert(Verdict verdict) {
+    var result = verdict.result();
+    if (verdict.breached()) {
+      return new BreachMessageFormatter(result, verdict.escalation(), redemptionCycle(result))
+              .format()
+          + formatCountWarnings(result)
+          + formatBenchmarkGap(result);
+    }
+    if (verdict.escalation()) {
+      return EndedStreakNotice.format(result)
+          + formatCountWarnings(result)
+          + formatBenchmarkGap(result);
+    }
+    return formatCountWarnings(result);
+  }
+
+  private record Verdict(TrackingDifferenceResult result, boolean escalation, boolean fallback) {
+
+    static Verdict of(TrackingDifferenceResult result, EscalationRule rule) {
+      return new Verdict(result, rule.escalates(result), rule.fallback());
+    }
+
+    boolean breached() {
+      return result.hasAnyBreach();
+    }
+
+    boolean alerts() {
+      return breached() || escalation;
+    }
+
+    boolean decidedOnFallback() {
+      return escalation && fallback;
+    }
   }
 
   private @Nullable RedemptionCycleHint redemptionCycle(TrackingDifferenceResult result) {
@@ -351,13 +372,25 @@ class TrackingDifferenceNotifier {
     return sb.toString();
   }
 
-  private record EscalationRule(int thresholdDays, BigDecimal netTdThreshold, boolean fallback) {
+  private record EscalationRule(
+      int notificationWorkingDay, BigDecimal netTdThreshold, boolean fallback) {
 
     boolean escalates(TrackingDifferenceResult result) {
-      return result.consecutiveBreachDays() >= thresholdDays
+      return result.hasAnyBreach() ? escalatesTheBreach(result) : notifiesTheStreakItEnded(result);
+    }
+
+    private boolean escalatesTheBreach(TrackingDifferenceResult result) {
+      return result.consecutiveBreachDays() >= notificationWorkingDay
           && ((result.consecutiveNetTd() != null
                   && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
               || result.escalationNavResidualBreach());
+    }
+
+    private boolean notifiesTheStreakItEnded(TrackingDifferenceResult result) {
+      var endedStreak = result.endedStreak();
+      return endedStreak != null
+          && endedStreak.notificationFallsDueTheNextWorkingDay(
+              notificationWorkingDay, netTdThreshold);
     }
   }
 
@@ -370,9 +403,7 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Escalation parameters unavailable, using fallback: {}", e.getMessage());
       return new EscalationRule(
-          SISEKORD_4_P_11_7_FIRST_ESCALATING_BREACH_DAY,
-          ESCALATION_NET_TD_THRESHOLD_FALLBACK,
-          true);
+          SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY, ESCALATION_NET_TD_THRESHOLD_FALLBACK, true);
     }
   }
 

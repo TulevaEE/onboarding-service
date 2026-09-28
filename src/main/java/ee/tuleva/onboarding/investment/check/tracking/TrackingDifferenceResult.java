@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.investment.check.tracking.ConsecutiveBreachTracker.ConsecutiveBreachInfo;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,6 +38,7 @@ record TrackingDifferenceResult(
     boolean escalationNavResidualBreach,
     boolean escalationCountTruncated,
     boolean escalationCountUnavailable,
+    @Nullable ConsecutiveBreachInfo endedStreak,
     List<String> benchmarkGapIsins,
     @Nullable BigDecimal benchmarkGapWeight) {
 

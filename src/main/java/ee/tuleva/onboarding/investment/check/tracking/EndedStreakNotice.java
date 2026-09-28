@@ -1,0 +1,33 @@
+package ee.tuleva.onboarding.investment.check.tracking;
+
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
+import static java.util.Objects.requireNonNull;
+
+import ee.tuleva.onboarding.investment.check.tracking.ConsecutiveBreachTracker.ConsecutiveBreachInfo;
+
+final class EndedStreakNotice {
+
+  private EndedStreakNotice() {}
+
+  static String format(TrackingDifferenceResult result) {
+    var endedStreak = requireNonNull(result.endedStreak());
+    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%), but the %d working days before it"
+                + " breached. Sisekord 4 p 11.8 makes the notification due today, on working day"
+                + " %d: identify the cause and act on it.")
+            .formatted(
+                result.fund(),
+                result.checkType(),
+                result.checkDate(),
+                formatPercent(result.trackingDifference()),
+                endedStreak.count(),
+                endedStreak.count() + 1)
+        + EscalationSection.ofEndedStreak(endedStreak).describe()
+        + navResidualBreachNote(endedStreak);
+  }
+
+  private static String navResidualBreachNote(ConsecutiveBreachInfo endedStreak) {
+    return endedStreak.hadNavResidualBreach()
+        ? "\n  The streak includes a NAV residual breach, which escalates whatever its TD."
+        : "";
+  }
+}

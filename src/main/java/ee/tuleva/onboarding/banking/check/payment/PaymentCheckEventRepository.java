@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.banking.check.payment;
 
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -16,7 +18,7 @@ public interface PaymentCheckEventRepository extends CrudRepository<PaymentCheck
       PaymentCheckSeverity severity, Instant from, Instant until);
 
   @Modifying
-  @Transactional
+  @Transactional(propagation = REQUIRES_NEW)
   @Query("UPDATE PaymentCheckEvent e SET e.alertFailed = true WHERE e.id = :id")
   void markAlertFailed(Long id);
 }

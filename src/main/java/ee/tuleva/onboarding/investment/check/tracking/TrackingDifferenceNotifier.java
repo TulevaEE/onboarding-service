@@ -233,74 +233,74 @@ class TrackingDifferenceNotifier {
             INVESTMENT);
         return;
       }
-      var hasAnyBreaches =
-          alertableResults.stream().anyMatch(TrackingDifferenceResult::hasAnyBreach);
-
-      if (!hasAnyBreaches) {
-        var byFund =
-            alertableResults.stream()
-                .collect(
-                    Collectors.groupingBy(
-                        r -> r.fund().getCode(), TreeMap::new, Collectors.toList()));
-        var message = new StringBuilder();
-        byFund.forEach(
-            (fundCode, fundResults) -> {
-              if (message.length() > 0) {
-                message.append("\n");
-              }
-              message.append("✅ %s TD check completed: within limits".formatted(fundCode));
-              fundResults.stream()
-                  .sorted(Comparator.comparing(r -> r.checkType().name()))
-                  .forEach(
-                      r ->
-                          message
-                              .append(formatWithinLimits(r))
-                              .append(formatCountWarnings(r))
-                              .append(formatBenchmarkGap(r)));
-            });
-        notificationService.sendMessage(message.toString(), INVESTMENT);
+      if (alertableResults.stream().noneMatch(TrackingDifferenceResult::hasAnyBreach)) {
+        notificationService.sendMessage(formatAllWithinLimits(alertableResults), INVESTMENT);
         return;
       }
-
-      var message = new StringBuilder("🛑 TD BREACH DETECTED\n");
-      var hasEscalation = false;
-
-      var decidedOnFallbackConfig = false;
-
-      for (var result : alertableResults) {
-        if (!result.hasAnyBreach()) {
-          message.append(formatCountWarnings(result));
-          continue;
-        }
-
-        var rule = escalationRule(result.checkDate());
-        var escalation = isEscalation(result, rule);
-        if (escalation) {
-          hasEscalation = true;
-          decidedOnFallbackConfig = decidedOnFallbackConfig || rule.fallback();
-        }
-
-        message
-            .append(
-                new BreachMessageFormatter(result, escalation, redemptionCycle(result)).format())
-            .append(formatCountWarnings(result))
-            .append(formatBenchmarkGap(result));
-      }
-
-      if (hasEscalation) {
-        message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
-      }
-      if (decidedOnFallbackConfig) {
-        message.append(
-            "\n⚠️ The escalation parameters are not configured, so this was decided on built-in"
-                + " fallback constants rather than the configured rule. Seed"
-                + " ESCALATION_THRESHOLD_DAYS and ESCALATION_NET_TD_THRESHOLD.");
-      }
-
-      notificationService.sendMessage(message.toString(), INVESTMENT);
+      notificationService.sendMessage(formatBreaches(alertableResults), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
+  }
+
+  private static String formatAllWithinLimits(List<TrackingDifferenceResult> alertableResults) {
+    var byFund =
+        alertableResults.stream()
+            .collect(
+                Collectors.groupingBy(r -> r.fund().getCode(), TreeMap::new, Collectors.toList()));
+    var message = new StringBuilder();
+    byFund.forEach(
+        (fundCode, fundResults) -> {
+          if (message.length() > 0) {
+            message.append("\n");
+          }
+          message.append("✅ %s TD check completed: within limits".formatted(fundCode));
+          fundResults.stream()
+              .sorted(Comparator.comparing(r -> r.checkType().name()))
+              .forEach(
+                  r ->
+                      message
+                          .append(formatWithinLimits(r))
+                          .append(formatCountWarnings(r))
+                          .append(formatBenchmarkGap(r)));
+        });
+    return message.toString();
+  }
+
+  private String formatBreaches(List<TrackingDifferenceResult> alertableResults) {
+    var message = new StringBuilder("🛑 TD BREACH DETECTED\n");
+    var hasEscalation = false;
+    var decidedOnFallbackConfig = false;
+
+    for (var result : alertableResults) {
+      if (!result.hasAnyBreach()) {
+        message.append(formatCountWarnings(result));
+        continue;
+      }
+
+      var rule = escalationRule(result.checkDate());
+      var escalation = rule.escalates(result);
+      if (escalation) {
+        hasEscalation = true;
+        decidedOnFallbackConfig = decidedOnFallbackConfig || rule.fallback();
+      }
+
+      message
+          .append(new BreachMessageFormatter(result, escalation, redemptionCycle(result)).format())
+          .append(formatCountWarnings(result))
+          .append(formatBenchmarkGap(result));
+    }
+
+    if (hasEscalation) {
+      message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
+    }
+    if (decidedOnFallbackConfig) {
+      message.append(
+          "\n⚠️ The escalation parameters are not configured, so this was decided on built-in"
+              + " fallback constants rather than the configured rule. Seed"
+              + " ESCALATION_THRESHOLD_DAYS and ESCALATION_NET_TD_THRESHOLD.");
+    }
+    return message.toString();
   }
 
   private @Nullable RedemptionCycleHint redemptionCycle(TrackingDifferenceResult result) {
@@ -335,7 +335,15 @@ class TrackingDifferenceNotifier {
     return sb.toString();
   }
 
-  private record EscalationRule(int thresholdDays, BigDecimal netTdThreshold, boolean fallback) {}
+  private record EscalationRule(int thresholdDays, BigDecimal netTdThreshold, boolean fallback) {
+
+    boolean escalates(TrackingDifferenceResult result) {
+      return result.consecutiveBreachDays() >= thresholdDays
+          && ((result.consecutiveNetTd() != null
+                  && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
+              || result.escalationNavResidualBreach());
+    }
+  }
 
   private EscalationRule escalationRule(LocalDate checkDate) {
     try {
@@ -350,13 +358,6 @@ class TrackingDifferenceNotifier {
           ESCALATION_NET_TD_THRESHOLD_FALLBACK,
           true);
     }
-  }
-
-  private boolean isEscalation(TrackingDifferenceResult result, EscalationRule rule) {
-    return result.consecutiveBreachDays() >= rule.thresholdDays()
-        && ((result.consecutiveNetTd() != null
-                && result.consecutiveNetTd().abs().compareTo(rule.netTdThreshold()) >= 0)
-            || result.escalationNavResidualBreach());
   }
 
   private static String formatBenchmarkGap(TrackingDifferenceResult result) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.instrumentReferenceService;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -124,6 +125,35 @@ class BenchmarkCheckBuilderTest {
 
     assertThat(result.benchmarkGapIsins()).isEmpty();
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aBenchmarkModelDayWithinLimitsCarriesTheStreakItEnded() {
+    var endedStreak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.0045"),
+            new BigDecimal("0.0045"),
+            BigDecimal.ZERO,
+            java.util.Map.of(),
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            false,
+            false,
+            false);
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(endedStreak);
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE)))
+            .orElseThrow();
+
+    assertThat(result.breach()).isFalse();
+    assertThat(result.consecutiveBreachDays()).isZero();
+    assertThat(result.endedStreak()).isEqualTo(endedStreak);
   }
 
   private static SecurityData flatHolding(String isin, BigDecimal actualWeight) {

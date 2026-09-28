@@ -35,7 +35,14 @@ class ConsecutiveBreachTracker {
       BigDecimal residualSum,
       boolean hadNavResidualBreach,
       boolean truncated,
-      boolean unavailable) {}
+      boolean unavailable) {
+
+    boolean notificationFallsDueTheNextWorkingDay(
+        int notificationWorkingDay, BigDecimal netTdThreshold) {
+      return count == notificationWorkingDay - 1
+          && (hadNavResidualBreach || compoundedTd.abs().compareTo(netTdThreshold) >= 0);
+    }
+  }
 
   ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
@@ -159,6 +166,7 @@ class ConsecutiveBreachTracker {
           .consecutiveBreachDays(0)
           .consecutiveNetTd(ZERO)
           .escalationCountUnavailable(priorBreaches.unavailable())
+          .endedStreak(priorBreaches)
           .build();
     }
     int days = priorBreaches.count() + 1;

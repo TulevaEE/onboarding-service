@@ -35,7 +35,7 @@ import org.xml.sax.SAXParseException;
 @RequiredArgsConstructor
 @NullMarked
 public class PaymentFileIntegrityValidator {
-  private static final String XSD = "/banking/iso20022/pain.001.001.09.xsd";
+  private static final String XSD = "/banking/iso20022/pain.001.001.09_SEBv2.xsd";
   private static final int NAME_MAX_LENGTH = 70;
   private static final int ID_MAX_LENGTH = 35;
   private static final int DESCRIPTION_MAX_LENGTH = 140;

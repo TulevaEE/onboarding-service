@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL;
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TRACKING_DIFFERENCE_SEPTEMBER_NAV_CORRECTION_BACKFILL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceJob {
 
   static final int GAP_LOOKBACK_DAYS = 30;
-  static final int DAYS_BACK_TO_BEFORE_THE_SEPTEMBER_NAV_CORRECTION = 30;
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
@@ -71,19 +69,7 @@ class TrackingDifferenceJob {
 
   @EventListener
   void onTrackingDifferenceBackfillRequested(RunTrackingDifferenceBackfillRequested event) {
-    backfill(event.daysBack());
-  }
-
-  @Scheduled(cron = TRACKING_DIFFERENCE_SEPTEMBER_NAV_CORRECTION_BACKFILL, zone = TIMEZONE)
-  @SchedulerLock(
-      name = "TrackingDifferenceSeptemberNavCorrectionBackfill",
-      lockAtMostFor = "2h",
-      lockAtLeastFor = "5m")
-  void backfillAfterTheSeptemberNavCorrection() {
-    backfill(DAYS_BACK_TO_BEFORE_THE_SEPTEMBER_NAV_CORRECTION);
-  }
-
-  private void backfill(int daysBack) {
+    var daysBack = event.daysBack();
     log.info("Starting tracking difference backfill: daysBack={}", daysBack);
 
     try {

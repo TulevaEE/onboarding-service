@@ -22,5 +22,7 @@ public final class JobRunSchedule {
 
   public static final String RISK_INDICATOR_DAILY = "0 30 9 * * MON-FRI";
 
+  public static final String CASH_BUFFER_REVIEW_BEFORE_THE_MORNING_IMPORTS = "0 30 7 1-14 * *";
+
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
 }

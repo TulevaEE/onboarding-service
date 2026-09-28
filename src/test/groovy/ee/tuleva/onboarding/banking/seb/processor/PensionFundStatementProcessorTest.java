@@ -1,15 +1,18 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -18,7 +21,6 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,7 +44,7 @@ class PensionFundStatementProcessorTest {
 
   @Mock private PensionFundEntryClassifier classifier;
   @Mock private FundBankLedger fundBankLedger;
-  @Mock private OperationsNotificationService notificationService;
+  @Mock private PaymentCheckService paymentCheckService;
 
   @InjectMocks private PensionFundStatementProcessor processor;
 
@@ -158,11 +160,12 @@ class PensionFundStatementProcessorTest {
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(
                     "Mystery OU", "EE001234567890123499", "selgituseta", "OTHR")));
-    verifyNoInteractions(notificationService);
+    verifyNoInteractions(paymentCheckService);
   }
 
   @Test
-  void managementCompanyCreditNotStatedAsARebate_landsInSuspenseAndAsksAPersonToBookIt() {
+  void
+      managementCompanyCreditNotStatedAsARebate_landsInSuspenseAndIsRecordedAsAFindingToBookByHand() {
     var entry =
         entryWithCounterparty(
             new BigDecimal("100.00"),
@@ -185,7 +188,14 @@ class PensionFundStatementProcessorTest {
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(
                     "Tuleva Fondid AS", "EE001234567890123488", "muu ülekanne", "RCDT")));
-    verify(notificationService).sendMessage(any(), eq(INVESTMENT));
+    var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
+    verify(paymentCheckService)
+        .record(
+            UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
+            WARNING,
+            externalReference.toString(),
+            "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=TUK75, amount=100.00, bookingDate=2025-10-01, externalReference="
+                + externalReference);
   }
 
   @Test

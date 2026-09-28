@@ -85,24 +85,22 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(tampered, request);
 
-    assertThat(violations).contains(mismatch("currency"));
+    assertThat(violations).containsExactly(mismatch("currency"));
   }
 
   @Test
-  void detectsUnstructuredAddress() {
+  void reportsEveryViolationWhenTheSchemaAlsoFails() {
     var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
-    var withAddress =
+    var tampered =
         generate(request)
-            .replace(
-                "<Nm>John Doe</Nm>",
-                "<Nm>John Doe</Nm><PstlAdr><AdrLine>Some street 1, Tallinn</AdrLine></PstlAdr>");
+            .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>NOPE</PmtMtd>")
+            .replace(BENEFICIARY_IBAN, "EE333333333333333333");
 
-    var violations = validator.validate(withAddress, request);
+    var violations = validator.validate(tampered, request);
 
     assertThat(violations)
         .containsExactly(
-            new PaymentIntegrityViolation(XSD_SCHEMA, "document"),
-            new PaymentIntegrityViolation(UNSTRUCTURED_ADDRESS, "address"));
+            new PaymentIntegrityViolation(XSD_SCHEMA, "document"), mismatch("beneficiaryIban"));
   }
 
   @Test
@@ -193,14 +191,11 @@ class PaymentFileIntegrityValidatorTest {
   @Test
   void detectsMoreThanOneTransaction() {
     var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
-    var xml = generate(request);
-    var transaction =
-        xml.substring(xml.indexOf("<CdtTrfTxInf>"), xml.indexOf("</CdtTrfTxInf>") + 14);
-    var duplicated = xml.replace(transaction, transaction + transaction);
+    var duplicated = generate(request).replaceAll("(?s)<CdtTrfTxInf>.*?</CdtTrfTxInf>", "$0$0");
 
     var violations = validator.validate(duplicated, request);
 
-    assertThat(violations).contains(mismatch("transactionCount"));
+    assertThat(violations).containsExactly(mismatch("transactionCount"));
   }
 
   @Test

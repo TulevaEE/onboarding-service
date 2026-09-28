@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
@@ -41,8 +42,11 @@ class PaymentApprovalBriefServiceTest {
   private static final String IBAN = "EE222222222222222222";
   private static final UUID BATCH = UUID.fromString("11111111-1111-1111-1111-111111111111");
   private static final UUID OTHER_BATCH = UUID.fromString("22222222-2222-2222-2222-222222222222");
+  private static final String FUND_IBAN = "EE444444444444444444";
   private static final BankAccount ACCOUNT =
       new BankAccount(IBAN, WITHDRAWAL_EUR, TKF100, "gateway-client");
+  private static final BankAccount FUND_ACCOUNT =
+      new BankAccount(FUND_IBAN, FUND_INVESTMENT_EUR, TKF100, "gateway-client");
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
   @Mock BankAccounts bankAccounts;
@@ -115,6 +119,71 @@ class PaymentApprovalBriefServiceTest {
         .singleElement()
         .satisfies(account -> assertThat(account.goesNegative()).isTrue());
     assertThat(brief.attention()).isTrue();
+  }
+
+  // The withdrawal account sits at zero until the fund account's transfer lands, and that transfer
+  // is on the same brief. Leaving it out would call the account negative on every redemption day.
+  @Test
+  void theTransferIntoAnAccountOnTheSameBriefFundsItsPayouts() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "250.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "150.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), STATEMENT_TIME));
+              assertThat(account.goesNegative()).isFalse();
+            });
+    assertThat(brief.attention()).isFalse();
+  }
+
+  @Test
+  void payoutsLargerThanTheTransferIntoTheAccountStillGoNegative() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+    givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(new ProjectedBalance(new BigDecimal("-100.00"), STATEMENT_TIME));
+              assertThat(account.goesNegative()).isTrue();
+            });
+  }
+
+  // An executed transfer is already in the processed statement's balance, so adding it again would
+  // hide a shortfall behind money counted twice.
+  @Test
+  void aTransferAlreadyExecutedIsInTheBalanceAndIsNotAddedAgain() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME)));
+    givenPayments(transfer(EXECUTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
   }
 
   // In flight means the call never returned a verdict: the payment may or may not have reached the
@@ -347,6 +416,7 @@ class PaymentApprovalBriefServiceTest {
 
   private void givenAccountResolves() {
     lenient().when(bankAccounts.find(IBAN)).thenReturn(Optional.of(ACCOUNT));
+    lenient().when(bankAccounts.find(FUND_IBAN)).thenReturn(Optional.of(FUND_ACCOUNT));
     lenient().when(bookedBalanceReader.latest(any())).thenReturn(Optional.empty());
   }
 
@@ -410,6 +480,15 @@ class PaymentApprovalBriefServiceTest {
       Instant attemptedAt,
       UUID batchId) {
     return builder(status, type, amount, attemptedAt).batchId(batchId).build();
+  }
+
+  private static OutgoingPayment transfer(
+      OutgoingPaymentStatus status, String amount, UUID batchId) {
+    return builder(status, REDEMPTION_TRANSFER, amount, TODAY_AFTERNOON)
+        .remitterIban(FUND_IBAN)
+        .beneficiaryIban(IBAN)
+        .batchId(batchId)
+        .build();
   }
 
   private static OutgoingPayment.OutgoingPaymentBuilder builder(

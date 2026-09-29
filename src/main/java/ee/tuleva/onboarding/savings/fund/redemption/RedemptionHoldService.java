@@ -89,8 +89,10 @@ public class RedemptionHoldService {
   public void release(UUID id, String by, String reason) {
     var releasedFrom = transactionTemplate.execute(tx -> recordRelease(id, by, reason));
     notifier.notifyReleased(id);
-    if (releasedFrom == PAYOUT_HELD) {
-      payoutService.payOutHeld(id);
+    if (releasedFrom == PAYOUT_HELD
+        && payoutService.payOutHeld(id) == RedemptionPayoutService.Outcome.FAILED_TO_SEND) {
+      throw new IllegalStateException(
+          "Redemption released but its payout could not be sent, retry it: id=" + id);
     }
   }
 

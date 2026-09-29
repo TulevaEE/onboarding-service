@@ -95,8 +95,7 @@ public class RedemptionVerificationService {
       redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       return;
     }
-    request.setVerificationAttemptedAt(Instant.now(clock));
-    redemptionRequestRepository.save(request);
+    redemptionRequestRepository.markVerificationAttempted(request.getId(), Instant.now(clock));
     log.info(
         "Screening unavailable, retrying until deadline: id={}, party={}, deadline={}",
         request.getId(),

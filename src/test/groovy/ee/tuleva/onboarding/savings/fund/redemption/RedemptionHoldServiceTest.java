@@ -337,6 +337,24 @@ class RedemptionHoldServiceTest {
   }
 
   @Test
+  void release_reportsFailureWhenTheReleasedPayoutCouldNotBeSent() {
+    runTransactionsInline();
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(PAYOUT_HELD)
+            .holdReasons(Set.of(PEP))
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(payoutService.payOutHeld(requestId))
+        .willReturn(RedemptionPayoutService.Outcome.FAILED_TO_SEND);
+
+    assertThatThrownBy(() -> service.release(requestId, "AML Specialist", "confirmed"))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void release_rejectsVerifiedRequestWithoutAnActiveHold() {
     runTransactionsInline();
     var requestId = UUID.randomUUID();

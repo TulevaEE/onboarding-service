@@ -59,6 +59,21 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """)
   int markHoldNotified(@Param("id") UUID id, @Param("notifiedAt") Instant notifiedAt);
 
+  @Modifying
+  @Transactional
+  @Query(
+      """
+      UPDATE RedemptionRequest r
+         SET r.verificationAttemptedAt = :attemptedAt
+       WHERE r.id = :id
+      """)
+  int markVerificationAttempted(@Param("id") UUID id, @Param("attemptedAt") Instant attemptedAt);
+
+  @Modifying
+  @Transactional
+  @Query("UPDATE RedemptionRequest r SET r.errorReason = :errorReason WHERE r.id = :id")
+  int markErrorReason(@Param("id") UUID id, @Param("errorReason") String errorReason);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT r FROM RedemptionRequest r WHERE r.id = :id")
   Optional<RedemptionRequest> findByIdForUpdate(UUID id);

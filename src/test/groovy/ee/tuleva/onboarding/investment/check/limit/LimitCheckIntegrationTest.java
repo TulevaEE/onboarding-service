@@ -128,9 +128,19 @@ class LimitCheckIntegrationTest {
 
     // -- Free cash check (AppScript: cash + liabilities - reserve_soft) --
     // 25_000 + (-3_000) - 5_000 = 17_000. 17_000 > max 10_000 → HARD
-    assertThat(tuk75.freeCashBreach()).isNotNull();
-    assertThat(tuk75.freeCashBreach().severity()).isEqualTo(HARD);
-    assertThat(tuk75.freeCashBreach().freeCash()).isEqualByComparingTo(new BigDecimal("17000"));
+    assertThat(tuk75.freeCashBreach())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new FreeCashBreach(
+                TUK75,
+                new BigDecimal("17000"),
+                new BigDecimal("10000"),
+                HARD,
+                new BigDecimal("25000"),
+                new BigDecimal("-3000"),
+                BigDecimal.ZERO,
+                new BigDecimal("5000")));
   }
 
   @Test

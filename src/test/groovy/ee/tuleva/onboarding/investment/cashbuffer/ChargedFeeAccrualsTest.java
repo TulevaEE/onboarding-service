@@ -68,6 +68,28 @@ class ChargedFeeAccrualsTest {
     assertThat(chargedFeeAccruals.accruedDuring(TUK75, SEPTEMBER)).isEmpty();
   }
 
+  @Test
+  void aMonthWithAChargedDayNotYetAccruedIsMissingRatherThanShort() {
+    daily(MANAGEMENT, SEPTEMBER, "100.00");
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM investment_fee_accrual
+            WHERE fee_type = 'MANAGEMENT' AND accrual_date = DATE '2026-09-30'
+            """)
+        .update();
+
+    assertThat(chargedFeeAccruals.accruedDuring(TUK75, SEPTEMBER)).isEmpty();
+  }
+
+  @Test
+  void aFeeTheFundIsNotChargedForNeedsNoAccrualRows() {
+    daily(MANAGEMENT, SEPTEMBER, "100.00");
+
+    assertThat(chargedFeeAccruals.accruedDuring(TUK75, SEPTEMBER))
+        .hasValueSatisfying(total -> assertThat(total).isEqualByComparingTo("3000.00"));
+  }
+
   private void daily(FeeType feeType, YearMonth month, String amount) {
     Stream.iterate(
             month.atDay(1), day -> !day.isAfter(month.atEndOfMonth()), day -> day.plusDays(1))

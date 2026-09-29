@@ -17,4 +17,14 @@ record ConfiguredReserve(
     return Optional.of(
         new ConfiguredReserve(limit.getEffectiveDate(), reserveSoft, limit.getReserveHard()));
   }
+
+  boolean hasTheSameSoftLimitAs(ConfiguredReserve other) {
+    return reserveSoft.compareTo(other.reserveSoft) == 0;
+  }
+
+  boolean hasTheSameHardLimitAs(ConfiguredReserve other) {
+    return reserveHard != null
+        && other.reserveHard != null
+        && reserveHard.compareTo(other.reserveHard) == 0;
+  }
 }

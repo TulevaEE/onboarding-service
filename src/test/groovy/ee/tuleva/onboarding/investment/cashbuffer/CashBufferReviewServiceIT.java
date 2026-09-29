@@ -74,6 +74,7 @@ class CashBufferReviewServiceIT {
   private static final String FUND_SWITCH = "Vahetamise osakute lunastamine";
   private static final String SYNTHETIC_UNKNOWN_REASON = "Synthetic payout reason nobody mapped";
   private static final String SYNTHETIC_CONTRIBUTION = "Synthetic registrar contribution";
+  private static final String SYNTHETIC_PERSONAL_CODE = "38888888888";
 
   @TestConfiguration
   @ComponentScan(
@@ -98,25 +99,8 @@ class CashBufferReviewServiceIT {
 
   @Test
   void recommendsBothLimitsFromTheLedgerAndCountsTheMonthsEachHasDriftedFromItsLimit() {
-    fundBankLedger.recordOpeningBalance(TUK75, new BigDecimal("1000.00"), LocalDate.of(2026, 7, 1));
-    contribution("900000.00", LocalDate.of(2026, 7, 10));
-    payout("10000.00", LocalDate.of(2026, 7, 15), RECURRING);
-    payout("20000.00", LocalDate.of(2026, 7, 20), ONE_OFF);
-    payout("500000.00", LocalDate.of(2026, 7, 31), FUND_SWITCH);
-    contribution("800000.00", LocalDate.of(2026, 8, 10));
-    payout("12000.00", LocalDate.of(2026, 8, 17), RECURRING);
-    payout("60000.00", LocalDate.of(2026, 8, 21), INHERITANCE);
-    payout("5000.00", LocalDate.of(2026, 8, 24), SYNTHETIC_UNKNOWN_REASON);
-    contribution("1000000.00", LocalDate.of(2026, 10, 12));
-    payout("11000.00", LocalDate.of(2026, 10, 15), RECURRING);
-    payout("4000.00", LocalDate.of(2026, 10, 16), ONE_OFF);
-    parameter(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, TUK75, "2");
-    parameter(CASH_BUFFER_INFLOW_CREDIT, TUK75, "0.1");
+    julyThroughOctoberOnTheLedgerWithTheirFees();
     fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "77000.00");
-    dailyAccruals(TUK75, MANAGEMENT, SEPTEMBER, "100.00");
-    dailyAccruals(TUK75, DEPOT, SEPTEMBER, "10.00");
-    dailyAccruals(TUK75, MANAGEMENT, OCTOBER, "100.00");
-    dailyAccruals(TUK75, DEPOT, OCTOBER, "10.00");
 
     service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
     var outcomes = service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
@@ -170,6 +154,67 @@ class CashBufferReviewServiceIT {
     verify(notificationService, times(2)).sendMessage(anyString(), eq(INVESTMENT), eq(ERROR));
   }
 
+  @Test
+  void theHardLimitsRunCarriesFromOneStoredMonthToTheNextLikeTheSoftOnes() {
+    julyThroughOctoberOnTheLedgerWithTheirFees();
+    fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "200000.00");
+
+    service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+    service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
+
+    var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
+    assertThat(october.hardDrift())
+        .isNotNull()
+        .satisfies(
+            hardDrift -> {
+              assertThat(hardDrift.divergence()).isEqualByComparingTo("-168400.00");
+              assertThat(hardDrift.consecutiveRuns()).isEqualTo(2);
+              assertThat(hardDrift.sustained()).isTrue();
+            });
+  }
+
+  @Test
+  void aNewlyEnteredLimitStartsItsRunAgainWhileTheLimitLeftAsItWasKeepsCounting() {
+    julyThroughOctoberOnTheLedgerWithTheirFees();
+    fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "200000.00");
+    fundLimit(TUK75, LocalDate.of(2026, 10, 15), "131000.00", "210000.00");
+
+    service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+    service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
+
+    var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
+    assertThat(october.softDrift().consecutiveRuns()).isEqualTo(2);
+    assertThat(october.hardDrift())
+        .isNotNull()
+        .satisfies(
+            hardDrift -> {
+              assertThat(hardDrift.divergence()).isEqualByComparingTo("-178400.00");
+              assertThat(hardDrift.consecutiveRuns()).isEqualTo(1);
+              assertThat(hardDrift.sustained()).isFalse();
+            });
+  }
+
+  private void julyThroughOctoberOnTheLedgerWithTheirFees() {
+    fundBankLedger.recordOpeningBalance(TUK75, new BigDecimal("1000.00"), LocalDate.of(2026, 7, 1));
+    contribution("900000.00", LocalDate.of(2026, 7, 10));
+    payout("10000.00", LocalDate.of(2026, 7, 15), RECURRING);
+    payout("20000.00", LocalDate.of(2026, 7, 20), ONE_OFF);
+    payout("500000.00", LocalDate.of(2026, 7, 31), FUND_SWITCH);
+    contribution("800000.00", LocalDate.of(2026, 8, 10));
+    payout("12000.00", LocalDate.of(2026, 8, 17), RECURRING);
+    payout("60000.00", LocalDate.of(2026, 8, 21), INHERITANCE);
+    payout("5000.00", LocalDate.of(2026, 8, 24), SYNTHETIC_UNKNOWN_REASON);
+    contribution("1000000.00", LocalDate.of(2026, 10, 12));
+    payout("11000.00", LocalDate.of(2026, 10, 15), RECURRING);
+    payout("4000.00", LocalDate.of(2026, 10, 16), ONE_OFF);
+    parameter(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, TUK75, "2");
+    parameter(CASH_BUFFER_INFLOW_CREDIT, TUK75, "0.1");
+    dailyAccruals(TUK75, MANAGEMENT, SEPTEMBER, "100.00");
+    dailyAccruals(TUK75, DEPOT, SEPTEMBER, "10.00");
+    dailyAccruals(TUK75, MANAGEMENT, OCTOBER, "100.00");
+    dailyAccruals(TUK75, DEPOT, OCTOBER, "10.00");
+  }
+
   private void contribution(String amount, LocalDate bookingDate) {
     fundBankLedger.recordRegistrarContribution(
         TUK75, new BigDecimal(amount), randomUUID(), bookingDate, SYNTHETIC_CONTRIBUTION);
@@ -177,7 +222,11 @@ class CashBufferReviewServiceIT {
 
   private void payout(String amount, LocalDate bookingDate, String remittance) {
     fundBankLedger.recordRegistrarPayout(
-        TUK75, new BigDecimal(amount).negate(), randomUUID(), bookingDate, remittance);
+        TUK75,
+        new BigDecimal(amount).negate(),
+        randomUUID(),
+        bookingDate,
+        SYNTHETIC_PERSONAL_CODE + ", " + remittance);
   }
 
   private void parameter(InvestmentParameter parameter, TulevaFund fund, String value) {

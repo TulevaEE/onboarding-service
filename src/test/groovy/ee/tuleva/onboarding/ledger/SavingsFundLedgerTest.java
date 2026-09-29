@@ -592,7 +592,7 @@ class SavingsFundLedgerTest {
             () ->
                 savingsFundLedger.reserveFundUnitsForRedemption(
                     testParty, new BigDecimal("150.00000"), randomUUID()))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(UnitBalanceViolationException.class);
     assertThat(getUserUnitsAccount().getBalance())
         .isEqualByComparingTo(new BigDecimal("-100.00000"));
   }

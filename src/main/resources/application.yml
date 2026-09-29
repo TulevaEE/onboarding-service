@@ -323,6 +323,10 @@ administration:
   portfolio:
     key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
     secret: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
+
+ledger:
+  unit-balance-guard:
+    enforce: true
 ---
 spring:
   config:

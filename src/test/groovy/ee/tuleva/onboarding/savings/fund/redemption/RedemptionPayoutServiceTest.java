@@ -52,6 +52,8 @@ class RedemptionPayoutServiceTest {
   private static final Instant NOW = Instant.parse("2025-01-15T15:00:00Z");
   private static final String CUSTOMER_IBAN = "EE123456789012345678";
 
+  private static final UUID FUNDING_BATCH = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -91,7 +93,7 @@ class RedemptionPayoutServiceTest {
   }
 
   @Test
-  void payOutHeld_claimsThePayoutBeforeSendingThePayment() {
+  void payOutHeld_claimsThePayoutAndSendsItUnderTheBatchThatFundedIt() {
     var user = sampleUser().build();
     var party = new PartyId(PERSON, user.getPersonalCode());
     var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
@@ -117,7 +119,7 @@ class RedemptionPayoutServiceTest {
     inOrder.verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     inOrder
         .verify(eventPublisher)
-        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT, null));
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT, FUNDING_BATCH));
     assertThat(request.getProcessedAt()).isEqualTo(NOW);
   }
 
@@ -268,6 +270,7 @@ class RedemptionPayoutServiceTest {
         .holdReasons(Set.of(PEP))
         .holdReleasedAt(NOW)
         .reviewedAt(NOW)
+        .batchId(FUNDING_BATCH)
         .build();
   }
 }

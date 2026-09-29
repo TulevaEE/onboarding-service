@@ -77,12 +77,12 @@ class RedemptionPayoutService {
   Outcome payOutHeld(UUID requestId) {
     RedemptionRequest claimed =
         requireNonNull(transactionTemplate.execute(tx -> claimHeldPayout(requestId)));
-    return send(claimed, null);
+    return send(claimed, claimed.getBatchId());
   }
 
   void payOutOnRetry(RedemptionRequest request) {
     markAsRedeemed(request.getId());
-    sendPayout(request, null);
+    sendPayout(request, request.getBatchId());
   }
 
   private Outcome send(RedemptionRequest claimed, @Nullable UUID batchId) {

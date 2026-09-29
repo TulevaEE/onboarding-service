@@ -158,7 +158,9 @@ public class RedemptionBatchJob {
       return;
     }
 
-    UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
+    List<UUID> pricedIds = priced.stream().map(RedemptionRequest::getId).toList();
+    UUID batchId = BatchId.of("redemption", pricedIds);
+    redemptionRequestRepository.assignBatch(pricedIds, batchId);
     transferFromFundAccount(totalCashAmount, batchId);
     PayoutResult result = processIndividualPayouts(priced, batchId);
     eventPublisher.publishEvent(

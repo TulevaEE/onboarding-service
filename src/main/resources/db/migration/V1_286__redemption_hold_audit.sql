@@ -4,6 +4,9 @@ ALTER TABLE redemption_request ADD COLUMN held_by TEXT;
 ALTER TABLE redemption_request ADD COLUMN hold_notified_at TIMESTAMPTZ;
 ALTER TABLE redemption_request ADD COLUMN hold_released_at TIMESTAMPTZ;
 ALTER TABLE redemption_request ADD COLUMN requeued_at TIMESTAMPTZ;
+ALTER TABLE redemption_request ADD COLUMN batch_id UUID;
+
+CREATE INDEX idx_redemption_request_batch_id ON redemption_request (batch_id);
 
 CREATE TABLE redemption_hold_reason (
     redemption_request_id UUID NOT NULL,

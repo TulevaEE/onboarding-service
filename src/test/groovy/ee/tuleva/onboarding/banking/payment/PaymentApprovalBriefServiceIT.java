@@ -56,6 +56,7 @@ class PaymentApprovalBriefServiceIT {
   @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
   @Autowired JdbcClient jdbcClient;
   @MockitoBean BankAccounts bankAccounts;
+  @MockitoBean HeldPayouts heldPayouts;
 
   @BeforeEach
   void depositAccountIsOurs() {

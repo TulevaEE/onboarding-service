@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -73,6 +74,20 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
   @Transactional
   @Query("UPDATE RedemptionRequest r SET r.errorReason = :errorReason WHERE r.id = :id")
   int markErrorReason(@Param("id") UUID id, @Param("errorReason") String errorReason);
+
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Transactional
+  @Query("UPDATE RedemptionRequest r SET r.batchId = :batchId WHERE r.id IN :ids")
+  int assignBatch(@Param("ids") Collection<UUID> ids, @Param("batchId") UUID batchId);
+
+  @Query(
+      """
+      SELECT COALESCE(SUM(r.cashAmount), 0)
+        FROM RedemptionRequest r
+       WHERE r.batchId = :batchId
+         AND r.status = :status
+      """)
+  BigDecimal sumCashAmount(@Param("batchId") UUID batchId, @Param("status") Status status);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT r FROM RedemptionRequest r WHERE r.id = :id")

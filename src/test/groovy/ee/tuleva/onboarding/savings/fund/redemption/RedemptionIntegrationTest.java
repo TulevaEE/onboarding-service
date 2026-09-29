@@ -29,6 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief;
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalBriefService;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.company.Company;
@@ -55,6 +57,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -87,6 +90,7 @@ class RedemptionIntegrationTest {
   @Autowired RedemptionRequestRepository redemptionRequestRepository;
   @Autowired RedemptionBatchJob redemptionBatchJob;
   @Autowired RedemptionHoldService redemptionHoldService;
+  @Autowired PaymentApprovalBriefService paymentApprovalBriefService;
   @Autowired RedemptionPayoutRecorder redemptionPayoutRecorder;
   @Autowired EndToEndIdConverter endToEndIdConverter;
   @Autowired SavingsFundLedger savingsFundLedger;
@@ -840,6 +844,14 @@ class RedemptionIntegrationTest {
                 .filter(e -> requestId.equals(e.sourceId())))
         .isEmpty();
     verify(sebGatewayClient, times(1)).submitPaymentFile(any(), any(), any());
+    var fundingBatch = held.getBatchId();
+    assertThat(fundingBatch).isNotNull();
+    assertThat(briefVerdictsOn(tuesday))
+        .contains(
+            batchTie(
+                "payouts + held == transfer to withdrawal account",
+                fundingBatch,
+                "0.00 + 25.00 held = 25.00"));
 
     redemptionHoldService.release(requestId, "AML Specialist", "Source of funds confirmed");
 
@@ -856,6 +868,21 @@ class RedemptionIntegrationTest {
     assertThat(payoutEvent.paymentRequest().amount()).isEqualByComparingTo(redemptionAmount);
     assertThat(payoutEvent.paymentRequest().beneficiaryIban()).isEqualTo(VALID_IBAN);
     verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any(), any());
+    assertThat(payoutEvent.batchId()).isEqualTo(fundingBatch);
+    assertThat(briefVerdictsOn(tuesday))
+        .contains(
+            batchTie("payouts == transfer to withdrawal account", fundingBatch, "25.00 = 25.00"));
+  }
+
+  private List<PaymentApprovalBrief.Verdict> briefVerdictsOn(Instant instant) {
+    return paymentApprovalBriefService
+        .build(LocalDate.ofInstant(instant, ZoneId.of("Europe/Tallinn")), List.of())
+        .verdicts();
+  }
+
+  private static PaymentApprovalBrief.Verdict batchTie(String label, UUID batchId, String detail) {
+    return new PaymentApprovalBrief.Verdict(
+        "%s (batch %s)".formatted(label, batchId.toString().substring(0, 8)), true, detail);
   }
 
   @Test

@@ -118,6 +118,22 @@ class DualMemberOwnershipScreenerTest {
   }
 
   @Test
+  void twoBoardMembersWhereOnlyTheNonShareholderIsABeneficialOwnerPasses() {
+    var soleOwnerNotRegisteredAsBeneficialOwner =
+        boardMemberOwner("38501010001", 100.0).beneficialOwner(false).build();
+    var directorRegisteredAsBeneficialOwner =
+        boardMemberOnly("38888888888").beneficialOwner(true).build();
+    var data =
+        companyWith(soleOwnerNotRegisteredAsBeneficialOwner, directorRegisteredAsBeneficialOwner);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, true));
+  }
+
+  @Test
   void totalOwnershipIsStoredAsCanonicalStringForStableJsonRoundTrip() {
     // totalOwnership must be a String, not a BigDecimal. The AmlCheck.metadata jsonb column
     // deserializes JSON numbers as Double/Integer, so a BigDecimal value never equals its reloaded

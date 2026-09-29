@@ -166,6 +166,23 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
+  void aLeaverInTheRegistryIsNotInvitedToOpenASecondPillar() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true));
+    given(leaverStatus.hasLeft(any())).willReturn(true);
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void someoneWithoutASecondPillarWhoNeverLeftIsInvitedToOpenOne() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true));
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
+  }
+
+  @Test
   void aFailedRecurringLookupNeverTurnsTheRecurringNudgeOn() {
     given(recurringStatus.thirdPillar(member.getPersonalCode()))
         .willThrow(new IllegalStateException("warehouse down"));

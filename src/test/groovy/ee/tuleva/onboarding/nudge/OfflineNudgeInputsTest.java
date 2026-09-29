@@ -84,14 +84,14 @@ class OfflineNudgeInputsTest {
   }
 
   @Test
-  void aPersonMissingFromTheRegistryHasNoPensionAccountAndCanStillBeInvitedToOpenASecondPillar() {
+  void aPayerTheRegistryHasNotCaughtUpWithHasAnUnknownLeaverStatus() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode())).willReturn(Optional.empty());
 
     NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
     assertThat(inputs.secondPillarActive()).isFalse();
     assertThat(inputs.thirdPillarActive()).isFalse();
-    assertThat(inputs.leftSecondPillar()).isEqualTo(Known.NO);
+    assertThat(inputs.leftSecondPillar()).isEqualTo(Known.UNKNOWN);
     assertThat(inputs.canIncreasePaymentRate()).isFalse();
   }
 

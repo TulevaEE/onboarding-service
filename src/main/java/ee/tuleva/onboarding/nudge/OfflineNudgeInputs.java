@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -12,10 +13,8 @@ class OfflineNudgeInputs {
   private final PaymentRateSeasons paymentRateSeasons;
 
   NudgeInputs assemble(OfflineSaver saver, NudgeContext context) {
-    PensionRegistrySnapshot registry =
-        pensionRegistry
-            .snapshotFor(saver.personalCode())
-            .orElse(PensionRegistrySnapshot.UNKNOWN_PERSON);
+    Optional<PensionRegistrySnapshot> snapshot = pensionRegistry.snapshotFor(saver.personalCode());
+    PensionRegistrySnapshot registry = snapshot.orElse(PensionRegistrySnapshot.UNKNOWN_PERSON);
     boolean thirdPillarActive = registry.thirdPillarActive() || context.impliesThirdPillar();
     NudgeAccount self = saver.account();
     Known savingsFundRecurring = lookups.savingsFundRecurring(self);
@@ -35,7 +34,8 @@ class OfflineNudgeInputs {
         .canIncreasePaymentRate(registry.canIncreasePaymentRate())
         .pendingSecondPillarTransfer(false)
         .pendingSecondPillarWithdrawal(false)
-        .leftSecondPillar(Known.of(registry.leftSecondPillar()))
+        .leftSecondPillar(
+            snapshot.map(found -> Known.of(found.leftSecondPillar())).orElse(Known.UNKNOWN))
         .thirdPillarRecurring(
             thirdPillarActive ? lookups.thirdPillarRecurring(saver.personalCode()) : Known.NO)
         .savingsFundRecurring(savingsFundRecurring)

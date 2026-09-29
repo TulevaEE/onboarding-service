@@ -37,7 +37,7 @@ public class ContactDetails implements Person {
   private String activeSecondPillarFundPik;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
-  private Instant secondPillarOpenDate;
+  @Nullable private Instant secondPillarOpenDate;
   private Instant thirdPillarInitDate;
   @Nullable private PaymentRates secondPillarPaymentRates;
 

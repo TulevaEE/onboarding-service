@@ -8,7 +8,7 @@
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           *|IF:selectedTulevaFund|*Kogud nüüd oma II&nbsp;sambasse koos minu ja teiste Tuleva
-          liikmetega.*|ELSE:|*Sinu II&nbsp;samba avaldus on esitatud.*|END:IF|*
+          kogujatega.*|ELSE:|*Sinu II&nbsp;samba avaldus on esitatud.*|END:IF|*
         </mj-text>
         <mj-raw>*|IF:hasFundSelection|*</mj-raw>
         <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
@@ -28,7 +28,7 @@
         <mj-text>
           Pane tähele: valisid fondi, mille jooksvad tasud on
           <strong>*|selectedFundFee|*% aastas</strong>. Madalad tasud
-          annavad parimad eeldused parimaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
+          annavad parimad eeldused heaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
           <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pensionifondide võrdluses</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
@@ -42,13 +42,13 @@
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
-        <mj-include path="./partials/suggest_chain_open_et.mjml" />
-        <mj-raw>*|END:IF|*</mj-raw>
-
         <mj-text>
           Käesolevale kirjale on lisatud koopia sinu tehtud avaldustest, mis on saadetud
           Pensionikeskusesse.
         </mj-text>
+
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
 

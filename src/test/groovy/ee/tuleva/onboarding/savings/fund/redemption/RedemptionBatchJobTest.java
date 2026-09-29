@@ -15,6 +15,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -503,9 +504,7 @@ class RedemptionBatchJobTest {
 
     batchJob.runJob();
 
-    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
-    verify(redemptionRequestRepository).save(captor.capture());
-    assertThat(captor.getValue().getErrorReason()).contains("Test error");
+    verify(redemptionRequestRepository).markErrorReason(eq(requestId), contains("Test error"));
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
 

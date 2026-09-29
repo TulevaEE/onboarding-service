@@ -17,7 +17,6 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -167,8 +166,8 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_NOON).process(request);
 
-    assertThat(request.getVerificationAttemptedAt()).isEqualTo(FRIDAY_NOON);
-    verify(redemptionRequestRepository).save(request);
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verify(redemptionRequestRepository, never()).save(any());
     verifyNoInteractions(holdService, redemptionStatusService, riskLevels);
   }
 
@@ -363,7 +362,8 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_NOON).process(request);
 
-    assertThat(request.getVerificationAttemptedAt()).isEqualTo(FRIDAY_NOON);
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verify(redemptionRequestRepository, never()).save(any());
     verifyNoInteractions(holdService, redemptionStatusService);
   }
 

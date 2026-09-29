@@ -197,9 +197,8 @@ class RedemptionPayoutService {
 
   void markAsFailed(UUID requestId, Exception e) {
     try {
+      redemptionRequestRepository.markErrorReason(requestId, e.toString());
       RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
-      request.setErrorReason(e.toString());
-      redemptionRequestRepository.save(request);
       if (request.getStatus() != FAILED) {
         redemptionStatusService.changeStatus(requestId, FAILED);
       }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.MANUAL;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.CANCELLED;
@@ -179,6 +180,45 @@ class RedemptionRequestRepositoryTest {
     entityManager.clear();
     assertThat(repository.findById(request.getId()).orElseThrow().getHoldNotifiedAt())
         .isEqualTo(CUTOFF);
+  }
+
+  @Test
+  void markingAVerificationAttemptKeepsAHoldRecordedSinceTheRequestWasRead() {
+    var request =
+        repository.save(redemptionRequestFixture().userId(userId).status(RESERVED).build());
+    holdSince(request, FROZEN, SANCTION);
+
+    assertThat(repository.markVerificationAttempted(request.getId(), CUTOFF)).isEqualTo(1);
+
+    entityManager.clear();
+    var stored = repository.findById(request.getId()).orElseThrow();
+    assertThat(stored.getVerificationAttemptedAt()).isEqualTo(CUTOFF);
+    assertThat(stored.getStatus()).isEqualTo(FROZEN);
+    assertThat(stored.getHoldReasons()).containsExactly(SANCTION);
+  }
+
+  @Test
+  void markingAnErrorReasonKeepsAHoldRecordedSinceTheRequestWasRead() {
+    var request =
+        repository.save(redemptionRequestFixture().userId(userId).status(VERIFIED).build());
+    holdSince(request, PAYOUT_HELD, MANUAL);
+
+    assertThat(repository.markErrorReason(request.getId(), "bank down")).isEqualTo(1);
+
+    entityManager.clear();
+    var stored = repository.findById(request.getId()).orElseThrow();
+    assertThat(stored.getErrorReason()).isEqualTo("bank down");
+    assertThat(stored.getStatus()).isEqualTo(PAYOUT_HELD);
+    assertThat(stored.getHoldReasons()).containsExactly(MANUAL);
+  }
+
+  private void holdSince(
+      RedemptionRequest request, RedemptionRequest.Status status, RedemptionHoldReason reason) {
+    var current = repository.findById(request.getId()).orElseThrow();
+    current.setStatus(status);
+    current.setHoldReasons(Set.of(reason));
+    entityManager.flush();
+    entityManager.clear();
   }
 
   @Test

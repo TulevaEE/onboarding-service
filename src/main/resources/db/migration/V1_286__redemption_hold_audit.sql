@@ -25,9 +25,18 @@ SELECT id, CASE WHEN hold_reason = 'SCREENING_MATCH' THEN 'SANCTION' ELSE hold_r
 -- this the migrated reason reads as an active hold again, so an approved payout would be held a
 -- second time and an approved FAILED request could be neither retried nor released.
 UPDATE redemption_request
+   SET hold_released_at = reviewed_at,
+       requeued_at = reviewed_at
+ WHERE reviewed_at IS NOT NULL
+   AND hold_reason IS NOT NULL
+   AND status = 'VERIFIED'
+   AND cash_amount IS NULL;
+
+UPDATE redemption_request
    SET hold_released_at = reviewed_at
  WHERE reviewed_at IS NOT NULL
-   AND hold_reason IS NOT NULL;
+   AND hold_reason IS NOT NULL
+   AND hold_released_at IS NULL;
 
 ALTER TABLE redemption_request DROP COLUMN hold_reason;
 

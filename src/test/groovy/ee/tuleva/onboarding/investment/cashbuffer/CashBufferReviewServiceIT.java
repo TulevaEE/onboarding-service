@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.cashbuffer;
 
-import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.MISSING_PARAMETERS;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_FLOOR;
+import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_RESERVE_CONFIGURED;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_CREDIT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
@@ -97,7 +97,7 @@ class CashBufferReviewServiceIT {
   @Autowired private CashBufferReviewService service;
 
   @Test
-  void recommendsTheOperatingBufferFromTheLedgerAndCountsTheMonthsItHasDriftedFromTheLimit() {
+  void recommendsBothLimitsFromTheLedgerAndCountsTheMonthsEachHasDriftedFromItsLimit() {
     fundBankLedger.recordOpeningBalance(TUK75, new BigDecimal("1000.00"), LocalDate.of(2026, 7, 1));
     contribution("900000.00", LocalDate.of(2026, 7, 10));
     payout("10000.00", LocalDate.of(2026, 7, 15), RECURRING);
@@ -110,7 +110,7 @@ class CashBufferReviewServiceIT {
     contribution("1000000.00", LocalDate.of(2026, 10, 12));
     payout("11000.00", LocalDate.of(2026, 10, 15), RECURRING);
     payout("4000.00", LocalDate.of(2026, 10, 16), ONE_OFF);
-    parameter(CASH_BUFFER_FLOOR, TUK75, "24000.00");
+    parameter(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, TUK75, "2");
     parameter(CASH_BUFFER_INFLOW_CREDIT, TUK75, "0.1");
     fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "77000.00");
     dailyAccruals(TUK75, MANAGEMENT, SEPTEMBER, "100.00");
@@ -129,7 +129,7 @@ class CashBufferReviewServiceIT {
                 assertThat(outcome)
                     .isInstanceOfSatisfying(
                         NotRun.class,
-                        notRun -> assertThat(notRun.reason()).isEqualTo(MISSING_PARAMETERS)));
+                        notRun -> assertThat(notRun.reason()).isEqualTo(NO_RESERVE_CONFIGURED)));
 
     var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
     assertThat(october.window().firstMonth()).isEqualTo(YearMonth.of(2026, 7));
@@ -147,16 +147,25 @@ class CashBufferReviewServiceIT {
     assertThat(recommendation.outflowAtPercentile()).isEqualByComparingTo("65700.00");
     assertThat(recommendation.inflowAtPercentile()).isEqualByComparingTo("480000.00");
     assertThat(recommendation.model().inflowCredit()).isEqualByComparingTo("0.1");
-    assertThat(recommendation.model().floor()).isEqualByComparingTo("24000.00");
+    assertThat(recommendation.model().settlementHorizonDays()).isEqualTo(4);
+    assertThat(recommendation.horizonOutflowAtPercentile()).isEqualByComparingTo("28500.00");
     assertThat(recommendation.accruedFees()).isEqualByComparingTo("3100.00");
-    assertThat(recommendation.recommended()).isEqualByComparingTo("44800.00");
+    assertThat(recommendation.recommendedHard()).isEqualByComparingTo("31600.00");
+    assertThat(recommendation.recommendedSoft()).isEqualByComparingTo("31600.00");
 
     assertThat(october.configured().reserveSoft()).isEqualByComparingTo("131000.00");
     assertThat(october.configured().effectiveDate()).isEqualTo(LocalDate.of(2026, 1, 1));
-    assertThat(october.drift().divergence()).isEqualByComparingTo("-86200.00");
-    assertThat(october.drift().drifted()).isTrue();
-    assertThat(october.drift().consecutiveRuns()).isEqualTo(2);
-    assertThat(october.drift().sustained()).isTrue();
+    assertThat(october.softDrift().divergence()).isEqualByComparingTo("-99400.00");
+    assertThat(october.softDrift().consecutiveRuns()).isEqualTo(2);
+    assertThat(october.softDrift().sustained()).isTrue();
+    assertThat(october.hardDrift())
+        .isNotNull()
+        .satisfies(
+            hardDrift -> {
+              assertThat(hardDrift.divergence()).isEqualByComparingTo("-45400.00");
+              assertThat(hardDrift.drifted()).isFalse();
+              assertThat(hardDrift.consecutiveRuns()).isZero();
+            });
 
     verify(notificationService, times(2)).sendMessage(anyString(), eq(INVESTMENT), eq(ERROR));
   }

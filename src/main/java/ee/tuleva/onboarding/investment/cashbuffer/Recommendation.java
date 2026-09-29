@@ -6,5 +6,7 @@ record Recommendation(
     BufferModel model,
     BigDecimal outflowAtPercentile,
     BigDecimal inflowAtPercentile,
+    BigDecimal horizonOutflowAtPercentile,
     BigDecimal accruedFees,
-    BigDecimal recommended) {}
+    BigDecimal recommendedSoft,
+    BigDecimal recommendedHard) {}

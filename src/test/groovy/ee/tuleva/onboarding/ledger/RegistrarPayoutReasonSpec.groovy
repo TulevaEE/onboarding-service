@@ -20,6 +20,24 @@ class RegistrarPayoutReasonSpec extends Specification {
     "Vahetamise osakute lunastamine"               || FUND_SWITCH
     "Vahetamine PIK-i"                             || SWITCH_TO_PENSION_INVESTMENT_ACCOUNT
     "RAVA osakute lunastamine"                     || SECOND_PILLAR_EXIT
+    "Kindlustuslepingusse kandmiseks osakute lunastamine"   || TRANSFER_TO_INSURANCE
+    "Osakute lunastamine"                                   || THIRD_PILLAR_REDEMPTION
+    "Osakute vahetamine"                                    || THIRD_PILLAR_SWITCH
+    "Kindlustusse saatmine"                                 || TRANSFER_TO_INSURANCE
+    "Osakute pärimine"                                      || INHERITANCE
+    "Kohtutäituri / pankrotihalduri korraldus tagasivõtuks" || ENFORCEMENT_ORDER
+  }
+
+  @Unroll
+  def "reads '#remittance' past the unit holder's code the registrar puts in front"() {
+    expect:
+    fromRemittance(remittance) == reason
+
+    where:
+    remittance                                         || reason
+    "38888888888, Fondipensioni maksete lunastamine"   || FUND_PENSION
+    "38888888888,Osakute lunastamine"                  || THIRD_PILLAR_REDEMPTION
+    " 38888888888 ,  RAVA osakute lunastamine"         || SECOND_PILLAR_EXIT
   }
 
   @Unroll
@@ -46,6 +64,8 @@ class RegistrarPayoutReasonSpec extends Specification {
     variant                                 | remittance
     "an unknown reason"                     | "Synthetic payout reason nobody mapped"
     "a known reason with extra text"        | "Fondipensioni maksete lunastamine tagasi"
+    "a code with no reason after it"        | "38888888888, "
+    "digits that are not a leading code"    | "Fondipensioni maksete lunastamine 38888888888"
     "blank text"                            | "   "
     "no text at all"                        | null
   }

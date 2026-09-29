@@ -16,9 +16,11 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -93,21 +95,42 @@ class CashBufferReviewService {
       BigDecimal accruedFees,
       ConfiguredReserve configured) {
     var rules = parameters.resolve(fund, reviewedOn);
-    var recommendation = rules.bufferModel().recommend(window, accruedFees);
-    var divergence = recommendation.recommended().subtract(configured.reserveSoft());
-    var drift =
-        rules.driftRule().judge(divergence, consecutiveDriftedRunsBefore(fund, reviewMonth));
+    var recommendation =
+        rules
+            .bufferModel()
+            .recommend(window, flowWindowReader.businessDayOutflows(fund, window), accruedFees);
+    var previous = repository.findByFundAndMonth(fund, reviewMonth.minusMonths(1));
+    var softDrift =
+        rules
+            .driftRule()
+            .judge(
+                recommendation.recommendedSoft().subtract(configured.reserveSoft()),
+                previous.map(review -> review.softDrift().consecutiveRuns()).orElse(0));
     var review =
         new CashBufferReview(
-            fund, reviewMonth, reviewedOn, window, recommendation, configured, drift);
+            fund,
+            reviewMonth,
+            reviewedOn,
+            window,
+            recommendation,
+            configured,
+            softDrift,
+            hardDrift(rules.driftRule(), recommendation, configured, previous));
     repository.save(review);
     return new Reviewed(review);
   }
 
-  private int consecutiveDriftedRunsBefore(TulevaFund fund, YearMonth reviewMonth) {
-    return repository
-        .findByFundAndMonth(fund, reviewMonth.minusMonths(1))
-        .map(previous -> previous.drift().consecutiveRuns())
-        .orElse(0);
+  private static @Nullable Drift hardDrift(
+      DriftRule driftRule,
+      Recommendation recommendation,
+      ConfiguredReserve configured,
+      Optional<CashBufferReview> previous) {
+    var reserveHard = configured.reserveHard();
+    if (reserveHard == null) {
+      return null;
+    }
+    return driftRule.judge(
+        recommendation.recommendedHard().subtract(reserveHard),
+        previous.map(CashBufferReview::hardDrift).map(Drift::consecutiveRuns).orElse(0));
   }
 }

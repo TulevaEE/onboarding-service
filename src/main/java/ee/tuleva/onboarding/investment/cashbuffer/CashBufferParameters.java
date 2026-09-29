@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.investment.cashbuffer;
 
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_THRESHOLD;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_FLOOR;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_CREDIT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_PERCENTILE;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_OUTFLOW_PERCENTILE;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_SETTLEMENT_HORIZON_DAYS;
 
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -26,7 +26,7 @@ class CashBufferParameters {
           CASH_BUFFER_OUTFLOW_PERCENTILE,
           CASH_BUFFER_INFLOW_PERCENTILE,
           CASH_BUFFER_INFLOW_CREDIT,
-          CASH_BUFFER_FLOOR,
+          CASH_BUFFER_SETTLEMENT_HORIZON_DAYS,
           CASH_BUFFER_DRIFT_THRESHOLD,
           CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS);
 
@@ -44,7 +44,7 @@ class CashBufferParameters {
             required(CASH_BUFFER_OUTFLOW_PERCENTILE, fund, asOf),
             required(CASH_BUFFER_INFLOW_PERCENTILE, fund, asOf),
             required(CASH_BUFFER_INFLOW_CREDIT, fund, asOf),
-            required(CASH_BUFFER_FLOOR, fund, asOf)),
+            required(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS, fund, asOf).intValueExact()),
         new DriftRule(
             required(CASH_BUFFER_DRIFT_THRESHOLD, fund, asOf),
             required(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, fund, asOf).intValueExact()));

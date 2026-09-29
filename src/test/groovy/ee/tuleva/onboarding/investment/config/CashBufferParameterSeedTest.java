@@ -2,16 +2,14 @@ package ee.tuleva.onboarding.investment.config;
 
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_THRESHOLD;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_FLOOR;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_CREDIT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_PERCENTILE;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_OUTFLOW_PERCENTILE;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_SETTLEMENT_HORIZON_DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -40,23 +38,17 @@ class CashBufferParameterSeedTest {
   }
 
   @Test
-  void seedsAnAbsoluteEurDriftThresholdThatMustHoldForTwoConsecutiveRuns() {
+  void seedsAnAbsoluteEurDriftThresholdThatMustHoldForSixConsecutiveRuns() {
     assertThat(repository.findLatestValue(CASH_BUFFER_DRIFT_THRESHOLD, FIRST_MONTHLY_REVIEW))
         .isEqualByComparingTo(new BigDecimal("50000"));
     assertThat(repository.findLatestValue(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, FIRST_MONTHLY_REVIEW))
-        .isEqualByComparingTo(new BigDecimal("2"));
+        .isEqualByComparingTo(new BigDecimal("6"));
   }
 
   @Test
-  void leavesTheFloorUnseededSoEachFundSkipsTheReviewUntilItsFloorIsEntered() {
-    assertThat(repository.findLatestValueIfPresent(CASH_BUFFER_FLOOR, FIRST_MONTHLY_REVIEW))
-        .isEmpty();
-    assertThat(Arrays.stream(TulevaFund.values()))
-        .allSatisfy(
-            fund ->
-                assertThat(
-                        repository.findLatestValueIfPresent(
-                            CASH_BUFFER_FLOOR, fund, FIRST_MONTHLY_REVIEW))
-                    .isEmpty());
+  void seedsTheSettlementHorizonAsTheLongestCycleAFundSaleTakesToTurnIntoCash() {
+    assertThat(
+            repository.findLatestValue(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS, FIRST_MONTHLY_REVIEW))
+        .isEqualByComparingTo(new BigDecimal("4"));
   }
 }

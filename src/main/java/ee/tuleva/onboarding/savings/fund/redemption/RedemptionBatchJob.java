@@ -158,9 +158,6 @@ public class RedemptionBatchJob {
       return;
     }
 
-    // A priced request stays VERIFIED until its cash is on the withdrawal account, so a run that
-    // dies between pricing and the transfer is picked up and funded again on the next pass. Held
-    // payouts are funded with the rest: their cash waits on that account until someone releases it.
     UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
     transferFromFundAccount(totalCashAmount, batchId);
     PayoutResult result = processIndividualPayouts(priced, batchId);
@@ -172,7 +169,7 @@ public class RedemptionBatchJob {
   private BigDecimal priceRedemption(
       RedemptionRequest request, BigDecimal nav, LocalDate dealingDate) {
     return transactionTemplate.execute(
-        ignored -> {
+        _ -> {
           RedemptionRequest toUpdate =
               redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
 
@@ -245,15 +242,16 @@ public class RedemptionBatchJob {
         case PAID -> payoutCount++;
         case HELD -> {
           heldCount++;
-          // Pricing wrote the amount in its own transaction, so re-read rather than alerting with
-          // the instance this run selected, which still carries no cashAmount or NAV.
-          holdNotifier.notifyPayoutHeldAtPricing(
-              redemptionRequestRepository.findById(request.getId()).orElseThrow());
+          holdNotifier.notifyPayoutHeldAtPricing(withPriceWrittenByPricing(request));
         }
         case SKIPPED, FAILED_TO_SEND -> {}
       }
     }
     return new PayoutResult(payoutCount, heldCount);
+  }
+
+  private RedemptionRequest withPriceWrittenByPricing(RedemptionRequest selected) {
+    return redemptionRequestRepository.findById(selected.getId()).orElseThrow();
   }
 
   @Transactional

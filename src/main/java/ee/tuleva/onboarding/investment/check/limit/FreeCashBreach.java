@@ -4,4 +4,11 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 
 public record FreeCashBreach(
-    TulevaFund fund, BigDecimal freeCash, BigDecimal maxFreeCash, BreachSeverity severity) {}
+    TulevaFund fund,
+    BigDecimal freeCash,
+    BigDecimal maxFreeCash,
+    BreachSeverity severity,
+    BigDecimal cash,
+    BigDecimal liabilities,
+    BigDecimal pendingTrades,
+    BigDecimal reserveUsed) {}

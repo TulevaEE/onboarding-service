@@ -177,7 +177,16 @@ class LimitCheckNotifierTest {
 
   @Test
   void freeCashBreachDoesNotTriggerNotification() {
-    var breach = new FreeCashBreach(TUK75, new BigDecimal("25000"), new BigDecimal("10000"), HARD);
+    var breach =
+        new FreeCashBreach(
+            TUK75,
+            new BigDecimal("25000"),
+            new BigDecimal("10000"),
+            HARD,
+            new BigDecimal("40000"),
+            new BigDecimal("-5000"),
+            BigDecimal.ZERO,
+            new BigDecimal("10000"));
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, breach);
 

@@ -64,12 +64,12 @@ public class SettlementTimingWarningService {
       return List.of();
     }
     return worstFundSellSettlementDate(fund, today)
-        .map(sellSettlementDate -> fundWarnings(fund, today, sellSettlementDate, execDate))
+        .map(sellSettlementDate -> fundWarnings(fund, sellSettlementDate, execDate))
         .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> fundWarnings(
-      TulevaFund fund, LocalDate today, LocalDate sellSettlementDate, LocalDate execDate) {
+      TulevaFund fund, LocalDate sellSettlementDate, LocalDate execDate) {
     List<SettlementTimingWarning> warnings = new ArrayList<>();
     if (sellSettlementDate.isAfter(execDate)) {
       warnings.add(
@@ -86,7 +86,7 @@ public class SettlementTimingWarningService {
                   + execDate));
     }
     LocalDate etfBuySettlementDate =
-        settlementDateCalculator.calculateSettlementDate(today, ETF, fund.getIsin());
+        settlementDateCalculator.calculateSettlementDate(clock.instant(), ETF, fund.getIsin());
     if (sellSettlementDate.isAfter(etfBuySettlementDate)) {
       warnings.add(
           new SettlementTimingWarning(
@@ -109,7 +109,7 @@ public class SettlementTimingWarningService {
         .filter(allocation -> allocation.getInstrumentType() == FUND)
         .map(ModelPortfolioAllocation::getIsin)
         .filter(Objects::nonNull)
-        .map(isin -> settlementDateCalculator.calculateSettlementDate(today, FUND, isin))
+        .map(isin -> settlementDateCalculator.calculateSettlementDate(clock.instant(), FUND, isin))
         .max(naturalOrder());
   }
 }

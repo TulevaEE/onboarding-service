@@ -13,6 +13,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.SettlementTerms;
+import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
+import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
@@ -20,8 +24,11 @@ import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -39,7 +46,8 @@ class SettlementTimingWarningServiceTest {
       mock(SettlementDateCalculator.class);
   private final ModelPortfolioAllocationRepository allocationRepository =
       mock(ModelPortfolioAllocationRepository.class);
-  private final Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
+  private static final Instant NOW = TODAY.atStartOfDay(TALLINN).toInstant();
+  private final Clock clock = Clock.fixed(NOW, TALLINN);
 
   private final SettlementTimingWarningService service =
       new SettlementTimingWarningService(
@@ -91,11 +99,11 @@ class SettlementTimingWarningServiceTest {
                 allocation(TUK00, "LU0000000002", FUND),
                 allocation(TUK00, "IE0000000001", ETF),
                 allocation(TUK00, null, FUND)));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, FUND, "LU0000000001"))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, FUND, "LU0000000001"))
         .willReturn(LocalDate.of(2026, 4, 27));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, FUND, "LU0000000002"))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, FUND, "LU0000000002"))
         .willReturn(LocalDate.of(2026, 5, 4));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, ETF, TUK00.getIsin()))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, ETF, TUK00.getIsin()))
         .willReturn(LocalDate.of(2026, 4, 22));
 
     assertThat(service.activeWarnings())
@@ -122,9 +130,9 @@ class SettlementTimingWarningServiceTest {
         .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
     given(allocationRepository.findLatestByFundAsOf(TUK00, TODAY))
         .willReturn(List.of(allocation(TUK00, "LU0000000001", FUND)));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, FUND, "LU0000000001"))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, FUND, "LU0000000001"))
         .willReturn(LocalDate.of(2026, 4, 27));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, ETF, TUK00.getIsin()))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, ETF, TUK00.getIsin()))
         .willReturn(LocalDate.of(2026, 4, 22));
 
     assertThat(service.activeWarnings())
@@ -144,9 +152,9 @@ class SettlementTimingWarningServiceTest {
         .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
     given(allocationRepository.findLatestByFundAsOf(TUK00, TODAY))
         .willReturn(List.of(allocation(TUK00, "LU0000000002", FUND)));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, FUND, "LU0000000002"))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, FUND, "LU0000000002"))
         .willReturn(LocalDate.of(2026, 5, 4));
-    given(settlementDateCalculator.calculateSettlementDate(TODAY, ETF, TUK00.getIsin()))
+    given(settlementDateCalculator.calculateSettlementDate(NOW, ETF, TUK00.getIsin()))
         .willReturn(LocalDate.of(2026, 4, 22));
 
     assertThat(service.activeWarnings(TUK00, TODAY))
@@ -168,6 +176,56 @@ class SettlementTimingWarningServiceTest {
         .willReturn(List.of(allocation(TUK75, "IE0000000001", ETF)));
 
     assertThat(service.activeWarnings()).isEmpty();
+  }
+
+  @Test
+  void aSellPlacedAfterItsFundsDealingCutoffIsDealtTheNextBusinessDayAndSoMissesTheExecution() {
+    var mondayAfterTheCutoff =
+        ZonedDateTime.of(LocalDate.of(2026, 10, 5), LocalTime.of(10, 30), TALLINN).toInstant();
+    var thursdayExecution = LocalDate.of(2026, 10, 8);
+    var instrumentReferenceService = mock(InstrumentReferenceService.class);
+    given(instrumentReferenceService.settlementTerms("LU0000000009"))
+        .willReturn(Optional.of(new SettlementTerms(LocalTime.of(9, 30), TALLINN, 3)));
+    var target2Calendar = new Target2Calendar();
+    var service =
+        new SettlementTimingWarningService(
+            periodService,
+            new SettlementDateCalculator(
+                target2Calendar,
+                new DomicileCalendar(target2Calendar),
+                allocationRepository,
+                instrumentReferenceService),
+            allocationRepository,
+            Clock.fixed(mondayAfterTheCutoff, TALLINN));
+    given(periodService.getCurrentPeriod(LocalDate.of(2026, 10, 5)))
+        .willReturn(
+            Optional.of(
+                new PevaRavaPeriod(
+                    TUK00_ACTIVE,
+                    new PevaRavaCycle(LocalDate.of(2026, 9, 30), thursdayExecution),
+                    new FundCycleTimeline(
+                        LocalDate.of(2026, 10, 7), thursdayExecution.minusDays(1), false, false),
+                    new FundCycleTimeline(
+                        LocalDate.of(2026, 10, 1), thursdayExecution.minusDays(1), true, false))));
+    given(allocationRepository.findLatestByFundAsOf(TUK00, LocalDate.of(2026, 10, 5)))
+        .willReturn(List.of(allocation(TUK00, "LU0000000009", FUND)));
+
+    assertThat(service.activeWarnings())
+        .containsExactly(
+            new SettlementTimingWarning(
+                PEVA_DEADLINE_MISS,
+                TUK00,
+                LocalDate.of(2026, 10, 9),
+                thursdayExecution,
+                "FUND sell placed today settles after PEVA/RAVA execution: fund=TUK00,"
+                    + " sellSettlementDate=2026-10-09, execDate=2026-10-08"),
+            new SettlementTimingWarning(
+                REBALANCE_GAP,
+                TUK00,
+                LocalDate.of(2026, 10, 9),
+                LocalDate.of(2026, 10, 7),
+                "FUND sell settles after same-day ETF buy: fund=TUK00,"
+                    + " sellSettlementDate=2026-10-09, etfBuySettlementDate=2026-10-07"));
   }
 
   private static PevaRavaPeriod period(

@@ -12,9 +12,17 @@ const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 const TEMPLATE_SCOPED_VARIABLES = {
   recipientIsChild: /_child_/,
   recipientIsCompany: /_company_/,
-  recipientAccountId: /_(child|company)_/,
   hasFeeComparison: /^(?!second_pillar_mandate_)/,
 };
+
+const PENSION_PILLAR_NUDGE_FLAGS = [
+  'suggestSecondPillarStart',
+  'suggestSecondPillar',
+  'suggestPaymentRate',
+  'suggestThirdPillar',
+  'suggestThirdPillarRecurringPayment',
+  'suggestThirdPillarRaise',
+];
 
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
@@ -53,6 +61,18 @@ for (const name of distTemplates) {
         variants.some((vars) => Boolean(vars[variable])),
         `no fixture variant exercises ${variable}=true`,
       );
+    }
+  });
+}
+
+for (const name of distTemplates.filter((template) =>
+  readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:anyPillarSuggestion|*'),
+)) {
+  test(`${name}: a variant asks the bridge question exactly when it shows a pension pillar nudge`, () => {
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants)) {
+      const showsPensionPillarNudge = PENSION_PILLAR_NUDGE_FLAGS.some((flag) => Boolean(vars[flag]));
+      assert.equal(Boolean(vars.anyPillarSuggestion), showsPensionPillarNudge, `variant "${variant}"`);
     }
   });
 }

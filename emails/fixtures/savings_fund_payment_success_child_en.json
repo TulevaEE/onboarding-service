@@ -2,7 +2,7 @@
   "variants": {
     "second pillar start suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
       "suggestSecondPillarStart": true,
@@ -10,7 +10,7 @@
     },
     "second pillar suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestSecondPillar": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -18,7 +18,7 @@
     },
     "Second pillar fee comparison": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestSecondPillar": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -31,7 +31,7 @@
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestPaymentRate": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -39,7 +39,7 @@
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestThirdPillar": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -47,7 +47,7 @@
     },
     "third pillar fees suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestThirdPillar": true,
       "thirdPillarActive": true,
@@ -56,7 +56,7 @@
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestThirdPillarRecurringPayment": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -64,7 +64,7 @@
     },
     "third pillar raise suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestThirdPillarRaise": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
@@ -72,7 +72,7 @@
     },
     "savings fund suggestion (cannot occur)": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestSavingsFund": true,
       "savingsFundFee": "0.28",
@@ -80,14 +80,14 @@
     },
     "savings fund recurring suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestSavingsFundRecurringPayment": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
-    "second pillar outranks the savings fund recurring suggestion": {
+    "second pillar and savings fund recurring together (cannot occur)": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true,
@@ -96,14 +96,14 @@
     },
     "membership suggestion": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "suggestMembership": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "no nudge": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Mari Maasikas",
+      "RECIPIENTNAME": "Jaan Tamm",
       "recipientIsChild": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },

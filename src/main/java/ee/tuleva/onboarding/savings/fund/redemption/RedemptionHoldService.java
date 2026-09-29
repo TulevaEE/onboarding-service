@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
 import java.util.EnumSet;
 import java.util.List;
@@ -32,6 +34,7 @@ public class RedemptionHoldService {
   private final RedemptionPayoutService payoutService;
   private final RedemptionHoldNotifier notifier;
   private final TransactionTemplate transactionTemplate;
+  private final OutgoingPaymentLookup outgoingPaymentLookup;
 
   @Transactional
   public void freeze(UUID id) {
@@ -176,8 +179,16 @@ public class RedemptionHoldService {
     repository.save(request);
   }
 
-  private static boolean isFundedAwaitingPayout(RedemptionRequest request) {
-    return request.getStatus() == VERIFIED && request.getBatchId() != null;
+  private boolean isFundedAwaitingPayout(RedemptionRequest request) {
+    UUID batchId = request.getBatchId();
+    return request.getStatus() == VERIFIED && batchId != null && transferWentOut(batchId);
+  }
+
+  private boolean transferWentOut(UUID batchId) {
+    return outgoingPaymentLookup
+        .findStatusForSource(batchId)
+        .filter(status -> status != OutgoingPaymentStatus.FAILED)
+        .isPresent();
   }
 
   private RedemptionRequest findForUpdate(UUID id) {

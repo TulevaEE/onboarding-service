@@ -60,7 +60,7 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """)
   int markHoldNotified(@Param("id") UUID id, @Param("notifiedAt") Instant notifiedAt);
 
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Transactional
   @Query(
       """
@@ -70,7 +70,7 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """)
   int markVerificationAttempted(@Param("id") UUID id, @Param("attemptedAt") Instant attemptedAt);
 
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Transactional
   @Query("UPDATE RedemptionRequest r SET r.errorReason = :errorReason WHERE r.id = :id")
   int markErrorReason(@Param("id") UUID id, @Param("errorReason") String errorReason);

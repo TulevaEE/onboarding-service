@@ -218,6 +218,30 @@ class RedemptionRequestRepositoryTest {
     assertThat(stored.getHoldReasons()).containsExactly(MANUAL);
   }
 
+  @Test
+  void anErrorReasonIsSeenByTheNextReadInTheSameUnitOfWork() {
+    var request =
+        repository.save(redemptionRequestFixture().userId(userId).status(REDEEMED).build());
+    repository.findById(request.getId()).orElseThrow();
+
+    repository.markErrorReason(request.getId(), "bank down");
+
+    assertThat(repository.findById(request.getId()).orElseThrow().getErrorReason())
+        .isEqualTo("bank down");
+  }
+
+  @Test
+  void aVerificationAttemptIsSeenByTheNextReadInTheSameUnitOfWork() {
+    var request =
+        repository.save(redemptionRequestFixture().userId(userId).status(RESERVED).build());
+    repository.findById(request.getId()).orElseThrow();
+
+    repository.markVerificationAttempted(request.getId(), CUTOFF);
+
+    assertThat(repository.findById(request.getId()).orElseThrow().getVerificationAttemptedAt())
+        .isEqualTo(CUTOFF);
+  }
+
   private void holdSince(
       RedemptionRequest request, RedemptionRequest.Status status, RedemptionHoldReason reason) {
     var current = repository.findById(request.getId()).orElseThrow();

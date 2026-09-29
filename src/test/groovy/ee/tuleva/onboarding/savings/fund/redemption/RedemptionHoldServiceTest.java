@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.MANUAL;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
@@ -15,6 +16,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentLookup;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.util.List;
@@ -39,6 +42,7 @@ class RedemptionHoldServiceTest {
   @Mock private RedemptionPayoutService payoutService;
   @Mock private RedemptionHoldNotifier notifier;
   @Mock private TransactionTemplate transactionTemplate;
+  @Mock private OutgoingPaymentLookup outgoingPaymentLookup;
 
   @InjectMocks private RedemptionHoldService service;
 
@@ -179,19 +183,64 @@ class RedemptionHoldServiceTest {
   @Test
   void holdPayout_takesAnAlreadyFundedRequestOutOfTheFundingQueueAtOnce() {
     var requestId = UUID.randomUUID();
+    var batchId = UUID.randomUUID();
     var request =
         redemptionRequestFixture()
             .id(requestId)
             .status(VERIFIED)
             .cashAmount(new java.math.BigDecimal("25.00"))
-            .batchId(UUID.randomUUID())
+            .batchId(batchId)
             .build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(outgoingPaymentLookup.findStatusForSource(batchId)).willReturn(Optional.of(SUBMITTED));
     given(notifier.notifyPayoutHold(request)).willReturn(true);
 
     service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
 
     verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+  }
+
+  @Test
+  void holdPayout_leavesARequestWhoseBatchTransferTheBankRejectedForTheNextBatchToFund() {
+    var requestId = UUID.randomUUID();
+    var batchId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .cashAmount(new java.math.BigDecimal("25.00"))
+            .batchId(batchId)
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(outgoingPaymentLookup.findStatusForSource(batchId))
+        .willReturn(Optional.of(OutgoingPaymentStatus.FAILED));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
+
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    assertThat(request.hasActiveHold()).isTrue();
+  }
+
+  @Test
+  void holdPayout_leavesARequestWhoseBatchTransferWasNeverRecordedForTheNextBatchToFund() {
+    var requestId = UUID.randomUUID();
+    var batchId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .cashAmount(new java.math.BigDecimal("25.00"))
+            .batchId(batchId)
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(outgoingPaymentLookup.findStatusForSource(batchId)).willReturn(Optional.empty());
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
+
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    assertThat(request.hasActiveHold()).isTrue();
   }
 
   @Test

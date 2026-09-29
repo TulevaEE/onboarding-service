@@ -175,9 +175,6 @@ class PaymentApprovalBriefServiceTest {
     assertThat(brief.attention()).isTrue();
   }
 
-  // An already approved transfer drops off the pending screen while its payouts are still on it, so
-  // the tie is computed over the whole batch rather than over what is still pending. Otherwise it
-  // would report an imbalance every time the signatory approved one account before the other.
   @Test
   void aPayoutHeldBackForAmlReviewIsCountedAgainstTheTransferThatFundedIt() {
     givenAccountResolves();
@@ -219,6 +216,9 @@ class PaymentApprovalBriefServiceTest {
     assertThat(brief.verdicts()).contains(tie(BATCH, true, "400.00 = 400.00"));
   }
 
+  // An already approved transfer drops off the pending screen while its payouts are still on it, so
+  // the tie is computed over the whole batch rather than over what is still pending. Otherwise it
+  // would report an imbalance every time the signatory approved one account before the other.
   @Test
   void theTieHoldsEvenOnceOneSideHasAlreadyBeenApproved() {
     givenAccountResolves();

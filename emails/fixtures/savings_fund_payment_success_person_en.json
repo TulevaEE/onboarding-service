@@ -2,7 +2,8 @@
   "variants": {
     "second pillar start suggestion": {
       "FNAME": "Mari",
-      "suggestSecondPillarStart": true
+      "suggestSecondPillarStart": true,
+      "anyPillarSuggestion": true
     },
     "second pillar suggestion": {
       "FNAME": "Mari",

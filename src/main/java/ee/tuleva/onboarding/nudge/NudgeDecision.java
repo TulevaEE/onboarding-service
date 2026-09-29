@@ -78,7 +78,8 @@ public record NudgeDecision(
 
   private boolean suggestsPensionPillar() {
     return switch (key) {
-      case SECOND_PILLAR_TRANSFER,
+      case SECOND_PILLAR_START,
+          SECOND_PILLAR_TRANSFER,
           SECOND_PILLAR_PAYMENT_RATE,
           THIRD_PILLAR_START,
           THIRD_PILLAR_FEES,

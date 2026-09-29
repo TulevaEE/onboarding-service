@@ -19,12 +19,10 @@ public class RedemptionVerificationJob {
   private final RedemptionVerificationService redemptionVerificationService;
 
   @Scheduled(fixedRateString = "1m")
-  @SchedulerLock(
-      name = "RedemptionVerificationJob_runJob",
-      lockAtMostFor = "10m",
-      lockAtLeastFor = "10s")
+  @SchedulerLock(name = "RedemptionVerificationJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   public void runJob() {
-    redemptionRequestRepository.findByStatus(RESERVED).stream()
+    redemptionRequestRepository
+        .findByStatus(RESERVED)
         .forEach(
             request -> {
               try {

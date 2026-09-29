@@ -177,7 +177,25 @@ class RedemptionHoldServiceTest {
   }
 
   @Test
-  void holdPayout_takesAnAlreadyPricedRequestOutOfTheFundingQueueAtOnce() {
+  void holdPayout_takesAnAlreadyFundedRequestOutOfTheFundingQueueAtOnce() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .cashAmount(new java.math.BigDecimal("25.00"))
+            .batchId(UUID.randomUUID())
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
+
+    verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+  }
+
+  @Test
+  void holdPayout_leavesAPricedRequestWhoseTransferNeverWentOutForTheNextBatchToFund() {
     var requestId = UUID.randomUUID();
     var request =
         redemptionRequestFixture()
@@ -190,7 +208,8 @@ class RedemptionHoldServiceTest {
 
     service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
 
-    verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    assertThat(request.hasActiveHold()).isTrue();
   }
 
   @Test

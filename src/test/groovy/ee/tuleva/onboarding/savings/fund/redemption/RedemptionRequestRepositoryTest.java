@@ -8,16 +8,20 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
+import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +32,8 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 class RedemptionRequestRepositoryTest {
 
   private static final Instant CUTOFF = Instant.parse("2026-08-11T13:00:00Z");
+  private static final UUID BATCH = UUID.fromString("11111111-1111-1111-1111-111111111111");
+  private static final UUID OTHER_BATCH = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
   @Autowired RedemptionRequestRepository repository;
   @Autowired TestEntityManager entityManager;
@@ -219,6 +225,54 @@ class RedemptionRequestRepositoryTest {
     current.setHoldReasons(Set.of(reason));
     entityManager.flush();
     entityManager.clear();
+  }
+
+  @Test
+  void assignsTheBatchToEveryRequestItFundsWhateverItsStatusBecameMeanwhile() {
+    var verified =
+        repository.save(redemptionRequestFixture().userId(userId).status(VERIFIED).build());
+    var heldMeanwhile =
+        repository.save(redemptionRequestFixture().userId(userId).status(PAYOUT_HELD).build());
+    var other = repository.save(redemptionRequestFixture().userId(userId).status(VERIFIED).build());
+
+    assertThat(repository.assignBatch(List.of(verified.getId(), heldMeanwhile.getId()), BATCH))
+        .isEqualTo(2);
+
+    entityManager.clear();
+    assertThat(repository.findById(verified.getId()).orElseThrow().getBatchId()).isEqualTo(BATCH);
+    assertThat(repository.findById(heldMeanwhile.getId()).orElseThrow().getBatchId())
+        .isEqualTo(BATCH);
+    assertThat(repository.findById(other.getId()).orElseThrow().getBatchId()).isNull();
+  }
+
+  @Test
+  void sumsOnlyTheCashOfABatchStillHeldForReview() {
+    repository.save(held(BATCH, "25.00"));
+    repository.save(held(BATCH, "15.50"));
+    repository.save(held(OTHER_BATCH, "100.00"));
+    repository.save(
+        redemptionRequestFixture()
+            .userId(userId)
+            .status(REDEEMED)
+            .cashAmount(new BigDecimal("40.00"))
+            .batchId(BATCH)
+            .build());
+
+    assertThat(repository.sumCashAmount(BATCH, PAYOUT_HELD)).isEqualByComparingTo("40.50");
+  }
+
+  @Test
+  void aBatchWithNothingHeldSumsToZero() {
+    assertThat(repository.sumCashAmount(BATCH, PAYOUT_HELD)).isEqualByComparingTo(ZERO);
+  }
+
+  private RedemptionRequest held(UUID batchId, String cashAmount) {
+    return redemptionRequestFixture()
+        .userId(userId)
+        .status(PAYOUT_HELD)
+        .cashAmount(new BigDecimal(cashAmount))
+        .batchId(batchId)
+        .build();
   }
 
   @Test

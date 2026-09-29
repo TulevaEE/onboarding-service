@@ -108,6 +108,8 @@ public class RedemptionRequest {
 
   @JsonIgnore @Nullable private Instant requeuedAt;
 
+  @JsonIgnore @Nullable private UUID batchId;
+
   @Column(nullable = false)
   private Instant updatedAt;
 

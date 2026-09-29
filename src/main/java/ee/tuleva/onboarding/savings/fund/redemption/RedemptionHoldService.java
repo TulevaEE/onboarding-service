@@ -73,7 +73,7 @@ public class RedemptionHoldService {
       return;
     }
     startHold(request, reasons, by, comment);
-    if (isPricedAwaitingPayout(request)) {
+    if (isFundedAwaitingPayout(request)) {
       redemptionStatusService.changeStatus(id, PAYOUT_HELD);
     }
     if (notifier.notifyPayoutHold(request)) {
@@ -176,8 +176,8 @@ public class RedemptionHoldService {
     repository.save(request);
   }
 
-  private static boolean isPricedAwaitingPayout(RedemptionRequest request) {
-    return request.getStatus() == VERIFIED && request.getCashAmount() != null;
+  private static boolean isFundedAwaitingPayout(RedemptionRequest request) {
+    return request.getStatus() == VERIFIED && request.getBatchId() != null;
   }
 
   private RedemptionRequest findForUpdate(UUID id) {

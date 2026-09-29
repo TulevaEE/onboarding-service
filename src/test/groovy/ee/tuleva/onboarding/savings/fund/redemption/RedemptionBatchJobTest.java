@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -826,6 +827,41 @@ class RedemptionBatchJobTest {
   }
 
   @Test
+  void runJob_stampsThePricedRequestsWithTheirBatchBeforeTheTransferGoesOut() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var batchId = BatchId.of("redemption", List.of(requestId));
+    var inOrder = inOrder(redemptionRequestRepository, eventPublisher);
+    inOrder.verify(redemptionRequestRepository).assignBatch(List.of(requestId), batchId);
+    inOrder
+        .verify(eventPublisher)
+        .publishEvent(
+            argThat(
+                (Object event) ->
+                    event instanceof RequestPaymentEvent payment
+                        && payment.paymentType() == REDEMPTION_TRANSFER));
+  }
+
+  @Test
   void retryFailedPayout_publishesPaymentEventAndMarksRedeemed() {
     var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
 
@@ -866,6 +902,38 @@ class RedemptionBatchJobTest {
         .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     assertThat(request.getErrorReason()).isNull();
+  }
+
+  @Test
+  void retryFailedPayout_sendsThePayoutUnderTheBatchThatFundedIt() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+    var fundingBatch = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(FAILED)
+            .cashAmount(new BigDecimal("25.00"))
+            .batchId(fundingBatch)
+            .build();
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("withdrawal-IBAN");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+
+    batchJob.retryFailedPayout(requestId);
+
+    var expectedPayment =
+        PaymentRequest.tulevaPaymentBuilder("2db696b500ee493787b48192c675e4b5")
+            .remitterIban("withdrawal-IBAN")
+            .beneficiaryName("Mari Maasikas")
+            .beneficiaryIban(request.getCustomerIban())
+            .amount(new BigDecimal("25.00"))
+            .description("Fondi tagasivõtmine")
+            .build();
+    verify(eventPublisher)
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT, fundingBatch));
   }
 
   @Test

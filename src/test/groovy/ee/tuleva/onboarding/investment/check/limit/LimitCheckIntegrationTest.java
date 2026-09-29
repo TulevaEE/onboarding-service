@@ -188,6 +188,22 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
+  void thePositionEventRecordsTheDaysLargestHoldingEvenWhenItHasNoLimit() {
+    insertTuk75Data();
+    insertFundPosition("TUK75", NAV_DATE, "SECURITY", "IE00UNLIMITED", 3_500_000);
+
+    limitCheckService.runChecks();
+
+    var positionEvent =
+        limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE).stream()
+            .filter(event -> event.getCheckType() == CheckType.POSITION)
+            .findFirst()
+            .orElseThrow();
+    assertThat(positionEvent.getResult().get("largestPosition"))
+        .isEqualTo(new LargestPosition("IE00UNLIMITED", new BigDecimal("35.0000")));
+  }
+
+  @Test
   void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
     insertTuk75Data();
 

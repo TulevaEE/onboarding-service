@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -197,6 +198,7 @@ class LimitCheckService {
     var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
+    var largestPosition = positionLimitChecker.largestPosition(positions, totalNav);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
@@ -208,7 +210,7 @@ class LimitCheckService {
         fund,
         checkDate,
         List.of(
-            event(fund, checkDate, POSITION, positionBreaches),
+            positionEvent(fund, checkDate, positionBreaches, largestPosition),
             event(fund, checkDate, PROVIDER, providerBreaches),
             event(fund, checkDate, RESERVE, reserveBreach),
             event(fund, checkDate, FREE_CASH, freeCashBreach)));
@@ -279,6 +281,22 @@ class LimitCheckService {
         .filter(a -> a.getIsin() != null && a.getProvider() != null)
         .forEach(a -> merged.put(a.getIsin(), a.getProvider()));
     return merged;
+  }
+
+  private LimitCheckEvent positionEvent(
+      TulevaFund fund,
+      LocalDate checkDate,
+      List<PositionBreach> breaches,
+      Optional<LargestPosition> largestPosition) {
+    var result = new LinkedHashMap<String, Object>();
+    result.put("breaches", breaches);
+    largestPosition.ifPresent(largest -> result.put("largestPosition", largest));
+    return event(
+        fund,
+        checkDate,
+        POSITION,
+        breaches.stream().anyMatch(breach -> breach.severity() != BreachSeverity.OK),
+        result);
   }
 
   private LimitCheckEvent event(

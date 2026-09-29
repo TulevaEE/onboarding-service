@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -130,6 +131,25 @@ class PositionLimitChecker {
                   severity);
             })
         .toList();
+  }
+
+  Optional<LargestPosition> largestPosition(List<FundPosition> positions, BigDecimal totalNav) {
+    if (totalNav.signum() == 0) {
+      return Optional.empty();
+    }
+    return positions.stream()
+        .filter(position -> position.getAccountId() != null && position.getMarketValue() != null)
+        .collect(
+            Collectors.toMap(
+                position -> Objects.requireNonNull(position.getAccountId()),
+                position -> Objects.requireNonNull(position.getMarketValue()),
+                BigDecimal::add))
+        .entrySet()
+        .stream()
+        .max(Map.Entry.comparingByValue())
+        .map(
+            largest ->
+                new LargestPosition(largest.getKey(), percentOf(largest.getValue(), totalNav)));
   }
 
   private BigDecimal percentOf(BigDecimal value, BigDecimal total) {

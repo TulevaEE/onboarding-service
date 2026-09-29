@@ -179,6 +179,34 @@ class PositionLimitCheckerTest {
     return FundPosition.builder().accountId(isin).fund(TUK75).marketValue(marketValue).build();
   }
 
+  @Test
+  void theLargestPositionIsRecordedEvenForAnInstrumentWithNoLimit() {
+    var limited = position("IE00B4L5Y983", new BigDecimal("100000"));
+    var unlimited = position("IE00UNKNOWN", new BigDecimal("500000"));
+
+    var largest = checker.largestPosition(List.of(limited, unlimited), new BigDecimal("1000000"));
+
+    assertThat(largest).contains(new LargestPosition("IE00UNKNOWN", new BigDecimal("50.0000")));
+  }
+
+  @Test
+  void rowsOfTheSameInstrumentAreAddedUpBeforeTheLargestIsChosen() {
+    var first = position("IE00B4L5Y983", new BigDecimal("300000"));
+    var second = position("IE00B4L5Y983", new BigDecimal("300000"));
+    var other = position("IE00UNKNOWN", new BigDecimal("500000"));
+
+    var largest = checker.largestPosition(List.of(first, second, other), new BigDecimal("1000000"));
+
+    assertThat(largest).contains(new LargestPosition("IE00B4L5Y983", new BigDecimal("60.0000")));
+  }
+
+  @Test
+  void withNoNavThereIsNoLargestPosition() {
+    var position = position("IE00B4L5Y983", new BigDecimal("100000"));
+
+    assertThat(checker.largestPosition(List.of(position), BigDecimal.ZERO)).isEmpty();
+  }
+
   private PositionLimit positionLimit(
       String isin, String label, double softPercent, double hardPercent) {
     return PositionLimit.builder()

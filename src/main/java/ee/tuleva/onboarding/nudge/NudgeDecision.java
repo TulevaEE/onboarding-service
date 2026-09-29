@@ -60,7 +60,7 @@ public record NudgeDecision(
     vars.put("suggestSavingsFund", key == SAVINGS_FUND);
     vars.put("suggestSavingsFundRecurringPayment", key == SAVINGS_FUND_RECURRING);
     vars.put("suggestMembership", key == MEMBERSHIP);
-    vars.put("anyPillarSuggestion", key.isPillar());
+    vars.put("anyPillarSuggestion", suggestsPensionPillar());
     vars.put("hasFeeComparison", feeComparison != null);
     if (feeComparison != null) {
       vars.put("secondPillarFeePercent", percent(feeComparison.currentFeePercent(), locale));
@@ -72,6 +72,19 @@ public record NudgeDecision(
       vars.put("savingsFundFee", percent(savingsFundFeePercent, locale));
     }
     return vars;
+  }
+
+  private boolean suggestsPensionPillar() {
+    return switch (key) {
+      case SECOND_PILLAR_TRANSFER,
+          SECOND_PILLAR_PAYMENT_RATE,
+          THIRD_PILLAR_START,
+          THIRD_PILLAR_FEES,
+          THIRD_PILLAR_RECURRING,
+          THIRD_PILLAR_RAISE ->
+          true;
+      case SAVINGS_FUND, SAVINGS_FUND_RECURRING, MEMBERSHIP, NONE -> false;
+    };
   }
 
   private static String percent(BigDecimal percent, Locale locale) {

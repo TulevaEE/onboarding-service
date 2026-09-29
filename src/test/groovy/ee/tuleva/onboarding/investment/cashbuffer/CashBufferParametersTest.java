@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.investment.cashbuffer;
 
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_DRIFT_THRESHOLD;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_FLOOR;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_CREDIT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_PERCENTILE;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_OUTFLOW_PERCENTILE;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_SETTLEMENT_HORIZON_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,7 +49,7 @@ class CashBufferParametersTest {
     global(CASH_BUFFER_INFLOW_PERCENTILE, "0.20");
     global(CASH_BUFFER_INFLOW_CREDIT, "0");
     fund(CASH_BUFFER_INFLOW_CREDIT, "0.1");
-    fund(CASH_BUFFER_FLOOR, "24000.00");
+    global(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS, "4");
     global(CASH_BUFFER_DRIFT_THRESHOLD, "50000");
     global(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, "2");
 
@@ -58,10 +58,7 @@ class CashBufferParametersTest {
         .isEqualTo(
             new ReviewRules(
                 new BufferModel(
-                    new BigDecimal("0.95"),
-                    new BigDecimal("0.20"),
-                    new BigDecimal("0.1"),
-                    new BigDecimal("24000.00")),
+                    new BigDecimal("0.95"), new BigDecimal("0.20"), new BigDecimal("0.1"), 4),
                 new DriftRule(new BigDecimal("50000"), 2)));
   }
 
@@ -73,7 +70,7 @@ class CashBufferParametersTest {
     global(CASH_BUFFER_DRIFT_CONSECUTIVE_RUNS, "2");
 
     assertThat(parameters.missing(TUK75, AS_OF))
-        .containsExactly(CASH_BUFFER_FLOOR, CASH_BUFFER_DRIFT_THRESHOLD);
+        .containsExactly(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS, CASH_BUFFER_DRIFT_THRESHOLD);
   }
 
   private void global(InvestmentParameter parameter, String value) {

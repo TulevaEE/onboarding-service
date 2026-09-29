@@ -10,16 +10,28 @@ record BufferModel(
     BigDecimal outflowPercentile,
     BigDecimal inflowPercentile,
     BigDecimal inflowCredit,
-    BigDecimal floor) {
+    int settlementHorizonDays) {
 
-  Recommendation recommend(FlowWindow window, BigDecimal accruedFees) {
+  Recommendation recommend(
+      FlowWindow window, BusinessDayOutflows businessDayOutflows, BigDecimal accruedFees) {
     var outflowAtPercentile =
         interpolatedBetweenClosestRanks(window.operatingOutflows(), outflowPercentile);
     var inflowAtPercentile = interpolatedBetweenClosestRanks(window.inflows(), inflowPercentile);
+    var horizonOutflowAtPercentile =
+        interpolatedBetweenClosestRanks(
+            businessDayOutflows.forwardRollingTotals(settlementHorizonDays), outflowPercentile);
+    var recommendedHard = horizonOutflowAtPercentile.add(accruedFees).setScale(2, HALF_UP);
     var outflowNotCoveredByInflow =
         outflowAtPercentile.subtract(inflowCredit.multiply(inflowAtPercentile)).max(ZERO);
-    var recommended = floor.add(outflowNotCoveredByInflow).add(accruedFees).setScale(2, HALF_UP);
+    var recommendedSoft =
+        outflowNotCoveredByInflow.add(accruedFees).setScale(2, HALF_UP).max(recommendedHard);
     return new Recommendation(
-        this, outflowAtPercentile, inflowAtPercentile, accruedFees, recommended);
+        this,
+        outflowAtPercentile,
+        inflowAtPercentile,
+        horizonOutflowAtPercentile,
+        accruedFees,
+        recommendedSoft,
+        recommendedHard);
   }
 }

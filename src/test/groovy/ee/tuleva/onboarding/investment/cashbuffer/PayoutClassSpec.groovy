@@ -16,6 +16,10 @@ class PayoutClassSpec extends Specification {
     RegistrarPayoutReason.FUND_PENSION                         || PayoutClass.RECURRING
     RegistrarPayoutReason.ONE_OFF_WITHDRAWAL                   || PayoutClass.TAIL
     RegistrarPayoutReason.INHERITANCE                          || PayoutClass.TAIL
+    RegistrarPayoutReason.TRANSFER_TO_INSURANCE                || PayoutClass.TAIL
+    RegistrarPayoutReason.THIRD_PILLAR_REDEMPTION              || PayoutClass.TAIL
+    RegistrarPayoutReason.THIRD_PILLAR_SWITCH                  || PayoutClass.TAIL
+    RegistrarPayoutReason.ENFORCEMENT_ORDER                    || PayoutClass.TAIL
     RegistrarPayoutReason.FUND_SWITCH                          || PayoutClass.CYCLE
     RegistrarPayoutReason.SWITCH_TO_PENSION_INVESTMENT_ACCOUNT || PayoutClass.CYCLE
     RegistrarPayoutReason.SECOND_PILLAR_EXIT                   || PayoutClass.CYCLE

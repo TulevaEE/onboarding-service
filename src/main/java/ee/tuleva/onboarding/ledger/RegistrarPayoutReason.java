@@ -13,7 +13,12 @@ import org.jspecify.annotations.Nullable;
 public enum RegistrarPayoutReason {
   FUND_PENSION("Fondipensioni maksete lunastamine"),
   ONE_OFF_WITHDRAWAL("Ühekordsete maksete osakute lunastamine"),
-  INHERITANCE("Pensionifondi pärimisel osakute lunastamine"),
+  INHERITANCE("Pensionifondi pärimisel osakute lunastamine", "Osakute pärimine"),
+  TRANSFER_TO_INSURANCE(
+      "Kindlustuslepingusse kandmiseks osakute lunastamine", "Kindlustusse saatmine"),
+  THIRD_PILLAR_REDEMPTION("Osakute lunastamine"),
+  THIRD_PILLAR_SWITCH("Osakute vahetamine"),
+  ENFORCEMENT_ORDER("Kohtutäituri / pankrotihalduri korraldus tagasivõtuks"),
   FUND_SWITCH("Vahetamise osakute lunastamine"),
   SWITCH_TO_PENSION_INVESTMENT_ACCOUNT("Vahetamine PIK-i"),
   SECOND_PILLAR_EXIT("RAVA osakute lunastamine"),
@@ -22,6 +27,8 @@ public enum RegistrarPayoutReason {
   private static final Pattern INVISIBLE_CHARACTERS =
       Pattern.compile("[\\u00AD\\u200B-\\u200F\\u2060-\\u2064\\uFEFF]");
   private static final Pattern WHITESPACE_RUNS = Pattern.compile("[\\s\\p{Z}]+");
+  private static final Pattern LEADING_UNIT_HOLDER_CODE =
+      Pattern.compile("^[\\s\\p{Z}]*\\d+[\\s\\p{Z}]*,");
 
   private static final Map<String, RegistrarPayoutReason> BY_NORMALISED_REMITTANCE =
       Arrays.stream(values())
@@ -45,7 +52,10 @@ public enum RegistrarPayoutReason {
   }
 
   private static String normalise(String remittance) {
-    var visible = INVISIBLE_CHARACTERS.matcher(remittance).replaceAll("");
+    var visible =
+        LEADING_UNIT_HOLDER_CODE
+            .matcher(INVISIBLE_CHARACTERS.matcher(remittance).replaceAll(""))
+            .replaceFirst("");
     var composed = Normalizer.normalize(visible, Normalizer.Form.NFC);
     return WHITESPACE_RUNS.matcher(composed).replaceAll(" ").strip().toLowerCase(Locale.ROOT);
   }

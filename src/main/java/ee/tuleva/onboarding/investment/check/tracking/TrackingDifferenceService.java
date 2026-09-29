@@ -181,7 +181,13 @@ class TrackingDifferenceService {
   private List<TrackingDifferenceResult> checkOrRecordFailure(
       TulevaFund fund, LocalDate checkDate, GapWindow window, List<GapFailure> failures) {
     try {
-      return checkFund(fund, checkDate);
+      return switch (checkFundOrSayWhyNot(fund, checkDate)) {
+        case Checked checked -> checked.results();
+        case NotCheckable notCheckable -> {
+          failures.add(gapFailure(fund, checkDate, window, notCheckable.reason()));
+          yield List.of();
+        }
+      };
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
       failures.add(gapFailure(fund, checkDate, window, FailureReason.of(e)));
@@ -241,6 +247,13 @@ class TrackingDifferenceService {
   }
 
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
+    return switch (checkFundOrSayWhyNot(fund, checkDate)) {
+      case Checked checked -> checked.results();
+      case NotCheckable _ -> List.of();
+    };
+  }
+
+  private FundCheck checkFundOrSayWhyNot(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var previousDate = publicHolidays.previousWorkingDay(checkDate);
@@ -255,7 +268,10 @@ class TrackingDifferenceService {
           previousDate,
           todayValue.isPresent(),
           yesterdayValue.isPresent());
-      return results;
+      return new NotCheckable(
+          todayValue.isEmpty()
+              ? "no NAV for the check date"
+              : "no NAV for the working day before, " + previousDate);
     }
 
     var todayNav =
@@ -267,7 +283,7 @@ class TrackingDifferenceService {
     var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate);
     if (allocations.isEmpty()) {
       log.warn("No model portfolio for fund: fund={}", fund);
-      return results;
+      return new NotCheckable("no model portfolio");
     }
     var previousAllocations =
         modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate);
@@ -422,8 +438,14 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    return results;
+    return new Checked(results);
   }
+
+  private sealed interface FundCheck permits Checked, NotCheckable {}
+
+  private record Checked(List<TrackingDifferenceResult> results) implements FundCheck {}
+
+  private record NotCheckable(String reason) implements FundCheck {}
 
   private BigDecimal accruedFeeFraction(
       TulevaFund fund,

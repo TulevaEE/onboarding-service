@@ -211,9 +211,33 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(alreadyChecked, CHECK_DATE));
 
-    assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of(), Map.of()));
+    var run = service.fillGaps(30);
 
+    assertThat(run.results()).isEmpty();
+    assertThat(run.failures()).extracting(GapFailure::checkDate).containsExactly(PREVIOUS_DATE);
     verify(fundNavQueryService, never()).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
+  }
+
+  @Test
+  void fillGapsNamesADateThatHasPositionsButNoNavInsteadOfLettingItAgeOutInSilence() {
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+
+    assertThat(service.fillGaps(30).failures())
+        .extracting(GapFailure::checkDate, GapFailure::daysUnfilled)
+        .containsExactly(tuple(PREVIOUS_DATE, 1L));
+  }
+
+  @Test
+  void fillGapsNamesADateWhoseFundHasNoModelPortfolio() {
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), LocalDate.of(2026, 4, 8)))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    assertThat(service.fillGaps(30).failures())
+        .extracting(GapFailure::checkDate)
+        .containsExactly(PREVIOUS_DATE);
   }
 
   @Test

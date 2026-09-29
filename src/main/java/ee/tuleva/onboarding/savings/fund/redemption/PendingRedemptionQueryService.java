@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
@@ -16,14 +17,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class PendingRedemptionQueryService implements RedemptionQueries {
 
+  // Frozen and held requests look like ordinary pending withdrawals to the customer (RahaPTS).
+  private static final List<RedemptionRequest.Status> PENDING_STATUSES =
+      List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
+
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final SavingFundDeadlinesService deadlinesService;
 
   @Override
   public List<PendingRedemption> getPendingRedemptions(PartyId partyId) {
     return redemptionRequestRepository
-        .findByPartyTypeAndPartyCodeAndStatusIn(
-            partyId.type(), partyId.code(), List.of(RESERVED, IN_REVIEW, VERIFIED))
+        .findByPartyTypeAndPartyCodeAndStatusIn(partyId.type(), partyId.code(), PENDING_STATUSES)
         .stream()
         .map(this::toPendingRedemption)
         .toList();

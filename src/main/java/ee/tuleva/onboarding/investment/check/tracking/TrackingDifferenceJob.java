@@ -54,13 +54,13 @@ class TrackingDifferenceJob {
     log.info("Starting daily tracking difference gap fill");
 
     try {
-      var results = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
-      reportGapFill(results);
-      log.info("Tracking difference gap fill completed: resultCount={}", results.size());
-    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notifyRunIncomplete("TD daily gap fill", FailureReason.of(e));
-      reportGapFill(e.completedResults());
-      log.error("Tracking difference gap fill incomplete", e);
+      var run = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
+      reportFailures(run.failures());
+      reportGapFill(run);
+      log.info(
+          "Tracking difference gap fill completed: resultCount={}, failureCount={}",
+          run.results().size(),
+          run.failures().size());
     } catch (Exception e) {
       log.error("Tracking difference gap fill failed", e);
       trackingDifferenceNotifier.notifyRunFailed("TD daily gap fill", FailureReason.of(e));
@@ -69,15 +69,16 @@ class TrackingDifferenceJob {
 
   @EventListener
   void onTrackingDifferenceBackfillRequested(RunTrackingDifferenceBackfillRequested event) {
-    log.info("Starting tracking difference backfill: daysBack={}", event.daysBack());
+    var daysBack = event.daysBack();
+    log.info("Starting tracking difference backfill: daysBack={}", daysBack);
 
     try {
-      var results = trackingDifferenceService.backfillChecks(event.daysBack());
-      trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), results);
+      var results = trackingDifferenceService.backfillChecks(daysBack);
+      trackingDifferenceNotifier.notifyBackfillSummary(daysBack, results);
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", FailureReason.of(e));
-      trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), e.completedResults());
+      trackingDifferenceNotifier.notifyIncompleteBackfillSummary(daysBack, e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);
@@ -85,15 +86,23 @@ class TrackingDifferenceJob {
     }
   }
 
-  private void reportGapFill(List<TrackingDifferenceResult> results) {
-    if (results.isEmpty()) {
+  private void reportFailures(List<GapFailure> failures) {
+    if (failures.isEmpty()) {
       return;
     }
-    if (coversMoreThanOneCheckDate(results)) {
-      trackingDifferenceNotifier.notifyGapFillSummary(results);
+    trackingDifferenceNotifier.notifyRunIncomplete(
+        "TD daily gap fill", GapFailure.report(failures));
+  }
+
+  private void reportGapFill(GapFillRun run) {
+    if (run.results().isEmpty()) {
       return;
     }
-    trackingDifferenceNotifier.notify(results);
+    if (coversMoreThanOneCheckDate(run.results()) || !run.recheckedStaleDates().isEmpty()) {
+      trackingDifferenceNotifier.notifyGapFillSummary(run);
+      return;
+    }
+    trackingDifferenceNotifier.notify(run.results());
   }
 
   private static boolean coversMoreThanOneCheckDate(List<TrackingDifferenceResult> results) {

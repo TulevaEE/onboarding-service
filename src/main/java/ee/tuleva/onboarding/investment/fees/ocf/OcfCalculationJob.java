@@ -21,6 +21,8 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class OcfCalculationJob {
 
+  private static final int MONTHLY_RUN_BUSINESS_DAY = 4;
+
   private final OcfCalculationService service;
   private final BusinessDays businessDays;
   private final Clock clock;
@@ -29,7 +31,7 @@ public class OcfCalculationJob {
   @SchedulerLock(name = "OcfCalculationJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
+    if (!businessDays.isNthBusinessDayOfMonth(today, MONTHLY_RUN_BUSINESS_DAY)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);

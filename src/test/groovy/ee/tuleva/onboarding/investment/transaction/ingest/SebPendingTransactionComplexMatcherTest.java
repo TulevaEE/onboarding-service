@@ -51,7 +51,8 @@ class SebPendingTransactionComplexMatcherTest {
         orderRepository,
         executionRepository,
         new SebClientNameToFundResolver(),
-        new QuantityAmountValidator());
+        new QuantityAmountValidator(),
+        new ReportedQuantityNormalizer());
   }
 
   @Test

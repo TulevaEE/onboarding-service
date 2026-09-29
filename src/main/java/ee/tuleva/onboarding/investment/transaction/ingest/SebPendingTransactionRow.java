@@ -24,6 +24,24 @@ record SebPendingTransactionRow(
     @Nullable String account,
     @Nullable String instrumentName) {
 
+  SebPendingTransactionRow withQuantity(BigDecimal newQuantity) {
+    return new SebPendingTransactionRow(
+        clientRef,
+        ourRef,
+        isin,
+        newQuantity,
+        price,
+        settlementAmount,
+        brokerFee,
+        total,
+        side,
+        tradeDate,
+        settlementDate,
+        clientName,
+        account,
+        instrumentName);
+  }
+
   static SebPendingTransactionRow fromRawData(Map<String, Object> raw) {
     return new SebPendingTransactionRow(
         parseUuid(raw.get("Client ref")),

@@ -150,6 +150,32 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_acceptsManagingDirectorBoardMember() {
+    var relationships =
+        List.of(
+            new CompanyRelationship(
+                "F",
+                "JUHJ",
+                "juhatuse liige (juhataja)",
+                "Jaan",
+                "Tamm",
+                PERSONAL_CODE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "EST"));
+    stubInitialValidation(
+        relationships, sampleDetail(), List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.registryCode().value()).isEqualTo(REGISTRY_CODE);
+    verify(onboardingGate, never()).auditBlocked(any(), any(), any());
+  }
+
+  @Test
   void initialValidation_publishesAuditEventWhenChecksFail() {
     var checks =
         List.of(

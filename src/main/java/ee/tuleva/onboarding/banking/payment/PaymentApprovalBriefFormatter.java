@@ -1,11 +1,21 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.amount;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.count;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PaymentApprovalBriefFormatter {
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final DateTimeFormatter TIME_OF_DAY = DateTimeFormatter.ofPattern("HH:mm");
+  private static final DateTimeFormatter DATE_AND_TIME =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
   public String format(PaymentApprovalBrief brief) {
     if (brief.isEmpty()) {
       return "%s TKF100 — no payments pending approval (%s)"
@@ -24,9 +34,13 @@ public class PaymentApprovalBriefFormatter {
           .append("  ")
           .append(amount(account.total()))
           .append(" EUR\n");
-      if (account.projectedBalance() != null) {
+      var projected = account.projectedBalance();
+      if (projected != null) {
         text.append("      after execution: ")
-            .append(amount(account.projectedBalance()))
+            .append(amount(projected.amount()))
+            .append(" (balance as of ")
+            .append(statementTime(projected.asOf(), brief.date()))
+            .append(" statement)")
             .append(account.goesNegative() ? "  ⚠️ would go negative" : "")
             .append("\n");
       }
@@ -68,7 +82,8 @@ public class PaymentApprovalBriefFormatter {
     return text.toString();
   }
 
-  private static String count(int payments) {
-    return payments == 1 ? "1 payment" : payments + " payments";
+  private static String statementTime(Instant asOf, LocalDate briefDate) {
+    var local = asOf.atZone(TALLINN);
+    return (local.toLocalDate().equals(briefDate) ? TIME_OF_DAY : DATE_AND_TIME).format(local);
   }
 }

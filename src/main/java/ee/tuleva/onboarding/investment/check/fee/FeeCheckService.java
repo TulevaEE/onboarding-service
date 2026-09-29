@@ -12,16 +12,13 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_P
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
-import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -73,23 +70,20 @@ class FeeCheckService {
         funds,
         checkDate,
         null,
-        fund -> dailyFindings(fund, windowStart(fund, checkDate), checkDate));
+        fund ->
+            dailyFindings(
+                fund, windowStartCoveringUnresolvedDeviations(fund, checkDate), checkDate));
   }
 
-  // Reaches back over whatever the run that first saw an outstanding deviation was looking at.
-  // A rolling window alone lets an unfixed deviation age out, and the checker's pass on a window
-  // that no longer covers the divergent date is announced as CLEARED.
-  private LocalDate windowStart(TulevaFund fund, LocalDate checkDate) {
-    var rollingFrom = checkDate.minusDays(lookbackDays);
+  private LocalDate windowStartCoveringUnresolvedDeviations(TulevaFund fund, LocalDate checkDate) {
+    var rollingWindowStart = checkDate.minusDays(lookbackDays);
     return eventRepository
         .findOldestUnresolvedDailyDeviationDate(fund)
         .map(firstSeen -> firstSeen.minusDays(lookbackDays))
-        .filter(rollingFrom::isAfter)
-        .orElse(rollingFrom);
+        .filter(rollingWindowStart::isAfter)
+        .orElse(rollingWindowStart);
   }
 
-  // The cash leg trails the settlement leg by a month: a month settles on its last day but the
-  // payment only lands weeks later, so asking about the same month would always answer NOT_RUN.
   @Transactional
   List<FeeCheckResult> runMonthlyChecks(
       List<TulevaFund> funds, LocalDate settlementMonth, LocalDate cashMonth, LocalDate checkDate) {
@@ -110,8 +104,6 @@ class FeeCheckService {
     return results;
   }
 
-  // A run whose alert never reached anyone must not become the baseline the next run diffs
-  // against, or a deviation that first appeared during a Slack outage stays silent forever.
   private void notifyAndRecordDelivery(List<FeeCheckResult> results, List<FeeCheckEvent> saved) {
     if (notifier.notify(results) != FeeCheckNotification.SEND_FAILED) {
       return;
@@ -195,8 +187,6 @@ class FeeCheckService {
         () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate));
   }
 
-  // The fallback covers the same scopes the checker would have written, so a later successful run
-  // can transition them back out of NOT_RUN.
   private List<FeeCheckFinding> runChecker(
       TulevaFund fund,
       FeeCheckType checkType,
@@ -216,6 +206,7 @@ class FeeCheckService {
                       NOT_RUN,
                       "Check did not run: " + e.getClass().getSimpleName(),
                       null,
+                      List.of(e.getClass().getSimpleName()),
                       Map.of()))
           .toList();
     }
@@ -243,20 +234,17 @@ class FeeCheckService {
                     .feeScope(scope)
                     .severity(severity)
                     .deviationFound(severity == WARNING || severity == FAIL)
-                    .deviationAmount(totalDeviation(findings))
-                    .result(Map.of("findings", findings.stream().map(this::describe).toList()))
+                    .deviationAmount(FeeCheckFinding.totalDeviation(findings))
+                    .result(
+                        Map.of(
+                            "findings",
+                            findings.stream().map(this::describe).toList(),
+                            FeeCheckEvent.FINGERPRINT,
+                            FeeCheckFinding.fingerprint(findings)))
                     .build()));
       }
     }
     return saved;
-  }
-
-  private BigDecimal totalDeviation(List<FeeCheckFinding> findings) {
-    return findings.stream()
-        .map(FeeCheckFinding::deviationAmount)
-        .filter(Objects::nonNull)
-        .map(BigDecimal::abs)
-        .reduce(ZERO, BigDecimal::add);
   }
 
   private Map<String, Object> describe(FeeCheckFinding finding) {

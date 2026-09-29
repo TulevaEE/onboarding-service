@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -38,8 +37,43 @@ class PaymentStatusReportHandlerTest {
                 </OrgnlPmtInfAndSts>
                 """));
 
-    verify(outgoingPaymentService).recordFailed(eq("abc123"), any());
+    verify(outgoingPaymentService).recordFailed("abc123", "Rejected by the bank: AC01");
     verify(eventPublisher).publishEvent(new PaymentRejectedEvent("abc123", "AC01"));
+  }
+
+  @Test
+  void aPaymentCancelledAtTheBankIsMarkedFailedWithoutARejectionAlert() {
+    handler()
+        .handle(
+            report(
+                """
+                <OrgnlPmtInfAndSts>
+                  <TxInfAndSts>
+                    <OrgnlEndToEndId>abc123</OrgnlEndToEndId><TxSts>CANC</TxSts>
+                  </TxInfAndSts>
+                </OrgnlPmtInfAndSts>
+                """));
+
+    verify(outgoingPaymentService).recordFailed("abc123", "Cancelled at the bank: reasonCode=null");
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void aCancellationKeepsTheReasonCodeTheBankGaveForIt() {
+    handler()
+        .handle(
+            report(
+                """
+                <OrgnlPmtInfAndSts>
+                  <TxInfAndSts>
+                    <OrgnlEndToEndId>abc123</OrgnlEndToEndId>
+                    <TxSts>CANC</TxSts>
+                    <StsRsnInf><Rsn><Cd>CUST</Cd></Rsn></StsRsnInf>
+                  </TxInfAndSts>
+                </OrgnlPmtInfAndSts>
+                """));
+
+    verify(outgoingPaymentService).recordFailed("abc123", "Cancelled at the bank: reasonCode=CUST");
   }
 
   @Test

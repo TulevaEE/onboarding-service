@@ -184,6 +184,21 @@ jobs:
             BASE=$(git merge-base FETCH_HEAD HEAD)
             git diff "$BASE"..HEAD | .githooks/pii-scan
 
+  migration-order:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Self-test the checker
+          command: .githooks/migration-order-test
+      - run:
+          name: Check migration versions against master
+          command: |
+            git fetch --no-tags origin master
+            MIGRATION_ORDER_BASE=FETCH_HEAD .githooks/migration-order HEAD
+
   flag-for-additional-review:
     docker:
       - image: cimg/base:stable
@@ -365,13 +380,27 @@ jobs:
 
 workflows:
   version: 2
+  merge-queue:
+    when:
+      matches:
+        pattern: "^gh-readonly-queue/.*$"
+        value: << pipeline.git.branch >>
+    jobs:
+      - migration-order
+
   onboarding-service-workflow:
+    unless:
+      matches:
+        pattern: "^gh-readonly-queue/.*$"
+        value: << pipeline.git.branch >>
     jobs:
       - build:
           context:
             - codecov
 
       - pii-scan
+
+      - migration-order
 
       - emails-build
 

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.UNRECONCILED_BANK_RECEIPTS;
@@ -14,6 +16,9 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -39,6 +44,8 @@ class UnattributedPaymentAttributionServiceIntegrationTest {
   @Autowired LedgerService ledgerService;
   @Autowired UserRepository userRepository;
   @Autowired SavingsFundOnboardingRepository onboardingRepository;
+  @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
+  @Autowired EndToEndIdConverter endToEndIdConverter;
 
   private static final String PERSONAL_CODE = "48806046007";
   private static final BigDecimal AMOUNT = new BigDecimal("1000.00");
@@ -95,6 +102,45 @@ class UnattributedPaymentAttributionServiceIntegrationTest {
     assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus()).isEqualTo(RETURNED);
   }
 
+  @Test
+  void attribute_rejectsReturnedPaymentWhoseReturnTheBankAlreadyExecuted() {
+    var party = onboardedParty();
+    var paymentId = createReturnedUnattributedPayment();
+    recordExecutedReturnOrder(paymentId);
+
+    assertThatThrownBy(() -> attributionService.attribute(paymentId, party, true))
+        .isInstanceOf(IllegalStateException.class);
+
+    assertThat(unreconciledAccount().getBalance()).isEqualByComparingTo(AMOUNT.negate());
+    assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus()).isEqualTo(RETURNED);
+  }
+
+  @Test
+  void attribute_rejectsPaymentAwaitingReturnWhoseReturnTheBankAlreadyExecuted() {
+    var party = onboardedParty();
+    var paymentId = createUnattributedPaymentAwaitingReturn();
+    recordExecutedReturnOrder(paymentId);
+
+    assertThatThrownBy(() -> attributionService.attribute(paymentId, party, true))
+        .isInstanceOf(IllegalStateException.class);
+
+    assertThat(unreconciledAccount().getBalance()).isEqualByComparingTo(AMOUNT.negate());
+    assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus())
+        .isEqualTo(TO_BE_RETURNED);
+  }
+
+  @Test
+  void attribute_allowsPaymentAwaitingReturnWithNoReturnOrderRecorded() {
+    var party = onboardedParty();
+    var paymentId = createUnattributedPaymentAwaitingReturn();
+
+    var result = attributionService.attribute(paymentId, party, false);
+
+    assertThat(result.getStatus()).isEqualTo(VERIFIED);
+    assertThat(result.getPartyId()).isEqualTo(party);
+    assertThat(unreconciledAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
   private PartyId onboardedParty() {
     userRepository.save(
         User.builder().firstName("Annika").lastName("Tamm").personalCode(PERSONAL_CODE).build());
@@ -103,6 +149,12 @@ class UnattributedPaymentAttributionServiceIntegrationTest {
   }
 
   private UUID createReturnedUnattributedPayment() {
+    var paymentId = createUnattributedPaymentAwaitingReturn();
+    paymentRepository.changeStatus(paymentId, RETURNED);
+    return paymentId;
+  }
+
+  private UUID createUnattributedPaymentAwaitingReturn() {
     var paymentId =
         paymentRepository.savePaymentData(
             SavingFundPayment.builder()
@@ -110,18 +162,33 @@ class UnattributedPaymentAttributionServiceIntegrationTest {
                 .description("Wise bounce")
                 .remitterName("Wise")
                 .remitterIdCode("")
-                .remitterIban("BE48967056780227")
+                .remitterIban("EE442200221092874625")
                 .beneficiaryName("TULEVA TÄIENDAV KOGUMISFOND")
                 .beneficiaryIdCode("1162")
-                .beneficiaryIban("EE711010220306707220")
+                .beneficiaryIban("EE861010220306591229")
                 .externalId("RMI-test-" + UUID.randomUUID())
                 .receivedBefore(Instant.parse("2026-06-12T13:35:00Z"))
                 .build());
     paymentRepository.changeStatus(paymentId, RECEIVED);
     paymentRepository.changeStatus(paymentId, TO_BE_RETURNED);
-    paymentRepository.changeStatus(paymentId, RETURNED);
     savingsFundLedger.recordUnattributedPayment(AMOUNT, paymentId);
     return paymentId;
+  }
+
+  private void recordExecutedReturnOrder(UUID paymentId) {
+    outgoingPaymentRepository.save(
+        OutgoingPayment.builder()
+            .endToEndId(endToEndIdConverter.toEndToEndId(paymentId))
+            .paymentType(RETURN)
+            .sourceId(paymentId)
+            .remitterIban("EE861010220306591229")
+            .beneficiaryIban("EE442200221092874625")
+            .amount(AMOUNT)
+            .currency("EUR")
+            .bodyHash("hash")
+            .status(EXECUTED)
+            .attemptedAt(Instant.parse("2026-06-13T09:00:00Z"))
+            .build());
   }
 
   private LedgerAccount unreconciledAccount() {

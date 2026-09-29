@@ -124,6 +124,20 @@ class SettlementCompletenessCheckerTest {
     assertThat(failures()).isNotEmpty();
   }
 
+  // "found 2" and "found 3" are the same severity with no amount of their own, so unless the count
+  // itself is in the identifier a duplicate settlement appearing later never reaches anyone.
+  @Test
+  void theSettlementTransactionCountIsPartOfTheIdentifier() {
+    givenMonthCrossed();
+    givenBalances(ZERO, ZERO);
+    givenEntries(FEE_ACCRUAL, ACCRUED);
+    givenEntries(FEE_SETTLEMENT, new BigDecimal("600.00"), new BigDecimal("634.56"));
+
+    assertThat(failures())
+        .flatExtracting(FeeCheckFinding::identifiers)
+        .contains("settlementTransactionCount=1/2");
+  }
+
   @Test
   void aRefundSettlementOfAnOverSettledMonthCountsAsTheMonthsSettlement() {
     var overSettled = new BigDecimal("33.30");

@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -59,7 +60,8 @@ class SavingsFundStatementProcessorTest {
 
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
-  ManagementCompanies managementCompanies = mock(ManagementCompanies.class);
+  SebAccountConfiguration sebAccountConfiguration = mock(SebAccountConfiguration.class);
+  ManagementCompanies managementCompanies = new ManagementCompanies(sebAccountConfiguration);
   BankAccounts bankAccounts = mock(BankAccounts.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   InternalTransferLedger internalTransferLedger = mock(InternalTransferLedger.class);
@@ -595,7 +597,7 @@ class SavingsFundStatementProcessorTest {
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    when(managementCompanies.isManagementCompany(managementCompanyName)).thenReturn(true);
+    when(sebAccountConfiguration.isManagementCompany(managementCompanyName)).thenReturn(true);
 
     processor.process(bankStatement, statementAccount);
 
@@ -620,7 +622,7 @@ class SavingsFundStatementProcessorTest {
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
     when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
-    when(managementCompanies.isManagementCompany("Unknown Company")).thenReturn(false);
+    when(sebAccountConfiguration.isManagementCompany("Unknown Company")).thenReturn(false);
 
     processor.process(bankStatement, statementAccount);
 
@@ -670,7 +672,12 @@ class SavingsFundStatementProcessorTest {
     verify(outgoingPaymentMatcher)
         .match(
             new StatementDebit(
-                "seb-entry-1", new BigDecimal("-100.00"), EXTERNAL_ACCOUNT_IBAN, "e2e-1"));
+                "seb-entry-1",
+                new BigDecimal("-100.00"),
+                EXTERNAL_ACCOUNT_IBAN,
+                "Test Beneficiary",
+                "Test payment",
+                "e2e-1"));
   }
 
   @Test

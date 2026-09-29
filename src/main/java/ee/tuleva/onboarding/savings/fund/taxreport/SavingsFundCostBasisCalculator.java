@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.WEIGHTED_AVERAGE;
 import static ee.tuleva.onboarding.savings.fund.taxreport.TransactionOrder.ACQUISITIONS_FIRST_WITHIN_AN_INSTANT;
 import static java.math.RoundingMode.HALF_UP;
@@ -56,6 +58,11 @@ public class SavingsFundCostBasisCalculator {
               Consumption consumption = consume(lots, units, method);
               lots.clear();
               lots.addAll(consumption.remainingLots());
+
+              if (transaction.type() == TRANSFER_OUT) {
+                return;
+              }
+
               realised.add(toRealisedGain(transaction, units, consumption.acquisitionCost()));
             });
 
@@ -86,13 +93,29 @@ public class SavingsFundCostBasisCalculator {
 
     if (units.subtract(heldUnits).compareTo(UNIT_EPSILON) > 0) {
       throw new IllegalStateException(
-          "Redemption exceeds held units: id=%s, time=%s, requested=%s, held=%s"
+          "Disposal exceeds held units: id=%s, time=%s, requested=%s, held=%s"
               .formatted(transaction.id(), transaction.time(), units, heldUnits));
     }
   }
 
   private static BigDecimal unitCostPaid(Transaction transaction, BigDecimal units) {
-    return transaction.amount().abs().divide(units, UNIT_COST_PRECISION);
+    return acquisitionCostOf(transaction).divide(units, UNIT_COST_PRECISION);
+  }
+
+  private static BigDecimal acquisitionCostOf(Transaction transaction) {
+    if (transaction.type() != TRANSFER_IN) {
+      return transaction.amount().abs();
+    }
+
+    BigDecimal recordedCost = transaction.acquisitionCost();
+
+    if (recordedCost == null) {
+      throw new IllegalStateException(
+          "Savings fund transfer missing its acquisition cost: id=%s, time=%s"
+              .formatted(transaction.id(), transaction.time()));
+    }
+
+    return recordedCost;
   }
 
   private static RealisedGain toRealisedGain(

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.UnitTransferInstruction;
 import ee.tuleva.onboarding.ledger.UnitTransferQuote;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
@@ -32,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +59,7 @@ class UnitTransferServiceTest {
           ZERO);
 
   @BeforeEach
-  void recipientIsOnboarded() {
+  void theRecipientIsOnboarded() {
     given(onboarding.isOnboardingCompleted("39999999999", PartyId.Type.PERSON)).willReturn(true);
   }
 
@@ -136,7 +138,6 @@ class UnitTransferServiceTest {
 
     assertThat(planHashOf(commandCosting(new BigDecimal("12.50"))))
         .isNotEqualTo(planHashOf(commandCosting(ZERO)));
-    assertThat(planHashOf(commandCosting(null))).isNotEqualTo(planHashOf(commandCosting(ZERO)));
   }
 
   @Test
@@ -161,7 +162,9 @@ class UnitTransferServiceTest {
                 new BigDecimal("59.00000"),
                 new BigDecimal("41.00000"),
                 new BigDecimal("1000.00"),
-                new BigDecimal("100.00000")));
+                new BigDecimal("100.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("410.00")));
     var other = (Planned) service.preview(command);
 
     assertThat(other.planHash()).isNotEqualTo(planned.planHash());
@@ -203,18 +206,6 @@ class UnitTransferServiceTest {
   }
 
   @Test
-  void submittingWithNoRecordedCostLeavesItUnrecorded() {
-    givenTheLedgerQuotes();
-    var withoutACost = commandCosting(null);
-    var planned = (Planned) service.preview(withoutACost);
-    givenTheRepositoryReturnsWhateverItIsGiven();
-
-    var submitted = service.submit(withoutACost, planned.planHash(), "operator@example.com");
-
-    assertThat(submitted.getRecipientAcquisitionCostEur()).isNull();
-  }
-
-  @Test
   void theGiversOwnFiguresAreShownSoAnOperatorCanDecideWhatTheRecipientMayCount() {
     givenTheLedgerQuotes();
 
@@ -222,6 +213,36 @@ class UnitTransferServiceTest {
 
     assertThat(planned.plan().giverPaidIn()).isEqualByComparingTo("1000.00");
     assertThat(planned.plan().giverUnitsOwned()).isEqualByComparingTo("100.00000");
+    assertThat(planned.plan().giverRemainingCost()).isEqualByComparingTo("1000.00");
+  }
+
+  @Test
+  void thePlanShowsHowMuchOfWhatTheGiverPaidInMovesWithTheUnits() {
+    givenTheLedgerQuotes();
+
+    var planned = (Planned) service.preview(command);
+
+    assertThat(planned.plan().contributionMoved()).isEqualByComparingTo("400.00");
+  }
+
+  @Test
+  void changingHowMuchOfThePaidInAmountMovesChangesThePlanHash() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willReturn(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("60.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("100.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("500.00")));
+    var other = (Planned) service.preview(command);
+
+    assertThat(other.planHash()).isNotEqualTo(planned.planHash());
   }
 
   @Test
@@ -249,7 +270,29 @@ class UnitTransferServiceTest {
                 new BigDecimal("60.00000"),
                 new BigDecimal("40.00000"),
                 new BigDecimal("1500.00"),
-                new BigDecimal("100.00000")));
+                new BigDecimal("100.00000"),
+                new BigDecimal("1500.00"),
+                new BigDecimal("600.00")));
+    var other = (Planned) service.preview(command);
+
+    assertThat(other.planHash()).isNotEqualTo(planned.planHash());
+  }
+
+  @Test
+  void changingWhatTheUnitsTheGiverStillHoldsCostChangesThePlanHash() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willReturn(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("60.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("100.00000"),
+                new BigDecimal("1600.00"),
+                new BigDecimal("250.00")));
     var other = (Planned) service.preview(command);
 
     assertThat(other.planHash()).isNotEqualTo(planned.planHash());
@@ -267,7 +310,9 @@ class UnitTransferServiceTest {
                 new BigDecimal("60.00000"),
                 new BigDecimal("40.00000"),
                 new BigDecimal("1000.00"),
-                new BigDecimal("120.00000")));
+                new BigDecimal("120.00000"),
+                new BigDecimal("1200.00"),
+                new BigDecimal("333.33")));
     var other = (Planned) service.preview(command);
 
     assertThat(other.planHash()).isNotEqualTo(planned.planHash());
@@ -339,6 +384,26 @@ class UnitTransferServiceTest {
   }
 
   @Test
+  void approvingTellsTheLedgerWhatAUnitIsWorthAndWhatTheUnitsCostTheRecipient() {
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransferCosting(new BigDecimal("250.00"));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+    givenTheRepositoryReturnsWhateverItIsGiven();
+    givenTheLedgerRecords(randomUUID());
+
+    service.approve(awaiting.getId(), "approver@example.com");
+
+    verify(savingsFundLedger)
+        .recordUnitTransfer(
+            new UnitTransferInstruction(
+                new PartyRef(PERSON, "38888888888"),
+                new PartyRef(PERSON, "39999999999"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("250.00"),
+                awaiting.getId()));
+  }
+
+  @Test
   void approvingProceedsThoughTheGiversBalancesHaveMovedSinceItWasSubmitted() {
     var awaiting = anAwaitingTransfer();
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
@@ -350,7 +415,9 @@ class UnitTransferServiceTest {
                 new BigDecimal("10.00000"),
                 new BigDecimal("40.00000"),
                 new BigDecimal("1500.00"),
-                new BigDecimal("50.00000")));
+                new BigDecimal("50.00000"),
+                new BigDecimal("1500.00"),
+                new BigDecimal("1200.00")));
     givenTheLedgerRecords(randomUUID());
 
     var approved = service.approve(awaiting.getId(), "approver@example.com");
@@ -456,9 +523,7 @@ class UnitTransferServiceTest {
     givenTheLedgerQuotes();
     var awaiting = anAwaitingTransfer();
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
-    given(
-            savingsFundLedger.recordUnitTransfer(
-                any(PartyRef.class), any(PartyRef.class), any(), any()))
+    given(savingsFundLedger.recordUnitTransfer(any(UnitTransferInstruction.class)))
         .willThrow(new IllegalStateException("Cannot transfer more units than the party holds"));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
@@ -533,11 +598,23 @@ class UnitTransferServiceTest {
                 new BigDecimal("60.00000"),
                 new BigDecimal("40.00000"),
                 new BigDecimal("1000.00"),
-                new BigDecimal("100.00000")));
+                new BigDecimal("100.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("400.00")));
   }
 
   private void givenTheRepositoryReturnsWhateverItIsGiven() {
     given(transfers.save(any(UnitTransfer.class))).willAnswer(saved -> saved.getArgument(0));
+  }
+
+  @Test
+  void approvingATransferFromBeforeAcquisitionCostsWereRecordedIsRefusedRatherThanCrashing() {
+    var awaiting = anAwaitingTransferCosting(null);
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    verifyTheLedgerMovedNothing();
   }
 
   private String planHashOf(UnitTransferCommand command) {
@@ -545,9 +622,7 @@ class UnitTransferServiceTest {
   }
 
   private void givenTheLedgerRecords(UUID ledgerTransactionId) {
-    given(
-            savingsFundLedger.recordUnitTransfer(
-                any(PartyRef.class), any(PartyRef.class), any(), any()))
+    given(savingsFundLedger.recordUnitTransfer(any(UnitTransferInstruction.class)))
         .willReturn(
             LedgerTransaction.builder()
                 .id(ledgerTransactionId)
@@ -557,11 +632,14 @@ class UnitTransferServiceTest {
   }
 
   private void verifyTheLedgerMovedNothing() {
-    verify(savingsFundLedger, never())
-        .recordUnitTransfer(any(PartyRef.class), any(PartyRef.class), any(), any());
+    verify(savingsFundLedger, never()).recordUnitTransfer(any(UnitTransferInstruction.class));
   }
 
   private UnitTransfer anAwaitingTransfer() {
+    return anAwaitingTransferCosting(command.recipientAcquisitionCostEur());
+  }
+
+  private UnitTransfer anAwaitingTransferCosting(@Nullable BigDecimal recipientAcquisitionCostEur) {
     return UnitTransfer.builder()
         .id(randomUUID())
         .fromPartyCode(command.fromCode())
@@ -569,7 +647,7 @@ class UnitTransferServiceTest {
         .toPartyCode(command.toCode())
         .toPartyType(command.toType())
         .fundUnits(command.fundUnits())
-        .recipientAcquisitionCostEur(command.recipientAcquisitionCostEur())
+        .recipientAcquisitionCostEur(recipientAcquisitionCostEur)
         .notifiedAt(command.notifiedAt())
         .evidence(command.evidence())
         .giverPaidInEur(new BigDecimal("1000.00"))

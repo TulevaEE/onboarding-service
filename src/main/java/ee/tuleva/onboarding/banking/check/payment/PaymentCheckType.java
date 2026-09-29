@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.check.payment;
 public enum PaymentCheckType {
   PAYMENT_BLOCKED,
   PAYOUT_BLOCKED,
+  RETURN_BLOCKED,
   PAYOUT_OVERDUE,
   PAYMENT_MISROUTED,
   PAYMENT_REJECTED,

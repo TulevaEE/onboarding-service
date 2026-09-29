@@ -82,19 +82,6 @@ public class SebGatewayClient {
                 .body(String.class));
   }
 
-  public String getBalances(String iban, String orgId) {
-    log.info("Fetching balances: iban={}", iban);
-    return getRetrying(
-        "Empty balances response: iban=" + iban,
-        () ->
-            sebGatewayRestClient
-                .get()
-                .uri("/v1/accounts/{iban}/balances", iban)
-                .header("OrgId", orgId)
-                .retrieve()
-                .body(String.class));
-  }
-
   private String getRetrying(String emptyResponseMessage, Supplier<@Nullable String> request) {
     return sebGatewayRetryTemplate.invoke(
         () -> requireNonNull(request.get(), emptyResponseMessage));

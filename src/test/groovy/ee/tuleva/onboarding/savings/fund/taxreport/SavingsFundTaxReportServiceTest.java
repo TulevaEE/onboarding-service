@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -55,8 +57,22 @@ class SavingsFundTaxReportServiceTest {
     return transaction(time, units, amount, SUBTRACTION);
   }
 
+  private static Transaction received(
+      String time, String units, String amount, String acquisitionCost) {
+    return transaction(time, units, amount, TRANSFER_IN, new BigDecimal(acquisitionCost));
+  }
+
+  private static Transaction gaveAway(String time, String units, String amount) {
+    return transaction(time, units, amount, TRANSFER_OUT);
+  }
+
   private static Transaction transaction(
       String time, String units, String amount, CashFlow.Type type) {
+    return transaction(time, units, amount, type, null);
+  }
+
+  private static Transaction transaction(
+      String time, String units, String amount, CashFlow.Type type, BigDecimal acquisitionCost) {
     Instant at = Instant.parse(time);
     return Transaction.builder()
         .id(UUID.randomUUID())
@@ -69,6 +85,7 @@ class SavingsFundTaxReportServiceTest {
         .type(type)
         .units(new BigDecimal(units))
         .nav(new BigDecimal("1.00"))
+        .acquisitionCost(acquisitionCost)
         .build();
   }
 
@@ -104,6 +121,54 @@ class SavingsFundTaxReportServiceTest {
 
     assertThat(report.totalGain()).isEqualByComparingTo("50.00");
     assertThat(report.investmentAccount()).isNull();
+  }
+
+  @Test
+  void taxesEveryEuroAnHeirRedeemsWhenTheInheritedUnitsCostThemNothing() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                received("2025-01-10T10:00:00Z", "100", "400.00", "0.00"),
+                sold("2025-06-10T10:00:00Z", "100", "150.00")));
+    given(investmentAccountService.declaredIban(person.getRoleCode())).willReturn(Optional.empty());
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.totalGain()).isEqualByComparingTo("150.00");
+    assertThat(report.redemptions()).hasSize(1);
+  }
+
+  @Test
+  void leavesTheGiverNothingToDeclareForUnitsThatOnlyChangedHands() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                bought("2025-01-10T10:00:00Z", "100", "100.00"),
+                gaveAway("2025-03-10T10:00:00Z", "40", "-40.00"),
+                sold("2025-06-10T10:00:00Z", "60", "120.00")));
+    given(investmentAccountService.declaredIban(person.getRoleCode())).willReturn(Optional.empty());
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.redemptions()).hasSize(1);
+    assertThat(report.totalGain()).isEqualByComparingTo("60.00");
+  }
+
+  @Test
+  void doesNotPickAPoolForSomeoneWhoWasGivenUnitsFromNoBankAccountAtAll() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            new Statement()
+                .fromAnUnknownAccount(received("2025-01-10T10:00:00Z", "100", "400.00", "0.00"))
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), INVESTMENT_IBAN)
+                .build());
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().totalGain()).isNull();
+    assertThat(report.totalGain()).isEqualByComparingTo("150.00");
   }
 
   @Test

@@ -26,6 +26,7 @@ public class UnattributedPaymentAttributionService {
   private final SavingFundPaymentRepository paymentRepository;
   private final SavingsFundLedger savingsFundLedger;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final OutboundReturnVerifier outboundReturnVerifier;
 
   @Transactional
   public SavingFundPayment attribute(UUID paymentId, PartyId partyId, boolean returnCancelled) {
@@ -43,12 +44,8 @@ public class UnattributedPaymentAttributionService {
               + payment.getStatus());
     }
 
-    if (payment.getStatus() == RETURNED && !returnCancelled) {
-      throw new IllegalStateException(
-          "Outbound return may still be in flight for RETURNED payment; cancel the pending bank"
-              + " return first, then retry with returnCancelled=true: paymentId="
-              + paymentId);
-    }
+    outboundReturnVerifier.verifyAttributable(payment, returnCancelled);
+
     if (payment.getAmount().signum() <= 0) {
       throw new IllegalStateException(
           "Only incoming payments can be attributed: paymentId="
@@ -89,7 +86,7 @@ public class UnattributedPaymentAttributionService {
     } else {
       savingsFundLedger.reconcileUnattributedPayment(partyRef, payment.getAmount(), paymentId);
     }
-    paymentRepository.attributeManually(paymentId, partyId, returnCancelled);
+    paymentRepository.attributeManually(paymentId, partyId);
 
     return paymentRepository.findById(paymentId).orElseThrow();
   }

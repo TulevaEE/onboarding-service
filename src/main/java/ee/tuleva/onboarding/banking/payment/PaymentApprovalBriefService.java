@@ -1,32 +1,24 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.FAILED;
-import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
-import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
-import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
+import ee.tuleva.onboarding.banking.message.BookedBalanceReader;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentApprovalBriefService {
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private static final List<Gate> GATES =
       List.of(
@@ -38,22 +30,14 @@ public class PaymentApprovalBriefService {
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final BankAccounts bankAccounts;
-  private final SebAccountBalanceReader balanceReader;
-  private final Clock clock;
+  private final BookedBalanceReader bookedBalanceReader;
+  private final BatchTies batchTies;
 
   public PaymentApprovalBrief build(LocalDate date, List<PaymentHold> holds) {
-    var dayStart = date.atStartOfDay(TALLINN);
-    var attemptedToday =
-        outgoingPaymentRepository
-            .findByAttemptedAtBetween(dayStart.toInstant(), dayStart.plusDays(1).toInstant())
-            .stream()
-            .filter(payment -> payment.getStatus() != FAILED)
-            .toList();
-    var submittedToday =
-        attemptedToday.stream().filter(PaymentApprovalBriefService::awaitsApproval).toList();
+    var awaitingApproval = outgoingPaymentRepository.findAwaitingApproval();
 
     Map<String, List<OutgoingPayment>> byAccount =
-        submittedToday.stream()
+        awaitingApproval.stream()
             .collect(
                 groupingBy(
                     payment -> accountName(payment.getRemitterIban()),
@@ -66,9 +50,9 @@ public class PaymentApprovalBriefService {
             .sorted(comparing(PaymentApprovalBrief.AccountSummary::accountName))
             .toList();
 
-    var inFlight = submittedToday.stream().filter(OutgoingPayment::isPending).count();
+    var inFlight = awaitingApproval.stream().filter(OutgoingPayment::isPending).count();
     var held = holds.stream().filter(PaymentApprovalBriefService::heldByAGate).toList();
-    var verdicts = verdicts(attemptedToday, held);
+    var verdicts = verdicts(awaitingApproval, date, held);
 
     return new PaymentApprovalBrief(
         date,
@@ -82,33 +66,11 @@ public class PaymentApprovalBriefService {
             || accounts.stream().anyMatch(PaymentApprovalBrief.AccountSummary::goesNegative));
   }
 
-  private static boolean awaitsApproval(OutgoingPayment payment) {
-    return payment.getStatus() == SUBMITTED || payment.isPending();
-  }
-
-  private static List<PaymentApprovalBrief.Verdict> verdicts(
-      List<OutgoingPayment> attemptedToday, List<PaymentHold> holds) {
-    var verdicts = new ArrayList<PaymentApprovalBrief.Verdict>();
-    crossAccountTie(attemptedToday).ifPresent(verdicts::add);
+  private List<PaymentApprovalBrief.Verdict> verdicts(
+      List<OutgoingPayment> awaitingApproval, LocalDate date, List<PaymentHold> holds) {
+    var verdicts = new ArrayList<>(batchTies.verdicts(awaitingApproval, date));
     GATES.forEach(gate -> verdicts.add(verdictFor(gate, holds)));
     return List.copyOf(verdicts);
-  }
-
-  private static Optional<PaymentApprovalBrief.Verdict> crossAccountTie(
-      List<OutgoingPayment> attemptedToday) {
-    var transferred = totalOf(attemptedToday, REDEMPTION_TRANSFER);
-    var paidOut = totalOf(attemptedToday, PAYOUT);
-    if (transferred.signum() == 0 && paidOut.signum() == 0) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        new PaymentApprovalBrief.Verdict(
-            "payouts == transfer to withdrawal account",
-            transferred.compareTo(paidOut) == 0,
-            "%s = %s"
-                .formatted(
-                    PaymentApprovalBrief.amount(paidOut),
-                    PaymentApprovalBrief.amount(transferred))));
   }
 
   private static boolean heldByAGate(PaymentHold hold) {
@@ -121,19 +83,17 @@ public class PaymentApprovalBriefService {
         gate.label(), held == 0, held == 0 ? null : held + " held");
   }
 
-  private static BigDecimal totalOf(List<OutgoingPayment> payments, OutgoingPaymentType type) {
-    return sum(payments.stream().filter(payment -> payment.getPaymentType() == type).toList());
-  }
-
   private PaymentApprovalBrief.AccountSummary summarise(
       String accountName, List<OutgoingPayment> payments) {
     var projected =
         payments.stream()
             .map(OutgoingPayment::getRemitterIban)
             .findFirst()
-            .flatMap(bankAccounts::find)
-            .flatMap(balanceReader::available)
-            .map(balance -> balance.subtract(sum(payments)))
+            .flatMap(bookedBalanceReader::latest)
+            .map(
+                balance ->
+                    new PaymentApprovalBrief.ProjectedBalance(
+                        balance.amount().subtract(sum(payments)), balance.asOf()))
             .orElse(null);
     var flows =
         payments.stream()

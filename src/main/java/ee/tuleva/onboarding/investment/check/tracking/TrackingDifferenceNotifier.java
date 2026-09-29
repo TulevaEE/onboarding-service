@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -29,6 +30,14 @@ class TrackingDifferenceNotifier {
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final String PUBLISHED_WITHOUT_VALIDATION =
       "NAV report published WITHOUT tracking-difference validation";
+  private static final String BACKFILL_COMPLETE_HEADER = "✅ TD BACKFILL COMPLETE: daysBack=%d\n";
+  private static final String BACKFILL_INCOMPLETE_HEADER =
+      """
+      ⚠️ TD BACKFILL INCOMPLETE: daysBack=%d
+        The check dates named in the message above were not re-run and keep their old \
+      events, and the breach streaks counted after them still run through those events. \
+      Rerun the backfill once their prices are in.
+      """;
 
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
@@ -109,6 +118,27 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyAttributionNotWritten(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, List<LocalDate> staleDates) {
+    try {
+      notificationService.sendMessage(
+          """
+          ⚠️ TD ATTRIBUTION NOT WRITTEN: fund=%s, period=%s to %s
+            The NAV of %s changed after the check ran and the recheck did not
+            complete, so the stored fund return of those dates is stale. Any attribution already
+            stored for this period is left as it was. Rerun it once those dates recheck; the
+            reason per date is in the logs."""
+              .formatted(
+                  fund.getCode(),
+                  periodStart,
+                  periodEnd,
+                  staleDates.stream().map(LocalDate::toString).collect(joining(", "))),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send TD attribution not written notification", e);
+    }
+  }
+
   private static String toBps(BigDecimal value) {
     return value
         .multiply(new BigDecimal("10000"))
@@ -117,6 +147,15 @@ class TrackingDifferenceNotifier {
   }
 
   void notifyBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
+    sendBackfillSummary(BACKFILL_COMPLETE_HEADER.formatted(daysBack), daysBack, results);
+  }
+
+  void notifyIncompleteBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
+    sendBackfillSummary(BACKFILL_INCOMPLETE_HEADER.formatted(daysBack), daysBack, results);
+  }
+
+  private void sendBackfillSummary(
+      String header, int daysBack, List<TrackingDifferenceResult> results) {
     try {
       if (results.isEmpty()) {
         notificationService.sendMessage(
@@ -129,7 +168,7 @@ class TrackingDifferenceNotifier {
         return;
       }
 
-      var message = new StringBuilder("✅ TD BACKFILL COMPLETE: daysBack=%d\n".formatted(daysBack));
+      var message = new StringBuilder(header);
       results.stream()
           .collect(
               Collectors.groupingBy(
@@ -169,47 +208,14 @@ class TrackingDifferenceNotifier {
     return results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
   }
 
-  void notifyGapFillSummary(List<TrackingDifferenceResult> results) {
+  void notifyGapFillSummary(GapFillRun run) {
     try {
-      var alertableResults = alertableResults(results);
+      var alertableResults = alertableResults(run.results());
       if (alertableResults.isEmpty()) {
         return;
       }
-      var dates =
-          alertableResults.stream()
-              .map(TrackingDifferenceResult::checkDate)
-              .distinct()
-              .sorted()
-              .toList();
-      var breaches =
-          alertableResults.stream()
-              .filter(TrackingDifferenceResult::hasAnyBreach)
-              .sorted(
-                  Comparator.comparing(TrackingDifferenceResult::checkDate)
-                      .thenComparing(r -> r.fund().getCode())
-                      .thenComparing(r -> r.checkType().name()))
-              .toList();
-
-      var message =
-          new StringBuilder(
-              ("🕗 TD GAP FILL: %d past check dates rewritten, %s to %s — these are earlier days,"
-                      + " not today's check\n")
-                  .formatted(dates.size(), dates.getFirst(), dates.getLast()));
-      if (breaches.isEmpty()) {
-        message.append("  No breach on any of them.");
-      } else {
-        breaches.forEach(
-            result ->
-                message.append(
-                    "\n  🛑 %s %s %s: TD=%s%%, %d consecutive days"
-                        .formatted(
-                            result.checkDate(),
-                            result.fund().getCode(),
-                            result.checkType(),
-                            formatPercent(result.trackingDifference()),
-                            result.consecutiveBreachDays())));
-      }
-      notificationService.sendMessage(message.toString(), INVESTMENT);
+      notificationService.sendMessage(
+          GapFillSummaryFormatter.format(alertableResults, run.recheckedStaleDates()), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference gap fill summary", e);
     }

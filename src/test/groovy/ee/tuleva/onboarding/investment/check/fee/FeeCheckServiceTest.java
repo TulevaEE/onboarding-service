@@ -188,6 +188,6 @@ class FeeCheckServiceTest {
   }
 
   private FeeCheckFinding passFinding(FeeCheckType checkType, FeeCheckScope scope) {
-    return new FeeCheckFinding(TUK75, checkType, scope, PASS, "", null, Map.of());
+    return new FeeCheckFinding(TUK75, checkType, scope, PASS, "", null, List.of(), Map.of());
   }
 }

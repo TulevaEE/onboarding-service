@@ -16,7 +16,9 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,10 +29,19 @@ public class ReceivedGiftService {
   private final SavingFundPaymentRepository payments;
   private final GiftRepository gifts;
   private final ParentChildLinkService parentChildLinks;
+  private final GiftLinkRepository giftLinks;
 
-  public List<ReceivedGift> receivedGifts(String parentPersonalCode, String childPersonalCode) {
+  public List<ReceivedGift> receivedGifts(String parentPersonalCode, UUID giftLinkId) {
+    var link =
+        giftLinks
+            .findById(giftLinkId)
+            .orElseThrow(() -> new NoSuchElementException("No such gift link: id=" + giftLinkId));
+    return receivedGifts(parentPersonalCode, link.getRecipientPersonalCode());
+  }
+
+  List<ReceivedGift> receivedGifts(String parentPersonalCode, String childPersonalCode) {
     if (!parentChildLinks.isActiveRepresentation(parentPersonalCode, childPersonalCode)) {
-      throw new NotAllowedToGiftForException(childPersonalCode);
+      throw new NotAllowedToGiftForException(parentPersonalCode, childPersonalCode);
     }
     var arrived =
         payments.findPayments(new PartyId(PERSON, childPersonalCode)).stream()

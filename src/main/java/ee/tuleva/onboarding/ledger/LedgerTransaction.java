@@ -8,6 +8,7 @@ import static org.hibernate.generator.EventType.INSERT;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey;
 import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
 import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import jakarta.persistence.*;
@@ -143,9 +144,37 @@ public class LedgerTransaction {
         .map(entry -> entry.getAmount().abs());
   }
 
+  Optional<BigDecimal> findFundUnitsChangeOf(@Nullable LedgerParty party) {
+    return entries.stream()
+        .filter(LedgerEntry::isUserFundUnit)
+        .filter(entry -> entry.getAccount().isOwnedBy(party))
+        .findFirst()
+        .map(entry -> entry.getAmount().negate());
+  }
+
   public Optional<BigDecimal> findNavPerUnit() {
-    Object navValue = metadata.get("navPerUnit");
-    return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
+    return findMetadataAmount(MetadataKey.NAV_PER_UNIT);
+  }
+
+  Optional<TransactionType> findOperationType() {
+    return Optional.ofNullable(metadata.get(MetadataKey.OPERATION_TYPE.getKey()))
+        .map(Object::toString)
+        .flatMap(LedgerTransaction::parseTransactionType);
+  }
+
+  private static Optional<TransactionType> parseTransactionType(String name) {
+    return Arrays.stream(TransactionType.values())
+        .filter(transactionType -> transactionType.name().equals(name))
+        .findFirst();
+  }
+
+  public Optional<BigDecimal> findRecipientAcquisitionCost() {
+    return findMetadataAmount(MetadataKey.RECIPIENT_ACQUISITION_COST_EUR);
+  }
+
+  private Optional<BigDecimal> findMetadataAmount(MetadataKey key) {
+    Object value = metadata.get(key.getKey());
+    return Optional.ofNullable(value).map(amount -> new BigDecimal(amount.toString()));
   }
 
   public Optional<LocalDate> findNavDate() {

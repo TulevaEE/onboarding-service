@@ -2,14 +2,18 @@ package ee.tuleva.onboarding;
 
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +25,8 @@ class FlywayMigrationVersionTest {
           Path.of("src/main/resources/db/dev"),
           Path.of("src/main/java/db/migration"),
           Path.of("src/test/resources/db/h2"));
+
+  private static final Pattern VERSION_REFERENCE = Pattern.compile("V\\d+(?:[_.]\\d+)+");
 
   @Test
   void everyMigrationVersionIsClaimedByExactlyOneFile() throws IOException {
@@ -60,6 +66,68 @@ class FlywayMigrationVersionTest {
     var fileNames = List.of("R__refresh_views.sql", "R__rebuild_indexes.sql");
 
     assertThat(duplicateVersions(fileNames)).isEmpty();
+  }
+
+  @Test
+  void everyVersionNamedInsideAMigrationBodyNamesAMigrationThatExists() throws IOException {
+    var claimed = claimedVersions(versionedMigrationFileNames());
+
+    assertThat(danglingReferences(migrationBodies(), claimed))
+        .as("Renumbering a migration leaves its old version behind in the text explaining it")
+        .isEmpty();
+  }
+
+  @Test
+  void aBodyNamingTheVersionAMigrationCarriedBeforeRenumberingIsDangling() {
+    var bodies = Map.of("V1_280__rebate_basis.sql", "-- the rollback window V1_275 kept open");
+
+    assertThat(danglingReferences(bodies, Set.of("1.279", "1.280")))
+        .containsExactly("V1_280__rebate_basis.sql references 1.275");
+  }
+
+  @Test
+  void aBodyNamingAMigrationThatStillExistsIsLeftAlone() {
+    var bodies = Map.of("V1_280__rebate_basis.sql", "-- the rollback window V1_279 kept open");
+
+    assertThat(danglingReferences(bodies, Set.of("1.279", "1.280"))).isEmpty();
+  }
+
+  private static List<String> danglingReferences(
+      Map<String, String> bodies, Set<String> claimedVersions) {
+    return bodies.entrySet().stream()
+        .flatMap(
+            body ->
+                VERSION_REFERENCE
+                    .matcher(body.getValue())
+                    .results()
+                    .map(match -> match.group().substring(1).replace('_', '.'))
+                    .distinct()
+                    .filter(referenced -> !claimedVersions.contains(referenced))
+                    .map(referenced -> body.getKey() + " references " + referenced))
+        .sorted()
+        .toList();
+  }
+
+  private static Set<String> claimedVersions(List<String> fileNames) {
+    return fileNames.stream()
+        .filter(FlywayMigrationVersionTest::isVersioned)
+        .map(FlywayMigrationVersionTest::version)
+        .collect(toSet());
+  }
+
+  private static Map<String, String> migrationBodies() throws IOException {
+    var bodies = new HashMap<String, String>();
+    for (Path location : FLYWAY_LOCATIONS) {
+      if (!Files.isDirectory(location)) {
+        continue;
+      }
+      try (Stream<Path> files = Files.list(location)) {
+        for (Path file : files.filter(Files::isRegularFile).toList()) {
+          bodies.put(file.getFileName().toString(), Files.readString(file));
+        }
+      }
+    }
+    return Map.copyOf(bodies);
   }
 
   private static List<String> duplicateVersions(List<String> fileNames) {

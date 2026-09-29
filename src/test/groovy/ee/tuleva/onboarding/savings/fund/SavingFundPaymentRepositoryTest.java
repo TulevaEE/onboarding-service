@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -348,7 +347,7 @@ class SavingFundPaymentRepositoryTest {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    repository.attributeManually(id, party, true);
+    repository.attributeManually(id, party);
 
     var payments = repository.findPaymentsWithStatus(VERIFIED);
     assertThat(payments).hasSize(1);
@@ -367,25 +366,10 @@ class SavingFundPaymentRepositoryTest {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    assertThatThrownBy(() -> repository.attributeManually(id, party, true))
+    assertThatThrownBy(() -> repository.attributeManually(id, party))
         .isInstanceOf(RuntimeException.class);
 
     var payments = repository.findPaymentsWithStatus(status);
-    assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getPartyId()).isNull();
-  }
-
-  @Test
-  void attributeManually_returnedWithoutCancelledReturn_notAllowed() {
-    var user = createUser();
-    var party = new PartyId(PERSON, user.getPersonalCode());
-    var id = repository.savePaymentData(createPayment().build());
-    updatePaymentStatus(id, RETURNED);
-
-    assertThatThrownBy(() -> repository.attributeManually(id, party, false))
-        .isInstanceOf(RuntimeException.class);
-
-    var payments = repository.findPaymentsWithStatus(RETURNED);
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getPartyId()).isNull();
   }

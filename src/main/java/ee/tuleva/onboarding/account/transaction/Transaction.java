@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
@@ -31,7 +34,8 @@ public record Transaction(
     @Nullable String isin,
     CashFlow.Type type,
     BigDecimal units,
-    BigDecimal nav)
+    @Nullable BigDecimal nav,
+    @JsonInclude(NON_NULL) @Nullable BigDecimal acquisitionCost)
     implements Comparable<Transaction> {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -62,7 +66,10 @@ public record Transaction(
   }
 
   public boolean isAcquisition() {
-    return type == CONTRIBUTION_CASH || type == CONTRIBUTION_CASH_WORKPLACE || type == CONTRIBUTION;
+    return type == CONTRIBUTION_CASH
+        || type == CONTRIBUTION_CASH_WORKPLACE
+        || type == CONTRIBUTION
+        || type == TRANSFER_IN;
   }
 
   @Override

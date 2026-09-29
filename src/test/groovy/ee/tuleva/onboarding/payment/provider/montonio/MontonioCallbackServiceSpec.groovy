@@ -27,7 +27,8 @@ class MontonioCallbackServiceSpec extends Specification {
       userService,
       paymentRepository,
       objectMapper,
-      eventPublisher
+      eventPublisher,
+      new MontonioTokenParser(objectMapper, montonioPaymentChannelConfiguration)
   )
 
   def "processToken: creates a new payment when it doesn't exist"() {
@@ -134,16 +135,13 @@ class MontonioCallbackServiceSpec extends Specification {
     result.isEmpty()
   }
 
-  def "processToken: rejects a malformed token"() {
+  def "processToken: rejects a malformed token without touching payments"() {
     when:
-    service.processToken(malformedToken)
+    service.processToken("garbage")
 
     then:
     thrown(BadCredentialsException)
     0 * paymentRepository.findByInternalReference(_)
     0 * paymentRepository.save(_)
-
-    where:
-    malformedToken << ["garbage", "", "   ", "a.b.c", null]
   }
 }

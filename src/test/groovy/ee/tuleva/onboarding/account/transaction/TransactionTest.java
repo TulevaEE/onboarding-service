@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.OTHER;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.REFUND;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_FROM_PIK;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_TO_PIK;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,15 +57,23 @@ class TransactionTest {
   @ParameterizedTest
   @EnumSource(
       value = CashFlow.Type.class,
-      names = {"CONTRIBUTION_CASH", "CONTRIBUTION_CASH_WORKPLACE", "CONTRIBUTION"})
-  void contributionsAreAcquisitions(CashFlow.Type type) {
+      names = {"CONTRIBUTION_CASH", "CONTRIBUTION_CASH_WORKPLACE", "CONTRIBUTION", "TRANSFER_IN"})
+  void everythingThatAddsUnitsIsAnAcquisition(CashFlow.Type type) {
     assertThat(Transaction.builder().time(BOOKED).type(type).build().isAcquisition()).isTrue();
   }
 
   @ParameterizedTest
   @EnumSource(
       value = CashFlow.Type.class,
-      names = {"SUBTRACTION", "CASH", "REFUND", "TRANSFER_TO_PIK", "TRANSFER_FROM_PIK", "OTHER"})
+      names = {
+        "SUBTRACTION",
+        "TRANSFER_OUT",
+        "CASH",
+        "REFUND",
+        "TRANSFER_TO_PIK",
+        "TRANSFER_FROM_PIK",
+        "OTHER"
+      })
   void everythingElseIsNotAnAcquisition(CashFlow.Type type) {
     assertThat(Transaction.builder().time(BOOKED).type(type).build().isAcquisition()).isFalse();
   }
@@ -81,6 +91,8 @@ class TransactionTest {
             REFUND,
             TRANSFER_TO_PIK,
             TRANSFER_FROM_PIK,
+            TRANSFER_IN,
+            TRANSFER_OUT,
             OTHER);
   }
 }

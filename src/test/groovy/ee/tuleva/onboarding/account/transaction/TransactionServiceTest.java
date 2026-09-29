@@ -75,6 +75,42 @@ class TransactionServiceTest {
   }
 
   @Test
+  void keepsSavingsFundTransfersThatTheEpisContributionFilterWouldNeverLetThrough() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var cashFlowStatement = cashFlowFixture();
+
+    var transferIn =
+        Transaction.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .time(Instant.parse("2099-01-02T00:00:00Z"))
+            .isin("EE0000003283")
+            .type(TRANSFER_IN)
+            .units(new BigDecimal("40.00000"))
+            .nav(new BigDecimal("10.0000"))
+            .acquisitionCost(new BigDecimal("0.00"))
+            .build();
+    var transferOut =
+        Transaction.builder()
+            .amount(new BigDecimal("-400.00"))
+            .currency(EUR)
+            .time(Instant.parse("2099-01-01T00:00:00Z"))
+            .isin("EE0000003283")
+            .type(TRANSFER_OUT)
+            .units(new BigDecimal("40.00000"))
+            .nav(new BigDecimal("10.0000"))
+            .build();
+
+    when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(transferIn, transferOut));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions).hasSize(5);
+    assertThat(transactions).startsWith(transferIn, transferOut);
+  }
+
+  @Test
   void returnsOnlySavingsTransactionsWhenRepresentingAnotherPerson() {
     var person =
         sampleAuthenticatedPersonAndMember()

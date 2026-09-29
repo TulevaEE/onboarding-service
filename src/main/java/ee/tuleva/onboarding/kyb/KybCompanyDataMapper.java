@@ -121,7 +121,7 @@ class KybCompanyDataMapper {
   private KybRelatedPerson toRelatedPerson(
       @Nullable PersonalCode code, List<CompanyRelationship> roles, boolean beneficialOwner) {
     var naturalPerson = roles.stream().allMatch(r -> NATURAL_PERSON_TYPE.equals(r.personType()));
-    var boardMember = roles.stream().anyMatch(r -> BOARD_MEMBER_ROLE.equals(r.roleCode()));
+    var boardMember = roles.stream().anyMatch(r -> BOARD_MEMBER_ROLES.contains(r.roleCode()));
     var shareholder = roles.stream().anyMatch(r -> SHAREHOLDER_ROLES.contains(r.roleCode()));
     var ownershipPercent =
         roles.stream()

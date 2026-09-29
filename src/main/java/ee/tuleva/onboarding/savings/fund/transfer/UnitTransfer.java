@@ -111,6 +111,10 @@ public class UnitTransfer {
   }
 
   UnitTransferCommand asCommand() {
+    if (recipientAcquisitionCostEur == null) {
+      throw new IllegalStateException(
+          "Transfer has no acquisition cost for the recipient: id=" + id);
+    }
     return new UnitTransferCommand(
         fromPartyCode,
         fromPartyType,

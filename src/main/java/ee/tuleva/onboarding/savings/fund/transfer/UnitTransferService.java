@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.UnitTransferInstruction;
 import ee.tuleva.onboarding.ledger.UnitTransferQuote;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
@@ -27,7 +28,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,7 +128,8 @@ public class UnitTransferService {
               + transfer.getPlanHash());
     }
 
-    if (preview(transfer.asCommand()) instanceof Refused refused) {
+    UnitTransferCommand command = transfer.asCommand();
+    if (preview(command) instanceof Refused refused) {
       throw new IllegalStateException(
           "Refusing to approve a transfer the ledger would no longer make: id="
               + id
@@ -138,7 +139,12 @@ public class UnitTransferService {
 
     var recorded =
         savingsFundLedger.recordUnitTransfer(
-            transfer.from(), transfer.to(), transfer.getFundUnits(), id);
+            new UnitTransferInstruction(
+                transfer.from(),
+                transfer.to(),
+                transfer.getFundUnits(),
+                command.recipientAcquisitionCostEur(),
+                id));
 
     transfer.executedBy(approver, recorded.getId(), Instant.now(clock));
     return transfers.save(transfer);
@@ -176,10 +182,7 @@ public class UnitTransferService {
     return actor.strip();
   }
 
-  private static Optional<String> whyTheAcquisitionCostCannotBeRecorded(@Nullable BigDecimal cost) {
-    if (cost == null) {
-      return Optional.empty();
-    }
+  private static Optional<String> whyTheAcquisitionCostCannotBeRecorded(BigDecimal cost) {
     if (cost.signum() < 0) {
       return Optional.of(
           "The recipient's acquisition cost cannot be negative: recipientAcquisitionCostEur="
@@ -216,7 +219,9 @@ public class UnitTransferService {
             quote.receiverUnitsAfter(),
             command.recipientAcquisitionCostEur(),
             quote.giverPaidIn(),
-            quote.giverUnitsOwned());
+            quote.giverUnitsOwned(),
+            quote.giverRemainingCost(),
+            quote.contributionMoved());
     return new Planned(hashOf(command, plan), plan);
   }
 
@@ -232,21 +237,18 @@ public class UnitTransferService {
                 plan.receiverUnitsAfter().toPlainString(),
                 plan.giverPaidIn().toPlainString(),
                 plan.giverUnitsOwned().toPlainString(),
+                plan.giverRemainingCost().toPlainString(),
+                plan.contributionMoved().toPlainString(),
                 command.notifiedAt().toString(),
                 command.evidence(),
-                theCostAsHashed(command.recipientAcquisitionCostEur()))
+                inWholeCents(command.recipientAcquisitionCostEur()).toPlainString())
             .map(field -> field.length() + ":" + field)
             .collect(joining("|"));
     return HexFormat.of().formatHex(sha256().digest(canonical.getBytes(UTF_8)));
   }
 
-  private static @Nullable BigDecimal inWholeCents(@Nullable BigDecimal cost) {
-    return cost == null ? null : cost.setScale(2, UNNECESSARY);
-  }
-
-  private static String theCostAsHashed(@Nullable BigDecimal cost) {
-    BigDecimal inWholeCents = inWholeCents(cost);
-    return inWholeCents == null ? "null" : inWholeCents.toPlainString();
+  private static BigDecimal inWholeCents(BigDecimal cost) {
+    return cost.setScale(2, UNNECESSARY);
   }
 
   private static MessageDigest sha256() {

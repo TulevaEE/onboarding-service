@@ -51,6 +51,7 @@ class LegalEntityScreenerTest {
   @Test
   void fetchActiveRelationshipsKeepsOnlyOwnershipAndControlRoles() {
     var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
+    var managingBoardMember = relationship("JUHJ", "Toomas", "Juhataja", "37001010008");
     var registryShareholder = relationship("OSAN", "Peeter", "Osanik", "37601010003");
     var nasdaqShareholder = relationship("O", "Mari", "Kask", "49001010001");
     var beneficialOwner = relationship("W", "Jaan", "Tamm", "38501010002");
@@ -64,6 +65,7 @@ class LegalEntityScreenerTest {
         .willReturn(
             List.of(
                 boardMember,
+                managingBoardMember,
                 registryShareholder,
                 nasdaqShareholder,
                 beneficialOwner,
@@ -75,7 +77,12 @@ class LegalEntityScreenerTest {
     var result = screener.fetchActiveRelationships(REGISTRY_CODE);
 
     assertThat(result)
-        .containsExactly(boardMember, registryShareholder, nasdaqShareholder, beneficialOwner);
+        .containsExactly(
+            boardMember,
+            managingBoardMember,
+            registryShareholder,
+            nasdaqShareholder,
+            beneficialOwner);
   }
 
   @Test

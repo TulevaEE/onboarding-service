@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +24,7 @@ class SebMatchedRowProcessor {
   private final QuantityAmountValidator quantityAmountValidator;
   private final ExecutionPriceConsistencyChecker priceConsistencyChecker;
   private final SebExecutionUpserter executionUpserter;
+  private final ReportedQuantityNormalizer quantityNormalizer;
   private final TransactionExecutionRepository executionRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final ReconciliationAuditRecorder auditRecorder;
@@ -45,18 +50,33 @@ class SebMatchedRowProcessor {
       reportMismatch(blankEconomics.get().withReportDate(reportDate), row);
       return RowOutcome.MATCHED;
     }
+    List<TransactionExecution> existingExecutions =
+        executionRepository.findAllByOrderId(order.getId());
+    SebPendingTransactionRow normalizedRow =
+        quantityNormalizer.normalize(order, row, existingExecutions);
     Optional<QuantityAmountMismatchEvent> mismatch =
         quantityAmountValidator.validateCumulative(
-            order, row, executionRepository.findAllByOrderId(order.getId()), matchingProperties);
+            order, normalizedRow, existingExecutions, matchingProperties);
     if (mismatch.isPresent()) {
-      reportMismatch(mismatch.get().withReportDate(reportDate), row);
+      reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow);
       return RowOutcome.MATCHED;
     }
-    if (executionUpserter.upsert(row, order, reportDate, asOfDate)) {
+    BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
+    if (executionUpserter.upsert(normalizedRow, order, reportDate, asOfDate, reportedQuantity)) {
       checkPriceConsistency(order, reportDate, matchingProperties);
       return RowOutcome.MATCHED;
     }
     return RowOutcome.SKIPPED;
+  }
+
+  private static @Nullable BigDecimal substitutedReportedQuantity(
+      SebPendingTransactionRow reportedRow, SebPendingTransactionRow normalizedRow) {
+    BigDecimal reported = reportedRow.quantity();
+    BigDecimal stored = normalizedRow.quantity();
+    if (reported == null || stored == null || stored.compareTo(reported) == 0) {
+      return null;
+    }
+    return reported;
   }
 
   private void checkPriceConsistency(

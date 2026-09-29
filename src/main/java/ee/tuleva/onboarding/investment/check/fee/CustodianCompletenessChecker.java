@@ -14,13 +14,12 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// The fee base recomputes cleanly from the NAV components even when a custodian row never made it
-// into the ledger, because those components are themselves fed by the filtered ingestion. Only
-// comparing against the custodian report can see a wrong input rather than a wrong formula.
 @Component
 class CustodianCompletenessChecker {
 
   private static final int MAX_DAYS_IN_MESSAGE = 10;
+  private static final String NO_NAV_REPORT =
+      "no nav_report rows to compare the custodian positions against";
 
   private final FundPositionRepository fundPositionRepository;
   private final CustodianPositionComparator comparator;
@@ -39,7 +38,7 @@ class CustodianCompletenessChecker {
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate from, LocalDate to) {
     var navDates = fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, to);
     if (navDates.isEmpty()) {
-      return notRun(fund, "No custodian position report between " + from + " and " + to);
+      return notRun(fund, "No custodian position report between " + from + " and " + to, List.of());
     }
 
     var notComparedDates = new ArrayList<LocalDate>();
@@ -78,7 +77,12 @@ class CustodianCompletenessChecker {
               + notComparedDates.stream()
                   .limit(MAX_DAYS_IN_MESSAGE)
                   .map(LocalDate::toString)
-                  .toList());
+                  .toList(),
+          DatedCondition.stretchIdentifiers(
+              notComparedDates.stream()
+                  .map(date -> new DatedCondition(date, NO_NAV_REPORT))
+                  .toList(),
+              navDates));
     }
     return List.of(FeeCheckFinding.pass(fund, CUSTODIAN_POSITION_COMPLETENESS, ALL));
   }
@@ -154,6 +158,12 @@ class CustodianCompletenessChecker {
             .map(CustodianDayComparison::totalDifference)
             .map(BigDecimal::abs)
             .reduce(ZERO, BigDecimal::add);
+    var lines =
+        days.stream()
+            .flatMap(
+                day ->
+                    day.differences().stream().map(difference -> day.navDate() + " " + difference))
+            .toList();
     return new FeeCheckFinding(
         fund,
         CUSTODIAN_POSITION_COMPLETENESS,
@@ -161,21 +171,17 @@ class CustodianCompletenessChecker {
         severity,
         message,
         totalDeviation,
+        lines,
         Map.of(
             "days",
             days.stream().map(day -> day.navDate().toString()).toList(),
             "lines",
-            days.stream()
-                .flatMap(
-                    day ->
-                        day.differences().stream()
-                            .map(difference -> day.navDate() + " " + difference))
-                .toList(),
+            lines,
             "totalDeviation",
             totalDeviation.toPlainString()));
   }
 
-  private List<FeeCheckFinding> notRun(TulevaFund fund, String message) {
+  private List<FeeCheckFinding> notRun(TulevaFund fund, String message, List<String> identifiers) {
     return List.of(
         new FeeCheckFinding(
             fund,
@@ -184,6 +190,7 @@ class CustodianCompletenessChecker {
             FeeCheckSeverity.NOT_RUN,
             message,
             null,
+            identifiers,
             Map.of()));
   }
 }

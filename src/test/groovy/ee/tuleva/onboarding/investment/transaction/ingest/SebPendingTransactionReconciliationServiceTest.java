@@ -87,6 +87,7 @@ class SebPendingTransactionReconciliationServiceTest {
             validator,
             new ExecutionPriceConsistencyChecker(),
             executionUpserter,
+            new ReportedQuantityNormalizer(),
             executionRepository,
             eventPublisher,
             auditRecorder,
@@ -95,7 +96,11 @@ class SebPendingTransactionReconciliationServiceTest {
         new SebPendingRowReconciler(
             new SebPendingTransactionMatcher(orderRepository),
             new SebPendingTransactionComplexMatcher(
-                orderRepository, executionRepository, resolver, validator),
+                orderRepository,
+                executionRepository,
+                resolver,
+                validator,
+                new ReportedQuantityNormalizer()),
             executionRepository,
             orderRepository,
             eventPublisher,

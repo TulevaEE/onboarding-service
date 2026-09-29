@@ -419,16 +419,11 @@ public class SavingFundPaymentRepository {
         parameters);
   }
 
-  public void attributeManually(UUID paymentId, PartyId partyId, boolean returnCancelled) {
+  public void attributeManually(UUID paymentId, PartyId partyId) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(TO_BE_RETURNED, RETURNED).contains(currentStatus))
       throw new IllegalStateException(
           "Manual attribution is not allowed when payment is " + currentStatus);
-    if (currentStatus == RETURNED && !returnCancelled)
-      throw new IllegalStateException(
-          "Outbound return may still be in flight for RETURNED payment; cancel the pending bank"
-              + " return first, then retry with returnCancelled=true: paymentId="
-              + paymentId);
     log.info(
         "SavingFundPayment {} manually attributed to party {} {}: {} -> VERIFIED",
         paymentId,

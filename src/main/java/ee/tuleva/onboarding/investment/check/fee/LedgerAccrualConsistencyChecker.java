@@ -74,6 +74,7 @@ class LedgerAccrualConsistencyChecker {
   private FeeCheckFinding failure(TulevaFund fund, FeeType feeType, List<Divergence> divergences) {
     var total =
         divergences.stream().map(Divergence::difference).reduce(ZERO, BigDecimal::add).abs();
+    var divergentDays = divergences.stream().map(Divergence::describe).toList();
     return new FeeCheckFinding(
         fund,
         LEDGER_ACCRUAL_CONSISTENCY,
@@ -81,11 +82,8 @@ class LedgerAccrualConsistencyChecker {
         FeeCheckSeverity.FAIL,
         message(feeType, divergences, total),
         total,
-        Map.of(
-            "divergentDays",
-            divergences.stream().map(Divergence::describe).toList(),
-            "totalDeviation",
-            total.toPlainString()));
+        divergentDays,
+        Map.of("divergentDays", divergentDays, "totalDeviation", total.toPlainString()));
   }
 
   private String message(FeeType feeType, List<Divergence> divergences, BigDecimal total) {

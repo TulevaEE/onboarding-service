@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.payment.savings;
 import static ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService.inferPartyType;
 import static java.util.Objects.requireNonNull;
 
-import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.GiftPayments;
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment;
@@ -17,7 +16,6 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -34,9 +32,8 @@ public class SavingsCallbackService {
   private final GiftPayments giftPayments;
   private final ApplicationEventPublisher eventPublisher;
 
-  @SneakyThrows
   public SavingsPaymentOutcome processToken(String serializedToken) {
-    var jwsObject = JWSObject.parse(serializedToken);
+    var jwsObject = tokenParser.parseSerialized(serializedToken);
     tokenParser.verifyToken(jwsObject, savingsChannelConfiguration.getSecretKey());
     var token = tokenParser.parse(jwsObject);
 

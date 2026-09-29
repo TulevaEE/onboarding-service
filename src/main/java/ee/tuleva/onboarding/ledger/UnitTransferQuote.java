@@ -7,4 +7,6 @@ public record UnitTransferQuote(
     BigDecimal giverUnitsAfter,
     BigDecimal receiverUnitsAfter,
     BigDecimal giverPaidIn,
-    BigDecimal giverUnitsOwned) {}
+    BigDecimal giverUnitsOwned,
+    BigDecimal giverRemainingCost,
+    BigDecimal contributionMoved) {}

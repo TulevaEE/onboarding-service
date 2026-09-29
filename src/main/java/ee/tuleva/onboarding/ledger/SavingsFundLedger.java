@@ -65,10 +65,12 @@ import org.springframework.stereotype.Service;
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
  * </pre>
  *
- * <h2>Unit Transfer Flow (units change owner, nothing else moves)</h2>
+ * <h2>Unit Transfer Flow (units change owner, and what the giver paid on average for the units they
+ * still hold travels along)</h2>
  *
  * <pre>
  * 1. recordUnitTransfer            Giver:FUND_UNITS → Receiver:FUND_UNITS
+ *                                  Giver:SUBSCRIPTIONS → Receiver:SUBSCRIPTIONS
  * </pre>
  */
 @Slf4j
@@ -103,7 +105,8 @@ public class SavingsFundLedger {
     COUNTERPARTY_IBAN("counterpartyIban"),
     SUB_FAMILY_CODE("subFamilyCode"),
     RECIPIENT_CODE("recipientCode"),
-    RECIPIENT_TYPE("recipientType");
+    RECIPIENT_TYPE("recipientType"),
+    RECIPIENT_ACQUISITION_COST_EUR("recipientAcquisitionCostEur");
 
     private final String key;
   }
@@ -352,9 +355,8 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction recordUnitTransfer(
-      PartyRef from, PartyRef to, BigDecimal fundUnits, UUID externalReference) {
-    return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
+  public LedgerTransaction recordUnitTransfer(UnitTransferInstruction instruction) {
+    return unitTransferRecorder.recordUnitTransfer(instruction);
   }
 
   public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {

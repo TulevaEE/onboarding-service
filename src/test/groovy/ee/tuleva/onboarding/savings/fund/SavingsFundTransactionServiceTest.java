@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
@@ -22,6 +24,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
+import ee.tuleva.onboarding.ledger.LedgerAccountFixture.UnitTransferFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -525,6 +528,151 @@ class SavingsFundTransactionServiceTest {
   }
 
   @Test
+  void showsUnitsSomeoneWasGivenAsATransferInsteadOfCashTheyPaidIn() {
+    String isin = "EE0000003283";
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("400.00"),
+                        new BigDecimal("40.00000"),
+                        new BigDecimal("300.00"),
+                        transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThat(service.getTransactions(person))
+        .extracting(
+            Transaction::amount,
+            Transaction::units,
+            Transaction::nav,
+            Transaction::type,
+            Transaction::isin)
+        .containsExactly(
+            tuple(new BigDecimal("400.00"), new BigDecimal("40.00000"), null, TRANSFER_IN, isin));
+  }
+
+  @Test
+  void showsUnitsSomeoneGaveAwayAsATransferInsteadOfCashTakenOut() {
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("-400.00"),
+                        new BigDecimal("-40.00000"),
+                        new BigDecimal("300.00"),
+                        transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::amount, Transaction::units, Transaction::type)
+        .containsExactly(
+            tuple(new BigDecimal("-400.00"), new BigDecimal("40.00000"), TRANSFER_OUT));
+  }
+
+  @Test
+  void tellsAGiverFromARecipientEvenWhenNoPaidInShareMovedWithTheUnits() {
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("0.00"),
+                        new BigDecimal("-40.00000"),
+                        new BigDecimal("300.00"),
+                        transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::amount, Transaction::type, Transaction::acquisitionCost)
+        .containsExactly(tuple(new BigDecimal("0.00"), TRANSFER_OUT, null));
+  }
+
+  @Test
+  void carriesTheAcquisitionCostRecordedForWhoeverReceivedTheUnits() {
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("400.00"),
+                        new BigDecimal("40.00000"),
+                        new BigDecimal("300.00"),
+                        transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::acquisitionCost)
+        .containsExactly(new BigDecimal("300.00"));
+  }
+
+  @Test
+  void leavesTheAcquisitionCostOffEveryRowButATransferIn() {
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("-400.00"),
+                        new BigDecimal("-40.00000"),
+                        new BigDecimal("300.00"),
+                        transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(
+            redemptionsAccountWithEntries(
+                List.of(new EntryFixture(new BigDecimal("25.00"), transferTime))));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::acquisitionCost)
+        .containsOnlyNulls();
+  }
+
+  @Test
+  void showsATransferEvenWhenNoAcquisitionCostWasEverRecordedForIt() {
+    Instant transferTime = Instant.parse("2025-04-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithUnitTransfers(
+                List.of(
+                    new UnitTransferFixture(
+                        new BigDecimal("400.00"), new BigDecimal("40.00000"), transferTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::type, Transaction::acquisitionCost)
+        .containsExactly(tuple(TRANSFER_IN, null));
+  }
+
+  @Test
   void returnsEmptyListWhenNotOnboarded() {
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(false);
 
@@ -569,6 +717,21 @@ class SavingsFundTransactionServiceTest {
                 new EntryFixture(new BigDecimal("100.00"), Instant.parse("2025-01-15T10:00:00Z"))));
     when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
         .thenReturn(redemptionsAccountWithBalance(BigDecimal.ZERO));
+
+    assertThatThrownBy(() -> service.getTransactions(person))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void failsWhenARedemptionHasNoNavPerUnit() {
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(subscriptionsAccountWithBalance(BigDecimal.ZERO));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(
+            redemptionsAccountWithoutNavPerUnit(
+                new EntryFixture(new BigDecimal("100.00"), Instant.parse("2025-01-15T10:00:00Z"))));
 
     assertThatThrownBy(() -> service.getTransactions(person))
         .isInstanceOf(IllegalStateException.class);

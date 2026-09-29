@@ -31,12 +31,17 @@ if ! git diff --cached | "$(dirname "${BASH_SOURCE[0]}")/pii-scan"; then
 fi
 echo "✅ No personal data found."
 
+# Advisory, for the same reason it is advisory at pre-push: git has a single
+# --no-verify for the whole hook, so a formatting complaint that stopped the
+# commit would also be a reason to switch off the pii-scan above it, and on a
+# public repository that scan is the one whose miss cannot be undone afterwards.
+# Formatting is caught by ./gradlew build in CI; publication is not.
 echo "✨ Checking Spotless formatting..."
 if ! ./gradlew spotlessCheck --no-daemon --quiet; then
-    echo "❌ Spotless formatting check failed."
-    echo "   Run './gradlew spotlessApply' to fix formatting, then try again."
-    exit 1
+    echo "⚠️  Spotless formatting check failed — not blocking the commit."
+    echo "   Run './gradlew spotlessApply' before pushing; CI runs it as part of ./gradlew build."
+else
+    echo "✅ Spotless formatting check passed."
 fi
-echo "✅ Spotless formatting check passed."
 
 exit 0

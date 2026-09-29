@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
@@ -14,9 +13,7 @@ import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunFundPositionImportRequested;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
-import ee.tuleva.onboarding.investment.position.parser.FundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
-import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
@@ -26,10 +23,10 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,12 +35,12 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class FundPositionImportJob {
 
   private static final int LOOKBACK_DAYS = 14;
-  private static final List<ReportProvider> PROVIDERS = List.of(SWEDBANK, SEB);
 
-  private final Map<ReportProvider, FundPositionParser> parsers;
+  private final SebFundPositionParser parser;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
   private final FundPositionLedgerService fundPositionLedgerService;
@@ -52,28 +49,6 @@ public class FundPositionImportJob {
   private final Clock clock;
   private final ApplicationEventPublisher eventPublisher;
   private final PipelineTracker pipelineTracker;
-
-  public FundPositionImportJob(
-      SwedbankFundPositionParser swedbankParser,
-      SebFundPositionParser sebParser,
-      FundPositionImportService importService,
-      InvestmentReportService reportService,
-      FundPositionLedgerService fundPositionLedgerService,
-      HealthCheckService healthCheckService,
-      HealthCheckNotifier healthCheckNotifier,
-      Clock clock,
-      ApplicationEventPublisher eventPublisher,
-      PipelineTracker pipelineTracker) {
-    this.parsers = Map.of(SWEDBANK, swedbankParser, SEB, sebParser);
-    this.importService = importService;
-    this.reportService = reportService;
-    this.fundPositionLedgerService = fundPositionLedgerService;
-    this.healthCheckService = healthCheckService;
-    this.healthCheckNotifier = healthCheckNotifier;
-    this.clock = clock;
-    this.eventPublisher = eventPublisher;
-    this.pipelineTracker = pipelineTracker;
-  }
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
@@ -121,14 +96,12 @@ public class FundPositionImportJob {
         .mapToObj(today::minusDays)
         .forEach(
             date -> {
-              for (ReportProvider provider : PROVIDERS) {
-                try {
-                  var result = importForProviderAndDate(provider, date);
-                  totals[0] += result.imported();
-                  totals[1] += result.updated();
-                } catch (Exception e) {
-                  log.error("Fund position import failed: provider={}, date={}", provider, date, e);
-                }
+              try {
+                var result = importForProviderAndDate(SEB, date);
+                totals[0] += result.imported();
+                totals[1] += result.updated();
+              } catch (Exception e) {
+                log.error("Fund position import failed: provider={}, date={}", SEB, date, e);
               }
             });
     if (totals[0] == 0 && totals[1] == 0) {
@@ -148,15 +121,14 @@ public class FundPositionImportJob {
   public ImportResult importForProviderAndDate(ReportProvider provider, LocalDate date) {
     log.info("Starting fund position import: provider={}, date={}", provider, date);
 
-    Optional<InvestmentReport> report = reportService.getReport(provider, POSITIONS, date);
-    if (report.isEmpty()) {
-      log.info("No positions report in database: provider={}, date={}", provider, date);
+    if (provider != SEB) {
+      log.warn("No parser configured for provider: provider={}", provider);
       return ImportResult.none();
     }
 
-    FundPositionParser parser = parsers.get(provider);
-    if (parser == null) {
-      log.warn("No parser configured for provider: provider={}", provider);
+    Optional<InvestmentReport> report = reportService.getReport(provider, POSITIONS, date);
+    if (report.isEmpty()) {
+      log.info("No positions report in database: provider={}, date={}", provider, date);
       return ImportResult.none();
     }
 

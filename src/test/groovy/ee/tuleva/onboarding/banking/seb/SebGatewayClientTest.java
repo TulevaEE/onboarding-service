@@ -68,18 +68,6 @@ class SebGatewayClientTest {
     server.verify();
   }
 
-  @Test
-  void getBalances_callsCorrectEndpoint() {
-    server
-        .expect(requestTo("/v1/accounts/" + IBAN + "/balances"))
-        .andRespond(withSuccess("<balances/>", MediaType.APPLICATION_XML));
-
-    String result = client.getBalances(IBAN, "1162");
-
-    assertThat(result).isEqualTo("<balances/>");
-    server.verify();
-  }
-
   @Configuration
   static class TestConfig {
     @Bean

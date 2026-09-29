@@ -34,7 +34,7 @@ class ExpectedFeeBases {
       FundNavQueryService fundNavQueryService,
       NavLedgerRepository navLedgerRepository,
       PublicHolidays publicHolidays,
-      @Value("${investment.fee-check.depot-asset-base-from:2026-08-15}")
+      @Value("${investment.fee-check.depot-asset-base-from:2026-08-18}")
           LocalDate depotAssetBaseFrom) {
     this.fundNavQueryService = fundNavQueryService;
     this.navLedgerRepository = navLedgerRepository;
@@ -46,6 +46,9 @@ class ExpectedFeeBases {
       TulevaFund fund, List<FeeBaseValue> bases, LocalDate date) {
     var expected = new EnumMap<FeeType, BigDecimal>(FeeType.class);
     for (var base : bases) {
+      if (predatesTheAssetBaseCutover(base.feeType(), date)) {
+        continue;
+      }
       var value = expectedBase(fund, base.feeType(), date);
       if (value.isEmpty()) {
         return Optional.empty();
@@ -56,7 +59,7 @@ class ExpectedFeeBases {
   }
 
   private Optional<BigDecimal> expectedBase(TulevaFund fund, FeeType feeType, LocalDate date) {
-    if (chargesDepotOnAssetValue(feeType, date)) {
+    if (feeType == FeeType.DEPOT) {
       var total = fundNavQueryService.findAssetTotal(fund.getCode(), date);
       if (total.isEmpty()) {
         return Optional.empty();
@@ -70,8 +73,8 @@ class ExpectedFeeBases {
     return Optional.of(total.get().add(navFeeBaseBlackrockAdjustment(fund, date)));
   }
 
-  private boolean chargesDepotOnAssetValue(FeeType feeType, LocalDate accrualDate) {
-    return feeType == FeeType.DEPOT && !accrualDate.isBefore(depotAssetBaseFrom);
+  private boolean predatesTheAssetBaseCutover(FeeType feeType, LocalDate accrualDate) {
+    return feeType == FeeType.DEPOT && accrualDate.isBefore(depotAssetBaseFrom);
   }
 
   private BigDecimal navFeeBaseBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {

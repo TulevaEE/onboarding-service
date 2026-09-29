@@ -118,6 +118,17 @@ class CashSettlementCheckerTest {
     assertThat(finding.message()).contains("600.00", "634.56");
   }
 
+  // Two payments and five payments are the same severity with no amount of their own, so unless the
+  // count itself is in the identifier a third payment turning up later never reaches anyone.
+  @Test
+  void theNumberOfPaymentsIsPartOfTheIdentifier() {
+    givenSettled(SETTLED);
+    givenPayments(new BigDecimal("600.00"), new BigDecimal("634.56"));
+
+    assertThat(check(WINDOW_ELAPSED).getFirst().identifiers())
+        .containsExactly("multiplePaymentsInWindow=2");
+  }
+
   @Test
   void aMonthThatSettledNothingAndPaidNothingPasses() {
     givenSettled(BigDecimal.ZERO);

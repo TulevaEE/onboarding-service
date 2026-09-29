@@ -44,6 +44,6 @@ class FeeCheckResultTest {
 
   private static FeeCheckFinding finding(FeeCheckSeverity severity) {
     return new FeeCheckFinding(
-        TUK75, FEE_BASE_COMPLETENESS, MANAGEMENT, severity, "message", null, Map.of());
+        TUK75, FEE_BASE_COMPLETENESS, MANAGEMENT, severity, "message", null, List.of(), Map.of());
   }
 }

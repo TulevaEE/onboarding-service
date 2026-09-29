@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
+
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +27,25 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
 
   List<LedgerAccount> findAllByOwner(LedgerParty owner);
 
+  @Lock(PESSIMISTIC_WRITE)
+  @Query("SELECT a FROM LedgerAccount a WHERE a.owner IN :owners ORDER BY a.id")
+  List<LedgerAccount> lockAccountsOf(Collection<LedgerParty> owners);
+
+  @Query(
+      """
+      SELECT new ee.tuleva.onboarding.ledger.UnitHoldingChange(
+        t.id,
+        t.transactionType,
+        SUM(CASE WHEN e.account IN :unitAccounts THEN -e.amount ELSE 0 END),
+        SUM(CASE WHEN e.account = :subscriptionsAccount THEN -e.amount ELSE 0 END))
+      FROM LedgerEntry e JOIN e.transaction t
+      WHERE e.account IN :unitAccounts OR e.account = :subscriptionsAccount
+      GROUP BY t.id, t.transactionType, t.transactionDate, t.createdAt
+      ORDER BY t.transactionDate, t.createdAt, t.id
+      """)
+  List<UnitHoldingChange> unitHoldingChanges(
+      Collection<LedgerAccount> unitAccounts, LedgerAccount subscriptionsAccount);
+
   @Query(
       """
       SELECT COUNT(a) FROM LedgerAccount a
@@ -36,7 +57,7 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
   @Query("SELECT COALESCE(SUM(e.amount), 0) FROM LedgerEntry e WHERE e.account = :account")
   BigDecimal balanceOf(LedgerAccount account);
 
-  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Lock(PESSIMISTIC_WRITE)
   @Query("SELECT a.id FROM LedgerAccount a WHERE a.id = :id")
   Optional<UUID> lockAccount(UUID id);
 }

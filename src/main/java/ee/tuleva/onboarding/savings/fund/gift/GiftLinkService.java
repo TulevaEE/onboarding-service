@@ -81,7 +81,7 @@ public class GiftLinkService {
 
   private void requireRepresentation(String parentPersonalCode, String childPersonalCode) {
     if (!parentChildLinks.isActiveRepresentation(parentPersonalCode, childPersonalCode)) {
-      throw new NotAllowedToGiftForException(childPersonalCode);
+      throw new NotAllowedToGiftForException(parentPersonalCode, childPersonalCode);
     }
   }
 

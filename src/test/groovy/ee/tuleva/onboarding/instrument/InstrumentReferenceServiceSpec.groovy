@@ -399,6 +399,50 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.lastRefreshedAt == clock.instant()
   }
 
+  def "refresh says whether it applied the reloaded snapshot"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAllByOrderByIdAsc() >>> [instruments(10), instruments(reloadedRows)]
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(new InstrumentSnapshotLoader(repo, proxyRepo), clock)
+    svc.init()
+
+    expect:
+    svc.refresh() == applied
+
+    where:
+    reloadedRows || applied
+    10           || true
+    8            || true
+    7            || false
+  }
+
+  def "refresh says it applied nothing when the table cannot be read"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    def reads = 0
+    repo.findAllByOrderByIdAsc() >> {
+      if (reads++ > 0) {
+        throw new RuntimeException("DB down")
+      }
+      instruments(3)
+    }
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(new InstrumentSnapshotLoader(repo, proxyRepo), clock)
+    svc.init()
+
+    expect:
+    !svc.refresh()
+  }
+
+  def "benchmarkProxyIsins names every ETF and index proxy once and skips the empty slots"() {
+    expect:
+    service.benchmarkProxyIsins() ==
+        ["IE00B4L5Y983", "IE00BFNM3P36", "FR0013209921", "IE00NOTCACHED", "IE00FUND0001"] as Set
+  }
+
   def "lastRefreshedAt stays put when the refresh fails"() {
     given:
     def repo = Mock(InstrumentReferenceRepository)

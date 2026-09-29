@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
@@ -112,6 +114,63 @@ class InstrumentFeeRepositoryTest {
     assertThat(result).isEmpty();
   }
 
+  @Test
+  void anInvoicedFeeIsReadBackSeparatelyFromARebate() {
+    insertFee(
+        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0000", "0.0004", "0.0011", "2025-01-01", null);
+
+    var result = repository.findValidRate("IE00BFNM3G45", LocalDate.of(2026, 4, 30));
+
+    assertThat(result).isPresent();
+    assertThat(result.get().rebateRate()).isEqualByComparingTo("0.0000");
+    assertThat(result.get().invoicedFeeRate()).isEqualByComparingTo("0.0004");
+    assertThat(result.get().netOcf()).isEqualByComparingTo("0.0011");
+  }
+
+  @Test
+  void aRebateAndAnInvoicedFeeOnTheSameInstrumentDoNotCancel() {
+    insertFee(
+        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0002", "0.0002", "0.0007", "2025-01-01", null);
+
+    var result = repository.findValidRate("IE00BFNM3G45", LocalDate.of(2026, 4, 30));
+
+    assertThat(result).isPresent();
+    assertThat(result.get().rebateRate()).isEqualByComparingTo("0.0002");
+    assertThat(result.get().invoicedFeeRate()).isEqualByComparingTo("0.0002");
+  }
+
+  @Test
+  void aNegativeRebateIsRejectedSoTheDirectionCannotBeStated() {
+    assertThatThrownBy(
+            () ->
+                insertFee(
+                    "IE00BFNM3G45",
+                    "iShares USA",
+                    "0.0007",
+                    "-0.0002",
+                    "0.0000",
+                    "0.0009",
+                    "2025-01-01",
+                    null))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void aNegativeInvoicedFeeIsRejectedSoTheDirectionCannotBeStated() {
+    assertThatThrownBy(
+            () ->
+                insertFee(
+                    "IE00BFNM3G45",
+                    "iShares USA",
+                    "0.0007",
+                    "0.0000",
+                    "-0.0002",
+                    "0.0005",
+                    "2025-01-01",
+                    null))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
   private void insertFee(
       String isin,
       String name,
@@ -120,17 +179,32 @@ class InstrumentFeeRepositoryTest {
       String netOcf,
       String validFrom,
       String validTo) {
+    insertFee(isin, name, publishedOcf, rebateRate, "0.0000", netOcf, validFrom, validTo);
+  }
+
+  private void insertFee(
+      String isin,
+      String name,
+      String publishedOcf,
+      String rebateRate,
+      String invoicedFeeRate,
+      String netOcf,
+      String validFrom,
+      String validTo) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_instrument_fee
-              (isin, instrument_name, published_ocf, rebate_rate, net_ocf, valid_from, valid_to)
-            VALUES (:isin, :name, :publishedOcf, :rebateRate, :netOcf, :validFrom, :validTo)
+              (isin, instrument_name, published_ocf, rebate_rate, invoiced_fee_rate, net_ocf,
+               valid_from, valid_to)
+            VALUES (:isin, :name, :publishedOcf, :rebateRate, :invoicedFeeRate, :netOcf,
+                    :validFrom, :validTo)
             """)
         .param("isin", isin)
         .param("name", name)
         .param("publishedOcf", new BigDecimal(publishedOcf))
         .param("rebateRate", new BigDecimal(rebateRate))
+        .param("invoicedFeeRate", new BigDecimal(invoicedFeeRate))
         .param("netOcf", new BigDecimal(netOcf))
         .param("validFrom", LocalDate.parse(validFrom))
         .param("validTo", validTo != null ? LocalDate.parse(validTo) : null)

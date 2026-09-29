@@ -2,8 +2,7 @@
 <mj-text>
   Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Sel aastal
   maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€, Tuleva fondis maksaksid
-  *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas, mis teenib
-  sulle täiendavalt tulu.
+  *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas.
 </mj-text>
 <mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
   <tr>

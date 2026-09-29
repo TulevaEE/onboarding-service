@@ -119,3 +119,14 @@ test('every template family has a description and no description is orphaned', (
     assert.ok(families.has(family), `${family}: description has no matching template`);
   }
 });
+
+test('no closing tag is split across lines, because Mandrill drops a split closing tag', () => {
+  const sources = [
+    ...readdirSync(join(root, 'src')).filter((file) => file.endsWith('.mjml')).map((file) => join('src', file)),
+    ...readdirSync(join(root, 'src', 'partials')).filter((file) => file.endsWith('.mjml')).map((file) => join('src', 'partials', file)),
+  ];
+  for (const source of sources) {
+    const mjml = readFileSync(join(root, source), 'utf8');
+    assert.doesNotMatch(mjml, /<\/[a-z][a-z0-9-]*\s+>/, `${source}: a closing tag spans lines`);
+  }
+});

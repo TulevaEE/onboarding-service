@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
@@ -34,7 +35,7 @@ class MissingReportAsOfDateAlertListener {
             event.reportDate());
         return;
       }
-      notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+      notificationService.sendMessage(buildSlackMessage(event), INVESTMENT, ERROR);
     } catch (RuntimeException e) {
       log.error(
           "Failed to send missing report As-of date alert: provider={}, reportType={},"
@@ -57,8 +58,9 @@ class MissingReportAsOfDateAlertListener {
         Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. \
         Kui faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute \
         reported_date ühe päeva võrra nihkes.
-        Palu SEB-lt uus raport ja lase neil see enne saatmist üle vaadata – kui päis on vigane, \
-        võib ka ülejäänud sisu olla vigane. Uus fail imporditakse automaatselt."""
+        Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
+        vigane, võib ka ülejäänud sisu olla vigane. Parandatud fail peab jõudma enne päeva \
+        NAV-arvutust; uus fail imporditakse automaatselt."""
         .formatted(event.provider(), event.reportType(), event.reportDate(), cause(event));
   }
 

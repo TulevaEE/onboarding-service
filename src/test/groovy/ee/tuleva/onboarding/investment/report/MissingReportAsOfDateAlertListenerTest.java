@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.report;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -41,7 +42,20 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT));
+        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT), eq(ERROR));
+  }
+
+  @Test
+  void asksForACorrectedReportBeforeTheDaysNavRuns() {
+    listener()
+        .onMissingReportAsOfDate(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains("Parandatud fail peab jõudma enne päeva NAV-arvutust"),
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -53,7 +67,8 @@ class MissingReportAsOfDateAlertListenerTest {
         .should()
         .sendMessage(
             contains("ei leitud „As of“ välja – kas see puudub või on päise kuju muutunud"),
-            eq(INVESTMENT));
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -64,7 +79,7 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("ei õnnestunud lugeda: \"25.01.2026\""), eq(INVESTMENT));
+        .sendMessage(contains("ei õnnestunud lugeda: \"25.01.2026\""), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -73,7 +88,7 @@ class MissingReportAsOfDateAlertListenerTest {
         .onMissingReportAsOfDate(
             new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE.minusDays(4), null));
 
-    then(notificationService).should(never()).sendMessage(any(), any());
+    then(notificationService).should(never()).sendMessage(any(), any(), any());
   }
 
   @Test
@@ -82,7 +97,7 @@ class MissingReportAsOfDateAlertListenerTest {
         .onMissingReportAsOfDate(
             new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE.minusDays(3), null));
 
-    then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(any(), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -93,14 +108,14 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("\"" + "x".repeat(100) + "…\""), eq(INVESTMENT));
+        .sendMessage(contains("\"" + "x".repeat(100) + "…\""), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
   void doesNotPropagateANotificationFailure() {
     willThrow(new RuntimeException("slack down"))
         .given(notificationService)
-        .sendMessage(any(), any());
+        .sendMessage(any(), any(), any());
 
     assertThatCode(
             () ->

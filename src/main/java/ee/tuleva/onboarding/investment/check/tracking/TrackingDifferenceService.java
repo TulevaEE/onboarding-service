@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.CHECK_FAILED;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -184,28 +187,34 @@ class TrackingDifferenceService {
       return switch (checkFundOrSayWhyNot(fund, checkDate)) {
         case Checked checked -> checked.results();
         case NotCheckable notCheckable -> {
-          failures.add(gapFailure(fund, checkDate, window, notCheckable.reason()));
+          failures.add(gapFailure(fund, checkDate, window, notCheckable.reason(), MISSING_NAV));
           yield List.of();
         }
+        case NeverCheckable _ -> List.of();
       };
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
-      failures.add(gapFailure(fund, checkDate, window, FailureReason.of(e)));
+      failures.add(gapFailure(fund, checkDate, window, FailureReason.of(e), MISSING_PRICE));
       return List.of();
     } catch (Exception e) {
       log.error("Skipping fund due to a failed check: fund={}, checkDate={}", fund, checkDate, e);
       failures.add(
           gapFailure(
-              fund, checkDate, window, "the check errored (%s)".formatted(FailureReason.of(e))));
+              fund,
+              checkDate,
+              window,
+              "the check errored (%s)".formatted(FailureReason.of(e)),
+              CHECK_FAILED));
       return List.of();
     }
   }
 
   private GapFailure gapFailure(
-      TulevaFund fund, LocalDate checkDate, GapWindow window, String reason) {
+      TulevaFund fund, LocalDate checkDate, GapWindow window, String reason, GapCause cause) {
     return new GapFailure(
         checkDate,
         "fund=%s, %s".formatted(fund, reason),
+        cause,
         DAYS.between(checkDate, window.today()),
         lastAttemptDate(checkDate, window.lookbackDays()));
   }
@@ -249,7 +258,7 @@ class TrackingDifferenceService {
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
     return switch (checkFundOrSayWhyNot(fund, checkDate)) {
       case Checked checked -> checked.results();
-      case NotCheckable _ -> List.of();
+      case NotCheckable _, NeverCheckable _ -> List.of();
     };
   }
 
@@ -268,10 +277,9 @@ class TrackingDifferenceService {
           previousDate,
           todayValue.isPresent(),
           yesterdayValue.isPresent());
-      return new NotCheckable(
-          todayValue.isEmpty()
-              ? "no NAV for the check date"
-              : "no NAV for the working day before, " + previousDate);
+      return todayValue.isEmpty()
+          ? noNavForTheCheckDate(checkDate)
+          : new NotCheckable("no NAV for the working day before, " + previousDate);
     }
 
     var todayNav =
@@ -283,7 +291,7 @@ class TrackingDifferenceService {
     var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate);
     if (allocations.isEmpty()) {
       log.warn("No model portfolio for fund: fund={}", fund);
-      return new NotCheckable("no model portfolio");
+      return new NeverCheckable();
     }
     var previousAllocations =
         modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate);
@@ -441,11 +449,19 @@ class TrackingDifferenceService {
     return new Checked(results);
   }
 
-  private sealed interface FundCheck permits Checked, NotCheckable {}
+  private FundCheck noNavForTheCheckDate(LocalDate checkDate) {
+    return publicHolidays.isWorkingDay(checkDate)
+        ? new NotCheckable("no NAV for the check date")
+        : new NeverCheckable();
+  }
+
+  private sealed interface FundCheck permits Checked, NotCheckable, NeverCheckable {}
 
   private record Checked(List<TrackingDifferenceResult> results) implements FundCheck {}
 
   private record NotCheckable(String reason) implements FundCheck {}
+
+  private record NeverCheckable() implements FundCheck {}
 
   private BigDecimal accruedFeeFraction(
       TulevaFund fund,

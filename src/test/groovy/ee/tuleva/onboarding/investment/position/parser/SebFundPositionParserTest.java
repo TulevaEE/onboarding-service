@@ -1,17 +1,12 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
@@ -22,14 +17,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 
 class SebFundPositionParserTest {
 
-  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-
   private final SebFundPositionParser parser =
-      new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
+      new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate());
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 1, 25);
@@ -291,24 +283,19 @@ class SebFundPositionParserTest {
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getNavDate()).isEqualTo(REPORT_DATE);
-    then(eventPublisher)
-        .should()
-        .publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null));
   }
 
   @Test
-  void parse_namesTheUnreadableValue_whenTheAsOfDateIsNotADate() {
+  void parse_fallsBackToTheReportDate_whenTheAsOfDateIsNotADate() {
     Map<String, Object> asOfRow = new HashMap<>();
     asOfRow.put("Fund Management Company:", "As of:");
     asOfRow.put("Tuleva Fondid AS", "25.01.2026");
     List<Map<String, Object>> rawData =
         List.of(asOfRow, createDataRow("TKF100", "Cash account in SEB Pank", "1000"));
 
-    parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
-    then(eventPublisher)
-        .should()
-        .publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, "25.01.2026"));
+    assertThat(positions).extracting(FundPosition::getNavDate).containsExactly(REPORT_DATE);
   }
 
   @Test

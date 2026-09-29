@@ -24,7 +24,6 @@ import ee.tuleva.onboarding.investment.position.FundPositionImportService.Import
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
@@ -59,7 +58,7 @@ class FundPositionImportJobTest {
 
   @BeforeEach
   void setUp() {
-    sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
+    sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate());
     importService = new FundPositionImportService(repository, Clock.systemUTC());
     lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
@@ -262,7 +261,6 @@ class FundPositionImportJobTest {
     var result = job.importForProviderAndDate(SEB, date);
 
     assertThat(result.imported()).isEqualTo(1);
-    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date, null));
   }
 
   @Test

@@ -82,6 +82,31 @@ class FreeCashLimitCheckerTest {
     assertThat(breach.freeCash()).isEqualByComparingTo(new BigDecimal("-85000"));
   }
 
+  @Test
+  void theBreachCarriesTheFourComponentsTheFreeCashWasComputedFrom() {
+    var fundLimit = fundLimit(50000, 30000, 10000);
+
+    var breach =
+        checker.check(
+            TUK75,
+            new BigDecimal("80000"),
+            new BigDecimal("-15000"),
+            new BigDecimal("100000"),
+            fundLimit);
+
+    assertThat(breach)
+        .isEqualTo(
+            new FreeCashBreach(
+                TUK75,
+                new BigDecimal("-85000.0"),
+                BigDecimal.valueOf(10000.0),
+                OK,
+                new BigDecimal("80000"),
+                new BigDecimal("-15000"),
+                new BigDecimal("100000"),
+                BigDecimal.valueOf(50000.0)));
+  }
+
   private FundLimit fundLimit(double reserveSoft, double reserveHard, double maxFreeCash) {
     return FundLimit.builder()
         .fund(TUK75)

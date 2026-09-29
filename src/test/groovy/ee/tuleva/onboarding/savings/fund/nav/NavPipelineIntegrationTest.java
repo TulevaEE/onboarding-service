@@ -117,9 +117,39 @@ class NavPipelineIntegrationTest {
       assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
       assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
       assertThat(result.navPerUnit()).isPositive();
+      assertThat(storedSecurityPricing(navData.navDate))
+          .isNotEmpty()
+          .containsExactlyInAnyOrderElementsOf(eodhdPricingOfTheHeldSecurities(result));
     } finally {
       ClockHolder.setDefaultClock();
     }
+  }
+
+  private record SecurityPricing(String isin, LocalDate priceDate, String priceSource) {}
+
+  private List<SecurityPricing> storedSecurityPricing(LocalDate navDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT account_id, price_date, price_source FROM nav_report
+            WHERE nav_date = :navDate AND account_type = 'SECURITY'
+            """)
+        .param("navDate", navDate)
+        .query(
+            (rs, rowNum) ->
+                new SecurityPricing(
+                    rs.getString("account_id"),
+                    rs.getObject("price_date", LocalDate.class),
+                    rs.getString("price_source")))
+        .list();
+  }
+
+  private static List<SecurityPricing> eodhdPricingOfTheHeldSecurities(
+      NavCalculationResult result) {
+    return result.securitiesDetail().stream()
+        .filter(detail -> detail.units().signum() != 0 || detail.marketValue().signum() != 0)
+        .map(detail -> new SecurityPricing(detail.isin(), detail.priceDate(), "EODHD"))
+        .toList();
   }
 
   @Test

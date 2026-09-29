@@ -251,7 +251,8 @@ public class NavCalculationService implements NavFeeBackfill {
                       units,
                       price,
                       marketValue,
-                      resolvedPrice.priceDate());
+                      resolvedPrice.priceDate(),
+                      resolvedPrice.priceSource());
                 })
             .toList();
   }

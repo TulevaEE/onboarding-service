@@ -28,7 +28,7 @@ class PendingRedemptionQueryServiceTest {
   @InjectMocks private PendingRedemptionQueryService queryService;
 
   @Test
-  void mapsPendingRedemptionsWithDeadlines() {
+  void showsFrozenAndHeldRedemptionsToTheCustomerAsOrdinaryPendingOnes() {
     var partyId = new PartyId(PartyId.Type.PERSON, "38888888888");
     var id = UUID.randomUUID();
     var requestedAt = Instant.parse("2021-03-30T10:00:00Z");

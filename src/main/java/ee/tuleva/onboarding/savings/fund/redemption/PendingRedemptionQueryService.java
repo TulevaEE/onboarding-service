@@ -17,8 +17,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class PendingRedemptionQueryService implements RedemptionQueries {
 
-  // Frozen and held requests look like ordinary pending withdrawals to the customer (RahaPTS).
-  private static final List<RedemptionRequest.Status> PENDING_STATUSES =
+  private static final List<RedemptionRequest.Status> STATUSES_SHOWN_TO_THE_CUSTOMER_AS_PENDING =
       List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
 
   private final RedemptionRequestRepository redemptionRequestRepository;
@@ -27,7 +26,8 @@ class PendingRedemptionQueryService implements RedemptionQueries {
   @Override
   public List<PendingRedemption> getPendingRedemptions(PartyId partyId) {
     return redemptionRequestRepository
-        .findByPartyTypeAndPartyCodeAndStatusIn(partyId.type(), partyId.code(), PENDING_STATUSES)
+        .findByPartyTypeAndPartyCodeAndStatusIn(
+            partyId.type(), partyId.code(), STATUSES_SHOWN_TO_THE_CUSTOMER_AS_PENDING)
         .stream()
         .map(this::toPendingRedemption)
         .toList();

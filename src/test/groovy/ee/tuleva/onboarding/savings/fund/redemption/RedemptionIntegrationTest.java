@@ -817,7 +817,6 @@ class RedemptionIntegrationTest {
             testAuthenticatedPerson, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
-    // Verification found a PEP hit: the order still goes ahead, only the payout waits.
     redemptionHoldService.holdPayout(requestId, Set.of(PEP));
     redemptionStatusService.changeStatus(requestId, VERIFIED);
 
@@ -834,7 +833,6 @@ class RedemptionIntegrationTest {
     assertThat(held.getProcessedAt()).isNull();
     assertThat(savingsFundLedger.hasPricingEntry(requestId)).isTrue();
     assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    // The cash is owed to the customer but has not left: only the batch transfer went to SEB.
     assertThat(getUserCashRedemptionAccount().getBalance())
         .isEqualByComparingTo(redemptionAmount.negate());
     assertThat(
@@ -880,14 +878,12 @@ class RedemptionIntegrationTest {
     assertThat(frozen.getStatus()).isEqualTo(FROZEN);
     assertThat(frozen.getHoldReasons()).containsExactly(SANCTION);
 
-    // The customer cannot take the units back out of the freeze.
     redemptionService.cancelRedemption(requestId, testAuthenticatedPerson);
     assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
         .isEqualTo(FROZEN);
     assertThat(getUserFundUnitsReservedAccount().getBalance())
         .isEqualByComparingTo(expectedFundUnits.negate());
 
-    // The batch job leaves a frozen order alone: nothing is priced, nothing goes to SEB.
     ClockHolder.setClock(Clock.fixed(tuesday, UTC));
     redemptionBatchJob.runJob();
     assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
@@ -902,7 +898,6 @@ class RedemptionIntegrationTest {
     assertThat(released.getReviewedBy()).isEqualTo("Contact person");
     assertThat(released.hasActiveHold()).isFalse();
 
-    // Released on Tuesday after the cutoff, so the Wednesday cutoff picks it up on Thursday.
     ClockHolder.setClock(Clock.fixed(thursday, UTC));
     redemptionBatchJob.runJob();
 

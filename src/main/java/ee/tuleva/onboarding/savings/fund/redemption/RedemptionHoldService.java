@@ -73,9 +73,7 @@ public class RedemptionHoldService {
       return;
     }
     startHold(request, reasons, by, comment);
-    // An already-priced request has had its cash transferred, so it leaves the VERIFIED queue now:
-    // left there, the next batch run would fund the same cash a second time.
-    if (request.getStatus() == VERIFIED && request.getCashAmount() != null) {
+    if (isPricedAwaitingPayout(request)) {
       redemptionStatusService.changeStatus(id, PAYOUT_HELD);
     }
     if (notifier.notifyPayoutHold(request)) {
@@ -84,8 +82,6 @@ public class RedemptionHoldService {
     log.info("Redemption payout held: id={}, reasons={}, by={}", id, reasons, by);
   }
 
-  // SebPaymentRequestListener is a plain @EventListener, so the payout event must be published
-  // after the transaction that records the release has committed.
   public void release(UUID id, String by, String reason) {
     var releasedFrom = transactionTemplate.execute(tx -> recordRelease(id, by, reason));
     notifier.notifyReleased(id);
@@ -113,13 +109,10 @@ public class RedemptionHoldService {
         recordReview(request, by, reason);
       }
       case PAYOUT_HELD -> {
-        // A release that raced the batch job between pricing and holding is still paid out.
         if (request.hasActiveHold()) {
           recordReview(request, by, reason);
         }
       }
-      // A payout that failed while held stays FAILED: releasing only clears the hold, and the
-      // admin retry endpoint is what sends the money. Without this it could be neither.
       case FAILED -> {
         if (!request.hasActiveHold()) {
           throw new IllegalStateException(
@@ -181,6 +174,10 @@ public class RedemptionHoldService {
   private void markNotified(RedemptionRequest request) {
     request.setHoldNotifiedAt(clock().instant());
     repository.save(request);
+  }
+
+  private static boolean isPricedAwaitingPayout(RedemptionRequest request) {
+    return request.getStatus() == VERIFIED && request.getCashAmount() != null;
   }
 
   private RedemptionRequest findForUpdate(UUID id) {

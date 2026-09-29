@@ -71,13 +71,13 @@ public class RedemptionVerificationService {
         };
 
     switch (verdict) {
-      case Verdict.RetryLater ignored -> retryLater(request);
-      case Verdict.Freeze ignored -> holdService.freeze(request.getId());
+      case Verdict.RetryLater _ -> retryLater(request);
+      case Verdict.Freeze _ -> holdService.freeze(request.getId());
       case Verdict.HoldPayout hold -> {
         holdService.holdPayout(request.getId(), hold.reasons());
         redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       }
-      case Verdict.Clear ignored -> {
+      case Verdict.Clear _ -> {
         log.info(
             "Redemption verification passed: id={}, party={}",
             request.getId(),
@@ -87,8 +87,6 @@ public class RedemptionVerificationService {
     }
   }
 
-  // An outage is not a suspicion, so it must not cost the saver their dealing date: retry with a
-  // backoff, and once the deadline passes execute the order and hold the cash instead.
   private void retryLater(RedemptionRequest request) {
     if (!canStillRetry(request)) {
       holdService.holdPayout(request.getId(), Set.of(SCREENING_UNAVAILABLE));
@@ -155,8 +153,6 @@ public class RedemptionVerificationService {
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
       return new Verdict.Clear();
     }
-    // A rejected company is re-screened too: its rejection may be a sanctions hit, and that must
-    // stop the order rather than only its payout. Monitoring already re-screens rejected companies.
     List<KybCheck> checks;
     try {
       checks = legalEntityScreener.screenLatest(registryCode);

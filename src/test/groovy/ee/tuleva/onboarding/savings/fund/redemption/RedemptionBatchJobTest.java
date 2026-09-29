@@ -758,7 +758,6 @@ class RedemptionBatchJobTest {
 
     batchJob.runJob();
 
-    // The order is executed: units redeemed at NAV and the cash moved to the withdrawal account.
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
             any(),
@@ -768,7 +767,6 @@ class RedemptionBatchJobTest {
             any(),
             eq(requestId));
     verify(eventPublisher, times(1)).publishEvent(any(RequestPaymentEvent.class));
-    // But the customer payout waits for a person.
     verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
     verify(redemptionStatusService, never()).changeStatus(requestId, REDEEMED);
     verify(holdNotifier).notifyPayoutHeldAtPricing(request);

@@ -59,8 +59,6 @@ class RedemptionPayoutService {
     FAILED_TO_SEND
   }
 
-  // Claiming (VERIFIED -> REDEEMED under a row lock) commits before the bank is called, so a hold
-  // or a release landing mid-batch cannot leave the money sent twice or sent after a hold.
   Outcome payOut(UUID requestId, @Nullable UUID batchId) {
     Claim claim;
     try {
@@ -76,16 +74,12 @@ class RedemptionPayoutService {
         : claim.outcome();
   }
 
-  // The hold has just been released, so the claim only has to win the race against a second
-  // release and against the batch job picking the same request up.
   Outcome payOutHeld(UUID requestId) {
     RedemptionRequest claimed =
         requireNonNull(transactionTemplate.execute(tx -> claimHeldPayout(requestId)));
     return send(claimed, null);
   }
 
-  // An admin retry already holds the row lock and has checked the request, and a failure should
-  // surface to the caller rather than being swallowed into another FAILED.
   void payOutOnRetry(RedemptionRequest request) {
     markAsRedeemed(request.getId());
     sendPayout(request, null);
@@ -125,7 +119,6 @@ class RedemptionPayoutService {
     return new Claim(Outcome.PAID, request);
   }
 
-  // A claim carries the request only when it is the caller's to send.
   private record Claim(Outcome outcome, @Nullable RedemptionRequest request) {}
 
   private RedemptionRequest claimHeldPayout(UUID requestId) {
@@ -145,8 +138,6 @@ class RedemptionPayoutService {
     return request;
   }
 
-  // The IBAN and the ledger can have moved while the money sat on hold, so the payout
-  // preconditions are checked again here, not only before pricing.
   private void requirePayable(RedemptionRequest request) {
     payoutValidator
         .findBlockingReason(request)
@@ -217,9 +208,6 @@ class RedemptionPayoutService {
                     "Beneficiary name not resolvable: party=" + partyId + ", iban=" + iban));
   }
 
-  // Defensive: a deposit normally yields a remitter name, but a whitelisted IBAN may have no
-  // deposit row at all, and a deposit's bank statement may carry a null remitter_name. Fall back
-  // to the party's registered name rather than failing the payout.
   private Optional<String> registeredPartyName(PartyId partyId) {
     return switch (partyId.type()) {
       case LEGAL_ENTITY ->

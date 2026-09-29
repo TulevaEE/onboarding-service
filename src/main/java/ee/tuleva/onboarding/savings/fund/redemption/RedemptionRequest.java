@@ -77,8 +77,6 @@ public class RedemptionRequest {
 
   @Nullable private Instant verificationAttemptedAt;
 
-  // RedemptionController returns this entity to the customer, and RahaPTS forbids telling the
-  // customer about an AML suspicion, so the review and hold columns never leave the server.
   @JsonIgnore @Nullable private String reviewedBy;
 
   @JsonIgnore @Nullable private String reviewReason;
@@ -108,8 +106,6 @@ public class RedemptionRequest {
 
   @JsonIgnore @Nullable private Instant holdReleasedAt;
 
-  // Set when a frozen order is released back into the queue: the batch job then prices it at the
-  // next dealing date instead of the one it missed while frozen.
   @JsonIgnore @Nullable private Instant requeuedAt;
 
   @Column(nullable = false)
@@ -144,13 +140,10 @@ public class RedemptionRequest {
     return new PartyId(partyType, partyCode);
   }
 
-  // Alerts and logs name the reasons, so they are read back in enum order rather than in whatever
-  // order the caller's Set happened to iterate.
   public Set<RedemptionHoldReason> getHoldReasons() {
     return holdReasons.isEmpty() ? Set.of() : EnumSet.copyOf(holdReasons);
   }
 
-  // Hibernate rewrites the collection in place on merge, so it may never hold an immutable Set.
   public void setHoldReasons(Set<RedemptionHoldReason> reasons) {
     holdReasons =
         reasons.isEmpty() ? EnumSet.noneOf(RedemptionHoldReason.class) : EnumSet.copyOf(reasons);

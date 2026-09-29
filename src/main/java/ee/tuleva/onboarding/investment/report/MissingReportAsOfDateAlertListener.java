@@ -1,41 +1,46 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 class MissingReportAsOfDateAlertListener {
 
+  private static final Set<ReportType> REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER =
+      Set.of(POSITIONS, PENDING_TRANSACTIONS);
   private static final int ALERT_WINDOW_DAYS = 3;
   private static final int MAX_QUOTED_VALUE_LENGTH = 100;
 
+  private final InvestmentReportService reportService;
   private final OperationsNotificationService notificationService;
   private final Clock clock;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-  public void onMissingReportAsOfDate(MissingReportAsOfDateEvent event) {
+  @EventListener
+  public void onReportImportCompleted(ReportImportCompleted event) {
+    if (event.provider() != SEB
+        || !REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER.contains(event.reportType())) {
+      return;
+    }
     try {
-      if (isOlderThanTheAlertWindow(event)) {
-        log.info(
-            "Report with no usable As-of date is outside the alert window, skipping alert:"
-                + " provider={}, reportType={}, reportDate={}",
-            event.provider(),
-            event.reportType(),
-            event.reportDate());
-        return;
-      }
-      notificationService.sendMessage(buildSlackMessage(event), INVESTMENT, ERROR);
+      reportService
+          .getReport(event.provider(), event.reportType(), event.reportDate())
+          .filter(report -> SebReportHeaders.asOfDate(report) == null)
+          .ifPresent(this::alertUnlessOlderThanTheAlertWindow);
     } catch (RuntimeException e) {
       log.error(
           "Failed to send missing report As-of date alert: provider={}, reportType={},"
@@ -47,11 +52,24 @@ class MissingReportAsOfDateAlertListener {
     }
   }
 
-  private boolean isOlderThanTheAlertWindow(MissingReportAsOfDateEvent event) {
-    return event.reportDate().isBefore(LocalDate.now(clock).minusDays(ALERT_WINDOW_DAYS));
+  private void alertUnlessOlderThanTheAlertWindow(InvestmentReport report) {
+    if (isOlderThanTheAlertWindow(report.getReportDate())) {
+      log.info(
+          "Report with no usable As-of date is outside the alert window, skipping alert:"
+              + " provider={}, reportType={}, reportDate={}",
+          report.getProvider(),
+          report.getReportType(),
+          report.getReportDate());
+      return;
+    }
+    notificationService.sendMessage(buildSlackMessage(report), INVESTMENT, ERROR);
   }
 
-  private static String buildSlackMessage(MissingReportAsOfDateEvent event) {
+  private boolean isOlderThanTheAlertWindow(LocalDate reportDate) {
+    return reportDate.isBefore(LocalDate.now(clock).minusDays(ALERT_WINDOW_DAYS));
+  }
+
+  private static String buildSlackMessage(InvestmentReport report) {
     return """
         ⚠️ %s %s raportis puudub kasutatav „As of“ kuupäev – %s
         %s
@@ -60,12 +78,14 @@ class MissingReportAsOfDateAlertListener {
         reported_date ühe päeva võrra nihkes.
         Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
         vigane, võib ka ülejäänud sisu olla vigane. Parandatud fail peab jõudma enne päeva \
-        NAV-arvutust; uus fail imporditakse automaatselt."""
-        .formatted(event.provider(), event.reportType(), event.reportDate(), cause(event));
+        NAV-arvutust; uus fail imporditakse automaatselt. <!channel>"""
+        .formatted(
+            report.getProvider(), report.getReportType(), report.getReportDate(), cause(report));
   }
 
-  private static String cause(MissingReportAsOfDateEvent event) {
-    String unreadable = event.unreadableValue();
+  private static String cause(InvestmentReport report) {
+    String unreadable =
+        SebReportHeaders.unreadableAsOfValue(report.getMetadata(), report.getRawData());
     if (unreadable == null) {
       return "Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on"
           + " päise kuju muutunud.";

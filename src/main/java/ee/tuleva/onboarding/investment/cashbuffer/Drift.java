@@ -12,4 +12,8 @@ record Drift(
   boolean sustained() {
     return drifted && consecutiveRuns >= sustainRuns;
   }
+
+  int runsContinuedBy(BigDecimal nextDivergence) {
+    return divergence.signum() == nextDivergence.signum() ? consecutiveRuns : 0;
+  }
 }

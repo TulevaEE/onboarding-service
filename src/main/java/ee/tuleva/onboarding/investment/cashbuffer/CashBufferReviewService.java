@@ -105,7 +105,9 @@ class CashBufferReviewService {
             .driftRule()
             .judge(
                 recommendation.recommendedSoft().subtract(configured.reserveSoft()),
-                previous.map(review -> review.softDrift().consecutiveRuns()).orElse(0));
+                previous
+                    .filter(review -> review.configured().hasTheSameSoftLimitAs(configured))
+                    .map(CashBufferReview::softDrift));
     var review =
         new CashBufferReview(
             fund,
@@ -131,6 +133,8 @@ class CashBufferReviewService {
     }
     return driftRule.judge(
         recommendation.recommendedHard().subtract(reserveHard),
-        previous.map(CashBufferReview::hardDrift).map(Drift::consecutiveRuns).orElse(0));
+        previous
+            .filter(review -> review.configured().hasTheSameHardLimitAs(configured))
+            .flatMap(review -> Optional.ofNullable(review.hardDrift())));
   }
 }

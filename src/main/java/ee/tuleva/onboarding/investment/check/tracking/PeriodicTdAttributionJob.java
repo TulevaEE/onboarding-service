@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TD_ATTRIBUTION_APRIL_THROUGH_AUGUST_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
@@ -24,8 +23,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 class PeriodicTdAttributionJob {
-
-  static final int MONTHS_FROM_APRIL_THROUGH_AUGUST = 5;
 
   private final PeriodicTdAttributionService service;
   private final BusinessDays businessDays;
@@ -64,16 +61,6 @@ class PeriodicTdAttributionJob {
     var lastMonth = YearMonth.now(clock).minusMonths(1);
     log.info("TD attribution monthly requested: period={}", lastMonth);
     service.computeForAllFunds(lastMonth.atDay(1), lastMonth.atEndOfMonth(), PeriodType.MONTHLY);
-  }
-
-  @Scheduled(cron = TD_ATTRIBUTION_APRIL_THROUGH_AUGUST_BACKFILL, zone = TIMEZONE)
-  @SchedulerLock(
-      name = "TdAttributionAprilThroughAugustBackfill",
-      lockAtMostFor = "1h",
-      lockAtLeastFor = "5m")
-  void backfillAprilThroughAugust() {
-    log.info("TD attribution backfill scheduled: monthsBack={}", MONTHS_FROM_APRIL_THROUGH_AUGUST);
-    service.backfillMonths(MONTHS_FROM_APRIL_THROUGH_AUGUST, clock);
   }
 
   @EventListener

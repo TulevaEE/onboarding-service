@@ -6,8 +6,11 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -43,6 +46,7 @@ class LimitCheckIntegrationTest {
   @Autowired private LimitCheckService limitCheckService;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -193,14 +197,36 @@ class LimitCheckIntegrationTest {
     insertFundPosition("TUK75", NAV_DATE, "SECURITY", "IE00UNLIMITED", 3_500_000);
 
     limitCheckService.runChecks();
+    entityManager.flush();
+    entityManager.clear();
 
-    var positionEvent =
-        limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE).stream()
-            .filter(event -> event.getCheckType() == CheckType.POSITION)
-            .findFirst()
-            .orElseThrow();
-    assertThat(positionEvent.getResult().get("largestPosition"))
-        .isEqualTo(new LargestPosition("IE00UNLIMITED", new BigDecimal("35.0000")));
+    assertThat(storedLargestPosition(TUK75))
+        .asInstanceOf(MAP)
+        .containsOnlyKeys("isin", "percentOfNav")
+        .containsEntry("isin", "IE00UNLIMITED")
+        .extractingByKey("percentOfNav")
+        .satisfies(
+            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("35"));
+  }
+
+  @Test
+  void aHoldingSplitOverTwoPositionRowsIsRecordedOnceAtItsNavReportValue() {
+    insertTuk75Data();
+    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "first name", 1_750_000);
+    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "second name", 1_750_000);
+    insertNavReportSecurity("TUK75", NAV_DATE, "IE00UNLIMITED", 3_500_000);
+
+    limitCheckService.runChecks();
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(storedLargestPosition(TUK75))
+        .asInstanceOf(MAP)
+        .containsOnlyKeys("isin", "percentOfNav")
+        .containsEntry("isin", "IE00UNLIMITED")
+        .extractingByKey("percentOfNav")
+        .satisfies(
+            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("35"));
   }
 
   @Test
@@ -377,6 +403,52 @@ class LimitCheckIntegrationTest {
         .param("fund", fund)
         .param("accountType", accountType)
         .param("accountId", accountId)
+        .param("marketValue", BigDecimal.valueOf(marketValue))
+        .update();
+  }
+
+  private Object storedLargestPosition(TulevaFund fund) {
+    return limitCheckEventRepository.findByFundAndCheckDate(fund, NAV_DATE).stream()
+        .filter(event -> event.getCheckType() == CheckType.POSITION)
+        .findFirst()
+        .orElseThrow()
+        .getResult()
+        .get("largestPosition");
+  }
+
+  private void insertPositionRowNamed(
+      String fund, LocalDate navDate, String isin, String accountName, long marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+            (nav_date, fund_code, account_type, account_name, account_id, market_value)
+            VALUES (:navDate, :fund, 'SECURITY', :accountName, :isin, :marketValue)
+            """)
+        .param("navDate", navDate)
+        .param("fund", fund)
+        .param("accountName", accountName)
+        .param("isin", isin)
+        .param("marketValue", BigDecimal.valueOf(marketValue))
+        .update();
+  }
+
+  private void insertNavReportSecurity(
+      String fund, LocalDate navDate, String isin, long marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+            (nav_date, fund_code, account_type, account_name, account_id, market_value,
+             calculation_id, published_at)
+            SELECT nav_date, fund_code, 'SECURITY', :isin, :isin, :marketValue,
+                   calculation_id, published_at
+            FROM nav_report
+            WHERE fund_code = :fund AND nav_date = :navDate AND account_type = 'UNITS'
+            """)
+        .param("navDate", navDate)
+        .param("fund", fund)
+        .param("isin", isin)
         .param("marketValue", BigDecimal.valueOf(marketValue))
         .update();
   }

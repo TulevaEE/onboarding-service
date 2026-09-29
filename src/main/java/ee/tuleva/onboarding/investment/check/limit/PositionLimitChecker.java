@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -133,10 +134,22 @@ class PositionLimitChecker {
         .toList();
   }
 
-  Optional<LargestPosition> largestPosition(List<FundPosition> positions, BigDecimal totalNav) {
+  Optional<LargestPosition> largestPosition(
+      List<FundPosition> positions, Map<String, BigDecimal> navMarketValues, BigDecimal totalNav) {
     if (totalNav.signum() == 0) {
       return Optional.empty();
     }
+    return holdingByIsin(positions, navMarketValues).entrySet().stream()
+        .max(
+            Map.Entry.<String, BigDecimal>comparingByValue()
+                .thenComparing(Map.Entry.comparingByKey(Comparator.reverseOrder())))
+        .map(
+            largest ->
+                new LargestPosition(largest.getKey(), percentOf(largest.getValue(), totalNav)));
+  }
+
+  private static Map<String, BigDecimal> holdingByIsin(
+      List<FundPosition> positions, Map<String, BigDecimal> navMarketValues) {
     return positions.stream()
         .filter(position -> position.getAccountId() != null && position.getMarketValue() != null)
         .collect(
@@ -146,10 +159,11 @@ class PositionLimitChecker {
                 BigDecimal::add))
         .entrySet()
         .stream()
-        .max(Map.Entry.comparingByValue())
-        .map(
-            largest ->
-                new LargestPosition(largest.getKey(), percentOf(largest.getValue(), totalNav)));
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey,
+                summedRows ->
+                    navMarketValues.getOrDefault(summedRows.getKey(), summedRows.getValue())));
   }
 
   private BigDecimal percentOf(BigDecimal value, BigDecimal total) {

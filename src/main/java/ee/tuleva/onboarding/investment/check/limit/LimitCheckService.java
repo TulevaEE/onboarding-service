@@ -198,7 +198,8 @@ class LimitCheckService {
     var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
-    var largestPosition = positionLimitChecker.largestPosition(positions, totalNav);
+    var largestPosition =
+        positionLimitChecker.largestPosition(positions, navMarketValues, totalNav);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);

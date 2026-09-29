@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class PositionLimitCheckerTest {
@@ -184,27 +185,58 @@ class PositionLimitCheckerTest {
     var limited = position("IE00B4L5Y983", new BigDecimal("100000"));
     var unlimited = position("IE00UNKNOWN", new BigDecimal("500000"));
 
-    var largest = checker.largestPosition(List.of(limited, unlimited), new BigDecimal("1000000"));
+    var largest =
+        checker.largestPosition(List.of(limited, unlimited), Map.of(), new BigDecimal("1000000"));
 
     assertThat(largest).contains(new LargestPosition("IE00UNKNOWN", new BigDecimal("50.0000")));
   }
 
   @Test
-  void rowsOfTheSameInstrumentAreAddedUpBeforeTheLargestIsChosen() {
+  void rowsOfAnInstrumentWithNoNavReportValueAreAddedUpBeforeTheLargestIsChosen() {
     var first = position("IE00B4L5Y983", new BigDecimal("300000"));
     var second = position("IE00B4L5Y983", new BigDecimal("300000"));
     var other = position("IE00UNKNOWN", new BigDecimal("500000"));
 
-    var largest = checker.largestPosition(List.of(first, second, other), new BigDecimal("1000000"));
+    var largest =
+        checker.largestPosition(List.of(first, second, other), Map.of(), new BigDecimal("1000000"));
 
     assertThat(largest).contains(new LargestPosition("IE00B4L5Y983", new BigDecimal("60.0000")));
+  }
+
+  @Test
+  void anInstrumentSplitOverTwoRowsCountsOnceAtItsNavReportValue() {
+    var navValue = new BigDecimal("300000");
+    var firstRowCarryingTheWholeHolding = position("IE00B4L5Y983", navValue);
+    var secondRowCarryingTheWholeHolding = position("IE00B4L5Y983", navValue);
+    var other = position("IE00UNKNOWN", new BigDecimal("400000"));
+
+    var largest =
+        checker.largestPosition(
+            List.of(firstRowCarryingTheWholeHolding, secondRowCarryingTheWholeHolding, other),
+            Map.of("IE00B4L5Y983", navValue, "IE00UNKNOWN", new BigDecimal("400000")),
+            new BigDecimal("1000000"));
+
+    assertThat(largest).contains(new LargestPosition("IE00UNKNOWN", new BigDecimal("40.0000")));
+  }
+
+  @Test
+  void aTieGoesToTheAlphabeticallyFirstIsinSoTheRecordDoesNotDependOnHashOrder() {
+    var positions =
+        List.of(
+            position("IE00ZZZZZZZ9", new BigDecimal("300000")),
+            position("IE00AAAAAAA1", new BigDecimal("300000")),
+            position("IE00MMMMMMM5", new BigDecimal("300000")));
+
+    var largest = checker.largestPosition(positions, Map.of(), new BigDecimal("1000000"));
+
+    assertThat(largest).contains(new LargestPosition("IE00AAAAAAA1", new BigDecimal("30.0000")));
   }
 
   @Test
   void withNoNavThereIsNoLargestPosition() {
     var position = position("IE00B4L5Y983", new BigDecimal("100000"));
 
-    assertThat(checker.largestPosition(List.of(position), BigDecimal.ZERO)).isEmpty();
+    assertThat(checker.largestPosition(List.of(position), Map.of(), BigDecimal.ZERO)).isEmpty();
   }
 
   private PositionLimit positionLimit(

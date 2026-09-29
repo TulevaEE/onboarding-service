@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.cashbuffer;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import org.jspecify.annotations.Nullable;
 
 record CashBufferReview(
     TulevaFund fund,
@@ -11,4 +12,10 @@ record CashBufferReview(
     FlowWindow window,
     Recommendation recommendation,
     ConfiguredReserve configured,
-    Drift drift) {}
+    Drift softDrift,
+    @Nullable Drift hardDrift) {
+
+  boolean driftSustained() {
+    return softDrift.sustained() || (hardDrift != null && hardDrift.sustained());
+  }
+}

@@ -10,6 +10,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -68,7 +69,8 @@ class CashBufferReviewRepository {
     var recommendation = review.recommendation();
     var model = recommendation.model();
     var window = review.window();
-    var drift = review.drift();
+    var softDrift = review.softDrift();
+    var hardDrift = review.hardDrift();
     var keyHolder = new GeneratedKeyHolder();
     jdbcClient
         .sql(
@@ -76,16 +78,22 @@ class CashBufferReviewRepository {
             INSERT INTO investment_cash_buffer_review (
               fund_code, review_month, reviewed_on, window_start_month, window_months,
               outflow_percentile, outflow_at_percentile, inflow_percentile, inflow_at_percentile,
-              inflow_credit, floor_amount, accrued_fees, recommended_buffer,
+              inflow_credit, settlement_horizon_days, horizon_outflow_at_percentile, accrued_fees,
+              recommended_soft, recommended_hard,
               configured_limit_effective_date, configured_reserve_soft, configured_reserve_hard,
-              divergence, drift_threshold, drifted, consecutive_drifted_runs, sustain_runs,
+              drift_threshold, sustain_runs,
+              soft_divergence, soft_drifted, soft_consecutive_drifted_runs,
+              hard_divergence, hard_drifted, hard_consecutive_drifted_runs,
               unrecognised_payouts, unrecognised_outflow)
             VALUES (
               :fundCode, :reviewMonth, :reviewedOn, :windowStartMonth, :windowMonths,
               :outflowPercentile, :outflowAtPercentile, :inflowPercentile, :inflowAtPercentile,
-              :inflowCredit, :floorAmount, :accruedFees, :recommendedBuffer,
+              :inflowCredit, :settlementHorizonDays, :horizonOutflowAtPercentile, :accruedFees,
+              :recommendedSoft, :recommendedHard,
               :configuredLimitEffectiveDate, :configuredReserveSoft, :configuredReserveHard,
-              :divergence, :driftThreshold, :drifted, :consecutiveDriftedRuns, :sustainRuns,
+              :driftThreshold, :sustainRuns,
+              :softDivergence, :softDrifted, :softConsecutiveDriftedRuns,
+              :hardDivergence, :hardDrifted, :hardConsecutiveDriftedRuns,
               :unrecognisedPayouts, :unrecognisedOutflow)
             """)
         .param("fundCode", review.fund().name())
@@ -98,17 +106,22 @@ class CashBufferReviewRepository {
         .param("inflowPercentile", model.inflowPercentile())
         .param("inflowAtPercentile", recommendation.inflowAtPercentile())
         .param("inflowCredit", model.inflowCredit())
-        .param("floorAmount", model.floor())
+        .param("settlementHorizonDays", model.settlementHorizonDays())
+        .param("horizonOutflowAtPercentile", recommendation.horizonOutflowAtPercentile())
         .param("accruedFees", recommendation.accruedFees())
-        .param("recommendedBuffer", recommendation.recommended())
+        .param("recommendedSoft", recommendation.recommendedSoft())
+        .param("recommendedHard", recommendation.recommendedHard())
         .param("configuredLimitEffectiveDate", review.configured().effectiveDate())
         .param("configuredReserveSoft", review.configured().reserveSoft())
         .param("configuredReserveHard", review.configured().reserveHard())
-        .param("divergence", drift.divergence())
-        .param("driftThreshold", drift.threshold())
-        .param("drifted", drift.drifted())
-        .param("consecutiveDriftedRuns", drift.consecutiveRuns())
-        .param("sustainRuns", drift.sustainRuns())
+        .param("driftThreshold", softDrift.threshold())
+        .param("sustainRuns", softDrift.sustainRuns())
+        .param("softDivergence", softDrift.divergence())
+        .param("softDrifted", softDrift.drifted())
+        .param("softConsecutiveDriftedRuns", softDrift.consecutiveRuns())
+        .param("hardDivergence", hardDrift == null ? null : hardDrift.divergence())
+        .param("hardDrifted", hardDrift == null ? null : hardDrift.drifted())
+        .param("hardConsecutiveDriftedRuns", hardDrift == null ? null : hardDrift.consecutiveRuns())
         .param("unrecognisedPayouts", window.unrecognisedPayouts())
         .param("unrecognisedOutflow", window.unrecognisedOutflow())
         .update(keyHolder, "id");
@@ -172,21 +185,37 @@ class CashBufferReviewRepository {
                 rs.getBigDecimal("outflow_percentile"),
                 rs.getBigDecimal("inflow_percentile"),
                 rs.getBigDecimal("inflow_credit"),
-                rs.getBigDecimal("floor_amount")),
+                rs.getInt("settlement_horizon_days")),
             rs.getBigDecimal("outflow_at_percentile"),
             rs.getBigDecimal("inflow_at_percentile"),
+            rs.getBigDecimal("horizon_outflow_at_percentile"),
             rs.getBigDecimal("accrued_fees"),
-            rs.getBigDecimal("recommended_buffer")),
+            rs.getBigDecimal("recommended_soft"),
+            rs.getBigDecimal("recommended_hard")),
         new ConfiguredReserve(
             localDate(rs, "configured_limit_effective_date"),
             rs.getBigDecimal("configured_reserve_soft"),
             rs.getBigDecimal("configured_reserve_hard")),
         new Drift(
-            rs.getBigDecimal("divergence"),
+            rs.getBigDecimal("soft_divergence"),
             rs.getBigDecimal("drift_threshold"),
-            rs.getBoolean("drifted"),
-            rs.getInt("consecutive_drifted_runs"),
-            rs.getInt("sustain_runs")));
+            rs.getBoolean("soft_drifted"),
+            rs.getInt("soft_consecutive_drifted_runs"),
+            rs.getInt("sustain_runs")),
+        hardDrift(rs));
+  }
+
+  private static @Nullable Drift hardDrift(ResultSet rs) throws SQLException {
+    var divergence = rs.getBigDecimal("hard_divergence");
+    if (divergence == null) {
+      return null;
+    }
+    return new Drift(
+        divergence,
+        rs.getBigDecimal("drift_threshold"),
+        rs.getBoolean("hard_drifted"),
+        rs.getInt("hard_consecutive_drifted_runs"),
+        rs.getInt("sustain_runs"));
   }
 
   private static LocalDate localDate(ResultSet rs, String column) throws SQLException {

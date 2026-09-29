@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRu
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_COMPLETE_MONTH_OF_FLOWS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_FEE_ACCRUALS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_RESERVE_CONFIGURED;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_FLOOR;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_SETTLEMENT_HORIZON_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -49,15 +49,19 @@ class CashBufferReviewServiceTest {
 
   @Test
   void reviewsThePensionFundsOnlyAndReportsEveryOutcome() {
-    given(parameters.missing(any(), any())).willReturn(List.of(CASH_BUFFER_FLOOR));
+    given(parameters.missing(any(), any()))
+        .willReturn(List.of(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS));
 
     var outcomes = service.reviewAllFunds(SEPTEMBER, REVIEWED_ON);
 
     assertThat(outcomes)
         .containsExactly(
-            new NotRun(TUK75, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"),
-            new NotRun(TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"),
-            new NotRun(TUV100, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"));
+            new NotRun(
+                TUK75, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
+            new NotRun(
+                TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
+            new NotRun(
+                TUV100, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"));
     verify(notifier).notify(SEPTEMBER, outcomes);
   }
 
@@ -100,14 +104,18 @@ class CashBufferReviewServiceTest {
   @Test
   void oneFundFailingDoesNotStopTheOthersFromBeingReviewed() {
     given(parameters.missing(TUK75, REVIEWED_ON)).willThrow(new IllegalStateException("boom"));
-    given(parameters.missing(TUK00, REVIEWED_ON)).willReturn(List.of(CASH_BUFFER_FLOOR));
-    given(parameters.missing(TUV100, REVIEWED_ON)).willReturn(List.of(CASH_BUFFER_FLOOR));
+    given(parameters.missing(TUK00, REVIEWED_ON))
+        .willReturn(List.of(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS));
+    given(parameters.missing(TUV100, REVIEWED_ON))
+        .willReturn(List.of(CASH_BUFFER_SETTLEMENT_HORIZON_DAYS));
 
     assertThat(service.reviewAllFunds(SEPTEMBER, REVIEWED_ON))
         .containsExactly(
             new NotRun(TUK75, FAILED, "exception=IllegalStateException"),
-            new NotRun(TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"),
-            new NotRun(TUV100, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"));
+            new NotRun(
+                TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
+            new NotRun(
+                TUV100, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"));
   }
 
   private void parametersPresent() {

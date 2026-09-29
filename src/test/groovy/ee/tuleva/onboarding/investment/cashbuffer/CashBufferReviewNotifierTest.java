@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,37 +44,54 @@ class CashBufferReviewNotifierTest {
   @InjectMocks private CashBufferReviewNotifier notifier;
 
   @Test
-  void staysSilentWhileNoFundHasDriftedForTheConsecutiveRunsItTakes() {
+  void staysSilentWhileNoLimitHasDriftedForTheConsecutiveRunsItTakes() {
     notifier.notify(
         SEPTEMBER,
         List.of(
             new Reviewed(
-                review(TUK75, new Drift(amount("-60000.00"), amount("50000.00"), true, 1, 2), 0)),
-            new Reviewed(
-                review(TUK00, new Drift(amount("-100.00"), amount("50000.00"), false, 0, 2), 0))));
+                review(TUK75, drift("-110300.00", true, 5), drift("-56000.00", true, 5), 0)),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null, 0))));
 
     verify(notificationService, never()).sendMessage(anyString(), any(), any());
   }
 
   @Test
-  void aDriftSustainedAcrossConsecutiveRunsAsksForTheReserveToBeReviewed() {
+  void aSoftLimitDriftSustainedAcrossConsecutiveRunsAsksForTheSoftLimitToBeReviewed() {
     notifier.notify(
         SEPTEMBER,
         List.of(
             new Reviewed(
-                review(TUK75, new Drift(amount("-86300.00"), amount("50000.00"), true, 2, 2), 0)),
-            new Reviewed(
-                review(TUK00, new Drift(amount("-100.00"), amount("50000.00"), false, 0, 2), 0))));
+                review(TUK75, drift("-110300.00", true, 6), drift("-100.00", false, 0), 0)),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null, 0))));
 
     verify(notificationService)
         .sendMessage(
             HEADER
                 + "\nLIMIT DRIFTED FROM THE RECOMMENDATION — review the reserve"
-                + "\n  TUK75: recommended 44700.00 EUR, reserve_soft 131000.00 EUR since"
-                + " 2026-01-01, apart by -86300.00 EUR (threshold 50000.00 EUR) for 2 consecutive"
+                + "\n  TUK75 reserve_soft: recommended 20700.00 EUR, configured 131000.00 EUR since"
+                + " 2026-01-01, apart by -110300.00 EUR (threshold 50000.00 EUR) for 6 consecutive"
                 + " months — P95 monthly outflow 65700.00 less 0.1 × P20 monthly inflow 480000.00,"
-                + " plus floor 24000.00 and accrued fees 3000.00; window 2026-08..2026-09 (2"
-                + " months)",
+                + " plus accrued fees 3000.00; window 2026-08..2026-09 (2 months)",
+            INVESTMENT,
+            INFO);
+  }
+
+  @Test
+  void aHardLimitDriftSustainedAcrossConsecutiveRunsNamesTheSettlementHorizonItCovers() {
+    notifier.notify(
+        SEPTEMBER,
+        List.of(
+            new Reviewed(
+                review(TUK75, drift("-100.00", false, 0), drift("-56000.00", true, 6), 0))));
+
+    verify(notificationService)
+        .sendMessage(
+            HEADER
+                + "\nLIMIT DRIFTED FROM THE RECOMMENDATION — review the reserve"
+                + "\n  TUK75 reserve_hard: recommended 24000.00 EUR, configured 80000.00 EUR since"
+                + " 2026-01-01, apart by -56000.00 EUR (threshold 50000.00 EUR) for 6 consecutive"
+                + " months — P95 outflow over 4 business days 21000.00, plus accrued fees 3000.00;"
+                + " window 2026-08..2026-09 (2 months)",
             INVESTMENT,
             INFO);
   }
@@ -83,9 +101,9 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(
-                review(TUK75, new Drift(amount("-100.00"), amount("50000.00"), false, 0, 2), 1)),
-            new NotRun(TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"),
+            new Reviewed(review(TUK75, drift("-100.00", false, 0), null, 1)),
+            new NotRun(
+                TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
             new NotRun(TUV100, NO_COMPLETE_MONTH_OF_FLOWS, "reviewMonth=2026-09")));
 
     verify(notificationService)
@@ -96,7 +114,8 @@ class CashBufferReviewNotifierTest {
                 + "\n  TUK75: 1 registrar payout(s), 5000.00 EUR; window 2026-08..2026-09 (2"
                 + " months)"
                 + "\nREVIEW COULD NOT RUN"
-                + "\n  TUK00: missing investment_parameter (parameters=[CASH_BUFFER_FLOOR])"
+                + "\n  TUK00: missing investment_parameter"
+                + " (parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS])"
                 + "\n  TUV100: the ledger holds no complete month of registrar flows yet"
                 + " (reviewMonth=2026-09)",
             INVESTMENT,
@@ -114,11 +133,19 @@ class CashBufferReviewNotifierTest {
                 notifier.notify(
                     SEPTEMBER,
                     List.of(
-                        new NotRun(TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_FLOOR]"))))
+                        new NotRun(
+                            TUK00,
+                            MISSING_PARAMETERS,
+                            "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"))))
         .doesNotThrowAnyException();
   }
 
-  private static CashBufferReview review(TulevaFund fund, Drift drift, int unrecognisedPayouts) {
+  private static Drift drift(String divergence, boolean drifted, int consecutiveRuns) {
+    return new Drift(amount(divergence), amount("50000.00"), drifted, consecutiveRuns, 6);
+  }
+
+  private static CashBufferReview review(
+      TulevaFund fund, Drift softDrift, @Nullable Drift hardDrift, int unrecognisedPayouts) {
     var unrecognisedOutflow = unrecognisedPayouts == 0 ? amount("0.00") : amount("5000.00");
     return new CashBufferReview(
         fund,
@@ -147,13 +174,19 @@ class CashBufferReviewNotifierTest {
                 new BigDecimal("0.9500000000"),
                 new BigDecimal("0.2000000000"),
                 new BigDecimal("0.1000000000"),
-                amount("24000.00")),
+                4),
             amount("65700.00"),
             amount("480000.00"),
+            amount("21000.00"),
             amount("3000.00"),
-            amount("44700.00")),
-        new ConfiguredReserve(LocalDate.of(2026, 1, 1), amount("131000.00"), null),
-        drift);
+            amount("20700.00"),
+            amount("24000.00")),
+        new ConfiguredReserve(
+            LocalDate.of(2026, 1, 1),
+            amount("131000.00"),
+            hardDrift == null ? null : amount("80000.00")),
+        softDrift,
+        hardDrift);
   }
 
   private static BigDecimal amount(String value) {

@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -40,6 +41,21 @@ class CashBufferReviewRepositoryTest {
   }
 
   @Test
+  void storesTheHardLimitsDriftBesideTheSoftOneWhenAHardLimitIsConfigured() {
+    var review = review(TUK75, SEPTEMBER, "44700.00", "77000.00");
+
+    repository.save(review);
+
+    assertThat(repository.findByFundAndMonth(TUK75, SEPTEMBER))
+        .hasValueSatisfying(
+            stored ->
+                assertThat(stored)
+                    .usingRecursiveComparison()
+                    .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                    .isEqualTo(review));
+  }
+
+  @Test
   void aSecondRunForTheSameFundAndMonthReplacesTheFirst() {
     repository.save(review(TUK75, SEPTEMBER, "44700.00", "77000.00"));
     var rerun = review(TUK75, SEPTEMBER, "46100.00", "77000.00");
@@ -49,7 +65,8 @@ class CashBufferReviewRepositoryTest {
     assertThat(repository.findByFundAndMonth(TUK75, SEPTEMBER))
         .hasValueSatisfying(
             stored ->
-                assertThat(stored.recommendation().recommended()).isEqualByComparingTo("46100.00"));
+                assertThat(stored.recommendation().recommendedSoft())
+                    .isEqualByComparingTo("46100.00"));
     assertThat(rowsIn("investment_cash_buffer_review")).isEqualTo(1);
     assertThat(rowsIn("investment_cash_buffer_review_month")).isEqualTo(2);
   }
@@ -67,13 +84,9 @@ class CashBufferReviewRepositoryTest {
   }
 
   private static CashBufferReview review(
-      TulevaFund fund, YearMonth month, String recommended, String reserveHard) {
+      TulevaFund fund, YearMonth month, String recommendedSoft, @Nullable String reserveHard) {
     var model =
-        new BufferModel(
-            new BigDecimal("0.95"),
-            new BigDecimal("0.20"),
-            new BigDecimal("0.1"),
-            new BigDecimal("24000.00"));
+        new BufferModel(new BigDecimal("0.95"), new BigDecimal("0.20"), new BigDecimal("0.1"), 4);
     return new CashBufferReview(
         fund,
         month,
@@ -100,12 +113,17 @@ class CashBufferReviewRepositoryTest {
             model,
             new BigDecimal("65700.00"),
             new BigDecimal("480000.00"),
+            new BigDecimal("21000.00"),
             new BigDecimal("3000.00"),
-            new BigDecimal(recommended)),
+            new BigDecimal(recommendedSoft),
+            new BigDecimal("24000.00")),
         new ConfiguredReserve(
             LocalDate.of(2026, 1, 1),
             new BigDecimal("131000.00"),
             reserveHard == null ? null : new BigDecimal(reserveHard)),
-        new Drift(new BigDecimal("-86300.00"), new BigDecimal("50000.00"), true, 2, 2));
+        new Drift(new BigDecimal("-86300.00"), new BigDecimal("50000.00"), true, 2, 6),
+        reserveHard == null
+            ? null
+            : new Drift(new BigDecimal("-53000.00"), new BigDecimal("50000.00"), true, 1, 6));
   }
 }

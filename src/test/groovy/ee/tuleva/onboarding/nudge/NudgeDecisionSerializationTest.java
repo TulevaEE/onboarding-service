@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
@@ -118,6 +119,7 @@ class NudgeDecisionSerializationTest {
 
     assertThat(flagged)
         .containsExactly(
+            SECOND_PILLAR_START,
             SECOND_PILLAR_TRANSFER,
             SECOND_PILLAR_PAYMENT_RATE,
             THIRD_PILLAR_START,

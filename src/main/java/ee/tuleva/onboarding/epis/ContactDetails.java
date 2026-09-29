@@ -38,8 +38,13 @@ public class ContactDetails implements Person {
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
   @Nullable private Instant secondPillarOpenDate;
+  @Nullable private Instant secondPillarJoinDate;
   private Instant thirdPillarInitDate;
   @Nullable private PaymentRates secondPillarPaymentRates;
+
+  public boolean hasJoinedSecondPillar() {
+    return isSecondPillarActive || secondPillarJoinDate != null;
+  }
 
   public Country getAddress() {
     return Country.builder().countryCode(country).build();

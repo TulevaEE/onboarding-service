@@ -54,7 +54,7 @@ class NudgeInputsAssembler {
         .pendingSecondPillarTransfer(
             !pendingApplications.getPendingExchanges(SECOND, user).isEmpty())
         .pendingSecondPillarWithdrawal(pendingApplications.hasPendingWithdrawals(user, SECOND))
-        .leftSecondPillar(lookups.leftSecondPillar(user.getPersonalCode()))
+        .leftSecondPillar(leftOrInactiveSecondPillar(user, pillars))
         .thirdPillarRecurring(
             pillars.thirdPillarActive()
                 ? lookups.thirdPillarRecurring(user.getPersonalCode())
@@ -67,6 +67,15 @@ class NudgeInputsAssembler {
         .savingsFundFeePercent(lookups.savingsFundFeePercent())
         .paymentRateSeason(paymentRateSeasons.current())
         .build();
+  }
+
+  private Known leftOrInactiveSecondPillar(User user, PillarActivity pillars) {
+    if (pillars.hasInactiveSecondPillar()) {
+      log.info(
+          "Second pillar joined but not active, not inviting to open one: userId={}", user.getId());
+      return Known.YES;
+    }
+    return lookups.leftSecondPillar(user.getPersonalCode());
   }
 
   private @Nullable FeeComparison feeComparison(User user, ConversionResponse conversion) {

@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -45,4 +48,13 @@ interface TrackingDifferenceEventRepository extends JpaRepository<TrackingDiffer
       WHERE e.fund = :fund AND e.checkDate BETWEEN :start AND :end
       """)
   List<LocalDate> findDistinctCheckDates(TulevaFund fund, LocalDate start, LocalDate end);
+
+  @Query(
+      """
+      SELECT MAX(e.createdAt) FROM TrackingDifferenceEvent e
+      WHERE e.fund = :fund AND e.checkType IN :checkTypes
+        AND e.checkDate BETWEEN :start AND :end
+      """)
+  @Nullable Instant findLatestWrittenAt(
+      TulevaFund fund, Collection<TrackingCheckType> checkTypes, LocalDate start, LocalDate end);
 }

@@ -38,6 +38,7 @@ record TrackingDifferenceResult(
     boolean escalationNavResidualBreach,
     boolean escalationCountTruncated,
     boolean escalationCountUnavailable,
+    int escalationUncheckedDays,
     @Nullable ConsecutiveBreachInfo endedStreak,
     List<String> benchmarkGapIsins,
     @Nullable BigDecimal benchmarkGapWeight) {

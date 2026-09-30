@@ -692,7 +692,9 @@ class TrackingDifferenceNotifierTest {
             ZERO,
             false,
             false,
-            false);
+            false,
+            0,
+            0);
 
     notifier.notify(List.of(cleanDayEnding(streak)));
 
@@ -711,6 +713,59 @@ class TrackingDifferenceNotifierTest {
                 IE00BFG1TM61: +0.40%
                 Cash drag: -0.10%""",
             INVESTMENT);
+  }
+
+  @Test
+  void aCleanDayAfterUncheckedDaysEndingAThreeDayStreakSaysTheNotificationIsLate() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var streak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.0060"),
+            new BigDecimal("0.0060"),
+            ZERO,
+            Map.of(),
+            ZERO,
+            ZERO,
+            ZERO,
+            false,
+            false,
+            false,
+            1,
+            1);
+
+    notifier.notify(List.of(cleanDayEnding(streak)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits today (TD=+0.05%). The last \
+            check before it, 2 working days earlier, closed a 3-day breach streak, and no check \
+            ran in between. Sisekord 4 p 11.8 made the notification due on working day 4, which \
+            had no check, so it is sent today, late: identify the cause and act on it.
+              [3 consecutive days, 1 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void aBreachStreakRunningAcrossUncheckedDaysSaysHowManyAndThatItsTdCoversOnlyTheCheckedOnes() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0060")).toBuilder().escalationUncheckedDays(1).build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD ESCALATION")
+        .contains(
+            "[4 consecutive days, 1 of them with no check, compounded TD over the checked days=");
   }
 
   @Test
@@ -754,7 +809,9 @@ class TrackingDifferenceNotifierTest {
             ZERO,
             false,
             false,
-            false);
+            false,
+            0,
+            0);
 
     notifier.notify(List.of(cleanDayEnding(fourDayStreak)));
 
@@ -821,7 +878,9 @@ class TrackingDifferenceNotifierTest {
         ZERO,
         hadNavResidualBreach,
         false,
-        false);
+        false,
+        0,
+        0);
   }
 
   @Test

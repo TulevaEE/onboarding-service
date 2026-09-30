@@ -699,11 +699,29 @@ class PeriodicTdAttributionServiceTest {
             within(new BigDecimal("0.00000002")));
   }
 
-  private BigDecimal etfOcfDragOverTwoWorkingDaysFrom(LocalDate wednesday) {
-    var periodStart = wednesday.withDayOfMonth(1);
-    var periodEnd = wednesday.withDayOfMonth(wednesday.lengthOfMonth());
-    setupStandardMocks(periodStart, periodEnd, wednesday);
-    givenBenchmarkModelEvents(periodStart, periodEnd, wednesday, List.of(ISIN_DW, ISIN_EUROPE_ETF));
+  @Test
+  void aJanuaryCheckReachingBackIntoDecemberWeighsEachDayByTheLengthOfItsOwnYear() {
+    var twoOrdinaryDays = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2026, 3, 4));
+    var twoLeapDaysAndThreeOrdinaryDays =
+        etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2029, 1, 2));
+
+    var twoLeapDaysInOrdinaryDays =
+        new BigDecimal("2")
+            .multiply(new BigDecimal("365"))
+            .divide(new BigDecimal("366"), 20, HALF_UP);
+    var ordinaryDaysCovered = twoLeapDaysInOrdinaryDays.add(new BigDecimal("3"));
+    assertThat(twoLeapDaysAndThreeOrdinaryDays)
+        .isCloseTo(
+            twoOrdinaryDays.multiply(ordinaryDaysCovered).divide(new BigDecimal("2"), 20, HALF_UP),
+            within(new BigDecimal("0.00000002")));
+  }
+
+  private BigDecimal etfOcfDragOverTwoWorkingDaysFrom(LocalDate firstCheckDate) {
+    var periodStart = firstCheckDate.withDayOfMonth(1);
+    var periodEnd = firstCheckDate.withDayOfMonth(firstCheckDate.lengthOfMonth());
+    setupStandardMocks(periodStart, periodEnd, firstCheckDate);
+    givenBenchmarkModelEvents(
+        periodStart, periodEnd, firstCheckDate, List.of(ISIN_DW, ISIN_EUROPE_ETF));
     given(instrumentFeeRepository.findAllValidRates(periodEnd))
         .willReturn(List.of(instrumentFee(ISIN_DW, "0.0400")));
 

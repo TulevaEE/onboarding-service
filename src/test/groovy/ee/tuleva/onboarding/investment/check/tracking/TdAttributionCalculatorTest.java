@@ -523,6 +523,22 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void aPeriodEndingBeforeItStartsHasNoToleranceBand() {
+    var emptyPeriod =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2026, 4, 2))
+            .periodEnd(LocalDate.of(2026, 4, 1))
+            .periodType(CUSTOM)
+            .calendarDays(0)
+            .residualTolerance(new BigDecimal("0.00175"))
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(emptyPeriod)).isNull();
+  }
+
+  @Test
   void aResidualInsideTheScaledBandPasses() {
     var input =
         toleranceInput(buildConstantDays(30, "0.0005", "0.0005"), new BigDecimal("0.00175"));

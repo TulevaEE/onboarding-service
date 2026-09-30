@@ -2,13 +2,10 @@ package ee.tuleva.onboarding.investment.fees;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Objects;
 import lombok.Builder;
-import org.jspecify.annotations.Nullable;
 
 @Builder(toBuilder = true)
 public record FeeAccrual(
@@ -20,11 +17,9 @@ public record FeeAccrual(
     BigDecimal baseValue,
     BigDecimal annualRate,
     BigDecimal dailyAmountGross,
-    int daysInYear,
-    @Nullable LocalDate referenceDate) {
+    int daysInYear) {
 
   public static FeeAccrual fromResultSet(ResultSet rs, int rowNum) throws SQLException {
-    Date referenceDateSql = rs.getDate("reference_date");
     return new FeeAccrual(
         rs.getLong("id"),
         TulevaFund.fromCode(rs.getString("fund_code")),
@@ -34,8 +29,7 @@ public record FeeAccrual(
         rs.getBigDecimal("base_value"),
         rs.getBigDecimal("annual_rate"),
         rs.getBigDecimal("daily_amount_gross"),
-        rs.getInt("days_in_year"),
-        referenceDateSql != null ? referenceDateSql.toLocalDate() : null);
+        rs.getInt("days_in_year"));
   }
 
   public boolean sameValuesAs(FeeAccrual other) {
@@ -46,7 +40,6 @@ public record FeeAccrual(
         && baseValue.compareTo(other.baseValue) == 0
         && annualRate.compareTo(other.annualRate) == 0
         && dailyAmountGross.compareTo(other.dailyAmountGross) == 0
-        && daysInYear == other.daysInYear
-        && Objects.equals(referenceDate, other.referenceDate);
+        && daysInYear == other.daysInYear;
   }
 }

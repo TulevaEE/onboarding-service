@@ -32,6 +32,7 @@ class BatchTies {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
+  private final HeldPayouts heldPayouts;
 
   List<PaymentApprovalBrief.Verdict> verdicts(
       List<OutgoingPayment> awaitingApproval, LocalDate date) {
@@ -78,7 +79,7 @@ class BatchTies {
         .toList();
   }
 
-  private static List<PaymentApprovalBrief.Verdict> ties(List<OutgoingPayment> inScope) {
+  private List<PaymentApprovalBrief.Verdict> ties(List<OutgoingPayment> inScope) {
     var byBatch =
         inScope.stream()
             .filter(payment -> payment.getBatchId() != null)
@@ -94,21 +95,39 @@ class BatchTies {
         .toList();
   }
 
-  private static Optional<PaymentApprovalBrief.Verdict> tie(
-      UUID batchId, List<OutgoingPayment> batch) {
+  private Optional<PaymentApprovalBrief.Verdict> tie(UUID batchId, List<OutgoingPayment> batch) {
     var transferred = totalOf(batch, REDEMPTION_TRANSFER);
     var paidOut = totalOf(batch, PAYOUT);
     if (transferred.signum() == 0 && paidOut.signum() == 0) {
       return Optional.empty();
     }
+    var held = heldPayouts.heldIn(batchId);
     return Optional.of(
-        new PaymentApprovalBrief.Verdict(
-            "payouts == transfer to withdrawal account (batch %s)".formatted(marker(batchId)),
-            transferred.compareTo(paidOut) == 0,
-            "%s = %s"
-                .formatted(
-                    PaymentApprovalBrief.amount(paidOut),
-                    PaymentApprovalBrief.amount(transferred))));
+        held.signum() == 0
+            ? paidInFull(batchId, transferred, paidOut)
+            : partlyHeld(batchId, transferred, paidOut, held));
+  }
+
+  private static PaymentApprovalBrief.Verdict paidInFull(
+      UUID batchId, BigDecimal transferred, BigDecimal paidOut) {
+    return new PaymentApprovalBrief.Verdict(
+        "payouts == transfer to withdrawal account (batch %s)".formatted(marker(batchId)),
+        transferred.compareTo(paidOut) == 0,
+        "%s = %s"
+            .formatted(
+                PaymentApprovalBrief.amount(paidOut), PaymentApprovalBrief.amount(transferred)));
+  }
+
+  private static PaymentApprovalBrief.Verdict partlyHeld(
+      UUID batchId, BigDecimal transferred, BigDecimal paidOut, BigDecimal held) {
+    return new PaymentApprovalBrief.Verdict(
+        "payouts + held == transfer to withdrawal account (batch %s)".formatted(marker(batchId)),
+        transferred.compareTo(paidOut.add(held)) == 0,
+        "%s + %s held = %s"
+            .formatted(
+                PaymentApprovalBrief.amount(paidOut),
+                PaymentApprovalBrief.amount(held),
+                PaymentApprovalBrief.amount(transferred)));
   }
 
   private static Optional<PaymentApprovalBrief.Verdict> retriedPayouts(

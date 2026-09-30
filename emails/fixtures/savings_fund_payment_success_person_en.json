@@ -55,7 +55,7 @@
       "FNAME": "Mari",
       "suggestSavingsFundRecurringPayment": true
     },
-    "second pillar outranks the savings fund recurring suggestion": {
+    "second pillar and savings fund recurring together (cannot occur)": {
       "FNAME": "Mari",
       "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true,

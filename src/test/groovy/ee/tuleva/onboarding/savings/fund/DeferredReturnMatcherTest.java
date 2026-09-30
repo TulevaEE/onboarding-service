@@ -13,7 +13,6 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
@@ -70,7 +69,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(List.of(returnPayment));
     when(savingsFundLedger.hasLedgerEntry(returnPaymentId, ADJUSTMENT)).thenReturn(true);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
     verify(eventPublisher, never()).publishEvent(any());
@@ -102,7 +101,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     var expectedParty = new PartyId(PERSON, user.getPersonalCode());
     verify(savingsFundLedger)
@@ -140,7 +139,7 @@ class DeferredReturnMatcherTest {
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, UNATTRIBUTED_PAYMENT_RECONCILED))
         .thenReturn(true);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
@@ -171,7 +170,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger)
         .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
@@ -200,7 +199,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger)
         .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
@@ -226,7 +225,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(true);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
   }
@@ -243,7 +242,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(Optional.of(originalPayment));
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)).thenReturn(true);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
   }
@@ -269,7 +268,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(ancient));
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
     verify(eventPublisher, never()).publishEvent(any());
@@ -286,7 +285,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of(unknownOutgoing));
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(eventPublisher, never()).publishEvent(any());
   }
@@ -296,7 +295,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of());
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
@@ -327,7 +326,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository).changeStatus(originalPaymentId, RETURNED);
   }
@@ -356,7 +355,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, TO_BE_RETURNED);
@@ -389,7 +388,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, TO_BE_RETURNED);
@@ -422,7 +421,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
   }
@@ -454,7 +453,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository).addReturnReason(eq(originalPaymentId), any());
   }
@@ -474,7 +473,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(any(), any()))
         .thenReturn(Optional.empty());
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
@@ -502,7 +501,7 @@ class DeferredReturnMatcherTest {
         .thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(
@@ -516,7 +515,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of());
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository).findUnmatchedOutgoingReturns(DEPOSIT_IBAN);
   }
@@ -530,7 +529,7 @@ class DeferredReturnMatcherTest {
     when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
         .thenReturn(Optional.empty());
 
-    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+    deferredReturnMatcher.onBankMessagesProcessed();
 
     verify(savingFundPaymentRepository, never()).findOriginalPaymentByIbanAndAmount(any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());

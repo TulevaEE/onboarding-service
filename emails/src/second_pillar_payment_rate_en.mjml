@@ -18,7 +18,7 @@
         </mj-text>
         <mj-text>
           Attached is a copy of the application you just made on our website and which we have
-          sent to Pensionikeskus.
+          sent to Pensionikeskus. You can change your choice every year until the end of November.
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_en.mjml" />

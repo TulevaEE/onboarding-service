@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITT
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.SUBSCRIPTION_TRANSFER;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -40,9 +43,18 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   BatchTies.class,
   BookedBalanceReader.class,
   BankStatementExtractor.class,
-  Iso20022Marshaller.class
+  Iso20022Marshaller.class,
+  PaymentApprovalBriefServiceIT.NothingHeld.class
 })
 class PaymentApprovalBriefServiceIT {
+
+  @TestConfiguration
+  static class NothingHeld {
+    @Bean
+    HeldPayouts heldPayouts() {
+      return batchId -> ZERO;
+    }
+  }
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 9, 23);

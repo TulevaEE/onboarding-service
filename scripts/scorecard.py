@@ -173,7 +173,7 @@ def convention_metrics():
             continue
         clock_violations += len(clock_pattern.findall(f.read_text(encoding="utf-8")))
     disabled = subprocess.run(
-        ["grep", "-rlE", "@Disabled|@Ignore\b", str(ROOT / "src" / "test" / "groovy")],
+        ["grep", "-rlE", r"@Disabled|@Ignore\b", str(ROOT / "src" / "test" / "groovy")],
         capture_output=True,
         text=True,
     ).stdout.splitlines()

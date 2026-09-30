@@ -23,6 +23,7 @@ import org.springframework.web.client.ResourceAccessException;
 @Slf4j
 public class SebStatementFetchingScheduler {
 
+  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-17 * * MON-FRI";
   static final String END_OF_DAY_FETCH_CRON = "0 0/30 4-23 * * *";
   static final String GAP_REPORT_CRON = "0 10 9 * * *";
   private static final int CATCH_UP_DAYS = 7;
@@ -32,11 +33,11 @@ public class SebStatementFetchingScheduler {
   private final StatementCoverage statementCoverage;
   private final Clock clock;
 
-  @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = CURRENT_DAY_FETCH_CRON, zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchCurrentDayTransactions",
-      lockAtMostFor = "23h",
-      lockAtLeastFor = "30m")
+      lockAtMostFor = "25m",
+      lockAtLeastFor = "1m")
   public void fetchCurrentDayTransactions() {
     log.info("Running SEB current day transactions fetching scheduler");
     for (BankAccount account : bankAccounts.findAll(TKF100)) {

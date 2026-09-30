@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.banking.seb.fetcher;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -25,13 +27,17 @@ import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -63,6 +69,20 @@ class SebStatementFetchingSchedulerTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private BankAccounts bankAccounts;
   @Mock private StatementCoverage statementCoverage;
+
+  @Test
+  void fetchCurrentDayTransactions_releasesItsLockBeforeTheNextHalfHourTick() throws Exception {
+    var lock =
+        SebStatementFetchingScheduler.class
+            .getMethod("fetchCurrentDayTransactions")
+            .getAnnotation(SchedulerLock.class);
+    var tick = LocalDateTime.of(2026, 7, 24, 15, 0);
+
+    var nextTick = CronExpression.parse(CURRENT_DAY_FETCH_CRON).next(tick);
+
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtLeastFor()))).isBefore(nextTick);
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtMostFor()))).isBefore(nextTick);
+  }
 
   @Test
   void fetchCurrentDayTransactions_publishesEventsOnlyForSavingsFundAccounts() {

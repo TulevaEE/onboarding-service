@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.END_OF_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.GAP_REPORT_CRON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,6 +17,24 @@ import org.springframework.scheduling.support.CronExpression;
 class SebStatementFetchingScheduleTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
+  @Test
+  void currentDayFetch_firesEveryThirtyMinutesOnAWorkingDayFromNineUntilHalfPastFive() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_CRON);
+
+    assertThat(fires).hasSize(18);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("09:00");
+    assertThat(fires.getLast().toLocalTime()).hasToString("17:30");
+    for (int i = 1; i < fires.size(); i++) {
+      assertThat(Duration.between(fires.get(i - 1), fires.get(i)))
+          .isEqualTo(Duration.ofMinutes(30));
+    }
+  }
+
+  @Test
+  void currentDayFetch_doesNotFireAtTheWeekend() {
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_CRON)).isEmpty();
+  }
 
   @Test
   void endOfDayFetch_firesEveryThirtyMinutesFromFourUntilHalfPastEleven() {

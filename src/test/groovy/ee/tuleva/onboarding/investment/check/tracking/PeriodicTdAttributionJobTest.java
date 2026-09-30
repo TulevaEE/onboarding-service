@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -14,7 +13,9 @@ import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionRequested;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -75,22 +76,52 @@ class PeriodicTdAttributionJobTest {
   }
 
   @Test
-  void theJuneThroughAugustBackfillRecomputesJuneJulyAndAugustForAllFunds() {
-    var jobWithClock = new PeriodicTdAttributionJob(service, businessDays, clockFor("2026-09-30"));
+  void onTheDayOfTheMonthlyRunTheSelfHealCoversTheTwelveMonthsBeforeThisOneOldestFirst() {
+    var fourthBusinessDayOfOctober = clockFor("2026-10-06");
+    var jobWithClock =
+        new PeriodicTdAttributionJob(service, businessDays, fourthBusinessDayOfOctober);
 
-    jobWithClock.backfillJuneThroughAugust();
+    jobWithClock.rewriteStaleMonths();
 
-    var inOrder = inOrder(service);
-    inOrder
-        .verify(service)
-        .computeForAllFunds(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), MONTHLY);
-    inOrder
-        .verify(service)
-        .computeForAllFunds(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), MONTHLY);
-    inOrder
-        .verify(service)
-        .computeForAllFunds(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), MONTHLY);
-    inOrder.verifyNoMoreInteractions();
+    verify(service)
+        .rewriteStaleMonths(
+            List.of(
+                YearMonth.of(2025, 10),
+                YearMonth.of(2025, 11),
+                YearMonth.of(2025, 12),
+                YearMonth.of(2026, 1),
+                YearMonth.of(2026, 2),
+                YearMonth.of(2026, 3),
+                YearMonth.of(2026, 4),
+                YearMonth.of(2026, 5),
+                YearMonth.of(2026, 6),
+                YearMonth.of(2026, 7),
+                YearMonth.of(2026, 8),
+                YearMonth.of(2026, 9)));
+  }
+
+  @Test
+  void beforeTheMonthlyRunTheSelfHealLeavesLastMonthToIt() {
+    var thirdBusinessDayOfOctober = clockFor("2026-10-05");
+    var jobWithClock =
+        new PeriodicTdAttributionJob(service, businessDays, thirdBusinessDayOfOctober);
+
+    jobWithClock.rewriteStaleMonths();
+
+    verify(service)
+        .rewriteStaleMonths(
+            List.of(
+                YearMonth.of(2025, 10),
+                YearMonth.of(2025, 11),
+                YearMonth.of(2025, 12),
+                YearMonth.of(2026, 1),
+                YearMonth.of(2026, 2),
+                YearMonth.of(2026, 3),
+                YearMonth.of(2026, 4),
+                YearMonth.of(2026, 5),
+                YearMonth.of(2026, 6),
+                YearMonth.of(2026, 7),
+                YearMonth.of(2026, 8)));
   }
 
   @Test

@@ -116,7 +116,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("1450.25")));
 
@@ -130,7 +130,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
@@ -214,7 +214,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("29000")));
 
@@ -228,7 +228,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
@@ -305,7 +305,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("1450.25")));
 
@@ -319,7 +319,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }

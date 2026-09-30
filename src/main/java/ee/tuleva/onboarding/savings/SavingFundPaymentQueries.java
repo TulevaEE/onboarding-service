@@ -34,8 +34,8 @@ public class SavingFundPaymentQueries {
         .toList();
   }
 
-  public int countIssuedPaymentMonthsSince(PartyId party, LocalDate from) {
-    return savingFundPaymentRepository.countIssuedPaymentMonthsSince(party, from);
+  public int countStandingOrderMonthsSince(PartyId party, LocalDate from) {
+    return savingFundPaymentRepository.countStandingOrderMonthsSince(party, from);
   }
 
   public List<SavingFundPayment> findRecentPayments(String description) {

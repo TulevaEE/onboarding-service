@@ -25,10 +25,10 @@ class SavingsFundContributionsAdapterTest {
     var from = LocalDate.of(2024, 1, 1);
     var saver = new SaverId(saverType, "12345678");
     given(
-            savingsFundPayments.countIssuedPaymentMonthsSince(
+            savingsFundPayments.countStandingOrderMonthsSince(
                 new PartyId(partyType, "12345678"), from))
         .willReturn(3);
 
-    assertThat(adapter.countIssuedPaymentMonthsSince(saver, from)).isEqualTo(3);
+    assertThat(adapter.countStandingOrderMonthsSince(saver, from)).isEqualTo(3);
   }
 }

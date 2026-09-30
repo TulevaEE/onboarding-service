@@ -94,8 +94,7 @@ class NavCalculationServiceTest {
     when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
     NavFeeBases expectedBases =
         new NavFeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
-    when(navFees.calculateFeesForNav(
-            eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any(), any()))
+    when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any()))
         .thenReturn(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
@@ -150,7 +149,7 @@ class NavCalculationServiceTest {
     // depot fee Tuleva bears arrives here already zeroed. Re-gating the summed figure on one day's
     // answer was the bug: a month the policy flips in would be taken whole or dropped whole.
     // FeeChargedToFundPolicyTest pins the split; this pins that NAV does not second-guess it.
-    when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
+    when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), any(), any()))
         .thenReturn(new NavFeeResult(new BigDecimal("52.08"), ZERO));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
@@ -179,7 +178,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
 
@@ -230,7 +229,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("-300.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
@@ -263,7 +262,7 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(new BigDecimal("152316.55"), ZERO));
 
     NavCalculationResult result = service.calculate(TUK75, calcDate);
@@ -289,7 +288,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
@@ -321,7 +320,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
@@ -355,7 +354,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
@@ -384,7 +383,7 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
@@ -423,7 +422,7 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
 
     service.backfillFees(TKF100, friday, sunday);
@@ -433,12 +432,10 @@ class NavCalculationServiceTest {
             eq(TKF100),
             any(),
             eq(new NavFeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
-            any(),
             any());
-    verify(navFees).calculateFeesForNav(eq(TKF100), eq(friday), any(), any(), any());
-    verify(navFees)
-        .calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any(), any());
-    verify(navFees).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any(), any());
+    verify(navFees).calculateFeesForNav(eq(TKF100), eq(friday), any(), any());
+    verify(navFees).calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any());
+    verify(navFees).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any());
   }
 
   @Test
@@ -457,7 +454,7 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
         .thenReturn(new NavFeeResult(ZERO, ZERO));
 
     service.backfillFees(TUK75, monday, monday);
@@ -468,7 +465,6 @@ class NavCalculationServiceTest {
             eq(TUK75),
             eq(monday),
             eq(new NavFeeBases(new BigDecimal("950000000"), new BigDecimal("950000000"))),
-            any(),
             any());
   }
 
@@ -483,7 +479,7 @@ class NavCalculationServiceTest {
 
     service.backfillFees(TKF100, date, date);
 
-    verify(navFees, never()).calculateFeesForNav(any(), any(), any(), any(), any());
+    verify(navFees, never()).calculateFeesForNav(any(), any(), any(), any());
   }
 
   @Test

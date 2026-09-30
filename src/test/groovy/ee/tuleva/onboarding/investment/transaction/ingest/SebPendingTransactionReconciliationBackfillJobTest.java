@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import java.time.Clock;
@@ -105,8 +104,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
           .willReturn(Optional.empty());
     }
 
-    job.onSebPendingTransactionReconciliationBackfillRequested(
-        new RunSebPendingTransactionReconciliationBackfillRequested());
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(reportService, times(BACKFILL_DAYS + 1)).getReport(any(), any(), any());
   }

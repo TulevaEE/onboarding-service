@@ -1,10 +1,18 @@
 {
   "variants": {
+    "second pillar start suggestion": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillarStart": true,
+      "anyPillarSuggestion": true
+    },
     "second pillar suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "anyPillarSuggestion": true
     },
     "Second pillar fee comparison": {
       "FNAME": "Mari",
@@ -15,19 +23,22 @@
       "secondPillarFeePercent": "0.65",
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
-      "secondPillarSavingsAmount": 74
+      "secondPillarSavingsAmount": 74,
+      "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestPaymentRate": true
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     },
     "third pillar suggestion (cannot occur)": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestThirdPillar": true
+      "suggestThirdPillar": true,
+      "anyPillarSuggestion": true
     },
     "third pillar fees suggestion (cannot occur)": {
       "FNAME": "Mari",
@@ -35,19 +46,22 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestThirdPillar": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "anyPillarSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestThirdPillarRecurringPayment": true
+      "suggestThirdPillarRecurringPayment": true,
+      "anyPillarSuggestion": true
     },
     "third pillar raise suggestion (cannot occur)": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestThirdPillarRaise": true
+      "suggestThirdPillarRaise": true,
+      "anyPillarSuggestion": true
     },
     "savings fund suggestion": {
       "FNAME": "Mari",
@@ -77,7 +91,8 @@
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "anyPillarSuggestion": true
     }
   }
 }

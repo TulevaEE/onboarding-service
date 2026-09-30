@@ -1320,6 +1320,38 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void anAttributionThatErroredNamesTheFundPeriodAndReason() {
+    notifier.notifyAttributionFailed(
+        TUK75,
+        LocalDate.of(2026, 6, 1),
+        LocalDate.of(2026, 6, 30),
+        "DataIntegrityViolationException");
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION FAILED: fund=TUK75, period=2026-06-01 to 2026-06-30
+              The attribution errored (DataIntegrityViolationException), so nothing was written for
+              this period. Any attribution already stored for it is left as it was. Rerun it once
+              the cause is fixed; the stack trace is in the logs.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionFailedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionFailed(
+                    TUK75, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), "boom"))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   void swallowsExceptionWhenAttributionNotWrittenNotificationFails() {
     willThrow(new RuntimeException("Slack down"))
         .given(notificationService)

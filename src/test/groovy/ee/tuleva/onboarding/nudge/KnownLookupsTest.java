@@ -28,11 +28,13 @@ class KnownLookupsTest {
   void aFailedRepresentedPartiesLookupLeavesTheSavingsFundQuestionUnknown() {
     given(actingParties.representedBy(any())).willThrow(new RuntimeException("registry down"));
 
-    assertThat(lookups.savesForAnyRepresentedParty(user, Known.NO)).isEqualTo(Known.UNKNOWN);
+    assertThat(lookups.savesForAnyRepresentedParty(user.getPersonalCode(), Known.NO))
+        .isEqualTo(Known.UNKNOWN);
   }
 
   @Test
   void ownSavingsFundAccountAnswersWithoutLookingUpRepresentedParties() {
-    assertThat(lookups.savesForAnyRepresentedParty(user, Known.YES)).isEqualTo(Known.YES);
+    assertThat(lookups.savesForAnyRepresentedParty(user.getPersonalCode(), Known.YES))
+        .isEqualTo(Known.YES);
   }
 }

@@ -221,60 +221,6 @@ class FeeRepositoriesIntegrationTest {
       assertThat(dailyAmountGross).isEqualByComparingTo(BigDecimal.TEN);
     }
 
-    @Test
-    void save_writesTheSameAmountToTheColumnTheOlderImageStillReads() {
-      FeeAccrual accrual =
-          FeeAccrual.builder()
-              .fund(TUK75)
-              .feeType(FeeType.MANAGEMENT)
-              .accrualDate(LocalDate.of(2025, 1, 15))
-              .feeMonth(LocalDate.of(2025, 1, 1))
-              .baseValue(BigDecimal.valueOf(1000000))
-              .annualRate(new BigDecimal("0.02"))
-              .dailyAmountGross(new BigDecimal("5.894"))
-              .daysInYear(365)
-              .build();
-
-      feeAccrualRepository.save(accrual);
-
-      assertThat(legacyNetAmountOn(LocalDate.of(2025, 1, 15)))
-          .isEqualByComparingTo(new BigDecimal("5.894"));
-    }
-
-    @Test
-    void save_keepsTheLegacyColumnInStepWhenItUpdatesAnExistingDay() {
-      LocalDate accrualDate = LocalDate.of(2025, 1, 15);
-      insertAccrual(TUK75, FeeType.MANAGEMENT, accrualDate, new BigDecimal("5.894"));
-
-      feeAccrualRepository.save(
-          FeeAccrual.builder()
-              .fund(TUK75)
-              .feeType(FeeType.MANAGEMENT)
-              .accrualDate(accrualDate)
-              .feeMonth(LocalDate.of(2025, 1, 1))
-              .baseValue(BigDecimal.valueOf(2000000))
-              .annualRate(new BigDecimal("0.02"))
-              .dailyAmountGross(new BigDecimal("11.788"))
-              .daysInYear(365)
-              .build());
-
-      assertThat(legacyNetAmountOn(accrualDate)).isEqualByComparingTo(new BigDecimal("11.788"));
-    }
-
-    private BigDecimal legacyNetAmountOn(LocalDate accrualDate) {
-      return jdbcClient
-          .sql(
-              """
-              SELECT daily_amount_net FROM investment_fee_accrual
-              WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
-              """)
-          .param("fundCode", TUK75.name())
-          .param("feeType", FeeType.MANAGEMENT.name())
-          .param("accrualDate", accrualDate)
-          .query(BigDecimal.class)
-          .single();
-    }
-
     // Left unrounded per day on purpose: the caller drops the days the policy does not charge and
     // rounds what is left, so rounding here would round days that never reach the total.
     @Test

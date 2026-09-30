@@ -41,8 +41,8 @@ public class LimitCheckJob {
     runLimitChecks(event.funds());
   }
 
-  @EventListener
-  void onLimitCheckRequested(RunLimitCheckRequested event) {
+  @EventListener(RunLimitCheckRequested.class)
+  void onLimitCheckRequested() {
     runLimitChecks(List.of(TulevaFund.values()));
   }
 
@@ -66,8 +66,8 @@ public class LimitCheckJob {
     }
   }
 
-  @EventListener
-  void onLimitCheckBackfillRequested(RunLimitCheckBackfillRequested event) {
+  @EventListener(RunLimitCheckBackfillRequested.class)
+  void onLimitCheckBackfillRequested() {
     backfillLimitChecks();
   }
 

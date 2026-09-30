@@ -77,9 +77,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_recordsTheAccrualButKeepsTheFundLedgerCleanWhenTulevaBearsTheFee() {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
     FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
 
@@ -96,7 +93,7 @@ class FeeCalculationServiceTest {
     stubZeroLedgerBalance();
 
     service.calculateFeesForNav(
-        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, null);
+        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), null);
 
     verify(feeAccrualRepository).save(depotAccrual);
     verify(navFeeAccrualLedger)
@@ -113,9 +110,6 @@ class FeeCalculationServiceTest {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
     BigDecimal previousBaseValue = new BigDecimal("11500000");
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
     FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
 
@@ -136,7 +130,7 @@ class FeeCalculationServiceTest {
 
     FeeResult result =
         service.calculateFeesForNav(
-            TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, null);
+            TKF100, positionReportDate, new FeeBases(baseValue, baseValue), null);
 
     // Catch-up days (Jan 10-12) use previous base value
     for (int day = 10; day <= 12; day++) {
@@ -165,9 +159,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_defaultsToPositionReportDateWhenNoAccruals() {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual accrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
 
     when(feeAccrualRepository.findLatestAccrualDate(TKF100)).thenReturn(Optional.empty());
@@ -182,7 +173,7 @@ class FeeCalculationServiceTest {
     stubZeroLedgerBalance();
 
     service.calculateFeesForNav(
-        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, null);
+        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), null);
 
     verify(calculator1, times(1))
         .calculate(eq(TKF100), eq(positionReportDate), eq(new FeeBases(baseValue, baseValue)));
@@ -194,9 +185,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_includesSecurityPricesInMetadata() {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual accrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
     Map<String, ResolvedPrice> securityPrices =
         Map.of(
@@ -217,7 +205,7 @@ class FeeCalculationServiceTest {
     stubZeroLedgerBalance();
 
     service.calculateFeesForNav(
-        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, securityPrices);
+        TKF100, positionReportDate, new FeeBases(baseValue, baseValue), securityPrices);
 
     verify(navFeeAccrualLedger, atLeastOnce())
         .recordFeeAccrual(
@@ -232,8 +220,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_settlesPreviousMonth() {
     LocalDate mar1 = LocalDate.of(2026, 3, 1);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff = mar1.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, mar1);
     FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, mar1);
 
@@ -256,7 +242,7 @@ class FeeCalculationServiceTest {
     when(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, FeeType.DEPOT, mar1))
         .thenReturn(Map.of());
 
-    service.calculateFeesForNav(TKF100, mar1, new FeeBases(baseValue, baseValue), feeCutoff, null);
+    service.calculateFeesForNav(TKF100, mar1, new FeeBases(baseValue, baseValue), null);
 
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
@@ -270,8 +256,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_doesNotSettleMidMonth() {
     LocalDate feb15 = LocalDate.of(2026, 2, 15);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff = feb15.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual accrual1 = createAccrual(TKF100, FeeType.MANAGEMENT, feb15);
     FeeAccrual accrual2 = createAccrual(TKF100, FeeType.DEPOT, feb15);
 
@@ -282,7 +266,7 @@ class FeeCalculationServiceTest {
         .thenReturn(accrual2);
     stubZeroLedgerBalance();
 
-    service.calculateFeesForNav(TKF100, feb15, new FeeBases(baseValue, baseValue), feeCutoff, null);
+    service.calculateFeesForNav(TKF100, feb15, new FeeBases(baseValue, baseValue), null);
 
     verify(navFeeAccrualLedger, never()).settleFeeAccrual(any(), any(), any(), any());
   }
@@ -298,9 +282,6 @@ class FeeCalculationServiceTest {
   void calculateFeesForNav_returnsFeeFromAccrualRepository() {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
     BigDecimal baseValue = new BigDecimal("12000000");
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
     FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
 
@@ -320,7 +301,7 @@ class FeeCalculationServiceTest {
 
     FeeResult result =
         service.calculateFeesForNav(
-            TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, null);
+            TKF100, positionReportDate, new FeeBases(baseValue, baseValue), null);
 
     assertThat(result.managementFeeAccrual()).isEqualByComparingTo("400.12");
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo("50.34");
@@ -342,11 +323,12 @@ class FeeCalculationServiceTest {
     givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71");
     givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
 
-    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), cutoffAfter(day), null);
+    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), null);
 
     verify(feeAccrualRepository, never()).save(any());
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -364,8 +346,7 @@ class FeeCalculationServiceTest {
     givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71");
     givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
 
-    service.calculateFeesForNav(
-        TUK75, day, new FeeBases(correctedBase, correctedBase), cutoffAfter(day), null);
+    service.calculateFeesForNav(TUK75, day, new FeeBases(correctedBase, correctedBase), null);
 
     verify(feeAccrualRepository).save(correctedMgmt);
     verify(feeAccrualRepository, never()).save(depotAccrual);
@@ -375,11 +356,13 @@ class FeeCalculationServiceTest {
             eq(day),
             eq(MANAGEMENT_FEE_ACCRUAL),
             eq(new BigDecimal("-33.30")),
+            eq(1),
             argThat(
                 metadata ->
                     "FEE_ACCRUAL_REVISION".equals(metadata.get("operationType"))
                         && new BigDecimal("6418.71").equals(metadata.get("previousLedgerAmount"))
-                        && new BigDecimal("6385.41").equals(metadata.get("ledgerAmount"))));
+                        && new BigDecimal("6385.41").equals(metadata.get("ledgerAmount"))
+                        && Integer.valueOf(1).equals(metadata.get("revision"))));
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
   }
 
@@ -397,11 +380,12 @@ class FeeCalculationServiceTest {
     givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71");
     givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
 
-    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), cutoffAfter(day), null);
+    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), null);
 
     verify(feeAccrualRepository).save(recomputedMgmt);
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -418,11 +402,16 @@ class FeeCalculationServiceTest {
     givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71");
     givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
 
-    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), cutoffAfter(day), null);
+    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), null);
 
     verify(navFeeAccrualLedger)
         .reviseFeeAccrual(
-            eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("-6418.71")), any());
+            eq(TUK75),
+            eq(day),
+            eq(MANAGEMENT_FEE_ACCRUAL),
+            eq(new BigDecimal("-6418.71")),
+            eq(1),
+            any());
   }
 
   @Test
@@ -437,13 +426,14 @@ class FeeCalculationServiceTest {
     givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day);
     givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
 
-    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), cutoffAfter(day), null);
+    service.calculateFeesForNav(TUK75, day, new FeeBases(base, base), null);
 
     verify(feeAccrualRepository, never()).save(any());
     verify(navFeeAccrualLedger)
         .recordFeeAccrual(
             eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("6418.71")), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -467,8 +457,7 @@ class FeeCalculationServiceTest {
     when(feeAccrualRepository.getUnsettledAccrualByDate(eq(TKF100), any(), eq(mar1)))
         .thenReturn(Map.of());
 
-    service.calculateFeesForNav(
-        TKF100, mar1, new FeeBases(baseValue, baseValue), cutoffAfter(mar1), null);
+    service.calculateFeesForNav(TKF100, mar1, new FeeBases(baseValue, baseValue), null);
 
     verify(navFeeAccrualLedger)
         .settleFeeAccrual(
@@ -512,18 +501,49 @@ class FeeCalculationServiceTest {
                 createAccrual(TUK75, FeeType.MANAGEMENT, sunday, storedBase, storedDaily),
                 createAccrual(TUK75, FeeType.DEPOT, sunday, correctedBase, ZERO)));
 
-    service.calculateFeesForNav(
-        TUK75, friday, new FeeBases(correctedBase, correctedBase), cutoffAfter(friday), null);
+    service.calculateFeesForNav(TUK75, friday, new FeeBases(correctedBase, correctedBase), null);
 
     for (LocalDate day : List.of(friday, saturday, sunday)) {
       verify(feeAccrualRepository)
           .save(createAccrual(TUK75, FeeType.MANAGEMENT, day, correctedBase, correctedDaily));
       verify(navFeeAccrualLedger)
           .reviseFeeAccrual(
-              eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("-11.39")), any());
+              eq(TUK75),
+              eq(day),
+              eq(MANAGEMENT_FEE_ACCRUAL),
+              eq(new BigDecimal("-11.39")),
+              eq(1),
+              any());
     }
     verify(calculator1, never()).calculate(eq(TUK75), eq(LocalDate.of(2026, 9, 7)), any());
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void calculateFeesForNav_numbersARevisionAfterTheTransactionsAlreadyOnThatDay() {
+    LocalDate day = LocalDate.of(2026, 9, 1);
+    BigDecimal storedBase = new BigDecimal("1136915291.97");
+    BigDecimal correctedBase = new BigDecimal("1135951200.00");
+    FeeAccrual storedMgmt =
+        createAccrual(TUK75, FeeType.MANAGEMENT, day, storedBase, new BigDecimal("6385.414654"));
+    FeeAccrual correctedMgmt =
+        createAccrual(TUK75, FeeType.MANAGEMENT, day, correctedBase, new BigDecimal("6380.000000"));
+    FeeAccrual depotAccrual = createAccrual(TUK75, FeeType.DEPOT, day, correctedBase, ZERO);
+    givenCalculated(TUK75, day, storedBase, correctedMgmt, depotAccrual);
+    givenStoredRows(TUK75, day, storedMgmt, depotAccrual);
+    givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71", "33.30");
+    givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
+
+    service.calculateFeesForNav(TUK75, day, new FeeBases(correctedBase, correctedBase), null);
+
+    verify(navFeeAccrualLedger)
+        .reviseFeeAccrual(
+            eq(TUK75),
+            eq(day),
+            eq(MANAGEMENT_FEE_ACCRUAL),
+            eq(new BigDecimal("-5.41")),
+            eq(2),
+            argThat(metadata -> Integer.valueOf(2).equals(metadata.get("revision"))));
   }
 
   private void givenCalculated(
@@ -570,10 +590,6 @@ class FeeCalculationServiceTest {
         .thenReturn(entries);
   }
 
-  private Instant cutoffAfter(LocalDate day) {
-    return day.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-  }
-
   private FeeAccrual withId(FeeAccrual accrual) {
     return accrual.toBuilder().id(42L).build();
   }
@@ -589,7 +605,6 @@ class FeeCalculationServiceTest {
         .annualRate(new BigDecimal("0.00205"))
         .dailyAmountGross(daily)
         .daysInYear(365)
-        .referenceDate(date)
         .build();
   }
 }

@@ -254,7 +254,7 @@ class FundBankLedgerTest {
             randomUUID(),
             FUND_INVESTMENT_CASH_CLEARING,
             isin,
-            "0P000152G5",
+            "BDWTEIA",
             "iShares Developed World Screened Index Fund",
             BOOKING_DATE);
 

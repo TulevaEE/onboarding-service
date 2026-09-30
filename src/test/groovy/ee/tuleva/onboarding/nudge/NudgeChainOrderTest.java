@@ -17,7 +17,7 @@ class NudgeChainOrderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"et", "en"})
-  void theEmailChainRendersNudgesInTheSameOrderTheRulesDecideThem(String language)
+  void theEmailChainListsTheNudgesInTheOrderTheirKeysAreDeclared(String language)
       throws IOException {
     String partial =
         Files.readString(Path.of("emails/src/partials/suggest_chain_open_" + language + ".mjml"));
@@ -25,11 +25,14 @@ class NudgeChainOrderTest {
     Matcher matcher = BRANCH.matcher(partial);
     var branches = new java.util.ArrayList<String>();
     while (matcher.find()) {
-      branches.add(matcher.group(1));
+      if (matcher.group(1).startsWith("suggest")) {
+        branches.add(matcher.group(1));
+      }
     }
 
     assertThat(branches)
         .containsExactly(
+            "suggestSecondPillarStart",
             "suggestSecondPillar",
             "suggestPaymentRate",
             "suggestThirdPillar",

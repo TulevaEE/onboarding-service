@@ -39,8 +39,8 @@ public class BankMessageDelegator {
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
 
-  @EventListener
-  public void onProcessRequested(ProcessBankMessagesRequested event) {
+  @EventListener(ProcessBankMessagesRequested.class)
+  public void onProcessRequested() {
     log.info("Processing bank messages");
     var messages =
         bankingMessageRepository.findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc();

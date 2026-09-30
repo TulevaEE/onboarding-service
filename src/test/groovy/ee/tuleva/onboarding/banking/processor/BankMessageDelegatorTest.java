@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
@@ -57,7 +56,7 @@ class BankMessageDelegatorTest {
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     then(eventPublisher).should().publishEvent(new BankMessagesProcessingCompleted());
   }
@@ -89,7 +88,7 @@ class BankMessageDelegatorTest {
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     assertThat(message.getMessageType()).isEqualTo(HISTORIC_STATEMENT);
     assertThat(message.getAccountIban()).isEqualTo("EE001234567890123456");
@@ -117,7 +116,7 @@ class BankMessageDelegatorTest {
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     assertThat(message.getMessageType()).isEqualTo(PAYMENT_ORDER_CONFIRMATION);
     assertThat(message.getAccountIban()).isNull();
@@ -150,7 +149,7 @@ class BankMessageDelegatorTest {
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     assertThat(message.getFailedAt()).isEqualTo(clock.instant());
     assertThat(message.getProcessedAt()).isNull();

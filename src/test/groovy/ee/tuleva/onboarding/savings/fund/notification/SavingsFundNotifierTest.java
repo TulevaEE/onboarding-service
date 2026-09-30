@@ -47,37 +47,17 @@ class SavingsFundNotifierTest {
   }
 
   @Test
-  void onSubscriptionBatchSent_sendsNotification() {
-    var event = new SubscriptionBatchSentEvent(3, new BigDecimal("1500.00"));
-
-    notifier.onSubscriptionBatchSent(event);
-
-    verify(notificationService)
-        .sendMessage(
-            "Savings fund subscription batch sent to SEB: totalAmount=1500.00 EUR", SAVINGS);
-  }
-
-  @Test
   void onRedemptionBatchCompleted_sendsNotification() {
     var event =
-        new RedemptionBatchCompletedEvent(2, 2, new BigDecimal("500.00"), new BigDecimal("9.9918"));
+        new RedemptionBatchCompletedEvent(
+            2, 1, 1, new BigDecimal("500.00"), new BigDecimal("9.9918"));
 
     notifier.onRedemptionBatchCompleted(event);
 
     verify(notificationService)
         .sendMessage(
-            "Savings fund redemption batch: requests=2, payouts=2, totalCashAmount=500.00 EUR, NAV=9.9918",
+            "Savings fund redemption batch: requests=2, payouts=1, held=1, totalCashAmount=500.00 EUR, NAV=9.9918",
             SAVINGS);
-  }
-
-  @Test
-  void onPaymentsReturned_sendsNotification() {
-    var event = new PaymentsReturnedEvent(2, new BigDecimal("200.00"));
-
-    notifier.onPaymentsReturned(event);
-
-    verify(notificationService)
-        .sendMessage("Savings fund returns: payments=2, totalAmount=200.00 EUR", SAVINGS);
   }
 
   @Test

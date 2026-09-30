@@ -74,7 +74,6 @@ public class FeeCalculationService {
     metadata.put("baseValue", accrual.baseValue());
     metadata.put("annualRate", accrual.annualRate());
     metadata.put("daysInYear", accrual.daysInYear());
-    metadata.put("referenceDate", accrual.referenceDate());
     metadata.put("feeMonth", accrual.feeMonth());
     metadata.put("dailyAmountGross", accrual.dailyAmountGross());
     metadata.put("ledgerAmount", ledgerAmount);
@@ -86,7 +85,6 @@ public class FeeCalculationService {
       TulevaFund fund,
       LocalDate positionReportDate,
       FeeBases bases,
-      Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices) {
     LocalDate startDate =
         feeAccrualRepository
@@ -229,18 +227,21 @@ public class FeeCalculationService {
       return;
     }
     BigDecimal delta = target.subtract(recorded);
+    int revision = (int) entries.stream().map(LedgerEntryAmount::transactionId).distinct().count();
     metadata.put("operationType", "FEE_ACCRUAL_REVISION");
     metadata.put("previousLedgerAmount", recorded);
     metadata.put("delta", delta);
+    metadata.put("revision", revision);
     log.info(
-        "Revising fee accrual: fund={}, date={}, feeType={}, previous={}, target={}, delta={}",
+        "Revising fee accrual: fund={}, date={}, feeType={}, revision={}, previous={}, target={}, delta={}",
         fund,
         date,
         accrual.feeType(),
+        revision,
         recorded,
         target,
         delta);
-    navFeeAccrualLedger.reviseFeeAccrual(fund, date, feeAccount, delta, metadata);
+    navFeeAccrualLedger.reviseFeeAccrual(fund, date, feeAccount, delta, revision, metadata);
   }
 
   private static Instant startOfDay(LocalDate date) {

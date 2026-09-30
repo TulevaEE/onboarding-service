@@ -1,5 +1,13 @@
 package ee.tuleva.onboarding.nudge;
 
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RECURRING;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_START;
+import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -23,6 +31,7 @@ class NudgeDecisionSerializationTest {
 
   private static List<NudgeDecision> everyDecisionShape() {
     var decisions = new ArrayList<NudgeDecision>();
+    decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     decisions.add(
         NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
     decisions.add(NudgeDecision.secondPillarTransfer(null));
@@ -74,8 +83,7 @@ class NudgeDecisionSerializationTest {
         contract.valueStream().map(node -> node.get("key").asString()).distinct().toList();
 
     assertThat(keysInContract)
-        .containsExactlyInAnyOrderElementsOf(
-            java.util.Arrays.stream(NudgeKey.values()).map(Enum::name).toList());
+        .containsExactlyInAnyOrderElementsOf(stream(NudgeKey.values()).map(Enum::name).toList());
   }
 
   @Test
@@ -84,6 +92,7 @@ class NudgeDecisionSerializationTest {
         NudgeDecision.of(NudgeKey.THIRD_PILLAR_RECURRING).mergeVars(Locale.ENGLISH);
 
     assertThat(vars)
+        .containsEntry("suggestSecondPillarStart", false)
         .containsEntry("suggestSecondPillar", false)
         .containsEntry("suggestPaymentRate", false)
         .containsEntry("suggestThirdPillar", false)
@@ -94,7 +103,37 @@ class NudgeDecisionSerializationTest {
         .containsEntry("suggestSavingsFundRecurringPayment", false)
         .containsEntry("suggestMembership", false)
         .containsEntry("hasFeeComparison", false)
+        .containsEntry("anyPillarSuggestion", true)
         .doesNotContainKeys("savingsFundFee", "secondPillarFeePercent");
+  }
+
+  @Test
+  void anyPillarSuggestionIsRaisedForPensionPillarNudgesOnly() {
+    List<NudgeKey> flagged =
+        stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key).mergeVars(Locale.ENGLISH).get("anyPillarSuggestion")))
+            .toList();
+
+    assertThat(flagged)
+        .containsExactly(
+            SECOND_PILLAR_START,
+            SECOND_PILLAR_TRANSFER,
+            SECOND_PILLAR_PAYMENT_RATE,
+            THIRD_PILLAR_START,
+            THIRD_PILLAR_FEES,
+            THIRD_PILLAR_RECURRING,
+            THIRD_PILLAR_RAISE);
+  }
+
+  @Test
+  void anyPillarSuggestionStaysRaisedWhenTheSecondPillarNudgeCarriesAFeeComparison() {
+    NudgeDecision transfer =
+        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+
+    assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("anyPillarSuggestion", true);
   }
 
   @Test

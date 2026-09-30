@@ -33,8 +33,8 @@ public class PortfolioCostBasisJob {
     runForDate(today);
   }
 
-  @EventListener
-  void onPortfolioCostBasisRequested(RunPortfolioCostBasisRequested event) {
+  @EventListener(RunPortfolioCostBasisRequested.class)
+  void onPortfolioCostBasisRequested() {
     run();
   }
 

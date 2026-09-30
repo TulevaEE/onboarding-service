@@ -139,6 +139,22 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyAttributionFailed(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, String reason) {
+    try {
+      notificationService.sendMessage(
+          """
+          ⚠️ TD ATTRIBUTION FAILED: fund=%s, period=%s to %s
+            The attribution errored (%s), so nothing was written for
+            this period. Any attribution already stored for it is left as it was. Rerun it once
+            the cause is fixed; the stack trace is in the logs."""
+              .formatted(fund.getCode(), periodStart, periodEnd, reason),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send TD attribution failed notification", e);
+    }
+  }
+
   private static String toBps(BigDecimal value) {
     return value
         .multiply(new BigDecimal("10000"))

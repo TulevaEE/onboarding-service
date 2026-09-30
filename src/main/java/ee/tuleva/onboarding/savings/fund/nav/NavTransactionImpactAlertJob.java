@@ -52,7 +52,7 @@ public class NavTransactionImpactAlertJob {
   private volatile @Nullable LocalDate lastAlertDate;
   private final Set<String> sentAlerts = ConcurrentHashMap.newKeySet();
 
-  @EventListener(classes = NavPositionInputsImported.class)
+  @EventListener(NavPositionInputsImported.class)
   void onNavPositionInputsImported() {
     try {
       checkAll();

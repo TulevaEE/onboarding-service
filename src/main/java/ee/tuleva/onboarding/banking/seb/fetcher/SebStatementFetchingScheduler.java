@@ -23,6 +23,10 @@ import org.springframework.web.client.ResourceAccessException;
 @Slf4j
 public class SebStatementFetchingScheduler {
 
+  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-14,16-17 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON =
+      "0 0/5 15 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON = "30 59 15 * * MON-FRI";
   static final String END_OF_DAY_FETCH_CRON = "0 0/30 4-23 * * *";
   static final String GAP_REPORT_CRON = "0 10 9 * * *";
   private static final int CATCH_UP_DAYS = 7;
@@ -32,13 +36,40 @@ public class SebStatementFetchingScheduler {
   private final StatementCoverage statementCoverage;
   private final Clock clock;
 
-  @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = CURRENT_DAY_FETCH_CRON, zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchCurrentDayTransactions",
-      lockAtMostFor = "23h",
-      lockAtLeastFor = "30m")
+      lockAtMostFor = "25m",
+      lockAtLeastFor = "1m")
   public void fetchCurrentDayTransactions() {
     log.info("Running SEB current day transactions fetching scheduler");
+    publishCurrentDayFetches();
+  }
+
+  @Scheduled(
+      cron = CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON,
+      zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SebStatementFetchingScheduler_fetchCurrentDayTransactionsInTheHourBeforeCutoff",
+      lockAtMostFor = "4m",
+      lockAtLeastFor = "1m")
+  public void fetchCurrentDayTransactionsInTheHourBeforeCutoff() {
+    log.info(
+        "Running SEB current day transactions fetch in the hour before the subscription cutoff");
+    publishCurrentDayFetches();
+  }
+
+  @Scheduled(cron = CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON, zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SebStatementFetchingScheduler_fetchCurrentDayTransactionsBeforeCutoff",
+      lockAtMostFor = "5m",
+      lockAtLeastFor = "10s")
+  public void fetchCurrentDayTransactionsBeforeCutoff() {
+    log.info("Running SEB current day transactions fetch before the subscription cutoff");
+    publishCurrentDayFetches();
+  }
+
+  private void publishCurrentDayFetches() {
     for (BankAccount account : bankAccounts.findAll(TKF100)) {
       try {
         eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(account));

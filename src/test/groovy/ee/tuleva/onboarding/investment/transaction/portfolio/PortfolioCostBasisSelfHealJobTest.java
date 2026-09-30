@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisSelfHealRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
@@ -65,7 +64,7 @@ class PortfolioCostBasisSelfHealJobTest {
       }
     }
 
-    job.onPortfolioCostBasisSelfHealRequested(new RunPortfolioCostBasisSelfHealRequested());
+    job.onPortfolioCostBasisSelfHealRequested();
 
     verify(service).rebuildRange(TUK75, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
   }

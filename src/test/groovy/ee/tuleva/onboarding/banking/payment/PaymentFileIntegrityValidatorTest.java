@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.FIELD_MISMATCH;
 import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.UNSTRUCTURED_ADDRESS;
 import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.XSD_SCHEMA;
+import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityViolation.mismatch;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -53,9 +52,7 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(tampered, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .containsExactly(tuple(FIELD_MISMATCH, "beneficiaryIban"));
+    assertThat(violations).containsExactly(mismatch("beneficiaryIban"));
   }
 
   @Test
@@ -66,9 +63,7 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(tampered, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .containsExactly(tuple(FIELD_MISMATCH, "amount"));
+    assertThat(violations).containsExactly(mismatch("amount"));
   }
 
   @Test
@@ -80,9 +75,7 @@ class PaymentFileIntegrityValidatorTest {
     var violations = validator.validate(tampered, request);
 
     assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .containsExactly(
-            tuple(FIELD_MISMATCH, "groupControlSum"), tuple(FIELD_MISMATCH, "paymentControlSum"));
+        .containsExactly(mismatch("groupControlSum"), mismatch("paymentControlSum"));
   }
 
   @Test
@@ -92,25 +85,97 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(tampered, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .contains(tuple(FIELD_MISMATCH, "currency"));
+    assertThat(violations).containsExactly(mismatch("currency"));
   }
 
   @Test
-  void detectsUnstructuredAddress() {
+  void reportsEveryViolationWhenTheSchemaAlsoFails() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var tampered =
+        generate(request)
+            .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>NOPE</PmtMtd>")
+            .replace(BENEFICIARY_IBAN, "EE333333333333333333");
+
+    var violations = validator.validate(tampered, request);
+
+    assertThat(violations)
+        .containsExactly(
+            new PaymentIntegrityViolation(XSD_SCHEMA, "document"), mismatch("beneficiaryIban"));
+  }
+
+  @Test
+  void detectsAddressLinesEvenBesideTheTownAndCountry() {
     var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
     var withAddress =
         generate(request)
             .replace(
                 "<Nm>John Doe</Nm>",
-                "<Nm>John Doe</Nm><PstlAdr><AdrLine>Some street 1, Tallinn</AdrLine></PstlAdr>");
+                "<Nm>John Doe</Nm><PstlAdr><TwnNm>Tallinn</TwnNm><Ctry>EE</Ctry>"
+                    + "<AdrLine>Some street 1</AdrLine></PstlAdr>");
 
     var violations = validator.validate(withAddress, request);
 
     assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check)
-        .contains(UNSTRUCTURED_ADDRESS);
+        .containsExactly(new PaymentIntegrityViolation(UNSTRUCTURED_ADDRESS, "address"));
+  }
+
+  @Test
+  void detectsAddressWithoutTheTownAndCountrySebRequires() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var withAddress =
+        generate(request)
+            .replace(
+                "<Nm>John Doe</Nm>",
+                "<Nm>John Doe</Nm><PstlAdr><StrtNm>Some street</StrtNm><BldgNb>1</BldgNb></PstlAdr>");
+
+    var violations = validator.validate(withAddress, request);
+
+    assertThat(violations).containsExactly(new PaymentIntegrityViolation(XSD_SCHEMA, "document"));
+  }
+
+  @Test
+  void detectsTamperedAmountWithFractionsOfACent() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var tampered =
+        generate(request).replace("<InstdAmt Ccy=\"EUR\">111.03", "<InstdAmt Ccy=\"EUR\">111.031");
+
+    var violations = validator.validate(tampered, request);
+
+    assertThat(violations).containsExactly(mismatch("amount"));
+  }
+
+  @Test
+  void detectsMissingCreditorAccount() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var withoutAccount = generate(request).replaceAll("(?s)<CdtrAcct>.*?</CdtrAcct>", "");
+
+    var violations = validator.validate(withoutAccount, request);
+
+    assertThat(violations).containsExactly(mismatch("beneficiaryIban"));
+  }
+
+  @Test
+  void detectsMissingCreditor() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var withoutCreditor = generate(request).replaceAll("(?s)<Cdtr>.*?</Cdtr>", "");
+
+    var violations = validator.validate(withoutCreditor, request);
+
+    assertThat(violations).containsExactly(mismatch("beneficiaryName"));
+  }
+
+  @Test
+  void detectsSecondDescriptionLine() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var withSecondLine =
+        generate(request)
+            .replace(
+                "<Ustrd>Fondi tagasivõtmine</Ustrd>",
+                "<Ustrd>Fondi tagasivõtmine</Ustrd><Ustrd>Another line</Ustrd>");
+
+    var violations = validator.validate(withSecondLine, request);
+
+    assertThat(violations).containsExactly(mismatch("description"));
   }
 
   @Test
@@ -120,22 +185,17 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(broken, request);
 
-    assertThat(violations).extracting(PaymentIntegrityViolation::check).contains(XSD_SCHEMA);
+    assertThat(violations).containsExactly(new PaymentIntegrityViolation(XSD_SCHEMA, "document"));
   }
 
   @Test
   void detectsMoreThanOneTransaction() {
     var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
-    var xml = generate(request);
-    var transaction =
-        xml.substring(xml.indexOf("<CdtTrfTxInf>"), xml.indexOf("</CdtTrfTxInf>") + 14);
-    var duplicated = xml.replace(transaction, transaction + transaction);
+    var duplicated = generate(request).replaceAll("(?s)<CdtTrfTxInf>.*?</CdtTrfTxInf>", "$0$0");
 
     var violations = validator.validate(duplicated, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .contains(tuple(FIELD_MISMATCH, "transactionCount"));
+    assertThat(violations).containsExactly(mismatch("transactionCount"));
   }
 
   @Test
@@ -145,9 +205,7 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(backdated, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .containsExactly(tuple(FIELD_MISMATCH, "executionDate"));
+    assertThat(violations).containsExactly(mismatch("executionDate"));
   }
 
   @Test
@@ -169,9 +227,7 @@ class PaymentFileIntegrityValidatorTest {
 
     var violations = validator.validate(tampered, request);
 
-    assertThat(violations)
-        .extracting(PaymentIntegrityViolation::check, PaymentIntegrityViolation::field)
-        .containsExactly(tuple(FIELD_MISMATCH, "endToEndId"));
+    assertThat(violations).containsExactly(mismatch("endToEndId"));
   }
 
   private String generate(PaymentRequest request) {

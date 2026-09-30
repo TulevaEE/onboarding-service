@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ public class PeriodicTdAttributionService {
   private final InvestmentParameterRepository parameterRepository;
   private final TrackingDifferenceNotifier notifier;
   private final TdAttributionPeriodReconciler periodReconciler;
+  private final TdAttributionStaleness staleness;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -108,26 +110,43 @@ public class PeriodicTdAttributionService {
   public void computeForAllFunds(
       LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
     for (var fund : TulevaFund.values()) {
-      try {
-        computeAttribution(fund, periodStart, periodEnd, periodType);
-      } catch (AttributionPeriodStillStaleException e) {
-        log.error(
-            "TD attribution not written, already reported: fund={}, period={}-{}",
-            fund,
-            periodStart,
-            periodEnd,
-            e);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute TD attribution: fund={}, period={}-{}",
-            fund,
-            periodStart,
-            periodEnd,
-            e);
-        notifier.notifyAttributionFailed(
-            fund, periodStart, periodEnd, e.getClass().getSimpleName());
-      }
+      computeReportingFailure(fund, periodStart, periodEnd, periodType);
     }
+  }
+
+  private void computeReportingFailure(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+    try {
+      computeAttribution(fund, periodStart, periodEnd, periodType);
+    } catch (AttributionPeriodStillStaleException e) {
+      log.error(
+          "TD attribution not written, already reported: fund={}, period={}-{}",
+          fund,
+          periodStart,
+          periodEnd,
+          e);
+    } catch (Exception e) {
+      log.error(
+          "Failed to compute TD attribution: fund={}, period={}-{}",
+          fund,
+          periodStart,
+          periodEnd,
+          e);
+      notifier.notifyAttributionFailed(fund, periodStart, periodEnd, e.getClass().getSimpleName());
+    }
+  }
+
+  public void rewriteStaleMonths(List<YearMonth> months) {
+    months.forEach(
+        month ->
+            Arrays.stream(TulevaFund.values())
+                .filter(fund -> staleness.needsRewrite(fund, month))
+                .forEach(
+                    fund -> {
+                      log.info("Rewriting stale TD attribution: fund={}, period={}", fund, month);
+                      computeReportingFailure(
+                          fund, month.atDay(1), month.atEndOfMonth(), PeriodType.MONTHLY);
+                    }));
   }
 
   public void backfillMonths(int monthsBack, Clock clock) {

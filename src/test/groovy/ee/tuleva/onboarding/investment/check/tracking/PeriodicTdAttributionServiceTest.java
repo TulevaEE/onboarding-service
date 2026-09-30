@@ -49,6 +49,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,8 @@ class PeriodicTdAttributionServiceTest {
   private static final String EUNL_ISIN = "IE00B4L5Y983";
   private static final String ISIN_EUROPE_ETF = "IE00BFNM3D14";
   private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
+  private static final YearMonth JUNE = YearMonth.of(2026, 6);
+  private static final YearMonth JULY = YearMonth.of(2026, 7);
 
   @Mock TrackingDifferenceEventRepository tdEventRepository;
   @Mock FeeAccrualRepository feeAccrualRepository;
@@ -90,6 +93,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock private InvestmentParameterRepository parameterRepository;
   @Mock private TrackingDifferenceNotifier notifier;
   @Mock private TdAttributionPeriodReconciler periodReconciler;
+  @Mock private TdAttributionStaleness staleness;
 
   @BeforeEach
   void setUp() {
@@ -108,7 +112,8 @@ class PeriodicTdAttributionServiceTest {
             new BenchmarkLegResolver(trackedInstruments()),
             parameterRepository,
             notifier,
-            periodReconciler);
+            periodReconciler,
+            staleness);
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -253,6 +258,58 @@ class PeriodicTdAttributionServiceTest {
             TUK00, PERIOD_START, PERIOD_END, "DataIntegrityViolationException");
     verify(attributionWriter, times(TulevaFund.values().length))
         .replace(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void theSelfHealRewritesOnlyTheFundMonthsWhoseChecksChangedSinceTheirAttribution() {
+    given(staleness.needsRewrite(TUK75, JUNE)).willReturn(true);
+    given(staleness.needsRewrite(TUK00, JULY)).willReturn(true);
+
+    service.rewriteStaleMonths(List.of(JUNE, JULY));
+
+    verify(attributionWriter).replace(argThat(e -> e.getFund() == TUK75 && isMonth(e, JUNE)));
+    verify(attributionWriter).replace(argThat(e -> e.getFund() == TUK00 && isMonth(e, JULY)));
+    verify(attributionWriter, times(2)).replace(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void theSelfHealJudgesAMonthOnlyAfterRewritingTheEarlierOnesWhoseRecheckRewritesItsChecks() {
+    for (var fund : TulevaFund.values()) {
+      given(staleness.needsRewrite(fund, JUNE)).willReturn(true);
+    }
+
+    service.rewriteStaleMonths(List.of(JUNE, JULY));
+
+    var inOrder = inOrder(attributionWriter, staleness);
+    inOrder
+        .verify(attributionWriter, times(TulevaFund.values().length))
+        .replace(argThat(e -> isMonth(e, JUNE)));
+    inOrder.verify(staleness).needsRewrite(TulevaFund.values()[0], JULY);
+  }
+
+  @Test
+  void aFundMonthTheSelfHealCannotRewriteIsReportedAndTheOthersAreStillRewritten() {
+    for (var fund : TulevaFund.values()) {
+      given(staleness.needsRewrite(fund, JUNE)).willReturn(true);
+    }
+    willThrow(new DataIntegrityViolationException("uq_td_attribution"))
+        .given(attributionWriter)
+        .replace(argThat(e -> e.getFund() == TUK00));
+
+    service.rewriteStaleMonths(List.of(JUNE));
+
+    then(notifier)
+        .should()
+        .notifyAttributionFailed(
+            TUK00, JUNE.atDay(1), JUNE.atEndOfMonth(), "DataIntegrityViolationException");
+    verify(attributionWriter, times(TulevaFund.values().length))
+        .replace(any(PeriodicTdAttribution.class));
+  }
+
+  private static boolean isMonth(PeriodicTdAttribution attribution, YearMonth month) {
+    return attribution.getPeriodStart().equals(month.atDay(1))
+        && attribution.getPeriodEnd().equals(month.atEndOfMonth())
+        && attribution.getPeriodType() == MONTHLY;
   }
 
   @Test

@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TD_ATTRIBUTION_SELF_HEAL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static java.time.Month.AUGUST;
-import static java.time.Month.JULY;
-import static java.time.Month.JUNE;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
@@ -15,6 +12,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -29,8 +27,8 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class PeriodicTdAttributionJob {
 
-  static final List<YearMonth> JUNE_THROUGH_AUGUST =
-      List.of(YearMonth.of(2026, JUNE), YearMonth.of(2026, JULY), YearMonth.of(2026, AUGUST));
+  private static final int MONTHLY_RUN_BUSINESS_DAY = 4;
+  private static final int SELF_HEAL_MONTHS = 12;
 
   private final PeriodicTdAttributionService service;
   private final BusinessDays businessDays;
@@ -43,7 +41,7 @@ class PeriodicTdAttributionJob {
       lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
+    if (!businessDays.isNthBusinessDayOfMonth(today, MONTHLY_RUN_BUSINESS_DAY)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);
@@ -71,17 +69,20 @@ class PeriodicTdAttributionJob {
     service.computeForAllFunds(lastMonth.atDay(1), lastMonth.atEndOfMonth(), PeriodType.MONTHLY);
   }
 
-  @Scheduled(cron = TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL, zone = TIMEZONE)
-  @SchedulerLock(
-      name = "TdAttributionJuneThroughAugustBackfill",
-      lockAtMostFor = "1h",
-      lockAtLeastFor = "5m")
-  void backfillJuneThroughAugust() {
-    JUNE_THROUGH_AUGUST.forEach(
-        month -> {
-          log.info("TD attribution backfill scheduled: period={}", month);
-          service.computeForAllFunds(month.atDay(1), month.atEndOfMonth(), PeriodType.MONTHLY);
-        });
+  @Scheduled(cron = TD_ATTRIBUTION_SELF_HEAL, zone = TIMEZONE)
+  @SchedulerLock(name = "TdAttributionSelfHeal", lockAtMostFor = "PT1H", lockAtLeastFor = "PT5M")
+  void rewriteStaleMonths() {
+    service.rewriteStaleMonths(monthsPastTheirMonthlyRun(LocalDate.now(clock)));
+  }
+
+  private List<YearMonth> monthsPastTheirMonthlyRun(LocalDate today) {
+    var lastMonth = YearMonth.from(today).minusMonths(1);
+    var lastMonthWasRun =
+        businessDays.isOnOrAfterNthBusinessDayOfMonth(today, MONTHLY_RUN_BUSINESS_DAY);
+    return Stream.iterate(lastMonth.minusMonths(SELF_HEAL_MONTHS - 1), month -> month.plusMonths(1))
+        .limit(SELF_HEAL_MONTHS)
+        .filter(month -> lastMonthWasRun || !month.equals(lastMonth))
+        .toList();
   }
 
   @EventListener

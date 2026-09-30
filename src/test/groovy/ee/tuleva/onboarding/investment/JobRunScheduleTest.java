@@ -92,15 +92,21 @@ class JobRunScheduleTest {
   }
 
   @Test
-  void juneThroughAugustAttributionBackfill_firesThisEveningAfterEveryEveningJobHasStarted() {
-    var morning = LocalDateTime.parse("2026-09-30T00:00:00").atZone(TALLINN);
-    var backfill =
-        CronExpression.parse(JobRunSchedule.TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL)
-            .next(morning);
-    var retirement = CronExpression.parse(JobRunSchedule.INSTRUMENT_RETIREMENT).next(morning);
+  void tdAttributionSelfHeal_firesOncePerBusinessDayAfterTheInstrumentRetirement() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(JobRunSchedule.TD_ATTRIBUTION_SELF_HEAL, weekStart, weekStart.plusDays(7));
 
-    assertThat(backfill).isEqualTo(LocalDateTime.parse("2026-09-30T20:30:00").atZone(TALLINN));
-    assertThat(backfill).isAfter(retirement);
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+              assertThat(fire)
+                  .isAfter(
+                      CronExpression.parse(JobRunSchedule.INSTRUMENT_RETIREMENT)
+                          .next(fire.toLocalDate().atStartOfDay(TALLINN)));
+            });
   }
 
   private enum ScheduledSlot {
@@ -108,9 +114,8 @@ class JobRunScheduleTest {
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     TRACKING_DIFFERENCE_GAP_FILL(
         JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
-    TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL(
-        JobRunSchedule.TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL,
-        STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
+    TD_ATTRIBUTION_SELF_HEAL(
+        JobRunSchedule.TD_ATTRIBUTION_SELF_HEAL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     FEE_ACCRUAL_POSITION_BACKFILL(
         JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     LIMIT_CHECK_GAP_FILL(

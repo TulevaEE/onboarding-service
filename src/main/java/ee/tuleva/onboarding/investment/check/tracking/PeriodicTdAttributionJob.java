@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TD_ATTRIBUTION_APRIL_THROUGH_AUGUST_BACKFILL;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static java.time.Month.AUGUST;
+import static java.time.Month.JULY;
+import static java.time.Month.JUNE;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
@@ -11,6 +14,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -25,7 +29,8 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class PeriodicTdAttributionJob {
 
-  static final int MONTHS_FROM_APRIL_THROUGH_AUGUST = 5;
+  static final List<YearMonth> JUNE_THROUGH_AUGUST =
+      List.of(YearMonth.of(2026, JUNE), YearMonth.of(2026, JULY), YearMonth.of(2026, AUGUST));
 
   private final PeriodicTdAttributionService service;
   private final BusinessDays businessDays;
@@ -66,14 +71,17 @@ class PeriodicTdAttributionJob {
     service.computeForAllFunds(lastMonth.atDay(1), lastMonth.atEndOfMonth(), PeriodType.MONTHLY);
   }
 
-  @Scheduled(cron = TD_ATTRIBUTION_APRIL_THROUGH_AUGUST_BACKFILL, zone = TIMEZONE)
+  @Scheduled(cron = TD_ATTRIBUTION_JUNE_THROUGH_AUGUST_BACKFILL, zone = TIMEZONE)
   @SchedulerLock(
-      name = "TdAttributionAprilThroughAugustBackfill",
+      name = "TdAttributionJuneThroughAugustBackfill",
       lockAtMostFor = "1h",
       lockAtLeastFor = "5m")
-  void backfillAprilThroughAugust() {
-    log.info("TD attribution backfill scheduled: monthsBack={}", MONTHS_FROM_APRIL_THROUGH_AUGUST);
-    service.backfillMonths(MONTHS_FROM_APRIL_THROUGH_AUGUST, clock);
+  void backfillJuneThroughAugust() {
+    JUNE_THROUGH_AUGUST.forEach(
+        month -> {
+          log.info("TD attribution backfill scheduled: period={}", month);
+          service.computeForAllFunds(month.atDay(1), month.atEndOfMonth(), PeriodType.MONTHLY);
+        });
   }
 
   @EventListener

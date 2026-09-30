@@ -64,3 +64,5 @@ CLAUDE.local.md
 .claude/worktrees/
 
 *.snap.debug
+
+__pycache__/

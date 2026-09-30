@@ -99,10 +99,9 @@ public class NavCalculationService implements NavFeeBackfill {
             blackrockAdjustment,
             payables,
             pendingRedemptions);
-    Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     NavFeeResult fees =
         navFees.calculateFeesForNav(
-            fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
+            fund, positionReportDate, feeBases, context.getSecurityPrices());
     BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
     BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 
@@ -333,9 +332,7 @@ public class NavCalculationService implements NavFeeBackfill {
       }
       log.info("Backfilling fees: fund={}, date={}", fund, navDate);
       var result = optional.get();
-      Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
-      navFees.calculateFeesForNav(
-          fund, navDate, result.bases(), feeCutoff, result.securityPrices());
+      navFees.calculateFeesForNav(fund, navDate, result.bases(), result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }

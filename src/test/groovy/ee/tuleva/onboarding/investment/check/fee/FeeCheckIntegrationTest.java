@@ -293,9 +293,8 @@ class FeeCheckIntegrationTest {
   }
 
   private void accrueFor(LocalDate date) {
-    var cutoff = date.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TUK75, date, new FeeBases(BASE_VALUE, ASSET_VALUE), cutoff, null);
+        TUK75, date, new FeeBases(BASE_VALUE, ASSET_VALUE), null);
   }
 
   private void correctAccrualWithoutTouchingLedger(LocalDate date, BigDecimal amount) {
@@ -376,9 +375,9 @@ class FeeCheckIntegrationTest {
             """
             INSERT INTO investment_fee_accrual
             (fund_code, fee_type, accrual_date, fee_month, base_value, annual_rate,
-             daily_amount_gross, days_in_year, reference_date)
+             daily_amount_gross, days_in_year)
             VALUES (:fundCode, :feeType, :accrualDate, :feeMonth, :baseValue, 0.0025,
-                    :dailyGross, 365, :accrualDate)
+                    :dailyGross, 365)
             """)
         .param("fundCode", fund.name())
         .param("feeType", feeType)

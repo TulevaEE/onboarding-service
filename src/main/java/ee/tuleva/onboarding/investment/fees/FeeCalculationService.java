@@ -74,7 +74,6 @@ public class FeeCalculationService {
     metadata.put("baseValue", accrual.baseValue());
     metadata.put("annualRate", accrual.annualRate());
     metadata.put("daysInYear", accrual.daysInYear());
-    metadata.put("referenceDate", accrual.referenceDate());
     metadata.put("feeMonth", accrual.feeMonth());
     metadata.put("dailyAmountGross", accrual.dailyAmountGross());
     metadata.put("ledgerAmount", ledgerAmount);
@@ -86,7 +85,6 @@ public class FeeCalculationService {
       TulevaFund fund,
       LocalDate positionReportDate,
       FeeBases bases,
-      Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices) {
     LocalDate startDate =
         feeAccrualRepository

@@ -156,8 +156,7 @@ class TransactionCommandJobTest {
     when(commandRepository.findByStatus(PENDING)).thenReturn(List.of());
     when(batchRepository.findByStatus(CONFIRMED)).thenReturn(List.of());
 
-    job.onTransactionCommandRequested(
-        new ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested());
+    job.onTransactionCommandRequested();
 
     verify(commandRepository).findByStatus(PENDING);
     verify(batchRepository).findByStatus(CONFIRMED);

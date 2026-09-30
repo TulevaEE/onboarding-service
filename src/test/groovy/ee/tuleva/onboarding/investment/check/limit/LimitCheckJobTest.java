@@ -6,8 +6,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
-import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
@@ -48,7 +46,7 @@ class LimitCheckJobTest {
     var results = List.of(mock(LimitCheckResult.class));
     when(limitCheckService.runChecksForFunds(allFunds)).thenReturn(LimitCheckRun.of(results));
 
-    job.onLimitCheckRequested(new RunLimitCheckRequested());
+    job.onLimitCheckRequested();
 
     verify(limitCheckService).runChecksForFunds(allFunds);
     verify(limitCheckNotifier).notify(LimitCheckRun.of(results));
@@ -141,7 +139,7 @@ class LimitCheckJobTest {
     var results = List.of(mock(LimitCheckResult.class));
     when(limitCheckService.backfillChecks(25)).thenReturn(results);
 
-    job.onLimitCheckBackfillRequested(new RunLimitCheckBackfillRequested());
+    job.onLimitCheckBackfillRequested();
 
     var inOrder = inOrder(feeAccrualPositionSyncJob, limitCheckService);
     inOrder.verify(feeAccrualPositionSyncJob).sync(25);

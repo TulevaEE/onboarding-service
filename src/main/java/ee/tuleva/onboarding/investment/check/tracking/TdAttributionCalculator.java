@@ -109,14 +109,7 @@ class TdAttributionCalculator {
             ? totalCashPct.divide(BigDecimal.valueOf(attributedDays), SCALE, HALF_UP)
             : ZERO;
 
-    var checks =
-        buildChecks(
-            tdGeometricRounded,
-            explained.add(residual),
-            residual,
-            periodLink,
-            input,
-            attributedDays);
+    var checks = buildChecks(residual, periodLink, input, attributedDays);
 
     var instrumentDetails =
         toAttributions(instrumentContributions.values(), periodCoefficient, attributedDays);
@@ -253,13 +246,7 @@ class TdAttributionCalculator {
   }
 
   private Map<String, Object> buildChecks(
-      BigDecimal tdGeometric,
-      BigDecimal linkedComponentSum,
-      BigDecimal residual,
-      BigDecimal periodLink,
-      TdAttributionInput input,
-      int attributedDays) {
-    var sumCheck = tdGeometric.subtract(linkedComponentSum).abs();
+      BigDecimal residual, BigDecimal periodLink, TdAttributionInput input, int attributedDays) {
     var residualBps = residual.multiply(BigDecimal.valueOf(10000));
 
     var feeXcheck = ZERO;
@@ -276,14 +263,9 @@ class TdAttributionCalculator {
     var checks = new LinkedHashMap<String, Object>();
     checks.put("attributedDays", attributedDays);
     checks.put("unattributedDays", input.dailyRecords().size() - attributedDays);
-    checks.put("sumCheck", sumCheck.setScale(8, HALF_UP));
     checks.put("feeXcheck", feeXcheck.setScale(8, HALF_UP));
     checks.put("scalingFactor", periodLink.setScale(8, HALF_UP));
     checks.put("residualBps", residualBps.setScale(2, HALF_UP));
-    // sumCheck cannot fail - residual is defined as the tracking difference minus the components,
-    // so they always add up. How big the residual is, is the only real signal. With no tolerance
-    // configured there is no verdict to give: writing "within tolerance" would stamp a measured
-    // pass on every period that predates the parameter, which is what the backfill runs first.
     checks.putAll(residualVerdictOnlyWhereAToleranceIsConfigured(residual, input));
     checks.put("seriesGapDays", input.seriesGapDays());
     checks.put("etfLayerMeasured", input.benchmarkModelSumPeriod() != null);

@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.user.member.Member;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -42,14 +41,14 @@ public class MemberEmailService {
             user.getEmail(),
             templateName,
             getMergeVars(user, member, decision, locale),
-            List.of("memberNumber", decision.tag()));
+            decision.emailTags("memberNumber"));
 
     emailService
         .send(user, message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), decision.tag()));
+                    user, response.getId(), emailType, response.getStatus(), decision.emailTag()));
   }
 
   private NudgeDecision nudgeFor(User user) {

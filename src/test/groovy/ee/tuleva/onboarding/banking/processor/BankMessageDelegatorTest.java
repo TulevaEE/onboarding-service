@@ -46,7 +46,7 @@ class BankMessageDelegatorTest {
   void onProcessRequested_publishesCompletionEventAfterProcessingAllMessages() {
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of());
     var delegator =
         new BankMessageDelegator(
@@ -76,7 +76,7 @@ class BankMessageDelegatorTest {
             new StatementPeriod(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 13)));
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     given(bankStatementExtractor.extractFromHistoricStatement(rawXml, ZoneId.of("Europe/Tallinn")))
         .willReturn(statement);
@@ -106,7 +106,7 @@ class BankMessageDelegatorTest {
     var message = sebMessage(rawXml);
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     var delegator =
         new BankMessageDelegator(
@@ -137,7 +137,7 @@ class BankMessageDelegatorTest {
     message.setStatementTo(LocalDate.of(2026, 9, 11));
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     given(bankStatementExtractor.extractFromHistoricStatement(rawXml, ZoneId.of("Europe/Tallinn")))
         .willThrow(new BankStatementParseException("Bank statement integrity check failed"));

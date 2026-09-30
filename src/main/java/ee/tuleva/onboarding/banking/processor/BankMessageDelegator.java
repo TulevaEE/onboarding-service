@@ -43,7 +43,7 @@ public class BankMessageDelegator {
   public void onProcessRequested(ProcessBankMessagesRequested event) {
     log.info("Processing bank messages");
     var messages =
-        bankingMessageRepository.findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
+        bankingMessageRepository.findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc();
 
     for (BankingMessage message : messages) {
       processMessage(message);

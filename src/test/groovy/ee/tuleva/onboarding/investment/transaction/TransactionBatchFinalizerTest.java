@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -48,6 +49,7 @@ class TransactionBatchFinalizerTest {
   @Mock private TransactionExportUploader exportUploader;
   @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
   @Mock private PositionPriceResolver positionPriceResolver;
+  @Mock private PlatformTransactionManager transactionManager;
   @Mock private Clock clock;
 
   private TransactionBatchFinalizer finalizer;
@@ -68,6 +70,7 @@ class TransactionBatchFinalizerTest {
             exportUploader,
             custodianOrderEmailSender,
             orderFactory,
+            transactionManager,
             clock);
   }
 

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.util.stream.Collectors.toMap;
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -24,9 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -46,6 +49,7 @@ public class TransactionBatchFinalizer {
   @Nullable private final TransactionExportUploader exportUploader;
   private final CustodianOrderEmailSender custodianOrderEmailSender;
   private final TransactionOrderFactory orderFactory;
+  private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
   @Transactional
@@ -153,7 +157,13 @@ public class TransactionBatchFinalizer {
     Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
     updatedMetadata.put("driveFileUrls", driveFileUrls);
     batch.setMetadata(updatedMetadata);
-    batchRepository.save(batch);
+    transactionOfItsOwn().executeWithoutResult(status -> batchRepository.save(batch));
+  }
+
+  private TransactionTemplate transactionOfItsOwn() {
+    var transactionOfItsOwn = new TransactionTemplate(transactionManager);
+    transactionOfItsOwn.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+    return transactionOfItsOwn;
   }
 
   private void runAfterCommit(Runnable action) {

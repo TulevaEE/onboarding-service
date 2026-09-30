@@ -15,7 +15,9 @@ Inputs (produced by ./gradlew test pmdMain, plus optional pitest):
 
 Ratchets: LOWER_IS_BETTER must never increase, HIGHER_IS_BETTER must never
 decrease (coverage gets a small tolerance so deleting well-covered dead code
-is not blocked). Everything else is informational trend data.
+is not blocked). Everything else is informational trend data, including
+disconnectedClasses, whose ratchet CohesionMetricsTest owns in
+metrics/baseline.json.
 """
 
 import json
@@ -35,7 +37,6 @@ LOWER_IS_BETTER = [
     "deepNestingViolations",
     "compilerWarnings",
     "disabledTests",
-    "disconnectedClasses",
     "longClasses",
     "godClasses",
     "modulithViolations",
@@ -315,9 +316,6 @@ def main():
 
     if previous and "compilerWarnings" not in current and "compilerWarnings" in previous:
         current["compilerWarnings"] = previous["compilerWarnings"]
-
-    if previous and "disconnectedClasses" not in current and "disconnectedClasses" in previous:
-        current["disconnectedClasses"] = previous["disconnectedClasses"]
 
     if previous and "--init" not in sys.argv:
         for key in sorted(set(previous) | set(current)):

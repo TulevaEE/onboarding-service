@@ -5,8 +5,7 @@ import lombok.Getter;
 
 public enum BankMessageType {
   INTRA_DAY_REPORT("camt.052.001.02"),
-  HISTORIC_STATEMENT("camt.053.001.02"),
-  PAYMENT_ORDER_CONFIRMATION("pain.002.001.10");
+  HISTORIC_STATEMENT("camt.053.001.02");
 
   @Getter private final String xmlType;
 

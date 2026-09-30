@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
 class ParentChildLinkNotificationSenderTest {
@@ -43,6 +44,7 @@ class ParentChildLinkNotificationSenderTest {
   @Mock private EmailPersistenceService emailPersistenceService;
   @Mock private UserService userService;
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
+  @Mock private PlatformTransactionManager transactionManager;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
 
@@ -57,7 +59,12 @@ class ParentChildLinkNotificationSenderTest {
   void setUp() {
     sender =
         new ParentChildLinkNotificationSender(
-            emailService, emailPersistenceService, userService, parentChildLinkRepository, clock);
+            emailService,
+            emailPersistenceService,
+            userService,
+            parentChildLinkRepository,
+            transactionManager,
+            clock);
   }
 
   @Test

@@ -33,8 +33,8 @@ public class TransactionCommandJob {
     eventPublisher.publishEvent(new RunTransactionCommandRequested());
   }
 
-  @EventListener
-  public void onTransactionCommandRequested(RunTransactionCommandRequested event) {
+  @EventListener(RunTransactionCommandRequested.class)
+  public void onTransactionCommandRequested() {
     processCommands();
     finalizeConfirmedBatches();
   }

@@ -327,9 +327,8 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   private void accrueFor(TulevaFund fund, LocalDate date) {
-    var cutoff = date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     feeCalculationService.calculateFeesForNav(
-        fund, date, new FeeBases(BASE_VALUE, BASE_VALUE), cutoff, null);
+        fund, date, new FeeBases(BASE_VALUE, BASE_VALUE), null);
   }
 
   private void insertManagementFeeCorrection(LocalDate date, BigDecimal amount) {

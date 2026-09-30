@@ -1,10 +1,8 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
-<mj-text><strong>Tasudeks makstud eurod tootlust ei teeni</strong></mj-text>
 <mj-text>
   Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Sel aastal
   maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€, Tuleva fondis maksaksid
-  *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas, mis teenib
-  sulle täiendavalt tulu.
+  *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas.
 </mj-text>
 <mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
   <tr>
@@ -30,5 +28,5 @@
 <mj-text>
   <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
 </mj-text>
-<mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Vaata oma tasud üle</mj-button>
+<mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Vaatan oma tasud üle</mj-button>
 <mj-raw>*|END:IF|*</mj-raw>

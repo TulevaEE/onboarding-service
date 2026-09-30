@@ -45,9 +45,9 @@ public class DeferredReturnMatcher {
   private final BankAccounts bankAccounts;
   private final Clock clock;
 
-  @EventListener
+  @EventListener(BankMessagesProcessingCompleted.class)
   @Transactional
-  public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
+  public void onBankMessagesProcessed() {
     var depositIban = bankAccounts.getIban(TKF100, DEPOSIT_EUR);
     var now = clock.instant();
     var unmatchedReturns =

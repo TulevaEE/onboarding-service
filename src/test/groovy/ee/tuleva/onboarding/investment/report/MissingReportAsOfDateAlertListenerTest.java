@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -27,6 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.annotation.Order;
 
 @ExtendWith(MockitoExtension.class)
 class MissingReportAsOfDateAlertListenerTest {
@@ -143,21 +147,33 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
-  void staysSilent_whenTheReportIsOlderThanTheAlertWindow() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(4), Map.of());
+  void staysSilent_forAFileOlderThanTheImportLooksBackSinceOnlyABackfillStoresOne() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(8), Map.of());
 
-    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(4)));
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(8)));
 
     then(notificationService).shouldHaveNoInteractions();
   }
 
   @Test
-  void alerts_whenTheReportIsAtTheEdgeOfTheAlertWindow() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(3), Map.of());
+  void alerts_forANewFileAnywhereInTheImportLookback() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(7), Map.of());
 
-    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(3)));
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(7)));
 
     then(notificationService).should().sendMessage(any(), eq(INVESTMENT), eq(ERROR));
+  }
+
+  @Test
+  void theHeaderAlertRunsBeforeTheListenersThatProcessTheReportSoNoneOfThemCanSkipIt()
+      throws NoSuchMethodException {
+    var listenerMethod =
+        MissingReportAsOfDateAlertListener.class.getMethod(
+            "onReportImportCompleted", ReportImportCompleted.class);
+
+    assertThat(AnnotationUtils.findAnnotation(listenerMethod, Order.class))
+        .extracting(Order::value)
+        .isEqualTo(Ordered.HIGHEST_PRECEDENCE);
   }
 
   @Test

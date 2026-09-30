@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -14,6 +15,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -23,7 +25,6 @@ class MissingReportAsOfDateAlertListener {
 
   private static final Set<ReportType> REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER =
       Set.of(POSITIONS, PENDING_TRANSACTIONS);
-  private static final int ALERT_WINDOW_DAYS = 3;
   private static final int MAX_QUOTED_VALUE_LENGTH = 100;
 
   private final InvestmentReportService reportService;
@@ -31,6 +32,7 @@ class MissingReportAsOfDateAlertListener {
   private final Clock clock;
 
   @EventListener
+  @Order(HIGHEST_PRECEDENCE)
   public void onReportImportCompleted(ReportImportCompleted event) {
     if (event.provider() != SEB
         || !REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER.contains(event.reportType())) {
@@ -40,7 +42,7 @@ class MissingReportAsOfDateAlertListener {
       reportService
           .getReport(event.provider(), event.reportType(), event.reportDate())
           .filter(report -> SebReportHeaders.asOfDate(report) == null)
-          .ifPresent(this::alertUnlessOlderThanTheAlertWindow);
+          .ifPresent(this::alertUnlessOlderThanTheImportLooksBack);
     } catch (RuntimeException e) {
       log.error(
           "Failed to send missing report As-of date alert: provider={}, reportType={},"
@@ -52,10 +54,10 @@ class MissingReportAsOfDateAlertListener {
     }
   }
 
-  private void alertUnlessOlderThanTheAlertWindow(InvestmentReport report) {
-    if (isOlderThanTheAlertWindow(report.getReportDate())) {
+  private void alertUnlessOlderThanTheImportLooksBack(InvestmentReport report) {
+    if (isOlderThanTheImportLooksBack(report.getReportDate())) {
       log.info(
-          "Report with no usable As-of date is outside the alert window, skipping alert:"
+          "Report with no usable As-of date is older than the import looks back, skipping alert:"
               + " provider={}, reportType={}, reportDate={}",
           report.getProvider(),
           report.getReportType(),
@@ -65,8 +67,8 @@ class MissingReportAsOfDateAlertListener {
     notificationService.sendMessage(buildSlackMessage(report), INVESTMENT, ERROR);
   }
 
-  private boolean isOlderThanTheAlertWindow(LocalDate reportDate) {
-    return reportDate.isBefore(LocalDate.now(clock).minusDays(ALERT_WINDOW_DAYS));
+  private boolean isOlderThanTheImportLooksBack(LocalDate reportDate) {
+    return reportDate.isBefore(LocalDate.now(clock).minusDays(ReportImportJob.LOOKBACK_DAYS));
   }
 
   private static String buildSlackMessage(InvestmentReport report) {

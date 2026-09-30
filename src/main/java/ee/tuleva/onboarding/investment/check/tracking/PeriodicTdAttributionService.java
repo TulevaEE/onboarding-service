@@ -36,8 +36,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -53,10 +51,9 @@ public class PeriodicTdAttributionService {
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final TdAttributionInputAssembler inputAssembler;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  private final PeriodicTdAttributionRepository attributionRepository;
+  private final PeriodicTdAttributionWriter attributionWriter;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final InstrumentFeeRepository instrumentFeeRepository;
-  private final PlatformTransactionManager transactionManager;
   private final PublicHolidays publicHolidays;
   private final BenchmarkLegResolver benchmarkLegResolver;
   private final InvestmentParameterRepository parameterRepository;
@@ -86,7 +83,7 @@ public class PeriodicTdAttributionService {
     var result = calculator.calculate(input);
     var entity = toEntity(result);
 
-    replaceAttributionRowInSingleTransaction(fund, periodStart, periodEnd, periodType, entity);
+    attributionWriter.replace(entity);
 
     if (Boolean.FALSE.equals(result.checks().get("residualWithinTolerance"))) {
       notifier.notifyResidualOutsideTolerance(
@@ -108,26 +105,18 @@ public class PeriodicTdAttributionService {
     return result;
   }
 
-  private void replaceAttributionRowInSingleTransaction(
-      TulevaFund fund,
-      LocalDate periodStart,
-      LocalDate periodEnd,
-      PeriodType periodType,
-      PeriodicTdAttribution entity) {
-    new TransactionTemplate(transactionManager)
-        .executeWithoutResult(
-            status -> {
-              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-                  fund, periodStart, periodEnd, periodType);
-              attributionRepository.save(entity);
-            });
-  }
-
   public void computeForAllFunds(
       LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
     for (var fund : TulevaFund.values()) {
       try {
         computeAttribution(fund, periodStart, periodEnd, periodType);
+      } catch (AttributionPeriodStillStaleException e) {
+        log.error(
+            "TD attribution not written, already reported: fund={}, period={}-{}",
+            fund,
+            periodStart,
+            periodEnd,
+            e);
       } catch (Exception e) {
         log.error(
             "Failed to compute TD attribution: fund={}, period={}-{}",
@@ -135,6 +124,8 @@ public class PeriodicTdAttributionService {
             periodStart,
             periodEnd,
             e);
+        notifier.notifyAttributionFailed(
+            fund, periodStart, periodEnd, e.getClass().getSimpleName());
       }
     }
   }

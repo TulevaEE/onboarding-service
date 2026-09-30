@@ -118,7 +118,7 @@ public class PensionFundEntryClassifier {
     if (remittanceInformation == null) {
       return new UnrecognisedManagementCompanyCredit();
     }
-    var text = remittanceInformation.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    var text = comparableWording(remittanceInformation);
     return REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE.stream()
             .anyMatch(text::contains)
         ? new ManagementFeeRebate()
@@ -144,6 +144,10 @@ public class PensionFundEntryClassifier {
 
   private static boolean isKickback(@Nullable String remittanceInformation) {
     return remittanceInformation != null
-        && remittanceInformation.toLowerCase().contains("kickback");
+        && comparableWording(remittanceInformation).contains("kickback");
+  }
+
+  private static String comparableWording(String remittanceInformation) {
+    return remittanceInformation.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
   }
 }

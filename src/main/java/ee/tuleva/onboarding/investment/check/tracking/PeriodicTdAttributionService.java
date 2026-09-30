@@ -273,17 +273,22 @@ public class PeriodicTdAttributionService {
     return bmModelEvents.stream()
         .map(TrackingDifferenceEvent::getCheckDate)
         .map(
-            d ->
-                YearFraction.eachDayWeighedByItsOwnYear(
-                    publicHolidays.previousWorkingDay(d).plusDays(1), d))
+            checkDate ->
+                YearFraction.eachDayWeighedByItsOwnYear(firstDayMeasuredBy(checkDate), checkDate))
         .reduce(ZERO, BigDecimal::add);
   }
 
   private int etfLayerCoveredDays(List<TrackingDifferenceEvent> bmModelEvents) {
     return bmModelEvents.stream()
         .map(TrackingDifferenceEvent::getCheckDate)
-        .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
+        .mapToInt(
+            checkDate ->
+                (int) ChronoUnit.DAYS.between(firstDayMeasuredBy(checkDate), checkDate) + 1)
         .sum();
+  }
+
+  private LocalDate firstDayMeasuredBy(LocalDate checkDate) {
+    return publicHolidays.previousWorkingDay(checkDate).plusDays(1);
   }
 
   private void warnIfEtfLayerDoesNotTilePeriod(

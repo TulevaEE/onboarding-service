@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMerg
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_ADDED;
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -44,6 +46,7 @@ public class ParentChildLinkNotificationSender {
   private final Clock clock;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  @Transactional(propagation = REQUIRES_NEW)
   public void onParentChildLinkCreated(ParentChildLinkCreatedEvent event) {
     Optional<User> child = userService.findByPersonalCode(event.childPersonalCode());
     Optional<User> newParent = userService.findByPersonalCode(event.parentPersonalCode());

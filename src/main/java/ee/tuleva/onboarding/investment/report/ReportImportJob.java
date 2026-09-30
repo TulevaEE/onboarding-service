@@ -34,7 +34,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ReportImportJob {
 
-  private static final int LOOKBACK_DAYS = 7;
+  static final int LOOKBACK_DAYS = 7;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final List<ReportSource> sources;

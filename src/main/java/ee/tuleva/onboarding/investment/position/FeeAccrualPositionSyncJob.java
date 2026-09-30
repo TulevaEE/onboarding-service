@@ -44,8 +44,8 @@ public class FeeAccrualPositionSyncJob {
   private final ApplicationEventPublisher eventPublisher;
   private final PipelineTracker pipelineTracker;
 
-  @EventListener
-  void onFundPositionsImported(FundPositionsImported event) {
+  @EventListener(FundPositionsImported.class)
+  void onFundPositionsImported() {
     pipelineTracker.stepStarted(FEE_ACCRUAL_SYNC);
     log.info("Starting fee accrual position sync (chain)");
     int count = sync(7);
@@ -54,8 +54,8 @@ public class FeeAccrualPositionSyncJob {
     eventPublisher.publishEvent(new FeeAccrualPositionsSynced());
   }
 
-  @EventListener
-  void onFeeAccrualPositionSyncRequested(RunFeeAccrualPositionSyncRequested event) {
+  @EventListener(RunFeeAccrualPositionSyncRequested.class)
+  void onFeeAccrualPositionSyncRequested() {
     pipelineTracker.stepStarted(FEE_ACCRUAL_SYNC);
     log.info("Starting fee accrual position sync (ad-hoc)");
     int count = sync(7);

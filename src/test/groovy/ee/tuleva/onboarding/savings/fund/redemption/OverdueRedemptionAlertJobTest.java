@@ -4,7 +4,8 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -21,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +34,7 @@ class OverdueRedemptionAlertJobTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final List<RedemptionRequest.Status> OPEN_STATUSES =
-      List.of(RESERVED, IN_REVIEW, VERIFIED, REDEEMED, FAILED);
+      List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD, REDEEMED, FAILED);
   private static final UUID REQUEST_ID = UUID.fromString("98894b5d-0326-45f6-80a7-994086571773");
   private static final Instant THURSDAY_EVENING = Instant.parse("2026-08-27T19:19:35Z");
   private static final Instant FRIDAY_0900 = Instant.parse("2026-08-28T06:00:00Z");
@@ -68,7 +70,7 @@ class OverdueRedemptionAlertJobTest {
   @Test
   void aHeldRequestIsNotOverdueOnTheMorningOfItsDealingDay() {
     given(repository.findByStatusIn(OPEN_STATUSES))
-        .willReturn(List.of(thursdayEveningRequest(IN_REVIEW)));
+        .willReturn(List.of(thursdayEveningRequest(FROZEN)));
 
     jobAt(FRIDAY_0900).alertOverdueRedemptions();
 
@@ -77,8 +79,8 @@ class OverdueRedemptionAlertJobTest {
 
   @Test
   void aHeldRequestIsOverdueAtFifteenHundredOnItsDealingDay() {
-    var request = thursdayEveningRequest(IN_REVIEW);
-    request.setHoldReason(SCREENING_UNAVAILABLE);
+    var request = thursdayEveningRequest(FROZEN);
+    request.setHoldReasons(Set.of(SCREENING_UNAVAILABLE));
     given(repository.findByStatusIn(OPEN_STATUSES)).willReturn(List.of(request));
 
     jobAt(FRIDAY_1500).alertOverdueRedemptions();
@@ -86,9 +88,9 @@ class OverdueRedemptionAlertJobTest {
     verify(notificationService)
         .sendMessage(
             "AML: 1 redemption request(s) waiting past their deadline:\n"
-                + "id=98894b5d-0326-45f6-80a7-994086571773, status=IN_REVIEW, amount=10.00 EUR,"
+                + "id=98894b5d-0326-45f6-80a7-994086571773, status=FROZEN, amount=10.00 EUR,"
                 + " requested=2026-08-27 22:19, decisionCutoff=2026-08-28 16:00,"
-                + " workingDaysWaiting=1, reason=SCREENING_UNAVAILABLE",
+                + " workingDaysWaiting=1, reasons=[SCREENING_UNAVAILABLE]",
             AML,
             ERROR);
   }
@@ -168,7 +170,7 @@ class OverdueRedemptionAlertJobTest {
   @Test
   void aFailedPayoutIsAlwaysOverdueAndShowsItsError() {
     var request = thursdayEveningRequest(FAILED);
-    request.setHoldReason(SCREENING_UNAVAILABLE);
+    request.setHoldReasons(Set.of(SCREENING_UNAVAILABLE));
     request.setErrorReason("java.lang.IllegalStateException: Beneficiary name not resolvable");
     given(repository.findByStatusIn(OPEN_STATUSES)).willReturn(List.of(request));
 

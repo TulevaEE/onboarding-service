@@ -5,11 +5,10 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURN
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
-import ee.tuleva.onboarding.savings.fund.notification.PaymentsReturnedEvent;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,14 +17,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentReturningJobTest {
 
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private PaymentReturningService paymentReturningService;
-  @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PaymentReturnValidator paymentReturnValidator;
   @Mock private PaymentCheckService paymentCheckService;
 
@@ -38,7 +35,7 @@ class PaymentReturningJobTest {
 
   @Test
   void runJob_skipsABlockedReturnAndRecordsTheReason() {
-    var payment = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
+    var payment = aPayment().status(TO_BE_RETURNED).build();
     var reason = "A return order already exists at the bank: returnOrderStatus=SUBMITTED";
     given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
         .willReturn(List.of(payment));
@@ -49,45 +46,44 @@ class PaymentReturningJobTest {
     verify(paymentReturningService, never()).createReturn(any());
     verify(paymentCheckService)
         .recordStoppedPayment(RETURN_BLOCKED, payment.getId().toString(), reason);
-    verify(eventPublisher, never()).publishEvent(any(PaymentsReturnedEvent.class));
   }
 
   @Test
-  void runJob_publishesPaymentsReturnedEvent() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
-    var payments = List.of(payment1, payment2);
+  void runJob_returnsEveryPaymentToBeReturned() {
+    var payment1 = aPayment().status(TO_BE_RETURNED).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).build();
 
-    when(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(payments);
+    given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
+        .willReturn(List.of(payment1, payment2));
 
     job.runJob();
 
-    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(2, new BigDecimal("150.00")));
+    verify(paymentReturningService).createReturn(payment1);
+    verify(paymentReturningService).createReturn(payment2);
   }
 
   @Test
-  void runJob_reportsOnlySuccessfulReturnsInEvent() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
-    var payments = List.of(payment1, payment2);
+  void runJob_carriesOnAfterAFailedReturn() {
+    var payment1 = aPayment().status(TO_BE_RETURNED).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).build();
 
-    when(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(payments);
-    doNothing().when(paymentReturningService).createReturn(payment1);
-    doThrow(new RuntimeException("return failed"))
-        .when(paymentReturningService)
-        .createReturn(payment2);
+    given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
+        .willReturn(List.of(payment1, payment2));
+    willThrow(new RuntimeException("return failed"))
+        .given(paymentReturningService)
+        .createReturn(payment1);
 
     job.runJob();
 
-    verify(eventPublisher).publishEvent(new PaymentsReturnedEvent(1, new BigDecimal("100.00")));
+    verify(paymentReturningService).createReturn(payment2);
   }
 
   @Test
-  void runJob_doesNotPublishEventWhenNoPayments() {
-    when(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(List.of());
+  void runJob_returnsNothingWhenNoPayments() {
+    given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).willReturn(List.of());
 
     job.runJob();
 
-    verify(eventPublisher, never()).publishEvent(any(PaymentsReturnedEvent.class));
+    verify(paymentReturningService, never()).createReturn(any());
   }
 }

@@ -7,7 +7,6 @@ import static jakarta.persistence.EnumType.STRING;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateView;
-import ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreator;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -51,13 +50,6 @@ public class MandateBatch {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
-  }
-
-  private void addFiles(CompositeMandateFileCreator fileCreator) {
-
-    //    mandates.stream()..
-    //    this.file = fileCreator.getContentFiles();
-
   }
 
   public boolean isSigned() {

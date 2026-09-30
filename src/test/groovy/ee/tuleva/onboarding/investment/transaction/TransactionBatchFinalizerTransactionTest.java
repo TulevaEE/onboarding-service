@@ -60,15 +60,50 @@ class TransactionBatchFinalizerTransactionTest {
   }
 
   @Test
-  void driveFileUrlsUploadedAfterTheBatchCommits_areStoredOnTheBatch() {
-    var confirmed =
-        batchRepository.save(
+  void driveFileUrlsOfABatchFinalizedInsideTheCallersTransaction_areStoredOnTheBatch() {
+    var confirmedId = saveConfirmedBatch();
+    givenExportsUploadedToDrive();
+
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status ->
+                finalizer.finalizeConfirmedBatch(
+                    batchRepository.findById(confirmedId).orElseThrow()));
+
+    assertThat(batchRepository.findById(confirmedId))
+        .get()
+        .usingRecursiveComparison()
+        .ignoringFields("version")
+        .isEqualTo(sentBatchWithDriveFileUrls(confirmedId));
+  }
+
+  @Test
+  void driveFileUrlsOfABatchLoadedOutsideATransaction_areStoredOnTheBatch() {
+    var confirmedId = saveConfirmedBatch();
+    givenExportsUploadedToDrive();
+
+    finalizer.finalizeConfirmedBatch(batchRepository.findById(confirmedId).orElseThrow());
+
+    assertThat(batchRepository.findById(confirmedId))
+        .get()
+        .usingRecursiveComparison()
+        .ignoringFields("version")
+        .isEqualTo(sentBatchWithDriveFileUrls(confirmedId));
+  }
+
+  private Long saveConfirmedBatch() {
+    return batchRepository
+        .save(
             TransactionBatch.builder()
                 .fund(TUV100)
                 .status(CONFIRMED)
                 .createdBy("system")
                 .createdAt(NOW)
-                .build());
+                .build())
+        .getId();
+  }
+
+  private void givenExportsUploadedToDrive() {
     given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
     given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
     given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
@@ -76,33 +111,24 @@ class TransactionBatchFinalizerTransactionTest {
     given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
     given(exportUploader.uploadExports(eq(ROOT_FOLDER_ID), eq(TUV100), eq(NOW), any()))
         .willReturn(DRIVE_FILE_URLS);
+  }
 
-    new TransactionTemplate(transactionManager)
-        .executeWithoutResult(
-            status ->
-                finalizer.finalizeConfirmedBatch(
-                    batchRepository.findById(confirmed.getId()).orElseThrow()));
-
-    assertThat(batchRepository.findById(confirmed.getId()))
-        .get()
-        .usingRecursiveComparison()
-        .ignoringFields("version")
-        .isEqualTo(
-            TransactionBatch.builder()
-                .id(confirmed.getId())
-                .fund(TUV100)
-                .status(SENT)
-                .createdBy("system")
-                .createdAt(NOW)
-                .metadata(
-                    Map.of(
-                        "xlsxExport", "AQ==",
-                        "sebFundXlsx", "Ag==",
-                        "sebEtfXlsx", "Aw==",
-                        "ftEtfXlsx", "BA==",
-                        "uuidWorkbookXlsx", "BQ==",
-                        "driveFileUrls", DRIVE_FILE_URLS))
-                .build());
+  private static TransactionBatch sentBatchWithDriveFileUrls(Long id) {
+    return TransactionBatch.builder()
+        .id(id)
+        .fund(TUV100)
+        .status(SENT)
+        .createdBy("system")
+        .createdAt(NOW)
+        .metadata(
+            Map.of(
+                "xlsxExport", "AQ==",
+                "sebFundXlsx", "Ag==",
+                "sebEtfXlsx", "Aw==",
+                "ftEtfXlsx", "BA==",
+                "uuidWorkbookXlsx", "BQ==",
+                "driveFileUrls", DRIVE_FILE_URLS))
+        .build();
   }
 
   @TestConfiguration

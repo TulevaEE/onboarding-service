@@ -146,18 +146,29 @@ public class TransactionBatchFinalizer {
             "uuidWorkbookXlsx", uuidWorkbookXlsx);
     Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
-      persistDriveFileUrls(batch, driveFileUrls);
+      persistDriveFileUrls(batch.getId(), driveFileUrls);
     }
     custodianOrderEmailSender.send(batch.getFund(), timestamp, exports);
     eventPublisher.publishEvent(
         new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
   }
 
-  void persistDriveFileUrls(TransactionBatch batch, Map<String, String> driveFileUrls) {
-    Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
-    updatedMetadata.put("driveFileUrls", driveFileUrls);
-    batch.setMetadata(updatedMetadata);
-    transactionOfItsOwn().executeWithoutResult(status -> batchRepository.save(batch));
+  private void persistDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {
+    transactionOfItsOwn()
+        .executeWithoutResult(
+            status -> {
+              TransactionBatch committedBatch =
+                  batchRepository
+                      .findById(batchId)
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Finalized batch not found: batchId=" + batchId));
+              Map<String, Object> updatedMetadata = new HashMap<>(committedBatch.getMetadata());
+              updatedMetadata.put("driveFileUrls", driveFileUrls);
+              committedBatch.setMetadata(updatedMetadata);
+              batchRepository.save(committedBatch);
+            });
   }
 
   private TransactionTemplate transactionOfItsOwn() {

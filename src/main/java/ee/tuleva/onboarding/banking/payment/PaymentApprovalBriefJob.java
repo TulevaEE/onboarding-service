@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckEvent;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
@@ -41,7 +41,7 @@ public class PaymentApprovalBriefJob {
         paymentCheckService.holdsOn(today).stream().map(PaymentApprovalBriefJob::toHold).toList();
     var brief = briefService.build(today, holds);
 
-    notificationService.sendMessage(formatter.format(brief), INVESTMENT);
+    notificationService.sendMessage(formatter.format(brief), SAVINGS);
   }
 
   private static PaymentApprovalBriefService.PaymentHold toHold(PaymentCheckEvent event) {

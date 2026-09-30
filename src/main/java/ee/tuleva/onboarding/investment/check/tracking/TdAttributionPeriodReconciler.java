@@ -21,7 +21,7 @@ class TdAttributionPeriodReconciler {
     var staleInPeriod = staleDatesInPeriod(run.staleDatesNotRechecked(fund), periodEnd);
     if (!staleInPeriod.isEmpty()) {
       notifier.notifyAttributionNotWritten(fund, periodStart, periodEnd, staleInPeriod);
-      throw new IllegalStateException(
+      throw new AttributionPeriodStillStaleException(
           ("TD attribution not written, stale tracking-difference events could not be rechecked:"
                   + " fund=%s, periodStart=%s, periodEnd=%s, checkDates=%s")
               .formatted(fund, periodStart, periodEnd, staleInPeriod));

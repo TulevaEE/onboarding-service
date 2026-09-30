@@ -236,6 +236,7 @@ class NudgeDecisionServiceTest {
             NudgeInputsFixture.everythingSorted()
                 .secondPillarPartiallyConverted(false)
                 .secondPillarFullyConverted(false)
+                .secondPillarFee(null)
                 .build());
 
     assertThat(service.decideForRegistryOnly(person, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))

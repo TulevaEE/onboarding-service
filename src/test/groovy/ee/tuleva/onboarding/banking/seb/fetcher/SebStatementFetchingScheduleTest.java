@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.END_OF_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.GAP_REPORT_CRON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -9,13 +12,74 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.support.CronExpression;
 
 class SebStatementFetchingScheduleTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
+  @Test
+  void currentDayFetch_firesEveryThirtyMinutesOnAWorkingDayOutsideTheHourBeforeTheCutoff() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_CRON);
+
+    assertThat(fires).hasSize(16);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("09:00");
+    assertThat(fires.get(11).toLocalTime()).hasToString("14:30");
+    assertThat(fires.get(12).toLocalTime()).hasToString("16:00");
+    assertThat(fires.getLast().toLocalTime()).hasToString("17:30");
+    assertThat(fires).allSatisfy(fire -> assertThat(fire.getMinute()).isIn(0, 30));
+  }
+
+  @Test
+  void currentDayFetchInTheHourBeforeCutoff_firesEveryFiveMinutesFromThreeUntilFiveToFour() {
+    var fires =
+        firesOn("2026-07-24", CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON);
+
+    assertThat(fires).hasSize(12);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("15:00");
+    assertThat(fires.getLast().toLocalTime()).hasToString("15:55");
+    for (int i = 1; i < fires.size(); i++) {
+      assertThat(Duration.between(fires.get(i - 1), fires.get(i))).isEqualTo(Duration.ofMinutes(5));
+    }
+  }
+
+  @Test
+  void currentDayFetches_leaveAtMostFiveMinutesUncoveredIfTheFetchBeforeTheCutoffFails() {
+    var fetchBeforeCutoff =
+        firesOn("2026-07-24", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON).getFirst();
+
+    var lastEarlierFetch =
+        Stream.of(
+                CURRENT_DAY_FETCH_CRON,
+                CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON)
+            .flatMap(cron -> firesOn("2026-07-24", cron).stream())
+            .filter(fire -> fire.isBefore(fetchBeforeCutoff))
+            .max(Comparator.naturalOrder())
+            .orElseThrow();
+
+    assertThat(lastEarlierFetch.toLocalTime()).hasToString("15:55");
+  }
+
+  @Test
+  void
+      currentDayFetchBeforeSubscriptionCutoff_firesOnceThirtySecondsBeforeFourSoSebStampsItsReportBeforeTheCutoff() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON);
+
+    assertThat(fires).hasSize(1);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("15:59:30");
+  }
+
+  @Test
+  void currentDayFetches_doNotFireAtTheWeekend() {
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_CRON)).isEmpty();
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON))
+        .isEmpty();
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON)).isEmpty();
+  }
 
   @Test
   void endOfDayFetch_firesEveryThirtyMinutesFromFourUntilHalfPastEleven() {

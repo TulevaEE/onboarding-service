@@ -120,7 +120,7 @@ class SebBankMessagesFetchingIntegrationTest {
 
   private List<BankingMessage> findAllUnprocessedMessages() {
     return bankingMessageRepository
-        .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
+        .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc();
   }
 
   private String loadTestXml(String filename) throws Exception {

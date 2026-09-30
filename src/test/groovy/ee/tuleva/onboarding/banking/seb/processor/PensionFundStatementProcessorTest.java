@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -40,6 +44,7 @@ class PensionFundStatementProcessorTest {
 
   @Mock private PensionFundEntryClassifier classifier;
   @Mock private FundBankLedger fundBankLedger;
+  @Mock private PaymentCheckService paymentCheckService;
 
   @InjectMocks private PensionFundStatementProcessor processor;
 
@@ -116,7 +121,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("1450.25")));
 
@@ -130,7 +135,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
@@ -155,6 +160,42 @@ class PensionFundStatementProcessorTest {
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(
                     "Mystery OU", "EE001234567890123499", "selgituseta", "OTHR")));
+    verifyNoInteractions(paymentCheckService);
+  }
+
+  @Test
+  void
+      managementCompanyCreditNotStatedAsARebate_landsInSuspenseAndIsRecordedAsAFindingToBookByHand() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("100.00"),
+            "muu ülekanne",
+            "Tuleva Fondid AS",
+            "EE001234567890123488",
+            "RCDT");
+    when(classifier.classify(entry))
+        .thenReturn(new PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TUK75),
+            eq(new BigDecimal("100.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(
+                new FundBankLedger.UnclassifiedEntryDetails(
+                    "Tuleva Fondid AS", "EE001234567890123488", "muu ülekanne", "RCDT")));
+    var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
+    verify(paymentCheckService)
+        .record(
+            UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
+            WARNING,
+            externalReference.toString(),
+            "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=TUK75, amount=100.00, bookingDate=2025-10-01, externalReference="
+                + externalReference);
   }
 
   @Test
@@ -214,7 +255,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("29000")));
 
@@ -228,7 +269,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
@@ -305,7 +346,7 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("1450.25")));
 
@@ -319,7 +360,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }

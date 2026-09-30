@@ -13,7 +13,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
-import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,7 @@ class TrackingDifferenceJobTest {
     var results = List.<TrackingDifferenceResult>of();
     given(service.runChecksForFunds(anyList())).willReturn(results);
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(service).should().runChecksForFunds(anyList());
     then(notifier).should().notify(results);
@@ -62,7 +61,7 @@ class TrackingDifferenceJobTest {
   void adHocFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier).should().notifyRunFailed("TD check", "boom");
     then(notifier).should(never()).notify(anyList());
@@ -78,7 +77,7 @@ class TrackingDifferenceJobTest {
         .when(service)
         .runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier)
         .should()
@@ -94,7 +93,7 @@ class TrackingDifferenceJobTest {
         .when(service)
         .runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier).should().notify(partialResults);
   }

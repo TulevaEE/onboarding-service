@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -26,6 +30,7 @@ public class PensionFundStatementProcessor {
 
   private final PensionFundEntryClassifier classifier;
   private final FundBankLedger fundBankLedger;
+  private final PaymentCheckService paymentCheckService;
 
   public void process(BankStatement statement, BankAccount account) {
     log.info(
@@ -85,6 +90,20 @@ public class PensionFundStatementProcessor {
               account.ledgerAccount(),
               bookingDate,
               entry.remittanceInformation());
+      case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit() -> {
+        log.warn(
+            "Management company credit not stated as a rebate, held in suspense: account={}, externalId={}, amount={}",
+            account,
+            entry.externalId(),
+            entry.amount());
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
+        paymentCheckService.record(
+            UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
+            WARNING,
+            externalReference.toString(),
+            "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=%s, amount=%s, bookingDate=%s, externalReference=%s"
+                .formatted(fund.getCode(), amount.toPlainString(), bookingDate, externalReference));
+      }
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
               fund, amount.negate(), externalReference, entry.remittanceInformation(), bookingDate);
@@ -120,20 +139,30 @@ public class PensionFundStatementProcessor {
             entry.amount(),
             entry.subFamilyCode(),
             reason);
-        var details = entry.details();
-        fundBankLedger.recordUnclassifiedBankEntry(
-            fund,
-            amount,
-            externalReference,
-            account.ledgerAccount(),
-            bookingDate,
-            new UnclassifiedEntryDetails(
-                details == null ? null : details.getName(),
-                details == null ? null : details.getIban(),
-                entry.remittanceInformation(),
-                entry.subFamilyCode()));
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
       }
     }
+  }
+
+  private void recordInSuspense(
+      BankStatementEntry entry,
+      BankAccount account,
+      TulevaFund fund,
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate) {
+    var details = entry.details();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        fund,
+        amount,
+        externalReference,
+        account.ledgerAccount(),
+        bookingDate,
+        new UnclassifiedEntryDetails(
+            details == null ? null : details.getName(),
+            details == null ? null : details.getIban(),
+            entry.remittanceInformation(),
+            entry.subFamilyCode()));
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry, BankAccount account) {

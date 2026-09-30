@@ -12,11 +12,20 @@ final class NudgeRules {
 
   static NudgeDecision decide(NudgeInputs in, NudgeContext context) {
     NudgeDecision decision =
-        PensionNudges.decide(in, context)
+        PensionNudges.pillarChoices(in, context)
+            .or(() -> standingOrderForTheProductJustPaid(in, context))
+            .or(() -> PensionNudges.standingOrders(in, context))
             .or(() -> SavingsNudges.decide(in, context))
             .or(() -> membership(in, context))
             .orElse(of(NONE));
     return withSeason(decision, in, context);
+  }
+
+  private static Optional<NudgeDecision> standingOrderForTheProductJustPaid(
+      NudgeInputs in, NudgeContext context) {
+    return context.impliesSavingsFundSaver()
+        ? SavingsNudges.savingsFundRecurring(in)
+        : Optional.empty();
   }
 
   private static NudgeDecision withSeason(

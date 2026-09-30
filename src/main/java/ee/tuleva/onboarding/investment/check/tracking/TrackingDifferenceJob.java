@@ -27,8 +27,8 @@ class TrackingDifferenceJob {
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
 
-  @EventListener
-  void onTrackingDifferenceCheckRequested(RunTrackingDifferenceCheckRequested event) {
+  @EventListener(RunTrackingDifferenceCheckRequested.class)
+  void onTrackingDifferenceCheckRequested() {
     log.info("Starting ad-hoc tracking difference check");
 
     try {

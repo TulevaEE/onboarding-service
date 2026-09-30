@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @SebIntegrationTest
@@ -39,6 +41,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private LedgerService ledgerService;
   @Autowired private BankAccounts bankAccounts;
+  @Autowired private JdbcClient jdbcClient;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -113,6 +116,26 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
     assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
     assertThat(savedPayment.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
+  }
+
+  @Test
+  void
+      aPaymentInTwoPendingReportsKeepsTheOlderReportsTimeSoTheFetchBeforeTheCutoffDecidesItsDealingDay() {
+    insertPendingReport(
+        XML_TEMPLATE.replace(
+            "<ToDtTm>2025-10-01T12:00:00</ToDtTm>", "<ToDtTm>2025-10-01T15:59:30</ToDtTm>"),
+        Instant.parse("2025-10-01T12:59:31Z"));
+    insertPendingReport(
+        XML_TEMPLATE.replace(
+            "<ToDtTm>2025-10-01T12:00:00</ToDtTm>", "<ToDtTm>2025-10-01T16:00:01</ToDtTm>"),
+        Instant.parse("2025-10-01T13:00:02Z"));
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(repository.findAll())
+        .singleElement()
+        .extracting(SavingFundPayment::getReceivedBefore)
+        .isEqualTo(Instant.parse("2025-10-01T12:59:30Z"));
   }
 
   @Test
@@ -639,6 +662,23 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
         .externalId("2025100112345-1")
         .receivedBefore(Instant.parse("2025-10-01T09:00:00Z"))
         .createdAt(NOW.minus(Duration.ofDays(1)));
+  }
+
+  private void insertPendingReport(String xml, Instant receivedAt) {
+    var id = UUID.randomUUID();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO banking_message
+              (id, tracking_id, request_id, raw_response, bank_type, timezone, received_at)
+            VALUES (:id, :reference, :reference, :xml, 'SEB', :timezone, :receivedAt)
+            """)
+        .param("id", id)
+        .param("reference", id.toString())
+        .param("xml", xml)
+        .param("timezone", SEB_GATEWAY_TIME_ZONE.getId())
+        .param("receivedAt", Timestamp.from(receivedAt))
+        .update();
   }
 
   private UUID processXmlMessage(String xml) {

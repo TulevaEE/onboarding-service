@@ -18,6 +18,9 @@ decrease (coverage gets a small tolerance so deleting well-covered dead code
 is not blocked). Everything else is informational trend data, including
 disconnectedClasses, whose ratchet CohesionMetricsTest owns in
 metrics/baseline.json.
+
+CI's scorecard job runs this against the build job's reports, so a regression
+fails on the branch that introduces it rather than on the next one to run it.
 """
 
 import json

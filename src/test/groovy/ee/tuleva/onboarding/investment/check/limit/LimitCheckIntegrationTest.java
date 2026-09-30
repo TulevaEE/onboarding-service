@@ -230,6 +230,24 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
+  void aHoldingTheNavReportHasButThePositionFileLacksIsStillTheLargest() {
+    insertTuk75Data();
+    insertNavReportSecurity("TUK75", NAV_DATE, "IE00NAVONLY", 4_000_000);
+
+    limitCheckService.runChecks();
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(storedLargestPosition(TUK75))
+        .asInstanceOf(MAP)
+        .containsOnlyKeys("isin", "percentOfNav")
+        .containsEntry("isin", "IE00NAVONLY")
+        .extractingByKey("percentOfNav")
+        .satisfies(
+            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("40"));
+  }
+
+  @Test
   void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
     insertTuk75Data();
 

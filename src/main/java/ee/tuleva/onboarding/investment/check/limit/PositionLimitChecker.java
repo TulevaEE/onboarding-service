@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -150,20 +151,18 @@ class PositionLimitChecker {
 
   private static Map<String, BigDecimal> holdingByIsin(
       List<FundPosition> positions, Map<String, BigDecimal> navMarketValues) {
-    return positions.stream()
-        .filter(position -> position.getAccountId() != null && position.getMarketValue() != null)
-        .collect(
-            Collectors.toMap(
-                position -> Objects.requireNonNull(position.getAccountId()),
-                position -> Objects.requireNonNull(position.getMarketValue()),
-                BigDecimal::add))
-        .entrySet()
-        .stream()
-        .collect(
-            Collectors.toMap(
-                Map.Entry::getKey,
-                summedRows ->
-                    navMarketValues.getOrDefault(summedRows.getKey(), summedRows.getValue())));
+    var holdings =
+        positions.stream()
+            .filter(
+                position -> position.getAccountId() != null && position.getMarketValue() != null)
+            .collect(
+                Collectors.toMap(
+                    position -> Objects.requireNonNull(position.getAccountId()),
+                    position -> Objects.requireNonNull(position.getMarketValue()),
+                    BigDecimal::add,
+                    HashMap::new));
+    holdings.putAll(navMarketValues);
+    return holdings;
   }
 
   private BigDecimal percentOf(BigDecimal value, BigDecimal total) {

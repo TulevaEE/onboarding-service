@@ -220,6 +220,20 @@ class PositionLimitCheckerTest {
   }
 
   @Test
+  void anInstrumentInTheNavReportWithNoPositionRowIsStillACandidate() {
+    var small = position("IE00B4L5Y983", new BigDecimal("400000"));
+
+    var largest =
+        checker.largestPosition(
+            List.of(small),
+            Map.of(
+                "IE00B4L5Y983", new BigDecimal("400000"), "IE00NAVONLY", new BigDecimal("600000")),
+            new BigDecimal("1000000"));
+
+    assertThat(largest).contains(new LargestPosition("IE00NAVONLY", new BigDecimal("60.0000")));
+  }
+
+  @Test
   void aTieGoesToTheAlphabeticallyFirstIsinSoTheRecordDoesNotDependOnHashOrder() {
     var positions =
         List.of(

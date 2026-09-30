@@ -1,10 +1,9 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
-<mj-text><strong>Euros paid in fees earn no returns</strong></mj-text>
 <mj-text>
-  You are saving your second pillar in high fee funds (*|secondPillarFeePercent|*% per year).
+  You are saving your second pillar in high-fee funds (*|secondPillarFeePercent|*% per year).
   This year you will pay *|secondPillarFeeAmount|*&nbsp;€ in fees, and in the Tuleva fund you
   would pay *|tulevaFeeAmount|*&nbsp;€. You would save *|secondPillarSavingsAmount|*&nbsp;€ per
-  year, which would earn you additional income.
+  year.
 </mj-text>
 <mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
   <tr>
@@ -20,10 +19,10 @@
     <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|secondPillarFeeAmount|*&nbsp;€</td>
   </tr>
 </mj-table>
-<mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?utm_content=nudge_second_pillar">Learn more</mj-button>
+<mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?language=en&utm_content=nudge_second_pillar">Learn more</mj-button>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
-  If you're not saving your second pillar with us at Tuleva, make sure your second pillar
+  If you are not yet saving your second pillar with us at Tuleva, make sure your second pillar
   fund fees are <strong>below 0.3% per year</strong>, as low fees give you the best chance
   of good long-term returns.
 </mj-text>
@@ -31,5 +30,5 @@
   <strong>Check how much you're currently paying annually in fees for your second
   pillar:</strong>
 </mj-text>
-<mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Check out your fees</mj-button>
+<mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_second_pillar">Check out your fees</mj-button>
 <mj-raw>*|END:IF|*</mj-raw>

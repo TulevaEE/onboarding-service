@@ -292,31 +292,26 @@ class NavPipelineIntegrationTest {
   @Test
   void monthEndFeeSettlement_settlesFeesWhenMonthChanges() {
     BigDecimal aum = new BigDecimal("50000000");
-    ZoneId eet = ZoneId.of("Europe/Tallinn");
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
     insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), LocalDate.of(2026, 1, 1));
     chargeFeeToFund(TKF100, "DEPOT");
 
     // Establish first accrual at Feb 25
-    Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), feb26Cutoff, null);
+        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), null);
 
-    // Monday: fees for Feb 26-27 added, feeCutoff=Feb 28 00:00 EET
+    // Monday: fees for Feb 26-27 added
     // Accumulated balance visible: Feb 25, 26, 27 = 3 days
-    Instant mondayCutoff = LocalDate.of(2026, 2, 28).atStartOfDay(eet).toInstant();
     FeeResult mondayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), mondayCutoff, null);
+            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), null);
 
     // Tuesday: fees for Feb 28, Mar 1, 2 added
     // Feb settlement triggered when recording Mar 1
-    // feeCutoff=Mar 3 00:00 → Feb fees settled, only Mar 1-2 visible
-    Instant tuesdayCutoff = LocalDate.of(2026, 3, 3).atStartOfDay(eet).toInstant();
     FeeResult tuesdayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), tuesdayCutoff, null);
+            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), null);
 
     // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
     // Daily depot:      50,000,000 × 0.01   / 365 → ledger 1369.86/day
@@ -549,12 +544,9 @@ class NavPipelineIntegrationTest {
 
     insertFeePolicy(TKF100, "DEPOT", true, LocalDate.of(2025, 1, 1), LocalDate.of(2026, 2, 1));
 
-    Instant feeCutoff =
-        date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), feeCutoff, null);
-    feeCalculationService.calculateFeesForNav(
-        TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), feeCutoff, null);
+        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), null);
+    feeCalculationService.calculateFeesForNav(TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), null);
 
     BigDecimal tkf100MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TKF100);
     BigDecimal tuk75MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TUK75);

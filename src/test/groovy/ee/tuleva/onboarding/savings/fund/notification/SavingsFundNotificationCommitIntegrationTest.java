@@ -39,7 +39,6 @@ import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -85,11 +84,9 @@ class SavingsFundNotificationCommitIntegrationTest {
   private static final BigDecimal ISSUING_NAV = new BigDecimal("1.00000");
 
   private static final BigDecimal RETURNED_CASH = new BigDecimal("50.00");
-  private static final BigDecimal BATCHED_CASH = new BigDecimal("75.00");
 
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private BankAccounts bankAccounts;
-  @Autowired private FundAccountPaymentJob fundAccountPaymentJob;
   @Autowired private IssuingJob issuingJob;
   @Autowired private RedemptionService redemptionService;
   @Autowired private SavingFundPaymentRepository paymentRepository;
@@ -178,60 +175,6 @@ class SavingsFundNotificationCommitIntegrationTest {
 
     verifyNoInteractions(notificationService);
     assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus()).isEqualTo(RESERVED);
-  }
-
-  @Test
-  void subscriptionBatchNotificationFiresWhenTheBatchTransactionCommits() {
-    issuedPaymentAwaitingSubscriptionBatch();
-
-    fundAccountPaymentJob.runJob();
-
-    verify(notificationService)
-        .sendMessage(
-            "Savings fund subscription batch sent to SEB: totalAmount=%s EUR"
-                .formatted(BATCHED_CASH),
-            SAVINGS);
-  }
-
-  @Test
-  void noSubscriptionBatchNotificationFiresWhenTheBatchTransactionRollsBack() {
-    var paymentId = issuedPaymentAwaitingSubscriptionBatch();
-
-    assertThatThrownBy(
-            () ->
-                transactionTemplate.executeWithoutResult(
-                    status -> {
-                      fundAccountPaymentJob.runJob();
-                      throw new DeliberateRollback();
-                    }))
-        .isInstanceOf(DeliberateRollback.class);
-
-    verifyNoInteractions(notificationService);
-    assertThat(paymentRepository.findById(paymentId).orElseThrow().getStatus()).isEqualTo(ISSUED);
-  }
-
-  private UUID issuedPaymentAwaitingSubscriptionBatch() {
-    var party = new PartyId(PartyId.Type.PERSON, REDEEMER_CODE);
-    var paymentId =
-        paymentRepository.savePaymentData(
-            SavingFundPayment.builder()
-                .amount(BATCHED_CASH)
-                .description("Subscription batch")
-                .remitterName("Riina Raha")
-                .remitterIdCode(REDEEMER_CODE)
-                .remitterIban(REDEMPTION_IBAN)
-                .beneficiaryName("TULEVA TÄIENDAV KOGUMISFOND")
-                .beneficiaryIdCode("14118923")
-                .beneficiaryIban("EE442200221092874625")
-                .externalId(fixtureExternalId())
-                .build());
-    paymentRepository.attachParty(paymentId, party);
-    paymentRepository.changeStatus(paymentId, RECEIVED);
-    paymentRepository.changeStatus(paymentId, VERIFIED);
-    paymentRepository.changeStatus(paymentId, RESERVED);
-    paymentRepository.changeStatus(paymentId, ISSUED);
-    assertNoForeignIssuedPayments();
-    return paymentId;
   }
 
   @Test
@@ -380,15 +323,6 @@ class SavingsFundNotificationCommitIntegrationTest {
 
   private String fixtureExternalId() {
     return FIXTURE_EXTERNAL_ID_PREFIX + UUID.randomUUID();
-  }
-
-  private void assertNoForeignIssuedPayments() {
-    assertThat(foreignPayments(paymentRepository.findPaymentsWithStatus(ISSUED)))
-        .as(
-            "the subscription batch job batches every ISSUED payment in the shared test database,"
-                + " so these payments left behind by another test would end up in this test's batch"
-                + " and corrupt its expected total")
-        .isEmpty();
   }
 
   private void assertNoForeignReservedPayments() {

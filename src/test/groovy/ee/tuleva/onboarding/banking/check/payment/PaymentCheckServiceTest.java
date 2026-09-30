@@ -70,9 +70,7 @@ class PaymentCheckServiceTest {
   }
 
   @Test
-  void theSameFindingSeenAgainDoesNotAlertAgain() {
-    // The current day's statement is re-read every five minutes, so this is the normal case, not
-    // an edge case.
+  void theSameFindingSeenAgainInEveryCurrentDayStatementDoesNotAlertAgain() {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.of(existing(false)));

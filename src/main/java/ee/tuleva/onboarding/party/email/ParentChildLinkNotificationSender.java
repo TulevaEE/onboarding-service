@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMerg
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_ADDED;
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
@@ -25,8 +27,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -41,6 +45,7 @@ public class ParentChildLinkNotificationSender {
   private final EmailPersistenceService emailPersistenceService;
   private final UserService userService;
   private final ParentChildLinkRepository parentChildLinkRepository;
+  private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -96,10 +101,7 @@ public class ParentChildLinkNotificationSender {
           emailService.newMandrillMessage(recipient.getEmail(), templateName, mergeVars, TAGS);
       emailService
           .send(recipient, message, templateName)
-          .ifPresent(
-              response ->
-                  emailPersistenceService.save(
-                      recipient, response.getId(), emailType, response.getStatus()));
+          .ifPresent(response -> recordSentEmail(recipient, emailType, response));
     } catch (Exception e) {
       log.error(
           "Failed to send parent-child link email: recipientId={}, templateName={}",
@@ -107,5 +109,29 @@ public class ParentChildLinkNotificationSender {
           templateName,
           e);
     }
+  }
+
+  private void recordSentEmail(
+      User recipient, EmailType emailType, MandrillMessageStatus response) {
+    try {
+      transactionOfItsOwn()
+          .executeWithoutResult(
+              status ->
+                  emailPersistenceService.save(
+                      recipient, response.getId(), emailType, response.getStatus()));
+    } catch (RuntimeException e) {
+      log.error(
+          "Parent-child link email sent but not recorded: recipientId={}, emailType={}, mandrillMessageId={}",
+          recipient.getId(),
+          emailType,
+          response.getId(),
+          e);
+    }
+  }
+
+  private TransactionTemplate transactionOfItsOwn() {
+    var transactionOfItsOwn = new TransactionTemplate(transactionManager);
+    transactionOfItsOwn.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+    return transactionOfItsOwn;
   }
 }

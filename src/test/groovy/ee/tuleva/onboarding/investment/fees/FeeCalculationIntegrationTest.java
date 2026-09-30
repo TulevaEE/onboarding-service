@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -45,10 +44,8 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_savesManagementFeeAccrual() {
-    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     feeCalculationService.calculateFeesForNav(
-        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
 
     var accrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -62,10 +59,8 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_savesDepotFeeAccrual() {
-    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     feeCalculationService.calculateFeesForNav(
-        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
 
     var accrual = findAccrual(TUK75, FeeType.DEPOT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -76,15 +71,13 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_isIdempotent() {
-    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     feeCalculationService.calculateFeesForNav(
-        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
     var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterFirst = countLedgerEntries();
 
     feeCalculationService.calculateFeesForNav(
-        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
@@ -95,11 +88,9 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_returnsTheNavFacingAccrualNotTheRawOne() {
-    Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-
     FeeResult result =
         feeCalculationService.calculateFeesForNav(
-            TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
+            TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
 
     // FeeResult is NAV-facing: the charged-to-fund policy is applied per accrual date here, so a
     // fee Tuleva bears comes back as zero even though it was accrued and recorded. TKF100's depot
@@ -169,7 +160,6 @@ class FeeCalculationIntegrationTest {
             .annualRate(new BigDecimal("0.0025"))
             .dailyAmountGross(new BigDecimal("6849.315068"))
             .daysInYear(365)
-            .referenceDate(dayOne)
             .build());
 
     calculate(TUK75, dayOne, base);
@@ -179,10 +169,8 @@ class FeeCalculationIntegrationTest {
   }
 
   private FeeResult calculate(TulevaFund fund, LocalDate positionReportDate, BigDecimal base) {
-    Instant feeCutoff =
-        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     return feeCalculationService.calculateFeesForNav(
-        fund, positionReportDate, new FeeBases(base, base), feeCutoff, null);
+        fund, positionReportDate, new FeeBases(base, base), null);
   }
 
   private List<BigDecimal> managementFeeLedgerAmounts(

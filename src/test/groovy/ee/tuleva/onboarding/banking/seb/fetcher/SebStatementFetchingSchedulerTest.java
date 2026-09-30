@@ -3,10 +3,13 @@ package ee.tuleva.onboarding.banking.seb.fetcher;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -25,13 +28,21 @@ import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -65,11 +76,29 @@ class SebStatementFetchingSchedulerTest {
   @Mock private StatementCoverage statementCoverage;
 
   @Test
-  void fetchCurrentDayTransactions_publishesEventsOnlyForSavingsFundAccounts() {
-    given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_ACCOUNTS);
-    var scheduler = scheduler();
+  void fetchCurrentDayTransactions_releasesItsLockBeforeTheNextHalfHourTick() throws Exception {
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactions",
+        CURRENT_DAY_FETCH_CRON,
+        LocalDateTime.of(2026, 7, 24, 14, 0));
+  }
 
-    scheduler.fetchCurrentDayTransactions();
+  @Test
+  void fetchCurrentDayTransactionsInTheHourBeforeCutoff_releasesItsLockBeforeTheNextFiveMinuteTick()
+      throws Exception {
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactionsInTheHourBeforeCutoff",
+        CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON,
+        LocalDateTime.of(2026, 7, 24, 15, 0));
+  }
+
+  @ParameterizedTest
+  @MethodSource("currentDayFetches")
+  void currentDayFetch_publishesEventsOnlyForSavingsFundAccounts(
+      Consumer<SebStatementFetchingScheduler> fetch) {
+    given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_ACCOUNTS);
+
+    fetch.accept(scheduler());
 
     for (BankAccount account : SAVINGS_FUND_ACCOUNTS) {
       then(eventPublisher)
@@ -77,6 +106,26 @@ class SebStatementFetchingSchedulerTest {
           .publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
     }
     then(eventPublisher).shouldHaveNoMoreInteractions();
+  }
+
+  static Stream<Consumer<SebStatementFetchingScheduler>> currentDayFetches() {
+    return Stream.of(
+        SebStatementFetchingScheduler::fetchCurrentDayTransactions,
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsInTheHourBeforeCutoff,
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsBeforeCutoff);
+  }
+
+  private static void assertReleasesLockBeforeNextTick(
+      String methodName, String cronExpression, LocalDateTime tick) throws Exception {
+    var lock =
+        SebStatementFetchingScheduler.class
+            .getMethod(methodName)
+            .getAnnotation(SchedulerLock.class);
+
+    var nextTick = CronExpression.parse(cronExpression).next(tick);
+
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtLeastFor()))).isBefore(nextTick);
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtMostFor()))).isBefore(nextTick);
   }
 
   @Test

@@ -694,7 +694,7 @@ class PeriodicTdAttributionServiceTest {
           .willReturn(List.of());
     }
 
-    service.computeQuarterly(TUK75, 2026, 2);
+    service.computeQuarterly(TUK75, new Quarter(2026, 2));
 
     verify(attributionRepository)
         .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(

@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -122,6 +123,39 @@ class SettlementTimingWarningServiceTest {
                 LocalDate.of(2026, 4, 22),
                 "FUND sell settles after same-day ETF buy: fund=TUK00,"
                     + " sellSettlementDate=2026-05-04, etfBuySettlementDate=2026-04-22"));
+  }
+
+  @Test
+  void aSellPlacedJustAfterMidnightInTallinnReadsThatDaysPeriodAndModelThoughTheClockRunsInUtc() {
+    var halfPastMidnightInTallinn = TODAY.atTime(0, 30).atZone(TALLINN).toInstant();
+    var service =
+        new SettlementTimingWarningService(
+            periodService,
+            settlementDateCalculator,
+            allocationRepository,
+            Clock.fixed(halfPastMidnightInTallinn, ZoneOffset.UTC));
+    given(periodService.getCurrentPeriod(TODAY))
+        .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
+    given(allocationRepository.findLatestByFundAsOf(TUK00, TODAY))
+        .willReturn(List.of(allocation(TUK00, "LU0000000002", FUND)));
+    given(
+            settlementDateCalculator.calculateSettlementDate(
+                halfPastMidnightInTallinn, FUND, "LU0000000002"))
+        .willReturn(LocalDate.of(2026, 5, 4));
+    given(
+            settlementDateCalculator.calculateSettlementDate(
+                halfPastMidnightInTallinn, ETF, TUK00.getIsin()))
+        .willReturn(LocalDate.of(2026, 5, 4));
+
+    assertThat(service.activeWarnings())
+        .containsExactly(
+            new SettlementTimingWarning(
+                PEVA_DEADLINE_MISS,
+                TUK00,
+                LocalDate.of(2026, 5, 4),
+                EXEC_DATE,
+                "FUND sell placed today settles after PEVA/RAVA execution: fund=TUK00,"
+                    + " sellSettlementDate=2026-05-04, execDate=2026-05-01"));
   }
 
   @Test

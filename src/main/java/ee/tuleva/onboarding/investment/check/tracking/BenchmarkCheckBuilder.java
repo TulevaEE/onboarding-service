@@ -94,7 +94,7 @@ class BenchmarkCheckBuilder {
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK, checkDate);
-    int days = breach ? priorBreaches.count() + 1 : 0;
+    int days = breach ? priorBreaches.streakDaysIfTheCheckDateBreaches() : 0;
     BigDecimal compFund = ZERO;
     BigDecimal compBenchmark = ZERO;
     BigDecimal compTd = ZERO;
@@ -122,6 +122,8 @@ class BenchmarkCheckBuilder {
             .benchmarkReturn(benchmarkReturn.get())
             .breach(breach)
             .consecutiveBreachDays(days)
+            .escalationUncheckedDays(
+                breach ? priorBreaches.uncheckedDaysIfTheCheckDateBreaches() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)
@@ -245,7 +247,7 @@ class BenchmarkCheckBuilder {
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK_MODEL, checkDate);
-    int days = breach ? priorBreaches.count() + 1 : 0;
+    int days = breach ? priorBreaches.streakDaysIfTheCheckDateBreaches() : 0;
     BigDecimal compFund = ZERO;
     BigDecimal compBenchmark = ZERO;
     BigDecimal compTd = ZERO;
@@ -277,6 +279,8 @@ class BenchmarkCheckBuilder {
             .benchmarkReturn(benchmarkReturn)
             .breach(breach)
             .consecutiveBreachDays(days)
+            .escalationUncheckedDays(
+                breach ? priorBreaches.uncheckedDaysIfTheCheckDateBreaches() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)

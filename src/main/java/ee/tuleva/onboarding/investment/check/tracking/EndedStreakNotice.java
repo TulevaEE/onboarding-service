@@ -11,18 +11,41 @@ final class EndedStreakNotice {
 
   static String format(TrackingDifferenceResult result) {
     var endedStreak = requireNonNull(result.endedStreak());
-    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%), but the %d working days before it"
-                + " breached. Sisekord 4 p 11.8 makes the notification due today, on working day"
-                + " %d: identify the cause and act on it.")
-            .formatted(
-                result.fund(),
-                result.checkType(),
-                result.checkDate(),
-                formatPercent(result.trackingDifference()),
-                endedStreak.count(),
-                endedStreak.count() + 1)
+    return (endedStreak.uncheckedDaysSince() > 0
+            ? afterUncheckedDays(result, endedStreak)
+            : onTheDayItFallsDue(result, endedStreak))
         + EscalationSection.ofEndedStreak(endedStreak).describe()
         + navResidualBreachNote(endedStreak);
+  }
+
+  private static String onTheDayItFallsDue(
+      TrackingDifferenceResult result, ConsecutiveBreachInfo endedStreak) {
+    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%), but the %d working days before it"
+            + " breached. Sisekord 4 p 11.8 makes the notification due today, on working day"
+            + " %d: identify the cause and act on it.")
+        .formatted(
+            result.fund(),
+            result.checkType(),
+            result.checkDate(),
+            formatPercent(result.trackingDifference()),
+            endedStreak.count(),
+            endedStreak.count() + 1);
+  }
+
+  private static String afterUncheckedDays(
+      TrackingDifferenceResult result, ConsecutiveBreachInfo endedStreak) {
+    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%). The last check before it, %d working"
+            + " days earlier, closed a %d-day breach streak, and no check ran in between."
+            + " Sisekord 4 p 11.8 made the notification due on working day %d, which had no"
+            + " check, so it is sent today, late: identify the cause and act on it.")
+        .formatted(
+            result.fund(),
+            result.checkType(),
+            result.checkDate(),
+            formatPercent(result.trackingDifference()),
+            endedStreak.uncheckedDaysSince() + 1,
+            endedStreak.count(),
+            endedStreak.count() + 1);
   }
 
   private static String navResidualBreachNote(ConsecutiveBreachInfo endedStreak) {

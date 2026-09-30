@@ -141,7 +141,9 @@ class BenchmarkCheckBuilderTest {
             BigDecimal.ZERO,
             false,
             false,
-            false);
+            false,
+            0,
+            0);
     given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
         .willReturn(endedStreak);
 

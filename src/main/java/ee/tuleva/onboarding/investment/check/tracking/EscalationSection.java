@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 record EscalationSection(
     int days,
+    int uncheckedDays,
     BigDecimal netTd,
     @Nullable BigDecimal compoundedFundReturn,
     @Nullable BigDecimal compoundedBenchmarkReturn,
@@ -21,6 +22,7 @@ record EscalationSection(
   static EscalationSection throughToday(TrackingDifferenceResult result) {
     return new EscalationSection(
         result.consecutiveBreachDays(),
+        result.escalationUncheckedDays(),
         result.consecutiveNetTd(),
         result.compoundedFundReturn(),
         result.compoundedBenchmarkReturn(),
@@ -33,6 +35,7 @@ record EscalationSection(
   static EscalationSection ofEndedStreak(ConsecutiveBreachInfo streak) {
     return new EscalationSection(
         streak.count(),
+        streak.uncheckedDays(),
         streak.compoundedTd(),
         streak.compoundedFundReturn(),
         streak.compoundedBenchmarkReturn(),
@@ -44,8 +47,14 @@ record EscalationSection(
 
   String describe() {
     var sb = new StringBuilder();
-    sb.append(
-        "\n  [%d consecutive days, compounded TD=%s%%]".formatted(days, formatPercent(netTd)));
+    if (uncheckedDays > 0) {
+      sb.append(
+          "\n  [%d consecutive days, %d of them with no check, compounded TD over the checked days=%s%%]"
+              .formatted(days, uncheckedDays, formatPercent(netTd)));
+    } else {
+      sb.append(
+          "\n  [%d consecutive days, compounded TD=%s%%]".formatted(days, formatPercent(netTd)));
+    }
     if (compoundedFundReturn != null && compoundedBenchmarkReturn != null) {
       sb.append(
           "\n  Compounded: fund=%s%%, benchmark=%s%%"

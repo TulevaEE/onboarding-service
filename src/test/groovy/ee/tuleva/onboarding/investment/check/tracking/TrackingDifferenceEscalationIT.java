@@ -123,8 +123,32 @@ class TrackingDifferenceEscalationIT {
   }
 
   @Test
-  void aFourthWorkingDayThatWasNeverCheckedEndsTheStreakSoTheCleanDayAfterItIsNotNotified() {
+  void aFourthWorkingDayThatWasNeverCheckedIsNotifiedLateOnTheCleanDayAfterIt() {
     var escalated = escalatedOn(breach(MONDAY), breach(TUESDAY), breach(WEDNESDAY), clean(FRIDAY));
+
+    assertThat(escalated).containsExactly(FRIDAY);
+    assertThat(notifications.lastMessage())
+        .contains("closed a 3-day breach streak, and no check ran in between")
+        .contains("so it is sent today, late");
+  }
+
+  @Test
+  void anUncheckedDayBetweenBreachDaysCountsTowardsTheFourthWorkingDay() {
+    var escalated = escalatedOn(breach(MONDAY), breach(TUESDAY), breach(THURSDAY));
+
+    assertThat(escalated).containsExactly(THURSDAY);
+    assertThat(notifications.lastMessage())
+        .contains("[4 consecutive days, 1 of them with no check");
+    assertThat(
+            eventRepository.findAll().stream()
+                .sorted(comparing(TrackingDifferenceEvent::getCheckDate))
+                .map(TrackingDifferenceEvent::getConsecutiveBreachDays))
+        .containsExactly(1, 2, 4);
+  }
+
+  @Test
+  void anUncheckedDayBeforeACleanDayDoesNotLengthenTheStreakItEnded() {
+    var escalated = escalatedOn(breach(TUESDAY), breach(WEDNESDAY), clean(FRIDAY));
 
     assertThat(escalated).isEmpty();
   }

@@ -84,7 +84,9 @@ class NavTrackingDifferenceGateTest {
                     ZERO,
                     true,
                     false,
-                    false))
+                    false,
+                    0,
+                    0))
             .build();
 
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));

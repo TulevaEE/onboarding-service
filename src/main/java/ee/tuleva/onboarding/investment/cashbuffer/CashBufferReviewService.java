@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.cashbuffer;
 
+import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.CHARGED_DAY_NOT_ACCRUED;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.FAILED;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.MISSING_PARAMETERS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_COMPLETE_MONTH_OF_FLOWS;
-import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_FEE_ACCRUALS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_RESERVE_CONFIGURED;
 import static java.util.function.Predicate.not;
 
@@ -81,7 +81,7 @@ class CashBufferReviewService {
     }
     var accruedFees = chargedFeeAccruals.accruedDuring(fund, reviewMonth);
     if (accruedFees.isEmpty()) {
-      return new NotRun(fund, NO_FEE_ACCRUALS, "feeMonth=" + reviewMonth);
+      return new NotRun(fund, CHARGED_DAY_NOT_ACCRUED, "feeMonth=" + reviewMonth);
     }
     return reviewed(
         fund, reviewMonth, reviewedOn, window.get(), accruedFees.get(), configured.get());

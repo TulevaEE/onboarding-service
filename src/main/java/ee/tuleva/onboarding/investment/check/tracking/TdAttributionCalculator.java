@@ -286,13 +286,7 @@ class TdAttributionCalculator {
     // so they always add up. How big the residual is, is the only real signal. With no tolerance
     // configured there is no verdict to give: writing "within tolerance" would stamp a measured
     // pass on every period that predates the parameter, which is what the backfill runs first.
-    var scaledTolerance = scaledResidualTolerance(input);
-    if (scaledTolerance != null) {
-      checks.put("residualWithinTolerance", residual.abs().compareTo(scaledTolerance) <= 0);
-      checks.put(
-          "residualToleranceBps",
-          scaledTolerance.multiply(BigDecimal.valueOf(10000)).setScale(2, HALF_UP));
-    }
+    checks.putAll(residualVerdictOnlyWhereAToleranceIsConfigured(residual, input));
     checks.put("seriesGapDays", input.seriesGapDays());
     checks.put("etfLayerMeasured", input.benchmarkModelSumPeriod() != null);
     checks.put("etfLayerCoveredDays", input.etfLayerCoveredDays());
@@ -303,6 +297,19 @@ class TdAttributionCalculator {
         "etfLayerUnrestoredProxyWeight",
         orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
     return Map.copyOf(checks);
+  }
+
+  private static Map<String, Object> residualVerdictOnlyWhereAToleranceIsConfigured(
+      BigDecimal residual, TdAttributionInput input) {
+    var scaledTolerance = scaledResidualTolerance(input);
+    if (scaledTolerance == null) {
+      return Map.of();
+    }
+    return Map.of(
+        "residualWithinTolerance",
+        residual.abs().compareTo(scaledTolerance) <= 0,
+        "residualToleranceBps",
+        scaledTolerance.multiply(BigDecimal.valueOf(10000)).setScale(2, HALF_UP));
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {

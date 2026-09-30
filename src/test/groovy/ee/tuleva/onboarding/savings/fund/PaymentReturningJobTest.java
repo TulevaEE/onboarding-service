@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +35,7 @@ class PaymentReturningJobTest {
 
   @Test
   void runJob_skipsABlockedReturnAndRecordsTheReason() {
-    var payment = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
+    var payment = aPayment().status(TO_BE_RETURNED).build();
     var reason = "A return order already exists at the bank: returnOrderStatus=SUBMITTED";
     given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
         .willReturn(List.of(payment));
@@ -51,8 +50,8 @@ class PaymentReturningJobTest {
 
   @Test
   void runJob_returnsEveryPaymentToBeReturned() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
+    var payment1 = aPayment().status(TO_BE_RETURNED).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).build();
 
     given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
         .willReturn(List.of(payment1, payment2));
@@ -65,8 +64,8 @@ class PaymentReturningJobTest {
 
   @Test
   void runJob_carriesOnAfterAFailedReturn() {
-    var payment1 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("100.00")).build();
-    var payment2 = aPayment().status(TO_BE_RETURNED).amount(new BigDecimal("50.00")).build();
+    var payment1 = aPayment().status(TO_BE_RETURNED).build();
+    var payment2 = aPayment().status(TO_BE_RETURNED).build();
 
     given(savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED))
         .willReturn(List.of(payment1, payment2));

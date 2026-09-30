@@ -164,7 +164,7 @@ public class PeriodicTdAttributionService {
           seriesGapDays);
     }
 
-    var dailyRecords = inputAssembler.buildDailyRecords(fund, tdEvents, modelAllocations);
+    var dailyRecords = inputAssembler.buildDailyRecords(fund, tdEvents);
 
     var mgmtFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.MANAGEMENT);
     var depotFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.DEPOT);

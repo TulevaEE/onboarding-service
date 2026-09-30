@@ -464,12 +464,19 @@ class TransactionBatchFinalizerTest {
     when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
     when(exportUploader.uploadExports(any(), any(), any(), any()))
         .thenReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
-    given(batchRepository.findById(1L)).willReturn(Optional.of(batch));
+    var committedBatch = committedCopyOf(batch);
+    given(batchRepository.findById(1L)).willReturn(Optional.of(committedBatch));
 
     finalizer.finalizeConfirmedBatch(batch);
 
-    assertThat(batch.getMetadata())
-        .containsEntry("driveFileUrls", Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    assertThat(committedBatch.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "commandId",
+                1L,
+                "driveFileUrls",
+                Map.of("sebFundXlsx", "https://drive.google.com/file1")));
+    verify(batchRepository).save(committedBatch);
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
   }
 
@@ -548,7 +555,8 @@ class TransactionBatchFinalizerTest {
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     given(exportUploader.uploadExports(any(), any(), any(), any()))
         .willReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
-    given(batchRepository.findById(1L)).willReturn(Optional.of(batch));
+    var committedBatch = committedCopyOf(batch);
+    given(batchRepository.findById(1L)).willReturn(Optional.of(committedBatch));
 
     TransactionSynchronizationManager.initSynchronization();
 
@@ -563,9 +571,25 @@ class TransactionBatchFinalizerTest {
     synchronizations.forEach(TransactionSynchronization::afterCommit);
 
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
-    assertThat(batch.getMetadata())
-        .containsEntry("driveFileUrls", Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    assertThat(committedBatch.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "commandId",
+                1L,
+                "driveFileUrls",
+                Map.of("sebFundXlsx", "https://drive.google.com/file1")));
+    verify(batchRepository).save(committedBatch);
     verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
+  }
+
+  private static TransactionBatch committedCopyOf(TransactionBatch batch) {
+    return TransactionBatch.builder()
+        .id(batch.getId())
+        .fund(batch.getFund())
+        .status(SENT)
+        .createdBy(batch.getCreatedBy())
+        .metadata(Map.of("commandId", 1L))
+        .build();
   }
 }

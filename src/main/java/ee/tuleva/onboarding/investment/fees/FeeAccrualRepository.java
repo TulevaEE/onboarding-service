@@ -199,10 +199,8 @@ public class FeeAccrualRepository {
                     fee_month = :feeMonth,
                     base_value = :baseValue,
                     annual_rate = :annualRate,
-                    daily_amount_net = :dailyAmountGross,
                     daily_amount_gross = :dailyAmountGross,
-                    days_in_year = :daysInYear,
-                    reference_date = :referenceDate
+                    days_in_year = :daysInYear
                 WHERE fund_code = :fundCode
                   AND fee_type = :feeType
                   AND accrual_date = :accrualDate
@@ -215,7 +213,6 @@ public class FeeAccrualRepository {
             .param("annualRate", accrual.annualRate())
             .param("dailyAmountGross", accrual.dailyAmountGross())
             .param("daysInYear", accrual.daysInYear())
-            .param("referenceDate", accrual.referenceDate())
             .update();
 
     if (updated == 0) {
@@ -224,13 +221,11 @@ public class FeeAccrualRepository {
               """
               INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
-                  annual_rate, daily_amount_net, daily_amount_gross,
-                  days_in_year, reference_date
+                  annual_rate, daily_amount_gross, days_in_year
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, :baseValue,
-                  :annualRate, :dailyAmountGross, :dailyAmountGross,
-                  :daysInYear, :referenceDate
+                  :annualRate, :dailyAmountGross, :daysInYear
               )
               """)
           .param("fundCode", accrual.fund().name())
@@ -241,7 +236,6 @@ public class FeeAccrualRepository {
           .param("annualRate", accrual.annualRate())
           .param("dailyAmountGross", accrual.dailyAmountGross())
           .param("daysInYear", accrual.daysInYear())
-          .param("referenceDate", accrual.referenceDate())
           .update();
     }
   }

@@ -70,7 +70,7 @@ class TdAttributionPeriodReconcilerTest {
             new GapFillRun(List.of(), List.of(gap), Map.of(TUK75, List.of(FRIDAY, MONDAY))));
 
     assertThatThrownBy(() -> reconciler.reconcile(TUK75, PERIOD_START, PERIOD_END))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(AttributionPeriodStillStaleException.class);
 
     then(notifier)
         .should()
@@ -85,7 +85,7 @@ class TdAttributionPeriodReconcilerTest {
     given(trackingDifferenceService.reconcileSince(TUK75, PERIOD_START)).willReturn(run);
 
     assertThatThrownBy(() -> reconciler.reconcile(TUK75, PERIOD_START, PERIOD_END))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(AttributionPeriodStillStaleException.class);
 
     then(notifier).should().notifyGapFillSummary(run);
     then(notifier)

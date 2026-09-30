@@ -15,8 +15,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
-import ee.tuleva.onboarding.investment.event.FundPositionsImported;
-import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -216,7 +214,7 @@ class FeeAccrualPositionSyncJobTest {
     given(clock.getZone()).willReturn(ZONE);
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
 
-    syncJob.onFundPositionsImported(new FundPositionsImported());
+    syncJob.onFundPositionsImported();
 
     verify(pipelineTracker).stepStarted(FEE_ACCRUAL_SYNC);
     verify(pipelineTracker).stepCompleted(FEE_ACCRUAL_SYNC);
@@ -229,7 +227,7 @@ class FeeAccrualPositionSyncJobTest {
     given(clock.getZone()).willReturn(ZONE);
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
 
-    syncJob.onFeeAccrualPositionSyncRequested(new RunFeeAccrualPositionSyncRequested());
+    syncJob.onFeeAccrualPositionSyncRequested();
 
     verify(pipelineTracker).stepStarted(FEE_ACCRUAL_SYNC);
     verify(pipelineTracker).stepCompleted(FEE_ACCRUAL_SYNC);

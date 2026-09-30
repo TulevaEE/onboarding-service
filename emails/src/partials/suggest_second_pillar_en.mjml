@@ -1,6 +1,6 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
 <mj-text>
-  You are saving your second pillar in high fee funds (*|secondPillarFeePercent|*% per year).
+  You are saving your second pillar in high-fee funds (*|secondPillarFeePercent|*% per year).
   This year you will pay *|secondPillarFeeAmount|*&nbsp;€ in fees, and in the Tuleva fund you
   would pay *|tulevaFeeAmount|*&nbsp;€. You would save *|secondPillarSavingsAmount|*&nbsp;€ per
   year.
@@ -22,7 +22,7 @@
 <mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?language=en&utm_content=nudge_second_pillar">Learn more</mj-button>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
-  If you're not saving your second pillar with us at Tuleva, make sure your second pillar
+  If you are not yet saving your second pillar with us at Tuleva, make sure your second pillar
   fund fees are <strong>below 0.3% per year</strong>, as low fees give you the best chance
   of good long-term returns.
 </mj-text>

@@ -58,8 +58,8 @@ public class FundPositionImportJob {
     runImportPipeline();
   }
 
-  @EventListener
-  public void onFundPositionImportRequested(RunFundPositionImportRequested event) {
+  @EventListener(RunFundPositionImportRequested.class)
+  public void onFundPositionImportRequested() {
     runImportPipeline();
   }
 

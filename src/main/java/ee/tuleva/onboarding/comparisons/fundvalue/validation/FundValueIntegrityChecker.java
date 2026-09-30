@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityChe
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -17,10 +16,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
-import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
-import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.OrphanedData;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.SourceValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.StaleSource;
@@ -31,7 +27,12 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -44,7 +45,6 @@ import org.springframework.stereotype.Service;
 public class FundValueIntegrityChecker {
 
   private static final int DATABASE_SCALE = 5;
-  private static final BigDecimal SAME_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.0001");
   private static final BigDecimal CROSS_PROVIDER_THRESHOLD_PERCENT = new BigDecimal("0.001");
   private static final BigDecimal NAV_ROUNDING_THRESHOLD_PERCENT = new BigDecimal("0.1");
   static final int MAX_SOURCE_LAG_WORKING_DAYS = 3;
@@ -52,7 +52,6 @@ public class FundValueIntegrityChecker {
   private static final int EUFUND_SCALE = 3;
   private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
 
-  private final YahooFundValueRetriever yahooFundValueRetriever;
   private final FundValueRepository fundValueRepository;
   private final PriorityPriceProvider priorityPriceProvider;
   private final PublicHolidays publicHolidays;
@@ -256,45 +255,6 @@ public class FundValueIntegrityChecker {
         .filter(staleSource -> staleSource.workingDaysBehind() > MAX_SOURCE_LAG_WORKING_DAYS);
   }
 
-  IntegrityCheckResult verifyFundDataIntegrity(
-      String fundTicker, LocalDate startDate, LocalDate endDate) {
-    try {
-      List<FundValue> yahooFinanceValues = fetchYahooFinanceData(fundTicker, startDate, endDate);
-      List<FundValue> databaseFundValues = fetchDatabaseData(fundTicker, startDate, endDate);
-
-      Map<LocalDate, BigDecimal> yahooValuesByDate = convertToDateValueMap(yahooFinanceValues);
-      Map<LocalDate, BigDecimal> databaseValuesByDate = convertToDateValueMap(databaseFundValues);
-
-      List<Discrepancy> discrepancies =
-          findDiscrepancies(fundTicker, yahooValuesByDate, databaseValuesByDate);
-      List<MissingData> missingData =
-          findMissingData(fundTicker, yahooValuesByDate, databaseValuesByDate);
-      List<OrphanedData> orphanedData =
-          findOrphanedData(fundTicker, yahooValuesByDate, databaseValuesByDate);
-
-      return IntegrityCheckResult.builder()
-          .discrepancies(discrepancies)
-          .missingData(missingData)
-          .orphanedData(orphanedData)
-          .build();
-    } catch (Exception e) {
-      log.warn("Skipping integrity check: fund={}, reason={}", fundTicker, e.getMessage());
-      return IntegrityCheckResult.empty();
-    }
-  }
-
-  private List<FundValue> fetchYahooFinanceData(
-      String fundTicker, LocalDate startDate, LocalDate endDate) {
-    return yahooFundValueRetriever.retrieveValuesForRange(startDate, endDate).stream()
-        .filter(fundValue -> fundValue.key().equals(fundTicker))
-        .toList();
-  }
-
-  private List<FundValue> fetchDatabaseData(
-      String fundTicker, LocalDate startDate, LocalDate endDate) {
-    return fundValueRepository.findValuesBetweenDates(fundTicker, startDate, endDate);
-  }
-
   private Map<LocalDate, BigDecimal> convertToDateValueMap(List<FundValue> fundValues) {
     return fundValues.stream()
         .collect(
@@ -302,66 +262,6 @@ public class FundValueIntegrityChecker {
                 FundValue::date,
                 FundValue::value,
                 (existingValue, duplicateValue) -> existingValue));
-  }
-
-  private List<Discrepancy> findDiscrepancies(
-      String fundTicker,
-      Map<LocalDate, BigDecimal> yahooValuesByDate,
-      Map<LocalDate, BigDecimal> databaseValuesByDate) {
-
-    return databaseValuesByDate.entrySet().stream()
-        .filter(entry -> yahooValuesByDate.containsKey(entry.getKey()))
-        .map(
-            entry -> {
-              LocalDate date = entry.getKey();
-              BigDecimal databaseValue = entry.getValue();
-              BigDecimal yahooValue =
-                  requireNonNull(yahooValuesByDate.get(date), "Missing Yahoo value: date=" + date);
-
-              BigDecimal normalizedDbValue = databaseValue.setScale(DATABASE_SCALE, HALF_UP);
-              BigDecimal normalizedYahooValue = yahooValue.setScale(DATABASE_SCALE, HALF_UP);
-
-              BigDecimal percentageDifference =
-                  calculatePercentageDifference(normalizedDbValue, normalizedYahooValue);
-              if (percentageDifference.compareTo(SAME_PROVIDER_THRESHOLD_PERCENT) > 0) {
-                BigDecimal difference = normalizedDbValue.subtract(normalizedYahooValue).abs();
-                return new Discrepancy(
-                    fundTicker,
-                    date,
-                    normalizedDbValue,
-                    normalizedYahooValue,
-                    difference,
-                    percentageDifference);
-              }
-              return null;
-            })
-        .filter(Objects::nonNull)
-        .toList();
-  }
-
-  private List<MissingData> findMissingData(
-      String fundTicker,
-      Map<LocalDate, BigDecimal> yahooValuesByDate,
-      Map<LocalDate, BigDecimal> databaseValuesByDate) {
-
-    return yahooValuesByDate.entrySet().stream()
-        .filter(
-            entry ->
-                !databaseValuesByDate.containsKey(entry.getKey())
-                    && entry.getValue().compareTo(ZERO) != 0)
-        .map(entry -> new MissingData(fundTicker, entry.getKey(), entry.getValue()))
-        .toList();
-  }
-
-  private List<OrphanedData> findOrphanedData(
-      String fundTicker,
-      Map<LocalDate, BigDecimal> yahooValuesByDate,
-      Map<LocalDate, BigDecimal> databaseValuesByDate) {
-
-    return databaseValuesByDate.keySet().stream()
-        .filter(date -> !yahooValuesByDate.containsKey(date))
-        .map(date -> new OrphanedData(fundTicker, date))
-        .toList();
   }
 
   String buildSummary(LocalDate startDate, LocalDate endDate, List<InstrumentCheckResult> results) {

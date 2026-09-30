@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -74,13 +75,22 @@ class PeriodicTdAttributionJobTest {
   }
 
   @Test
-  void theAprilThroughAugustBackfillRecomputesTheFiveMonthsBeforeSeptember() {
-    var september28 = clockFor("2026-09-28");
-    var jobWithClock = new PeriodicTdAttributionJob(service, businessDays, september28);
+  void theJuneThroughAugustBackfillRecomputesJuneJulyAndAugustForAllFunds() {
+    var jobWithClock = new PeriodicTdAttributionJob(service, businessDays, clockFor("2026-09-30"));
 
-    jobWithClock.backfillAprilThroughAugust();
+    jobWithClock.backfillJuneThroughAugust();
 
-    verify(service).backfillMonths(5, september28);
+    var inOrder = inOrder(service);
+    inOrder
+        .verify(service)
+        .computeForAllFunds(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), MONTHLY);
+    inOrder
+        .verify(service)
+        .computeForAllFunds(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), MONTHLY);
+    inOrder
+        .verify(service)
+        .computeForAllFunds(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), MONTHLY);
+    inOrder.verifyNoMoreInteractions();
   }
 
   @Test

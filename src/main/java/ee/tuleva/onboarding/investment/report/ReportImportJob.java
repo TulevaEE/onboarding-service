@@ -60,8 +60,8 @@ public class ReportImportJob {
     }
   }
 
-  @EventListener
-  public void onReportImportRequested(RunReportImportRequested event) {
+  @EventListener(RunReportImportRequested.class)
+  public void onReportImportRequested() {
     pipelineTracker.stepStarted(REPORT_IMPORT);
     runImport();
     pipelineTracker.stepCompleted(REPORT_IMPORT);

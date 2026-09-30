@@ -81,17 +81,27 @@ public class SanctionAndPepScreener {
     if (screenForSanctionAndPep(person, countries).failed()) {
       return UNAVAILABLE;
     }
-    boolean clear =
-        latestCheckPassed(person, SANCTION)
-            && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
-    return clear ? CLEAR : MATCH;
+    Optional<Boolean> sanctionClear = latestCheckResult(person, SANCTION);
+    if (sanctionClear.isEmpty()) {
+      return UNAVAILABLE;
+    }
+    if (!sanctionClear.get()) {
+      return SANCTION_HIT;
+    }
+    Optional<Boolean> pepClear = latestCheckResult(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+    if (pepClear.isEmpty()) {
+      return UNAVAILABLE;
+    }
+    if (!pepClear.get()) {
+      return PEP_HIT;
+    }
+    return CLEAR;
   }
 
-  private boolean latestCheckPassed(Person person, AmlCheckType type) {
+  private Optional<Boolean> latestCheckResult(Person person, AmlCheckType type) {
     return amlCheckRepository
         .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(person.getPersonalCode(), type)
-        .map(AmlCheck::isSuccess)
-        .orElse(false);
+        .map(AmlCheck::isSuccess);
   }
 
   ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {

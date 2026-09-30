@@ -175,8 +175,8 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     if (euronextValue.get().value().compareTo(current.value()) == 0) {
       return true;
     }
-    log.error(
-        "Skipping stale carried-forward EODHD close contradicted by Euronext: ticker={}, date={}, eodhdValue={}, euronextValue={}",
+    log.warn(
+        "Dropping repeated EODHD close that differs from the Euronext official close, the Euronext price is used: ticker={}, date={}, eodhdValue={}, euronextValue={}",
         ticker,
         current.date(),
         current.value(),

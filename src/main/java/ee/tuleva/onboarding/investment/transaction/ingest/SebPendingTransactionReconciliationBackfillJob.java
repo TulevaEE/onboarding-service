@@ -31,9 +31,8 @@ class SebPendingTransactionReconciliationBackfillJob {
   private final InvestmentReportService reportService;
   private final SebPendingTransactionReconciliationService reconciliationService;
 
-  @EventListener
-  void onSebPendingTransactionReconciliationBackfillRequested(
-      RunSebPendingTransactionReconciliationBackfillRequested event) {
+  @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
+  void onSebPendingTransactionReconciliationBackfillRequested() {
     run();
   }
 

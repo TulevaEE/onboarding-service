@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.fees.rate.MonthResolution.Resolved;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,7 @@ class InstrumentFeeRateJob {
   @Scheduled(cron = "0 0 7 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentFeeRateJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void resolveTheClosedMonthsIfDue() {
-    var today = LocalDate.now(clock);
+    var today = todayInTallinn();
     if (!businessDays.isNthBusinessDayOfMonth(
         today, THIRD_BUSINESS_DAY_A_DAY_BEFORE_OCF_AND_TD_ATTRIBUTION_READ_THE_RATES)) {
       return;
@@ -47,7 +48,11 @@ class InstrumentFeeRateJob {
 
   @EventListener(RunInstrumentFeeRateResolveRequested.class)
   void reResolveEveryClosedMonth() {
-    resolveAndAnnounce(closedMonthsUpTo(LocalDate.now(clock)));
+    resolveAndAnnounce(closedMonthsUpTo(todayInTallinn()));
+  }
+
+  private LocalDate todayInTallinn() {
+    return LocalDate.now(clock.withZone(ZoneId.of(TIMEZONE)));
   }
 
   private void resolveAndAnnounce(Stream<YearMonth> months) {

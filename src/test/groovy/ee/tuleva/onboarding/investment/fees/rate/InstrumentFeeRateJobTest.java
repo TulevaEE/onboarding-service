@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -95,6 +96,22 @@ class InstrumentFeeRateJobTest {
     verify(service).resolve(APRIL);
     verify(service).resolve(MAY);
     verify(service, never()).resolve(YearMonth.of(2026, 6));
+  }
+
+  @Test
+  void aTriggerJustAfterMidnightInTallinnResolvesTheMonthThatJustClosedThoughTheClockRunsInUtc() {
+    var halfPastMidnightOnTheFirstOfJune =
+        LocalDate.of(2026, 6, 1).atTime(0, 30).atZone(TALLINN).toInstant();
+    var job =
+        new InstrumentFeeRateJob(
+            service,
+            notifier,
+            new BusinessDays(new PublicHolidays()),
+            Clock.fixed(halfPastMidnightOnTheFirstOfJune, ZoneOffset.UTC));
+
+    job.reResolveEveryClosedMonth();
+
+    verify(service).resolve(MAY);
   }
 
   @Test

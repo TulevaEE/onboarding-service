@@ -60,7 +60,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -81,10 +81,9 @@ class PeriodicTdAttributionServiceTest {
   @Mock FundPositionRepository fundPositionRepository;
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  @Mock PeriodicTdAttributionRepository attributionRepository;
+  @Mock PeriodicTdAttributionWriter attributionWriter;
   @Mock TransactionExecutionRepository transactionExecutionRepository;
   @Mock InstrumentFeeRepository instrumentFeeRepository;
-  @Mock PlatformTransactionManager transactionManager;
 
   private PeriodicTdAttributionService service;
 
@@ -102,10 +101,9 @@ class PeriodicTdAttributionServiceTest {
             feeChargedToFundPolicy,
             new TdAttributionInputAssembler(fundPositionRepository, fundNavQueryService),
             modelPortfolioAllocationRepository,
-            attributionRepository,
+            attributionWriter,
             transactionExecutionRepository,
             instrumentFeeRepository,
-            transactionManager,
             new PublicHolidays(),
             new BenchmarkLegResolver(trackedInstruments()),
             parameterRepository,
@@ -176,11 +174,15 @@ class PeriodicTdAttributionServiceTest {
             .add(result.residual());
     assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-    verify(attributionRepository).save(any(PeriodicTdAttribution.class));
-    verify(attributionRepository).save(argThat(e -> e.getDetails().size() == 2));
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getFund() == TUK75
+                        && e.getPeriodStart().equals(PERIOD_START)
+                        && e.getPeriodEnd().equals(PERIOD_END)
+                        && e.getPeriodType() == MONTHLY
+                        && e.getDetails().size() == 2));
   }
 
   @Test
@@ -189,41 +191,68 @@ class PeriodicTdAttributionServiceTest {
 
     service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    var inOrder = inOrder(periodReconciler, tdEventRepository, attributionRepository);
+    var inOrder = inOrder(periodReconciler, tdEventRepository, attributionWriter);
     inOrder.verify(periodReconciler).reconcile(TUK75, PERIOD_START, PERIOD_END);
     inOrder
         .verify(tdEventRepository)
         .findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END);
-    inOrder.verify(attributionRepository).save(any(PeriodicTdAttribution.class));
+    inOrder.verify(attributionWriter).replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
   void anAttributionWhosePeriodStillHoldsStaleEventsIsNotWritten() {
     setupStandardMocks();
-    willThrow(new IllegalStateException("stale"))
+    willThrow(new AttributionPeriodStillStaleException("stale"))
         .given(periodReconciler)
         .reconcile(TUK75, PERIOD_START, PERIOD_END);
 
     assertThatThrownBy(() -> service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(AttributionPeriodStillStaleException.class);
 
-    then(attributionRepository).shouldHaveNoInteractions();
+    then(attributionWriter).shouldHaveNoInteractions();
   }
 
   @Test
   void oneFundWhosePeriodCannotBeReconciledDoesNotStopTheOthers() {
     setupStandardMocks();
-    willThrow(new IllegalStateException("stale"))
+    willThrow(new AttributionPeriodStillStaleException("stale"))
         .given(periodReconciler)
         .reconcile(TUK00, PERIOD_START, PERIOD_END);
 
     service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
 
-    verify(attributionRepository, times(TulevaFund.values().length - 1))
-        .save(any(PeriodicTdAttribution.class));
-    verify(attributionRepository, never())
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK00, PERIOD_START, PERIOD_END, MONTHLY);
+    verify(attributionWriter, times(TulevaFund.values().length - 1))
+        .replace(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, never()).replace(argThat(e -> e.getFund() == TUK00));
+  }
+
+  @Test
+  void aStalePeriodAlreadyReportedByTheReconcilerIsNotReportedAgainAsFailed() {
+    setupStandardMocks();
+    willThrow(new AttributionPeriodStillStaleException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK00, PERIOD_START, PERIOD_END);
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    then(notifier).should(never()).notifyAttributionFailed(any(), any(), any(), any());
+  }
+
+  @Test
+  void aFundWhoseAttributionErrorsIsReportedAndTheOtherFundsAreStillWritten() {
+    setupStandardMocks();
+    willThrow(new DataIntegrityViolationException("uq_td_attribution"))
+        .given(attributionWriter)
+        .replace(argThat(e -> e.getFund() == TUK00));
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    then(notifier)
+        .should()
+        .notifyAttributionFailed(
+            TUK00, PERIOD_START, PERIOD_END, "DataIntegrityViolationException");
+    verify(attributionWriter, times(TulevaFund.values().length))
+        .replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -292,16 +321,13 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void rerunDeletesBeforeInserting() {
+  void aRerunReplacesTheStoredAttributionAgain() {
     setupStandardMocks();
 
     service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
     service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    verify(attributionRepository, times(2))
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-    verify(attributionRepository, times(2)).save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(2)).replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -360,7 +386,7 @@ class PeriodicTdAttributionServiceTest {
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(result.navEventCount()).isEqualTo(2);
-    verify(attributionRepository).save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter).replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -389,8 +415,8 @@ class PeriodicTdAttributionServiceTest {
     service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
 
     // TUK00 failed but TUK75 (and others) still saved
-    verify(attributionRepository, times(TulevaFund.values().length - 1))
-        .save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(TulevaFund.values().length - 1))
+        .replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -676,8 +702,8 @@ class PeriodicTdAttributionServiceTest {
     service.backfillMonths(3, clock);
 
     // 3 months * 4 funds = 12 attribution saves
-    verify(attributionRepository, times(3 * TulevaFund.values().length))
-        .save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(3 * TulevaFund.values().length))
+        .replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -696,9 +722,13 @@ class PeriodicTdAttributionServiceTest {
 
     service.computeQuarterly(TUK75, 2026, 2);
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), PeriodType.QUARTERLY);
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getPeriodStart().equals(LocalDate.of(2026, 4, 1))
+                        && e.getPeriodEnd().equals(LocalDate.of(2026, 6, 30))
+                        && e.getPeriodType() == PeriodType.QUARTERLY));
   }
 
   @Test
@@ -717,9 +747,13 @@ class PeriodicTdAttributionServiceTest {
 
     service.computeAnnual(TUK75, 2026);
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), PeriodType.ANNUAL);
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getPeriodStart().equals(LocalDate.of(2026, 1, 1))
+                        && e.getPeriodEnd().equals(LocalDate.of(2026, 12, 31))
+                        && e.getPeriodType() == PeriodType.ANNUAL));
   }
 
   @Test

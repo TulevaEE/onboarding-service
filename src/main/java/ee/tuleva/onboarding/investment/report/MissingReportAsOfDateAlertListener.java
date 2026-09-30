@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
@@ -64,7 +63,7 @@ class MissingReportAsOfDateAlertListener {
           report.getReportDate());
       return;
     }
-    notificationService.sendMessage(buildSlackMessage(report), INVESTMENT, ERROR);
+    notificationService.sendMessage(buildSlackMessage(report), INVESTMENT);
   }
 
   private boolean isOlderThanTheImportLooksBack(LocalDate reportDate) {
@@ -73,14 +72,15 @@ class MissingReportAsOfDateAlertListener {
 
   private static String buildSlackMessage(InvestmentReport report) {
     return """
-        ⚠️ %s %s raportis puudub kasutatav „As of“ kuupäev – %s
+        🔴 %s %s raportis puudub kasutatav „As of“ kuupäev – %s
         %s
         Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. \
         Kui faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute \
         reported_date ühe päeva võrra nihkes.
         Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
-        vigane, võib ka ülejäänud sisu olla vigane. Parandatud fail peab jõudma enne päeva \
-        NAV-arvutust; uus fail imporditakse automaatselt. <!channel>"""
+        vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel arvutamata, \
+        peab parandatud fail jõudma enne NAV-arvutust. Uus fail imporditakse automaatselt. \
+        <!channel>"""
         .formatted(
             report.getProvider(), report.getReportType(), report.getReportDate(), cause(report));
   }

@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,11 +54,11 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT));
   }
 
   @Test
-  void asksForACorrectedReportBeforeTheDaysNavRuns() {
+  void asksForTheCorrectedReportBeforeTheNavOnlyWhileThatNavHasNotRun() {
     storedWithoutAnAsOfDate(PENDING_TRANSACTIONS, REPORT_DATE, Map.of());
 
     listener().onReportImportCompleted(imported(PENDING_TRANSACTIONS, REPORT_DATE));
@@ -67,20 +66,20 @@ class MissingReportAsOfDateAlertListenerTest {
     then(notificationService)
         .should()
         .sendMessage(
-            contains("Parandatud fail peab jõudma enne päeva NAV-arvutust"),
-            eq(INVESTMENT),
-            eq(ERROR));
+            contains(
+                "Kui selle kuupäeva NAV on veel arvutamata, peab parandatud fail jõudma enne"
+                    + " NAV-arvutust"),
+            eq(INVESTMENT));
   }
 
   @Test
-  void pingsTheChannelSoSomeonePhonesSebThatMorning() {
+  void pingsTheChannelInThePlainMessageTextLikeTheOtherActNowAlertsSoSomeonePhonesSeb() {
     storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
 
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
 
-    then(notificationService)
-        .should()
-        .sendMessage(contains("<!channel>"), eq(INVESTMENT), eq(ERROR));
+    then(notificationService).should().sendMessage(contains("<!channel>"), eq(INVESTMENT));
+    then(notificationService).shouldHaveNoMoreInteractions();
   }
 
   @Test
@@ -93,8 +92,7 @@ class MissingReportAsOfDateAlertListenerTest {
         .should()
         .sendMessage(
             contains("ei leitud „As of“ välja – kas see puudub või on päise kuju muutunud"),
-            eq(INVESTMENT),
-            eq(ERROR));
+            eq(INVESTMENT));
   }
 
   @Test
@@ -105,7 +103,7 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("ei õnnestunud lugeda: \"25.01.2026\""), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(contains("ei õnnestunud lugeda: \"25.01.2026\""), eq(INVESTMENT));
   }
 
   @Test
@@ -116,7 +114,7 @@ class MissingReportAsOfDateAlertListenerTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("\"" + "x".repeat(100) + "…\""), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(contains("\"" + "x".repeat(100) + "…\""), eq(INVESTMENT));
   }
 
   @Test
@@ -161,7 +159,7 @@ class MissingReportAsOfDateAlertListenerTest {
 
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(7)));
 
-    then(notificationService).should().sendMessage(any(), eq(INVESTMENT), eq(ERROR));
+    then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
   }
 
   @Test
@@ -181,7 +179,7 @@ class MissingReportAsOfDateAlertListenerTest {
     storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
     willThrow(new RuntimeException("slack down"))
         .given(notificationService)
-        .sendMessage(any(), any(), any());
+        .sendMessage(any(), any());
 
     assertThatCode(() -> listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE)))
         .doesNotThrowAnyException();

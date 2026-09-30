@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
@@ -51,6 +52,7 @@ public record NudgeDecision(
 
   public Map<String, Object> mergeVars(Locale locale) {
     Map<String, Object> vars = new HashMap<>();
+    vars.put("suggestSecondPillarStart", key == SECOND_PILLAR_START);
     vars.put("suggestSecondPillar", key == SECOND_PILLAR_TRANSFER);
     vars.put("suggestPaymentRate", key == SECOND_PILLAR_PAYMENT_RATE);
     vars.put("suggestThirdPillar", key == THIRD_PILLAR_START || key == THIRD_PILLAR_FEES);
@@ -60,6 +62,7 @@ public record NudgeDecision(
     vars.put("suggestSavingsFund", key == SAVINGS_FUND);
     vars.put("suggestSavingsFundRecurringPayment", key == SAVINGS_FUND_RECURRING);
     vars.put("suggestMembership", key == MEMBERSHIP);
+    vars.put("anyPillarSuggestion", suggestsPensionPillar());
     vars.put("hasFeeComparison", feeComparison != null);
     if (feeComparison != null) {
       vars.put("secondPillarFeePercent", percent(feeComparison.currentFeePercent(), locale));
@@ -71,6 +74,20 @@ public record NudgeDecision(
       vars.put("savingsFundFee", percent(savingsFundFeePercent, locale));
     }
     return vars;
+  }
+
+  private boolean suggestsPensionPillar() {
+    return switch (key) {
+      case SECOND_PILLAR_START,
+          SECOND_PILLAR_TRANSFER,
+          SECOND_PILLAR_PAYMENT_RATE,
+          THIRD_PILLAR_START,
+          THIRD_PILLAR_FEES,
+          THIRD_PILLAR_RECURRING,
+          THIRD_PILLAR_RAISE ->
+          true;
+      case SAVINGS_FUND, SAVINGS_FUND_RECURRING, MEMBERSHIP, NONE -> false;
+    };
   }
 
   private static String percent(BigDecimal percent, Locale locale) {

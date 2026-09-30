@@ -49,6 +49,19 @@ class EmailPersistenceServiceSpec extends Specification {
     savedEmail == email
   }
 
+  def "knows whether a person already has an email of a type pending or sent"() {
+    given:
+    Person person = samplePerson()
+    emailRepository.existsByPersonalCodeAndTypeAndStatusIn(
+        person.personalCode, THIRD_PILLAR_SUGGEST_SECOND, [SENT, QUEUED, SCHEDULED]) >> exists
+
+    expect:
+    emailPersistenceService.hasPendingOrSentEmail(person, THIRD_PILLAR_SUGGEST_SECOND) == exists
+
+    where:
+    exists << [true, false]
+  }
+
   def "returns cancelled emails and deletes them from the database"() {
     given:
     Person person = samplePerson()

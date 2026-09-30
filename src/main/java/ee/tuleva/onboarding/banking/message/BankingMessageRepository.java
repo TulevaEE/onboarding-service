@@ -10,7 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface BankingMessageRepository extends CrudRepository<BankingMessage, UUID> {
 
-  List<BankingMessage> findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
+  List<BankingMessage> findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc();
 
   @Query(
       """

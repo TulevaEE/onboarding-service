@@ -40,7 +40,7 @@ class PevaRavaPhaseUpdateJob {
             () -> log.info("No current PEVA/RAVA period, nothing to update: today={}", today));
   }
 
-  @EventListener(classes = RunPevaRavaPhaseUpdateRequested.class)
+  @EventListener(RunPevaRavaPhaseUpdateRequested.class)
   void onPevaRavaPhaseUpdateRequested() {
     run();
   }

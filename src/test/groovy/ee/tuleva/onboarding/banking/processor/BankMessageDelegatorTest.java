@@ -1,18 +1,17 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.STATEMENT_UNPROCESSABLE;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
@@ -37,7 +36,6 @@ class BankMessageDelegatorTest {
   private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
   @Mock private BankingMessageRepository bankingMessageRepository;
-  @Mock private PaymentStatusReportHandler paymentStatusReportHandler;
   @Mock private PaymentCheckService paymentCheckService;
   @Mock private BankStatementExtractor bankStatementExtractor;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -46,18 +44,17 @@ class BankMessageDelegatorTest {
   void onProcessRequested_publishesCompletionEventAfterProcessingAllMessages() {
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of());
     var delegator =
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     then(eventPublisher).should().publishEvent(new BankMessagesProcessingCompleted());
   }
@@ -76,7 +73,7 @@ class BankMessageDelegatorTest {
             new StatementPeriod(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 13)));
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     given(bankStatementExtractor.extractFromHistoricStatement(rawXml, ZoneId.of("Europe/Tallinn")))
         .willReturn(statement);
@@ -84,12 +81,11 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     assertThat(message.getMessageType()).isEqualTo(HISTORIC_STATEMENT);
     assertThat(message.getAccountIban()).isEqualTo("EE001234567890123456");
@@ -100,30 +96,34 @@ class BankMessageDelegatorTest {
   }
 
   @Test
-  void onProcessRequested_recordsOnlyTheTypeForPaymentOrderConfirmations() {
+  void aPaymentStatusReportIsHeldAsAnUnprocessableMessageSinceTheGatewayNeverSendsOne() {
     var rawXml =
         "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"><CstmrPmtStsRpt/></Document>";
     var message = sebMessage(rawXml);
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     var delegator =
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
-    assertThat(message.getMessageType()).isEqualTo(PAYMENT_ORDER_CONFIRMATION);
-    assertThat(message.getAccountIban()).isNull();
-    assertThat(message.getStatementFrom()).isNull();
-    assertThat(message.getStatementTo()).isNull();
-    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
+    assertThat(message.getFailedAt()).isEqualTo(clock.instant());
+    assertThat(message.getProcessedAt()).isNull();
+    assertThat(message.getMessageType()).isNull();
+    then(paymentCheckService)
+        .should()
+        .record(
+            STATEMENT_UNPROCESSABLE,
+            HOLD,
+            String.valueOf(message.getId()),
+            "a bank message could not be processed: IllegalArgumentException");
   }
 
   @Test
@@ -137,7 +137,7 @@ class BankMessageDelegatorTest {
     message.setStatementTo(LocalDate.of(2026, 9, 11));
     given(
             bankingMessageRepository
-                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+                .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())
         .willReturn(List.of(message));
     given(bankStatementExtractor.extractFromHistoricStatement(rawXml, ZoneId.of("Europe/Tallinn")))
         .willThrow(new BankStatementParseException("Bank statement integrity check failed"));
@@ -145,12 +145,11 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
 
-    delegator.onProcessRequested(new ProcessBankMessagesRequested());
+    delegator.onProcessRequested();
 
     assertThat(message.getFailedAt()).isEqualTo(clock.instant());
     assertThat(message.getProcessedAt()).isNull();

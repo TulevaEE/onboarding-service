@@ -14,8 +14,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.PendingMandateApplications;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
@@ -91,7 +93,7 @@ class NudgeDecisionServiceTest {
     lenient()
         .when(securityContextRunner.callAs(any(), any()))
         .thenAnswer(invocation -> invocation.<java.util.function.Supplier<?>>getArgument(1).get());
-    lenient().when(pillarStatus.of(any())).thenReturn(new PillarActivity(true, true));
+    lenient().when(pillarStatus.of(any())).thenReturn(new PillarActivity(true, true, true));
     lenient().when(conversionService.getConversion(any())).thenReturn(fullyConverted());
     lenient().when(paymentRateService.getPaymentRates(any())).thenReturn(new PaymentRates(6, null));
     lenient().when(pendingApplications.getPendingExchanges(any(), any())).thenReturn(List.of());
@@ -135,7 +137,9 @@ class NudgeDecisionServiceTest {
 
   @Test
   void theOfflineDecisionNeverMintsASecurityContextOrTouchesEpisBackedInputs() {
-    given(offlineInputs.assemble(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+    given(
+            offlineInputs.assemble(
+                OfflineSaver.of(member), NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeInputsFixture.everythingSorted().member(false).build());
 
     assertThat(service.decideOffline(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
@@ -153,13 +157,49 @@ class NudgeDecisionServiceTest {
   @Test
   void aFailedLeaverLookupSkipsTheSecondPillarNudgeInsteadOfGuessing() {
     User nonMember = sampleUserNonMember().build();
-    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true));
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true, false));
     given(leaverStatus.hasLeft(any())).willThrow(new IllegalStateException("warehouse down"));
 
     assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
     assertThat(service.decide(nonMember, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.MEMBERSHIP));
+  }
+
+  @Test
+  void
+      someoneWhoJoinedASecondPillarThatIsNoLongerActiveIsNotInvitedEvenWhenTheRegistryHasNotSeenThem() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true, true));
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aJoinedButInactiveSecondPillarIsDecidedWithoutTheRegistry() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true, true));
+    given(saverStatus.savesFor(any())).willReturn(false);
+
+    assertThat(service.decide(member, self, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.savingsFund(new BigDecimal("0.28")));
+    verifyNoInteractions(leaverStatus);
+  }
+
+  @Test
+  void aLeaverInTheRegistryIsNotInvitedToOpenASecondPillar() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true, false));
+    given(leaverStatus.hasLeft(any())).willReturn(true);
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void someoneWithoutASecondPillarWhoNeverLeftIsInvitedToOpenOne() {
+    given(pillarStatus.of(any())).willReturn(new PillarActivity(false, true, false));
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
   }
 
   @Test
@@ -182,12 +222,34 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
+  void decidesForARegistryOnlyPersonWithoutAnAccountFromTheRegistryAlone() {
+    PersonImpl person =
+        PersonImpl.builder()
+            .personalCode("38801010004")
+            .firstName("Registry")
+            .lastName("Person")
+            .build();
+    given(
+            offlineInputs.assemble(
+                OfflineSaver.registryOnly(person), NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarPartiallyConverted(false)
+                .secondPillarFullyConverted(false)
+                .secondPillarFee(null)
+                .build());
+
+    assertThat(service.decideForRegistryOnly(person, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+  }
+
+  @Test
   void aCompanyPayerGoesThroughTheSameChainAsEveryoneElse() {
     given(recurringStatus.savingsFund(company)).willReturn(true);
-    given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false));
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false, false));
 
     assertThat(service.decide(member, company, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
   }
 
   @Test
@@ -201,7 +263,7 @@ class NudgeDecisionServiceTest {
   @Test
   void savingThroughAChildCountsAsSavingSoTheSavingsFundIsNotSuggested() {
     given(saverStatus.savesFor(self)).willReturn(false);
-    given(actingParties.representedBy(member)).willReturn(List.of(child));
+    given(actingParties.representedBy(member.getPersonalCode())).willReturn(List.of(child));
     given(saverStatus.savesFor(child)).willReturn(true);
 
     assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
@@ -218,7 +280,7 @@ class NudgeDecisionServiceTest {
 
   @Test
   void taxHeadroomIsOnlyLookedUpForThirdPillarSavers() {
-    given(pillarStatus.of(member)).willReturn(new PillarActivity(true, false));
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(true, false, true));
 
     service.decide(member, THIRD_PILLAR_PAYMENT);
 
@@ -266,7 +328,7 @@ class NudgeDecisionServiceTest {
   @Test
   void aSaverAlreadyAtTheMaximumRateStillGetsTheSeasonBesideTheNudgeThatDidWin() {
     given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(6, null));
-    given(pillarStatus.of(member)).willReturn(new PillarActivity(true, false));
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(true, false, true));
 
     assertThat(serviceOn("2026-11-10").decide(member, self, NudgeContext.ACCOUNT))
         .isEqualTo(

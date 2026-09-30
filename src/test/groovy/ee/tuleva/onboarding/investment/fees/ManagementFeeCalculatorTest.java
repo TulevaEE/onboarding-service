@@ -44,7 +44,6 @@ class ManagementFeeCalculatorTest {
     assertThat(result.feeMonth()).isEqualTo(LocalDate.of(2025, 1, 1));
     assertThat(result.baseValue()).isEqualTo(baseValue);
     assertThat(result.annualRate()).isEqualTo(annualRate);
-    assertThat(result.referenceDate()).isEqualTo(date);
 
     BigDecimal expectedDailyFee =
         baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);

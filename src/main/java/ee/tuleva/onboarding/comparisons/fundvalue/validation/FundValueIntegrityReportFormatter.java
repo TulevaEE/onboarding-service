@@ -41,8 +41,7 @@ class FundValueIntegrityReportFormatter {
     summary.append(buildLatestDaySummary(endDate, results));
     summary.append(buildStaleSourcesSummary(results));
     summary.append("\n");
-    summary.append(
-        buildCrossProviderSummaryTable(startDate, endDate, results, lastPriceByInstrument));
+    summary.append(buildCrossProviderSummaryTable(endDate, results, lastPriceByInstrument));
 
     List<Discrepancy> criticalIssues = collectCriticalIssues(results);
     List<Discrepancy> infoIssues = collectInfoIssues(results);
@@ -189,7 +188,6 @@ class FundValueIntegrityReportFormatter {
   }
 
   private static String buildCrossProviderSummaryTable(
-      LocalDate startDate,
       LocalDate endDate,
       List<InstrumentCheckResult> results,
       Map<InstrumentReference, String> lastPriceByInstrument) {

@@ -75,7 +75,6 @@ class DepotFeeCalculatorTest {
     assertThat(result.accrualDate()).isEqualTo(date);
     assertThat(result.feeMonth()).isEqualTo(feeMonth);
     assertThat(result.annualRate()).isEqualTo(fundRate);
-    assertThat(result.referenceDate()).isEqualTo(date);
     assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyGross =

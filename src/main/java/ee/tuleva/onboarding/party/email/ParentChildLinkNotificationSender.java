@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMerg
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_ADDED;
 import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
-import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
@@ -26,9 +26,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -43,10 +44,10 @@ public class ParentChildLinkNotificationSender {
   private final EmailPersistenceService emailPersistenceService;
   private final UserService userService;
   private final ParentChildLinkRepository parentChildLinkRepository;
+  private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  @Transactional(propagation = REQUIRES_NEW)
   public void onParentChildLinkCreated(ParentChildLinkCreatedEvent event) {
     Optional<User> child = userService.findByPersonalCode(event.childPersonalCode());
     Optional<User> newParent = userService.findByPersonalCode(event.parentPersonalCode());
@@ -101,8 +102,11 @@ public class ParentChildLinkNotificationSender {
           .send(recipient, message, templateName)
           .ifPresent(
               response ->
-                  emailPersistenceService.save(
-                      recipient, response.getId(), emailType, response.getStatus()));
+                  transactionOfItsOwn()
+                      .executeWithoutResult(
+                          status ->
+                              emailPersistenceService.save(
+                                  recipient, response.getId(), emailType, response.getStatus())));
     } catch (Exception e) {
       log.error(
           "Failed to send parent-child link email: recipientId={}, templateName={}",
@@ -110,5 +114,11 @@ public class ParentChildLinkNotificationSender {
           templateName,
           e);
     }
+  }
+
+  private TransactionTemplate transactionOfItsOwn() {
+    var transactionOfItsOwn = new TransactionTemplate(transactionManager);
+    transactionOfItsOwn.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+    return transactionOfItsOwn;
   }
 }

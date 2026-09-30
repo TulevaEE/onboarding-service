@@ -24,7 +24,8 @@ sealed interface FundReviewOutcome {
     MISSING_PARAMETERS("missing investment_parameter"),
     NO_RESERVE_CONFIGURED("no reserve_soft in investment_fund_limit"),
     NO_COMPLETE_MONTH_OF_FLOWS("the ledger holds no complete month of registrar flows yet"),
-    NO_FEE_ACCRUALS("no investment_fee_accrual rows for the review month"),
+    CHARGED_DAY_NOT_ACCRUED(
+        "a day the fee policy charges in the review month has no investment_fee_accrual row yet"),
     FAILED("failed, the cause is in the application log");
 
     private final String description;

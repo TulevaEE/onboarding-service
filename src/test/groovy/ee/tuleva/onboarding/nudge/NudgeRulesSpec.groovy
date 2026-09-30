@@ -223,6 +223,35 @@ class NudgeRulesSpec extends Specification {
     "partially at Tuleva, fee at 0.3 %"  | true   | true      | false | 0.003  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
   }
 
+  def "a minor is not offered a third pillar"() {
+    given:
+    def inputs = everythingSorted().adult(false).thirdPillarActive(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
+  def "changing the second pillar rate never invites to open a second pillar"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SECOND_PILLAR_PAYMENT_RATE) == NudgeDecision.of(NONE)
+  }
+
+  def "a minor is not asked to move a third pillar kept at a high fee"() {
+    given:
+    def inputs = everythingSorted()
+        .adult(false)
+        .thirdPillarPartiallyConverted(false)
+        .thirdPillarFullyConverted(false)
+        .thirdPillarFee(0.006)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
   def "third pillar recurring and raise: #description"() {
     given:
     def inputs = everythingSorted()

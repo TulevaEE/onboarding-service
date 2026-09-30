@@ -90,7 +90,7 @@ final class PensionNudges {
   }
 
   private static Optional<NudgeDecision> thirdPillar(NudgeInputs in, NudgeContext context) {
-    if (context.suppresses(THIRD_PILLAR_START)) {
+    if (context.suppresses(THIRD_PILLAR_START) || !in.adult()) {
       return Optional.empty();
     }
     if (!in.thirdPillarActive()) {

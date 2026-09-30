@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SettlementTimingWarningService {
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final List<TulevaFund> PEVA_RAVA_FUNDS =
       List.of(TulevaFund.TUK75, TulevaFund.TUK00);
 
@@ -116,6 +118,6 @@ public class SettlementTimingWarningService {
   }
 
   private LocalDate dateOf(Instant instant) {
-    return LocalDate.ofInstant(instant, clock.getZone());
+    return LocalDate.ofInstant(instant, TALLINN);
   }
 }

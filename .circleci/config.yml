@@ -143,6 +143,14 @@ jobs:
             - ~/.gradle/wrapper
             - .gradle
 
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/metrics
+            - build/reports/pmd/main.xml
+            - build/reports/jacoco/test/jacocoTestReport.xml
+            - build/test-results/test
+
       - when:
           condition:
             equal: [master, << pipeline.git.branch >>]
@@ -151,6 +159,18 @@ jobs:
                 root: .
                 paths:
                   - build/docker
+
+  scorecard:
+    docker:
+      - image: cimg/python:3.13
+    resource_class: small
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Check the refactoring ratchets against the committed scorecard
+          command: python3 scripts/scorecard.py
 
   snyk-scan:
     docker:
@@ -324,13 +344,6 @@ jobs:
     steps:
       - checkout:
           path: ~/project
-      - run:
-          name: Skip if no email changes since last commit
-          command: |
-            if ! git -C ~/project diff --name-only HEAD~1 HEAD | grep -q '^emails/'; then
-              echo "No email changes in HEAD~1..HEAD — skipping publish."
-              circleci-agent step halt
-            fi
       - restore_cache:
           keys:
             - v1-emails-deps-{{ checksum "package-lock.json" }}
@@ -397,6 +410,10 @@ workflows:
       - build:
           context:
             - codecov
+
+      - scorecard:
+          requires:
+            - build
 
       - pii-scan
 

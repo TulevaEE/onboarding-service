@@ -49,9 +49,10 @@ The template only starts sending once something in `onboarding-service` referenc
 ## CI
 
 `emails-build` runs on every branch: it compiles every template and runs the tests.
-`emails-publish` runs on master only: it rebuilds `dist/` and updates+publishes exactly the
-templates in `manifest.json` whose content or subject differs from what is live in Mandrill;
-unchanged templates are untouched. It needs the `MANDRILL_API_KEY` environment variable in
+`emails-publish` runs on every master build, whatever the build changed: it rebuilds `dist/` and
+updates+publishes exactly the templates in `manifest.json` whose content or subject differs from
+what is live in Mandrill; unchanged templates are untouched. Content is compared the way Mandrill stores it: whitespace
+runs collapsed and no space before `>` or `/>`. It needs the `MANDRILL_API_KEY` environment variable in
 CircleCI project settings.
 
 Rollback = revert the commit; CI republishes the previous version.

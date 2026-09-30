@@ -21,13 +21,54 @@ class NudgeRulesSpec extends Specification {
     NudgeRules.decide(everythingSorted().build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
   }
 
-  def "a savings fund payment nudges the paid account's missing standing order in its chain position"() {
+  def "after a savings fund payment its standing order comes before the third pillar standing order"() {
     given:
-    def inputs = everythingSorted().savingsFundRecurring(NO).member(false).build()
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(NO).build()
 
     expect:
     NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
-    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
+  }
+
+  def "a pillar choice still comes before the savings fund standing order after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+  }
+
+  def "a third pillar start still comes before the savings fund standing order after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().thirdPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_START)
+  }
+
+  def "after a savings fund payment its standing order comes before raising the third pillar one"() {
+    given:
+    def inputs = everythingSorted().taxHeadroom(YES).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RAISE)
+  }
+
+  def "a savings fund payment into an account that already has a standing order goes on to the third pillar standing order"() {
+    given:
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(YES).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
+  }
+
+  def "an unknown standing order does not jump ahead after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(UNKNOWN).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
   }
 
   def "a company payer goes through the same chain as everyone else"() {
@@ -83,7 +124,9 @@ class NudgeRulesSpec extends Specification {
     where:
     description                              | secondPillarActive | partially | fully | fee    || expected
     "no second pillar at all"                | false              | false     | false | null   || NudgeDecision.of(SECOND_PILLAR_START)
-    "nothing at Tuleva yet"                  | true               | false     | false | 0.0029 || NudgeDecision.secondPillarTransfer(null)
+    "nothing at Tuleva yet, fee already low" | true               | false     | false | 0.0029 || NudgeDecision.of(NONE)
+    "nothing at Tuleva yet, high fee"        | true               | false     | false | 0.0065 || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
+    "nothing at Tuleva yet, fee unknown"     | true               | false     | false | null   || NudgeDecision.secondPillarTransfer(null)
     "partially at Tuleva, high fee"          | true               | true      | false | 0.0065 || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
     "partially at Tuleva, low fee"           | true               | true      | false | 0.0029 || NudgeDecision.of(NONE)
     "fully at Tuleva"                        | true               | true      | true  | 0.0065 || NudgeDecision.of(NONE)

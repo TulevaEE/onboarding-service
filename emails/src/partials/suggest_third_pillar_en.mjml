@@ -1,8 +1,8 @@
 <mj-raw>*|IF:thirdPillarActive|*</mj-raw>
 <mj-text>
   If you are not yet saving your third pillar with us at Tuleva, make sure your third
-  pillar fund fees are below 0.3% per year, as low fees provide the best foundation for
-  optimal long-term returns.
+  pillar fund fees are <strong>below 0.3% per year</strong>, as low fees give you the best
+  chance of good long-term returns.
 </mj-text>
 <mj-text><strong>See how much you pay in third pillar fees per year:</strong></mj-text>
 <mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_third_pillar">

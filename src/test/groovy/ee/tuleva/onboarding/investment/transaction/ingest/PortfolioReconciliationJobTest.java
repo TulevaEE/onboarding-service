@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.event.RunPortfolioReconciliationRequested;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
@@ -62,7 +61,7 @@ class PortfolioReconciliationJobTest {
   void onPortfolioReconciliationRequested_reconcilesAllFundsForPreviousWorkingDay() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(NAV_DATE);
 
-    job.onPortfolioReconciliationRequested(new RunPortfolioReconciliationRequested());
+    job.onPortfolioReconciliationRequested();
 
     for (TulevaFund fund : new TulevaFund[] {TUK75, TUK00, TUV100, TKF100}) {
       verify(service).reconcile(fund, NAV_DATE);

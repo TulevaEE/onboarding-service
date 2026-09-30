@@ -15,13 +15,15 @@ final class PensionNudges {
 
   private PensionNudges() {}
 
-  static Optional<NudgeDecision> decide(NudgeInputs in, NudgeContext context) {
+  static Optional<NudgeDecision> pillarChoices(NudgeInputs in, NudgeContext context) {
     return secondPillarStart(in, context)
         .or(() -> secondPillarTransfer(in, context))
         .or(() -> paymentRate(in, context))
-        .or(() -> thirdPillar(in, context))
-        .or(() -> thirdPillarRecurring(in, context))
-        .or(() -> thirdPillarRaise(in));
+        .or(() -> thirdPillar(in, context));
+  }
+
+  static Optional<NudgeDecision> standingOrders(NudgeInputs in, NudgeContext context) {
+    return thirdPillarRecurring(in, context).or(() -> thirdPillarRaise(in));
   }
 
   static boolean secondPillarDecidable(NudgeInputs in) {
@@ -62,7 +64,7 @@ final class PensionNudges {
       return false;
     }
     if (!in.secondPillarPartiallyConverted()) {
-      return true;
+      return !FundFees.isLow(in.secondPillarFee());
     }
     return !in.secondPillarFullyConverted() && FundFees.isHigh(in.secondPillarFee());
   }

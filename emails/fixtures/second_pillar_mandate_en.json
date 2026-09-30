@@ -1,11 +1,12 @@
 {
   "variants": {
-    "second pillar start suggestion": {
+    "second pillar start suggestion (cannot occur)": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "hasFundSelection": true,
       "selectedTulevaFund": true,
-      "suggestSecondPillarStart": true
+      "suggestSecondPillarStart": true,
+      "anyPillarSuggestion": true
     },
     "fund selection only": {
       "FNAME": "Mari",
@@ -61,7 +62,8 @@
       "suggestSecondPillar": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
@@ -69,7 +71,8 @@
       "suggestPaymentRate": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
@@ -77,7 +80,8 @@
       "suggestThirdPillar": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "third pillar fees suggestion": {
       "FNAME": "Mari",
@@ -86,7 +90,8 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "selectedTulevaFund": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "anyPillarSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
@@ -94,7 +99,8 @@
       "suggestThirdPillarRecurringPayment": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "third pillar raise suggestion": {
       "FNAME": "Mari",
@@ -102,7 +108,8 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "suggestThirdPillarRaise": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "savings fund suggestion": {
       "FNAME": "Mari",

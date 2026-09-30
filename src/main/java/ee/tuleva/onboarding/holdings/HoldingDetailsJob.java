@@ -168,11 +168,10 @@ public class HoldingDetailsJob {
       return false;
     }
 
-    private boolean processEndElement(XMLEventReader reader, EndElement e) {
+    private void processEndElement(EndElement e) {
       if (e.getName().equals(INVESTMENT_VEHICLE)) {
         isInVehicle = false;
       }
-      return false;
     }
 
     public void parse() throws XMLStreamException, JAXBException {
@@ -191,7 +190,7 @@ public class HoldingDetailsJob {
         if (e.isStartElement()) {
           wasCursorChanged = processStartElement(xmlEventReader, (StartElement) e);
         } else if (e.isEndElement()) {
-          wasCursorChanged = processEndElement(xmlEventReader, (EndElement) e);
+          processEndElement((EndElement) e);
         }
 
         if (!wasCursorChanged) xmlEventReader.next();

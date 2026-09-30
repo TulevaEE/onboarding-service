@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class JobTriggerPoller {
 
-  private static final Map<String, Supplier<Object>> EVENTS =
+  static final Map<String, Supplier<Object>> EVENTS =
       Map.ofEntries(
           Map.entry("TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new),
           Map.entry(

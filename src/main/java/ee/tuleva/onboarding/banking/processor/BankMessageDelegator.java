@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.STATEMENT_UNPROCESSABLE;
-import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
@@ -11,7 +10,6 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesR
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import java.io.StringReader;
@@ -34,7 +32,6 @@ import org.springframework.stereotype.Component;
 public class BankMessageDelegator {
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
-  private final PaymentStatusReportHandler paymentStatusReportHandler;
   private final PaymentCheckService paymentCheckService;
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
@@ -59,18 +56,14 @@ public class BankMessageDelegator {
       var messageType = BankMessageType.fromXmlType(messageName);
       message.setMessageType(messageType);
 
-      if (messageType == PAYMENT_ORDER_CONFIRMATION) {
-        paymentStatusReportHandler.handle(message.getRawResponse());
-      } else {
-        var bankStatement =
-            extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
-        message.setAccountIban(bankStatement.getBankStatementAccount().iban());
-        message.setStatementFrom(bankStatement.getPeriod().from());
-        message.setStatementTo(bankStatement.getPeriod().to());
-        var statementEvent =
-            new BankStatementReceived(message.getId(), message.getBankType(), bankStatement);
-        eventPublisher.publishEvent(statementEvent);
-      }
+      var bankStatement =
+          extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
+      message.setAccountIban(bankStatement.getBankStatementAccount().iban());
+      message.setStatementFrom(bankStatement.getPeriod().from());
+      message.setStatementTo(bankStatement.getPeriod().to());
+      var statementEvent =
+          new BankStatementReceived(message.getId(), message.getBankType(), bankStatement);
+      eventPublisher.publishEvent(statementEvent);
 
       message.setProcessedAt(clock.instant());
       bankingMessageRepository.save(message);
@@ -93,8 +86,6 @@ public class BankMessageDelegator {
           bankStatementExtractor.extractFromIntraDayReport(rawResponse, timezone);
       case HISTORIC_STATEMENT ->
           bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
-      case PAYMENT_ORDER_CONFIRMATION ->
-          throw new IllegalArgumentException("Message type not supported: " + messageType);
     };
   }
 

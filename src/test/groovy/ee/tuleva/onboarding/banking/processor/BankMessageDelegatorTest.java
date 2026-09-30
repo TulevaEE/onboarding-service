@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.STATEMENT_UNPROCESSABLE;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -12,7 +13,6 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessi
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
@@ -37,7 +37,6 @@ class BankMessageDelegatorTest {
   private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
   @Mock private BankingMessageRepository bankingMessageRepository;
-  @Mock private PaymentStatusReportHandler paymentStatusReportHandler;
   @Mock private PaymentCheckService paymentCheckService;
   @Mock private BankStatementExtractor bankStatementExtractor;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -52,7 +51,6 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
@@ -84,7 +82,6 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
@@ -100,7 +97,7 @@ class BankMessageDelegatorTest {
   }
 
   @Test
-  void onProcessRequested_recordsOnlyTheTypeForPaymentOrderConfirmations() {
+  void aPaymentStatusReportIsHeldAsAnUnprocessableMessageSinceTheGatewayNeverSendsOne() {
     var rawXml =
         "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"><CstmrPmtStsRpt/></Document>";
     var message = sebMessage(rawXml);
@@ -112,18 +109,22 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);
 
     delegator.onProcessRequested(new ProcessBankMessagesRequested());
 
-    assertThat(message.getMessageType()).isEqualTo(PAYMENT_ORDER_CONFIRMATION);
-    assertThat(message.getAccountIban()).isNull();
-    assertThat(message.getStatementFrom()).isNull();
-    assertThat(message.getStatementTo()).isNull();
-    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
+    assertThat(message.getFailedAt()).isEqualTo(clock.instant());
+    assertThat(message.getProcessedAt()).isNull();
+    assertThat(message.getMessageType()).isNull();
+    then(paymentCheckService)
+        .should()
+        .record(
+            STATEMENT_UNPROCESSABLE,
+            HOLD,
+            String.valueOf(message.getId()),
+            "a bank message could not be processed: IllegalArgumentException");
   }
 
   @Test
@@ -145,7 +146,6 @@ class BankMessageDelegatorTest {
         new BankMessageDelegator(
             clock,
             bankingMessageRepository,
-            paymentStatusReportHandler,
             paymentCheckService,
             bankStatementExtractor,
             eventPublisher);

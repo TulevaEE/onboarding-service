@@ -154,21 +154,24 @@ public class TransactionBatchFinalizer {
   }
 
   private void persistDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {
-    transactionOfItsOwn()
-        .executeWithoutResult(
-            status -> {
-              TransactionBatch committedBatch =
-                  batchRepository
-                      .findById(batchId)
-                      .orElseThrow(
-                          () ->
-                              new IllegalStateException(
-                                  "Finalized batch not found: batchId=" + batchId));
-              Map<String, Object> updatedMetadata = new HashMap<>(committedBatch.getMetadata());
-              updatedMetadata.put("driveFileUrls", driveFileUrls);
-              committedBatch.setMetadata(updatedMetadata);
-              batchRepository.save(committedBatch);
-            });
+    try {
+      transactionOfItsOwn()
+          .executeWithoutResult(status -> storeDriveFileUrls(batchId, driveFileUrls));
+    } catch (RuntimeException e) {
+      log.error("Drive file links not stored on batch: batchId={}", batchId, e);
+    }
+  }
+
+  private void storeDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {
+    TransactionBatch committedBatch =
+        batchRepository
+            .findById(batchId)
+            .orElseThrow(
+                () -> new IllegalStateException("Finalized batch not found: batchId=" + batchId));
+    Map<String, Object> updatedMetadata = new HashMap<>(committedBatch.getMetadata());
+    updatedMetadata.put("driveFileUrls", driveFileUrls);
+    committedBatch.setMetadata(updatedMetadata);
+    batchRepository.save(committedBatch);
   }
 
   private TransactionTemplate transactionOfItsOwn() {

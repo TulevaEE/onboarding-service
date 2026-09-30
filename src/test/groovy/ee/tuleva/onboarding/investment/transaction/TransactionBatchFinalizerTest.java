@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -462,10 +463,12 @@ class TransactionBatchFinalizerTest {
     when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
     when(exportUploader.uploadExports(any(), any(), any(), any()))
         .thenReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    given(batchRepository.findById(1L)).willReturn(Optional.of(batch));
 
     finalizer.finalizeConfirmedBatch(batch);
 
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    assertThat(batch.getMetadata())
+        .containsEntry("driveFileUrls", Map.of("sebFundXlsx", "https://drive.google.com/file1"));
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
   }
 
@@ -511,6 +514,7 @@ class TransactionBatchFinalizerTest {
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     given(exportUploader.uploadExports(any(), any(), any(), any()))
         .willReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    given(batchRepository.findById(1L)).willReturn(Optional.of(batch));
 
     TransactionSynchronizationManager.initSynchronization();
 
@@ -525,7 +529,8 @@ class TransactionBatchFinalizerTest {
     synchronizations.forEach(TransactionSynchronization::afterCommit);
 
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    assertThat(batch.getMetadata())
+        .containsEntry("driveFileUrls", Map.of("sebFundXlsx", "https://drive.google.com/file1"));
     verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }

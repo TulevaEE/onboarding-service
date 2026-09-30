@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
@@ -31,6 +32,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.json.JsonMapper;
@@ -283,6 +285,33 @@ class InstrumentOcfServiceIT {
         .isEqualTo(
             new InstrumentRate(
                 0, ISIN, APRIL, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED));
+  }
+
+  @Test
+  void aRateIsNotReadOnceItsAgreementNoLongerCoversTheMonthEnd() {
+    givenAnAgreement("NONE", "{}");
+    service.resolve(APRIL);
+    jdbcClient
+        .sql("UPDATE investment_instrument_fee SET valid_to = DATE '2026-04-15' WHERE isin = :isin")
+        .param("isin", ISIN)
+        .update();
+
+    assertThat(service.ratesFor(APRIL)).isEmpty();
+  }
+
+  @Test
+  void aMonthWhoseInputsCannotBeReadFailsRatherThanStoringAFallbackThatWouldSettleIt() {
+    givenAnAgreement(
+        "TIERED_VOLUME",
+        "{\"threshold\":\"110000000\",\"currency\":\"USD\",\"rateBelow\":\"0.0002\","
+            + "\"rateAbove\":\"0.0001\",\"funds\":[\"TUK75\"]}");
+    heldOn(APRIL_30, TUK75, "80000000.00");
+    given(fundValueProvider.getLatestValue(any(), any()))
+        .willThrow(new DataAccessResourceFailureException("synthetic outage"));
+
+    assertThatThrownBy(() -> service.resolve(APRIL))
+        .isInstanceOf(DataAccessResourceFailureException.class);
+    assertThat(storedRates()).isZero();
   }
 
   private void inTheInstrumentReference(String isin) {

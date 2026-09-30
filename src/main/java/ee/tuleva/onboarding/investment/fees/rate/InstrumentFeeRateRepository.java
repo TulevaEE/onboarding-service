@@ -66,10 +66,13 @@ class InstrumentFeeRateRepository {
         .sql(
             """
             SELECT * FROM (
-              SELECT *,
-                     ROW_NUMBER() OVER (PARTITION BY isin ORDER BY created_at DESC, id DESC) AS rn
-              FROM investment_instrument_fee_rate
-              WHERE period_start = :periodStart AND period_end = :periodEnd
+              SELECT r.*,
+                     ROW_NUMBER() OVER (PARTITION BY r.isin ORDER BY r.created_at DESC, r.id DESC) AS rn
+              FROM investment_instrument_fee_rate r
+              JOIN investment_instrument_fee a ON a.id = r.instrument_fee_id
+              WHERE r.period_start = :periodStart AND r.period_end = :periodEnd
+                AND a.valid_from <= :periodEnd
+                AND (a.valid_to IS NULL OR a.valid_to >= :periodEnd)
             ) ranked
             WHERE rn = 1
             ORDER BY isin

@@ -175,12 +175,11 @@ class OcfNotifier {
   }
 
   private static String totalOcfPercent(Computed computed) {
-    return computed
-        .snapshot()
-        .totalOcf()
-        .multiply(HUNDRED)
-        .setScale(PERCENT_DECIMAL_PLACES, HALF_UP)
-        .toPlainString();
+    return percent(computed.snapshot().totalOcf(), PERCENT_DECIMAL_PLACES);
+  }
+
+  private static String percent(BigDecimal rate, int decimalPlaces) {
+    return rate.multiply(HUNDRED).setScale(decimalPlaces, HALF_UP).toPlainString();
   }
 
   @RequiredArgsConstructor

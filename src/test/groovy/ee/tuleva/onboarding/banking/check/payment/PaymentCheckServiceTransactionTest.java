@@ -34,6 +34,7 @@ class PaymentCheckServiceTransactionTest {
 
   private static final Instant NOW = Instant.parse("2026-09-28T09:00:00Z");
   private static final String ENTRY_KEY = "entry-123";
+  private static final String DETAIL = "no matching redemption request";
 
   @Autowired private PaymentCheckService service;
   @Autowired private PaymentCheckEventRepository repository;
@@ -84,11 +85,23 @@ class PaymentCheckServiceTransactionTest {
         .doesNotThrowAnyException();
 
     assertThat(repository.findByCheckTypeAndExternalKey(PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
-        .hasValueSatisfying(event -> assertThat(event.isAlertFailed()).isTrue());
+        .get()
+        .usingRecursiveComparison()
+        .ignoringFields("id")
+        .isEqualTo(
+            PaymentCheckEvent.builder()
+                .checkType(PAYOUT_WITHOUT_REQUEST)
+                .severity(HOLD)
+                .externalKey(ENTRY_KEY)
+                .detail(DETAIL)
+                .alertFailed(true)
+                .createdAt(NOW)
+                .lastSeenAt(NOW)
+                .build());
   }
 
   private void recordTheFinding() {
-    service.record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
+    service.record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, DETAIL);
   }
 
   @TestConfiguration

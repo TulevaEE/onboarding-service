@@ -157,15 +157,15 @@ class SettlementTimingWarningServiceTest {
     given(settlementDateCalculator.calculateSettlementDate(NOW, ETF, TUK00.getIsin()))
         .willReturn(LocalDate.of(2026, 4, 22));
 
-    assertThat(service.activeWarnings(TUK00, TODAY))
+    assertThat(service.activeWarnings(TUK00))
         .extracting(SettlementTimingWarning::type)
         .containsExactly(PEVA_DEADLINE_MISS, REBALANCE_GAP);
-    assertThat(service.activeWarnings(TUK75, TODAY)).isEmpty();
+    assertThat(service.activeWarnings(TUK75)).isEmpty();
   }
 
   @Test
   void activeWarningsForFund_returnsEmptyForNonPevaRavaFund() {
-    assertThat(service.activeWarnings(TulevaFund.TUV100, TODAY)).isEmpty();
+    assertThat(service.activeWarnings(TulevaFund.TUV100)).isEmpty();
   }
 
   @Test

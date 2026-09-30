@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,43 +34,44 @@ public class SettlementTimingWarningService {
   private final Clock clock;
 
   public List<SettlementTimingWarning> activeWarnings() {
-    LocalDate today = LocalDate.now(clock);
+    var placedNow = clock.instant();
     return periodService
-        .getCurrentPeriod(today)
+        .getCurrentPeriod(dateOf(placedNow))
         .map(
             period ->
                 PEVA_RAVA_FUNDS.stream()
-                    .flatMap(fund -> warningsForFund(period, fund, today).stream())
+                    .flatMap(fund -> warningsForFund(period, fund, placedNow).stream())
                     .toList())
         .orElse(List.of());
   }
 
-  public List<SettlementTimingWarning> activeWarnings(TulevaFund fund, LocalDate asOfDate) {
+  public List<SettlementTimingWarning> activeWarnings(TulevaFund fund) {
     if (!PEVA_RAVA_FUNDS.contains(fund)) {
       return List.of();
     }
+    var placedNow = clock.instant();
     return periodService
-        .getCurrentPeriod(asOfDate)
-        .map(period -> warningsForFund(period, fund, asOfDate))
+        .getCurrentPeriod(dateOf(placedNow))
+        .map(period -> warningsForFund(period, fund, placedNow))
         .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> warningsForFund(
-      PevaRavaPeriod period, TulevaFund fund, LocalDate today) {
+      PevaRavaPeriod period, TulevaFund fund, Instant placedNow) {
     LocalDate execDate = period.cycle().execDate();
-    if (period.phase() == DONE || today.isAfter(execDate)) {
+    if (period.phase() == DONE || dateOf(placedNow).isAfter(execDate)) {
       return List.of();
     }
     if (!period.timelineFor(fund).dActive()) {
       return List.of();
     }
-    return worstFundSellSettlementDate(fund, today)
-        .map(sellSettlementDate -> fundWarnings(fund, sellSettlementDate, execDate))
+    return worstFundSellSettlementDate(fund, placedNow)
+        .map(sellSettlementDate -> fundWarnings(fund, placedNow, sellSettlementDate, execDate))
         .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> fundWarnings(
-      TulevaFund fund, LocalDate sellSettlementDate, LocalDate execDate) {
+      TulevaFund fund, Instant placedNow, LocalDate sellSettlementDate, LocalDate execDate) {
     List<SettlementTimingWarning> warnings = new ArrayList<>();
     if (sellSettlementDate.isAfter(execDate)) {
       warnings.add(
@@ -86,7 +88,7 @@ public class SettlementTimingWarningService {
                   + execDate));
     }
     LocalDate etfBuySettlementDate =
-        settlementDateCalculator.calculateSettlementDate(clock.instant(), ETF, fund.getIsin());
+        settlementDateCalculator.calculateSettlementDate(placedNow, ETF, fund.getIsin());
     if (sellSettlementDate.isAfter(etfBuySettlementDate)) {
       warnings.add(
           new SettlementTimingWarning(
@@ -104,12 +106,16 @@ public class SettlementTimingWarningService {
     return warnings;
   }
 
-  private Optional<LocalDate> worstFundSellSettlementDate(TulevaFund fund, LocalDate today) {
-    return allocationRepository.findLatestByFundAsOf(fund, today).stream()
+  private Optional<LocalDate> worstFundSellSettlementDate(TulevaFund fund, Instant placedNow) {
+    return allocationRepository.findLatestByFundAsOf(fund, dateOf(placedNow)).stream()
         .filter(allocation -> allocation.getInstrumentType() == FUND)
         .map(ModelPortfolioAllocation::getIsin)
         .filter(Objects::nonNull)
-        .map(isin -> settlementDateCalculator.calculateSettlementDate(clock.instant(), FUND, isin))
+        .map(isin -> settlementDateCalculator.calculateSettlementDate(placedNow, FUND, isin))
         .max(naturalOrder());
+  }
+
+  private LocalDate dateOf(Instant instant) {
+    return LocalDate.ofInstant(instant, clock.getZone());
   }
 }

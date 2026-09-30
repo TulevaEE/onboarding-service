@@ -2,6 +2,10 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NO_PUBLISHED_NAV_CALCULATION;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM;
+import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
+import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
+import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
+import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -17,11 +21,15 @@ import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
+import ee.tuleva.onboarding.investment.fees.rate.RateBasis;
+import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,7 +47,7 @@ class OcfNotifierTest {
 
   @Test
   void aRunWhereEveryFundFailedIsReportedAsProducingNothingAndNamesEachFundsReason() {
-    notifier.notifyRun(MONTH, List.of(failed(TUK75), failed(TUK00)));
+    notifier.notifyRun(MONTH, List.of(failed(TUK75), failed(TUK00)), List.of());
 
     then(notificationService)
         .should()
@@ -56,7 +64,7 @@ class OcfNotifierTest {
 
   @Test
   void aRunWhereOneFundFailedIsReportedAsPartialAndCountsFunds() {
-    notifier.notifyRun(MONTH, List.of(failed(TUK75), computed(TUK00, "0.0034")));
+    notifier.notifyRun(MONTH, List.of(failed(TUK75), computed(TUK00, "0.0034")), List.of());
 
     then(notificationService)
         .should()
@@ -74,7 +82,8 @@ class OcfNotifierTest {
     notifier.notifyRun(
         MONTH,
         List.of(
-            computed(TUK75, "0.0034"), incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)));
+            computed(TUK75, "0.0034"), incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)),
+        List.of());
 
     then(notificationService)
         .should()
@@ -97,7 +106,8 @@ class OcfNotifierTest {
                 TUK75,
                 "0.0021",
                 NO_PUBLISHED_NAV_CALCULATION,
-                TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM)));
+                TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM)),
+        List.of());
 
     then(notificationService)
         .should()
@@ -117,7 +127,8 @@ class OcfNotifierTest {
         MONTH,
         List.of(
             incomplete(TUK75, "0.0034", NO_PUBLISHED_NAV_CALCULATION),
-            incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)));
+            incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)),
+        List.of());
 
     then(notificationService)
         .should()
@@ -133,7 +144,8 @@ class OcfNotifierTest {
 
   @Test
   void aCleanRunReportsEachFundsTotalOcfAsInfo() {
-    notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.0034"), computed(TUK00, "0.0021")));
+    notifier.notifyRun(
+        MONTH, List.of(computed(TUK75, "0.0034"), computed(TUK00, "0.0021")), List.of());
 
     then(notificationService)
         .should()
@@ -148,7 +160,9 @@ class OcfNotifierTest {
   @Test
   void aFailureDoesNotSuppressTheMustNotBePublishedWarningForAnIncompleteFund() {
     notifier.notifyRun(
-        MONTH, List.of(failed(TUK75), incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)));
+        MONTH,
+        List.of(failed(TUK75), incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)),
+        List.of());
 
     then(notificationService)
         .should()
@@ -170,7 +184,8 @@ class OcfNotifierTest {
         List.of(
             failed(TUK75),
             incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION),
-            incomplete(TUV100, "0.0040", NO_PUBLISHED_NAV_CALCULATION)));
+            incomplete(TUV100, "0.0040", NO_PUBLISHED_NAV_CALCULATION)),
+        List.of());
 
     then(notificationService)
         .should()
@@ -213,13 +228,13 @@ class OcfNotifierTest {
         .given(notificationService)
         .sendMessage(any(), any(), any());
 
-    assertThatCode(() -> notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.0034"))))
+    assertThatCode(() -> notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.0034")), List.of()))
         .doesNotThrowAnyException();
   }
 
   @Test
   void anEmptyRunSendsNothingRatherThanClaimingEveryFundFailed() {
-    notifier.notifyRun(MONTH, List.of());
+    notifier.notifyRun(MONTH, List.of(), List.of());
 
     then(notificationService).should(never()).sendMessage(any(), any(), any());
   }
@@ -259,5 +274,84 @@ class OcfNotifierTest {
 
   private static OcfAudit emptyAudit() {
     return new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+  }
+
+  @Test
+  void aRateThatFellBackToThePublishedOcfIsNamedWithItsReasonAndRaisesTheRunToAnError() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(computed(TUK75, "0.0034")),
+        List.of(
+            rate(
+                "ZZ0000000001",
+                "0.00070000",
+                "0.00070000",
+                PUBLISHED_FALLBACK,
+                FIXED_NET,
+                "no volume"),
+            rate("ZZ0000000002", "0.00200000", "0.00150000", AGREEMENT, FIXED, null)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.34%
+            Instrument rates: 1 from agreements, 1 fell back to the published OCF
+              ⚠️ ZZ0000000001 fell back to the published OCF: no volume""",
+            INVESTMENT, ERROR);
+  }
+
+  @Test
+  void anAgreedNetAboveThePublishedOcfIsNamedSoTheAgreementIsChecked() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(computed(TUK75, "0.0034")),
+        List.of(rate("ZZ0000000001", "0.00070000", "0.00090000", AGREEMENT, FIXED_NET, null)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.34%
+            Instrument rates: 1 from agreements, 0 fell back to the published OCF
+              ⚠️ ZZ0000000001 agreed net OCF 0.090% is above the published 0.070%; the fund bears the agreed net, check the agreement""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void ratesAppliedFromTheirAgreementsAreCountedNotListed() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(computed(TUK75, "0.0034")),
+        List.of(rate("ZZ0000000002", "0.00200000", "0.00150000", AGREEMENT, FIXED, null)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.34%
+            Instrument rates: 1 from agreements, 0 fell back to the published OCF""",
+            INVESTMENT, INFO);
+  }
+
+  private static InstrumentRate rate(
+      String isin,
+      String publishedOcf,
+      String netOcf,
+      RateBasis rateBasis,
+      RebateKind rebateKind,
+      @Nullable String fallbackReason) {
+    return new InstrumentRate(
+        1L,
+        isin,
+        MONTH,
+        new BigDecimal(publishedOcf),
+        new BigDecimal(netOcf),
+        rateBasis,
+        fallbackReason,
+        rebateKind);
   }
 }

@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_A
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
 
@@ -39,6 +40,7 @@ class FeeCheckService {
   private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   private final SettlementCompletenessChecker settlementCompletenessChecker;
   private final CashSettlementChecker cashSettlementChecker;
+  private final InstrumentRateCoverageChecker instrumentRateCoverageChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
   private final int lookbackDays;
@@ -50,6 +52,7 @@ class FeeCheckService {
       BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
       SettlementCompletenessChecker settlementCompletenessChecker,
       CashSettlementChecker cashSettlementChecker,
+      InstrumentRateCoverageChecker instrumentRateCoverageChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
       @Value("${investment.fee-check.daily-check-lookback-days:35}") int lookbackDays) {
@@ -59,6 +62,7 @@ class FeeCheckService {
     this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
     this.settlementCompletenessChecker = settlementCompletenessChecker;
     this.cashSettlementChecker = cashSettlementChecker;
+    this.instrumentRateCoverageChecker = instrumentRateCoverageChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
     this.lookbackDays = lookbackDays;
@@ -175,6 +179,12 @@ class FeeCheckService {
             BLACKROCK_ADJUSTMENT_FRESHNESS,
             List.of(ALL),
             () -> blackrockAdjustmentFreshnessChecker.check(fund, checkDate)));
+    findings.addAll(
+        runChecker(
+            fund,
+            INSTRUMENT_RATE_COVERAGE,
+            List.of(ALL),
+            () -> instrumentRateCoverageChecker.check(fund, checkDate)));
     return findings;
   }
 

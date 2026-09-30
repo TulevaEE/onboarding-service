@@ -15,8 +15,8 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.fees.InstrumentFee;
-import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -55,7 +55,7 @@ public class PeriodicTdAttributionService {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final PeriodicTdAttributionRepository attributionRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
-  private final InstrumentFeeRepository instrumentFeeRepository;
+  private final InstrumentOcfService instrumentOcfService;
   private final PlatformTransactionManager transactionManager;
   private final PublicHolidays publicHolidays;
   private final BenchmarkLegResolver benchmarkLegResolver;
@@ -81,6 +81,7 @@ public class PeriodicTdAttributionService {
 
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+    requireTheRateJobToHaveResolved(fund, YearMonth.from(periodEnd));
     periodReconciler.reconcile(fund, periodStart, periodEnd);
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
@@ -106,6 +107,16 @@ public class PeriodicTdAttributionService {
         result.residual().multiply(BigDecimal.valueOf(10000)).setScale(1, HALF_UP));
 
     return result;
+  }
+
+  private void requireTheRateJobToHaveResolved(TulevaFund fund, YearMonth rateMonth) {
+    if (!instrumentOcfService.hasRatesResolvedAfterItClosed(rateMonth)) {
+      throw new IllegalStateException(
+          "Instrument rates not resolved for the month, run InstrumentFeeRateJob first: fund="
+              + fund
+              + ", month="
+              + rateMonth);
+    }
   }
 
   private void replaceAttributionRowInSingleTransaction(
@@ -264,8 +275,8 @@ public class PeriodicTdAttributionService {
     var allocations = latestAllocations(modelAllocations, periodEnd);
     var measuredIsins = measuredIsins(fund, periodStart, periodEnd, bmModelEvents);
     var rateByIsin =
-        instrumentFeeRepository.findAllValidRates(periodEnd).stream()
-            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
+        instrumentOcfService.ratesFor(YearMonth.from(periodEnd)).values().stream()
+            .collect(Collectors.toMap(InstrumentRate::isin, InstrumentRate::netOcf));
 
     var accumulator =
         new EtfLayerAccumulator(benchmarkLegResolver, fund, measuredIsins, rateByIsin);

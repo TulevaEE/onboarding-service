@@ -21,7 +21,12 @@ public class OcfSnapshotRepository {
 
   private final JdbcClient jdbcClient;
 
-  public void save(OcfSnapshot snapshot) {
+  public void save(OcfSnapshot snapshot, List<OcfHolding> holdings) {
+    saveWorkingVersion(snapshot);
+    replaceHoldingsOfTheWorkingVersion(snapshot, holdings);
+  }
+
+  private void saveWorkingVersion(OcfSnapshot snapshot) {
     if (updateWorkingVersion(snapshot) > 0) {
       return;
     }
@@ -30,6 +35,45 @@ public class OcfSnapshotRepository {
     } catch (DuplicateKeyException versionNumberTakenByAConcurrentInsert) {
       writeIntoTheVersionThatWonTheRace(snapshot, versionNumberTakenByAConcurrentInsert);
     }
+  }
+
+  private void replaceHoldingsOfTheWorkingVersion(OcfSnapshot snapshot, List<OcfHolding> holdings) {
+    var snapshotId =
+        jdbcClient
+            .sql(
+                """
+                SELECT id FROM investment_ocf_snapshot
+                WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+                  AND published_at IS NULL
+                """)
+            .param("fundCode", snapshot.fundCode())
+            .param("snapshotMonth", snapshot.snapshotMonth())
+            .query(Long.class)
+            .single();
+    jdbcClient
+        .sql("DELETE FROM investment_ocf_snapshot_detail WHERE snapshot_id = :snapshotId")
+        .param("snapshotId", snapshotId)
+        .update();
+    holdings.forEach(
+        holding ->
+            jdbcClient
+                .sql(
+                    """
+                    INSERT INTO investment_ocf_snapshot_detail
+                      (snapshot_id, isin, weight, published_ocf, net_ocf, rate_basis,
+                       instrument_fee_rate_id)
+                    VALUES
+                      (:snapshotId, :isin, :weight, :publishedOcf, :netOcf, :rateBasis,
+                       :instrumentFeeRateId)
+                    """)
+                .param("snapshotId", snapshotId)
+                .param("isin", holding.rate().isin())
+                .param("weight", holding.weight())
+                .param("publishedOcf", holding.rate().publishedOcf())
+                .param("netOcf", holding.rate().netOcf())
+                .param("rateBasis", holding.rate().rateBasis().name())
+                .param("instrumentFeeRateId", holding.rate().id())
+                .update());
   }
 
   private void writeIntoTheVersionThatWonTheRace(

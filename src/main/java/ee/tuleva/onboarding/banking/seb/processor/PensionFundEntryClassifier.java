@@ -16,8 +16,8 @@ import org.jspecify.annotations.Nullable;
 public class PensionFundEntryClassifier {
 
   private static final List<String>
-      REMITTANCE_WORDS_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
-          List.of("rebate", "kickback");
+      REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
+          List.of("rebate", "kickback", "br tasud");
 
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
@@ -118,8 +118,8 @@ public class PensionFundEntryClassifier {
     if (remittanceInformation == null) {
       return new UnrecognisedManagementCompanyCredit();
     }
-    var text = remittanceInformation.toLowerCase(Locale.ROOT);
-    return REMITTANCE_WORDS_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE.stream()
+    var text = remittanceInformation.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    return REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE.stream()
             .anyMatch(text::contains)
         ? new ManagementFeeRebate()
         : new UnrecognisedManagementCompanyCredit();

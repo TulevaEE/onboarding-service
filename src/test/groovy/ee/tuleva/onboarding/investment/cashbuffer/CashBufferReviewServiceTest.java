@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.cashbuffer;
 
+import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.CHARGED_DAY_NOT_ACCRUED;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.FAILED;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.MISSING_PARAMETERS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_COMPLETE_MONTH_OF_FLOWS;
-import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_FEE_ACCRUALS;
 import static ee.tuleva.onboarding.investment.cashbuffer.FundReviewOutcome.NotRunReason.NO_RESERVE_CONFIGURED;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_SETTLEMENT_HORIZON_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -89,7 +89,7 @@ class CashBufferReviewServiceTest {
   }
 
   @Test
-  void aMonthTheFeeCalculationNeverAccruedIsNotReviewedRatherThanReadAsNoFees() {
+  void aMonthWithAChargedDayNotYetAccruedIsNotReviewedRatherThanReadAsFewerFees() {
     parametersPresent();
     reserveInForce(TUK75);
     given(flowWindowReader.everyCompleteMonthThrough(TUK75, SEPTEMBER))
@@ -97,7 +97,7 @@ class CashBufferReviewServiceTest {
     given(chargedFeeAccruals.accruedDuring(TUK75, SEPTEMBER)).willReturn(Optional.empty());
 
     assertThat(service.reviewAllFunds(SEPTEMBER, REVIEWED_ON).getFirst())
-        .isEqualTo(new NotRun(TUK75, NO_FEE_ACCRUALS, "feeMonth=2026-09"));
+        .isEqualTo(new NotRun(TUK75, CHARGED_DAY_NOT_ACCRUED, "feeMonth=2026-09"));
     verify(repository, never()).save(any());
   }
 

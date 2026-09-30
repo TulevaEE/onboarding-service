@@ -307,8 +307,7 @@ class TransactionPreparationServiceTest {
             LocalDate.of(2026, 5, 4),
             LocalDate.of(2026, 5, 1),
             "FUND sell settles after execution");
-    given(settlementTimingWarningService.activeWarnings(TUK75, asOfDate))
-        .willReturn(List.of(warning));
+    given(settlementTimingWarningService.activeWarnings(TUK75)).willReturn(List.of(warning));
 
     service.processCommand(command);
 

@@ -38,6 +38,8 @@ class EuronextValueRetrieverTest {
   @MockitoBean InstrumentReferenceService instrumentReferenceService;
 
   private static final List<String> EURONEXT_PARIS_ISINS = List.of("IE000F60HVH9", "LU1708330318");
+  private static final String GAGH_ISIN = "LU1708330318";
+  private static final LocalDate GAGH_PRICE_DATE = LocalDate.of(2026, 9, 28);
 
   @BeforeEach
   void setUpInstruments() {
@@ -249,6 +251,164 @@ class EuronextValueRetrieverTest {
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)))
         .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void storesTheOfficialClosingPriceNotTheLastTrade() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        """
+        "Historical Data"
+        "From 2026-09-28 to 2026-09-28"
+        LU1708330318
+        Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;48.02;48.02;48.02;48.02;47.93;0;0;0;
+        """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(fundValue -> assertThat(fundValue.value()).isEqualByComparingTo("47.93"));
+  }
+
+  @Test
+  void storesTheOfficialClosingPriceWhenEuronextReordersItsColumns() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        """
+        "Historical Data"
+        "From 2026-09-28 to 2026-09-28"
+        LU1708330318
+        Date;Close;Open;High;Low;Last;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;47.93;48.02;48.02;48.02;48.02;0;0;0;
+        """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(fundValue -> assertThat(fundValue.value()).isEqualByComparingTo("47.93"));
+  }
+
+  @Test
+  void storesNothingWhenTheResponseHasNoClosingPriceColumn() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        """
+        "Historical Data"
+        "From 2026-09-28 to 2026-09-28"
+        LU1708330318
+        Date;Open;High;Low;Last;Settlement;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;48.02;48.02;48.02;48.02;47.93;0;0;0;
+        """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void storesNothingWhenTheResponseIsForAnotherInstrument() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        """
+        "Historical Data"
+        "From 2026-09-28 to 2026-09-28"
+        IE000QWCYQT0
+        Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;5.097;5.10;5.081;5.081;5.08;86761;14;441881;5.093081
+        """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void readsAResponseThatStartsWithAByteOrderMark() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        "\uFEFF"
+            + """
+            "Historical Data"
+            "From 2026-09-28 to 2026-09-28"
+            LU1708330318
+            Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover
+            28/09/2026;48.02;48.02;48.02;48.02;47.93;0;0;0;
+            """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(fundValue -> assertThat(fundValue.value()).isEqualByComparingTo("47.93"));
+  }
+
+  @Test
+  void readsAQuotedInstrumentLine() {
+    givenOnlyGagh();
+    expectGaghResponse(
+        """
+        "Historical Data"
+        "From 2026-09-28 to 2026-09-28"
+        "LU1708330318"
+        Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;48.02;48.02;48.02;48.02;47.93;0;0;0;
+        """);
+
+    var result = retriever.retrieveValuesForRange(GAGH_PRICE_DATE, GAGH_PRICE_DATE);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(fundValue -> assertThat(fundValue.value()).isEqualByComparingTo("47.93"));
+  }
+
+  @Test
+  void skipsOnlyTheDayWithoutAnOfficialClosingPrice() {
+    givenOnlyGagh();
+    var previousTradingDay = LocalDate.of(2026, 9, 25);
+    expectGaghResponse(
+        previousTradingDay,
+        """
+        "Historical Data"
+        "From 2026-09-25 to 2026-09-28"
+        LU1708330318
+        Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover
+        28/09/2026;;;;;;;;;
+        25/09/2026;48.19;48.19;48.015;48.015;48.00;3141;6;150826;48.018551
+        """);
+
+    var result = retriever.retrieveValuesForRange(previousTradingDay, GAGH_PRICE_DATE);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(
+            fundValue -> {
+              assertThat(fundValue.date()).isEqualTo(previousTradingDay);
+              assertThat(fundValue.value()).isEqualByComparingTo("48.00");
+            });
+  }
+
+  private void givenOnlyGagh() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-09-29T07:00:00Z"), UTC));
+    given(instrumentReferenceService.getEuronextParisIsins()).willReturn(List.of(GAGH_ISIN));
+  }
+
+  private void expectGaghResponse(String csv) {
+    expectGaghResponse(GAGH_PRICE_DATE, csv);
+  }
+
+  private void expectGaghResponse(LocalDate startDate, String csv) {
+    server
+        .expect(
+            requestTo(
+                "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                    + GAGH_ISIN
+                    + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate="
+                    + startDate
+                    + "&enddate=2026-09-28"))
+        .andRespond(withSuccess(csv, TEXT_PLAIN));
   }
 
   private String mockCsvResponseForIsin(String isin) {

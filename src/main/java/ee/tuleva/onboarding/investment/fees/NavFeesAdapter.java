@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.savings.fund.nav.NavFeeBases;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavFees;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -24,14 +23,12 @@ class NavFeesAdapter implements NavFees {
       TulevaFund fund,
       LocalDate positionReportDate,
       NavFeeBases bases,
-      Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices) {
     FeeResult result =
         feeCalculationService.calculateFeesForNav(
             fund,
             positionReportDate,
             new FeeBases(bases.navFeeBase(), bases.assetValue()),
-            feeCutoff,
             securityPrices);
     return new NavFeeResult(result.managementFeeAccrual(), result.depotFeeAccrual());
   }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.util.Comparator.comparing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentCaptor.forClass;
@@ -10,15 +11,22 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.FundNavProvider;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -229,6 +237,50 @@ class NavPublisherTest {
   }
 
   @Test
+  void aHeldReportStillPricesTheDealingDay() {
+    LocalDate calculationDay = LocalDate.of(2025, 1, 15);
+    LocalDate dealingDay = LocalDate.of(2025, 1, 14);
+    var fundValues = new InMemoryFundValues();
+    var publisher =
+        new NavPublisher(
+            fundValues,
+            navReportMapper,
+            navReportRepository,
+            navReportEmailSender,
+            navNotifier,
+            notificationService,
+            trackingDifferenceGate,
+            pipelineTracker);
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(calculationDay)
+            .positionReportDate(dealingDay)
+            .priceDate(dealingDay)
+            .navPerUnit(new BigDecimal("9.6994"))
+            .aum(new BigDecimal("969940.00"))
+            .calculatedAt(Instant.parse("2025-01-15T13:20:00Z"))
+            .securitiesDetail(List.of())
+            .build();
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(dealingDay).fundCode("TKF100").build()));
+    given(trackingDifferenceGate.check(TKF100, dealingDay))
+        .willReturn(Optional.of("TD breach: fund=TKF100, MODEL_PORTFOLIO TD=0.015"));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    publisher.publish(result);
+
+    var dealing =
+        new FundNavProvider(
+            fundValues,
+            new PublicHolidays(),
+            Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneId.of("Europe/Tallinn")));
+    then(navReportEmailSender).should(never()).send(any(), any());
+    assertThat(dealing.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDay))
+        .isEqualTo(new BigDecimal("9.6994"));
+  }
+
+  @Test
   void publish_sendsEmail_whenTdGatePasses() {
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
@@ -348,5 +400,45 @@ class NavPublisherTest {
         .calculatedAt(calculatedAt)
         .securitiesDetail(List.of())
         .build();
+  }
+
+  private static final class InMemoryFundValues implements FundValueWriter, FundValueQueries {
+
+    private final List<FundValue> values = new ArrayList<>();
+
+    @Override
+    public Optional<FundValue> save(FundValue fundValue) {
+      values.add(fundValue);
+      return Optional.of(fundValue);
+    }
+
+    @Override
+    public Optional<FundValue> getLatestValue(String key, LocalDate date) {
+      return values.stream()
+          .filter(value -> value.key().equals(key))
+          .filter(value -> !value.date().isAfter(date))
+          .max(comparing(FundValue::date));
+    }
+
+    @Override
+    public Optional<FundValue> getValueForDate(String key, LocalDate date) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<FundValue> findLastValueForFund(String fund) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<LocalDate> findEarliestDateForKey(String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<FundValue> findValuesBetweenDates(
+        String fundKey, LocalDate startDate, LocalDate endDate) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

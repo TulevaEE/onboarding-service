@@ -2,17 +2,17 @@ package ee.tuleva.onboarding.pipeline;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.stream.Stream;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -145,17 +145,12 @@ class PipelineNotifierTest {
         .sendMessage(contains("VALUES ('FeeCheckJob');"), eq(INVESTMENT));
   }
 
-  // The failure alert hands the operator the exact INSERT to re-run the failed step, and
-  // JobTriggerPoller keys investment_job_trigger by job class name. A step that falls through to
-  // its own display label - "Fee Check" rather than "FeeCheckJob" - produces SQL the poller marks
-  // as an unknown job: nothing re-runs and nobody is told, while the operator believes it did.
   @Test
-  void noPipelineStepOffersItsOwnDisplayLabelAsAJobName() {
-    var steps =
-        Stream.concat(PipelineStep.NAV_PIPELINE.stream(), PipelineStep.IMPORT_PIPELINE.stream())
-            .toList();
-
-    for (var step : steps) {
+  void aNavStepFailurePointsTheOperatorAtTheAdminNavEndpointAndTheChecksItSkips() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-01-15T09:10:00Z"), ZoneOffset.UTC));
+    for (var step :
+        List.of(
+            PipelineStep.NAV_CALCULATION, PipelineStep.REPORT_PERSIST, PipelineStep.REPORT_EMAIL)) {
       var stepNotificationService = mock(OperationsNotificationService.class);
       var pipeline = new PipelineRun(PipelineRun.PipelineType.NAV, "NAV TUK75");
       pipeline.stepStarted(step);
@@ -164,8 +159,19 @@ class PipelineNotifierTest {
       new PipelineNotifier(stepNotificationService).sendCompleted(pipeline);
 
       then(stepNotificationService)
-          .should(never())
-          .sendMessage(contains("VALUES ('" + step + "');"), eq(INVESTMENT));
+          .should()
+          .sendMessage(
+              endsWith(
+                  """
+
+
+                  Chain stopped. NavSelfHealJob retries an unpublished NAV during the working day. To re-run a failed fund now:
+                  POST /admin/calculate-nav?fundCode=<fund code>&date=2026-01-15&publish=true (header X-Admin-Token)
+                  That publishes the NAV without the checks that follow it; re-run them with:
+                  INSERT INTO investment_job_trigger (job_name) VALUES ('LimitCheckJob');
+                  INSERT INTO investment_job_trigger (job_name) VALUES ('FeeCheckJob');
+                  INSERT INTO investment_job_trigger (job_name) VALUES ('PortfolioReconciliationJob');"""),
+              eq(INVESTMENT));
     }
   }
 

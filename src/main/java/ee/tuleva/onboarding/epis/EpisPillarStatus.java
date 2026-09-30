@@ -16,6 +16,8 @@ class EpisPillarStatus implements PillarStatus {
   public PillarActivity of(Person person) {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     return new PillarActivity(
-        contactDetails.isSecondPillarActive(), contactDetails.isThirdPillarActive());
+        contactDetails.isSecondPillarActive(),
+        contactDetails.isThirdPillarActive(),
+        contactDetails.hasJoinedSecondPillar());
   }
 }

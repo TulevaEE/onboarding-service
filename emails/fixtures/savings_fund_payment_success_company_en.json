@@ -1,11 +1,20 @@
 {
   "variants": {
+    "second pillar start suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "suggestSecondPillarStart": true,
+      "anyPillarSuggestion": true
+    },
     "second pillar suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestSecondPillar": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "Second pillar fee comparison": {
       "FNAME": "Mari",
@@ -17,21 +26,24 @@
       "secondPillarFeePercent": "0.65",
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
-      "secondPillarSavingsAmount": 74
+      "secondPillarSavingsAmount": 74,
+      "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestPaymentRate": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillar": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "third pillar fees suggestion": {
       "FNAME": "Mari",
@@ -39,21 +51,24 @@
       "recipientIsCompany": true,
       "suggestThirdPillar": true,
       "thirdPillarActive": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillarRecurringPayment": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "third pillar raise suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillarRaise": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "savings fund suggestion (cannot occur)": {
       "FNAME": "Mari",
@@ -70,13 +85,14 @@
       "suggestSavingsFundRecurringPayment": true,
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
-    "second pillar outranks the savings fund recurring suggestion": {
+    "second pillar and savings fund recurring together (cannot occur)": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "membership suggestion": {
       "FNAME": "Mari",

@@ -35,7 +35,9 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.stream.Stream;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -63,6 +65,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 })
 class CashBufferReviewServiceIT {
 
+  private static final RecursiveComparisonConfiguration AMOUNTS_BY_VALUE =
+      RecursiveComparisonConfiguration.builder()
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .build();
+
+  private static final YearMonth JULY = YearMonth.of(2026, 7);
+  private static final YearMonth AUGUST = YearMonth.of(2026, 8);
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final YearMonth OCTOBER = YearMonth.of(2026, 10);
   private static final LocalDate FOURTH_BUSINESS_DAY_OF_OCTOBER = LocalDate.of(2026, 10, 6);
@@ -105,51 +114,39 @@ class CashBufferReviewServiceIT {
     service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
     var outcomes = service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
 
-    assertThat(outcomes).extracting(FundReviewOutcome::fund).containsExactly(TUK75, TUK00, TUV100);
-    assertThat(outcomes.getFirst()).isInstanceOf(Reviewed.class);
-    assertThat(outcomes.subList(1, 3))
-        .allSatisfy(
-            outcome ->
-                assertThat(outcome)
-                    .isInstanceOfSatisfying(
-                        NotRun.class,
-                        notRun -> assertThat(notRun.reason()).isEqualTo(NO_RESERVE_CONFIGURED)));
-
-    var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
-    assertThat(october.window().firstMonth()).isEqualTo(YearMonth.of(2026, 7));
-    assertThat(october.window().depth()).isEqualTo(4);
-    assertThat(october.window().operatingOutflows())
-        .usingElementComparator(BigDecimal::compareTo)
-        .containsExactly(amounts("30000", "72000", "0", "15000"));
-    assertThat(october.window().inflows())
-        .usingElementComparator(BigDecimal::compareTo)
-        .containsExactly(amounts("900000", "800000", "0", "1000000"));
-    assertThat(october.window().unrecognisedPayouts()).isEqualTo(1);
-    assertThat(october.window().unrecognisedOutflow()).isEqualByComparingTo("5000.00");
-
-    var recommendation = october.recommendation();
-    assertThat(recommendation.outflowAtPercentile()).isEqualByComparingTo("65700.00");
-    assertThat(recommendation.inflowAtPercentile()).isEqualByComparingTo("480000.00");
-    assertThat(recommendation.model().inflowCredit()).isEqualByComparingTo("0.1");
-    assertThat(recommendation.model().settlementHorizonDays()).isEqualTo(4);
-    assertThat(recommendation.horizonOutflowAtPercentile()).isEqualByComparingTo("28500.00");
-    assertThat(recommendation.accruedFees()).isEqualByComparingTo("3100.00");
-    assertThat(recommendation.recommendedHard()).isEqualByComparingTo("31600.00");
-    assertThat(recommendation.recommendedSoft()).isEqualByComparingTo("31600.00");
-
-    assertThat(october.configured().reserveSoft()).isEqualByComparingTo("131000.00");
-    assertThat(october.configured().effectiveDate()).isEqualTo(LocalDate.of(2026, 1, 1));
-    assertThat(october.softDrift().divergence()).isEqualByComparingTo("-99400.00");
-    assertThat(october.softDrift().consecutiveRuns()).isEqualTo(2);
-    assertThat(october.softDrift().sustained()).isTrue();
-    assertThat(october.hardDrift())
-        .isNotNull()
-        .satisfies(
-            hardDrift -> {
-              assertThat(hardDrift.divergence()).isEqualByComparingTo("-45400.00");
-              assertThat(hardDrift.drifted()).isFalse();
-              assertThat(hardDrift.consecutiveRuns()).isZero();
-            });
+    var expectedOctober =
+        new CashBufferReview(
+            TUK75,
+            OCTOBER,
+            FOURTH_BUSINESS_DAY_OF_NOVEMBER,
+            new FlowWindow(
+                List.of(
+                    flows(JULY, "900000.00", "10000.00", "20000.00", "500000.00", "0.00", 0),
+                    flows(AUGUST, "800000.00", "12000.00", "60000.00", "0.00", "5000.00", 1),
+                    flows(SEPTEMBER, "0.00", "0.00", "0.00", "0.00", "0.00", 0),
+                    flows(OCTOBER, "1000000.00", "11000.00", "4000.00", "0.00", "0.00", 0))),
+            new Recommendation(
+                new BufferModel(amount("0.95"), amount("0.20"), amount("0.1"), 4),
+                amount("65700.00"),
+                amount("480000.00"),
+                amount("28500.00"),
+                amount("3100.00"),
+                amount("31600.00"),
+                amount("31600.00")),
+            new ConfiguredReserve(
+                LocalDate.of(2026, 1, 1), amount("131000.00"), amount("77000.00")),
+            new Drift(amount("-99400.00"), amount("50000"), true, 2, 2),
+            new Drift(amount("-45400.00"), amount("50000"), false, 0, 2));
+    assertThat(outcomes)
+        .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new Reviewed(expectedOctober),
+            new NotRun(TUK00, NO_RESERVE_CONFIGURED, "asOf=2026-11-05"),
+            new NotRun(TUV100, NO_RESERVE_CONFIGURED, "asOf=2026-11-05"));
+    assertThat(reviewRepository.findByFundAndMonth(TUK75, OCTOBER))
+        .get()
+        .usingRecursiveComparison(AMOUNTS_BY_VALUE)
+        .isEqualTo(expectedOctober);
 
     verify(notificationService, times(2)).sendMessage(anyString(), eq(INVESTMENT), eq(ERROR));
   }
@@ -164,13 +161,8 @@ class CashBufferReviewServiceIT {
 
     var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
     assertThat(october.hardDrift())
-        .isNotNull()
-        .satisfies(
-            hardDrift -> {
-              assertThat(hardDrift.divergence()).isEqualByComparingTo("-168400.00");
-              assertThat(hardDrift.consecutiveRuns()).isEqualTo(2);
-              assertThat(hardDrift.sustained()).isTrue();
-            });
+        .usingRecursiveComparison(AMOUNTS_BY_VALUE)
+        .isEqualTo(new Drift(amount("-168400.00"), amount("50000"), true, 2, 2));
   }
 
   @Test
@@ -183,15 +175,11 @@ class CashBufferReviewServiceIT {
     service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
 
     var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
-    assertThat(october.softDrift().consecutiveRuns()).isEqualTo(2);
-    assertThat(october.hardDrift())
-        .isNotNull()
-        .satisfies(
-            hardDrift -> {
-              assertThat(hardDrift.divergence()).isEqualByComparingTo("-178400.00");
-              assertThat(hardDrift.consecutiveRuns()).isEqualTo(1);
-              assertThat(hardDrift.sustained()).isFalse();
-            });
+    assertThat(List.of(october.softDrift(), october.hardDrift()))
+        .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new Drift(amount("-99400.00"), amount("50000"), true, 2, 2),
+            new Drift(amount("-178400.00"), amount("50000"), true, 1, 2));
   }
 
   private void julyThroughOctoberOnTheLedgerWithTheirFees() {
@@ -275,7 +263,25 @@ class CashBufferReviewServiceIT {
                         .build()));
   }
 
-  private static BigDecimal[] amounts(String... values) {
-    return Stream.of(values).map(BigDecimal::new).toArray(BigDecimal[]::new);
+  private static MonthlyFlows flows(
+      YearMonth month,
+      String inflow,
+      String recurring,
+      String tail,
+      String cycle,
+      String unrecognised,
+      int unrecognisedPayouts) {
+    return new MonthlyFlows(
+        month,
+        amount(inflow),
+        amount(recurring),
+        amount(tail),
+        amount(cycle),
+        amount(unrecognised),
+        unrecognisedPayouts);
+  }
+
+  private static BigDecimal amount(String value) {
+    return new BigDecimal(value);
   }
 }

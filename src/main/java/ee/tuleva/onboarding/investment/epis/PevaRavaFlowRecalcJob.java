@@ -60,7 +60,7 @@ class PevaRavaFlowRecalcJob {
     notificationService.sendMessage(summaryMessage(phase, today, flows), INVESTMENT);
   }
 
-  @EventListener(classes = RunPevaRavaFlowRecalcRequested.class)
+  @EventListener(RunPevaRavaFlowRecalcRequested.class)
   void onPevaRavaFlowRecalcRequested() {
     run();
   }

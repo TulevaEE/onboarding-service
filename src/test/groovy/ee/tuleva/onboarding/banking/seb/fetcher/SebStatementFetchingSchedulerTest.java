@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -76,16 +77,19 @@ class SebStatementFetchingSchedulerTest {
 
   @Test
   void fetchCurrentDayTransactions_releasesItsLockBeforeTheNextHalfHourTick() throws Exception {
-    var lock =
-        SebStatementFetchingScheduler.class
-            .getMethod("fetchCurrentDayTransactions")
-            .getAnnotation(SchedulerLock.class);
-    var tick = LocalDateTime.of(2026, 7, 24, 15, 0);
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactions",
+        CURRENT_DAY_FETCH_CRON,
+        LocalDateTime.of(2026, 7, 24, 14, 0));
+  }
 
-    var nextTick = CronExpression.parse(CURRENT_DAY_FETCH_CRON).next(tick);
-
-    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtLeastFor()))).isBefore(nextTick);
-    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtMostFor()))).isBefore(nextTick);
+  @Test
+  void fetchCurrentDayTransactionsInTheHourBeforeCutoff_releasesItsLockBeforeTheNextFiveMinuteTick()
+      throws Exception {
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactionsInTheHourBeforeCutoff",
+        CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON,
+        LocalDateTime.of(2026, 7, 24, 15, 0));
   }
 
   @ParameterizedTest
@@ -107,7 +111,21 @@ class SebStatementFetchingSchedulerTest {
   static Stream<Consumer<SebStatementFetchingScheduler>> currentDayFetches() {
     return Stream.of(
         SebStatementFetchingScheduler::fetchCurrentDayTransactions,
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsInTheHourBeforeCutoff,
         SebStatementFetchingScheduler::fetchCurrentDayTransactionsBeforeCutoff);
+  }
+
+  private static void assertReleasesLockBeforeNextTick(
+      String methodName, String cronExpression, LocalDateTime tick) throws Exception {
+    var lock =
+        SebStatementFetchingScheduler.class
+            .getMethod(methodName)
+            .getAnnotation(SchedulerLock.class);
+
+    var nextTick = CronExpression.parse(cronExpression).next(tick);
+
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtLeastFor()))).isBefore(nextTick);
+    assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtMostFor()))).isBefore(nextTick);
   }
 
   @Test

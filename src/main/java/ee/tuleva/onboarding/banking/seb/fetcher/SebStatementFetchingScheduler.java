@@ -23,7 +23,9 @@ import org.springframework.web.client.ResourceAccessException;
 @Slf4j
 public class SebStatementFetchingScheduler {
 
-  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-17 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-14,16-17 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON =
+      "0 0/5 15 * * MON-FRI";
   static final String CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON = "30 59 15 * * MON-FRI";
   static final String END_OF_DAY_FETCH_CRON = "0 0/30 4-23 * * *";
   static final String GAP_REPORT_CRON = "0 10 9 * * *";
@@ -41,6 +43,19 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "1m")
   public void fetchCurrentDayTransactions() {
     log.info("Running SEB current day transactions fetching scheduler");
+    publishCurrentDayFetches();
+  }
+
+  @Scheduled(
+      cron = CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON,
+      zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SebStatementFetchingScheduler_fetchCurrentDayTransactionsInTheHourBeforeCutoff",
+      lockAtMostFor = "4m",
+      lockAtLeastFor = "1m")
+  public void fetchCurrentDayTransactionsInTheHourBeforeCutoff() {
+    log.info(
+        "Running SEB current day transactions fetch in the hour before the subscription cutoff");
     publishCurrentDayFetches();
   }
 

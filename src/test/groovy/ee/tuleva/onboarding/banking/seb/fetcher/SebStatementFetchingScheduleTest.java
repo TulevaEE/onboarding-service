@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.END_OF_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.GAP_REPORT_CRON;
@@ -32,8 +33,18 @@ class SebStatementFetchingScheduleTest {
   }
 
   @Test
-  void currentDayFetch_doesNotFireAtTheWeekend() {
+  void
+      currentDayFetchBeforeSubscriptionCutoff_firesOnceThirtySecondsBeforeFourSoSebStampsItsReportBeforeTheCutoff() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON);
+
+    assertThat(fires).hasSize(1);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("15:59:30");
+  }
+
+  @Test
+  void currentDayFetches_doNotFireAtTheWeekend() {
     assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_CRON)).isEmpty();
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON)).isEmpty();
   }
 
   @Test

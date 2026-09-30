@@ -30,9 +30,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.convert.DurationStyle;
@@ -84,12 +88,13 @@ class SebStatementFetchingSchedulerTest {
     assertThat(tick.plus(DurationStyle.detectAndParse(lock.lockAtMostFor()))).isBefore(nextTick);
   }
 
-  @Test
-  void fetchCurrentDayTransactions_publishesEventsOnlyForSavingsFundAccounts() {
+  @ParameterizedTest
+  @MethodSource("currentDayFetches")
+  void currentDayFetch_publishesEventsOnlyForSavingsFundAccounts(
+      Consumer<SebStatementFetchingScheduler> fetch) {
     given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_ACCOUNTS);
-    var scheduler = scheduler();
 
-    scheduler.fetchCurrentDayTransactions();
+    fetch.accept(scheduler());
 
     for (BankAccount account : SAVINGS_FUND_ACCOUNTS) {
       then(eventPublisher)
@@ -97,6 +102,12 @@ class SebStatementFetchingSchedulerTest {
           .publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
     }
     then(eventPublisher).shouldHaveNoMoreInteractions();
+  }
+
+  static Stream<Consumer<SebStatementFetchingScheduler>> currentDayFetches() {
+    return Stream.of(
+        SebStatementFetchingScheduler::fetchCurrentDayTransactions,
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsBeforeCutoff);
   }
 
   @Test

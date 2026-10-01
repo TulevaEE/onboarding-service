@@ -40,9 +40,9 @@ public class GenericSessionStore {
         throw e;
       }
       log.info(
-          "Dropping a session attribute stored by another version of its class: attribute={}",
+          "Dropping a session holding an attribute stored by another version of its class: attribute={}",
           clazz.getName());
-      session.removeAttribute(clazz.getName());
+      session.invalidate();
       return Optional.empty();
     }
   }

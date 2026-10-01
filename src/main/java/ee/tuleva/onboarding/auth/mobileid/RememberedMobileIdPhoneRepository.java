@@ -63,6 +63,13 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
     }
   }
 
+  void remove(long id) {
+    jdbcClient
+        .sql("DELETE FROM remembered_mobile_id_phone WHERE id = :id")
+        .param("id", id)
+        .update();
+  }
+
   @Override
   public int removeExpired() {
     return jdbcClient

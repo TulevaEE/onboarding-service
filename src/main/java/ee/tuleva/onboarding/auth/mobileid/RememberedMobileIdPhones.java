@@ -43,6 +43,10 @@ public class RememberedMobileIdPhones {
     thisBrowser.claimLoginStart(MOBILE_ID);
   }
 
+  void forget(long rememberedPhoneId) {
+    phones.remove(rememberedPhoneId);
+  }
+
   public void remember(String personalCode, String phoneNumber) {
     Instant expiresAt = Instant.now(clock).plus(validity);
     long browserId = thisBrowser.rememberUntil(expiresAt);

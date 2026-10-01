@@ -20,6 +20,13 @@ public class MobileIdLoginStarter {
     RememberedMobileIdPhone remembered =
         rememberedPhones.find(personalCode).orElseThrow(MobileIdException::phoneNumberRequired);
     rememberedPhones.claimLoginStart();
-    return authService.startLogin(remembered.phoneNumber(), personalCode);
+    try {
+      MobileIDSession session = authService.startLogin(remembered.phoneNumber(), personalCode);
+      session.setRememberedPhoneId(remembered.id());
+      return session;
+    } catch (MobileIdNotMidClientException e) {
+      rememberedPhones.forget(remembered.id());
+      throw MobileIdException.phoneNumberRequired();
+    }
   }
 }

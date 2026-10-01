@@ -50,7 +50,41 @@ class MobileIdLoginStarterTest {
     given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE)).willReturn(session);
 
     assertThat(starter.start(typed, PERSONAL_CODE)).isSameAs(session);
+    assertThat(session.getRememberedPhoneId()).isEqualTo(3L);
     verify(rememberedPhones).claimLoginStart();
+  }
+
+  @Test
+  void aSessionStartedWithATypedPhoneCarriesNoRememberedPhone() {
+    var session = new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, "+37251234567");
+    given(authService.startLogin("5123 4567", PERSONAL_CODE)).willReturn(session);
+
+    assertThat(starter.start("5123 4567", PERSONAL_CODE).getRememberedPhoneId()).isNull();
+  }
+
+  @Test
+  void forgetsARememberedPhoneMobileIdSaysDoesNotBelongToThePersonAndAsksForThePhone() {
+    given(rememberedPhones.find(PERSONAL_CODE))
+        .willReturn(Optional.of(new RememberedMobileIdPhone(3L, REMEMBERED_PHONE)));
+    given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE))
+        .willThrow(new MobileIdNotMidClientException());
+
+    assertThatThrownBy(() -> starter.start(null, PERSONAL_CODE))
+        .isInstanceOf(MobileIdException.class)
+        .extracting(
+            e -> ((MobileIdException) e).getErrorsResponse().getErrors().getFirst().getCode())
+        .isEqualTo("mobile.id.phone.number.required");
+    verify(rememberedPhones).forget(3L);
+  }
+
+  @Test
+  void aTypedPhoneMobileIdRejectsLeavesWhatIsRememberedAlone() {
+    given(authService.startLogin("5123 4567", PERSONAL_CODE))
+        .willThrow(new MobileIdNotMidClientException());
+
+    assertThatThrownBy(() -> starter.start("5123 4567", PERSONAL_CODE))
+        .isInstanceOf(MobileIdNotMidClientException.class);
+    verifyNoInteractions(rememberedPhones);
   }
 
   @Test

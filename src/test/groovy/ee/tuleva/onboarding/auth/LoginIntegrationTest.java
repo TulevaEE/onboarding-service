@@ -38,6 +38,7 @@ import ee.sk.mid.MidAuthenticationIdentity;
 import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidAuthenticationResult;
 import ee.sk.mid.MidClient;
+import ee.sk.mid.exception.MidNotMidClientException;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
@@ -533,6 +534,27 @@ class LoginIntegrationTest {
 
     verify(midConnector, times(2))
         .authenticate(argThat(request -> "+37251234567".equals(request.getPhoneNumber())));
+  }
+
+  @Test
+  void aRememberedPhoneMobileIdSaysIsNotThePersonsIsForgottenAndThePhoneAskedFor()
+      throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    given(midConnector.authenticate(any()))
+        .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
+    Cookie session =
+        sessionCookie(mockMvc.perform(mobileIdStart(null).cookie(browser)).andReturn());
+    given(midSessionStatusPoller.fetchFinalAuthenticationSessionStatus(MOBILE_ID_SESSION_ID))
+        .willThrow(new MidNotMidClientException());
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(session, browser).param("grant_type", "MOBILE_ID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("mobile.id.phone.number.required"));
+
+    mockMvc
+        .perform(rememberedPhoneQuery(personalCode).cookie(browser))
+        .andExpect(content().json("{\"remembered\":false}", true));
   }
 
   @Test

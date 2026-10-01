@@ -16,7 +16,7 @@ public class GeneralLedgerSyncJob {
   private final GeneralLedgerSync generalLedgerSync;
 
   @Scheduled(cron = "0 30 4 * * *", zone = "Europe/Tallinn")
-  @SchedulerLock(name = "GeneralLedgerSyncJob_sync", lockAtMostFor = "40m", lockAtLeastFor = "1m")
+  @SchedulerLock(name = "GeneralLedgerSyncJob_sync", lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void sync() {
     generalLedgerSync.entities().forEach(this::sync);
   }

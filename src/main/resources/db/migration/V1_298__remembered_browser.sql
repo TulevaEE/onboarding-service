@@ -3,6 +3,7 @@ CREATE TABLE remembered_browser (
     token_hash                             text        NOT NULL,
     expires_at                             timestamptz NOT NULL,
     smart_id_notification_login_started_at timestamptz,
+    mobile_id_login_started_at             timestamptz,
     created_at                             timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_remembered_browser PRIMARY KEY (id),
     CONSTRAINT uk_remembered_browser_token UNIQUE (token_hash)

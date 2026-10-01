@@ -19,6 +19,7 @@ public final class ExpectedErrorCodes {
           "mobile.id.no.signal",
           "mobile.id.certificates.revoked",
           "mobile.id.phone.number.invalid",
+          "mobile.id.phone.number.required",
           "invalid.mandate.checks.missing",
           "new.user.flow.signup.error.email.duplicate",
           "gift.amount.invalid",

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.browser;
 
+import static ee.tuleva.onboarding.auth.browser.PushLogin.MOBILE_ID;
 import static ee.tuleva.onboarding.auth.browser.PushLogin.SMART_ID_NOTIFICATION;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -116,6 +117,15 @@ class RememberedBrowsersTest {
     browsers.claimLoginStart(first, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
 
     assertThat(browsers.claimLoginStart(second, SMART_ID_NOTIFICATION, PUSH_INTERVAL)).isTrue();
+  }
+
+  @Test
+  void aSmartIdPushDoesNotHoldBackAMobileIdLoginFromTheSameBrowser() {
+    long id = browsers.add("token-hash", LATER);
+    browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
+
+    assertThat(browsers.claimLoginStart(id, MOBILE_ID, PUSH_INTERVAL)).isTrue();
+    assertThat(browsers.claimLoginStart(id, MOBILE_ID, PUSH_INTERVAL)).isFalse();
   }
 
   @Test

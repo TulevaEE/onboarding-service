@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.auth.command;
 
 import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
-import jakarta.validation.constraints.NotBlank;
+import org.jspecify.annotations.Nullable;
 
 public record MobileIdAuthenticateCommand(
-    @NotBlank String phoneNumber, @ValidPersonalCode String personalCode)
+    @Nullable String phoneNumber, @ValidPersonalCode String personalCode)
     implements AuthenticateCommand {}

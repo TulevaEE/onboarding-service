@@ -22,6 +22,7 @@ class ExpectedErrorCodesSpec extends Specification {
     "mobile.id.no.signal"            || true
     "mobile.id.certificates.revoked" || true
     "mobile.id.phone.number.invalid" || true
+    "mobile.id.phone.number.required" || true
     "invalid.mandate.checks.missing" || true
     "new.user.flow.signup.error.email.duplicate" || true
     "gift.amount.invalid"            || true

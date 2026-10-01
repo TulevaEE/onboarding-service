@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.command.AuthenticationType
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
-import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
+import ee.tuleva.onboarding.auth.mobileid.MobileIdLoginStarter
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthService
@@ -19,12 +19,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AuthControllerSpec extends BaseControllerSpec {
 
-  MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
+  MobileIdLoginStarter mobileIdLoginStarter = Mock(MobileIdLoginStarter)
   IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
   WebEidAuthService webEidAuthService = Mock(WebEidAuthService)
   GenericSessionStore sessionStore = Mock(GenericSessionStore)
   AuthService authService = Mock(AuthService)
-  AuthController controller = new AuthController(mobileIdAuthService, idCardAuthService, webEidAuthService, sessionStore, authService)
+  AuthController controller = new AuthController(mobileIdLoginStarter, idCardAuthService, webEidAuthService, sessionStore, authService)
   private MockMvc mockMvc
 
   def setup() {
@@ -33,12 +33,27 @@ class AuthControllerSpec extends BaseControllerSpec {
 
   def "Authenticate: Initiate mobile id authentication"() {
     given:
-    1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
     1 * sessionStore.save(_ as MobileIDSession)
     when:
     def result = mockMvc.perform(post("/authenticate")
         .contentType(MediaType.APPLICATION_JSON)
         .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand())))
+    then:
+    result.andExpect(status().isOk())
+  }
+
+  def "Authenticate: Initiate mobile id authentication without a phone number"() {
+    given:
+    1 * mobileIdLoginStarter.start(null, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * sessionStore.save(_ as MobileIDSession)
+    when:
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString([
+            personalCode: MobileIdFixture.sampleIdCode,
+            type        : AuthenticationType.MOBILE_ID.toString()
+        ])))
     then:
     result.andExpect(status().isOk())
   }

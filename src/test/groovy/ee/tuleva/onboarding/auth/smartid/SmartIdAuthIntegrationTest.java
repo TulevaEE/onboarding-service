@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
@@ -81,6 +82,7 @@ class SmartIdAuthIntegrationTest {
   @MockitoBean private SmartIdConnector smartIdConnector;
   @MockitoBean private DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   @MockitoBean private NotificationAuthenticationResponseValidator notificationResponseValidator;
+  @MockitoBean private SmartIdCertificateRevocationCheck certificateRevocationCheck;
 
   @TestConfiguration
   static class SmartIdTestConfig {
@@ -176,6 +178,27 @@ class SmartIdAuthIntegrationTest {
         .perform(post("/oauth/token").cookie(victim).param("grant_type", "SMART_ID"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aLoginWhoseCertificateTheIssuerNoLongerCallsGoodIsRefused() throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    Cookie session = sessionCookie(startDeviceLinkLogin());
+    SessionStatus status = completeStatus("QR");
+    AuthenticationIdentity identity = anAuthenticationIdentity();
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
+        .willReturn(identity);
+    willThrow(new SmartIdCertificateRevokedException("REVOKED"))
+        .given(certificateRevocationCheck)
+        .requireNotRevoked(identity.getAuthCertificate());
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.certificate.revoked"))
+        .andExpect(jsonPath("$.access_token").doesNotExist());
   }
 
   @Test

@@ -16,6 +16,7 @@ class ExpectedErrorCodesSpec extends Specification {
     "smart.id.account.not.found"     || true
     "smart.id.timeout"               || true
     "smart.id.wrong.verification.code" || true
+    "smart.id.certificate.revoked"   || true
     "mobile.id.cancelled"            || true
     "mobile.id.timeout"              || true
     "mobile.id.no.signal"            || true

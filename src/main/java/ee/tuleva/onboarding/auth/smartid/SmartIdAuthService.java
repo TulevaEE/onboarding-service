@@ -30,6 +30,7 @@ public class SmartIdAuthService {
   private final SmartIdConnector smartIdConnector;
   private final DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   private final NotificationAuthenticationResponseValidator notificationResponseValidator;
+  private final SmartIdCertificateRevocationCheck certificateRevocationCheck;
   private final SmartIdProperties properties;
 
   public SmartIdPerson completeLogin(SmartIdSession session) {
@@ -46,6 +47,7 @@ public class SmartIdAuthService {
       AuthenticationIdentity identity =
           validate(session, status, flowTypeOfAProducedSignature(status));
       requireEstonianAccount(identity);
+      certificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
       SmartIdPerson authenticated =
           new SmartIdPerson(identity, status.getResult().getDocumentNumber());
       session.setPerson(authenticated);

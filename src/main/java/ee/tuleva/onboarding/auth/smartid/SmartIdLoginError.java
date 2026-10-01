@@ -23,6 +23,8 @@ public enum SmartIdLoginError {
   VALIDATION_FAILED("smart.id.validation.failed", "Smart ID validation failed"),
   UNSUPPORTED_COUNTRY(
       "smart.id.unsupported.country", "Only Estonian Smart ID accounts are supported"),
+  CERTIFICATE_REVOKED(
+      "smart.id.certificate.revoked", "Smart ID certificate is revoked or unknown to its issuer"),
   TECHNICAL_ERROR("smart.id.technical.error", "Smart ID technical error");
 
   private final String code;
@@ -31,6 +33,7 @@ public enum SmartIdLoginError {
   public static SmartIdLoginError of(Exception exception) {
     return switch (exception) {
       case UnsupportedSmartIdCountryException _ -> UNSUPPORTED_COUNTRY;
+      case SmartIdCertificateRevokedException _ -> CERTIFICATE_REVOKED;
       case UserRefusedException _ -> USER_REFUSED;
       case UserSelectedWrongVerificationCodeException _ -> WRONG_VERIFICATION_CODE;
       case SessionTimeoutException _ -> TIMEOUT;

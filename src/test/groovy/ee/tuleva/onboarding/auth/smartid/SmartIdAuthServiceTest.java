@@ -15,11 +15,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
 import ee.sk.smartid.exception.SessionNotFoundException;
@@ -28,6 +30,7 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
+import java.security.cert.X509Certificate;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
@@ -39,8 +42,11 @@ class SmartIdAuthServiceTest {
       mock(DeviceLinkAuthenticationResponseValidator.class);
   private final NotificationAuthenticationResponseValidator notificationValidator =
       mock(NotificationAuthenticationResponseValidator.class);
+  private final SmartIdCertificateRevocationCheck revocationCheck =
+      mock(SmartIdCertificateRevocationCheck.class);
   private final SmartIdAuthService service =
-      new SmartIdAuthService(connector, deviceLinkValidator, notificationValidator, demoProperties);
+      new SmartIdAuthService(
+          connector, deviceLinkValidator, notificationValidator, revocationCheck, demoProperties);
 
   @Test
   void completeLoginKeepsWaitingWhileTheSessionIsRunning() {
@@ -236,5 +242,71 @@ class SmartIdAuthServiceTest {
     assertThatThrownBy(() -> service.completeLogin(session)).isInstanceOf(SmartIdException.class);
 
     assertThat(session.getError()).isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
+  }
+
+  @Test
+  void completeLoginChecksTheAuthenticationCertificateIsNotRevoked() {
+    SmartIdSession session = aNotificationSession(now);
+    var status = completeStatus("Notification");
+    var login = (NotificationLogin) session.getLogin();
+    var certificate = new OcspResponderFixture().authenticationCertificate;
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(notificationValidator.validate(status, login.request(), "smart-id-demo"))
+        .willReturn(anEstonianIdentityWith(certificate));
+
+    service.completeLogin(session);
+
+    verify(revocationCheck).requireNotRevoked(certificate);
+  }
+
+  @Test
+  void completeLoginRefusesARevokedOrUnknownCertificate() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    var login = (DeviceLinkLogin) session.getLogin();
+    var certificate = new OcspResponderFixture().authenticationCertificate;
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
+        .willReturn(anEstonianIdentityWith(certificate));
+    willThrow(new SmartIdCertificateRevokedException("REVOKED"))
+        .given(revocationCheck)
+        .requireNotRevoked(certificate);
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(
+            e -> ((SmartIdException) e).getErrorsResponse().getErrors().getFirst().getCode())
+        .isEqualTo("smart.id.certificate.revoked");
+    assertThat(session.getError()).isEqualTo(SmartIdLoginError.CERTIFICATE_REVOKED);
+    assertThat(session.getPerson()).isNull();
+  }
+
+  @Test
+  void completeLoginRefusesWhenTheCertificateStatusCannotBeChecked() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    var login = (DeviceLinkLogin) session.getLogin();
+    var certificate = new OcspResponderFixture().authenticationCertificate;
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
+        .willReturn(anEstonianIdentityWith(certificate));
+    willThrow(new SmartIdCertificateStatusUnavailableException("responder unreachable"))
+        .given(revocationCheck)
+        .requireNotRevoked(certificate);
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
+    assertThat(session.getPerson()).isNull();
+  }
+
+  private static AuthenticationIdentity anEstonianIdentityWith(X509Certificate certificate) {
+    var identity = new AuthenticationIdentity(certificate);
+    identity.setIdentityNumber(SmartIdFixture.personalCode);
+    identity.setGivenName(SmartIdFixture.firstName);
+    identity.setSurname(SmartIdFixture.lastName);
+    identity.setCountry("EE");
+    return identity;
   }
 }

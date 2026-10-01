@@ -17,6 +17,13 @@ enum Known {
     return value ? YES : NO;
   }
 
+  Known or(Known other) {
+    if (isYes() || other.isYes()) {
+      return YES;
+    }
+    return isNo() && other.isNo() ? NO : UNKNOWN;
+  }
+
   boolean isYes() {
     return yes;
   }

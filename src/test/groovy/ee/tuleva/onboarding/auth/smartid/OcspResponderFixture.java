@@ -10,7 +10,9 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -28,17 +30,20 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
+import org.bouncycastle.cert.ocsp.BasicOCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.CertificateID;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPReq;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
+import org.bouncycastle.cert.ocsp.RespID;
 import org.bouncycastle.cert.ocsp.jcajce.JcaBasicOCSPRespBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.jspecify.annotations.Nullable;
 
 final class OcspResponderFixture {
 
@@ -63,7 +68,59 @@ final class OcspResponderFixture {
       boolean echoNonce,
       KeyPair signingKeys,
       X509Certificate signingCertificate,
-      BigInteger serial) {}
+      BigInteger serial,
+      boolean responderIdentifiedByName,
+      List<X509Certificate> includedCertificates) {
+
+    Answer(
+        CertificateStatus status,
+        Instant thisUpdate,
+        boolean echoNonce,
+        KeyPair signingKeys,
+        X509Certificate signingCertificate,
+        BigInteger serial) {
+      this(
+          status,
+          thisUpdate,
+          echoNonce,
+          signingKeys,
+          signingCertificate,
+          serial,
+          false,
+          List.of(signingCertificate));
+    }
+
+    Answer identifiedByName() {
+      return new Answer(
+          status,
+          thisUpdate,
+          echoNonce,
+          signingKeys,
+          signingCertificate,
+          serial,
+          true,
+          includedCertificates);
+    }
+
+    Answer including(X509Certificate... certificates) {
+      return new Answer(
+          status,
+          thisUpdate,
+          echoNonce,
+          signingKeys,
+          signingCertificate,
+          serial,
+          responderIdentifiedByName,
+          List.of(certificates));
+    }
+  }
+
+  Answer signedByTheIssuingCa(CertificateStatus status, Instant thisUpdate) {
+    return new Answer(
+            status, thisUpdate, true, caKeys, ca, authenticationCertificate.getSerialNumber())
+        .identifiedByName()
+        .including();
+  }
 
   Answer answering(CertificateStatus status, Instant thisUpdate) {
     return new Answer(
@@ -80,22 +137,40 @@ final class OcspResponderFixture {
       OCSPReq request = new OCSPReq(encodedRequest);
       CertificateID id =
           new CertificateID(sha1(), new JcaX509CertificateHolder(ca), answer.serial());
-      var builder = new JcaBasicOCSPRespBuilder(answer.signingCertificate().getPublicKey(), sha1());
+      var builder = responseBuilder(answer);
       if (answer.echoNonce()) {
         builder.setResponseExtensions(new Extensions(request.getExtension(id_pkix_ocsp_nonce)));
       }
       builder.addResponse(id, answer.status(), Date.from(answer.thisUpdate()), (Date) null);
       BasicOCSPResp basic =
           builder.build(
-              signer(answer.signingKeys()),
-              new X509CertificateHolder[] {
-                new JcaX509CertificateHolder(answer.signingCertificate())
-              },
-              Date.from(answer.thisUpdate()));
+              signer(answer.signingKeys()), included(answer), Date.from(answer.thisUpdate()));
       return new OCSPRespBuilder().build(OCSPRespBuilder.SUCCESSFUL, basic).getEncoded();
     } catch (IOException | OCSPException | GeneralSecurityException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private static BasicOCSPRespBuilder responseBuilder(Answer answer) throws OCSPException {
+    if (answer.responderIdentifiedByName()) {
+      return new BasicOCSPRespBuilder(
+          new RespID(
+              X500Name.getInstance(
+                  answer.signingCertificate().getSubjectX500Principal().getEncoded())));
+    }
+    return new JcaBasicOCSPRespBuilder(answer.signingCertificate().getPublicKey(), sha1());
+  }
+
+  private static X509CertificateHolder @Nullable [] included(Answer answer)
+      throws GeneralSecurityException {
+    if (answer.includedCertificates().isEmpty()) {
+      return null;
+    }
+    List<X509CertificateHolder> holders = new ArrayList<>();
+    for (X509Certificate certificate : answer.includedCertificates()) {
+      holders.add(new JcaX509CertificateHolder(certificate));
+    }
+    return holders.toArray(X509CertificateHolder[]::new);
   }
 
   static byte[] unsuccessful(int status) {

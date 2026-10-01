@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import java.time.Instant;
 
-public record RememberedBrowser(
+record VerifiedSmartIdAccount(
     String personalCode,
     String documentNumber,
     String firstName,

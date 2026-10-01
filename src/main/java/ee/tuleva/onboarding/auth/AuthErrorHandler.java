@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
+import ee.tuleva.onboarding.auth.browser.PushLoginStartedTooSoonException;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
@@ -14,7 +15,6 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
-import ee.tuleva.onboarding.auth.smartid.NotificationLoginStartedTooSoonException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdCallbackRejectedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
@@ -74,10 +74,10 @@ public class AuthErrorHandler {
     return tooManyLogins("Too many logins are being started right now.");
   }
 
-  @ExceptionHandler(NotificationLoginStartedTooSoonException.class)
+  @ExceptionHandler(PushLoginStartedTooSoonException.class)
   public ResponseEntity<ErrorsResponse> handlePushLoginStartedTooSoon(
-      NotificationLoginStartedTooSoonException exception) {
-    log.info("Smart-ID push login refused: {}", exception.getMessage());
+      PushLoginStartedTooSoonException exception) {
+    log.info("Push login refused: {}", exception.getMessage());
     return tooManyLogins("A push login was started from this browser moments ago.");
   }
 

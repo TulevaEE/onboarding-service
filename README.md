@@ -246,7 +246,7 @@ Smart-ID runs on SK's RP API v3 through `ee.sk.smartid:smart-id-java-client`.
 
 - Login uses the anonymous device-link flow: a QR code on desktop, a same-device link on phones. The
   personal-code push login is only offered on a browser that has already completed a device-link login
-  (the host-only `__Host-SMART_ID_REMEMBERED_BROWSER` cookie, which only the host serving the app
+  (the host-only `__Host-REMEMBERED_BROWSER` cookie, which only the host serving the app
   receives), because a push can otherwise be triggered remotely by anyone
   who knows the personal code.
 - Signing stays notification-based. The signing certificate is fetched silently by document number when

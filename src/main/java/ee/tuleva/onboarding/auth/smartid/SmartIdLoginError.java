@@ -7,6 +7,7 @@ import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.UserAccountException;
 import ee.sk.smartid.exception.useraccount.CertificateLevelMismatchException;
 import ee.sk.smartid.exception.useraccount.RequiredInteractionNotSupportedByAppException;
+import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.SessionTimeoutException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.exception.useraction.UserSelectedWrongVerificationCodeException;
@@ -20,6 +21,9 @@ public enum SmartIdLoginError {
       "smart.id.wrong.verification.code", "Smart ID user chose the wrong verification code"),
   TIMEOUT("smart.id.timeout", "Smart ID timed out waiting for the user"),
   ACCOUNT_NOT_FOUND("smart.id.account.not.found", "Smart ID user account not found"),
+  ACCOUNT_UNUSABLE(
+      "smart.id.account.unusable",
+      "Smart ID account cannot be used until the person checks the Smart-ID app or portal"),
   VALIDATION_FAILED("smart.id.validation.failed", "Smart ID validation failed"),
   UNSUPPORTED_COUNTRY(
       "smart.id.unsupported.country", "Only Estonian Smart ID accounts are supported"),
@@ -40,7 +44,8 @@ public enum SmartIdLoginError {
       case SessionNotFoundException _ -> TIMEOUT;
       case CertificateLevelMismatchException _ -> VALIDATION_FAILED;
       case RequiredInteractionNotSupportedByAppException _ -> TECHNICAL_ERROR;
-      case UserAccountException _ -> ACCOUNT_NOT_FOUND;
+      case UserAccountNotFoundException _ -> ACCOUNT_NOT_FOUND;
+      case UserAccountException _ -> ACCOUNT_UNUSABLE;
       case UnprocessableSmartIdResponseException _ -> VALIDATION_FAILED;
       default -> TECHNICAL_ERROR;
     };

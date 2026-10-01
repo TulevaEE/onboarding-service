@@ -138,6 +138,20 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
+  void keepsTheRememberedAccountWhenItsPushLoginFindsTheAccountUnusableForNow() {
+    SmartIdSession session = aNotificationSession(now);
+    session.setError(SmartIdLoginError.ACCOUNT_UNUSABLE);
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session))
+        .willThrow(new SmartIdException(SmartIdLoginError.ACCOUNT_UNUSABLE));
+
+    assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
+
+    verify(rememberedAccounts, never()).forgetEverywhere();
+  }
+
+  @Test
   void keepsTheRememberedAccountWhenAQrLoginFindsNoAccount() {
     SmartIdSession session = aDeviceLinkSession(now);
     session.setError(SmartIdLoginError.ACCOUNT_NOT_FOUND);

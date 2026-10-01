@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
 import static ee.tuleva.onboarding.auth.browser.ThisBrowser.COOKIE_NAME;
@@ -42,6 +42,8 @@ import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevokedException;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -67,9 +69,9 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles({"test", "mock"})
-@Import(SmartIdAuthIntegrationTest.SmartIdTestConfig.class)
+@Import(LoginIntegrationTest.SmartIdTestConfig.class)
 @Transactional
-class SmartIdAuthIntegrationTest {
+class LoginIntegrationTest {
 
   private static final String SESSION_ID = "test-session-id";
   private static final String PUSH_SESSION_ID = "push-session-id";

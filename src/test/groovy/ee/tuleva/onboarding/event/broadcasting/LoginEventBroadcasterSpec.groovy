@@ -19,6 +19,7 @@ import static ee.tuleva.onboarding.auth.AuthenticationTokensFixture.sampleAuthen
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.*
+import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
@@ -94,5 +95,20 @@ class LoginEventBroadcasterSpec extends Specification {
 
     then:
     1 * eventPublisher.publishEvent(new TrackableEvent(samplePerson, LOGIN, [method: SMART_ID]))
+  }
+
+  def "keeps the Smart-ID document number out of the login event"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember()
+        .attributes([(GRANT_TYPE): SMART_ID.name(), (SMART_ID_DOCUMENT_NUMBER): "PNOEE-38888888888-MOCK-Q"])
+        .build()
+    def event = new AfterTokenGrantedEvent(this, person, SMART_ID, sampleAuthenticationTokens())
+    pillarActivations.forPerson(_) >> new PillarActivation(true, true)
+
+    when:
+    service.onAfterTokenGrantedEvent(event)
+
+    then:
+    1 * eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, [method: SMART_ID, (GRANT_TYPE): SMART_ID.name()]))
   }
 }

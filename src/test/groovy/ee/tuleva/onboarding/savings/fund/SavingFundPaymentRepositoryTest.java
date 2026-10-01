@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -576,55 +575,6 @@ class SavingFundPaymentRepositoryTest {
     var result = repository.findWithdrawableIbans(childParty);
 
     assertThat(result).containsExactly("EE111111111111111111");
-  }
-
-  @Test
-  void standingOrderMonthsLeaveOutOneOffPaymentsMadeThroughTheInAppLink() {
-    var party = new PartyId(PERSON, createUser().getPersonalCode());
-    issuedPayment(party, "48806046007, 1781500000", "2026-06-15T10:00:00Z");
-    issuedPayment(party, "48806046007, 1784200000", "2026-07-15T10:00:00Z");
-    issuedPayment(party, "48806046007, 1786800000", "2026-08-15T10:00:00Z");
-
-    assertThat(repository.countStandingOrderMonthsSince(party, LocalDate.parse("2026-06-01")))
-        .isZero();
-  }
-
-  @Test
-  void standingOrderMonthsCountMonthsPaidWithTheSaversOwnReference() {
-    var party = new PartyId(PERSON, createUser().getPersonalCode());
-    issuedPayment(party, "kogumisfond", "2026-06-15T10:00:00Z");
-    issuedPayment(party, "kogumisfond", "2026-07-15T10:00:00Z");
-    issuedPayment(party, "kogumisfond", "2026-08-15T10:00:00Z");
-
-    assertThat(repository.countStandingOrderMonthsSince(party, LocalDate.parse("2026-06-01")))
-        .isEqualTo(3);
-  }
-
-  @Test
-  void standingOrderMonthsCountAnInAppLinkReferenceCopiedIntoAStandingOrder() {
-    var party = new PartyId(PERSON, createUser().getPersonalCode());
-    issuedPayment(party, "48806046007, 1781500000", "2026-06-15T10:00:00Z");
-    issuedPayment(party, "48806046007, 1781500000", "2026-07-15T10:00:00Z");
-    issuedPayment(party, "48806046007, 1781500000", "2026-08-15T10:00:00Z");
-
-    assertThat(repository.countStandingOrderMonthsSince(party, LocalDate.parse("2026-06-01")))
-        .isEqualTo(3);
-  }
-
-  private void issuedPayment(PartyId party, String description, String createdAt) {
-    var id =
-        repository.savePaymentData(
-            createPayment()
-                .externalId(UUID.randomUUID().toString())
-                .description(description)
-                .build());
-    repository.attachParty(id, party);
-    jdbcTemplate.update(
-        "update saving_fund_payment set status=:status, created_at=:createdAt where id=:id",
-        Map.of(
-            "status", ISSUED.name(),
-            "createdAt", Timestamp.from(Instant.parse(createdAt)),
-            "id", id));
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

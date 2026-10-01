@@ -14,7 +14,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -119,32 +118,6 @@ public class SavingFundPaymentRepository {
         Map.of(
             "description", description, "recent", Timestamp.from(clock.instant().minus(30, DAYS))),
         this::rowMapper);
-  }
-
-  public int countStandingOrderMonthsSince(PartyId partyId, LocalDate fromDate) {
-    Integer count =
-        jdbcTemplate.queryForObject(
-            """
-            select count(distinct to_char(created_at, 'YYYY-MM')) from saving_fund_payment payment
-            where party_type = :party_type and party_code = :party_code
-              and status in ('ISSUED', 'PROCESSED')
-              and created_at >= :from_date
-              and not (
-                regexp_like(coalesce(description, ''), '^[0-9]{8,11}, [0-9]{10}(, [A-Za-z0-9]+)?$')
-                and not exists (
-                  select 1 from saving_fund_payment other
-                  where other.party_type = payment.party_type
-                    and other.party_code = payment.party_code
-                    and other.description = payment.description
-                    and other.id <> payment.id
-                    and other.status in ('ISSUED', 'PROCESSED')))
-            """,
-            Map.of(
-                "party_type", partyId.type().name(),
-                "party_code", partyId.code(),
-                "from_date", Timestamp.valueOf(fromDate.atStartOfDay())),
-            Integer.class);
-    return count == null ? 0 : count;
   }
 
   public boolean existsIssuedPaymentFor(PartyId partyId) {

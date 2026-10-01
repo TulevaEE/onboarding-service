@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -27,11 +26,11 @@ public class ThisBrowser {
 
   public static final String COOKIE_NAME = "__Host-REMEMBERED_BROWSER";
   private static final int TOKEN_BYTES = 32;
+  private static final Duration LONGEST_COOKIE_LIFETIME_BROWSERS_ACCEPT = Duration.ofDays(400);
   private static final Duration MINIMUM_INTERVAL_BETWEEN_PUSH_LOGINS_FROM_ONE_BROWSER =
       Duration.ofSeconds(30);
 
   private final RememberedBrowsers browsers;
-  private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
   public Optional<RememberedBrowser> remembered() {
@@ -45,19 +44,19 @@ public class ThisBrowser {
         currentToken.flatMap(token -> browsers.findUnexpired(hash(token)));
     if (current.isEmpty()) {
       long id = browsers.add(hash(newToken), until);
-      setCookie(newToken, until);
+      setCookie(newToken);
       return id;
     }
     RememberedBrowser browser = current.get();
     browsers.extendUntil(browser.id(), until);
     if (browsers.rotate(browser.id(), hash(currentToken.orElseThrow()), hash(newToken))) {
-      setCookie(newToken, until.isAfter(browser.expiresAt()) ? until : browser.expiresAt());
+      setCookie(newToken);
     }
     return browser.id();
   }
 
-  private void setCookie(String token, Instant expiresAt) {
-    addCookie(cookie(token).maxAge(Duration.between(Instant.now(clock), expiresAt)));
+  private static void setCookie(String token) {
+    addCookie(cookie(token).maxAge(LONGEST_COOKIE_LIFETIME_BROWSERS_ACCEPT));
   }
 
   public void claimLoginStart(PushLogin pushLogin) {

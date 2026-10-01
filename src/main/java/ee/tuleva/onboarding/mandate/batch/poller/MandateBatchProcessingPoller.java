@@ -3,14 +3,8 @@ package ee.tuleva.onboarding.mandate.batch.poller;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
-import ee.tuleva.onboarding.error.response.ErrorResponse;
-import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
-import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
-import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
-import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
+import ee.tuleva.onboarding.mandate.batch.MandateBatchCompletion;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.user.User;
 import jakarta.annotation.PreDestroy;
@@ -22,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +23,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MandateBatchProcessingPoller {
-  private final ApplicationEventPublisher applicationEventPublisher;
   private final MandateProcessorService mandateProcessor;
-  private final MandateContacts mandateContacts;
+  private final MandateBatchCompletion mandateBatchCompletion;
   private final SecurityContextRunner securityContextRunner;
 
   private final ExecutorService poller = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -99,7 +91,8 @@ public class MandateBatchProcessingPoller {
         return;
       }
 
-      securityContextRunner.runAs(context.user(), () -> onMandateProcessingFinished(context));
+      securityContextRunner.runAs(
+          context.user(), () -> mandateBatchCompletion.complete(context.batch, context.locale));
     };
   }
 
@@ -112,62 +105,5 @@ public class MandateBatchProcessingPoller {
     for (int i = 0; i < THREAD_COUNT; i++) {
       poller.submit(getPoller());
     }
-  }
-
-  protected void onMandateProcessingFinished(MandateBatchPollingContext context) {
-    log.info(
-        "Mandate batch (mandateBatchId={}) processing finished, notifying", context.batch.getId());
-    mandateContacts.clearCache(context.user());
-    handleMandateProcessingErrors(context);
-    notifyAboutSignedMandate(context);
-  }
-
-  private void handleMandateProcessingErrors(MandateBatchPollingContext context) {
-    var mandates = context.batch.getMandates();
-
-    List<ErrorResponse> errorResponses =
-        mandates.stream()
-            .map(mandate -> mandateProcessor.getErrors(mandate).getErrors())
-            .flatMap(List::stream)
-            .toList();
-
-    int failedMandateCount =
-        mandates.stream()
-            .filter(mandate -> !mandateProcessor.getErrors(mandate).getErrors().isEmpty())
-            .toList()
-            .size();
-
-    int successfulMandateCount = mandates.size() - failedMandateCount;
-
-    ErrorsResponse errorsResponse = new ErrorsResponse(errorResponses);
-
-    if (errorsResponse.hasErrors()) {
-      log.info(
-          "Mandate batch (mandateBatchId={}) processing errors {}",
-          context.batch.getId(),
-          errorsResponse);
-
-      // only notify on inconsistent state: more than 1 mandate in batch, some were successful and
-      // some weren't
-      if (mandates.size() > 1 && successfulMandateCount > 0 && failedMandateCount > 0) {
-        applicationEventPublisher.publishEvent(
-            new OnMandateBatchFailedEvent(this, context.user(), context.batch, context.locale));
-      }
-
-      throw new MandateProcessingException(errorsResponse);
-    }
-  }
-
-  private void notifyAboutSignedMandate(MandateBatchPollingContext context) {
-    context
-        .batch
-        .getMandates()
-        .forEach(
-            mandate ->
-                applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, context.user(), mandate, context.locale)));
-
-    applicationEventPublisher.publishEvent(
-        new AfterMandateBatchSignedEvent(this, context.user(), context.batch, context.locale));
   }
 }

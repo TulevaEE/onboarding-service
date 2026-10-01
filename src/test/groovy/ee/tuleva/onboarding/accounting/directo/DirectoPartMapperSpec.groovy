@@ -26,6 +26,7 @@ class DirectoPartMapperSpec extends Specification {
       new DirectoAccount("212308", "Haigushüvitised", "1", null, null),
       new DirectoAccount("212310", "Arvestatud palk", "1", null, null),
       new DirectoAccount("212311", "Palgavõlad", "1", null, null),
+      new DirectoAccount("212401", "Renamed liability", "1", null, null),
       new DirectoAccount("500100", "Office rent", "4", null, null),
       new DirectoAccount("500300", "Töötajate koolitus", "4", null, null),
       new DirectoAccount("540100", "Salaries", "4", null, null),
@@ -107,6 +108,7 @@ class DirectoPartMapperSpec extends Specification {
     "a liability names sick pay"            | "FIN"  | "212308" | null           | null     | null     | null      || true
     "a liability names salary"              | "FIN"  | "212310" | null           | null     | null     | null      || true
     "a liability names salary payables"     | "FIN"  | "212311" | null           | null     | null     | null      || true
+    "a payroll liability was renamed"       | "FIN"  | "212401" | null           | null     | null     | null      || true
     "an employee is among the objects"      | "OST"  | "500100" | "TEAM1, E001"  | null     | null     | null      || true
     "the supplier is an employee"           | "OST"  | "500100" | null           | "E001"   | null     | null      || true
     "the customer is an employee"           | "ARVE" | "500100" | null           | null     | "E001"   | null      || true

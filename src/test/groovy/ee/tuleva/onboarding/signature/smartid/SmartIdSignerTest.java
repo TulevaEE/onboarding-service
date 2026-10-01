@@ -102,8 +102,9 @@ class SmartIdSignerTest {
 
   @SneakyThrows
   private static String personalCodeOf(X509Certificate certificate) {
-    return PersonalCode.fromSubjectIdCode(
-        CertificateData.getSubjectIdCode(certificate).orElseThrow());
+    return CertificateData.getSubjectIdCode(certificate)
+        .flatMap(PersonalCode::fromEstonianSubjectIdCode)
+        .orElseThrow();
   }
 
   private static AuthenticatedPerson signerWithoutDocumentNumber() {

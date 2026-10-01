@@ -12,7 +12,7 @@ public final class SigningCertificates {
   public static boolean belongsTo(X509Certificate certificate, String personalCode)
       throws CertificateEncodingException {
     return CertificateData.getSubjectIdCode(certificate)
-        .map(PersonalCode::fromSubjectIdCode)
+        .flatMap(PersonalCode::fromEstonianSubjectIdCode)
         .filter(personalCode::equals)
         .isPresent();
   }

@@ -14,7 +14,14 @@ final class JournalEntryFingerprint {
   private JournalEntryFingerprint() {}
 
   static String of(JournalEntryPart part) {
-    return sha256(part.date() + "|" + part.documentType() + "|" + normalizedLines(part));
+    return sha256(
+        part.date()
+            + "|"
+            + part.documentType()
+            + "|"
+            + normalizedLines(part)
+            + "|"
+            + part.replacedSourceKeys().stream().sorted().collect(joining(",")));
   }
 
   private static String normalizedLines(JournalEntryPart part) {

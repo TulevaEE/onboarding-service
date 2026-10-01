@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.tuleva.onboarding.auth.browser.ConcurrentCalls.runTogether;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.firstName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -130,6 +132,28 @@ class RememberedSmartIdAccountRepositoryTest {
     jdbcClient.sql("DELETE FROM remembered_browser WHERE id = :id").param("id", browser).update();
 
     assertThat(accounts.findUnexpired(browser)).isEmpty();
+  }
+
+  @Test
+  @Transactional(propagation = NOT_SUPPORTED)
+  void concurrentLoginsFromOneBrowserBothSucceedAndLeaveOneRememberedAccount() throws Exception {
+    long browser = aBrowser("concurrent-smart-id-browser");
+    try {
+      runTogether(
+          50,
+          () -> accounts.replace(browser, anAccount(), LATER),
+          () -> accounts.replace(browser, somebodyElse(), LATER));
+
+      assertThat(
+              jdbcClient
+                  .sql("SELECT count(*) FROM remembered_smart_id_account WHERE browser_id = :id")
+                  .param("id", browser)
+                  .query(Long.class)
+                  .single())
+          .isEqualTo(1L);
+    } finally {
+      jdbcClient.sql("DELETE FROM remembered_browser WHERE id = :id").param("id", browser).update();
+    }
   }
 
   private long aBrowser(String tokenHash) {

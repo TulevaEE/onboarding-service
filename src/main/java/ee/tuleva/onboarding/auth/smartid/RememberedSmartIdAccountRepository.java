@@ -8,6 +8,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -37,7 +38,9 @@ class RememberedSmartIdAccountRepository implements ExpiringRememberedEntries {
         .optional();
   }
 
+  @Transactional
   void replace(long browserId, VerifiedSmartIdAccount account, Instant expiresAt) {
+    lockBrowser(browserId);
     jdbcClient
         .sql("DELETE FROM remembered_smart_id_account WHERE browser_id = :browserId")
         .param("browserId", browserId)
@@ -59,6 +62,14 @@ class RememberedSmartIdAccountRepository implements ExpiringRememberedEntries {
         .param("verifiedAt", Timestamp.from(account.verifiedAt()))
         .param("expiresAt", Timestamp.from(expiresAt))
         .update();
+  }
+
+  private void lockBrowser(long browserId) {
+    jdbcClient
+        .sql("SELECT id FROM remembered_browser WHERE id = :browserId FOR UPDATE")
+        .param("browserId", browserId)
+        .query(Long.class)
+        .optional();
   }
 
   void remove(long browserId) {

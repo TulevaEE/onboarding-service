@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
+import static ee.tuleva.onboarding.auth.browser.ConcurrentCalls.runTogether;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -137,6 +139,22 @@ class RememberedMobileIdPhoneRepositoryTest {
                     rs.getString("phone_number"),
                     rs.getTimestamp("expires_at").toInstant()))
         .list();
+  }
+
+  @Test
+  @Transactional(propagation = NOT_SUPPORTED)
+  void concurrentLoginsOfOnePersonFromOneBrowserBothSucceedAndLeaveOnePhone() throws Exception {
+    long browser = aBrowser("concurrent-mobile-id-browser");
+    try {
+      runTogether(
+          50,
+          () -> phones.save(browser, PERSONAL_CODE, "+37255555555", LATER),
+          () -> phones.save(browser, PERSONAL_CODE, "+37251234567", LATER));
+
+      assertThat(rowsOf(browser)).hasSize(1);
+    } finally {
+      jdbcClient.sql("DELETE FROM remembered_browser WHERE id = :id").param("id", browser).update();
+    }
   }
 
   private long aBrowser(String tokenHash) {

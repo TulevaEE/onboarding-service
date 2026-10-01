@@ -11,7 +11,6 @@ import org.digidoc4j.DataToSign
 import org.digidoc4j.DigestAlgorithm
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
 import static java.util.Base64.getDecoder
 import static java.util.Base64.getEncoder
 
@@ -22,7 +21,7 @@ class IdCardSignerSpec extends Specification {
 
   def personalCode = "38888888888"
   def files = [new SignatureFile("fileName", "mimeType", "content".bytes)]
-  def certificate = WebEidCertificateFixture.certificate("TEST", "USER", personalCode, ESTONIAN_CITIZEN_ID_CARD)
+  def certificate = WebEidCertificateFixture.signingCertificate(personalCode, "RSA", 2048).certificate()
   def certificateInBase64 = getEncoder().encodeToString(certificate.encoded)
   def supportedHashFunctions = ["SHA-224", "SHA-256", "SHA-384", "SHA-512"]
   def entity = new SignableEntity("Mandate", 1L)
@@ -70,6 +69,30 @@ class IdCardSignerSpec extends Specification {
 
     then:
     thrown(SigningCertificateMismatchException)
+    0 * digiDocFacade.buildContainer(_)
+  }
+
+  def "rejects the authentication certificate of the signer's ID card"() {
+    given:
+    def authenticationCertificate = WebEidCertificateFixture.authenticationCertificate(personalCode).certificate()
+
+    when:
+    idCardSigner.startSign(entity, files, getEncoder().encodeToString(authenticationCertificate.encoded), supportedHashFunctions, personalCode)
+
+    then:
+    thrown(InvalidSigningCertificateException)
+    0 * digiDocFacade.buildContainer(_)
+  }
+
+  def "rejects a signing certificate that carries no personal code as invalid rather than as someone else's"() {
+    given:
+    def certificateWithoutSerial = WebEidCertificateFixture.signingCertificateWithSubjectDn("C=EE, SURNAME=USER, GIVENNAME=TEST").certificate()
+
+    when:
+    idCardSigner.startSign(entity, files, getEncoder().encodeToString(certificateWithoutSerial.encoded), supportedHashFunctions, personalCode)
+
+    then:
+    thrown(InvalidSigningCertificateException)
     0 * digiDocFacade.buildContainer(_)
   }
 

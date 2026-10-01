@@ -44,6 +44,7 @@ public class IdCardSigner {
       List<String> supportedHashFunctions,
       String personalCode) {
     X509Certificate signingCertificate = decodeCertificate(certificate);
+    requireQualifiedSignatureCertificate(signingCertificate);
     requireBelongsToSigner(signingCertificate, personalCode);
     DigestAlgorithm digestAlgorithm =
         requireSupported(
@@ -116,6 +117,14 @@ public class IdCardSigner {
     return signatureValue.length == 2 * fieldSizeBytes;
   }
 
+  private static void requireQualifiedSignatureCertificate(X509Certificate certificate) {
+    int nonRepudiation = 1;
+    boolean[] keyUsage = certificate.getKeyUsage();
+    if (keyUsage == null || !keyUsage[nonRepudiation]) {
+      throw new InvalidSigningCertificateException();
+    }
+  }
+
   private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {
     if (!subjectIdCode(certificate).equals(personalCode)) {
       throw new SigningCertificateMismatchException();
@@ -126,7 +135,7 @@ public class IdCardSigner {
     try {
       return PersonalCode.fromSubjectIdCode(
           CertificateData.getSubjectIdCode(certificate)
-              .orElseThrow(SigningCertificateMismatchException::new));
+              .orElseThrow(InvalidSigningCertificateException::new));
     } catch (CertificateEncodingException e) {
       throw new InvalidSigningCertificateException(e);
     }

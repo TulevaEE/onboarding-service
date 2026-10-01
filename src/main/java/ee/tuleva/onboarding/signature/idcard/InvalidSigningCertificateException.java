@@ -5,6 +5,13 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 
 public class InvalidSigningCertificateException extends ErrorsResponseException {
 
+  public InvalidSigningCertificateException() {
+    super(
+        ErrorsResponse.ofSingleError(
+            "id.card.signing.certificate.invalid",
+            "Signing certificate is not a qualified signature certificate with a personal code"));
+  }
+
   public InvalidSigningCertificateException(Exception cause) {
     super(
         ErrorsResponse.ofSingleError(

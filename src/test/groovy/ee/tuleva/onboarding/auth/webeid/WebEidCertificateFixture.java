@@ -7,6 +7,8 @@ import static org.bouncycastle.asn1.x509.Extension.keyUsage;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection;
 import static org.bouncycastle.asn1.x509.KeyUsage.digitalSignature;
+import static org.bouncycastle.asn1.x509.KeyUsage.keyAgreement;
+import static org.bouncycastle.asn1.x509.KeyUsage.nonRepudiation;
 
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import java.math.BigInteger;
@@ -136,20 +138,45 @@ public class WebEidCertificateFixture {
 
   public record CertificateWithKey(X509Certificate certificate, PrivateKey privateKey) {}
 
-  @SneakyThrows
   public static CertificateWithKey signingCertificate(
       String personalCode, String keyAlgorithm, int keySize) {
+    return certificateWithKey(
+        subjectDn("TEST", "USER", personalCode), keyAlgorithm, keySize, qualifiedSignature());
+  }
+
+  public static CertificateWithKey signingCertificateWithSubjectDn(String subjectDn) {
+    return certificateWithKey(new X500Name(subjectDn), "RSA", 2048, qualifiedSignature());
+  }
+
+  @SneakyThrows
+  public static CertificateWithKey authenticationCertificate(String personalCode) {
+    return certificateWithKey(
+        subjectDn("TEST", "USER", personalCode),
+        "RSA",
+        2048,
+        Extension.create(keyUsage, true, new KeyUsage(digitalSignature | keyAgreement)),
+        clientAuthentication());
+  }
+
+  @SneakyThrows
+  private static CertificateWithKey certificateWithKey(
+      X500Name subjectDn, String keyAlgorithm, int keySize, Extension... extensions) {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyAlgorithm);
     keyPairGenerator.initialize(keySize);
     KeyPair subjectKeyPair = keyPairGenerator.generateKeyPair();
     X509Certificate certificate =
         buildCertificate(
-            subjectDn("TEST", "USER", personalCode),
+            subjectDn,
             VALID_ISSUER,
             subjectKeyPair.getPublic(),
             rsaKeyPair().getPrivate(),
-            signing());
+            extensions);
     return new CertificateWithKey(certificate, subjectKeyPair.getPrivate());
+  }
+
+  @SneakyThrows
+  private static Extension qualifiedSignature() {
+    return Extension.create(keyUsage, true, new KeyUsage(nonRepudiation));
   }
 
   @SneakyThrows

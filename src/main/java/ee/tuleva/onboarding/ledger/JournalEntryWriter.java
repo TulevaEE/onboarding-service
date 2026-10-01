@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 class JournalEntryWriter {
 
+  static final String REPLACED_SOURCE_KEYS_METADATA_KEY = "replacedSourceKeys";
   static final String SOURCE_METADATA_KEY = "source";
   static final String SOURCE_KEY_METADATA_KEY = "sourceKey";
 
@@ -157,6 +158,8 @@ class JournalEntryWriter {
         SOURCE_METADATA_KEY,
         source,
         "revision",
-        revision);
+        revision,
+        REPLACED_SOURCE_KEYS_METADATA_KEY,
+        part.replacedSourceKeys().stream().sorted().toList());
   }
 }

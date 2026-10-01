@@ -398,6 +398,57 @@ class GeneralLedgerMirrorIntegrationTest {
     return account("999999", EXPENSE, "Not in the chart");
   }
 
+  @Test
+  void aRetiredSummaryStaysLiveWithItsFormerPartsUntilEveryOneCanPost() {
+    var training = account("500200", EXPENSE, "Training");
+    var purchase =
+        part("OST", 1, "2026-02-01", line(OFFICE_COSTS, "80.00"), line(PAYABLES, "-80.00"));
+    var course = part("OST", 2, "2026-02-10", line(training, "60.00"), line(BANK, "-60.00"));
+    var summary =
+        new JournalEntryPart(
+            "SUMMARY:2026-02",
+            "SUMMARY",
+            LocalDate.parse("2026-02-28"),
+            List.of(line(OFFICE_COSTS, "140.00"), line(PAYABLES, "-80.00"), line(BANK, "-60.00")),
+            Set.of(purchase.sourceKey(), course.sourceKey()));
+    mirror(List.of(OPENING, summary));
+
+    var whileOneFormerPartIsQuarantined = mirror(List.of(OPENING, purchase, course));
+
+    assertThat(whileOneFormerPartIsQuarantined).isEqualTo(new MirrorResult(0, 0, 0, 1, 2, 0));
+    assertThat(versionsOf(summary)).extracting(JournalEntryVersion::live).containsExactly(true);
+    assertThat(versionsOf(purchase)).isEmpty();
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("140.00"));
+
+    generalLedger.upsertAccounts(ENTITY, List.of(training));
+    var onceEveryFormerPartCanPost = mirror(List.of(OPENING, purchase, course));
+
+    assertThat(onceEveryFormerPartCanPost).isEqualTo(new MirrorResult(2, 0, 1, 1, 0, 0));
+    assertThat(versionsOf(summary)).extracting(JournalEntryVersion::live).containsExactly(false);
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("80.00"));
+    assertThat(balanceAt(training, "2026-02-28")).isEqualTo(new BigDecimal("60.00"));
+  }
+
+  @Test
+  void aRetiredSummaryIsReversedWhileAPartThatWasNeverInItIsQuarantined() {
+    var training = account("500200", EXPENSE, "Training");
+    var summary =
+        new JournalEntryPart(
+            "SUMMARY:2026-02",
+            "SUMMARY",
+            LocalDate.parse("2026-02-28"),
+            List.of(line(OFFICE_COSTS, "80.00"), line(PAYABLES, "-80.00")),
+            Set.of("OST:1:2026-02-01"));
+    mirror(List.of(OPENING, summary));
+    var unrelated = part("OST", 3, "2026-02-12", line(training, "10.00"), line(BANK, "-10.00"));
+
+    var result = mirror(List.of(OPENING, unrelated));
+
+    assertThat(result).isEqualTo(new MirrorResult(0, 0, 1, 1, 1, 0));
+    assertThat(versionsOf(summary)).extracting(JournalEntryVersion::live).containsExactly(false);
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("0.00"));
+  }
+
   private static JournalEntryPart part(
       String documentType, int number, String date, JournalEntryLine... lines) {
     return new JournalEntryPart(

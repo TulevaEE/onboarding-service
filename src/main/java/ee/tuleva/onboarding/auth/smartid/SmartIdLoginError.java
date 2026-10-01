@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SmartIdLoginError {
   USER_REFUSED("smart.id.user.refused", "Smart ID User refused"),
+  WRONG_VERIFICATION_CODE(
+      "smart.id.wrong.verification.code", "Smart ID user chose the wrong verification code"),
   TIMEOUT("smart.id.timeout", "Smart ID timed out waiting for the user"),
   ACCOUNT_NOT_FOUND("smart.id.account.not.found", "Smart ID user account not found"),
   VALIDATION_FAILED("smart.id.validation.failed", "Smart ID validation failed"),
@@ -30,7 +32,7 @@ public enum SmartIdLoginError {
     return switch (exception) {
       case UnsupportedSmartIdCountryException _ -> UNSUPPORTED_COUNTRY;
       case UserRefusedException _ -> USER_REFUSED;
-      case UserSelectedWrongVerificationCodeException _ -> USER_REFUSED;
+      case UserSelectedWrongVerificationCodeException _ -> WRONG_VERIFICATION_CODE;
       case SessionTimeoutException _ -> TIMEOUT;
       case SessionNotFoundException _ -> TIMEOUT;
       case CertificateLevelMismatchException _ -> VALIDATION_FAILED;

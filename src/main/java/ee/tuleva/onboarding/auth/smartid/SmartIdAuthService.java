@@ -4,6 +4,7 @@ import static ee.sk.smartid.FlowType.NOTIFICATION;
 import static ee.sk.smartid.FlowType.QR;
 import static ee.sk.smartid.FlowType.WEB2APP;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.WRONG_VERIFICATION_CODE;
 
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
@@ -55,6 +56,11 @@ public class SmartIdAuthService {
       SmartIdLoginError error = SmartIdLoginError.of(e);
       if (error == TECHNICAL_ERROR) {
         log.error("Smart-ID login failed: sessionId={}", session.getSessionId(), e);
+      } else if (error == WRONG_VERIFICATION_CODE) {
+        log.warn(
+            "Smart-ID login refused with a wrong verification code, someone other than the"
+                + " person may have started it: sessionId={}",
+            session.getSessionId());
       } else {
         log.info(
             "Smart-ID login failed: sessionId={}, error={}, reason={}",

@@ -50,7 +50,7 @@ public class SmartIdAuthProvider implements AuthProvider {
       person = smartIdAuthService.completeLogin(session);
     } catch (SmartIdException e) {
       genericSessionStore.save(session);
-      forgetStaleRememberedAccount(session);
+      forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(session);
       throw e;
     }
     genericSessionStore.remove(SmartIdSession.class);
@@ -64,10 +64,9 @@ public class SmartIdAuthProvider implements AuthProvider {
     return authenticatedPerson;
   }
 
-  private void forgetStaleRememberedAccount(SmartIdSession session) {
+  private void forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(SmartIdSession session) {
     if (session.getError() == SmartIdLoginError.ACCOUNT_NOT_FOUND
         && session.getLogin() instanceof NotificationLogin) {
-      // The account is gone, so every browser remembering it is stale, not just this one.
       rememberedSmartIdAccounts.forgetEverywhere();
     }
   }

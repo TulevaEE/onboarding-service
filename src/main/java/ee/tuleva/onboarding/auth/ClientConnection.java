@@ -10,10 +10,6 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Where a request reached us from. Recorded on login so an attack can be spotted while it is
- * happening and reconstructed afterwards, which Smart-ID asks relying parties to be able to do.
- */
 @Component
 public class ClientConnection {
 

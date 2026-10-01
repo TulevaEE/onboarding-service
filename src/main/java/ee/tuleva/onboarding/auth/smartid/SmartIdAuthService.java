@@ -43,7 +43,8 @@ public class SmartIdAuthService {
     }
     try {
       SessionStatus status = finalStatus(session);
-      AuthenticationIdentity identity = validate(session, status, flowTypeOf(status));
+      AuthenticationIdentity identity =
+          validate(session, status, flowTypeOfAProducedSignature(status));
       requireEstonianAccount(identity);
       SmartIdPerson authenticated =
           new SmartIdPerson(identity, status.getResult().getDocumentNumber());
@@ -118,12 +119,7 @@ public class SmartIdAuthService {
     }
   }
 
-  /**
-   * A session that produced a signature has to say which flow produced it, so that it can be
-   * checked against the flows we offered. A refused or timed out session carries no signature at
-   * all; those are left to the validator, which reports the reason the person actually needs.
-   */
-  private static @Nullable FlowType flowTypeOf(SessionStatus status) {
+  private static @Nullable FlowType flowTypeOfAProducedSignature(SessionStatus status) {
     SessionSignature signature = status.getSignature();
     if (signature == null) {
       return null;

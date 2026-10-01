@@ -60,13 +60,33 @@ class RememberedBrowsersTest {
   @Test
   void rotatingKeepsTheBrowserButOnlyTheNewTokenFindsIt() {
     long id = browsers.add("old-token-hash", LATER);
-    Instant extended = LATER.plus(Duration.ofDays(10));
 
-    browsers.rotate(id, "new-token-hash", extended);
+    assertThat(browsers.rotate(id, "old-token-hash", "new-token-hash")).isTrue();
 
     assertThat(browsers.findUnexpired("old-token-hash")).isEmpty();
-    assertThat(browsers.findUnexpired("new-token-hash"))
-        .contains(new RememberedBrowser(id, extended));
+    assertThat(browsers.findUnexpired("new-token-hash")).contains(new RememberedBrowser(id, LATER));
+  }
+
+  @Test
+  void aRotationThatAnotherLoginAlreadyMadeLeavesTheWinnersToken() {
+    long id = browsers.add("old-token-hash", LATER);
+    browsers.rotate(id, "old-token-hash", "winner-token-hash");
+
+    assertThat(browsers.rotate(id, "old-token-hash", "loser-token-hash")).isFalse();
+
+    assertThat(browsers.findUnexpired("winner-token-hash")).isPresent();
+    assertThat(browsers.findUnexpired("loser-token-hash")).isEmpty();
+  }
+
+  @Test
+  void extendingNeverShortensHowLongABrowserIsRemembered() {
+    long id = browsers.add("token-hash", LATER);
+    Instant longer = LATER.plus(Duration.ofDays(10));
+
+    browsers.extendUntil(id, longer);
+    browsers.extendUntil(id, LATER);
+
+    assertThat(browsers.findUnexpired("token-hash")).contains(new RememberedBrowser(id, longer));
   }
 
   @Test

@@ -39,20 +39,25 @@ public class ThisBrowser {
   }
 
   public long rememberUntil(Instant until) {
-    Optional<RememberedBrowser> current = remembered();
-    Instant expiresAt =
-        current.map(RememberedBrowser::expiresAt).filter(until::isBefore).orElse(until);
-    String token = newToken();
-    long id =
-        current
-            .map(
-                browser -> {
-                  browsers.rotate(browser.id(), hash(token), expiresAt);
-                  return browser.id();
-                })
-            .orElseGet(() -> browsers.add(hash(token), expiresAt));
+    String newToken = newToken();
+    Optional<String> currentToken = cookieToken();
+    Optional<RememberedBrowser> current =
+        currentToken.flatMap(token -> browsers.findUnexpired(hash(token)));
+    if (current.isEmpty()) {
+      long id = browsers.add(hash(newToken), until);
+      setCookie(newToken, until);
+      return id;
+    }
+    RememberedBrowser browser = current.get();
+    browsers.extendUntil(browser.id(), until);
+    if (browsers.rotate(browser.id(), hash(currentToken.orElseThrow()), hash(newToken))) {
+      setCookie(newToken, until.isAfter(browser.expiresAt()) ? until : browser.expiresAt());
+    }
+    return browser.id();
+  }
+
+  private void setCookie(String token, Instant expiresAt) {
     addCookie(cookie(token).maxAge(Duration.between(Instant.now(clock), expiresAt)));
-    return id;
   }
 
   public void claimLoginStart(PushLogin pushLogin) {

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -108,27 +109,44 @@ class ThisBrowserTest {
     Instant until = NOW.plus(Duration.ofDays(90));
     given(browsers.findUnexpired(hash("old-token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
+    given(browsers.rotate(eq(7L), eq(hash("old-token")), any())).willReturn(true);
 
     long id = thisBrowser.rememberUntil(until);
 
     assertThat(id).isEqualTo(7L);
     assertThat(cookieValue()).isNotEqualTo("old-token");
-    verify(browsers).rotate(7L, hash(cookieValue()), until);
+    verify(browsers).rotate(7L, hash("old-token"), hash(cookieValue()));
+    verify(browsers).extendUntil(7L, until);
     verify(browsers, never()).add(any(), any());
   }
 
   @Test
-  void neverShortensHowLongTheBrowserIsRemembered() {
+  void neverShortensHowLongTheCookieLives() {
     bindRequest(new Cookie(COOKIE_NAME, "old-token"));
     Instant longer = NOW.plus(Duration.ofDays(365));
     given(browsers.findUnexpired(hash("old-token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, longer)));
+    given(browsers.rotate(eq(7L), eq(hash("old-token")), any())).willReturn(true);
 
     thisBrowser.rememberUntil(NOW.plus(Duration.ofDays(90)));
 
-    verify(browsers).rotate(7L, hash(cookieValue()), longer);
     assertThat(response.getHeader(SET_COOKIE))
         .contains("Max-Age=" + Duration.ofDays(365).toSeconds());
+  }
+
+  @Test
+  void aLoginThatLostTheRaceToRenewTheTokenLeavesTheWinnersCookieInPlace() {
+    bindRequest(new Cookie(COOKIE_NAME, "old-token"));
+    Instant until = NOW.plus(Duration.ofDays(365));
+    given(browsers.findUnexpired(hash("old-token")))
+        .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
+    given(browsers.rotate(eq(7L), eq(hash("old-token")), any())).willReturn(false);
+
+    long id = thisBrowser.rememberUntil(until);
+
+    assertThat(id).isEqualTo(7L);
+    assertThat(response.getHeader(SET_COOKIE)).isNull();
+    verify(browsers).extendUntil(7L, until);
   }
 
   @Test

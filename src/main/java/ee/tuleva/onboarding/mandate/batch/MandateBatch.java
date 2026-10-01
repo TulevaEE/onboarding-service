@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.COMPLETED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
@@ -54,6 +53,6 @@ public class MandateBatch {
   }
 
   public boolean isSigned() {
-    return status == SIGNED || status == COMPLETED;
+    return status == SIGNED;
   }
 }

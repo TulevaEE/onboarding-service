@@ -92,7 +92,7 @@ public class MandateBatchProcessingPoller {
       }
 
       securityContextRunner.runAs(
-          context.user(), () -> mandateBatchCompletion.completeOnce(context.batch, context.locale));
+          context.user(), () -> mandateBatchCompletion.complete(context.batch, context.locale));
     };
   }
 

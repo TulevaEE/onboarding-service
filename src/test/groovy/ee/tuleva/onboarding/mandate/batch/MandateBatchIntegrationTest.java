@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -351,62 +350,6 @@ class MandateBatchIntegrationTest {
 
   @Test
   void pollerCompletesASignedBatchAsItsOwnerSoTheContactUpdateReachesEpisAndTheBatchEmailIsSent() {
-    var personalCodesEpisWasCalledAs = givenAWithdrawalEligibleOwnerKnownToEpis();
-    var batch = aSignedBatch();
-
-    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
-    mandateBatchProcessingPoller.processQueue();
-
-    var ownerPersonalCode = samplePerson().getPersonalCode();
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .untilAsserted(
-            () ->
-                then(mandateBatchEmailService)
-                    .should()
-                    .sendMandateBatch(
-                        argThat(user -> user.getPersonalCode().equals(ownerPersonalCode)),
-                        argThat(sentBatch -> sentBatch.getId().equals(batch.getId())),
-                        eq(Locale.ENGLISH)));
-    assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
-  }
-
-  @Test
-  void ownersStatusPollCompletesASignedBatchWhosePollerWasDroppedAndDoesSoOnlyOnce() {
-    var personalCodesEpisWasCalledAs = givenAWithdrawalEligibleOwnerKnownToEpis();
-    var batch = aSignedBatch();
-
-    pollIdCardSignatureStatusAndExpectSignature(batch);
-    pollIdCardSignatureStatusAndExpectSignature(batch);
-
-    var ownerPersonalCode = samplePerson().getPersonalCode();
-    then(mandateBatchEmailService)
-        .should(times(1))
-        .sendMandateBatch(
-            argThat(user -> user.getPersonalCode().equals(ownerPersonalCode)),
-            argThat(sentBatch -> sentBatch.getId().equals(batch.getId())),
-            any());
-    assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
-  }
-
-  @Test
-  void aBatchThePollerCompletedIsNotCompletedAgainByTheOwnersStatusPoll() {
-    var personalCodesEpisWasCalledAs = givenAWithdrawalEligibleOwnerKnownToEpis();
-    var batch = aSignedBatch();
-    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
-    mandateBatchProcessingPoller.processQueue();
-    await()
-        .atMost(Duration.ofSeconds(10))
-        .untilAsserted(
-            () -> then(mandateBatchEmailService).should().sendMandateBatch(any(), any(), any()));
-
-    pollIdCardSignatureStatusAndExpectSignature(batch);
-
-    then(mandateBatchEmailService).should(times(1)).sendMandateBatch(any(), any(), any());
-    assertThat(personalCodesEpisWasCalledAs).hasSize(2);
-  }
-
-  private List<String> givenAWithdrawalEligibleOwnerKnownToEpis() {
     var aWithdrawalEligibility =
         WithdrawalEligibilityDto.builder()
             .hasReachedEarlyRetirementAge(true)
@@ -427,10 +370,6 @@ class MandateBatchIntegrationTest {
               personalCodesEpisWasCalledAs.add(authenticatedPersonalCode());
               return invocation.getArgument(1, ContactDetails.class);
             });
-    return personalCodesEpisWasCalledAs;
-  }
-
-  private MandateBatch aSignedBatch() {
     restTestClient
         .post()
         .uri("/v1/mandate-batches")
@@ -450,22 +389,22 @@ class MandateBatchIntegrationTest {
         .expectStatus()
         .isOk();
     var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
-    batch.setStatus(SIGNED);
-    batch.setFile("signed container".getBytes());
-    return mandateBatchRepository.save(batch);
-  }
 
-  private void pollIdCardSignatureStatusAndExpectSignature(MandateBatch batch) {
-    restTestClient
-        .get()
-        .uri("/v1/mandate-batches/" + batch.getId() + "/signature/id-card/status")
-        .headers(h -> h.addAll(getHeaders()))
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectBody()
-        .jsonPath("$.statusCode")
-        .isEqualTo("SIGNATURE");
+    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
+    mandateBatchProcessingPoller.processQueue();
+
+    var ownerPersonalCode = samplePerson().getPersonalCode();
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () ->
+                then(mandateBatchEmailService)
+                    .should()
+                    .sendMandateBatch(
+                        argThat(user -> user.getPersonalCode().equals(ownerPersonalCode)),
+                        argThat(sentBatch -> sentBatch.getId().equals(batch.getId())),
+                        eq(Locale.ENGLISH)));
+    assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
   }
 
   private static String authenticatedPersonalCode() {

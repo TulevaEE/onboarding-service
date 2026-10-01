@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.signature.IdSessionException;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
@@ -83,6 +84,7 @@ public class CapitalTransferSignatureService {
 
     IdCardSignatureSession signatureSession =
         signService.startIdCardSign(
+            signableContract(contractId),
             files,
             signCommand.certificate(),
             signCommand.supportedHashFunctions(),
@@ -110,7 +112,8 @@ public class CapitalTransferSignatureService {
       throw SignatureStateException.alreadySigned("Capital transfer contract", contractId);
     }
 
-    byte[] signedFile = signService.getSignedFile(session, signCommand.signature());
+    byte[] signedFile =
+        signService.getSignedFile(session, signableContract(contractId), signCommand.signature());
     finalizeSignature(contract, user, signedFile);
 
     return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
@@ -183,5 +186,9 @@ public class CapitalTransferSignatureService {
           user.getId());
       throw new IllegalStateException("Cannot sign contract in its current state");
     }
+  }
+
+  private static SignableEntity signableContract(Long contractId) {
+    return new SignableEntity("Capital transfer contract", contractId);
   }
 }

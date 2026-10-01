@@ -74,6 +74,7 @@ public class MandateBatchSignatureService {
 
     IdCardSignatureSession signatureSession =
         signService.startIdCardSign(
+            MandateBatchService.signableMandateBatch(mandateBatchId),
             files,
             signCommand.certificate(),
             signCommand.supportedHashFunctions(),

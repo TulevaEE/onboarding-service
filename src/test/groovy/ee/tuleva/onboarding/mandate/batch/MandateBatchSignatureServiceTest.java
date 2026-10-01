@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.IdSessionException;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.UserService;
@@ -179,7 +180,11 @@ class MandateBatchSignatureServiceTest {
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
       when(signService.startIdCardSign(
-              any(), eq(certificate), eq(List.of("SHA-256")), eq(user.getPersonalCode())))
+              eq(new SignableEntity("Mandate batch", mandateBatchId)),
+              any(),
+              eq(certificate),
+              eq(List.of("SHA-256")),
+              eq(user.getPersonalCode())))
           .thenReturn(mockSession);
 
       var result =

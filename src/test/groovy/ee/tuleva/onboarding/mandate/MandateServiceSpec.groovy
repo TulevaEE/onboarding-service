@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
+import ee.tuleva.onboarding.signature.SignableEntity
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
 import ee.tuleva.onboarding.signature.SignatureStateException
@@ -394,7 +395,7 @@ class MandateServiceSpec extends Specification {
 
     1 * mandateFileService.getMandateFiles(sampleMandateId, sampleUser.id) >> sampleFiles()
     1 * signService.startIdCardSign(
-        _ as List<SignatureFile>, "signingCertificate", ["SHA-256"], sampleUser.personalCode) >> signatureSession
+        new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, "signingCertificate", ["SHA-256"], sampleUser.personalCode) >> signatureSession
 
     when:
     def session = service.idCardSign(sampleMandateId, sampleUser.id, sampleStartIdCardSignCommand("signingCertificate"))
@@ -408,7 +409,7 @@ class MandateServiceSpec extends Specification {
     Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
     byte[] sampleFile = "file".getBytes()
-    1 * signService.getSignedFile(signatureSession, "signature") >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> sampleFile
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
     0 * eventPublisher.publishEvent(_)
@@ -426,7 +427,7 @@ class MandateServiceSpec extends Specification {
     Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
     byte[] sampleFile = "file".getBytes()
-    1 * signService.getSignedFile(signatureSession, "signature") >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> sampleFile
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateRepository.save(sampleMandate) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -449,7 +450,7 @@ class MandateServiceSpec extends Specification {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
-    1 * signService.getSignedFile(signatureSession, "signature") >> "file".getBytes()
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> "file".getBytes()
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
@@ -467,7 +468,7 @@ class MandateServiceSpec extends Specification {
     Mandate sampleMandate = sampleMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    0 * signService.getSignedFile(_, _)
+    0 * signService.getSignedFile(_, _, _)
     0 * mandateProcessor.start(_, _)
 
     when:

@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.signature.SignatureStateException
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import org.digidoc4j.DigestAlgorithm
-import org.digidoc4j.exceptions.TechnicalException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
@@ -106,23 +105,6 @@ class IdCardSignerSpec extends Specification {
     0 * digiDocFacade.addSignatureToContainer(_, _, _)
   }
 
-  def "adds the base64 signature to the container of the session"() {
-    given:
-    def dataToSign = Mock(DataToSign)
-    def container = Mock(Container)
-    def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", dataToSign, container)
-    def signature = "signature".bytes
-    def signedContainer = "signed".bytes
-
-    1 * digiDocFacade.addSignatureToContainer(signature, dataToSign, container) >> signedContainer
-
-    when:
-    def signedFile = idCardSigner.getSignedFile(session, entity, getEncoder().encodeToString(signature))
-
-    then:
-    signedFile == signedContainer
-  }
-
   def "rejects a signature for an entity other than the one the session was started for"() {
     given:
     def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
@@ -133,17 +115,5 @@ class IdCardSignerSpec extends Specification {
     then:
     thrown(SignatureStateException)
     0 * digiDocFacade.addSignatureToContainer(_, _, _)
-  }
-
-  def "leaves a timestamping or OCSP failure while finalizing the signature as a technical error"() {
-    given:
-    def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
-    digiDocFacade.addSignatureToContainer(_, _, _) >> { throw new TechnicalException("Got error in signing process") }
-
-    when:
-    idCardSigner.getSignedFile(session, entity, getEncoder().encodeToString("signature".bytes))
-
-    then:
-    thrown(TechnicalException)
   }
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.signature.smartid;
 
 import static ee.sk.smartid.CertificateLevel.QUALIFIED;
 import static ee.sk.smartid.signature.SigningSignatureAlgorithm.SHA256_WITH_RSA_ENCRYPTION;
+import static ee.tuleva.onboarding.signature.SigningCertificates.belongsTo;
 import static java.util.Objects.requireNonNull;
 
 import ee.sk.smartid.CertificateChoiceResponse;
@@ -10,6 +11,7 @@ import ee.sk.smartid.SignatureResponse;
 import ee.sk.smartid.SignatureResponseValidator;
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.common.notification.interactions.NotificationInteraction;
+import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
@@ -22,6 +24,7 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -113,6 +116,7 @@ public class SmartIdSigner {
 
   private void startSigning(
       SmartIdSignatureSession session, X509Certificate certificate, String documentNumber) {
+    requireBelongsToSigner(certificate, session.getPersonalCode());
     Container container = digiDocFacade.buildContainer(session.getFiles());
     DataToSign dataToSign =
         digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256);
@@ -133,5 +137,17 @@ public class SmartIdSigner {
     session.setVerificationCode(response.vc().value());
     session.setDataToSign(dataToSign);
     session.setContainer(container);
+  }
+
+  private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {
+    try {
+      if (belongsTo(certificate, personalCode)) {
+        return;
+      }
+    } catch (CertificateEncodingException e) {
+      throw new UnprocessableSmartIdResponseException(
+          "Unreadable Smart-ID signing certificate subject: " + e.getMessage());
+    }
+    throw new SmartIdSigningCertificateMismatchException();
   }
 }

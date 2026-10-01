@@ -27,6 +27,9 @@ class AuthenticateCommandSpec extends Specification {
     "38501010002" | "55555555"
     "38501010002" | "+3725555555"
     "38501010002" | "+37255555555"
+    "38501010002" | "+372 5555 5555"
+    "38501010002" | "5555-5555"
+    "38501010002" | "(+372) 5555 5555"
   }
 
   @Unroll
@@ -43,12 +46,10 @@ class AuthenticateCommandSpec extends Specification {
     violation.propertyPath.toString() == propertyName
 
     where:
-    personalCode  | phoneNumber     | propertyName
-    "38501010002" | "+++3725555555" | "phoneNumber"
-    "38501010002" | "5555+55555"    | "phoneNumber"
-    "38501010002" | "55555555+"     | "phoneNumber"
-    "38501010002" | "555"           | "phoneNumber"
-    "38501010002" | "+"             | "phoneNumber"
+    personalCode  | phoneNumber | propertyName
+    "38501010002" | ""          | "phoneNumber"
+    "38501010002" | "   "       | "phoneNumber"
+    "38501010001" | "55555555"  | "personalCode"
   }
 
   def cleanup() {

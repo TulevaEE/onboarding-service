@@ -46,6 +46,25 @@ class MobileIdAuthServiceSpec extends Specification {
         mobileIDSession.getPhoneNumber() == sampleLongPhoneNumber
     }
 
+    def "StartLogin: sends Mobile-ID the canonical form of a number typed with spaces"() {
+        when:
+        def mobileIDSession = mobileIdAuthService.startLogin("+372 553 2522", sampleIdCode)
+
+        then:
+        1 * connector.authenticate({ it.phoneNumber == sampleLongPhoneNumber }) >> new MidAuthenticationResponse(sampleSessionId)
+        mobileIDSession.getPhoneNumber() == sampleLongPhoneNumber
+    }
+
+    def "StartLogin: refuses a number that is not an Estonian mobile number without contacting Mobile-ID"() {
+        when:
+        mobileIdAuthService.startLogin("+358 40 123 4567", sampleIdCode)
+
+        then:
+        def exception = thrown(MobileIdException)
+        exception.errorsResponse.errors*.code == ["mobile.id.phone.number.invalid"]
+        0 * connector.authenticate(_)
+    }
+
     def "IsLoginComplete: Fetch state of mobile id login"() {
         given:
         1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionComplete()

@@ -25,13 +25,14 @@ public class MobileIdAuthService {
 
   public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
+    String canonicalPhoneNumber = normalizer.normalize(phoneNumber);
     MidAuthenticationHashToSign authenticationHash =
         MidAuthenticationHashToSign.generateRandomHashOfDefaultType();
 
     String verificationCode = authenticationHash.calculateVerificationCode();
 
     MidAuthenticationRequest request =
-        getBuildMidAuthenticationRequest(phoneNumber, personalCode, authenticationHash);
+        getBuildMidAuthenticationRequest(canonicalPhoneNumber, personalCode, authenticationHash);
     MidAuthenticationResponse response = connector.authenticate(request);
 
     return new MobileIDSession(
@@ -116,7 +117,7 @@ public class MobileIdAuthService {
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(
       String phoneNumber, String personalCode, MidAuthenticationHashToSign authenticationHash) {
     return MidAuthenticationRequest.newBuilder()
-        .withPhoneNumber(normalizer.normalizePhoneNumber(phoneNumber))
+        .withPhoneNumber(phoneNumber)
         .withNationalIdentityNumber(personalCode)
         .withHashToSign(authenticationHash)
         .withLanguage(MidLanguage.ENG)

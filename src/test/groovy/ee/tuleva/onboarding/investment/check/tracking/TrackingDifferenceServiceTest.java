@@ -213,6 +213,7 @@ class TrackingDifferenceServiceTest {
         .willReturn(asList(alreadyChecked, PREVIOUS_DATE, CHECK_DATE));
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(alreadyChecked, CHECK_DATE));
+    givenAModelPortfolioOn(PREVIOUS_DATE);
 
     var run = service.fillGaps(30);
 
@@ -224,6 +225,7 @@ class TrackingDifferenceServiceTest {
   @Test
   void fillGapsNamesADateThatHasPositionsButNoNavInsteadOfLettingItAgeOutInSilence() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    givenAModelPortfolioOn(PREVIOUS_DATE);
 
     assertThat(service.fillGaps(30).failures())
         .containsExactly(
@@ -238,8 +240,13 @@ class TrackingDifferenceServiceTest {
   @Test
   void fillGapsNamesADateWhoseWorkingDayBeforeHasNoNav() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    givenAModelPortfolioOn(PREVIOUS_DATE);
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(
+            fundNavQueryService.findLatestNavDateOnOrBefore(
+                TUK75.getCode(), LocalDate.of(2026, 4, 8)))
+        .willReturn(Optional.of(LocalDate.of(2026, 4, 7)));
 
     assertThat(service.fillGaps(30).failures())
         .containsExactly(
@@ -254,6 +261,7 @@ class TrackingDifferenceServiceTest {
   @Test
   void aNamedNavGapClearsOnceTheNavIsPublished() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    givenAModelPortfolioOn(PREVIOUS_DATE);
     assertThat(service.fillGaps(30).failures()).hasSize(1);
 
     givenACheckableFundOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
@@ -266,6 +274,23 @@ class TrackingDifferenceServiceTest {
   @Test
   void fillGapsSaysNothingOfAPositionDateOnAPublicHolidaySinceNoNavIsEverCalculatedForIt() {
     givenTheOnlyNavDateWithoutACheckIs(GOOD_FRIDAY);
+
+    assertThat(service.fillGaps(30).failures()).isEmpty();
+  }
+
+  @Test
+  void fillGapsSaysNothingOfAFundsFirstNavDaySinceNoNavBeforeItWillEverBeCalculated() {
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    givenAModelPortfolioOn(PREVIOUS_DATE);
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+
+    assertThat(service.fillGaps(30).failures()).isEmpty();
+  }
+
+  @Test
+  void fillGapsSaysNothingOfADateWithNoNavWhoseFundHasNoModelPortfolio() {
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
 
     assertThat(service.fillGaps(30).failures()).isEmpty();
   }
@@ -502,6 +527,11 @@ class TrackingDifferenceServiceTest {
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
         .willReturn(List.of(navDate));
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE)).willReturn(List.of());
+  }
+
+  private void givenAModelPortfolioOn(LocalDate navDate) {
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, navDate))
+        .willReturn(List.of(allocation("IE00B4L5Y983", "1.00")));
   }
 
   private void givenAnUnpriceableHoldingOn(LocalDate navDate, LocalDate previousDate) {

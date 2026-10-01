@@ -70,6 +70,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class TrackingDifferenceServiceGapFillIT {
 
   private static final int LOOKBACK_DAYS = 30;
+  private static final LocalDate TUESDAY = LocalDate.of(2026, 4, 7);
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 4, 8);
   private static final LocalDate THURSDAY = LocalDate.of(2026, 4, 9);
   private static final LocalDate GOOD_FRIDAY = LocalDate.of(2026, 4, 3);
@@ -118,6 +119,7 @@ class TrackingDifferenceServiceGapFillIT {
   void keepsNamingTheDateForWantOfANavWhileItsWorkingDayBeforeHasNone() {
     storeModelPortfolio();
     storeHolding(THURSDAY);
+    publishNav(TUESDAY, "10.0000");
     publishNav(THURSDAY, "10.1000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS))
@@ -149,6 +151,22 @@ class TrackingDifferenceServiceGapFillIT {
     storeModelPortfolio();
     storeHolding(GOOD_FRIDAY);
     storeHolding(EASTER_SATURDAY);
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesNothingForAFundsFirstNavDaySinceNoNavBeforeItWillEverBeCalculated() {
+    storeModelPortfolio();
+    storeHolding(THURSDAY);
+    publishNav(THURSDAY, "10.1000");
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesNothingForAFundWithNoModelPortfolioEvenWhenItsNavIsMissing() {
+    storeHolding(THURSDAY);
 
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
   }

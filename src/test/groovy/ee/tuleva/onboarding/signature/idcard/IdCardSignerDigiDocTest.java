@@ -4,6 +4,7 @@ import static java.util.Base64.getEncoder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.digidoc4j.Configuration.Mode.TEST;
+import static org.digidoc4j.exceptions.CertificateValidationException.CertificateValidationStatus.REVOKED;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
@@ -26,8 +27,12 @@ import java.security.cert.CertificateEncodingException;
 import java.util.Arrays;
 import java.util.List;
 import org.digidoc4j.Configuration;
+import org.digidoc4j.exceptions.CertificateValidationException;
+import org.digidoc4j.exceptions.CertificateValidationException.CertificateValidationStatus;
+import org.digidoc4j.exceptions.TechnicalException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class IdCardSignerDigiDocTest {
@@ -157,6 +162,50 @@ class IdCardSignerDigiDocTest {
 
     assertThatThrownBy(() -> idCardSigner.getSignedFile(session, entity, base64(signatureValue)))
         .isSameAs(timestampIntegrityAlert);
+  }
+
+  @Test
+  void rejectsAVerifiedSignatureWhoseSigningCertificateTheOcspServiceReportsRevoked()
+      throws Exception {
+    var signer = WebEidCertificateFixture.signingCertificate(PERSONAL_CODE, "RSA", 2048);
+    var session = startSign(signer);
+    var signatureValue = sign(signer.privateKey(), "SHA256withRSA", session);
+    willThrow(CertificateValidationException.of(REVOKED, "Certificate status is revoked"))
+        .given(digiDocFacade)
+        .addSignatureToContainer(any(), any(), any());
+
+    assertThatThrownBy(() -> idCardSigner.getSignedFile(session, entity, base64(signatureValue)))
+        .isInstanceOf(SigningCertificateRevokedException.class);
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = CertificateValidationStatus.class,
+      names = {"TECHNICAL", "UNTRUSTED", "UNKNOWN"})
+  void leavesAnOcspAnswerOtherThanRevokedWhileFinalizingAsATechnicalError(
+      CertificateValidationStatus status) throws Exception {
+    var signer = WebEidCertificateFixture.signingCertificate(PERSONAL_CODE, "RSA", 2048);
+    var session = startSign(signer);
+    var signatureValue = sign(signer.privateKey(), "SHA256withRSA", session);
+    var ocspFailure = CertificateValidationException.of(status, "OCSP failure");
+    willThrow(ocspFailure).given(digiDocFacade).addSignatureToContainer(any(), any(), any());
+
+    assertThatThrownBy(() -> idCardSigner.getSignedFile(session, entity, base64(signatureValue)))
+        .isSameAs(ocspFailure);
+  }
+
+  @Test
+  void leavesAFailedTimestampOrOcspRequestWhileFinalizingAsATechnicalError() throws Exception {
+    var signer = WebEidCertificateFixture.signingCertificate(PERSONAL_CODE, "RSA", 2048);
+    var session = startSign(signer);
+    var signatureValue = sign(signer.privateKey(), "SHA256withRSA", session);
+    var signingProcessFailure = new TechnicalException("Got error in signing process");
+    willThrow(signingProcessFailure)
+        .given(digiDocFacade)
+        .addSignatureToContainer(any(), any(), any());
+
+    assertThatThrownBy(() -> idCardSigner.getSignedFile(session, entity, base64(signatureValue)))
+        .isSameAs(signingProcessFailure);
   }
 
   private IdCardSignatureSession startSign(CertificateWithKey signer)

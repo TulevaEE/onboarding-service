@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.signature.idcard;
 
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
+import static org.digidoc4j.exceptions.CertificateValidationException.CertificateValidationStatus.REVOKED;
 
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
 import org.digidoc4j.DigestAlgorithm;
+import org.digidoc4j.exceptions.CertificateValidationException;
 import org.digidoc4j.utils.TokenAlgorithmSupport;
 import org.springframework.stereotype.Service;
 
@@ -62,8 +64,15 @@ public class IdCardSigner {
     session.requireStartedFor(entity);
     byte[] signatureValue = decodeSignature(signature);
     requireVerifiesAgainstSigningCertificate(signatureValue, session.getDataToSign());
-    return digiDocFacade.addSignatureToContainer(
-        signatureValue, session.getDataToSign(), session.getContainer());
+    try {
+      return digiDocFacade.addSignatureToContainer(
+          signatureValue, session.getDataToSign(), session.getContainer());
+    } catch (CertificateValidationException e) {
+      if (e.getCertificateStatus() == REVOKED) {
+        throw new SigningCertificateRevokedException(e);
+      }
+      throw e;
+    }
   }
 
   private static void requireVerifiesAgainstSigningCertificate(

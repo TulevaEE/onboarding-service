@@ -91,6 +91,8 @@ hackathon:
   idea-deadline: 2026-09-30T20:59:59Z
 
 mobile-id:
+  relyingPartyUUID: 00000000-0000-0000-0000-000000000000
+  relyingPartyName: DEMO
   # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 1
@@ -561,6 +563,10 @@ spring:
 
 sentry:
   environment: production
+
+mobile-id:
+  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID}
+  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME}
 
 population-register:
   url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}

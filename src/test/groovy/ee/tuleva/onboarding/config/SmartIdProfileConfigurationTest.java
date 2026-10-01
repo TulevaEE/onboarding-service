@@ -5,11 +5,13 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_ENVIRONMEN
 import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.DefaultResourceLoader;
 
@@ -43,10 +45,45 @@ class SmartIdProfileConfigurationTest {
     assertThat(environmentFor(profile).getProperty("logging.level.ee.sk.smartid")).isNull();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"default", "dev", "staging"})
+  void mobileIdKeepsItsOwnDemoRelyingPartyOutsideProduction(String profile) {
+    ConfigurableEnvironment environment = environmentFor(profile);
+
+    assertThat(environment.getProperty("mobile-id.relyingPartyUUID"))
+        .isEqualTo("00000000-0000-0000-0000-000000000000");
+    assertThat(environment.getProperty("mobile-id.relyingPartyName")).isEqualTo("DEMO");
+  }
+
+  @Test
+  void productionBindsMobileIdAndSmartIdToTheSameRelyingPartySecrets() {
+    ConfigurableEnvironment production =
+        environmentFor(
+            "production",
+            Map.of(
+                "SMARTID_RELYING_PARTY_UUID", "11111111-2222-4333-8444-555555555555",
+                "SMARTID_RELYING_PARTY_NAME", "Production RP"));
+
+    assertThat(production.getProperty("mobile-id.relyingPartyUUID"))
+        .isEqualTo("11111111-2222-4333-8444-555555555555");
+    assertThat(production.getProperty("mobile-id.relyingPartyName")).isEqualTo("Production RP");
+    assertThat(production.getProperty("smartid.relyingPartyUUID"))
+        .isEqualTo("11111111-2222-4333-8444-555555555555");
+    assertThat(production.getProperty("smartid.relyingPartyName")).isEqualTo("Production RP");
+  }
+
   private static ConfigurableEnvironment environmentFor(String profile) {
+    return environmentFor(profile, Map.of());
+  }
+
+  private static ConfigurableEnvironment environmentFor(
+      String profile, Map<String, Object> environmentVariables) {
     var environment = new StandardEnvironment();
     environment.getPropertySources().remove(SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
     environment.getPropertySources().remove(SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
+    environment
+        .getPropertySources()
+        .addFirst(new MapPropertySource("environmentVariables", environmentVariables));
     ConfigDataEnvironmentPostProcessor.applyTo(
         environment, new DefaultResourceLoader(), null, List.of(profile));
     return environment;

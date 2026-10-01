@@ -61,7 +61,7 @@ public class RememberedSmartIdAccounts {
   }
 
   public void forget() {
-    thisBrowser.forget();
+    thisBrowser.remembered().map(RememberedBrowser::id).ifPresent(accounts::remove);
   }
 
   public void forgetEverywhere() {
@@ -71,7 +71,6 @@ public class RememberedSmartIdAccounts {
               int forgotten = accounts.removeAllOf(account.personalCode());
               log.info("Forgot every remembered Smart-ID account: forgotten={}", forgotten);
             });
-    thisBrowser.forget();
   }
 
   public void claimNotificationLoginStart() {

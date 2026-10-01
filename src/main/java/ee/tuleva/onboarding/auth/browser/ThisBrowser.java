@@ -55,11 +55,6 @@ public class ThisBrowser {
     return id;
   }
 
-  public void forget() {
-    remembered().ifPresent(browser -> browsers.remove(browser.id()));
-    addCookie(cookie("").maxAge(Duration.ZERO));
-  }
-
   public void claimLoginStart(PushLogin pushLogin) {
     boolean claimed =
         remembered()

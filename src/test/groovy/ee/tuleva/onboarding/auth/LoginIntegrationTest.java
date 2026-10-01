@@ -24,6 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -31,6 +32,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.sk.mid.MidAuthentication;
+import ee.sk.mid.MidAuthenticationIdentity;
+import ee.sk.mid.MidAuthenticationResponseValidator;
+import ee.sk.mid.MidAuthenticationResult;
+import ee.sk.mid.MidClient;
+import ee.sk.mid.rest.MidConnector;
+import ee.sk.mid.rest.MidSessionStatusPoller;
+import ee.sk.mid.rest.dao.MidSessionStatus;
+import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
@@ -47,6 +57,7 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevokedException;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -59,10 +70,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -75,6 +88,7 @@ class LoginIntegrationTest {
 
   private static final String SESSION_ID = "test-session-id";
   private static final String PUSH_SESSION_ID = "push-session-id";
+  private static final String MOBILE_ID_SESSION_ID = "mobile-id-session-id";
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JsonMapper objectMapper;
@@ -85,6 +99,11 @@ class LoginIntegrationTest {
   @MockitoBean private DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   @MockitoBean private NotificationAuthenticationResponseValidator notificationResponseValidator;
   @MockitoBean private SmartIdCertificateRevocationCheck certificateRevocationCheck;
+  @MockitoBean private MidClient midClient;
+  @MockitoBean private MidConnector midConnector;
+  @MockitoBean private MidSessionStatusPoller midSessionStatusPoller;
+  @MockitoBean private MidAuthenticationResponseValidator midResponseValidator;
+  @Autowired private JdbcClient jdbcClient;
 
   @TestConfiguration
   static class SmartIdTestConfig {
@@ -416,6 +435,105 @@ class LoginIntegrationTest {
     assertThat(
             amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, true))
         .isEmpty();
+  }
+
+  @Test
+  void aSuccessfulMobileIdLoginRemembersTheCanonicalPhoneOnThisBrowser() throws Exception {
+    MvcResult granted = completeMobileIdLogin("+372 5555 5555");
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .anyMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  @Test
+  void aMobileIdLoginOnABrowserThatRemembersASmartIdAccountKeepsIt() throws Exception {
+    Cookie smartIdRemembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+
+    Cookie bothRemembered =
+        rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
+
+    mockMvc
+        .perform(get("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.firstName").value("Aadu"));
+    assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  @Test
+  void forgettingTheSmartIdAccountKeepsThePhoneMobileIdRemembers() throws Exception {
+    Cookie smartIdRemembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie bothRemembered =
+        rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
+
+    mockMvc
+        .perform(delete("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
+        .andExpect(status().isNoContent());
+    assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  private MvcResult completeMobileIdLogin(String typedPhoneNumber, Cookie... browserCookies)
+      throws Exception {
+    given(midConnector.authenticate(any()))
+        .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
+    MvcResult start =
+        mockMvc
+            .perform(
+                withCookies(post("/authenticate"), browserCookies)
+                    .contentType(APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            Map.of(
+                                "type", "MOBILE_ID",
+                                "phoneNumber", typedPhoneNumber,
+                                "personalCode", personalCode))))
+            .andExpect(status().isOk())
+            .andReturn();
+    Cookie session = sessionCookie(start);
+
+    var complete = new MidSessionStatus();
+    complete.setState("COMPLETE");
+    given(midSessionStatusPoller.fetchFinalAuthenticationSessionStatus(MOBILE_ID_SESSION_ID))
+        .willReturn(complete);
+    given(midClient.createMobileIdAuthentication(any(), any()))
+        .willReturn(
+            MidAuthentication.newBuilder()
+                .withResult("OK")
+                .withSignatureValueInBase64("bGVhc3VyZS4=")
+                .build());
+    var identity = new MidAuthenticationIdentity();
+    identity.setGivenName("Aadu");
+    identity.setSurName("Kadakas");
+    identity.setIdentityCode(personalCode);
+    var result = new MidAuthenticationResult();
+    result.setAuthenticationIdentity(identity);
+    result.setValid(true);
+    given(midResponseValidator.validate(any())).willReturn(result);
+
+    Cookie[] tokenRequestCookies = Arrays.copyOf(browserCookies, browserCookies.length + 1);
+    tokenRequestCookies[browserCookies.length] = session;
+    return mockMvc
+        .perform(post("/oauth/token").cookie(tokenRequestCookies).param("grant_type", "MOBILE_ID"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty())
+        .andReturn();
+  }
+
+  private static MockHttpServletRequestBuilder withCookies(
+      MockHttpServletRequestBuilder request, Cookie... cookies) {
+    return cookies.length == 0 ? request : request.cookie(cookies);
+  }
+
+  private List<String> rememberedPhonesOf(String personalCode) {
+    return jdbcClient
+        .sql("SELECT phone_number FROM remembered_mobile_id_phone WHERE personal_code = :code")
+        .param("code", personalCode)
+        .query(String.class)
+        .list();
   }
 
   private MvcResult completeQrLogin(AuthenticationIdentity identity) throws Exception {

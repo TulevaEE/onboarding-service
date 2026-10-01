@@ -15,10 +15,12 @@ class MobileIdAuthProviderSpec extends Specification {
   private final GenericSessionStore genericSessionStore = Mock()
   private final MobileIdAuthService mobileIdAuthService = Mock()
   private final PrincipalService principalService = Mock()
+  private final RememberedMobileIdPhones rememberedPhones = Mock()
   private final MobileIdAuthProvider mobileIdAuthProvider = new MobileIdAuthProvider(
       genericSessionStore,
       mobileIdAuthService,
-      principalService
+      principalService,
+      rememberedPhones
   )
 
   def "supports mobileid"() {
@@ -65,5 +67,18 @@ class MobileIdAuthProviderSpec extends Specification {
     AuthenticatedPerson result = mobileIdAuthProvider.authenticate(authenticationHash)
     then:
     result == person
+    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber)
+  }
+
+  def "remembers nothing while the login is not complete"() {
+    given:
+    MobileIDSession session = MobileIdFixture.sampleMobileIdSession
+    mobileIdAuthService.isLoginComplete(session) >> false
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    thrown(AuthNotCompleteException)
+    0 * rememberedPhones.remember(_, _)
   }
 }

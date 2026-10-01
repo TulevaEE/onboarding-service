@@ -22,6 +22,7 @@ public class MobileIdAuthProvider implements AuthProvider {
   private final GenericSessionStore genericSessionStore;
   private final MobileIdAuthService mobileIdAuthService;
   private final PrincipalService principalService;
+  private final RememberedMobileIdPhones rememberedPhones;
 
   @Override
   public boolean supports(GrantType grantType) {
@@ -41,8 +42,12 @@ public class MobileIdAuthProvider implements AuthProvider {
       throw new AuthNotCompleteException();
     }
 
-    return principalService.getFrom(
-        mobileIdSession,
-        Map.of(PHONE_NUMBER, mobileIdSession.getPhoneNumber(), GRANT_TYPE, MOBILE_ID.name()));
+    AuthenticatedPerson authenticatedPerson =
+        principalService.getFrom(
+            mobileIdSession,
+            Map.of(PHONE_NUMBER, mobileIdSession.getPhoneNumber(), GRANT_TYPE, MOBILE_ID.name()));
+    rememberedPhones.remember(
+        authenticatedPerson.getPersonalCode(), mobileIdSession.getPhoneNumber());
+    return authenticatedPerson;
   }
 }

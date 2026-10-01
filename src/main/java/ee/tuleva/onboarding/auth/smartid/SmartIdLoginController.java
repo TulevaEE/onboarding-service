@@ -56,12 +56,13 @@ public class SmartIdLoginController {
   }
 
   @PostMapping("/callback")
-  @ResponseStatus(NO_CONTENT)
-  public void callback(@Valid @RequestBody SmartIdCallback callback) {
+  public SmartIdCallbackResponse callback(@Valid @RequestBody SmartIdCallback callback) {
     SmartIdSession session = currentSession();
     session.acceptCallback(callback);
+    String redemptionSecret = session.issueRedemptionSecret();
     log.info("Accepted Smart-ID callback: sessionId={}", session.getSessionId());
     sessionStore.save(session);
+    return new SmartIdCallbackResponse(redemptionSecret);
   }
 
   private SmartIdLoginResponse startDeviceLinkLogin(@Nullable String language) {

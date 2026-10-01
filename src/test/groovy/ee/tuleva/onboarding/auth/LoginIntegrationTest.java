@@ -284,50 +284,106 @@ class LoginIntegrationTest {
   @Test
   void sameDeviceLoginIsGrantedOnlyAfterTheCallbackArrives() throws Exception {
     var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
-    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
-        .willAnswer(
-            invocation -> {
-              request.set(invocation.getArgument(0));
-              return aDeviceLinkSessionResponse(SESSION_ID);
-            });
-    MvcResult start = startDeviceLinkLogin();
+    MvcResult start = startWeb2AppLogin(request);
     Cookie session = sessionCookie(start);
 
-    SessionStatus status = completeStatus("Web2App");
-    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
     mockMvc
         .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.error").value("AUTHENTICATION_NOT_COMPLETE"));
 
-    String callbackToken = request.get().initialCallbackUrl().split("\\?value=")[1];
-    mockMvc
-        .perform(
-            post("/v1/smart-id/login/callback")
-                .cookie(session)
-                .contentType(APPLICATION_JSON)
-                .content(
-                    objectMapper.writeValueAsString(
-                        Map.of(
-                            "value",
-                            callbackToken,
-                            "sessionSecretDigest",
-                            sessionSecretDigest(aSessionSecret),
-                            "userChallengeVerifier",
-                            "verifier"))))
-        .andExpect(status().isNoContent());
+    MvcResult callback =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.authenticationHash").value(matchesPattern("[A-Za-z0-9_-]{43}")))
+            .andReturn();
 
-    given(
-            deviceLinkResponseValidator.validate(
-                argThat(cached -> "Web2App".equals(cached.getSignature().getFlowType())),
-                any(),
-                eq("verifier"),
-                eq("smart-id-demo")))
-        .willReturn(anAuthenticationIdentity());
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
     mockMvc
-        .perform(smartIdToken(start))
+        .perform(smartIdToken(session, authenticationHashOf(callback)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aSameDeviceLoginReturningInANewTabIsRedeemedWithTheSecretItsCallbackReturned()
+      throws Exception {
+    var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
+    MvcResult originalTabStart = startWeb2AppLogin(request);
+    Cookie session = sessionCookie(originalTabStart);
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+
+    MvcResult newTabCallback =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(originalTabStart)))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(newTabCallback)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aCallbackWithAnotherVerifierIsRejectedAndKeepsTheSecretTheAcceptedOneReturned()
+      throws Exception {
+    var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
+    Cookie session = sessionCookie(startWeb2AppLogin(request));
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+    MvcResult accepted =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    mockMvc
+        .perform(smartIdCallback(session, callbackValueOf(request), "another-verifier"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.callback.invalid"))
+        .andExpect(jsonPath("$.authenticationHash").doesNotExist());
+
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(accepted)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aRedeemedSameDeviceLoginIssuesNoFurtherSecretAndIsNotRedeemedAgain() throws Exception {
+    var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
+    Cookie session = sessionCookie(startWeb2AppLogin(request));
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+    MvcResult callback =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andReturn();
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(callback)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.authenticationHash").doesNotExist());
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(callback)))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
   }
 
   @Test
@@ -338,18 +394,10 @@ class LoginIntegrationTest {
     Cookie session = sessionCookie(start);
 
     mockMvc
-        .perform(
-            post("/v1/smart-id/login/callback")
-                .cookie(session)
-                .contentType(APPLICATION_JSON)
-                .content(
-                    objectMapper.writeValueAsString(
-                        Map.of(
-                            "value", "wrong",
-                            "sessionSecretDigest", sessionSecretDigest(aSessionSecret),
-                            "userChallengeVerifier", "verifier"))))
+        .perform(smartIdCallback(session, "wrong", "verifier"))
         .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.errors[0].code").value("smart.id.callback.invalid"));
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.callback.invalid"))
+        .andExpect(jsonPath("$.authenticationHash").doesNotExist());
   }
 
   @Test
@@ -708,10 +756,57 @@ class LoginIntegrationTest {
   }
 
   private MockHttpServletRequestBuilder smartIdToken(MvcResult start) throws Exception {
+    return smartIdToken(sessionCookie(start), authenticationHashOf(start));
+  }
+
+  private static MockHttpServletRequestBuilder smartIdToken(
+      Cookie session, String authenticationHash) {
     return post("/oauth/token")
-        .cookie(sessionCookie(start))
+        .cookie(session)
         .param("grant_type", "SMART_ID")
-        .param("authenticationHash", authenticationHashOf(start));
+        .param("authenticationHash", authenticationHash);
+  }
+
+  private MvcResult startWeb2AppLogin(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request) throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willAnswer(
+            invocation -> {
+              request.set(invocation.getArgument(0));
+              return aDeviceLinkSessionResponse(SESSION_ID);
+            });
+    return startDeviceLinkLogin();
+  }
+
+  private static String callbackValueOf(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request) {
+    return request.get().initialCallbackUrl().split("\\?value=")[1];
+  }
+
+  private void givenTheWeb2AppLoginValidatesWithVerifier(String verifier) {
+    given(
+            deviceLinkResponseValidator.validate(
+                argThat(cached -> "Web2App".equals(cached.getSignature().getFlowType())),
+                any(),
+                eq(verifier),
+                eq("smart-id-demo")))
+        .willReturn(anAuthenticationIdentity());
+  }
+
+  private MockHttpServletRequestBuilder smartIdCallback(
+      Cookie session, String value, String userChallengeVerifier) {
+    return post("/v1/smart-id/login/callback")
+        .cookie(session)
+        .contentType(APPLICATION_JSON)
+        .content(
+            objectMapper.writeValueAsString(
+                Map.of(
+                    "value",
+                    value,
+                    "sessionSecretDigest",
+                    sessionSecretDigest(aSessionSecret),
+                    "userChallengeVerifier",
+                    userChallengeVerifier)));
   }
 
   private String authenticationHashOf(MvcResult start) throws Exception {

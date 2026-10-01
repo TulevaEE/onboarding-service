@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -17,7 +19,6 @@ import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
-import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
@@ -64,12 +65,11 @@ public class CapitalTransferSignatureService {
 
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(
-          SignatureStatus.SIGNATURE, session.getVerificationCode());
+      return new MobileSignatureStatusResponse(SIGNATURE, session.getVerificationCode());
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
+        OUTSTANDING_TRANSACTION, session.getVerificationCode());
   }
 
   public IdCardSignatureResponse startIdCardSignature(
@@ -115,7 +115,7 @@ public class CapitalTransferSignatureService {
         signService.getSignedFile(session, signableContract(contractId), signCommand.signature());
     finalizeSignature(contract, user, signedFile);
 
-    return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
+    return new IdCardSignatureStatusResponse(SIGNATURE);
   }
 
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
@@ -127,7 +127,7 @@ public class CapitalTransferSignatureService {
     if (!contract.isSignedBy(user)) {
       throw SignatureStateException.notSigned("Capital transfer contract", contractId);
     }
-    return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
+    return new IdCardSignatureStatusResponse(SIGNATURE);
   }
 
   public MobileSignatureResponse startMobileIdSignature(
@@ -162,12 +162,11 @@ public class CapitalTransferSignatureService {
 
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(
-          SignatureStatus.SIGNATURE, session.getVerificationCode());
+      return new MobileSignatureStatusResponse(SIGNATURE, session.getVerificationCode());
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
+        OUTSTANDING_TRANSACTION, session.getVerificationCode());
   }
 
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {

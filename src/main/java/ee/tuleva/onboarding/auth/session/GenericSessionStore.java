@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpSession;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.ConversionFailedException;
+import org.springframework.core.serializer.support.SerializationFailedException;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
@@ -29,9 +31,20 @@ public class GenericSessionStore {
     if (session == null) {
       return Optional.empty();
     }
-    @SuppressWarnings("unchecked")
-    T sessionAttribute = (T) session.getAttribute(clazz.getName());
-    return Optional.ofNullable(sessionAttribute);
+    try {
+      @SuppressWarnings("unchecked")
+      T sessionAttribute = (T) session.getAttribute(clazz.getName());
+      return Optional.ofNullable(sessionAttribute);
+    } catch (ConversionFailedException e) {
+      if (!(e.getCause() instanceof SerializationFailedException)) {
+        throw e;
+      }
+      log.info(
+          "Dropping a session attribute stored by another version of its class: attribute={}",
+          clazz.getName());
+      session.removeAttribute(clazz.getName());
+      return Optional.empty();
+    }
   }
 
   public void renewId() {

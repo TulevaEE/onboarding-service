@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.auth.session
 
+import org.springframework.core.convert.support.GenericConversionService
+import org.springframework.core.serializer.support.DeserializingConverter
+import org.springframework.core.serializer.support.SerializingConverter
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.session.FindByIndexNameSessionRepository
@@ -8,6 +11,8 @@ import org.springframework.session.Session
 import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.context.request.ServletRequestAttributes
 import spock.lang.Specification
+
+import java.nio.ByteBuffer
 
 class GenericSessionStoreSpec extends Specification {
 
@@ -143,5 +148,40 @@ class GenericSessionStoreSpec extends Specification {
 
     cleanup:
     Thread.interrupted() // clear the flag so it does not leak into other tests
+  }
+
+  def "an attribute stored by an older version of its class reads as absent and is dropped"() {
+    given:
+    def conversionService = new GenericConversionService()
+    conversionService.addConverter(byte[].class, Object.class, new DeserializingConverter())
+    MockHttpSession session = new MockHttpSession() {
+      @Override
+      Object getAttribute(String name) {
+        def stored = super.getAttribute(name)
+        stored instanceof byte[] ? conversionService.convert(stored, Object) : stored
+      }
+    }
+    session.setAttribute(ArrayList.name, storedByAnOlderVersionOfItsClass(new ArrayList(["in flight"])))
+    MockHttpServletRequest request = new MockHttpServletRequest()
+    request.setSession(session)
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request))
+
+    when:
+    def attribute = sessionStore.get(ArrayList)
+
+    then:
+    attribute == Optional.empty()
+    session.getAttributeNames().toList().isEmpty()
+
+    cleanup:
+    RequestContextHolder.resetRequestAttributes()
+  }
+
+  private static byte[] storedByAnOlderVersionOfItsClass(Serializable value) {
+    byte[] bytes = new SerializingConverter().convert(value)
+    byte[] uid = ByteBuffer.allocate(8).putLong(ObjectStreamClass.lookup(value.class).serialVersionUID).array()
+    int at = Collections.indexOfSubList(bytes.toList(), uid.toList())
+    bytes[at + 7] = (byte) (bytes[at + 7] ^ 1)
+    return bytes
   }
 }

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
-import static ee.tuleva.onboarding.auth.smartid.RememberedSmartIdAccounts.COOKIE_NAME;
+import static ee.tuleva.onboarding.auth.browser.ThisBrowser.COOKIE_NAME;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessionResponse;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionSecret;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.anAuthenticationIdentity;

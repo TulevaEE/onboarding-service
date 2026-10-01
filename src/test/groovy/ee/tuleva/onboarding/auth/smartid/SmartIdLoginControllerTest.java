@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.tuleva.onboarding.auth.browser.PushLogin.SMART_ID_NOTIFICATION;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aCallback;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.auth.browser.PushLoginStartedTooSoonException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.net.URI;
 import java.time.Instant;
@@ -96,7 +98,7 @@ class SmartIdLoginControllerTest {
   void startingAnotherNotificationLoginFromTheSameBrowserTooSoonIsRefusedWithoutAPush()
       throws Exception {
     given(rememberedSmartIdAccounts.current()).willReturn(Optional.of(aRememberedAccount()));
-    willThrow(new NotificationLoginStartedTooSoonException())
+    willThrow(new PushLoginStartedTooSoonException(SMART_ID_NOTIFICATION))
         .given(rememberedSmartIdAccounts)
         .claimNotificationLoginStart();
 

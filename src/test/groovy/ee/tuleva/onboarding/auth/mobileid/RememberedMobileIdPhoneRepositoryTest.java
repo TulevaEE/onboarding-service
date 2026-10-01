@@ -90,6 +90,19 @@ class RememberedMobileIdPhoneRepositoryTest {
   }
 
   @Test
+  void forgetsOnePhoneAndLeavesTheOthersOnTheBrowser() {
+    long browser = aBrowser("browser");
+    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
+    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+    long id = phones.findUnexpired(browser, PERSONAL_CODE).orElseThrow().id();
+
+    phones.remove(id);
+
+    assertThat(rowsOf(browser))
+        .containsExactly(new Row(OTHER_PERSONAL_CODE, "+37251234567", LATER));
+  }
+
+  @Test
   void purgesOnlyPhonesPastTheirValidity() {
     long browser = aBrowser("browser");
     phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.minusSeconds(1));

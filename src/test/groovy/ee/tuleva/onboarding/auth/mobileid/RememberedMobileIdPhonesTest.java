@@ -69,4 +69,11 @@ class RememberedMobileIdPhonesTest {
 
     verify(thisBrowser).claimLoginStart(MOBILE_ID);
   }
+
+  @Test
+  void forgetsOneRememberedPhone() {
+    phones.forget(3L);
+
+    verify(repository).remove(3L);
+  }
 }

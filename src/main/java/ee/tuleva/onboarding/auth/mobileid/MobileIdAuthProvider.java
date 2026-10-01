@@ -37,8 +37,7 @@ public class MobileIdAuthProvider implements AuthProvider {
     }
     MobileIDSession mobileIdSession = session.get();
 
-    boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIdSession);
-    if (!isComplete) {
+    if (!isLoginComplete(mobileIdSession)) {
       throw new AuthNotCompleteException();
     }
 
@@ -49,5 +48,18 @@ public class MobileIdAuthProvider implements AuthProvider {
     rememberedPhones.remember(
         authenticatedPerson.getPersonalCode(), mobileIdSession.getPhoneNumber());
     return authenticatedPerson;
+  }
+
+  private boolean isLoginComplete(MobileIDSession session) {
+    try {
+      return mobileIdAuthService.isLoginComplete(session);
+    } catch (MobileIdNotMidClientException e) {
+      Long rememberedPhoneId = session.getRememberedPhoneId();
+      if (rememberedPhoneId == null) {
+        throw e;
+      }
+      rememberedPhones.forget(rememberedPhoneId);
+      throw MobileIdException.phoneNumberRequired();
+    }
   }
 }

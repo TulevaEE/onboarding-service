@@ -21,6 +21,7 @@ public class MobileIDSession implements Person, Serializable {
   private @Nullable String firstName;
   private @Nullable String lastName;
   private @Nullable String personalCode;
+  private @Nullable Long rememberedPhoneId;
 
   public void updateSessionInfo(String firstName, String lastName, String personalCode) {
     this.firstName = firstName;

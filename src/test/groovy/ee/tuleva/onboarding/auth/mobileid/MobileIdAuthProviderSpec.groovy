@@ -81,4 +81,31 @@ class MobileIdAuthProviderSpec extends Specification {
     thrown(AuthNotCompleteException)
     0 * rememberedPhones.remember(_, _)
   }
+
+  def "forgets a remembered phone Mobile-ID says does not belong to the person and asks for the phone"() {
+    given:
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    session.rememberedPhoneId = 3L
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> { throw new MobileIdNotMidClientException() }
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    def exception = thrown(MobileIdException)
+    exception.errorsResponse.errors*.code == ["mobile.id.phone.number.required"]
+    1 * rememberedPhones.forget(3L)
+  }
+
+  def "a typed phone Mobile-ID rejects leaves what is remembered alone"() {
+    given:
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37251234567")
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> { throw new MobileIdNotMidClientException() }
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    def exception = thrown(MobileIdException)
+    exception.errorsResponse.errors*.code == ["mobile.id.certificates.revoked"]
+    0 * rememberedPhones.forget(_)
+  }
 }

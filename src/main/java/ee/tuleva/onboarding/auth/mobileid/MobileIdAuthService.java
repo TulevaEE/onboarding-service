@@ -33,10 +33,18 @@ public class MobileIdAuthService {
 
     MidAuthenticationRequest request =
         getBuildMidAuthenticationRequest(canonicalPhoneNumber, personalCode, authenticationHash);
-    MidAuthenticationResponse response = connector.authenticate(request);
+    MidAuthenticationResponse response = authenticate(request);
 
     return new MobileIDSession(
         response.getSessionID(), verificationCode, authenticationHash, request.getPhoneNumber());
+  }
+
+  private MidAuthenticationResponse authenticate(MidAuthenticationRequest request) {
+    try {
+      return connector.authenticate(request);
+    } catch (MidNotMidClientException e) {
+      throw new MobileIdNotMidClientException();
+    }
   }
 
   public boolean isLoginComplete(MobileIDSession session) {
@@ -75,10 +83,7 @@ public class MobileIdAuthService {
       throw new MobileIdException(
           ofSingleError("mobile.id.cancelled", "You cancelled operation from your phone."));
     } catch (MidNotMidClientException e) {
-      throw new MobileIdException(
-          ofSingleError(
-              "mobile.id.certificates.revoked",
-              "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator."));
+      throw new MobileIdNotMidClientException();
     } catch (MidSessionTimeoutException e) {
       throw new MobileIdException(
           ofSingleError(

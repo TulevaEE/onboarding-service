@@ -144,7 +144,18 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        def exception = thrown(MobileIdNotMidClientException)
+        exception.errorsResponse.errors*.code == ["mobile.id.certificates.revoked"]
+    }
+
+    def "StartLogin: a phone and personal code Mobile-ID does not pair is reported as such"() {
+        given:
+        1 * connector.authenticate(_) >> { throw new MidNotMidClientException() }
+        when:
+        mobileIdAuthService.startLogin(sampleLongPhoneNumber, sampleIdCode)
+        then:
+        def exception = thrown(MobileIdNotMidClientException)
+        exception.errorsResponse.errors*.code == ["mobile.id.certificates.revoked"]
     }
 
     def "IsLoginComplete: User did not type in PIN code before session timeout"() {

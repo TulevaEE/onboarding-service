@@ -11,6 +11,13 @@ record LiveJournalEntry(UUID id, UUID externalReference, Map<String, Object> met
     return source.equals(metadata.get(JournalEntryWriter.SOURCE_METADATA_KEY));
   }
 
+  String sourceKey() {
+    return (String)
+        requireNonNull(
+            metadata.get(JournalEntryWriter.SOURCE_KEY_METADATA_KEY),
+            "Journal entry without source key: id=" + id);
+  }
+
   String fingerprint() {
     return (String)
         requireNonNull(

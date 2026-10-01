@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.ledger.MirrorOutcome.UNCHANGED;
 import static java.math.BigDecimal.ZERO;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import jakarta.validation.ConstraintViolationException;
 import java.math.BigDecimal;
@@ -68,8 +69,20 @@ public class GeneralLedger {
     var partOutcomes =
         parts.stream().map(part -> mirrorPart(entity, source, part, live, knownCodes)).toList();
     logQuarantined(entity, parts, partOutcomes);
-    var reversals = absent.stream().map(writer::reverse).toList();
+    var heldByAQuarantinedReplacement =
+        referencesReplacedByQuarantinedParts(entity, source, parts, partOutcomes);
+    var reversals =
+        absent.stream()
+            .filter(entry -> !heldByAQuarantinedReplacement.contains(entry.externalReference()))
+            .map(writer::reverse)
+            .toList();
     return tally(Stream.concat(partOutcomes.stream(), reversals.stream()).toList());
+  }
+
+  public Set<String> liveSourceKeys(String entity, String source) {
+    return liveVersions(entity, source).values().stream()
+        .map(LiveJournalEntry::sourceKey)
+        .collect(toSet());
   }
 
   private Map<UUID, LiveJournalEntry> liveVersions(String entity, String source) {
@@ -170,6 +183,16 @@ public class GeneralLedger {
           Collections.frequency(outcomes, QUARANTINED_WITH_LIVE_VERSION),
           sourceKeys.stream().limit(10).toList());
     }
+  }
+
+  private static Set<UUID> referencesReplacedByQuarantinedParts(
+      String entity, String source, List<JournalEntryPart> parts, List<MirrorOutcome> outcomes) {
+    return IntStream.range(0, parts.size())
+        .filter(index -> outcomes.get(index).isQuarantined())
+        .mapToObj(index -> parts.get(index).replacedSourceKeys())
+        .flatMap(Set::stream)
+        .map(sourceKey -> JournalEntryWriter.reference(entity, source, sourceKey))
+        .collect(toSet());
   }
 
   private static MirrorResult tally(List<MirrorOutcome> outcomes) {

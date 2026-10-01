@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class JournalEntryPartTest {
@@ -14,7 +15,8 @@ class JournalEntryPartTest {
   @Test
   void endOfDayTallinnIsTheSameDateInUtc() {
     for (var date : List.of("2026-01-31", "2026-07-31", "2026-03-29", "2026-10-25")) {
-      var part = new JournalEntryPart("FIN:1:" + date, "FIN", LocalDate.parse(date), List.of());
+      var part =
+          new JournalEntryPart("FIN:1:" + date, "FIN", LocalDate.parse(date), List.of(), Set.of());
 
       Instant transactionDate = part.transactionDate();
 

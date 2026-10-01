@@ -15,7 +15,7 @@ import org.springframework.boot.test.context.TestComponent;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @TestComponent
-class GeneralLedgerRows {
+public class GeneralLedgerRows {
 
   private final JdbcClient jdbcClient;
   private final LedgerTransactionRepository transactionRepository;
@@ -25,10 +25,10 @@ class GeneralLedgerRows {
     this.transactionRepository = transactionRepository;
   }
 
-  record JournalEntryVersion(
+  public record JournalEntryVersion(
       UUID id, Instant transactionDate, int revision, String documentType, boolean live) {}
 
-  BigDecimal balanceAtEndOf(String entity, String code, LocalDate date) {
+  public BigDecimal balanceAtEndOf(String entity, String code, LocalDate date) {
     return jdbcClient
         .sql(
             """
@@ -45,7 +45,7 @@ class GeneralLedgerRows {
         .setScale(2);
   }
 
-  long count(TransactionType transactionType) {
+  public long count(TransactionType transactionType) {
     return jdbcClient
         .sql(
             "SELECT count(*) FROM ledger.transaction"
@@ -55,7 +55,7 @@ class GeneralLedgerRows {
         .single();
   }
 
-  List<JournalEntryVersion> versionsOf(String entity, String source, String sourceKey) {
+  public List<JournalEntryVersion> versionsOf(String entity, String source, String sourceKey) {
     return jdbcClient
         .sql(
             """
@@ -90,7 +90,7 @@ class GeneralLedgerRows {
         .map(LedgerTransaction::getTransactionDate);
   }
 
-  void deleteAll() {
+  public void deleteAll() {
     jdbcClient
         .sql(
             """

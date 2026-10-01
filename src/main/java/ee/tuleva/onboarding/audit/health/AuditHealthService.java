@@ -1,13 +1,15 @@
 package ee.tuleva.onboarding.audit.health;
 
 import ee.tuleva.onboarding.time.ClockHolder;
-import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,12 +18,13 @@ import org.springframework.stereotype.Service;
 public class AuditHealthService {
 
   private final AuditHealthRepository auditHealthRepository;
-  private Duration maxIntervalThreshold = Duration.ZERO;
+  private volatile Duration maxIntervalThreshold = Duration.ZERO;
 
   private static final long THRESHOLD_CALCULATION_PERIOD_DAYS = 10;
   private static final double GRACE_PERIOD_MULTIPLIER = 0.20;
 
-  @PostConstruct
+  @Async
+  @EventListener(ApplicationReadyEvent.class)
   public void initializeOrRefreshThreshold() {
     log.info(
         "Initializing audit log health threshold based on data from the last {} days.",

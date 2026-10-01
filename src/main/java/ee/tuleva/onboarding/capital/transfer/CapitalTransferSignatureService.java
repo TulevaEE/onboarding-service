@@ -113,7 +113,7 @@ public class CapitalTransferSignatureService {
 
     byte[] signedFile =
         signService.getSignedFile(session, signableContract(contractId), signCommand.signature());
-    finalizeSignature(contract, user, signedFile);
+    storeSignature(contract, user, signedFile);
 
     return new IdCardSignatureStatusResponse(SIGNATURE);
   }
@@ -171,6 +171,10 @@ public class CapitalTransferSignatureService {
 
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {
     requireAwaitsSignatureFrom(contract, user);
+    storeSignature(contract, user, signedFile);
+  }
+
+  private void storeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {
     if (contract.isSoldBy(user)) {
       contractService.signBySeller(contract.getId(), signedFile, user);
     } else {

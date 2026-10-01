@@ -26,9 +26,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 class JournalEntryWriter {
 
   static final String SOURCE_METADATA_KEY = "source";
+  static final String SOURCE_KEY_METADATA_KEY = "sourceKey";
 
   private static final Set<String> METADATA_A_REVERSAL_KEEPS =
-      Set.of("sourceKey", "documentType", SOURCE_METADATA_KEY);
+      Set.of(SOURCE_KEY_METADATA_KEY, "documentType", SOURCE_METADATA_KEY);
 
   private final TransactionTemplate transactionTemplate;
   private final JdbcClient jdbcClient;
@@ -147,7 +148,7 @@ class JournalEntryWriter {
   private static Map<String, Object> metadata(
       String source, JournalEntryPart part, String fingerprint, int revision) {
     return Map.of(
-        "sourceKey",
+        SOURCE_KEY_METADATA_KEY,
         part.sourceKey(),
         "documentType",
         part.documentType(),

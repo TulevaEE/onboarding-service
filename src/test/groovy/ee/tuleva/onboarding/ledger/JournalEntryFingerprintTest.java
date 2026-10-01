@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class JournalEntryFingerprintTest {
@@ -36,14 +37,15 @@ class JournalEntryFingerprintTest {
   @Test
   void changesWithDocumentType() {
     var otherDocumentType =
-        new JournalEntryPart(PART.sourceKey(), "FIN", PART.date(), PART.lines());
+        new JournalEntryPart(PART.sourceKey(), "FIN", PART.date(), PART.lines(), Set.of());
 
     assertThat(JournalEntryFingerprint.of(otherDocumentType))
         .isNotEqualTo(JournalEntryFingerprint.of(PART));
   }
 
   private static JournalEntryPart part(String date, JournalEntryLine... lines) {
-    return new JournalEntryPart("ARVE:1:" + date, "ARVE", LocalDate.parse(date), List.of(lines));
+    return new JournalEntryPart(
+        "ARVE:1:" + date, "ARVE", LocalDate.parse(date), List.of(lines), Set.of());
   }
 
   private static JournalEntryLine line(String accountCode, String amount) {

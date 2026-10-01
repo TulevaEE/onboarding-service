@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -126,7 +127,8 @@ class GeneralLedgerMirrorIntegrationTest {
   void aPartWhoseDocumentTypeChangesIsRepostedAsTheNextRevision() {
     mirror(List.of(OPENING, INVOICE));
     var retypedInvoice =
-        new JournalEntryPart(INVOICE.sourceKey(), "MUUGIARVE", INVOICE.date(), INVOICE.lines());
+        new JournalEntryPart(
+            INVOICE.sourceKey(), "MUUGIARVE", INVOICE.date(), INVOICE.lines(), Set.of());
 
     var result = mirror(List.of(OPENING, retypedInvoice));
 
@@ -227,6 +229,19 @@ class GeneralLedgerMirrorIntegrationTest {
   }
 
   @Test
+  void liveSourceKeysNameTheUnreversedPartsOfOneSource() {
+    mirror(List.of(OPENING, INVOICE));
+    mirror(List.of(OPENING));
+    generalLedger.mirror(
+        ENTITY,
+        "OTHER_SYSTEM",
+        List.of(part("FIN", 3, "2026-01-10", line(BANK, "5.00"), line(SHARE_CAPITAL, "-5.00"))),
+        MAX_DELETION_SHARE);
+
+    assertThat(generalLedger.liveSourceKeys(ENTITY, SOURCE)).isEqualTo(Set.of(OPENING.sourceKey()));
+  }
+
+  @Test
   void anEmptyResponseWhileLivePartsExistStopsTheEntityWithNothingWritten() {
     mirror(List.of(OPENING, INVOICE));
 
@@ -296,6 +311,39 @@ class GeneralLedgerMirrorIntegrationTest {
   }
 
   @Test
+  void aPartReplacedByAQuarantinedPartStaysLiveUntilTheReplacementPosts() {
+    var training = account("500200", EXPENSE, "Training");
+    var purchase =
+        part("OST", 1, "2026-02-01", line(OFFICE_COSTS, "80.00"), line(PAYABLES, "-80.00"));
+    mirror(List.of(OPENING, purchase));
+    var summary =
+        new JournalEntryPart(
+            "SUMMARY:2026-02",
+            "SUMMARY",
+            LocalDate.parse("2026-02-28"),
+            List.of(
+                line(OFFICE_COSTS, "80.00"),
+                line(PAYABLES, "-80.00"),
+                line(training, "60.00"),
+                line(BANK, "-60.00")),
+            Set.of(purchase.sourceKey(), "OST:2:2026-02-10"));
+
+    var whileTheReplacementIsQuarantined = mirror(List.of(OPENING, summary));
+
+    assertThat(whileTheReplacementIsQuarantined).isEqualTo(new MirrorResult(0, 0, 0, 1, 1, 0));
+    assertThat(versionsOf(purchase)).extracting(JournalEntryVersion::live).containsExactly(true);
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("80.00"));
+
+    generalLedger.upsertAccounts(ENTITY, List.of(training));
+    var onceTheReplacementPosts = mirror(List.of(OPENING, summary));
+
+    assertThat(onceTheReplacementPosts).isEqualTo(new MirrorResult(1, 0, 1, 1, 0, 0));
+    assertThat(versionsOf(purchase)).extracting(JournalEntryVersion::live).containsExactly(false);
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("80.00"));
+    assertThat(balanceAt(training, "2026-02-28")).isEqualTo(new BigDecimal("60.00"));
+  }
+
+  @Test
   void aRepostThatFailsLeavesTheReversalUnposted() {
     mirror(List.of(OPENING, INVOICE));
     var invoiceTheLedgerCannotHold =
@@ -356,7 +404,8 @@ class GeneralLedgerMirrorIntegrationTest {
         documentType + ":" + number + ":" + date,
         documentType,
         LocalDate.parse(date),
-        List.of(lines));
+        List.of(lines),
+        Set.of());
   }
 
   private static JournalEntryLine line(GeneralLedgerAccount account, String amount) {

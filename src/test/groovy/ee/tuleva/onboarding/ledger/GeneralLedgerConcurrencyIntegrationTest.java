@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
@@ -127,7 +128,8 @@ class GeneralLedgerConcurrencyIntegrationTest {
                   date,
                   List.of(
                       new JournalEntryLine("100100", new BigDecimal(amount)),
-                      new JournalEntryLine("400100", new BigDecimal(amount).negate())));
+                      new JournalEntryLine("400100", new BigDecimal(amount).negate())),
+                  Set.of());
             })
         .toList();
   }

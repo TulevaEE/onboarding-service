@@ -111,7 +111,9 @@ public class MandateBatchSignatureService {
 
     SignatureStatus statusCode =
         mandateBatchService.getIdCardSignatureStatus(
-            authenticatedPerson.getUserIdOrThrow(), mandateBatchId);
+            authenticatedPerson.getUserIdOrThrow(),
+            mandateBatchId,
+            localeService.getCurrentLocale());
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

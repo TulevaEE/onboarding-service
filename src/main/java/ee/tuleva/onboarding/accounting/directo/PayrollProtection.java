@@ -8,6 +8,7 @@ import static java.util.stream.Collectors.toSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 final class PayrollProtection {
@@ -17,6 +18,9 @@ final class PayrollProtection {
           "pal[gk]|töövõtja|töötaja|puhkus|erisoodus|päevaraha|lähetus|haigus|aruandv",
           CASE_INSENSITIVE | UNICODE_CASE);
 
+  private static final Set<String> PAYROLL_LIABILITY_ACCOUNTS_OF_THE_COMPANY_CHART =
+      Set.of("212344", "212401", "212411", "212421", "212422", "212641", "212647", "212648");
+
   private final Set<String> payrollLiabilityAccounts;
   private final Set<String> knownObjects;
   private final Set<String> employeeObjects;
@@ -24,9 +28,11 @@ final class PayrollProtection {
   PayrollProtection(List<DirectoAccount> accounts, List<DirectoObject> objects) {
     final String EMPLOYEE_OBJECT_LEVEL = "50";
     payrollLiabilityAccounts =
-        accounts.stream()
-            .filter(PayrollProtection::isPayrollLiability)
-            .map(account -> require(account.code(), "accounts.code"))
+        Stream.concat(
+                PAYROLL_LIABILITY_ACCOUNTS_OF_THE_COMPANY_CHART.stream(),
+                accounts.stream()
+                    .filter(PayrollProtection::isPayrollLiability)
+                    .map(account -> require(account.code(), "accounts.code")))
             .collect(toSet());
     knownObjects = objects.stream().map(PayrollProtection::code).collect(toSet());
     employeeObjects =

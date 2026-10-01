@@ -256,8 +256,28 @@ Smart-ID runs on SK's RP API v3 through `ee.sk.smartid:smart-id-java-client`.
   validated against SK's CA certificates bundled under `src/main/resources/smart-id/live` and `smart-id/demo`,
   selected by `smartid.trusted-ca-certificates`. `smartid.scheme-name` must match the environment
   (`smart-id-demo` on `sid.demo.sk.ee`, `smart-id` in production), otherwise every signature check fails.
+- After SK's login response validates, the authentication certificate's revocation status is checked at the
+  OCSP responder named in its AIA, against the issuing CA from the same bundle, with a nonce
+  (`SmartIdCertificateRevocationCheck`). REVOKED or UNKNOWN refuses the login as `smart.id.certificate.revoked`;
+  an unreachable responder or an answer that does not verify refuses it as `smart.id.technical.error`. SK's demo
+  responder answers for demo certificates, so the check runs in every environment.
 - The same-device flow returns to `smartid.callback-url`, which has to be an `https://` URL of the frontend.
 - Demo test accounts and their outcomes: https://sk-eid.github.io/smart-id-documentation/test_accounts.html
+
+### Remembered browser
+
+`__Host-REMEMBERED_BROWSER` (HttpOnly, Secure, SameSite=Lax, Path=/, no Domain) holds 32 random bytes; only their
+SHA-256 is stored, in `remembered_browser`, and the token is replaced on every login that remembers something.
+What a browser remembers lives server-side next to it:
+
+- one Smart-ID account (`remembered_smart_id_account`), for 90 days from the last device-link login, which is what
+  offers the push login;
+- per personal code, the phone number of the last successful Mobile-ID login (`remembered_mobile_id_phone`), for
+  12 months from the last such login. `POST /v1/mobile-id/login/remembered` only says whether one exists, and a
+  Mobile-ID start without a phone number uses it. A start from a remembered number is limited to one per browser
+  every 30 seconds, and a remembered number Mobile-ID answers NOT_MID_CLIENT for is forgotten.
+
+`RememberedBrowserPurgeJob` erases expired entries and browsers nightly.
 
 ### Smart-ID, Mobile-ID, ID-card TLS trust store
 1. Install keystore explorer if missing `brew install --cask keystore-explorer` or use command line `keytool`

@@ -8,7 +8,8 @@ public class InvalidSignatureException extends ErrorsResponseException {
   public InvalidSignatureException(Exception cause) {
     super(
         ErrorsResponse.ofSingleError(
-            "id.card.signature.invalid", "Signature is not base64 encoded"));
+            "id.card.signature.invalid",
+            "Signature is not a base64 signature over the hash to sign"));
     initCause(cause);
   }
 }

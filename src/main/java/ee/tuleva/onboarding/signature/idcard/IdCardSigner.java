@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
+import eu.europa.esig.dss.alert.exception.AlertException;
 import eu.webeid.security.certificate.CertificateData;
 import java.io.ByteArrayInputStream;
 import java.security.cert.CertificateEncodingException;
@@ -53,8 +54,13 @@ public class IdCardSigner {
   public byte[] getSignedFile(
       IdCardSignatureSession session, SignableEntity entity, String signature) {
     session.requireStartedFor(entity);
-    return digiDocFacade.addSignatureToContainer(
-        decodeSignature(signature), session.getDataToSign(), session.getContainer());
+    byte[] signatureValue = decodeSignature(signature);
+    try {
+      return digiDocFacade.addSignatureToContainer(
+          signatureValue, session.getDataToSign(), session.getContainer());
+    } catch (AlertException signatureOrSigningCertificateRejected) {
+      throw new InvalidSignatureException(signatureOrSigningCertificateRejected);
+    }
   }
 
   private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {

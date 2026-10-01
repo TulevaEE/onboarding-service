@@ -132,18 +132,6 @@ class ThisBrowserTest {
   }
 
   @Test
-  void forgettingDropsThisBrowserAndExpiresTheCookie() {
-    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
-    given(browsers.findUnexpired(hash("a-token")))
-        .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
-
-    thisBrowser.forget();
-
-    verify(browsers).remove(7L);
-    assertThat(response.getHeader(SET_COOKIE)).contains("Max-Age=0");
-  }
-
-  @Test
   void claimsAPushLoginStartForThisBrowser() {
     bindRequest(new Cookie(COOKIE_NAME, "token"));
     given(browsers.findUnexpired(hash("token")))

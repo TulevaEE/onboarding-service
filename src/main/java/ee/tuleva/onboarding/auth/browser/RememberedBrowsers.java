@@ -79,10 +79,6 @@ class RememberedBrowsers {
         == 1;
   }
 
-  void remove(long id) {
-    jdbcClient.sql("DELETE FROM remembered_browser WHERE id = :id").param("id", id).update();
-  }
-
   int removeExpired() {
     return jdbcClient
         .sql("DELETE FROM remembered_browser WHERE expires_at <= :now")

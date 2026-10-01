@@ -115,31 +115,42 @@ class RememberedSmartIdAccountsTest {
   }
 
   @Test
-  void forgettingDropsThisBrowserOnly() {
+  void forgettingDropsTheAccountThisBrowserRemembersAndNothingElse() {
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(VALIDITY))));
+
     accounts.forget();
 
-    verify(thisBrowser).forget();
+    verify(repository).remove(BROWSER_ID);
     verify(repository, never()).removeAllOf(any());
   }
 
   @Test
-  void forgettingEverywhereDropsThePersonOnEveryBrowser() {
+  void forgettingOnABrowserThatIsNotRememberedDoesNothing() {
+    given(thisBrowser.remembered()).willReturn(Optional.empty());
+
+    accounts.forget();
+
+    verify(repository, never()).remove(anyLong());
+  }
+
+  @Test
+  void forgettingEverywhereDropsThePersonsSmartIdAccountOnEveryBrowser() {
     browserRemembering(verifiedAt(NOW));
 
     accounts.forgetEverywhere();
 
     verify(repository).removeAllOf(personalCode);
-    verify(thisBrowser).forget();
+    verify(repository, never()).remove(anyLong());
   }
 
   @Test
-  void forgettingEverywhereStillForgetsThisBrowserWhenItRemembersNoAccount() {
+  void forgettingEverywhereDoesNothingWhenThisBrowserRemembersNoAccount() {
     given(thisBrowser.remembered()).willReturn(Optional.empty());
 
     accounts.forgetEverywhere();
 
     verify(repository, never()).removeAllOf(any());
-    verify(thisBrowser).forget();
   }
 
   @Test

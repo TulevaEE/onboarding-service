@@ -69,17 +69,6 @@ class RememberedBrowsersTest {
   }
 
   @Test
-  void forgetsASingleBrowser() {
-    long first = browsers.add("first", LATER);
-    browsers.add("second", LATER);
-
-    browsers.remove(first);
-
-    assertThat(browsers.findUnexpired("first")).isEmpty();
-    assertThat(browsers.findUnexpired("second")).isPresent();
-  }
-
-  @Test
   void purgesOnlyBrowsersPastTheirValidity() {
     browsers.add("expired", NOW.minusSeconds(1));
     browsers.add("still-valid", LATER);

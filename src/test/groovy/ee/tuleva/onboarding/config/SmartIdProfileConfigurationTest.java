@@ -6,6 +6,8 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.StandardEnvironment;
@@ -33,6 +35,12 @@ class SmartIdProfileConfigurationTest {
     assertThat(staging.getProperty("smartid.scheme-name")).isEqualTo("smart-id-demo");
     assertThat(staging.getProperty("smartid.trusted-ca-certificates"))
         .isEqualTo("classpath:smart-id/demo/*.pem");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"default", "dev", "staging", "production"})
+  void noProfileLogsTheSmartIdClientsRequestAndResponseBodies(String profile) {
+    assertThat(environmentFor(profile).getProperty("logging.level.ee.sk.smartid")).isNull();
   }
 
   private static ConfigurableEnvironment environmentFor(String profile) {

@@ -519,6 +519,9 @@ spring:
       on-profile:
         - staging
 
+frontend:
+  url: https://staging.tuleva.ee
+
 smartid:
   hostUrl: https://sid.demo.sk.ee/smart-id-rp/v3/
   scheme-name: smart-id-demo

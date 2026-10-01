@@ -40,6 +40,18 @@ class SmartIdProfileConfigurationTest {
         .isEqualTo("classpath:smart-id/demo/*.pem");
   }
 
+  @Test
+  void productionReturnsSameDeviceLoginsToTheProductionFrontend() {
+    assertThat(environmentFor("production").getProperty("smartid.callback-url"))
+        .isEqualTo("https://pension.tuleva.ee/login/smart-id/callback");
+  }
+
+  @Test
+  void stagingReturnsSameDeviceLoginsToTheStagingFrontendRatherThanProduction() {
+    assertThat(environmentFor("staging").getProperty("smartid.callback-url"))
+        .isEqualTo("https://staging.tuleva.ee/login/smart-id/callback");
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"default", "dev", "staging", "production"})
   void noProfileLogsTheSmartIdClientsRequestAndResponseBodies(String profile) {

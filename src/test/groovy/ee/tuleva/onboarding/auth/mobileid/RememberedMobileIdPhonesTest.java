@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.auth.browser.RememberedBrowser;
 import ee.tuleva.onboarding.auth.browser.ThisBrowser;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class RememberedMobileIdPhonesTest {
@@ -31,5 +34,31 @@ class RememberedMobileIdPhonesTest {
     phones.remember("38888888888", "+37255555555");
 
     verify(repository).save(BROWSER_ID, "38888888888", "+37255555555", NOW.plus(TWELVE_MONTHS));
+  }
+
+  @Test
+  void aPersonIsRememberedWhenThisBrowserHoldsTheirPhone() {
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(TWELVE_MONTHS))));
+    given(repository.findUnexpired(BROWSER_ID, "38888888888"))
+        .willReturn(Optional.of(new RememberedMobileIdPhone(3L, "+37255555555")));
+
+    assertThat(phones.isRemembered("38888888888")).isTrue();
+  }
+
+  @Test
+  void aPersonIsNotRememberedWhenThisBrowserHoldsNoPhoneForThem() {
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(TWELVE_MONTHS))));
+    given(repository.findUnexpired(BROWSER_ID, "38888888888")).willReturn(Optional.empty());
+
+    assertThat(phones.isRemembered("38888888888")).isFalse();
+  }
+
+  @Test
+  void nobodyIsRememberedOnABrowserWithoutACookie() {
+    given(thisBrowser.remembered()).willReturn(Optional.empty());
+
+    assertThat(phones.isRemembered("38888888888")).isFalse();
   }
 }

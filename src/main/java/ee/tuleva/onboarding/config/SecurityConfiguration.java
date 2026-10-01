@@ -55,6 +55,7 @@ public class SecurityConfiguration {
                         "/oauth/refresh-token",
                         "/v1/smart-id/login",
                         "/v1/smart-id/login/**",
+                        "/v1/mobile-id/login/remembered",
                         "/idLogin",
                         "/notifications/payments",
                         "/v1/emails/webhooks/**",

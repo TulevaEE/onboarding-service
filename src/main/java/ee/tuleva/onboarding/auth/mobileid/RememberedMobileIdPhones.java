@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.browser.ThisBrowser;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,16 @@ public class RememberedMobileIdPhones {
     this.phones = phones;
     this.validity = validity;
     this.clock = clock;
+  }
+
+  public boolean isRemembered(String personalCode) {
+    return find(personalCode).isPresent();
+  }
+
+  Optional<RememberedMobileIdPhone> find(String personalCode) {
+    return thisBrowser
+        .remembered()
+        .flatMap(browser -> phones.findUnexpired(browser.id(), personalCode));
   }
 
   public void remember(String personalCode, String phoneNumber) {

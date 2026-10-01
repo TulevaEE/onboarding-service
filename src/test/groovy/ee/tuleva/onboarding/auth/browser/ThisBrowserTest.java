@@ -15,10 +15,8 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 
 import jakarta.servlet.http.Cookie;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -34,8 +32,7 @@ class ThisBrowserTest {
   private static final Duration THIRTY_SECONDS = Duration.ofSeconds(30);
 
   private final RememberedBrowsers browsers = mock(RememberedBrowsers.class);
-  private final ThisBrowser thisBrowser =
-      new ThisBrowser(browsers, Clock.fixed(NOW, ZoneOffset.UTC));
+  private final ThisBrowser thisBrowser = new ThisBrowser(browsers);
 
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
@@ -79,7 +76,7 @@ class ThisBrowserTest {
     assertThat(response.getHeader(SET_COOKIE))
         .startsWith("__Host-")
         .startsWith(COOKIE_NAME + "=")
-        .contains("Max-Age=" + Duration.ofDays(90).toSeconds())
+        .contains("Max-Age=" + Duration.ofDays(400).toSeconds())
         .doesNotContain("Domain")
         .contains("Path=/")
         .contains("Secure")
@@ -121,17 +118,16 @@ class ThisBrowserTest {
   }
 
   @Test
-  void neverShortensHowLongTheCookieLives() {
+  void theCookieOutlivesWhateverTheBrowserRemembersSoTheServerDecidesWhenItEnds() {
     bindRequest(new Cookie(COOKIE_NAME, "old-token"));
-    Instant longer = NOW.plus(Duration.ofDays(365));
     given(browsers.findUnexpired(hash("old-token")))
-        .willReturn(Optional.of(new RememberedBrowser(7L, longer)));
+        .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(365)))));
     given(browsers.rotate(eq(7L), eq(hash("old-token")), any())).willReturn(true);
 
     thisBrowser.rememberUntil(NOW.plus(Duration.ofDays(90)));
 
     assertThat(response.getHeader(SET_COOKIE))
-        .contains("Max-Age=" + Duration.ofDays(365).toSeconds());
+        .contains("Max-Age=" + Duration.ofDays(400).toSeconds());
   }
 
   @Test

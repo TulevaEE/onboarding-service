@@ -141,6 +141,18 @@ class DirectoPartMapperSpec extends Specification {
     "project"  | null                | null          | null          | "38001085718"
   }
 
+  def "aPersonalCodeAsADocumentNumberStopsTheEntity"() {
+    given:
+    def rows = [new DirectoRow("500100", 80.00, null, null, null, null, null, null), new DirectoRow("100100", null, 80.00, null, null, null, null, null)]
+    def book = new DirectoBook(CHART, OBJECTS, [document("OST", "38001085718", "2026-01-10T00:00:00", rows)])
+
+    when:
+    mapper.map(book)
+
+    then:
+    thrown(IllegalStateException)
+  }
+
   def "theSummaryOfAMonthCoversEveryProtectedDocumentOfIt"() {
     given:
     def payroll = document("PALK", "4", "2026-01-31T00:00:00", [

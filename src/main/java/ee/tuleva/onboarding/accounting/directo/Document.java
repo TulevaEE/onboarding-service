@@ -44,8 +44,8 @@ record Document(String type, String number, List<DocumentRow> rows) {
         .filter(part -> !part.lines().isEmpty());
   }
 
-  Stream<String> dimensionCodes() {
-    return rows.stream().flatMap(DocumentRow::dimensionCodes);
+  Stream<String> identifyingCodes() {
+    return Stream.concat(Stream.of(number), rows.stream().flatMap(DocumentRow::dimensionCodes));
   }
 
   private static List<JournalEntryLine> nonZeroLines(List<DocumentRow> rows) {

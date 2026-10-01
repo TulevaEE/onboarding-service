@@ -93,7 +93,6 @@ hackathon:
 mobile-id:
   relyingPartyUUID: 00000000-0000-0000-0000-000000000000
   relyingPartyName: DEMO
-  # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 1
   service:
@@ -361,7 +360,6 @@ partner:
   publicKey2: "file:/partner-public-key2.pem"
 
 mobile-id:
-  hostUrl: "https://mid.sk.ee/mid-api"
   service:
     name: "Tuleva"
 
@@ -565,6 +563,7 @@ sentry:
   environment: production
 
 mobile-id:
+  hostUrl: "https://mid.sk.ee/mid-api"
   relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID}
   relyingPartyName: ${SMARTID_RELYING_PARTY_NAME}
 

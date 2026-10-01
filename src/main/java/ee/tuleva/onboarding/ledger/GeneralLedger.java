@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.ledger.MirrorOutcome.REVISED;
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.UNCHANGED;
 import static java.math.BigDecimal.ZERO;
 import static java.util.function.Function.identity;
+import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
@@ -66,17 +67,43 @@ public class GeneralLedger {
     refuseMassDeletion(entity, parts.size(), live.size(), absent.size(), maxDeletionShare);
 
     var knownCodes = accounts.codesOf(entity);
+    var heldRetirements = retirementsWithAFormerPartThatCannotPost(absent, parts, knownCodes);
+    var heldBackParts =
+        heldRetirements.stream()
+            .flatMap(entry -> entry.replacedSourceKeys().stream())
+            .collect(toSet());
     var partOutcomes =
-        parts.stream().map(part -> mirrorPart(entity, source, part, live, knownCodes)).toList();
+        parts.stream()
+            .map(
+                part ->
+                    heldBackParts.contains(part.sourceKey())
+                        ? quarantined(
+                            live.get(
+                                JournalEntryWriter.reference(entity, source, part.sourceKey())))
+                        : mirrorPart(entity, source, part, live, knownCodes))
+            .toList();
     logQuarantined(entity, parts, partOutcomes);
     var heldByAQuarantinedReplacement =
         referencesReplacedByQuarantinedParts(entity, source, parts, partOutcomes);
     var reversals =
         absent.stream()
             .filter(entry -> !heldByAQuarantinedReplacement.contains(entry.externalReference()))
+            .filter(not(heldRetirements::contains))
             .map(writer::reverse)
             .toList();
     return tally(Stream.concat(partOutcomes.stream(), reversals.stream()).toList());
+  }
+
+  private static Set<LiveJournalEntry> retirementsWithAFormerPartThatCannotPost(
+      List<LiveJournalEntry> absent, List<JournalEntryPart> parts, Set<String> knownCodes) {
+    var unpostable =
+        parts.stream()
+            .filter(part -> !isPostable(part, knownCodes))
+            .map(JournalEntryPart::sourceKey)
+            .collect(toSet());
+    return absent.stream()
+        .filter(entry -> entry.replacedSourceKeys().stream().anyMatch(unpostable::contains))
+        .collect(toSet());
   }
 
   public Set<String> liveSourceKeys(String entity, String source) {

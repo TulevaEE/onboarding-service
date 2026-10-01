@@ -223,6 +223,41 @@ class GeneralLedgerSyncIntegrationTest {
                 "-1342.50", "0.00", "-2600.00", "-1000.00", "-250.00", "92.50", "5100.00", "0.00"));
   }
 
+  @Test
+  void aMonthlySummaryStaysLiveUntilTheOrdinaryPartsReplacingItCanPost() {
+    respondWith(ACCOUNTS, OBJECTS, withDocument(TRANSACTIONS, A_MARCH_PURCHASE_WITH_A_NEW_OBJECT));
+    sync.sync(ENTITY);
+    var rentWithTheSummary = balanceAt("500100", "2026-03-31");
+    server.reset();
+    respondWith(
+        ACCOUNTS,
+        OBJECTS_WITH_THE_NEW_OBJECT,
+        withDocument(TRANSACTIONS, A_MARCH_PURCHASE_WITH_A_NEW_OBJECT.replace("500100", "509999")));
+
+    sync.sync(ENTITY);
+
+    assertThat(rows.versionsOf(ENTITY, SOURCE, "PAYROLL:2026-03"))
+        .extracting(JournalEntryVersion::live)
+        .containsExactly(true);
+    assertThat(balanceAt("500100", "2026-03-31")).isEqualByComparingTo(rentWithTheSummary);
+
+    server.reset();
+    respondWith(
+        ACCOUNTS,
+        OBJECTS_WITH_THE_NEW_OBJECT,
+        withDocument(TRANSACTIONS, A_MARCH_PURCHASE_WITH_A_NEW_OBJECT));
+
+    sync.sync(ENTITY);
+
+    assertThat(rows.versionsOf(ENTITY, SOURCE, "PAYROLL:2026-03"))
+        .extracting(JournalEntryVersion::live)
+        .containsExactly(false);
+    assertThat(rows.versionsOf(ENTITY, SOURCE, "FIN:99:2026-03-10"))
+        .extracting(JournalEntryVersion::live)
+        .containsExactly(true);
+    assertThat(balanceAt("500100", "2026-03-31")).isEqualByComparingTo(rentWithTheSummary);
+  }
+
   private void respondWith(String accounts, String objects, String transactions) {
     server
         .expect(requestTo(BASE_URL + "/accounts"))
@@ -371,6 +406,18 @@ class GeneralLedgerSyncIntegrationTest {
           "\"account\": \"500100\", \"debitamount\": 80.0000, \"supplier\": \"40015\"",
           "\"account\": \"500100\", \"debitamount\": 80.0000, \"supplier\": \"40015\","
               + " \"object\": \"E002\"");
+
+  private static final String A_MARCH_PURCHASE_WITH_A_NEW_OBJECT =
+      """
+      {"number": 99, "date": "2026-03-10T00:00:00", "type": "FIN",
+       "rows": [
+         {"rn": 1, "account": "500100", "debitamount": 80.0000, "object": "NEW1"},
+         {"rn": 2, "account": "200100", "creditamount": 80.0000}]}
+      """;
+
+  private static final String OBJECTS_WITH_THE_NEW_OBJECT =
+      OBJECTS.replace(
+          "[", "[{\"code\": \"NEW1\", \"name\": \"New Team\", \"type\": \"Tiim\", \"level\": 10},");
 
   private static final String A_FEBRUARY_PAYROLL_ON_AN_ACCOUNT_MISSING_FROM_THE_CHART =
       """

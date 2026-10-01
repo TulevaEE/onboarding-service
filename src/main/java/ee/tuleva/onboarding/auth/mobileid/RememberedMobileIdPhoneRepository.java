@@ -8,6 +8,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -33,7 +34,9 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
         .optional();
   }
 
+  @Transactional
   void save(long browserId, String personalCode, String phoneNumber, Instant expiresAt) {
+    lockBrowser(browserId);
     int updated =
         jdbcClient
             .sql(
@@ -61,6 +64,14 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
           .param("expiresAt", Timestamp.from(expiresAt))
           .update();
     }
+  }
+
+  private void lockBrowser(long browserId) {
+    jdbcClient
+        .sql("SELECT id FROM remembered_browser WHERE id = :browserId FOR UPDATE")
+        .param("browserId", browserId)
+        .query(Long.class)
+        .optional();
   }
 
   void remove(long id) {

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aRememberedAccoun
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -22,6 +23,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -62,7 +64,9 @@ class SmartIdLoginControllerTest {
                 .value("https://smart-id.com/device-link/?deviceLinkType=Web2App"))
         .andExpect(jsonPath("$.verificationCode").doesNotExist());
 
-    verify(sessionStore).save(deviceLinkSession);
+    InOrder renewedBeforeStored = inOrder(sessionStore);
+    renewedBeforeStored.verify(sessionStore).renewId();
+    renewedBeforeStored.verify(sessionStore).save(deviceLinkSession);
   }
 
   @Test
@@ -82,7 +86,9 @@ class SmartIdLoginControllerTest {
         .andExpect(jsonPath("$.verificationCode").value("1234"))
         .andExpect(jsonPath("$.web2AppLink").doesNotExist());
 
-    verify(sessionStore).save(notificationSession);
+    InOrder renewedBeforeStored = inOrder(sessionStore);
+    renewedBeforeStored.verify(sessionStore).renewId();
+    renewedBeforeStored.verify(sessionStore).save(notificationSession);
   }
 
   @Test

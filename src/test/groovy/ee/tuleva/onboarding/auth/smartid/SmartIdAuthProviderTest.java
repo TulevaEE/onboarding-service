@@ -86,7 +86,7 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
-  void grantsThePersonWithTheDocumentNumberAndRemembersTheAccount() {
+  void grantsThePersonOnceWithTheDocumentNumberAndRemembersTheAccount() {
     SmartIdSession session = aDeviceLinkSession(now);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
@@ -100,7 +100,8 @@ class SmartIdAuthProviderTest {
     AuthenticatedPerson person = provider.authenticate(null);
 
     assertThat(person).isEqualTo(expected);
-    verify(sessionStore).save(session);
+    verify(sessionStore).remove(SmartIdSession.class);
+    verify(sessionStore, never()).save(session);
     verify(rememberedAccounts).remember(aSmartIdPerson(), true);
   }
 

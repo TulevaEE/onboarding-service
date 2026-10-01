@@ -34,6 +34,20 @@ public class GenericSessionStore {
     return Optional.ofNullable(sessionAttribute);
   }
 
+  public void renewId() {
+    HttpServletRequest request = currentRequest();
+    if (request.getSession(false) != null) {
+      request.changeSessionId();
+    }
+  }
+
+  public <T> void remove(Class<T> clazz) {
+    HttpSession session = currentRequest().getSession(false);
+    if (session != null) {
+      session.removeAttribute(clazz.getName());
+    }
+  }
+
   // For background threads with no HttpServletRequest. Bounded retry handles the race where
   // a fast SDK response writes back before the originating request commits the session row.
   public <T> void saveBySessionId(String sessionId, T attribute) {

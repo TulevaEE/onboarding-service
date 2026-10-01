@@ -145,6 +145,58 @@ class SmartIdAuthIntegrationTest {
   }
 
   @Test
+  void aSessionCookieHeldBeforeTheLoginStartedCannotRedeemIt() throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    Cookie planted = sessionCookie(startDeviceLinkLogin());
+
+    MvcResult victimStart =
+        mockMvc
+            .perform(
+                post("/v1/smart-id/login")
+                    .cookie(planted)
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
+            .andExpect(status().isOk())
+            .andReturn();
+    Cookie victim = sessionCookie(victimStart);
+    assertThat(victim.getValue()).isNotEqualTo(planted.getValue());
+
+    SessionStatus status = completeStatus("QR");
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
+        .willReturn(anAuthenticationIdentity());
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(planted).param("grant_type", "SMART_ID"))
+        .andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(post("/oauth/token").cookie(victim).param("grant_type", "SMART_ID"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aCompletedLoginIsRedeemedForTokensOnlyOnce() throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    Cookie session = sessionCookie(startDeviceLinkLogin());
+    SessionStatus status = completeStatus("QR");
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
+        .willReturn(anAuthenticationIdentity());
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+    mockMvc
+        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+  }
+
+  @Test
   void sameDeviceLoginIsGrantedOnlyAfterTheCallbackArrives() throws Exception {
     var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))

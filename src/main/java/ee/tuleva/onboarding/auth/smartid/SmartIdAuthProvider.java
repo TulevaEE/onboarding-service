@@ -53,10 +53,7 @@ public class SmartIdAuthProvider implements AuthProvider {
       forgetStaleRememberedAccount(session);
       throw e;
     }
-    // Only a finished login writes the session back. Polling and the same-device callback run as
-    // separate requests, each with its own copy, so saving an unfinished poll would overwrite the
-    // challenge verifier a callback had just stored and strand the login.
-    genericSessionStore.save(session);
+    genericSessionStore.remove(SmartIdSession.class);
 
     var authenticatedPerson =
         principalService.getFrom(

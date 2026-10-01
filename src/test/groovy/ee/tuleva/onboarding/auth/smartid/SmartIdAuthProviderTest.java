@@ -63,9 +63,10 @@ class SmartIdAuthProviderTest {
   @Test
   void throwsWhenTheLoginIsOlderThanThreeMinutes() {
     SmartIdSession session = aDeviceLinkSession(now.minusSeconds(181));
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
 
-    assertThatThrownBy(() -> provider.authenticate(null))
+    assertThatThrownBy(() -> provider.authenticate(secret))
         .isInstanceOf(SmartIdSessionNotFoundException.class);
     verify(smartIdAuthService, never()).completeLogin(session);
   }
@@ -73,10 +74,11 @@ class SmartIdAuthProviderTest {
   @Test
   void leavesTheStoredSessionAloneWhileTheLoginIsNotComplete() {
     SmartIdSession session = aDeviceLinkSession(now.minusSeconds(170));
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session)).willThrow(new AuthNotCompleteException());
 
-    assertThatThrownBy(() -> provider.authenticate(null))
+    assertThatThrownBy(() -> provider.authenticate(secret))
         .isInstanceOf(AuthNotCompleteException.class);
 
     // Polling and the same-device callback are separate requests holding separate copies, so a
@@ -89,6 +91,7 @@ class SmartIdAuthProviderTest {
   void grantsThePersonOnceWithTheDocumentNumberAndRemembersTheAccount() {
     SmartIdSession session = aDeviceLinkSession(now);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
     given(
@@ -97,7 +100,7 @@ class SmartIdAuthProviderTest {
                 Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
         .willReturn(expected);
 
-    AuthenticatedPerson person = provider.authenticate(null);
+    AuthenticatedPerson person = provider.authenticate(secret);
 
     assertThat(person).isEqualTo(expected);
     verify(sessionStore).remove(SmartIdSession.class);
@@ -109,11 +112,12 @@ class SmartIdAuthProviderTest {
   void propagatesLoginErrorsAndSavesTheSession() {
     SmartIdSession session = aDeviceLinkSession(now);
     session.setError(SmartIdLoginError.USER_REFUSED);
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session))
         .willThrow(new SmartIdException(ofSingleError("smart.id.user.refused", "refused")));
 
-    assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
+    assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
 
     verify(sessionStore).save(session);
     verify(rememberedAccounts, never()).forgetEverywhere();
@@ -123,11 +127,12 @@ class SmartIdAuthProviderTest {
   void forgetsTheRememberedAccountWhenItsPushLoginFindsNoAccount() {
     SmartIdSession session = aNotificationSession(now);
     session.setError(SmartIdLoginError.ACCOUNT_NOT_FOUND);
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session))
         .willThrow(new SmartIdException(ofSingleError("smart.id.account.not.found", "gone")));
 
-    assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
+    assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
 
     verify(rememberedAccounts).forgetEverywhere();
   }
@@ -136,12 +141,30 @@ class SmartIdAuthProviderTest {
   void keepsTheRememberedAccountWhenAQrLoginFindsNoAccount() {
     SmartIdSession session = aDeviceLinkSession(now);
     session.setError(SmartIdLoginError.ACCOUNT_NOT_FOUND);
+    String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session))
         .willThrow(new SmartIdException(ofSingleError("smart.id.account.not.found", "gone")));
 
-    assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
+    assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
 
     verify(rememberedAccounts, never()).forgetEverywhere();
+  }
+
+  @Test
+  void refusesARedemptionWithoutTheSecretTheLoginStartIssuedBeforeAskingSmartId() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+
+    assertThatThrownBy(() -> provider.authenticate(null))
+        .isInstanceOf(SmartIdSessionNotFoundException.class);
+    assertThatThrownBy(
+            () ->
+                provider.authenticate(
+                    new SmartIdSession(now, session.getLogin()).issueRedemptionSecret()))
+        .isInstanceOf(SmartIdSessionNotFoundException.class);
+    verify(smartIdAuthService, never()).completeLogin(session);
+    verify(sessionStore, never()).remove(SmartIdSession.class);
   }
 }

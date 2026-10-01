@@ -81,4 +81,32 @@ class SmartIdSessionTest {
     assertThatThrownBy(() -> session.acceptCallback(aCallback()))
         .isInstanceOf(SmartIdCallbackRejectedException.class);
   }
+
+  @Test
+  void isRedeemableOnlyWithTheSecretItIssued() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    String secret = session.issueRedemptionSecret();
+
+    assertThat(session.isRedeemableWith(secret)).isTrue();
+    assertThat(session.isRedeemableWith(aNotificationSession(now).issueRedemptionSecret()))
+        .isFalse();
+    assertThat(session.isRedeemableWith("not base64url!")).isFalse();
+    assertThat(session.isRedeemableWith(null)).isFalse();
+  }
+
+  @Test
+  void isNotRedeemableBeforeASecretIsIssued() {
+    assertThat(aDeviceLinkSession(now).isRedeemableWith("A".repeat(43))).isFalse();
+  }
+
+  @Test
+  void issuesA32ByteBase64UrlSecretThatDiffersEveryTime() {
+    SmartIdSession session = aDeviceLinkSession(now);
+
+    String first = session.issueRedemptionSecret();
+    String second = session.issueRedemptionSecret();
+
+    assertThat(first).matches("[A-Za-z0-9_-]{43}").isNotEqualTo(second);
+    assertThat(session.isRedeemableWith(first)).isFalse();
+  }
 }

@@ -41,6 +41,10 @@ public class SmartIdAuthProvider implements AuthProvider {
             .get(SmartIdSession.class)
             .orElseThrow(SmartIdSessionNotFoundException::new);
 
+    if (!session.isRedeemableWith(authenticationHash)) {
+      throw new SmartIdSessionNotFoundException();
+    }
+
     if (Instant.now(clock).isAfter(session.getCreatedAt().plus(LOGIN_TTL))) {
       throw new SmartIdSessionNotFoundException();
     }

@@ -66,8 +66,9 @@ public class SmartIdLoginController {
 
   private SmartIdLoginResponse startDeviceLinkLogin(@Nullable String language) {
     SmartIdSession session = smartIdLoginStarter.startDeviceLinkLogin(language);
-    storeInRenewedSession(session);
-    return SmartIdLoginResponse.deviceLink(smartIdDeviceLinks.web2AppLink(session).toString());
+    String redemptionSecret = storeInRenewedSession(session);
+    return SmartIdLoginResponse.deviceLink(
+        smartIdDeviceLinks.web2AppLink(session).toString(), redemptionSecret);
   }
 
   private SmartIdLoginResponse startNotificationLogin() {
@@ -78,9 +79,9 @@ public class SmartIdLoginController {
                 () -> new SmartIdSessionNotFoundException("No remembered Smart-ID account."));
     rememberedSmartIdAccounts.claimNotificationLoginStart();
     SmartIdSession session = startNotificationLogin(account);
-    storeInRenewedSession(session);
+    String redemptionSecret = storeInRenewedSession(session);
     return SmartIdLoginResponse.notification(
-        ((NotificationLogin) session.getLogin()).verificationCode());
+        ((NotificationLogin) session.getLogin()).verificationCode(), redemptionSecret);
   }
 
   private SmartIdSession startNotificationLogin(RememberedSmartIdAccount account) {
@@ -94,9 +95,11 @@ public class SmartIdLoginController {
     }
   }
 
-  private void storeInRenewedSession(SmartIdSession session) {
+  private String storeInRenewedSession(SmartIdSession session) {
+    String redemptionSecret = session.issueRedemptionSecret();
     sessionStore.renewId();
     sessionStore.save(session);
+    return redemptionSecret;
   }
 
   private SmartIdSession currentSession() {

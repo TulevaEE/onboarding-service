@@ -141,14 +141,25 @@ public class CapitalTransferContract {
   }
 
   public boolean isSignedBy(User user) {
-    Long memberId = user.getMemberOrThrow().getId();
-    if (memberId.equals(seller.getId())) {
+    if (isSoldBy(user)) {
       return isSignedBySeller();
     }
-    if (memberId.equals(buyer.getId())) {
+    if (isBoughtBy(user)) {
       return isSignedByBuyer();
     }
     return false;
+  }
+
+  public boolean awaitsSignatureFrom(User user) {
+    return (isSoldBy(user) && state == CREATED) || (isBoughtBy(user) && state == SELLER_SIGNED);
+  }
+
+  public boolean isSoldBy(User user) {
+    return user.getMemberOrThrow().getId().equals(seller.getId());
+  }
+
+  private boolean isBoughtBy(User user) {
+    return user.getMemberOrThrow().getId().equals(buyer.getId());
   }
 
   private boolean isSignedBySeller() {
@@ -160,10 +171,7 @@ public class CapitalTransferContract {
   }
 
   public boolean canBeAccessedBy(User user) {
-    var isSeller = user.getMemberOrThrow().getId().equals(seller.getId());
-    var isBuyer = user.getMemberOrThrow().getId().equals(buyer.getId());
-
-    return isBuyer || isSeller;
+    return isSoldBy(user) || isBoughtBy(user);
   }
 
   public BigDecimal getTotalPrice() {

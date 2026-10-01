@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContractWithBuyer;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContractWithSeller;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContractWithSellerAndBuyer;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
@@ -165,7 +166,7 @@ class CapitalTransferSignatureServiceTest {
   void getSmartIdSignatureStatus_signsByBuyerWhenSellerAlreadySigned() {
     // given
     long contractId = 1L;
-    User user = sampleUser().build();
+    User user = sampleUser().member(memberFixture().id(2L).build()).build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     User buyerUser = user;
@@ -178,8 +179,8 @@ class CapitalTransferSignatureServiceTest {
             .email("jane.smith@example.com")
             .build();
 
-    Member buyer = memberFixture().user(buyerUser).build();
-    Member seller = memberFixture().user(sellerUser).build();
+    Member buyer = memberFixture().id(2L).user(buyerUser).build();
+    Member seller = memberFixture().id(1L).user(sellerUser).build();
 
     CapitalTransferContract contract =
         sampleCapitalTransferContractWithSellerAndBuyer(seller, buyer)
@@ -207,7 +208,7 @@ class CapitalTransferSignatureServiceTest {
   }
 
   @Test
-  void getSmartIdSignatureStatus_throwsExceptionWhenCannotSignInCurrentState() {
+  void getSmartIdSignatureStatus_rejectsAContractThatDoesNotAwaitTheUsersSignature() {
     // given
     long contractId = 1L;
     User user = sampleUser().build();
@@ -233,8 +234,7 @@ class CapitalTransferSignatureServiceTest {
     // when & then
     assertThatThrownBy(
             () -> signatureService.getSmartIdSignatureStatus(contractId, authenticatedPerson))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Cannot sign contract in its current state");
+        .isInstanceOf(SignatureStateException.class);
   }
 
   @Test
@@ -328,6 +328,76 @@ class CapitalTransferSignatureServiceTest {
             () -> signatureService.persistIdCardSignature(contractId, command, authenticatedPerson))
         .isInstanceOf(SignatureStateException.class);
     verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any(), any());
+  }
+
+  @Test
+  void persistIdCardSignature_rejectsACancelledContractBeforeFinalizingTheSignature() {
+    long contractId = 1L;
+    User user = sampleUser().build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    Member seller = memberFixture().user(user).build();
+    CapitalTransferContract contract =
+        sampleCapitalTransferContractWithSeller(seller)
+            .id(contractId)
+            .state(CapitalTransferContractState.CANCELLED)
+            .build();
+
+    when(sessionStore.get(IdCardSignatureSession.class))
+        .thenReturn(Optional.of(IdCardSignatureSession.builder().build()));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
+
+    assertThatThrownBy(
+            () ->
+                signatureService.persistIdCardSignature(
+                    contractId, new FinishIdCardSignCommand("signature"), authenticatedPerson))
+        .isInstanceOf(SignatureStateException.class);
+    verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any(), any());
+  }
+
+  @Test
+  void persistIdCardSignature_rejectsTheBuyerBeforeTheSellerHasSigned() {
+    long contractId = 1L;
+    Member buyer = memberFixture().id(2L).build();
+    User user = sampleUser().member(buyer).build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    CapitalTransferContract contract =
+        sampleCapitalTransferContractWithBuyer(buyer)
+            .id(contractId)
+            .state(CapitalTransferContractState.CREATED)
+            .build();
+
+    when(sessionStore.get(IdCardSignatureSession.class))
+        .thenReturn(Optional.of(IdCardSignatureSession.builder().build()));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
+
+    assertThatThrownBy(
+            () ->
+                signatureService.persistIdCardSignature(
+                    contractId, new FinishIdCardSignCommand("signature"), authenticatedPerson))
+        .isInstanceOf(SignatureStateException.class);
+    verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any(), any());
+  }
+
+  @Test
+  void getIdCardSignatureStatus_rejectsACancelledContract() {
+    long contractId = 1L;
+    User user = sampleUser().build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    Member seller = memberFixture().user(user).build();
+    CapitalTransferContract contract =
+        sampleCapitalTransferContractWithSeller(seller)
+            .id(contractId)
+            .state(CapitalTransferContractState.CANCELLED)
+            .build();
+
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
+
+    assertThatThrownBy(
+            () -> signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson))
+        .isInstanceOf(SignatureStateException.class);
   }
 
   @Test

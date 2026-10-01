@@ -442,4 +442,63 @@ class CapitalTransferContractTest {
       assertThat(contract.isSignedBy(stranger)).isFalse();
     }
   }
+
+  @Nested
+  class AwaitsSignatureFrom {
+
+    private User sellerUser;
+    private User buyerUser;
+
+    @BeforeEach
+    void setUpUsers() {
+      sellerUser = sampleUser().id(11L).member(seller).build();
+      buyerUser = sampleUser().id(12L).member(buyer).build();
+    }
+
+    @Test
+    void aCreatedContractAwaitsOnlyTheSeller() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.CREATED).build();
+
+      assertThat(contract.awaitsSignatureFrom(sellerUser)).isTrue();
+      assertThat(contract.awaitsSignatureFrom(buyerUser)).isFalse();
+    }
+
+    @Test
+    void aSellerSignedContractAwaitsOnlyTheBuyer() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.SELLER_SIGNED).build();
+
+      assertThat(contract.awaitsSignatureFrom(sellerUser)).isFalse();
+      assertThat(contract.awaitsSignatureFrom(buyerUser)).isTrue();
+    }
+
+    @Test
+    void aBuyerSignedContractAwaitsNobody() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.BUYER_SIGNED).build();
+
+      assertThat(contract.awaitsSignatureFrom(sellerUser)).isFalse();
+      assertThat(contract.awaitsSignatureFrom(buyerUser)).isFalse();
+    }
+
+    @Test
+    void aCancelledContractAwaitsNobody() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.CANCELLED).build();
+
+      assertThat(contract.awaitsSignatureFrom(sellerUser)).isFalse();
+      assertThat(contract.awaitsSignatureFrom(buyerUser)).isFalse();
+    }
+
+    @Test
+    void aThirdPartyIsNeverAwaited() {
+      User stranger =
+          sampleUser().id(13L).member(memberFixture().id(3L).memberNumber(103).build()).build();
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.CREATED).build();
+
+      assertThat(contract.awaitsSignatureFrom(stranger)).isFalse();
+    }
+  }
 }

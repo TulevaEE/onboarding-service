@@ -30,6 +30,9 @@ class AuthenticateCommandSpec extends Specification {
     "38501010002" | "+372 5555 5555"
     "38501010002" | "5555-5555"
     "38501010002" | "(+372) 5555 5555"
+    "38501010002" | null
+    "38501010002" | ""
+    "38501010002" | "   "
   }
 
   @Unroll
@@ -47,9 +50,8 @@ class AuthenticateCommandSpec extends Specification {
 
     where:
     personalCode  | phoneNumber | propertyName
-    "38501010002" | ""          | "phoneNumber"
-    "38501010002" | "   "       | "phoneNumber"
     "38501010001" | "55555555"  | "personalCode"
+    "38501010001" | null        | "personalCode"
   }
 
   def cleanup() {

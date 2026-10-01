@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
+import static ee.tuleva.onboarding.auth.browser.PushLogin.MOBILE_ID;
+
 import ee.tuleva.onboarding.auth.browser.ThisBrowser;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,6 +37,10 @@ public class RememberedMobileIdPhones {
     return thisBrowser
         .remembered()
         .flatMap(browser -> phones.findUnexpired(browser.id(), personalCode));
+  }
+
+  void claimLoginStart() {
+    thisBrowser.claimLoginStart(MOBILE_ID);
   }
 
   public void remember(String personalCode, String phoneNumber) {

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
+import static ee.tuleva.onboarding.auth.browser.PushLogin.MOBILE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -60,5 +61,12 @@ class RememberedMobileIdPhonesTest {
     given(thisBrowser.remembered()).willReturn(Optional.empty());
 
     assertThat(phones.isRemembered("38888888888")).isFalse();
+  }
+
+  @Test
+  void claimsAMobileIdLoginStartForThisBrowser() {
+    phones.claimLoginStart();
+
+    verify(thisBrowser).claimLoginStart(MOBILE_ID);
   }
 }

@@ -9,7 +9,7 @@ import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.command.IdCardAuthenticateCommand;
 import ee.tuleva.onboarding.auth.command.MobileIdAuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
-import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdLoginStarter;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
 import ee.tuleva.onboarding.auth.response.IdCardLoginResponse;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-  private final MobileIdAuthService mobileIdAuthService;
+  private final MobileIdLoginStarter mobileIdLoginStarter;
   private final IdCardAuthService idCardAuthService;
   private final WebEidAuthService webEidAuthService;
   private final GenericSessionStore genericSessionStore;
@@ -60,7 +60,7 @@ public class AuthController {
         yield AuthenticateResponse.fromWebEidChallenge(challengeNonce);
       }
       case MobileIdAuthenticateCommand cmd -> {
-        var loginSession = mobileIdAuthService.startLogin(cmd.phoneNumber(), cmd.personalCode());
+        var loginSession = mobileIdLoginStarter.start(cmd.phoneNumber(), cmd.personalCode());
         genericSessionStore.save(loginSession);
         yield AuthenticateResponse.fromMobileIdSession(loginSession);
       }

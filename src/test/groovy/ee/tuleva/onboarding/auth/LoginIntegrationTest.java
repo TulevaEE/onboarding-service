@@ -63,6 +63,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -499,6 +500,57 @@ class LoginIntegrationTest {
                 .cookie(new Cookie(COOKIE_NAME, "a-token-nobody-was-given")))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"remembered\":false}", true));
+  }
+
+  @Test
+  void aBrowserThatRemembersThePhoneStartsMobileIdWithoutOneAndOnlyOnceInThirtySeconds()
+      throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    given(midConnector.authenticate(any()))
+        .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
+
+    mockMvc
+        .perform(mobileIdStart(null).cookie(browser))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.challengeCode").isNotEmpty());
+    mockMvc
+        .perform(mobileIdStart("").cookie(browser))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.errors[0].code").value("auth.too.many.requests"));
+
+    verify(midConnector, times(2))
+        .authenticate(argThat(request -> "+37255555555".equals(request.getPhoneNumber())));
+  }
+
+  @Test
+  void aTypedPhoneWinsOverTheRememberedOneAndIsNotThrottled() throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    given(midConnector.authenticate(any()))
+        .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
+
+    mockMvc.perform(mobileIdStart("5123 4567").cookie(browser)).andExpect(status().isOk());
+    mockMvc.perform(mobileIdStart("5123 4567").cookie(browser)).andExpect(status().isOk());
+
+    verify(midConnector, times(2))
+        .authenticate(argThat(request -> "+37251234567".equals(request.getPhoneNumber())));
+  }
+
+  @Test
+  void aBrowserThatRemembersNoPhoneIsAskedForOne() throws Exception {
+    mockMvc
+        .perform(mobileIdStart(null))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("mobile.id.phone.number.required"));
+  }
+
+  private MockHttpServletRequestBuilder mobileIdStart(@Nullable String phoneNumber) {
+    var body = new java.util.HashMap<String, @Nullable Object>();
+    body.put("type", "MOBILE_ID");
+    body.put("personalCode", personalCode);
+    body.put("phoneNumber", phoneNumber);
+    return post("/authenticate")
+        .contentType(APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(body));
   }
 
   private MockHttpServletRequestBuilder rememberedPhoneQuery(String personalCode) {

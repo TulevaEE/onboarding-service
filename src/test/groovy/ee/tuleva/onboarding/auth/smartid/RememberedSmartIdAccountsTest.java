@@ -38,8 +38,7 @@ class RememberedSmartIdAccountsTest {
 
   private final RememberedBrowsers browsers = mock(RememberedBrowsers.class);
   private final RememberedSmartIdAccounts accounts =
-      new RememberedSmartIdAccounts(
-          browsers, VALIDITY, "tuleva.ee", Clock.fixed(NOW, ZoneOffset.UTC));
+      new RememberedSmartIdAccounts(browsers, VALIDITY, Clock.fixed(NOW, ZoneOffset.UTC));
 
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
@@ -77,34 +76,20 @@ class RememberedSmartIdAccountsTest {
   }
 
   @Test
-  void setsAHardenedCookieOnTheSessionDomain() {
+  void setsAHardenedCookieOnlyTheHostThatSetItReceives() {
     bindRequest();
 
     accounts.remember(aSmartIdPerson(), true);
 
     assertThat(response.getHeader(SET_COOKIE))
+        .startsWith("__Host-")
         .startsWith(COOKIE_NAME + "=")
         .contains("Max-Age=" + VALIDITY.toSeconds())
-        .contains("Domain=tuleva.ee")
+        .doesNotContain("Domain")
         .contains("Path=/")
         .contains("Secure")
         .contains("HttpOnly")
         .contains("SameSite=Lax");
-  }
-
-  @Test
-  void setsAValidCookieWhereNoCookieDomainIsConfigured() {
-    var withoutDomain =
-        new RememberedSmartIdAccounts(browsers, VALIDITY, null, Clock.fixed(NOW, ZoneOffset.UTC));
-    bindRequest();
-
-    withoutDomain.remember(aSmartIdPerson(), true);
-
-    assertThat(response.getHeader(SET_COOKIE))
-        .startsWith(COOKIE_NAME + "=")
-        .doesNotContain("Domain")
-        .contains("Secure")
-        .contains("HttpOnly");
   }
 
   @Test

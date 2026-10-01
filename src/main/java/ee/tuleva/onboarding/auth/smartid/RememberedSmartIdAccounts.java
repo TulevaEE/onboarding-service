@@ -16,7 +16,6 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -33,23 +32,20 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Slf4j
 public class RememberedSmartIdAccounts {
 
-  static final String COOKIE_NAME = "__Secure-SMART_ID_REMEMBERED_BROWSER";
+  static final String COOKIE_NAME = "__Host-SMART_ID_REMEMBERED_BROWSER";
   private static final int TOKEN_BYTES = 32;
 
   private final RememberedBrowsers browsers;
   private final Duration validity;
-  private final @Nullable String cookieDomain;
   private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
   public RememberedSmartIdAccounts(
       RememberedBrowsers browsers,
       @Value("${smartid.remembered-browser-validity:90d}") Duration validity,
-      @Value("${server.servlet.session.cookie.domain:#{null}}") @Nullable String cookieDomain,
       Clock clock) {
     this.browsers = browsers;
     this.validity = validity;
-    this.cookieDomain = cookieDomain;
     this.clock = clock;
   }
 
@@ -162,8 +158,7 @@ public class RememberedSmartIdAccounts {
         .httpOnly(true)
         .secure(true)
         .sameSite("Lax")
-        .path("/")
-        .domain(cookieDomain);
+        .path("/");
   }
 
   private void addCookie(ResponseCookie.ResponseCookieBuilder cookie) {

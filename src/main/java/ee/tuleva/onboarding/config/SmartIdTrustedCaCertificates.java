@@ -43,7 +43,7 @@ final class SmartIdTrustedCaCertificates {
         .build();
   }
 
-  static List<X509Certificate> read(ResourceLoader resourceLoader, String locationPattern) {
+  private static List<X509Certificate> read(ResourceLoader resourceLoader, String locationPattern) {
     try {
       Resource[] resources =
           ResourcePatternUtils.getResourcePatternResolver(resourceLoader)

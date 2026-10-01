@@ -14,10 +14,12 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ee.sk.smartid.DefaultTrustedCAStoreBuilder;
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.security.KeyPair;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
@@ -25,6 +27,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
@@ -49,7 +52,11 @@ class SmartIdCertificateRevocationCheckTest {
 
   private SmartIdCertificateRevocationCheck check() {
     return new SmartIdCertificateRevocationCheck(
-        List.of(fixture.ca),
+        new DefaultTrustedCAStoreBuilder()
+            .withTrustAnchors(Set.of(new TrustAnchor(fixture.root, null)))
+            .withIntermediateCACertificate(List.of(fixture.ca))
+            .withOcspEnabled(false)
+            .build(),
         restClientBuilder.build(),
         new OCSPUtils(),
         Clock.fixed(NOW, ZoneOffset.UTC));

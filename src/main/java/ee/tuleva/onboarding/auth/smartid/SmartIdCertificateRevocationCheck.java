@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;
 
+import ee.sk.smartid.TrustedCACertStore;
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
@@ -14,6 +16,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Stream;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
@@ -34,10 +37,13 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+@Component
 public class SmartIdCertificateRevocationCheck {
 
   private static final MediaType OCSP_REQUEST =
@@ -55,14 +61,21 @@ public class SmartIdCertificateRevocationCheck {
   private final SecureRandom random = new SecureRandom();
 
   public SmartIdCertificateRevocationCheck(
-      List<X509Certificate> issuingCaCertificates,
-      RestClient restClient,
+      TrustedCACertStore smartIdTrustedCaCertStore,
+      @Qualifier("smartIdOcspRestClient") RestClient restClient,
       OCSPUtils ocspUtils,
       Clock clock) {
-    this.issuingCaCertificates = List.copyOf(issuingCaCertificates);
+    this.issuingCaCertificates = issuingCaCertificatesOf(smartIdTrustedCaCertStore);
     this.restClient = restClient;
     this.ocspUtils = ocspUtils;
     this.clock = clock;
+  }
+
+  private static List<X509Certificate> issuingCaCertificatesOf(TrustedCACertStore store) {
+    return Stream.concat(
+            store.getTrustAnchors().stream().map(TrustAnchor::getTrustedCert),
+            store.getTrustedCACertificates().stream())
+        .toList();
   }
 
   public void requireNotRevoked(X509Certificate certificate) {

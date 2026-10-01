@@ -47,15 +47,28 @@ class RememberedBrowsers {
     return Objects.requireNonNull(keyHolder.getKeyAs(Long.class), "No id for remembered browser");
   }
 
-  void rotate(long id, String tokenHash, Instant expiresAt) {
+  boolean rotate(long id, String currentTokenHash, String newTokenHash) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE remembered_browser SET token_hash = :newTokenHash
+                WHERE id = :id AND token_hash = :currentTokenHash
+                """)
+            .param("id", id)
+            .param("currentTokenHash", currentTokenHash)
+            .param("newTokenHash", newTokenHash)
+            .update()
+        == 1;
+  }
+
+  void extendUntil(long id, Instant expiresAt) {
     jdbcClient
         .sql(
             """
-            UPDATE remembered_browser SET token_hash = :tokenHash, expires_at = :expiresAt
-            WHERE id = :id
+            UPDATE remembered_browser SET expires_at = :expiresAt
+            WHERE id = :id AND expires_at < :expiresAt
             """)
         .param("id", id)
-        .param("tokenHash", tokenHash)
         .param("expiresAt", Timestamp.from(expiresAt))
         .update();
   }

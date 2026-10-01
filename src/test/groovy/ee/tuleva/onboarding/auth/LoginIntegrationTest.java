@@ -148,7 +148,7 @@ class LoginIntegrationTest {
 
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(runningStatus());
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.error").value("AUTHENTICATION_NOT_COMPLETE"));
 
@@ -159,7 +159,7 @@ class LoginIntegrationTest {
 
     MvcResult granted =
         mockMvc
-            .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+            .perform(smartIdToken(start))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.access_token").isNotEmpty())
             .andExpect(
@@ -176,7 +176,8 @@ class LoginIntegrationTest {
   void aSessionCookieHeldBeforeTheLoginStartedCannotRedeemIt() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    Cookie planted = sessionCookie(startDeviceLinkLogin());
+    MvcResult plantedStart = startDeviceLinkLogin();
+    Cookie planted = sessionCookie(plantedStart);
 
     MvcResult victimStart =
         mockMvc
@@ -196,10 +197,43 @@ class LoginIntegrationTest {
         .willReturn(anAuthenticationIdentity());
 
     mockMvc
-        .perform(post("/oauth/token").cookie(planted).param("grant_type", "SMART_ID"))
+        .perform(
+            post("/oauth/token")
+                .cookie(planted)
+                .param("grant_type", "SMART_ID")
+                .param("authenticationHash", authenticationHashOf(plantedStart)))
         .andExpect(status().isUnauthorized());
     mockMvc
-        .perform(post("/oauth/token").cookie(victim).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(victimStart))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void theSessionCookieAloneCannotRedeemALoginWithoutTheSecretItsStartReturned() throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
+    SessionStatus status = completeStatus("QR");
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
+        .willReturn(anAuthenticationIdentity());
+
+    mockMvc
+        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    mockMvc
+        .perform(
+            post("/oauth/token")
+                .cookie(session)
+                .param("grant_type", "SMART_ID")
+                .param("authenticationHash", "A".repeat(43)))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    mockMvc
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
   }
@@ -208,7 +242,8 @@ class LoginIntegrationTest {
   void aLoginWhoseCertificateTheIssuerNoLongerCallsGoodIsRefused() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    Cookie session = sessionCookie(startDeviceLinkLogin());
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
     SessionStatus status = completeStatus("QR");
     AuthenticationIdentity identity = anAuthenticationIdentity();
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
@@ -219,7 +254,7 @@ class LoginIntegrationTest {
         .requireNotRevoked(identity.getAuthCertificate());
 
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("smart.id.certificate.revoked"))
         .andExpect(jsonPath("$.access_token").doesNotExist());
@@ -229,18 +264,19 @@ class LoginIntegrationTest {
   void aCompletedLoginIsRedeemedForTokensOnlyOnce() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    Cookie session = sessionCookie(startDeviceLinkLogin());
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
     SessionStatus status = completeStatus("QR");
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
         .willReturn(anAuthenticationIdentity());
 
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.access_token").doesNotExist());
   }
@@ -254,12 +290,13 @@ class LoginIntegrationTest {
               request.set(invocation.getArgument(0));
               return aDeviceLinkSessionResponse(SESSION_ID);
             });
-    Cookie session = sessionCookie(startDeviceLinkLogin());
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
 
     SessionStatus status = completeStatus("Web2App");
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.error").value("AUTHENTICATION_NOT_COMPLETE"));
 
@@ -288,7 +325,7 @@ class LoginIntegrationTest {
                 eq("smart-id-demo")))
         .willReturn(anAuthenticationIdentity());
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
   }
@@ -297,7 +334,8 @@ class LoginIntegrationTest {
   void callbackWithAWrongTokenIsRejected() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    Cookie session = sessionCookie(startDeviceLinkLogin());
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
 
     mockMvc
         .perform(
@@ -345,7 +383,7 @@ class LoginIntegrationTest {
         .willReturn(anAuthenticationIdentity());
 
     mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
   }
@@ -644,7 +682,8 @@ class LoginIntegrationTest {
   private MvcResult completeQrLogin(AuthenticationIdentity identity) throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    Cookie session = sessionCookie(startDeviceLinkLogin());
+    MvcResult start = startDeviceLinkLogin();
+    Cookie session = sessionCookie(start);
 
     SessionStatus status = completeStatus("QR");
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
@@ -652,7 +691,7 @@ class LoginIntegrationTest {
         .willReturn(identity);
 
     return mockMvc
-        .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
+        .perform(smartIdToken(start))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty())
         .andReturn();
@@ -666,6 +705,20 @@ class LoginIntegrationTest {
                 .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
         .andExpect(status().isOk())
         .andReturn();
+  }
+
+  private MockHttpServletRequestBuilder smartIdToken(MvcResult start) throws Exception {
+    return post("/oauth/token")
+        .cookie(sessionCookie(start))
+        .param("grant_type", "SMART_ID")
+        .param("authenticationHash", authenticationHashOf(start));
+  }
+
+  private String authenticationHashOf(MvcResult start) throws Exception {
+    return objectMapper
+        .readTree(start.getResponse().getContentAsString())
+        .required("authenticationHash")
+        .asText();
   }
 
   private static Cookie sessionCookie(MvcResult result) {

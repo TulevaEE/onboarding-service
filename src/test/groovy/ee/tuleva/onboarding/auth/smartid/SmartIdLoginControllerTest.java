@@ -32,6 +32,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.json.JsonMapper;
 
 @WebMvcTest(SmartIdLoginController.class)
@@ -54,19 +55,22 @@ class SmartIdLoginControllerTest {
     given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
         .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
 
-    mockMvc
-        .perform(
-            post("/v1/smart-id/login")
-                .with(csrf())
-                .contentType(APPLICATION_JSON)
-                .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.flow").value("DEVICE_LINK"))
-        .andExpect(
-            jsonPath("$.web2AppLink")
-                .value("https://smart-id.com/device-link/?deviceLinkType=Web2App"))
-        .andExpect(jsonPath("$.verificationCode").doesNotExist());
+    var response =
+        mockMvc
+            .perform(
+                post("/v1/smart-id/login")
+                    .with(csrf())
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.flow").value("DEVICE_LINK"))
+            .andExpect(
+                jsonPath("$.web2AppLink")
+                    .value("https://smart-id.com/device-link/?deviceLinkType=Web2App"))
+            .andExpect(jsonPath("$.verificationCode").doesNotExist())
+            .andReturn();
 
+    assertThat(deviceLinkSession.isRedeemableWith(authenticationHashOf(response))).isTrue();
     InOrder renewedBeforeStored = inOrder(sessionStore);
     renewedBeforeStored.verify(sessionStore).renewId();
     renewedBeforeStored.verify(sessionStore).save(deviceLinkSession);
@@ -78,17 +82,20 @@ class SmartIdLoginControllerTest {
     given(smartIdLoginStarter.startNotificationLogin(aRememberedAccount()))
         .willReturn(notificationSession);
 
-    mockMvc
-        .perform(
-            post("/v1/smart-id/login")
-                .with(csrf())
-                .contentType(APPLICATION_JSON)
-                .content("{\"flow\":\"NOTIFICATION\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.flow").value("NOTIFICATION"))
-        .andExpect(jsonPath("$.verificationCode").value("1234"))
-        .andExpect(jsonPath("$.web2AppLink").doesNotExist());
+    var response =
+        mockMvc
+            .perform(
+                post("/v1/smart-id/login")
+                    .with(csrf())
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"flow\":\"NOTIFICATION\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.flow").value("NOTIFICATION"))
+            .andExpect(jsonPath("$.verificationCode").value("1234"))
+            .andExpect(jsonPath("$.web2AppLink").doesNotExist())
+            .andReturn();
 
+    assertThat(notificationSession.isRedeemableWith(authenticationHashOf(response))).isTrue();
     InOrder renewedBeforeStored = inOrder(sessionStore);
     renewedBeforeStored.verify(sessionStore).renewId();
     renewedBeforeStored.verify(sessionStore).save(notificationSession);
@@ -276,5 +283,12 @@ class SmartIdLoginControllerTest {
         .andExpect(status().isNoContent());
 
     verify(rememberedSmartIdAccounts).forget();
+  }
+
+  private String authenticationHashOf(MvcResult response) throws Exception {
+    return objectMapper
+        .readTree(response.getResponse().getContentAsString())
+        .required("authenticationHash")
+        .asText();
   }
 }

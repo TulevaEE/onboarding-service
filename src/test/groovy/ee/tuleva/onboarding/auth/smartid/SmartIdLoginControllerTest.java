@@ -210,24 +210,31 @@ class SmartIdLoginControllerTest {
   }
 
   @Test
-  void callbackIsAcceptedAndTheSessionSaved() throws Exception {
+  void anAcceptedCallbackReturnsANewRedemptionSecretThatReplacesTheOneTheStartReturned()
+      throws Exception {
+    String startSecret = deviceLinkSession.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(deviceLinkSession));
 
-    mockMvc
-        .perform(
-            post("/v1/smart-id/login/callback")
-                .with(csrf())
-                .contentType(APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(aCallback())))
-        .andExpect(status().isNoContent());
+    var response =
+        mockMvc
+            .perform(
+                post("/v1/smart-id/login/callback")
+                    .with(csrf())
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(aCallback())))
+            .andExpect(status().isOk())
+            .andReturn();
 
     assertThat(deviceLinkSession.getUserChallengeVerifier())
         .isEqualTo(aCallback().userChallengeVerifier());
+    assertThat(deviceLinkSession.isRedeemableWith(authenticationHashOf(response))).isTrue();
+    assertThat(deviceLinkSession.isRedeemableWith(startSecret)).isFalse();
     verify(sessionStore).save(deviceLinkSession);
   }
 
   @Test
-  void rejectedCallbackIsUnauthorized() throws Exception {
+  void aRejectedCallbackIsUnauthorizedAndKeepsTheRedemptionSecret() throws Exception {
+    String startSecret = deviceLinkSession.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(deviceLinkSession));
 
     mockMvc
@@ -239,9 +246,11 @@ class SmartIdLoginControllerTest {
                     objectMapper.writeValueAsString(
                         new SmartIdCallback("wrong-token", "digest", "verifier"))))
         .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.errors[0].code").value("smart.id.callback.invalid"));
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.callback.invalid"))
+        .andExpect(jsonPath("$.authenticationHash").doesNotExist());
 
     assertThat(deviceLinkSession.getUserChallengeVerifier()).isNull();
+    assertThat(deviceLinkSession.isRedeemableWith(startSecret)).isTrue();
     verify(sessionStore, never()).save(any());
   }
 

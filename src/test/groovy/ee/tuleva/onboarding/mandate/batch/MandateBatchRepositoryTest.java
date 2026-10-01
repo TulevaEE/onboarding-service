@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.COMPLETED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import ee.tuleva.onboarding.mandate.MandateFixture;
@@ -78,5 +80,33 @@ class MandateBatchRepositoryTest {
 
     assertThat(fundPensionMandateInBatch).isNotNull();
     assertThat(partialWithdrawalMandateInBatch).isNotNull();
+  }
+
+  @Test
+  void marksASignedBatchCompletedOnlyForTheFirstCaller() {
+    var signedBatch = MandateBatch.builder().status(SIGNED).mandates(List.of()).build();
+    entityManager.persistAndFlush(signedBatch);
+
+    var firstCaller = repository.markSignedBatchCompleted(signedBatch.getId());
+    var secondCaller = repository.markSignedBatchCompleted(signedBatch.getId());
+    entityManager.clear();
+
+    assertThat(firstCaller).isEqualTo(1);
+    assertThat(secondCaller).isEqualTo(0);
+    assertThat(repository.findById(signedBatch.getId()).orElseThrow().getStatus())
+        .isEqualTo(COMPLETED);
+  }
+
+  @Test
+  void doesNotMarkABatchCompletedBeforeItIsSigned() {
+    var unsignedBatch = MandateBatch.builder().status(INITIALIZED).mandates(List.of()).build();
+    entityManager.persistAndFlush(unsignedBatch);
+
+    var marked = repository.markSignedBatchCompleted(unsignedBatch.getId());
+    entityManager.clear();
+
+    assertThat(marked).isEqualTo(0);
+    assertThat(repository.findById(unsignedBatch.getId()).orElseThrow().getStatus())
+        .isEqualTo(INITIALIZED);
   }
 }

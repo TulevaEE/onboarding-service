@@ -6,6 +6,7 @@ import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -47,16 +48,21 @@ class SmartIdProfileConfigurationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"default", "dev", "staging"})
-  void mobileIdKeepsItsOwnDemoRelyingPartyOutsideProduction(String profile) {
-    ConfigurableEnvironment environment = environmentFor(profile);
+  void mobileIdTalksToItsDemoHostWithItsDemoRelyingPartyOutsideProduction(String profile) {
+    ConfigurableEnvironment environment =
+        environmentFor(
+            profile,
+            Map.of(
+                "SMARTID_RELYING_PARTY_UUID", "11111111-2222-4333-8444-555555555555",
+                "SMARTID_RELYING_PARTY_NAME", "Production RP"));
 
-    assertThat(environment.getProperty("mobile-id.relyingPartyUUID"))
-        .isEqualTo("00000000-0000-0000-0000-000000000000");
-    assertThat(environment.getProperty("mobile-id.relyingPartyName")).isEqualTo("DEMO");
+    assertThat(mobileIdRelyingParty(environment))
+        .containsExactly(
+            "https://tsp.demo.sk.ee/mid-api", "00000000-0000-0000-0000-000000000000", "DEMO");
   }
 
   @Test
-  void productionBindsMobileIdAndSmartIdToTheSameRelyingPartySecrets() {
+  void productionTalksToTheLiveMobileIdHostWithTheRelyingPartySecretsSmartIdUses() {
     ConfigurableEnvironment production =
         environmentFor(
             "production",
@@ -64,12 +70,19 @@ class SmartIdProfileConfigurationTest {
                 "SMARTID_RELYING_PARTY_UUID", "11111111-2222-4333-8444-555555555555",
                 "SMARTID_RELYING_PARTY_NAME", "Production RP"));
 
-    assertThat(production.getProperty("mobile-id.relyingPartyUUID"))
-        .isEqualTo("11111111-2222-4333-8444-555555555555");
-    assertThat(production.getProperty("mobile-id.relyingPartyName")).isEqualTo("Production RP");
+    assertThat(mobileIdRelyingParty(production))
+        .containsExactly(
+            "https://mid.sk.ee/mid-api", "11111111-2222-4333-8444-555555555555", "Production RP");
     assertThat(production.getProperty("smartid.relyingPartyUUID"))
         .isEqualTo("11111111-2222-4333-8444-555555555555");
     assertThat(production.getProperty("smartid.relyingPartyName")).isEqualTo("Production RP");
+  }
+
+  private static List<String> mobileIdRelyingParty(ConfigurableEnvironment environment) {
+    return Stream.of(
+            "mobile-id.hostUrl", "mobile-id.relyingPartyUUID", "mobile-id.relyingPartyName")
+        .map(environment::getProperty)
+        .toList();
   }
 
   private static ConfigurableEnvironment environmentFor(String profile) {

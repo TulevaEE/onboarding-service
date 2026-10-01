@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static java.util.Objects.requireNonNull;
-
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateContacts;
@@ -26,19 +24,8 @@ public class MandateBatchCompletion {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final MandateProcessorService mandateProcessor;
   private final MandateContacts mandateContacts;
-  private final MandateBatchRepository mandateBatchRepository;
 
-  public void completeOnce(MandateBatch mandateBatch, Locale locale) {
-    Long mandateBatchId =
-        requireNonNull(mandateBatch.getId(), "Completing an unsaved mandate batch");
-    if (mandateBatchRepository.markSignedBatchCompleted(mandateBatchId) == 0) {
-      log.info("Mandate batch already completed: mandateBatchId={}", mandateBatchId);
-      return;
-    }
-    complete(mandateBatch, locale);
-  }
-
-  private void complete(MandateBatch mandateBatch, Locale locale) {
+  public void complete(MandateBatch mandateBatch, Locale locale) {
     log.info(
         "Mandate batch processing finished, notifying: mandateBatchId={}", mandateBatch.getId());
     User owner = owner(mandateBatch);

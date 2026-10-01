@@ -33,7 +33,6 @@ class MandateBatchCompletionTest {
   @Mock private ApplicationEventPublisher applicationEventPublisher;
   @Mock private MandateProcessorService mandateProcessor;
   @Mock private MandateContacts mandateContacts;
-  @Mock private MandateBatchRepository mandateBatchRepository;
 
   @InjectMocks private MandateBatchCompletion mandateBatchCompletion;
 
@@ -45,10 +44,9 @@ class MandateBatchCompletionTest {
     var mandate1 = sampleFundPensionOpeningMandate();
     var mandate2 = samplePartialWithdrawalMandate();
     var mandateBatch = aSavedMandateBatch(List.of(mandate1, mandate2));
-    givenNoOtherPathCompletedIt(mandateBatch);
     given(mandateProcessor.getErrors(any())).willReturn(noErrors);
 
-    mandateBatchCompletion.completeOnce(mandateBatch, ENGLISH);
+    mandateBatchCompletion.complete(mandateBatch, ENGLISH);
 
     then(mandateContacts).should().clearCache(mandate1.getUser());
     then(applicationEventPublisher)
@@ -69,10 +67,9 @@ class MandateBatchCompletionTest {
   @Test
   void completingAFailedSingleMandateBatchNotifiesNobody() {
     var mandateBatch = aSavedMandateBatch(List.of(sampleFundPensionOpeningMandate()));
-    givenNoOtherPathCompletedIt(mandateBatch);
     given(mandateProcessor.getErrors(any())).willReturn(anError);
 
-    assertThatThrownBy(() -> mandateBatchCompletion.completeOnce(mandateBatch, ENGLISH))
+    assertThatThrownBy(() -> mandateBatchCompletion.complete(mandateBatch, ENGLISH))
         .isInstanceOf(MandateProcessingException.class);
 
     then(applicationEventPublisher).shouldHaveNoInteractions();
@@ -83,10 +80,9 @@ class MandateBatchCompletionTest {
     var mandateBatch =
         aSavedMandateBatch(
             List.of(sampleFundPensionOpeningMandate(), samplePartialWithdrawalMandate()));
-    givenNoOtherPathCompletedIt(mandateBatch);
     given(mandateProcessor.getErrors(any())).willReturn(anError);
 
-    assertThatThrownBy(() -> mandateBatchCompletion.completeOnce(mandateBatch, ENGLISH))
+    assertThatThrownBy(() -> mandateBatchCompletion.complete(mandateBatch, ENGLISH))
         .isInstanceOf(MandateProcessingException.class);
 
     then(mandateContacts).should().clearCache(any());
@@ -98,11 +94,10 @@ class MandateBatchCompletionTest {
     var mandate1 = sampleFundPensionOpeningMandate();
     var mandate2 = samplePartialWithdrawalMandate();
     var mandateBatch = aSavedMandateBatch(List.of(mandate1, mandate2));
-    givenNoOtherPathCompletedIt(mandateBatch);
     given(mandateProcessor.getErrors(mandate1)).willReturn(anError);
     given(mandateProcessor.getErrors(mandate2)).willReturn(noErrors);
 
-    assertThatThrownBy(() -> mandateBatchCompletion.completeOnce(mandateBatch, ENGLISH))
+    assertThatThrownBy(() -> mandateBatchCompletion.complete(mandateBatch, ENGLISH))
         .isInstanceOf(MandateProcessingException.class);
 
     then(mandateContacts).should().clearCache(any());
@@ -119,23 +114,5 @@ class MandateBatchCompletionTest {
     then(applicationEventPublisher)
         .should(never())
         .publishEvent(any(AfterMandateSignedEvent.class));
-  }
-
-  @Test
-  void leavesABatchThatAnotherPathAlreadyCompletedAlone() {
-    var mandateBatch =
-        aSavedMandateBatch(
-            List.of(sampleFundPensionOpeningMandate(), samplePartialWithdrawalMandate()));
-    given(mandateBatchRepository.markSignedBatchCompleted(mandateBatch.getId())).willReturn(0);
-
-    mandateBatchCompletion.completeOnce(mandateBatch, ENGLISH);
-
-    then(mandateContacts).shouldHaveNoInteractions();
-    then(mandateProcessor).shouldHaveNoInteractions();
-    then(applicationEventPublisher).shouldHaveNoInteractions();
-  }
-
-  private void givenNoOtherPathCompletedIt(MandateBatch mandateBatch) {
-    given(mandateBatchRepository.markSignedBatchCompleted(mandateBatch.getId())).willReturn(1);
   }
 }

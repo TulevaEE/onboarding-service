@@ -48,7 +48,6 @@ public class MandateBatchService {
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  private final MandateBatchCompletion mandateBatchCompletion;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -144,7 +143,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
-      return processingStatus(mandateBatch, locale);
+      return processingStatus(mandateBatch);
     }
 
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
@@ -157,7 +156,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
-      return processingStatus(mandateBatch, locale);
+      return processingStatus(mandateBatch);
     }
 
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
@@ -185,21 +184,20 @@ public class MandateBatchService {
     return new SignableEntity("Mandate batch", mandateBatchId);
   }
 
-  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId, Locale locale) {
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
       throw SignatureStateException.notSigned("Mandate batch", mandateBatchId);
     }
-    return processingStatus(mandateBatch, locale);
+    return processingStatus(mandateBatch);
   }
 
-  private SignatureStatus processingStatus(MandateBatch mandateBatch, Locale locale) {
+  private SignatureStatus processingStatus(MandateBatch mandateBatch) {
     if (!mandateBatch.getMandates().stream().allMatch(mandateProcessor::isFinished)) {
       return OUTSTANDING_TRANSACTION;
     }
-    mandateBatchCompletion.completeOnce(mandateBatch, locale);
     handleMandateProcessingErrors(mandateBatch);
     return SIGNATURE;
   }

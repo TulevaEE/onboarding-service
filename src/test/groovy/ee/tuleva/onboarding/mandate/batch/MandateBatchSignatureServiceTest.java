@@ -233,9 +233,7 @@ class MandateBatchSignatureServiceTest {
       var mandateBatchId = 1L;
       var user = sampleAuthenticatedPersonAndMember().build();
 
-      when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.getIdCardSignatureStatus(
-              any(), eq(mandateBatchId), eq(Locale.ENGLISH)))
+      when(mandateBatchService.getIdCardSignatureStatus(any(), eq(mandateBatchId)))
           .thenReturn(SIGNATURE);
 
       var result = mandateBatchSignatureService.getIdCardSignatureStatus(mandateBatchId, user);

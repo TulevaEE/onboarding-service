@@ -227,7 +227,7 @@ class MandateBatchProcessingPollerTest {
 
     mandateBatchProcessingPoller.getPoller().run();
 
-    verify(mandateBatchCompletion).completeOnce(mandateBatch, Locale.ENGLISH);
+    verify(mandateBatchCompletion).complete(mandateBatch, Locale.ENGLISH);
   }
 
   @Test

@@ -22,12 +22,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Marks a browser that has completed a device link login, which is the only thing that may start a
- * push login. The browser holds an unguessable token and nothing else; the account it stands for
- * lives in the database, so the marker can be revoked and a copied cookie gives an attacker no
- * personal data.
- */
 @Component
 @Slf4j
 public class RememberedSmartIdAccounts {
@@ -53,21 +47,17 @@ public class RememberedSmartIdAccounts {
     return currentBrowser().map(RememberedBrowser::toAccount);
   }
 
-  /**
-   * @param deviceLinkVerified whether the login just completed proved the person holds the device.
-   *     A push login carries the earlier verification forward rather than extending it, so the
-   *     browser has to verify again with a QR or same-device link once the validity runs out.
-   */
   public void remember(SmartIdPerson person, boolean deviceLinkVerified) {
-    Optional<Instant> carriedForward = currentBrowser().map(RememberedBrowser::verifiedAt);
-    if (!deviceLinkVerified && carriedForward.isEmpty()) {
-      // A push login proves the person holds the device, but not that this browser was ever
-      // verified. Without an earlier verification to carry forward there is nothing to extend,
-      // and minting one here would let the validity be renewed forever without a device link.
-      return;
-    }
-    Instant verifiedAt = deviceLinkVerified ? Instant.now(clock) : carriedForward.orElseThrow();
+    Optional<Instant> verifiedAt =
+        deviceLinkVerified ? Optional.of(Instant.now(clock)) : earlierDeviceLinkVerification();
+    verifiedAt.ifPresent(at -> rememberVerifiedAt(person, at));
+  }
 
+  private Optional<Instant> earlierDeviceLinkVerification() {
+    return currentBrowser().map(RememberedBrowser::verifiedAt);
+  }
+
+  private void rememberVerifiedAt(SmartIdPerson person, Instant verifiedAt) {
     cookieToken().ifPresent(token -> browsers.remove(hash(token)));
 
     String token = newToken();
@@ -84,13 +74,11 @@ public class RememberedSmartIdAccounts {
         cookie(token).maxAge(Duration.between(Instant.now(clock), verifiedAt.plus(validity))));
   }
 
-  /** Forgets this browser only, which is what a visitor saying it is not their account asks for. */
   public void forget() {
     cookieToken().ifPresent(token -> browsers.remove(hash(token)));
     expireCookie();
   }
 
-  /** Forgets every browser remembered for this person, for when the account itself is gone. */
   public void forgetEverywhere() {
     currentBrowser()
         .ifPresent(

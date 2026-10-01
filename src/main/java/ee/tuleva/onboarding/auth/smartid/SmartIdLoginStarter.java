@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdLoginStarter {
 
-  static final int CONCURRENT_LOGIN_STARTS = 20;
+  static final int ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD = 20;
 
   private static final String LOGIN_PROMPT = "Log in to Tuleva?";
 
@@ -36,10 +36,9 @@ public class SmartIdLoginStarter {
   private final SmartIdProperties properties;
   private final Clock clock;
 
-  // Anyone can start this without authenticating, and every call creates a session at Smart-ID.
-  // SK identifies relying parties by IP address and relying party UUID, so a flood from one
-  // visitor would degrade logins for every Tuleva user; excess callers are turned away instead.
-  @ConcurrencyLimit(value = CONCURRENT_LOGIN_STARTS, policy = REJECT)
+  @ConcurrencyLimit(
+      value = ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD,
+      policy = REJECT)
   public SmartIdSession startDeviceLinkLogin(@Nullable String language) {
     String deviceLinkLanguage = DeviceLinkLanguage.of(language);
     CallbackUrl callbackUrl = CallbackUrlUtil.createCallbackUrl(properties.callbackUrl());

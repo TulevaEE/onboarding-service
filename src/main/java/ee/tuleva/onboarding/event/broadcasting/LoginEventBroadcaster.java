@@ -42,9 +42,7 @@ public class LoginEventBroadcaster {
     if (event.isIdCard()) {
       data.put("document", event.getIdDocumentType());
     }
-    // Read on the request thread, before the event is published from inside runAs.
-    clientConnection.ipAddress().ifPresent(ipAddress -> data.put("ipAddress", ipAddress));
-    clientConnection.userAgent().ifPresent(userAgent -> data.put("userAgent", userAgent));
+    data.putAll(connectionReadOnTheRequestThread());
 
     securityContextRunner.runAs(
         person,
@@ -63,5 +61,12 @@ public class LoginEventBroadcaster {
 
           eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, data));
         });
+  }
+
+  private Map<String, Object> connectionReadOnTheRequestThread() {
+    Map<String, Object> connection = new HashMap<>();
+    clientConnection.ipAddress().ifPresent(ipAddress -> connection.put("ipAddress", ipAddress));
+    clientConnection.userAgent().ifPresent(userAgent -> connection.put("userAgent", userAgent));
+    return connection;
   }
 }

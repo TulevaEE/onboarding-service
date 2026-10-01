@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.auth.smartid;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessionResponse;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionId;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.demoProperties;
-import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginStarter.CONCURRENT_LOGIN_STARTS;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginStarter.ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,7 +36,7 @@ class SmartIdLoginStarterConcurrencyLimitTest {
 
   private static final CountDownLatch held = new CountDownLatch(1);
   private static final CountDownLatch allStartsInFlight =
-      new CountDownLatch(CONCURRENT_LOGIN_STARTS);
+      new CountDownLatch(ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD);
 
   @Configuration
   @EnableResilientMethods
@@ -76,7 +76,7 @@ class SmartIdLoginStarterConcurrencyLimitTest {
   @Test
   void turnsAwayALoginStartedWhileTheAllowedNumberAreAlreadyInFlight() throws Exception {
     try (ExecutorService starts = Executors.newVirtualThreadPerTaskExecutor()) {
-      for (int i = 0; i < CONCURRENT_LOGIN_STARTS; i++) {
+      for (int i = 0; i < ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD; i++) {
         starts.submit(() -> starter.startDeviceLinkLogin("et"));
       }
       assertThat(allStartsInFlight.await(5, SECONDS)).isTrue();

@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
@@ -264,7 +265,8 @@ class GeneralLedgerTest {
         documentType + ":" + number + ":2026-01-31",
         documentType,
         LocalDate.parse("2026-01-31"),
-        List.of(lines));
+        List.of(lines),
+        Set.of());
   }
 
   private static JournalEntryLine line(String accountCode, String amount) {

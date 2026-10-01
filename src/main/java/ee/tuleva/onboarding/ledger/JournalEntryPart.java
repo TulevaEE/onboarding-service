@@ -7,9 +7,14 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 
 public record JournalEntryPart(
-    String sourceKey, String documentType, LocalDate date, List<JournalEntryLine> lines) {
+    String sourceKey,
+    String documentType,
+    LocalDate date,
+    List<JournalEntryLine> lines,
+    Set<String> replacedSourceKeys) {
 
   private static final ZoneId BOOKING_ZONE = ZoneId.of("Europe/Tallinn");
 

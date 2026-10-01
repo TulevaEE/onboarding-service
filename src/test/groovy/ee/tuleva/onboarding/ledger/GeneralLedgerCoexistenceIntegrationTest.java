@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -143,7 +144,7 @@ class GeneralLedgerCoexistenceIntegrationTest {
 
   private static JournalEntryPart part(String document, JournalEntryLine... lines) {
     return new JournalEntryPart(
-        document + ":" + DATE, document.split(":")[0], DATE, List.of(lines));
+        document + ":" + DATE, document.split(":")[0], DATE, List.of(lines), Set.of());
   }
 
   private static JournalEntryLine line(GeneralLedgerAccount account, String amount) {

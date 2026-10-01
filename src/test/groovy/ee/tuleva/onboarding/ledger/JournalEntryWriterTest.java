@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,6 +116,7 @@ class JournalEntryWriterTest {
         LocalDate.parse("2026-01-31"),
         List.of(
             new JournalEntryLine("100100", new BigDecimal(amount)),
-            new JournalEntryLine("400100", new BigDecimal(amount).negate())));
+            new JournalEntryLine("400100", new BigDecimal(amount).negate())),
+        Set.of());
   }
 }

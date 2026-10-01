@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.batch.poller;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateContacts;
@@ -32,6 +33,7 @@ public class MandateBatchProcessingPoller {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final MandateProcessorService mandateProcessor;
   private final MandateContacts mandateContacts;
+  private final SecurityContextRunner securityContextRunner;
 
   private final ExecutorService poller = Executors.newFixedThreadPool(THREAD_COUNT);
 
@@ -97,7 +99,7 @@ public class MandateBatchProcessingPoller {
         return;
       }
 
-      onMandateProcessingFinished(context);
+      securityContextRunner.runAs(context.user(), () -> onMandateProcessingFinished(context));
     };
   }
 

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.ledger.SystemAccount.PAYOUTS_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
@@ -19,10 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
@@ -42,6 +45,7 @@ public class LedgerTransactionIntegrationTest {
   @Autowired private LedgerTransactionRepository ledgerTransactionRepository;
   @Autowired private LedgerTransactionService ledgerTransactionService;
   @Autowired private Clock clock;
+  @Autowired private TestEntityManager entityManager;
 
   @AfterEach
   void cleanup() {
@@ -56,6 +60,31 @@ public class LedgerTransactionIntegrationTest {
 
   private LedgerAccount getSystemAccount() {
     return ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100);
+  }
+
+  @Test
+  void postingToAnAccountLeavesItsEntryHistoryUnloaded() {
+    var clearing = getSystemAccount();
+    var payouts = ledgerService.getSystemAccount(PAYOUTS_CASH_CLEARING, TKF100);
+    postBetween(clearing, payouts, "1.00");
+    entityManager.clear();
+    var reloadedClearing = ledgerAccountRepository.findById(clearing.getId()).orElseThrow();
+    var reloadedPayouts = ledgerAccountRepository.findById(payouts.getId()).orElseThrow();
+
+    postBetween(reloadedClearing, reloadedPayouts, "2.00");
+
+    assertThat(Hibernate.isInitialized(reloadedClearing.getEntries())).isFalse();
+    assertThat(Hibernate.isInitialized(reloadedPayouts.getEntries())).isFalse();
+  }
+
+  private void postBetween(LedgerAccount debit, LedgerAccount credit, String amount) {
+    ledgerTransactionService.createTransaction(
+        ADJUSTMENT,
+        Instant.now(clock),
+        UUID.randomUUID(),
+        Map.of("operationType", "TEST_TRANSACTION"),
+        new LedgerEntryDto(debit, new BigDecimal(amount)),
+        new LedgerEntryDto(credit, new BigDecimal(amount).negate()));
   }
 
   @Test

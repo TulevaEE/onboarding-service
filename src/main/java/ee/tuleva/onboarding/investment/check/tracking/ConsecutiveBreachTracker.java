@@ -102,23 +102,14 @@ class ConsecutiveBreachTracker {
       var uncheckedBefore = uncheckedWorkingDaysBetween(event.getCheckDate(), laterDate);
       laterDate = event.getCheckDate();
 
-      var navResidualBreach = Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
-      if (!event.isBreach() && !navResidualBreach) {
+      if (!isBreachDay(event)) {
         break;
       }
       // A working day with no check does not say the breach stopped, so it is assumed to have
       // persisted: between two breach days it counts in the streak. Days with no check at the
       // streak's edges are not counted. Those before the check date are reported apart, since
       // only the check date's own result says whether they are inside the streak.
-      if (uncheckedBefore > 0) {
-        log.warn(
-            "Escalation streak runs across working days with no check: fund={}, checkType={}, checkDate={}, uncheckedDays={}, after={}",
-            fund,
-            checkType,
-            checkDate,
-            uncheckedBefore,
-            event.getCheckDate());
-      }
+      warnOfUncheckedDays(fund, checkType, checkDate, event, uncheckedBefore);
       if (checkedDays == 0) {
         uncheckedDaysSince = uncheckedBefore;
       } else {
@@ -127,7 +118,7 @@ class ConsecutiveBreachTracker {
       }
       count++;
       checkedDays++;
-      hadNavResidualBreach = hadNavResidualBreach || navResidualBreach;
+      hadNavResidualBreach = hadNavResidualBreach || hadNavResidualBreach(event);
       compoundedFund = compoundedFund.multiply(BigDecimal.ONE.add(event.getFundReturn()));
       compoundedBenchmark =
           compoundedBenchmark.multiply(BigDecimal.ONE.add(event.getBenchmarkReturn()));
@@ -181,6 +172,31 @@ class ConsecutiveBreachTracker {
         false,
         uncheckedDays,
         uncheckedDaysSince);
+  }
+
+  private static boolean isBreachDay(TrackingDifferenceEvent event) {
+    return event.isBreach() || hadNavResidualBreach(event);
+  }
+
+  private static boolean hadNavResidualBreach(TrackingDifferenceEvent event) {
+    return Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
+  }
+
+  private static void warnOfUncheckedDays(
+      TulevaFund fund,
+      TrackingCheckType checkType,
+      LocalDate checkDate,
+      TrackingDifferenceEvent event,
+      int uncheckedDays) {
+    if (uncheckedDays > 0) {
+      log.warn(
+          "Escalation streak runs across working days with no check: fund={}, checkType={}, checkDate={}, uncheckedDays={}, after={}",
+          fund,
+          checkType,
+          checkDate,
+          uncheckedDays,
+          event.getCheckDate());
+    }
   }
 
   private int uncheckedWorkingDaysBetween(LocalDate earlier, LocalDate later) {

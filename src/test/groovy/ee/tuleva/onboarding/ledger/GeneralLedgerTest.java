@@ -25,6 +25,8 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -130,6 +132,18 @@ class GeneralLedgerTest {
 
     assertThat(rows.count(JOURNAL_ENTRY)).isEqualTo(2);
     assertThat(rows.count(JOURNAL_ENTRY_REVERSAL)).isZero();
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {Double.NaN, -0.01, 1.01, Double.POSITIVE_INFINITY})
+  void aDeletionShareOutsideZeroToOneIsRejected(double share) {
+    generalLedger.upsertAccounts(ENTITY, CHART);
+    var invoice = part("ARVE", 1, line("100100", "250.00"), line("400100", "-250.00"));
+
+    assertThatThrownBy(() -> generalLedger.mirror(ENTITY, SOURCE, List.of(invoice), share))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    assertThat(rows.count(JOURNAL_ENTRY)).isZero();
   }
 
   @Test

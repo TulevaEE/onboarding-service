@@ -19,7 +19,7 @@ public class DirectoPartMapper {
     var documents = book.transactions().stream().map(Document::of).toList();
     refuseRepeatedDocuments(documents);
     PersonalCodeChecksum.stopIfAnyPasses(
-        documents.stream().flatMap(Document::dimensionCodes).toList());
+        documents.stream().flatMap(Document::identifyingCodes).toList());
     var accounts =
         book.accounts().stream().map(DirectoAccountMapper::toGeneralLedgerAccount).toList();
     var protection = new PayrollProtection(book.accounts(), book.objects());

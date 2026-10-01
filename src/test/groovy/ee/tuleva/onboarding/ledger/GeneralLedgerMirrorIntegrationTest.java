@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOUR
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOURNAL_ENTRY_REVERSAL;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -447,6 +449,96 @@ class GeneralLedgerMirrorIntegrationTest {
     assertThat(result).isEqualTo(new MirrorResult(0, 0, 1, 1, 1, 0));
     assertThat(versionsOf(summary)).extracting(JournalEntryVersion::live).containsExactly(false);
     assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("0.00"));
+  }
+
+  @Test
+  void aSummaryReplacingMorePartsThanTheDeletionLimitIsNotStoppedByTheGuard() {
+    var purchases =
+        IntStream.rangeClosed(1, 12)
+            .mapToObj(
+                n ->
+                    part(
+                        "OST",
+                        n,
+                        "2026-02-01",
+                        line(OFFICE_COSTS, "10.00"),
+                        line(PAYABLES, "-10.00")))
+            .toList();
+    mirror(Stream.concat(Stream.of(OPENING), purchases.stream()).toList());
+    var summary =
+        new JournalEntryPart(
+            "SUMMARY:2026-02",
+            "SUMMARY",
+            LocalDate.parse("2026-02-28"),
+            List.of(line(OFFICE_COSTS, "120.00"), line(PAYABLES, "-120.00")),
+            purchases.stream().map(JournalEntryPart::sourceKey).collect(toSet()));
+
+    var result = mirror(List.of(OPENING, summary));
+
+    assertThat(result).isEqualTo(new MirrorResult(1, 0, 12, 1, 0, 0));
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("120.00"));
+  }
+
+  @Test
+  void aSummaryRetiredIntoMorePartsThanTheDeletionLimitIsNotStoppedByTheGuard() {
+    var purchases =
+        IntStream.rangeClosed(1, 12)
+            .mapToObj(
+                n ->
+                    part(
+                        "OST",
+                        n,
+                        "2026-02-01",
+                        line(OFFICE_COSTS, "10.00"),
+                        line(PAYABLES, "-10.00")))
+            .toList();
+    var summaries =
+        IntStream.rangeClosed(1, 11)
+            .mapToObj(
+                n ->
+                    new JournalEntryPart(
+                        "SUMMARY:" + n,
+                        "SUMMARY",
+                        LocalDate.parse("2026-02-28"),
+                        List.of(line(OFFICE_COSTS, "0.01"), line(PAYABLES, "-0.01")),
+                        Set.of(purchases.get(n - 1).sourceKey())))
+            .toList();
+    mirror(Stream.concat(Stream.of(OPENING), summaries.stream()).toList());
+
+    var result = mirror(Stream.concat(Stream.of(OPENING), purchases.stream()).toList());
+
+    assertThat(result).isEqualTo(new MirrorResult(12, 0, 11, 1, 0, 0));
+  }
+
+  @Test
+  void summariesRetiredIntoOnlySomeOfTheirFormerPartsStillCountForTheGuard() {
+    var summaries =
+        IntStream.rangeClosed(1, 11)
+            .mapToObj(
+                n ->
+                    new JournalEntryPart(
+                        "SUMMARY:" + n,
+                        "SUMMARY",
+                        LocalDate.parse("2026-02-28"),
+                        List.of(line(OFFICE_COSTS, "0.02"), line(PAYABLES, "-0.02")),
+                        Set.of("OST:" + n + ":2026-02-01", "OST:" + (100 + n) + ":2026-02-01")))
+            .toList();
+    mirror(Stream.concat(Stream.of(OPENING), summaries.stream()).toList());
+    var halves =
+        IntStream.rangeClosed(1, 11)
+            .mapToObj(
+                n ->
+                    part(
+                        "OST",
+                        n,
+                        "2026-02-01",
+                        line(OFFICE_COSTS, "0.01"),
+                        line(PAYABLES, "-0.01")));
+
+    assertThatThrownBy(() -> mirror(Stream.concat(Stream.of(OPENING), halves).toList()))
+        .isInstanceOf(IllegalStateException.class);
+
+    assertThat(rows.count(JOURNAL_ENTRY_REVERSAL)).isZero();
   }
 
   private static JournalEntryPart part(

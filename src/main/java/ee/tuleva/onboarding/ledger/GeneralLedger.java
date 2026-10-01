@@ -51,6 +51,7 @@ public class GeneralLedger {
       String entity, String source, List<JournalEntryPart> parts, double maxDeletionShare) {
     requireColonFreeName("entity", entity);
     requireColonFreeName("source", source);
+    requireAShare(maxDeletionShare);
     refuseToJoinACallersTransaction(entity);
     var live = liveVersions(entity, source);
     var present =
@@ -64,7 +65,8 @@ public class GeneralLedger {
         live.values().stream()
             .filter(entry -> !present.containsKey(entry.externalReference()))
             .toList();
-    refuseMassDeletion(entity, parts.size(), live.size(), absent.size(), maxDeletionShare);
+    refuseMassDeletion(
+        entity, parts.size(), live.size(), unexplained(absent, parts).size(), maxDeletionShare);
 
     var knownCodes = accounts.codesOf(entity);
     var heldRetirements = retirementsWithAFormerPartThatCannotPost(absent, parts, knownCodes);
@@ -92,6 +94,20 @@ public class GeneralLedger {
             .map(writer::reverse)
             .toList();
     return tally(Stream.concat(partOutcomes.stream(), reversals.stream()).toList());
+  }
+
+  private static List<LiveJournalEntry> unexplained(
+      List<LiveJournalEntry> absent, List<JournalEntryPart> parts) {
+    var presentSourceKeys = parts.stream().map(JournalEntryPart::sourceKey).collect(toSet());
+    var replacedByPresentParts =
+        parts.stream().flatMap(part -> part.replacedSourceKeys().stream()).collect(toSet());
+    return absent.stream()
+        .filter(entry -> !replacedByPresentParts.contains(entry.sourceKey()))
+        .filter(
+            entry ->
+                entry.replacedSourceKeys().isEmpty()
+                    || !presentSourceKeys.containsAll(entry.replacedSourceKeys()))
+        .toList();
   }
 
   private static Set<LiveJournalEntry> retirementsWithAFormerPartThatCannotPost(
@@ -159,6 +175,14 @@ public class GeneralLedger {
     if (name.isBlank() || name.contains(":")) {
       throw new IllegalArgumentException(
           "General ledger name must be non-blank and without a colon: " + field + "=" + name);
+    }
+  }
+
+  private static void requireAShare(double maxDeletionShare) {
+    if (!(maxDeletionShare >= 0 && maxDeletionShare <= 1)) {
+      throw new IllegalArgumentException(
+          "General ledger deletion share must be between 0 and 1: maxDeletionShare="
+              + maxDeletionShare);
     }
   }
 

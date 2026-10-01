@@ -19,6 +19,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -299,6 +301,31 @@ class SmartIdAuthIntegrationTest {
         .perform(post("/oauth/token").cookie(session).param("grant_type", "SMART_ID"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aSecondPushLoginFromTheSameBrowserWithinThirtySecondsIsRefused() throws Exception {
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
+        .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .cookie(remembered)
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .cookie(remembered)
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.errors[0].code").value("auth.too.many.requests"));
+
+    verify(smartIdConnector, times(1)).initNotificationAuthentication(any(), eq(documentNumber));
   }
 
   @Test

@@ -76,6 +76,7 @@ public class SmartIdLoginController {
             .current()
             .orElseThrow(
                 () -> new SmartIdSessionNotFoundException("No remembered Smart-ID account."));
+    rememberedSmartIdAccounts.claimNotificationLoginStart();
     SmartIdSession session = startNotificationLogin(account);
     storeInRenewedSession(session);
     return SmartIdLoginResponse.notification(

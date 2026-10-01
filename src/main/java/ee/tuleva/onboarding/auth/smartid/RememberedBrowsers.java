@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,25 @@ public class RememberedBrowsers {
         .param("verifiedAt", Timestamp.from(browser.verifiedAt()))
         .param("expiresAt", Timestamp.from(expiresAt))
         .update();
+  }
+
+  public boolean claimNotificationLoginStart(String tokenHash, Duration minimumInterval) {
+    Instant now = Instant.now(clock);
+    return jdbcClient
+            .sql(
+                """
+                UPDATE smart_id_remembered_browser
+                SET notification_login_started_at = :now
+                WHERE token_hash = :tokenHash
+                  AND expires_at > :now
+                  AND (notification_login_started_at IS NULL
+                       OR notification_login_started_at <= :previousStartedBy)
+                """)
+            .param("tokenHash", tokenHash)
+            .param("now", Timestamp.from(now))
+            .param("previousStartedBy", Timestamp.from(now.minus(minimumInterval)))
+            .update()
+        == 1;
   }
 
   public void remove(String tokenHash) {

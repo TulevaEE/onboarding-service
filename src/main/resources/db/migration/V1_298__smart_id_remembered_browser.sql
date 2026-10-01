@@ -14,6 +14,7 @@ CREATE TABLE smart_id_remembered_browser (
     last_name       text        NOT NULL,
     verified_at     timestamptz NOT NULL,
     expires_at      timestamptz NOT NULL,
+    notification_login_started_at timestamptz,
     created_at      timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_smart_id_remembered_browser PRIMARY KEY (id),
     CONSTRAINT uk_smart_id_remembered_browser_token UNIQUE (token_hash)

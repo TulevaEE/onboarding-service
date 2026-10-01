@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aRememberedAccoun
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -89,6 +90,27 @@ class SmartIdLoginControllerTest {
     InOrder renewedBeforeStored = inOrder(sessionStore);
     renewedBeforeStored.verify(sessionStore).renewId();
     renewedBeforeStored.verify(sessionStore).save(notificationSession);
+  }
+
+  @Test
+  void startingAnotherNotificationLoginFromTheSameBrowserTooSoonIsRefusedWithoutAPush()
+      throws Exception {
+    given(rememberedSmartIdAccounts.current()).willReturn(Optional.of(aRememberedAccount()));
+    willThrow(new NotificationLoginStartedTooSoonException())
+        .given(rememberedSmartIdAccounts)
+        .claimNotificationLoginStart();
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.errors[0].code").value("auth.too.many.requests"));
+
+    verify(smartIdLoginStarter, never()).startNotificationLogin(any());
+    verify(sessionStore, never()).save(any());
   }
 
   @Test

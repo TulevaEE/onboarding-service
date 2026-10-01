@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.firstName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -209,5 +210,26 @@ class RememberedSmartIdAccountsTest {
 
     verify(browsers, never()).removeAllOf(personalCode);
     assertThat(response.getHeader(SET_COOKIE)).contains("Max-Age=0");
+  }
+
+  @Test
+  void claimsAPushLoginStartForThisBrowser() {
+    bindRequest(new Cookie(COOKIE_NAME, "token"));
+    given(browsers.claimNotificationLoginStart(hash("token"), Duration.ofSeconds(30)))
+        .willReturn(true);
+
+    accounts.claimNotificationLoginStart();
+
+    verify(browsers).claimNotificationLoginStart(hash("token"), Duration.ofSeconds(30));
+  }
+
+  @Test
+  void refusesAPushLoginStartedTooSoonAfterThePreviousOne() {
+    bindRequest(new Cookie(COOKIE_NAME, "token"));
+    given(browsers.claimNotificationLoginStart(hash("token"), Duration.ofSeconds(30)))
+        .willReturn(false);
+
+    assertThatThrownBy(accounts::claimNotificationLoginStart)
+        .isInstanceOf(NotificationLoginStartedTooSoonException.class);
   }
 }

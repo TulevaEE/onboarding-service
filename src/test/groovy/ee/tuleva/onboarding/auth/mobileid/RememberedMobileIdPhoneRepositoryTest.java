@@ -69,6 +69,27 @@ class RememberedMobileIdPhoneRepositoryTest {
   }
 
   @Test
+  void findsThePhoneRememberedForAPersonOnABrowser() {
+    long browser = aBrowser("browser");
+    long otherBrowser = aBrowser("other-browser");
+    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
+    phones.save(otherBrowser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+
+    assertThat(phones.findUnexpired(browser, PERSONAL_CODE))
+        .hasValueSatisfying(phone -> assertThat(phone.phoneNumber()).isEqualTo("+37255555555"));
+    assertThat(phones.findUnexpired(browser, OTHER_PERSONAL_CODE)).isEmpty();
+    assertThat(phones.findUnexpired(otherBrowser, PERSONAL_CODE)).isEmpty();
+  }
+
+  @Test
+  void doesNotFindAPhoneWhoseValidityHasRunOut() {
+    long browser = aBrowser("browser");
+    phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.minusSeconds(1));
+
+    assertThat(phones.findUnexpired(browser, PERSONAL_CODE)).isEmpty();
+  }
+
+  @Test
   void purgesOnlyPhonesPastTheirValidity() {
     long browser = aBrowser("browser");
     phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.minusSeconds(1));

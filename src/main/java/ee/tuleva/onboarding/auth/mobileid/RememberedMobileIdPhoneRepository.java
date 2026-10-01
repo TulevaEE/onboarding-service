@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.browser.ExpiringRememberedEntries;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,23 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
 
   private final JdbcClient jdbcClient;
   private final Clock clock;
+
+  Optional<RememberedMobileIdPhone> findUnexpired(long browserId, String personalCode) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT id, phone_number FROM remembered_mobile_id_phone
+            WHERE browser_id = :browserId AND personal_code = :personalCode
+              AND expires_at > :now
+            """)
+        .param("browserId", browserId)
+        .param("personalCode", personalCode)
+        .param("now", Timestamp.from(Instant.now(clock)))
+        .query(
+            (rs, rowNum) ->
+                new RememberedMobileIdPhone(rs.getLong("id"), rs.getString("phone_number")))
+        .optional();
+  }
 
   void save(long browserId, String personalCode, String phoneNumber, Instant expiresAt) {
     int updated =

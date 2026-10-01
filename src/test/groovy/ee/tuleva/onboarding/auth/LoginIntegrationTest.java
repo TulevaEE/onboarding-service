@@ -27,6 +27,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -474,6 +475,36 @@ class LoginIntegrationTest {
         .perform(get("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
         .andExpect(status().isNoContent());
     assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  @Test
+  void anAnonymousBrowserLearnsOnlyWhetherItRemembersAPhoneForAPersonalCode() throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+
+    mockMvc
+        .perform(rememberedPhoneQuery(personalCode).cookie(browser))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"remembered\":true}", true));
+    mockMvc
+        .perform(rememberedPhoneQuery("39001010000").cookie(browser))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"remembered\":false}", true));
+    mockMvc
+        .perform(rememberedPhoneQuery(personalCode))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"remembered\":false}", true));
+    mockMvc
+        .perform(
+            rememberedPhoneQuery(personalCode)
+                .cookie(new Cookie(COOKIE_NAME, "a-token-nobody-was-given")))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"remembered\":false}", true));
+  }
+
+  private MockHttpServletRequestBuilder rememberedPhoneQuery(String personalCode) {
+    return post("/v1/mobile-id/login/remembered")
+        .contentType(APPLICATION_JSON)
+        .content("{\"personalCode\":\"" + personalCode + "\"}");
   }
 
   private MvcResult completeMobileIdLogin(String typedPhoneNumber, Cookie... browserCookies)

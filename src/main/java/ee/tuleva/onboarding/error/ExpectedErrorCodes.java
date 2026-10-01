@@ -13,6 +13,7 @@ public final class ExpectedErrorCodes {
           "smart.id.timeout",
           "smart.id.wrong.verification.code",
           "smart.id.unsupported.country",
+          "smart.id.certificate.revoked",
           "mobile.id.cancelled",
           "mobile.id.timeout",
           "mobile.id.no.signal",

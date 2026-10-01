@@ -28,6 +28,8 @@ class SmartIdLoginErrorSpec extends Specification {
     where:
     exception                                             | error
     new UnsupportedSmartIdCountryException("LT")          | UNSUPPORTED_COUNTRY
+    new SmartIdCertificateRevokedException("REVOKED")     | CERTIFICATE_REVOKED
+    new SmartIdCertificateStatusUnavailableException("x") | TECHNICAL_ERROR
     new UserRefusedException()                            | USER_REFUSED
     new UserRefusedDisplayTextAndPinException()           | USER_REFUSED
     new UserSelectedWrongVerificationCodeException()      | WRONG_VERIFICATION_CODE
@@ -51,6 +53,7 @@ class SmartIdLoginErrorSpec extends Specification {
     VALIDATION_FAILED.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.validation.failed", "Smart ID validation failed")
     UNSUPPORTED_COUNTRY.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.unsupported.country", "Only Estonian Smart ID accounts are supported")
     WRONG_VERIFICATION_CODE.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.wrong.verification.code", "Smart ID user chose the wrong verification code")
+    CERTIFICATE_REVOKED.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.certificate.revoked", "Smart ID certificate is revoked or unknown to its issuer")
     TECHNICAL_ERROR.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.technical.error", "Smart ID technical error")
   }
 }

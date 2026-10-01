@@ -12,12 +12,17 @@ import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.tuleva.onboarding.auth.SmartIdProperties;
+import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
+import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevocationCheck;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpClient;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.time.Clock;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,6 +30,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableConfigurationProperties(SmartIdProperties.class)
@@ -55,6 +62,24 @@ public class SmartIdClientConfiguration {
       SmartIdProperties properties, ResourceLoader resourceLoader) {
     return new CertificateValidatorImpl(
         SmartIdTrustedCaCertificates.load(resourceLoader, properties.trustedCaCertificates()));
+  }
+
+  @Bean
+  public SmartIdCertificateRevocationCheck smartIdCertificateRevocationCheck(
+      SmartIdProperties properties,
+      ResourceLoader resourceLoader,
+      RestClient.Builder restClientBuilder,
+      OCSPUtils ocspUtils,
+      Clock clock) {
+    var requestFactory =
+        new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
+    requestFactory.setReadTimeout(Duration.ofSeconds(5));
+    return new SmartIdCertificateRevocationCheck(
+        SmartIdTrustedCaCertificates.read(resourceLoader, properties.trustedCaCertificates()),
+        restClientBuilder.clone().requestFactory(requestFactory).build(),
+        ocspUtils,
+        clock);
   }
 
   @Bean

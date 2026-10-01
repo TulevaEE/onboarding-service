@@ -18,7 +18,15 @@ public final class ExpectedErrorCodes {
           "invalid.mandate.checks.missing",
           "new.user.flow.signup.error.email.duplicate",
           "gift.amount.invalid",
-          "payment.channel.invalid");
+          "payment.channel.invalid",
+          "signature.already.signed",
+          "signature.not.signed",
+          "signature.not.awaited",
+          "signature.session.entity.mismatch",
+          "id.card.signature.invalid",
+          "id.card.signing.certificate.invalid",
+          "id.card.signing.certificate.mismatch",
+          "id.card.signing.hash.function.unsupported");
 
   private ExpectedErrorCodes() {}
 

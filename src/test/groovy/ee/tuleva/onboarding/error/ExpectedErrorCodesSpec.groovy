@@ -14,6 +14,7 @@ class ExpectedErrorCodesSpec extends Specification {
     code                             || expected
     "smart.id.user.refused"          || true
     "smart.id.account.not.found"     || true
+    "smart.id.account.unusable"      || true
     "smart.id.timeout"               || true
     "smart.id.wrong.verification.code" || true
     "smart.id.certificate.revoked"   || true

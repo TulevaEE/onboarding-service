@@ -10,6 +10,7 @@ public final class ExpectedErrorCodes {
       Set.of(
           "smart.id.user.refused",
           "smart.id.account.not.found",
+          "smart.id.account.unusable",
           "smart.id.timeout",
           "smart.id.wrong.verification.code",
           "smart.id.unsupported.country",

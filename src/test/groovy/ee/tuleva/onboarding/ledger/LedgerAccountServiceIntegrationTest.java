@@ -1,12 +1,17 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.EQUITY;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.OFF_BALANCE;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -22,6 +27,7 @@ class LedgerAccountServiceIntegrationTest {
   @Autowired LedgerAccountService ledgerAccountService;
   @Autowired LedgerPartyService ledgerPartyService;
   @Autowired JdbcClient jdbcClient;
+  @Autowired EntityManager entityManager;
 
   @Test
   void createUserAccount_createsAccountWhenAbsent() {
@@ -67,6 +73,56 @@ class LedgerAccountServiceIntegrationTest {
     assertThat(ledgerAccountService.findSystemAccountByName(SYSTEM_ACCOUNT_NAME, ASSET, EUR))
         .map(LedgerAccount::getId)
         .contains(first.getId());
+  }
+
+  @Test
+  void newAccountTypesRoundTrip() {
+    var equity = ledgerAccountService.createSystemAccount("TEST_EQUITY_ACCOUNT", EQUITY, EUR);
+    var offBalance =
+        ledgerAccountService.createSystemAccount("TEST_OFF_BALANCE_ACCOUNT", OFF_BALANCE, EUR);
+    entityManager.clear();
+
+    assertThat(ledgerAccountService.findSystemAccountByName("TEST_EQUITY_ACCOUNT", EQUITY, EUR))
+        .map(LedgerAccount::getId)
+        .contains(equity.getId());
+    assertThat(
+            ledgerAccountService.findSystemAccountByName(
+                "TEST_OFF_BALANCE_ACCOUNT", OFF_BALANCE, EUR))
+        .map(LedgerAccount::getAccountType)
+        .contains(OFF_BALANCE);
+    assertThat(offBalance.getAccountType()).isEqualTo(OFF_BALANCE);
+  }
+
+  @Test
+  void accountMetadataRoundTripsOnBothDatabases() {
+    Map<String, Object> metadata =
+        Map.of("name", "Bank", "class", 0, "cashFlowCodes", List.of("A10", "B20"));
+    var account = ledgerAccountService.createSystemAccount("TEST_DESCRIBED_ACCOUNT", ASSET, EUR);
+
+    account.updateMetadata(metadata);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(ledgerAccountService.findSystemAccountByName("TEST_DESCRIBED_ACCOUNT", ASSET, EUR))
+        .map(LedgerAccount::getMetadata)
+        .contains(metadata);
+  }
+
+  @Test
+  void subledgerAccountsKeepNullMetadata() {
+    LedgerParty party = ledgerPartyService.getOrCreate("20000004", LEGAL_ENTITY);
+    ledgerAccountService.createUserAccount(party, SUBSCRIPTIONS);
+    ledgerAccountService.createSystemAccount(SYSTEM_ACCOUNT_NAME, ASSET, EUR);
+    entityManager.clear();
+
+    assertThat(ledgerAccountService.findUserAccount(party, SUBSCRIPTIONS))
+        .get()
+        .extracting(LedgerAccount::getMetadata)
+        .isNull();
+    assertThat(ledgerAccountService.findSystemAccountByName(SYSTEM_ACCOUNT_NAME, ASSET, EUR))
+        .get()
+        .extracting(LedgerAccount::getMetadata)
+        .isNull();
   }
 
   private long accountCount(LedgerParty owner, UserAccount userAccount) {

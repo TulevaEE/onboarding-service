@@ -109,23 +109,30 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateSmartId(user, mandate, session);
+      return statusOfSignedMandate(mandate);
     }
+    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
   }
 
-  private SignatureStatus handleUnsignedMandateSmartId(
-      User user, Mandate mandate, SmartIdSignatureSession session) {
-    return getStatus(user, mandate, signService.getSignedFile(session));
+  private SignatureStatus persistIfSigned(
+      User user, Mandate mandate, byte @Nullable [] signedFile, Locale locale) {
+    if (signedFile == null) {
+      return OUTSTANDING_TRANSACTION;
+    }
+    return persistAndProcess(user, mandate, signedFile, locale);
   }
 
-  private SignatureStatus getStatus(User user, Mandate mandate, byte @Nullable [] signedFile) {
-    if (signedFile != null) {
-      persistSignedFile(mandate, signedFile);
-      mandateProcessor.start(user, mandate);
+  private SignatureStatus persistAndProcess(
+      User user, Mandate mandate, byte[] signedFile, Locale locale) {
+    persistSignedFile(mandate, signedFile);
+    mandateProcessor.start(user, mandate);
+    if (!mandateProcessor.isFinished(mandate)) {
+      return OUTSTANDING_TRANSACTION;
     }
-    return OUTSTANDING_TRANSACTION;
+    mandateContacts.clearCache(user);
+    handleMandateProcessingErrors(mandate);
+    notifyAboutSignedMandate(user, mandate, locale);
+    return SIGNATURE;
   }
 
   public IdCardSignatureSession idCardSign(
@@ -145,51 +152,45 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateMobileId(user, mandate, session);
+      return statusOfSignedMandate(mandate);
     }
-  }
-
-  private SignatureStatus handleUnsignedMandateMobileId(
-      User user, Mandate mandate, MobileIdSignatureSession session) {
-    return getStatus(user, mandate, signService.getSignedFile(session));
+    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
   }
 
   public SignatureStatus persistIdCardSignature(
-      Long userId, Long mandateId, IdCardSignatureSession session, String signature) {
+      Long userId,
+      Long mandateId,
+      IdCardSignatureSession session,
+      String signature,
+      Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
       throw SignatureStateException.alreadySigned("Mandate", mandateId);
     }
-    return getStatus(user, mandate, signService.getSignedFile(session, signature));
+    return persistAndProcess(user, mandate, signService.getSignedFile(session, signature), locale);
   }
 
-  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateId, Locale locale) {
-    User user = userService.getById(userId).orElseThrow();
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateId) {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (!mandate.isSigned()) {
       throw SignatureStateException.notSigned("Mandate", mandateId);
     }
-    return handleSignedMandate(user, mandate, locale);
+    return statusOfSignedMandate(mandate);
   }
 
   public Mandate get(Long id) {
     return mandateRepository.findById(id).orElseThrow(IllegalStateException::new);
   }
 
-  private SignatureStatus handleSignedMandate(User user, Mandate mandate, Locale locale) {
-    if (mandateProcessor.isFinished(mandate)) {
-      mandateContacts.clearCache(user);
-      handleMandateProcessingErrors(mandate);
-      notifyAboutSignedMandate(user, mandate, locale);
-      return SIGNATURE;
-    } else {
+  private SignatureStatus statusOfSignedMandate(Mandate mandate) {
+    if (!mandateProcessor.isFinished(mandate)) {
       return OUTSTANDING_TRANSACTION;
     }
+    handleMandateProcessingErrors(mandate);
+    return SIGNATURE;
   }
 
   private void handleMandateProcessingErrors(Mandate mandate) {

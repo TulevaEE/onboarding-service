@@ -5,11 +5,15 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 
 public class InvalidSignatureException extends ErrorsResponseException {
 
-  public InvalidSignatureException(Exception cause) {
+  public InvalidSignatureException() {
     super(
         ErrorsResponse.ofSingleError(
             "id.card.signature.invalid",
             "Signature is not a base64 signature over the hash to sign"));
+  }
+
+  public InvalidSignatureException(Exception cause) {
+    this();
     initCause(cause);
   }
 }

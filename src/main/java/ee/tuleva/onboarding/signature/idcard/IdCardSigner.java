@@ -8,9 +8,14 @@ import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
-import eu.europa.esig.dss.alert.exception.AlertException;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
 import eu.webeid.security.certificate.CertificateData;
 import java.io.ByteArrayInputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -55,12 +60,45 @@ public class IdCardSigner {
       IdCardSignatureSession session, SignableEntity entity, String signature) {
     session.requireStartedFor(entity);
     byte[] signatureValue = decodeSignature(signature);
+    requireVerifiesAgainstSigningCertificate(signatureValue, session.getDataToSign());
+    return digiDocFacade.addSignatureToContainer(
+        signatureValue, session.getDataToSign(), session.getContainer());
+  }
+
+  private static void requireVerifiesAgainstSigningCertificate(
+      byte[] signatureValue, DataToSign dataToSign) {
+    PublicKey publicKey =
+        dataToSign.getSignatureParameters().getSigningCertificate().getPublicKey();
     try {
-      return digiDocFacade.addSignatureToContainer(
-          signatureValue, session.getDataToSign(), session.getContainer());
-    } catch (AlertException signatureOrSigningCertificateRejected) {
-      throw new InvalidSignatureException(signatureOrSigningCertificateRejected);
+      Signature verifier =
+          Signature.getInstance(signatureAlgorithm(dataToSign, publicKey, signatureValue));
+      verifier.initVerify(publicKey);
+      verifier.update(dataToSign.getDataToSign());
+      if (!verifier.verify(signatureValue)) {
+        throw new InvalidSignatureException();
+      }
+    } catch (SignatureException e) {
+      throw new InvalidSignatureException(e);
+    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+      throw new IllegalStateException(
+          "Cannot verify ID-card signature: keyAlgorithm=" + publicKey.getAlgorithm(), e);
     }
+  }
+
+  private static String signatureAlgorithm(
+      DataToSign dataToSign, PublicKey publicKey, byte[] signatureValue) {
+    String digest =
+        dataToSign.getDigestAlgorithm().getDssDigestAlgorithm().getJavaName().replace("-", "");
+    return switch (publicKey.getAlgorithm()) {
+      case "RSA" -> digest + "withRSA";
+      case "EC" ->
+          DSSASN1Utils.isAsn1Encoded(signatureValue)
+              ? digest + "withECDSA"
+              : digest + "withECDSAinP1363Format";
+      default ->
+          throw new IllegalStateException(
+              "Unsupported ID-card signing key: keyAlgorithm=" + publicKey.getAlgorithm());
+    };
   }
 
   private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {

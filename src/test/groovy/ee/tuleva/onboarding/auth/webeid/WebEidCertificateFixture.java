@@ -134,15 +134,44 @@ public class WebEidCertificateFixture {
     return Extension.create(keyUsage, true, new KeyUsage(digitalSignature));
   }
 
+  public record CertificateWithKey(X509Certificate certificate, PrivateKey privateKey) {}
+
   @SneakyThrows
-  private static X509Certificate buildCertificate(
-      X500Name subjectDN, String issuerDn, Extension... extensions) {
+  public static CertificateWithKey signingCertificate(String personalCode, String keyAlgorithm) {
+    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyAlgorithm);
+    keyPairGenerator.initialize(keyAlgorithm.equals("EC") ? 384 : 2048);
+    KeyPair subjectKeyPair = keyPairGenerator.generateKeyPair();
+    X509Certificate certificate =
+        buildCertificate(
+            subjectDn("TEST", "USER", personalCode),
+            VALID_ISSUER,
+            subjectKeyPair.getPublic(),
+            rsaKeyPair().getPrivate(),
+            signing());
+    return new CertificateWithKey(certificate, subjectKeyPair.getPrivate());
+  }
+
+  @SneakyThrows
+  private static KeyPair rsaKeyPair() {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
     keyPairGenerator.initialize(2048);
-    KeyPair keyPair = keyPairGenerator.generateKeyPair();
-    PublicKey publicKey = keyPair.getPublic();
-    PrivateKey privateKey = keyPair.getPrivate();
+    return keyPairGenerator.generateKeyPair();
+  }
 
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN, String issuerDn, Extension... extensions) {
+    KeyPair keyPair = rsaKeyPair();
+    return buildCertificate(
+        subjectDN, issuerDn, keyPair.getPublic(), keyPair.getPrivate(), extensions);
+  }
+
+  @SneakyThrows
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN,
+      String issuerDn,
+      PublicKey publicKey,
+      PrivateKey issuerPrivateKey,
+      Extension... extensions) {
     BigInteger serialNumber = new BigInteger(64, new SecureRandom());
 
     X500Name issuer = new X500Name(issuerDn);
@@ -155,7 +184,7 @@ public class WebEidCertificateFixture {
         new DefaultSignatureAlgorithmIdentifierFinder().find("SHA256WITHRSA");
     AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
     AsymmetricKeyParameter privateKeyAsymKeyParam =
-        PrivateKeyFactory.createKey(privateKey.getEncoded());
+        PrivateKeyFactory.createKey(issuerPrivateKey.getEncoded());
     ContentSigner sigGen =
         new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);
 

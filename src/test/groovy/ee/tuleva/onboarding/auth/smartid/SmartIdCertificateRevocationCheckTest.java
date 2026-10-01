@@ -267,4 +267,77 @@ class SmartIdCertificateRevocationCheckTest {
     assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .doesNotThrowAnyException();
   }
+
+  @Test
+  void acceptsAGoodAnswerTheIssuingCaSignedItselfWithoutIncludingAnyCertificate() {
+    responderAnswers(fixture.signedByTheIssuingCa(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void acceptsAGoodAnswerTheIssuingCaSignedAndIncludedItsOwnCertificateIn() {
+    responderAnswers(
+        fixture.signedByTheIssuingCa(CertificateStatus.GOOD, NOW).including(fixture.ca));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void acceptsAGoodAnswerFromADelegatedResponderIdentifiedByName() {
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW).identifiedByName());
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void acceptsAGoodAnswerFromADelegatedResponderListedAfterItsCaCertificate() {
+    responderAnswers(
+        fixture.answering(CertificateStatus.GOOD, NOW).including(fixture.ca, fixture.responder));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void acceptsAGoodAnswerFromADelegatedResponderNamedAmongSeveralCertificates() {
+    responderAnswers(
+        fixture
+            .answering(CertificateStatus.GOOD, NOW)
+            .identifiedByName()
+            .including(fixture.root, fixture.responder, fixture.ca));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void distrustsAGoodAnswerWhoseResponderCertificateIsNotIncluded() {
+    responderAnswers(
+        fixture.answering(CertificateStatus.GOOD, NOW).identifiedByName().including(fixture.ca));
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+  }
+
+  @Test
+  void distrustsAGoodAnswerSignedByTheResponderButNamingTheIssuingCaAsItsResponder() {
+    var answer =
+        new OcspResponderFixture.Answer(
+                CertificateStatus.GOOD,
+                NOW,
+                true,
+                fixture.responderKeys,
+                fixture.ca,
+                fixture.authenticationCertificate.getSerialNumber())
+            .identifiedByName()
+            .including(fixture.responder);
+    responderAnswers(answer);
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+  }
 }

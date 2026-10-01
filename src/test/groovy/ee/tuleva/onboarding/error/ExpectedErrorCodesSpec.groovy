@@ -30,6 +30,7 @@ class ExpectedErrorCodesSpec extends Specification {
     "id.card.signature.invalid"                 || true
     "id.card.signing.certificate.invalid"       || true
     "id.card.signing.certificate.mismatch"      || true
+    "id.card.signing.certificate.revoked"       || true
     "id.card.signing.hash.function.unsupported" || true
 
     "mobile.id.configuration.error"  || false

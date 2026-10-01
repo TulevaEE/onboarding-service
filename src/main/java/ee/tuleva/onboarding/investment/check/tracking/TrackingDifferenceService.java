@@ -277,9 +277,7 @@ class TrackingDifferenceService {
           previousDate,
           todayValue.isPresent(),
           yesterdayValue.isPresent());
-      return todayValue.isEmpty()
-          ? noNavForTheCheckDate(checkDate)
-          : new NotCheckable("no NAV for the working day before, " + previousDate);
+      return missingNav(fund, checkDate, previousDate, todayValue.isEmpty());
     }
 
     var todayNav =
@@ -447,6 +445,27 @@ class TrackingDifferenceService {
             });
 
     return new Checked(results);
+  }
+
+  private FundCheck missingNav(
+      TulevaFund fund, LocalDate checkDate, LocalDate previousDate, boolean noNavOnTheCheckDate) {
+    if (hasNoModelPortfolio(fund, checkDate)) {
+      return new NeverCheckable();
+    }
+    if (noNavOnTheCheckDate) {
+      return noNavForTheCheckDate(checkDate);
+    }
+    return isTheFundsFirstNavDay(fund, previousDate)
+        ? new NeverCheckable()
+        : new NotCheckable("no NAV for the working day before, " + previousDate);
+  }
+
+  private boolean hasNoModelPortfolio(TulevaFund fund, LocalDate checkDate) {
+    return modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate).isEmpty();
+  }
+
+  private boolean isTheFundsFirstNavDay(TulevaFund fund, LocalDate previousDate) {
+    return fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), previousDate).isEmpty();
   }
 
   private FundCheck noNavForTheCheckDate(LocalDate checkDate) {

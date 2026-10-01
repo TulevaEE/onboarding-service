@@ -25,12 +25,10 @@ import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class CapitalTransferSignatureService {
   private final CapitalTransferContractService contractService;
   private final GenericSessionStore sessionStore;
@@ -111,6 +109,7 @@ public class CapitalTransferSignatureService {
     if (contract.isSignedBy(user)) {
       throw SignatureStateException.alreadySigned("Capital transfer contract", contractId);
     }
+    requireAwaitsSignatureFrom(contract, user);
 
     byte[] signedFile =
         signService.getSignedFile(session, signableContract(contractId), signCommand.signature());
@@ -172,19 +171,17 @@ public class CapitalTransferSignatureService {
   }
 
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {
-    if (contract.getState() == CapitalTransferContractState.CREATED
-        && contract.getSeller().getUser().equals(user)) {
+    requireAwaitsSignatureFrom(contract, user);
+    if (contract.isSoldBy(user)) {
       contractService.signBySeller(contract.getId(), signedFile, user);
-    } else if (contract.getState() == CapitalTransferContractState.SELLER_SIGNED
-        && contract.getBuyer().getUser().equals(user)) {
-      contractService.signByBuyer(contract.getId(), signedFile, user);
     } else {
-      log.error(
-          "Cannot sign contract {} in state {} by user {}",
-          contract.getId(),
-          contract.getState(),
-          user.getId());
-      throw new IllegalStateException("Cannot sign contract in its current state");
+      contractService.signByBuyer(contract.getId(), signedFile, user);
+    }
+  }
+
+  private static void requireAwaitsSignatureFrom(CapitalTransferContract contract, User user) {
+    if (!contract.awaitsSignatureFrom(user)) {
+      throw SignatureStateException.notAwaited("Capital transfer contract", contract.getId());
     }
   }
 

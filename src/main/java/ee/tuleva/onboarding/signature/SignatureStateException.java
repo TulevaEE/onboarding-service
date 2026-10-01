@@ -19,6 +19,11 @@ public class SignatureStateException extends ErrorsResponseException {
         "signature.not.signed", entity + " is not signed: id=" + entityId);
   }
 
+  public static SignatureStateException notAwaited(String entity, Object entityId) {
+    return new SignatureStateException(
+        "signature.not.awaited", entity + " does not await this signature: id=" + entityId);
+  }
+
   public static SignatureStateException startedForAnotherEntity(SignableEntity entity) {
     return new SignatureStateException(
         "signature.session.entity.mismatch",

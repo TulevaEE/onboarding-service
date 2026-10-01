@@ -189,12 +189,13 @@ class PersonalCodeTest {
   }
 
   @Test
-  void fromSubjectIdCodeStripsTheEstonianPrefix() {
-    assertThat(PersonalCode.fromSubjectIdCode("PNOEE-38888888888")).isEqualTo("38888888888");
+  void anEstonianSubjectIdCodeCarriesThePersonalCode() {
+    assertThat(PersonalCode.fromEstonianSubjectIdCode("PNOEE-38888888888")).contains("38888888888");
   }
 
   @Test
-  void fromSubjectIdCodeLeavesANonEstonianSubjectIdCodeAlone() {
-    assertThat(PersonalCode.fromSubjectIdCode("PASJP-123456789")).isEqualTo("PASJP-123456789");
+  void aSubjectIdCodeFromAnotherCountryOrSchemeCarriesNoEstonianPersonalCode() {
+    assertThat(PersonalCode.fromEstonianSubjectIdCode("PASJP-123456789")).isEmpty();
+    assertThat(PersonalCode.fromEstonianSubjectIdCode("PNOLV-38888888888")).isEmpty();
   }
 }

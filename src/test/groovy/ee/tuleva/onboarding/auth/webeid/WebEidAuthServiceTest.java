@@ -264,6 +264,19 @@ class WebEidAuthServiceTest {
   }
 
   @Test
+  void authenticate_givesTheCountryAsTheReasonForAForeignIdCard() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=LV, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", "
+                    + "SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOLV-38888888888"));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(UnknownCountryException.class);
+  }
+
+  @Test
   void authenticate_failsWhenTokenValidatorThrowsUnexpectedly() throws AuthTokenException {
     setupNonceStore();
     when(authTokenValidator.validate(any(), any())).thenThrow(new IllegalStateException());

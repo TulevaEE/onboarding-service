@@ -127,13 +127,19 @@ public class IdDocumentTypeExtractor {
   }
 
   public void checkCountry(X509Certificate certificate) {
-    X500Name subject = X500Name.getInstance(certificate.getSubjectX500Principal().getEncoded());
-    RDN[] countries = subject.getRDNs(BCStyle.C);
-    String country =
-        countries.length == 0 ? "" : IETFUtils.valueToString(countries[0].getFirst().getValue());
+    @Nullable String country = subjectCountry(certificate);
     if (!ESTONIA.equals(country)) {
       throw new UnknownCountryException(country);
     }
+  }
+
+  private static @Nullable String subjectCountry(X509Certificate certificate) {
+    X500Name subject = X500Name.getInstance(certificate.getSubjectX500Principal().getEncoded());
+    RDN[] countries = subject.getRDNs(BCStyle.C);
+    if (countries.length == 0) {
+      return null;
+    }
+    return IETFUtils.valueToString(countries[0].getFirst().getValue());
   }
 
   public void checkIssuer(X509Certificate certificate) {

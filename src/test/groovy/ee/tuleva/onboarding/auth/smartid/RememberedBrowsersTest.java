@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -16,6 +17,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @JdbcTest
@@ -33,7 +35,10 @@ class RememberedBrowsersTest {
     }
   }
 
+  private static final Duration PUSH_INTERVAL = Duration.ofSeconds(30);
+
   @Autowired private RememberedBrowsers browsers;
+  @Autowired private JdbcClient jdbcClient;
 
   private RememberedBrowser aBrowser() {
     return new RememberedBrowser(
@@ -94,5 +99,62 @@ class RememberedBrowsersTest {
     assertThat(browsers.removeExpired()).isEqualTo(1);
 
     assertThat(browsers.findUnexpired("still-valid")).isPresent();
+  }
+
+  @Test
+  void startsAPushLoginFromABrowserThatHasNotStartedOne() {
+    browsers.add("token-hash", aBrowser(), NOW.plus(Duration.ofDays(80)));
+
+    assertThat(browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL)).isTrue();
+  }
+
+  @Test
+  void refusesASecondPushLoginFromTheSameBrowserWithinThirtySeconds() {
+    browsers.add("token-hash", aBrowser(), NOW.plus(Duration.ofDays(80)));
+    browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL);
+
+    assertThat(browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL)).isFalse();
+  }
+
+  @Test
+  void startsAPushLoginAgainOnceThirtySecondsHavePassed() {
+    browsers.add("token-hash", aBrowser(), NOW.plus(Duration.ofDays(80)));
+    previousPushLoginStartedAt("token-hash", NOW.minus(PUSH_INTERVAL));
+
+    assertThat(browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL)).isTrue();
+  }
+
+  @Test
+  void stillRefusesAPushLoginStartedTwentyNineSecondsAgo() {
+    browsers.add("token-hash", aBrowser(), NOW.plus(Duration.ofDays(80)));
+    previousPushLoginStartedAt("token-hash", NOW.minusSeconds(29));
+
+    assertThat(browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL)).isFalse();
+  }
+
+  @Test
+  void aPushLoginFromOneBrowserDoesNotHoldBackAnother() {
+    browsers.add("first", aBrowser(), NOW.plus(Duration.ofDays(80)));
+    browsers.add("second", aBrowser(), NOW.plus(Duration.ofDays(80)));
+    browsers.claimNotificationLoginStart("first", PUSH_INTERVAL);
+
+    assertThat(browsers.claimNotificationLoginStart("second", PUSH_INTERVAL)).isTrue();
+  }
+
+  @Test
+  void refusesAPushLoginFromABrowserWhoseValidityHasRunOut() {
+    browsers.add("token-hash", aBrowser(), NOW.minusSeconds(1));
+
+    assertThat(browsers.claimNotificationLoginStart("token-hash", PUSH_INTERVAL)).isFalse();
+  }
+
+  private void previousPushLoginStartedAt(String tokenHash, Instant startedAt) {
+    jdbcClient
+        .sql(
+            "UPDATE smart_id_remembered_browser SET notification_login_started_at = :startedAt"
+                + " WHERE token_hash = :tokenHash")
+        .param("startedAt", Timestamp.from(startedAt))
+        .param("tokenHash", tokenHash)
+        .update();
   }
 }

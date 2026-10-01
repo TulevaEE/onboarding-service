@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
+import ee.tuleva.onboarding.auth.smartid.NotificationLoginStartedTooSoonException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdCallbackRejectedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
@@ -70,10 +71,19 @@ public class AuthErrorHandler {
   @ExceptionHandler(InvocationRejectedException.class)
   public ResponseEntity<ErrorsResponse> handleTooManyLogins(InvocationRejectedException exception) {
     log.warn("Login rejected because too many are already in flight: {}", exception.getMessage());
+    return tooManyLogins("Too many logins are being started right now.");
+  }
+
+  @ExceptionHandler(NotificationLoginStartedTooSoonException.class)
+  public ResponseEntity<ErrorsResponse> handlePushLoginStartedTooSoon(
+      NotificationLoginStartedTooSoonException exception) {
+    log.info("Smart-ID push login refused: {}", exception.getMessage());
+    return tooManyLogins("A push login was started from this browser moments ago.");
+  }
+
+  private static ResponseEntity<ErrorsResponse> tooManyLogins(String message) {
     return new ResponseEntity<>(
-        ErrorsResponse.ofSingleError(
-            "auth.too.many.requests", "Too many logins are being started right now."),
-        TOO_MANY_REQUESTS);
+        ErrorsResponse.ofSingleError("auth.too.many.requests", message), TOO_MANY_REQUESTS);
   }
 
   @ExceptionHandler(AuthNotCompleteException.class)

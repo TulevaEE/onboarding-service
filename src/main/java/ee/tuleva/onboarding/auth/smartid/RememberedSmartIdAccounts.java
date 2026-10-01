@@ -105,6 +105,20 @@ public class RememberedSmartIdAccounts {
     expireCookie();
   }
 
+  public void claimNotificationLoginStart() {
+    Duration minimumIntervalBetweenPushesFromOneBrowser = Duration.ofSeconds(30);
+    boolean claimed =
+        cookieToken()
+            .map(
+                token ->
+                    browsers.claimNotificationLoginStart(
+                        hash(token), minimumIntervalBetweenPushesFromOneBrowser))
+            .orElse(false);
+    if (!claimed) {
+      throw new NotificationLoginStartedTooSoonException();
+    }
+  }
+
   private Optional<RememberedBrowser> currentBrowser() {
     return cookieToken().flatMap(token -> browsers.findUnexpired(hash(token)));
   }

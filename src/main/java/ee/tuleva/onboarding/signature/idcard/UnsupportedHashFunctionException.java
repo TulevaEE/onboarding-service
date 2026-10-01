@@ -10,9 +10,9 @@ public class UnsupportedHashFunctionException extends ErrorsResponseException {
     super(
         ErrorsResponse.ofSingleError(
             "id.card.signing.hash.function.unsupported",
-            "Signing certificate requires "
+            "Signing certificate requires a hash function the card does not support: required="
                 + hashFunction
-                + ", but the card supports "
-                + String.join(", ", supported)));
+                + ", supported="
+                + supported));
   }
 }

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -45,6 +46,8 @@ public class AccountOverviewProvider {
         .transactions(transactions)
         .startTime(startTime)
         .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
         .pillar(pillar)
         .build()
         .sort();

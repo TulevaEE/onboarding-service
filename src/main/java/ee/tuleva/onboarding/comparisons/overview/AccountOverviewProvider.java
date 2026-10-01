@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
+import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toList;
 
@@ -25,6 +26,7 @@ public class AccountOverviewProvider {
 
   private final FundRepository fundRepository;
   private final EpisService episService;
+  private final BalancePriceDates balancePriceDates;
   private final Clock clock;
 
   public AccountOverview getAccountOverview(
@@ -46,8 +48,17 @@ public class AccountOverviewProvider {
         .transactions(transactions)
         .startTime(startTime)
         .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
+        .beginningBalanceTime(
+            balancePriceDates
+                .latestPriceTime(
+                    holdings(cashFlowStatement.getStartBalance(), pillarFilter),
+                    toLocalDate(startTime).minusDays(1))
+                .orElse(startTime.minus(1, DAYS)))
+        .endingBalanceTime(
+            balancePriceDates
+                .latestPriceTime(
+                    holdings(cashFlowStatement.getEndBalance(), pillarFilter), toLocalDate(endTime))
+                .orElse(endTime))
         .pillar(pillar)
         .build()
         .sort();
@@ -61,10 +72,14 @@ public class AccountOverviewProvider {
 
   private BigDecimal convertBalance(
       Map<String, CashFlow> balance, Predicate<CashFlow> cashFlowFilter) {
-    return balance.values().stream()
-        .filter(cashFlowFilter)
+    return holdings(balance, cashFlowFilter).stream()
         .map(CashFlow::getAmount)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private List<CashFlow> holdings(
+      Map<String, CashFlow> balance, Predicate<CashFlow> cashFlowFilter) {
+    return balance.values().stream().filter(cashFlowFilter).toList();
   }
 
   private List<Transaction> convertTransactions(
@@ -76,6 +91,6 @@ public class AccountOverviewProvider {
   }
 
   private LocalDate toLocalDate(Instant instant) {
-    return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).toLocalDate();
+    return instant.atOffset(UTC).toLocalDate();
   }
 }

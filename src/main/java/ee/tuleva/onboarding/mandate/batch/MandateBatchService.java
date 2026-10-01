@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
@@ -174,8 +175,13 @@ public class MandateBatchService {
     if (mandateBatch.isSigned()) {
       throw SignatureStateException.alreadySigned("Mandate batch", mandateBatchId);
     }
-    byte[] signedFile = signService.getSignedFile(session, signature);
+    byte[] signedFile =
+        signService.getSignedFile(session, signableMandateBatch(mandateBatchId), signature);
     return persistSignedFileAndStartProcessing(user, mandateBatch, signedFile, locale);
+  }
+
+  public static SignableEntity signableMandateBatch(Long mandateBatchId) {
+    return new SignableEntity("Mandate batch", mandateBatchId);
   }
 
   public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId) {

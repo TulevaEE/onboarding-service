@@ -18,4 +18,13 @@ public class SignatureStateException extends ErrorsResponseException {
     return new SignatureStateException(
         "signature.not.signed", entity + " is not signed: id=" + entityId);
   }
+
+  public static SignatureStateException startedForAnotherEntity(SignableEntity entity) {
+    return new SignatureStateException(
+        "signature.session.entity.mismatch",
+        "Signing session was started for another entity: entity="
+            + entity.kind()
+            + ", id="
+            + entity.id());
+  }
 }

@@ -26,6 +26,7 @@ import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
@@ -846,11 +847,13 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
       var user = mockUser();
-      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
+      IdCardSignatureSession session = IdCardSignatureSession.builder().build();
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
-      when(signService.getSignedFile(session, "signature")).thenReturn(signedFile);
+      when(signService.getSignedFile(
+              session, new SignableEntity("Mandate batch", mandateBatch.getId()), "signature"))
+          .thenReturn(signedFile);
 
       SignatureStatus status =
           mandateBatchService.persistIdCardSignature(
@@ -874,7 +877,7 @@ public class MandateBatchServiceTest {
               List.of(sampleFundPensionOpeningMandate(), samplePartialWithdrawalMandate()));
       mandateBatch.setStatus(SIGNED);
       var user = mockUser();
-      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
+      IdCardSignatureSession session = IdCardSignatureSession.builder().build();
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
@@ -885,7 +888,7 @@ public class MandateBatchServiceTest {
               mandateBatchService.persistIdCardSignature(
                   user.getId(), mandateBatch.getId(), session, "signature", Locale.ENGLISH));
 
-      verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any());
+      verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any(), any());
       verify(mandateBatchRepository, never()).save(any());
       verify(mandateProcessor, never()).start(any(), any());
       verify(applicationEventPublisher, never()).publishEvent(any());

@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.signature.idcard
 import ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture
 import ee.tuleva.onboarding.signature.DigiDocFacade
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.SignableEntity
 import ee.tuleva.onboarding.signature.SignatureFile
+import ee.tuleva.onboarding.signature.SignatureStateException
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import org.digidoc4j.DigestAlgorithm
@@ -23,6 +25,7 @@ class IdCardSignerSpec extends Specification {
   def certificate = WebEidCertificateFixture.certificate("TEST", "USER", personalCode, ESTONIAN_CITIZEN_ID_CARD)
   def certificateInBase64 = getEncoder().encodeToString(certificate.encoded)
   def supportedHashFunctions = ["SHA-224", "SHA-256", "SHA-384", "SHA-512"]
+  def entity = new SignableEntity("Mandate", 1L)
 
   def "starts an id card signature from a base64 DER certificate and returns the base64 hash to sign"() {
     given:
@@ -36,13 +39,14 @@ class IdCardSignerSpec extends Specification {
     1 * digiDocFacade.hashFunction(dataToSign) >> "SHA-256"
 
     when:
-    def session = idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, personalCode)
+    def session = idCardSigner.startSign(entity, files, certificateInBase64, supportedHashFunctions, personalCode)
 
     then:
     getDecoder().decode(session.hashToSign) == digestToSign
     session.hashFunction == "SHA-256"
     session.container == container
     session.dataToSign == dataToSign
+    session.signableEntity == entity
   }
 
   def "signs with the digest algorithm the signing certificate calls for"() {
@@ -54,7 +58,7 @@ class IdCardSignerSpec extends Specification {
     digiDocFacade.hashFunction(dataToSign) >> "SHA-256"
 
     when:
-    idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, personalCode)
+    idCardSigner.startSign(entity, files, certificateInBase64, supportedHashFunctions, personalCode)
 
     then:
     1 * digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256) >> dataToSign
@@ -62,7 +66,7 @@ class IdCardSignerSpec extends Specification {
 
   def "rejects a certificate that belongs to someone other than the signer"() {
     when:
-    idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, "38812121215")
+    idCardSigner.startSign(entity, files, certificateInBase64, supportedHashFunctions, "38812121215")
 
     then:
     thrown(SigningCertificateMismatchException)
@@ -71,7 +75,7 @@ class IdCardSignerSpec extends Specification {
 
   def "rejects a certificate whose digest algorithm the card cannot sign with"() {
     when:
-    idCardSigner.startSign(files, certificateInBase64, ["SHA-512"], personalCode)
+    idCardSigner.startSign(entity, files, certificateInBase64, ["SHA-512"], personalCode)
 
     then:
     thrown(UnsupportedHashFunctionException)
@@ -80,7 +84,7 @@ class IdCardSignerSpec extends Specification {
 
   def "rejects a signing certificate that is not a base64 DER certificate"() {
     when:
-    idCardSigner.startSign(files, invalidCertificate, supportedHashFunctions, personalCode)
+    idCardSigner.startSign(entity, files, invalidCertificate, supportedHashFunctions, personalCode)
 
     then:
     thrown(InvalidSigningCertificateException)
@@ -91,10 +95,10 @@ class IdCardSignerSpec extends Specification {
 
   def "rejects a signature that is not base64"() {
     given:
-    def session = new IdCardSignatureSession("aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
+    def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
 
     when:
-    idCardSigner.getSignedFile(session, "not base64!")
+    idCardSigner.getSignedFile(session, entity, "not base64!")
 
     then:
     thrown(InvalidSignatureException)
@@ -105,16 +109,28 @@ class IdCardSignerSpec extends Specification {
     given:
     def dataToSign = Mock(DataToSign)
     def container = Mock(Container)
-    def session = new IdCardSignatureSession("aGFzaA==", "SHA-256", dataToSign, container)
+    def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", dataToSign, container)
     def signature = "signature".bytes
     def signedContainer = "signed".bytes
 
     1 * digiDocFacade.addSignatureToContainer(signature, dataToSign, container) >> signedContainer
 
     when:
-    def signedFile = idCardSigner.getSignedFile(session, getEncoder().encodeToString(signature))
+    def signedFile = idCardSigner.getSignedFile(session, entity, getEncoder().encodeToString(signature))
 
     then:
     signedFile == signedContainer
+  }
+
+  def "rejects a signature for an entity other than the one the session was started for"() {
+    given:
+    def session = new IdCardSignatureSession(entity, "aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
+
+    when:
+    idCardSigner.getSignedFile(session, new SignableEntity("Mandate", 2L), getEncoder().encodeToString("signature".bytes))
+
+    then:
+    thrown(SignatureStateException)
+    0 * digiDocFacade.addSignatureToContainer(_, _, _)
   }
 }

@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
@@ -140,6 +141,7 @@ public class MandateService {
     User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
     return signService.startIdCardSign(
+        signableMandate(mandateId),
         files,
         signCommand.certificate(),
         signCommand.supportedHashFunctions(),
@@ -169,7 +171,12 @@ public class MandateService {
     if (mandate.isSigned()) {
       throw SignatureStateException.alreadySigned("Mandate", mandateId);
     }
-    return persistAndProcess(user, mandate, signService.getSignedFile(session, signature), locale);
+    byte[] signedFile = signService.getSignedFile(session, signableMandate(mandateId), signature);
+    return persistAndProcess(user, mandate, signedFile, locale);
+  }
+
+  private static SignableEntity signableMandate(Long mandateId) {
+    return new SignableEntity("Mandate", mandateId);
   }
 
   public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateId) {

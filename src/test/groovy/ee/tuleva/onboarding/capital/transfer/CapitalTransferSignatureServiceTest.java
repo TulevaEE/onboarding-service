@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.signature.IdSessionException;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
@@ -256,7 +257,11 @@ class CapitalTransferSignatureServiceTest {
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
     when(signService.startIdCardSign(
-            files, "test-certificate", List.of("SHA-256"), user.getPersonalCode()))
+            new SignableEntity("Capital transfer contract", contractId),
+            files,
+            "test-certificate",
+            List.of("SHA-256"),
+            user.getPersonalCode()))
         .thenReturn(signatureSession);
 
     // when
@@ -287,7 +292,11 @@ class CapitalTransferSignatureServiceTest {
     when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession, "signature")).thenReturn(signedFile);
+    when(signService.getSignedFile(
+            signatureSession,
+            new SignableEntity("Capital transfer contract", contractId),
+            "signature"))
+        .thenReturn(signedFile);
 
     IdCardSignatureStatusResponse response =
         signatureService.persistIdCardSignature(contractId, command, authenticatedPerson);
@@ -318,7 +327,7 @@ class CapitalTransferSignatureServiceTest {
     assertThatThrownBy(
             () -> signatureService.persistIdCardSignature(contractId, command, authenticatedPerson))
         .isInstanceOf(SignatureStateException.class);
-    verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any());
+    verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any(), any());
   }
 
   @Test

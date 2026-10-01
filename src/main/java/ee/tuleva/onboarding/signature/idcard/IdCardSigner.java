@@ -6,6 +6,7 @@ import static java.util.Base64.getEncoder;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import eu.webeid.security.certificate.CertificateData;
 import java.io.ByteArrayInputStream;
@@ -28,6 +29,7 @@ public class IdCardSigner {
   private final DigiDocFacade digiDocFacade;
 
   public IdCardSignatureSession startSign(
+      SignableEntity entity,
       List<SignatureFile> files,
       String certificate,
       List<String> supportedHashFunctions,
@@ -45,10 +47,12 @@ public class IdCardSigner {
     String hashToSign = getEncoder().encodeToString(digiDocFacade.digestToSign(dataToSign));
 
     return new IdCardSignatureSession(
-        hashToSign, digiDocFacade.hashFunction(dataToSign), dataToSign, container);
+        entity, hashToSign, digiDocFacade.hashFunction(dataToSign), dataToSign, container);
   }
 
-  public byte[] getSignedFile(IdCardSignatureSession session, String signature) {
+  public byte[] getSignedFile(
+      IdCardSignatureSession session, SignableEntity entity, String signature) {
+    session.requireStartedFor(entity);
     return digiDocFacade.addSignatureToContainer(
         decodeSignature(signature), session.getDataToSign(), session.getContainer());
   }

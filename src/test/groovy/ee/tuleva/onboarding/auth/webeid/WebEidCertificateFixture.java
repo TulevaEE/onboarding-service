@@ -137,9 +137,10 @@ public class WebEidCertificateFixture {
   public record CertificateWithKey(X509Certificate certificate, PrivateKey privateKey) {}
 
   @SneakyThrows
-  public static CertificateWithKey signingCertificate(String personalCode, String keyAlgorithm) {
+  public static CertificateWithKey signingCertificate(
+      String personalCode, String keyAlgorithm, int keySize) {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyAlgorithm);
-    keyPairGenerator.initialize(keyAlgorithm.equals("EC") ? 384 : 2048);
+    keyPairGenerator.initialize(keySize);
     KeyPair subjectKeyPair = keyPairGenerator.generateKeyPair();
     X509Certificate certificate =
         buildCertificate(

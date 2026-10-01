@@ -73,7 +73,8 @@ class SmartIdClientConfigurationTest {
   @Test
   void demoCertificateValidatorTrustsACertificateIssuedByTheDemoCa() {
     CertificateValidator validator =
-        configuration.smartIdCertificateValidator(demoProperties, resourceLoader);
+        configuration.smartIdCertificateValidator(
+            configuration.smartIdTrustedCaCertStore(demoProperties, resourceLoader));
 
     assertThatCode(() -> validator.validate(demoTestAccountCertificate()))
         .doesNotThrowAnyException();
@@ -82,7 +83,8 @@ class SmartIdClientConfigurationTest {
   @Test
   void liveCertificateValidatorRejectsACertificateIssuedByTheDemoCa() {
     CertificateValidator validator =
-        configuration.smartIdCertificateValidator(liveProperties, resourceLoader);
+        configuration.smartIdCertificateValidator(
+            configuration.smartIdTrustedCaCertStore(liveProperties, resourceLoader));
 
     assertThatThrownBy(() -> validator.validate(demoTestAccountCertificate()))
         .isInstanceOf(UnprocessableSmartIdResponseException.class);

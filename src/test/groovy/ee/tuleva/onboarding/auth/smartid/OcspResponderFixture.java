@@ -46,8 +46,11 @@ final class OcspResponderFixture {
 
   private static final AtomicLong SERIALS = new AtomicLong(1000);
 
+  final KeyPair rootKeys = keyPair();
+  final X509Certificate root = caCertificate("CN=TEST of Smart-ID root CA", rootKeys);
   final KeyPair caKeys = keyPair();
-  final X509Certificate ca = caCertificate("CN=TEST of Smart-ID issuing CA", caKeys);
+  final X509Certificate ca =
+      intermediateCaIssuedBy(root, rootKeys, "CN=TEST of Smart-ID issuing CA", caKeys);
   final KeyPair responderKeys = keyPair();
   final X509Certificate responder =
       issuedBy(ca, caKeys, "CN=TEST of Smart-ID OCSP responder", responderKeys, true);
@@ -124,6 +127,19 @@ final class OcspResponderFixture {
       throw new UncheckedIOException(e);
     }
     return certificate(builder, keys);
+  }
+
+  static X509Certificate intermediateCaIssuedBy(
+      X509Certificate issuer, KeyPair issuerKeys, String subject, KeyPair keys) {
+    var builder =
+        new JcaX509v3CertificateBuilder(
+            issuer, serial(), notBefore(), notAfter(), new X500Name(subject), keys.getPublic());
+    try {
+      builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return certificate(builder, issuerKeys);
   }
 
   static X509Certificate issuedBy(

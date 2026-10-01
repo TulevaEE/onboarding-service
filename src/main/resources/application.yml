@@ -539,6 +539,17 @@ spring:
   config:
     activate:
       on-profile:
+        - staging
+
+smartid:
+  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v3/
+  scheme-name: smart-id-demo
+  trusted-ca-certificates: classpath:smart-id/demo/*.pem
+---
+spring:
+  config:
+    activate:
+      on-profile:
         - dev
 
 sentry:

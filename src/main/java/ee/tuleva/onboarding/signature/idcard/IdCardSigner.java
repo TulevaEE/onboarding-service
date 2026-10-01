@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
 import eu.webeid.security.certificate.CertificateData;
 import java.io.ByteArrayInputStream;
 import java.security.InvalidKeyException;
@@ -20,6 +19,8 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.digidoc4j.Container;
@@ -89,16 +90,21 @@ public class IdCardSigner {
       DataToSign dataToSign, PublicKey publicKey, byte[] signatureValue) {
     String digest =
         dataToSign.getDigestAlgorithm().getDssDigestAlgorithm().getJavaName().replace("-", "");
-    return switch (publicKey.getAlgorithm()) {
-      case "RSA" -> digest + "withRSA";
-      case "EC" ->
-          DSSASN1Utils.isAsn1Encoded(signatureValue)
-              ? digest + "withECDSA"
-              : digest + "withECDSAinP1363Format";
+    return switch (publicKey) {
+      case RSAPublicKey _ -> digest + "withRSA";
+      case ECPublicKey ecPublicKey ->
+          isRawConcatenation(signatureValue, ecPublicKey)
+              ? digest + "withECDSAinP1363Format"
+              : digest + "withECDSA";
       default ->
           throw new IllegalStateException(
               "Unsupported ID-card signing key: keyAlgorithm=" + publicKey.getAlgorithm());
     };
+  }
+
+  private static boolean isRawConcatenation(byte[] signatureValue, ECPublicKey publicKey) {
+    int fieldSizeBytes = (publicKey.getParams().getCurve().getField().getFieldSize() + 7) / 8;
+    return signatureValue.length == 2 * fieldSizeBytes;
   }
 
   private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {

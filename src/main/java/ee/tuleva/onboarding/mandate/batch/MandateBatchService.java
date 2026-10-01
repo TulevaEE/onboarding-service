@@ -9,12 +9,9 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
-import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
@@ -49,7 +46,6 @@ public class MandateBatchService {
   private final UserService userService;
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
-  private final MandateContacts mandateContacts;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
@@ -146,7 +142,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
-      return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
+      return processingStatus(mandateBatch);
     }
 
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
@@ -159,7 +155,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
-      return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
+      return processingStatus(mandateBatch);
     }
 
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
@@ -182,35 +178,22 @@ public class MandateBatchService {
     return persistSignedFileAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
-  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId, Locale locale) {
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
       throw SignatureStateException.notSigned("Mandate batch", mandateBatchId);
     }
-    return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
+    return processingStatus(mandateBatch);
   }
 
-  private SignatureStatus getBatchProcessingStatusAndHandleIfProcessed(
-      User user, MandateBatch mandateBatch, Locale locale) {
-
-    var allMandatesHaveFinishedProcessing =
-        mandateBatch.getMandates().stream()
-            .allMatch(mandate -> mandateProcessor.isFinished(mandate));
-
-    if (allMandatesHaveFinishedProcessing) {
-      onMandateProcessingFinished(user, mandateBatch, locale);
-      return SIGNATURE;
-    } else {
+  private SignatureStatus processingStatus(MandateBatch mandateBatch) {
+    if (!mandateBatch.getMandates().stream().allMatch(mandateProcessor::isFinished)) {
       return OUTSTANDING_TRANSACTION;
     }
-  }
-
-  private void onMandateProcessingFinished(User user, MandateBatch mandateBatch, Locale locale) {
-    mandateContacts.clearCache(user);
     handleMandateProcessingErrors(mandateBatch);
-    notifyAboutSignedMandate(user, mandateBatch, locale);
+    return SIGNATURE;
   }
 
   private void handleMandateProcessingErrors(MandateBatch mandateBatch) {
@@ -253,18 +236,6 @@ public class MandateBatchService {
         mandateBatch.getId());
 
     mandateBatch.getMandates().forEach(mandate -> mandateProcessor.start(user, mandate));
-  }
-
-  private void notifyAboutSignedMandate(User user, MandateBatch mandateBatch, Locale locale) {
-    mandateBatch
-        .getMandates()
-        .forEach(
-            mandate ->
-                applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, user, mandate, locale)));
-
-    applicationEventPublisher.publishEvent(
-        new AfterMandateBatchSignedEvent(this, user, mandateBatch, locale));
   }
 
   private void persistSignedFile(MandateBatch mandateBatch, byte[] signedFile) {

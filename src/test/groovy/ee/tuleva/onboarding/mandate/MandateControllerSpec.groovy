@@ -149,7 +149,8 @@ class MandateControllerSpec extends BaseControllerSpec {
     when:
     def session = IdCardSignatureSession.builder().build()
     sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-    mandateService.persistIdCardSignature(_ as Long, 1L, session, "signature") >> OUTSTANDING_TRANSACTION
+    localeService.getCurrentLocale() >> ENGLISH
+    mandateService.persistIdCardSignature(_ as Long, 1L, session, "signature", ENGLISH) >> OUTSTANDING_TRANSACTION
 
     then:
     mvc
@@ -163,8 +164,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "id card signature status returns the processing status"() {
     when:
-    localeService.getCurrentLocale() >> ENGLISH
-    mandateService.getIdCardSignatureStatus(_ as Long, 1L, ENGLISH) >> SIGNATURE
+    mandateService.getIdCardSignatureStatus(_ as Long, 1L) >> SIGNATURE
 
     then:
     mvc

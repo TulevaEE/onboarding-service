@@ -17,12 +17,9 @@ import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
-import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
@@ -62,7 +59,6 @@ public class MandateBatchServiceTest {
   @Mock private UserService userService;
   @Mock private MandateProcessorService mandateProcessor;
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  @Mock private MandateContacts mandateContacts;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   @Mock private SignatureService signService;
@@ -436,10 +432,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
-      verify(applicationEventPublisher, times(1))
-          .publishEvent(any(AfterMandateBatchSignedEvent.class));
+      verifyNoInteractions(applicationEventPublisher);
       verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
 
@@ -479,8 +472,7 @@ public class MandateBatchServiceTest {
       assertThat(exception).isNotNull();
       assertThat(errors.size()).isEqualTo(2);
 
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verifyNoInteractions(applicationEventPublisher);
       verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
 
@@ -509,7 +501,6 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
@@ -612,10 +603,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
-      verify(applicationEventPublisher, times(1))
-          .publishEvent(any(AfterMandateBatchSignedEvent.class));
+      verifyNoInteractions(applicationEventPublisher);
       verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
 
@@ -655,8 +643,7 @@ public class MandateBatchServiceTest {
       assertThat(exception).isNotNull();
       assertThat(errors.size()).isEqualTo(2);
 
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verifyNoInteractions(applicationEventPublisher);
       verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
 
@@ -685,7 +672,6 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
@@ -761,7 +747,8 @@ public class MandateBatchServiceTest {
   class IdCardTests {
 
     @Test
-    void getIdCardSignatureStatusReturnsSignatureOnceAllMandatesAreProcessed() {
+    void
+        getIdCardSignatureStatusReturnsSignatureOnceAllMandatesAreProcessedWithoutNotifyingAgain() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
       MandateBatch mandateBatch =
@@ -777,14 +764,10 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
       SignatureStatus status =
-          mandateBatchService.getIdCardSignatureStatus(
-              user.getId(), mandateBatch.getId(), Locale.ENGLISH);
+          mandateBatchService.getIdCardSignatureStatus(user.getId(), mandateBatch.getId());
 
       assertThat(status).isEqualTo(SIGNATURE);
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
-      verify(applicationEventPublisher, times(1))
-          .publishEvent(any(AfterMandateBatchSignedEvent.class));
+      verifyNoInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -809,12 +792,9 @@ public class MandateBatchServiceTest {
 
       assertThrows(
           MandateProcessingException.class,
-          () ->
-              mandateBatchService.getIdCardSignatureStatus(
-                  user.getId(), mandateBatch.getId(), Locale.ENGLISH));
+          () -> mandateBatchService.getIdCardSignatureStatus(user.getId(), mandateBatch.getId()));
 
-      verify(mandateContacts, times(1)).clearCache(user);
-      verify(applicationEventPublisher, never()).publishEvent(any());
+      verifyNoInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -832,11 +812,9 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
       SignatureStatus status =
-          mandateBatchService.getIdCardSignatureStatus(
-              user.getId(), mandateBatch.getId(), Locale.ENGLISH);
+          mandateBatchService.getIdCardSignatureStatus(user.getId(), mandateBatch.getId());
 
       assertThat(status).isEqualTo(OUTSTANDING_TRANSACTION);
-      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
     }
 
@@ -853,9 +831,7 @@ public class MandateBatchServiceTest {
 
       assertThrows(
           SignatureStateException.class,
-          () ->
-              mandateBatchService.getIdCardSignatureStatus(
-                  user.getId(), mandateBatch.getId(), Locale.ENGLISH));
+          () -> mandateBatchService.getIdCardSignatureStatus(user.getId(), mandateBatch.getId()));
 
       verify(mandateProcessor, never()).isFinished(any());
       verify(applicationEventPublisher, never()).publishEvent(any());

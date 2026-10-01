@@ -161,7 +161,11 @@ public class MandateController implements SignatureController<Long> {
 
     SignatureStatus statusCode =
         mandateService.persistIdCardSignature(
-            authenticatedPerson.getUserIdOrThrow(), mandateId, session, signCommand.signature());
+            authenticatedPerson.getUserIdOrThrow(),
+            mandateId,
+            session,
+            signCommand.signature(),
+            localeService.getCurrentLocale());
 
     return new IdCardSignatureStatusResponse(statusCode);
   }
@@ -172,8 +176,7 @@ public class MandateController implements SignatureController<Long> {
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SignatureStatus statusCode =
-        mandateService.getIdCardSignatureStatus(
-            authenticatedPerson.getUserIdOrThrow(), mandateId, localeService.getCurrentLocale());
+        mandateService.getIdCardSignatureStatus(authenticatedPerson.getUserIdOrThrow(), mandateId);
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

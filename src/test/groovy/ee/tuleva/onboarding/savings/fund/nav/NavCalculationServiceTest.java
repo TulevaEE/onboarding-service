@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
@@ -12,7 +13,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
@@ -48,7 +48,6 @@ class NavCalculationServiceTest {
   @Mock private SubscriptionsComponent subscriptionsComponent;
   @Mock private RedemptionsComponent redemptionsComponent;
   @Mock private BlackrockAdjustmentComponent blackrockAdjustmentComponent;
-  @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private NavFees navFees;
 
   private NavCalculationService service;
@@ -70,7 +69,6 @@ class NavCalculationServiceTest {
             subscriptionsComponent,
             redemptionsComponent,
             blackrockAdjustmentComponent,
-            positionPriceResolver,
             navFees,
             fixedClock);
   }
@@ -366,19 +364,70 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void calculate_securitiesDetailUsesCutoffForPriceResolution() {
+  void calculate_securitiesDetailIsValuedAtThePricesTheSecuritiesValueWasCalculatedFrom() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     // TKF100 cutoff 15:20 EET = 13:20 UTC (winter)
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
-    Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:25:00Z");
+    ResolvedPrice priceTheValueUsed =
+        ResolvedPrice.builder()
+            .usedPrice(new BigDecimal("34.00"))
+            .validationStatus(OK)
+            .priceDate(previousWorkingDay)
+            .storageKey("IE00BFG1TM61.EUFUND")
+            .priceSource(EODHD)
+            .build();
 
+    givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
+    when(securitiesValueComponent.calculate(any()))
+        .thenAnswer(
+            invocation -> {
+              NavComponentContext context = invocation.getArgument(0);
+              context.setSecurityPrices(Map.of("IE00BFG1TM61", priceTheValueUsed));
+              return new BigDecimal("34000.00");
+            });
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    NavCalculationResult result = service.calculate(TKF100, calcDate);
+
+    assertThat(result.securitiesDetail())
+        .containsExactly(
+            new NavCalculationResult.SecurityDetail(
+                "IE00BFG1TM61",
+                "IE00BFG1TM61.EUFUND",
+                new BigDecimal("1000.00000"),
+                new BigDecimal("34.00"),
+                new BigDecimal("34000.00"),
+                previousWorkingDay,
+                EODHD));
+  }
+
+  @Test
+  void calculate_failsWhenAHeldSecurityHasNoPriceInTheSecuritiesValue() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
+
+    givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
+    when(securitiesValueComponent.calculate(any()))
+        .thenAnswer(
+            invocation -> {
+              NavComponentContext context = invocation.getArgument(0);
+              context.setSecurityPrices(Map.of());
+              return ZERO;
+            });
+    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
+        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+
+    assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  private void givenAWorkingDayWithNothingButSecurities(LocalDate previousWorkingDay) {
     when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
-
-    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("1000000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
@@ -387,23 +436,6 @@ class NavCalculationServiceTest {
         .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
-        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
-    when(positionPriceResolver.resolve("IE00BFG1TM61", previousWorkingDay, expectedPriceCutoff))
-        .thenReturn(
-            Optional.of(
-                ResolvedPrice.builder()
-                    .usedPrice(new BigDecimal("34.00"))
-                    .validationStatus(OK)
-                    .priceDate(previousWorkingDay)
-                    .storageKey("IE00BFG1TM61.EUFUND")
-                    .build()));
-
-    NavCalculationResult result = service.calculate(TKF100, calcDate);
-
-    assertThat(result.securitiesDetail()).hasSize(1);
-    assertThat(result.securitiesDetail().getFirst().price()).isEqualByComparingTo("34.00");
   }
 
   @Test

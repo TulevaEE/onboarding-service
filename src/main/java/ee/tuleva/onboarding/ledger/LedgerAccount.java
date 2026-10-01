@@ -7,7 +7,6 @@ import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 import static org.hibernate.type.SqlTypes.JSON;
 
-import ee.tuleva.onboarding.ledger.validation.AccountEntryConsistency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -30,7 +29,6 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
-@AccountEntryConsistency
 public class LedgerAccount {
 
   @Id

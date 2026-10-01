@@ -20,6 +20,7 @@ class ExpectedErrorCodesSpec extends Specification {
     "mobile.id.timeout"              || true
     "mobile.id.no.signal"            || true
     "mobile.id.certificates.revoked" || true
+    "mobile.id.phone.number.invalid" || true
     "invalid.mandate.checks.missing" || true
     "new.user.flow.signup.error.email.duplicate" || true
     "gift.amount.invalid"            || true

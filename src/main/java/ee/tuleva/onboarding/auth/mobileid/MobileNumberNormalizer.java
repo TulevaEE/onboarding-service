@@ -1,26 +1,43 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.trim;
+import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
-import org.apache.commons.lang3.Strings;
-import org.jspecify.annotations.Nullable;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MobileNumberNormalizer {
 
-  @Nullable String normalizePhoneNumber(@Nullable String phoneNumber) {
-    phoneNumber = trim(phoneNumber);
-    if (Strings.CS.startsWith(phoneNumber, "+")) {
-      phoneNumber = phoneNumber.substring(1);
+  private static final Pattern TYPING_SEPARATORS = Pattern.compile("[\\s\\u00A0\\-.()]");
+  private static final Pattern ESTONIAN_LOCAL_NUMBER = Pattern.compile("\\d{7,8}");
+  private static final Pattern ESTONIAN_MOBILE_NUMBER = Pattern.compile("\\+372\\d{7,8}");
+
+  public String normalize(String typed) {
+    String compact = TYPING_SEPARATORS.matcher(typed).replaceAll("");
+    String canonical = "+" + withCountryCode(compact);
+    if (!ESTONIAN_MOBILE_NUMBER.matcher(canonical).matches()) {
+      throw invalid();
     }
-    if (Strings.CS.startsWith(phoneNumber, "372")) {
-      phoneNumber = phoneNumber.substring(3);
+    return canonical;
+  }
+
+  private static String withCountryCode(String compact) {
+    if (compact.startsWith("+")) {
+      return compact.substring(1);
     }
-    if (isBlank(phoneNumber)) {
-      return null;
+    if (ESTONIAN_LOCAL_NUMBER.matcher(compact).matches()) {
+      return "372" + compact;
     }
-    return "+372" + phoneNumber;
+    if (compact.startsWith("00")) {
+      return compact.substring(2);
+    }
+    return compact;
+  }
+
+  private static MobileIdException invalid() {
+    return new MobileIdException(
+        ofSingleError(
+            "mobile.id.phone.number.invalid",
+            "The phone number is not an Estonian mobile number."));
   }
 }

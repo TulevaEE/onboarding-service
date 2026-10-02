@@ -39,6 +39,16 @@ public class RememberedMobileIdPhones {
         .flatMap(browser -> phones.findUnexpired(browser.id(), personalCode));
   }
 
+  Optional<RememberedMobileIdPerson> mostRecentPerson() {
+    return thisBrowser
+        .remembered()
+        .flatMap(browser -> phones.findMostRecentUnexpired(browser.id()));
+  }
+
+  void forgetMostRecentPerson() {
+    mostRecentPerson().map(person -> person.phone().id()).ifPresent(phones::remove);
+  }
+
   void claimLoginStart() {
     thisBrowser.claimLoginStart(MOBILE_ID);
   }
@@ -55,9 +65,9 @@ public class RememberedMobileIdPhones {
     find(personalCode).map(RememberedMobileIdPhone::id).ifPresent(phones::remove);
   }
 
-  public void remember(String personalCode, String phoneNumber) {
+  public void remember(String personalCode, String phoneNumber, String firstName) {
     Instant expiresAt = Instant.now(clock).plus(validity);
     long browserId = thisBrowser.rememberUntil(expiresAt);
-    phones.save(browserId, personalCode, phoneNumber, expiresAt);
+    phones.save(browserId, personalCode, phoneNumber, firstName, expiresAt);
   }
 }

@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -24,6 +28,36 @@ class MobileIdLoginControllerTest {
 
   @Autowired private MockMvc mockMvc;
   @MockitoBean private RememberedMobileIdPhones rememberedPhones;
+
+  @Test
+  void offersToContinueAsTheRememberedPersonByTheirFirstNameInItsUsualCapitals() throws Exception {
+    given(rememberedPhones.mostRecentPerson())
+        .willReturn(
+            Optional.of(
+                new RememberedMobileIdPerson(
+                    PERSONAL_CODE, "AADU", new RememberedMobileIdPhone(3L, "+37255555555"))));
+
+    mockMvc
+        .perform(get("/v1/mobile-id/login/remembered-person"))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"firstName\":\"Aadu\"}", true));
+  }
+
+  @Test
+  void offersNobodyToContinueAsWhenThisBrowserRemembersNobody() throws Exception {
+    given(rememberedPhones.mostRecentPerson()).willReturn(Optional.empty());
+
+    mockMvc.perform(get("/v1/mobile-id/login/remembered-person")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void notYouForgetsTheRememberedPerson() throws Exception {
+    mockMvc
+        .perform(delete("/v1/mobile-id/login/remembered-person").with(csrf()))
+        .andExpect(status().isNoContent());
+
+    verify(rememberedPhones).forgetMostRecentPerson();
+  }
 
   @Test
   void saysWhetherThisBrowserRemembersAPhoneForThePersonalCode() throws Exception {

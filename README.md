@@ -280,9 +280,11 @@ What a browser remembers lives server-side next to it:
 
 - one Smart-ID account (`remembered_smart_id_account`), for 90 days from the last device-link login that asked to
   be remembered, which is what offers the push login;
-- per personal code, the phone number of the last successful Mobile-ID login that asked to be remembered
+- per personal code, the phone number and first name of the last successful Mobile-ID login that asked to be remembered
   (`remembered_mobile_id_phone`), for 12 months from the last such login. `POST /v1/mobile-id/login/remembered` only says whether one exists, and a
-  Mobile-ID start without a phone number uses it. A start from a remembered number is limited to one per browser
+  Mobile-ID start without a phone number uses it. `GET /v1/mobile-id/login/remembered-person` offers the person remembered last by
+  first name alone, `POST` on it starts their Mobile-ID login without the identity code or phone ever reaching the browser, and
+  `DELETE` forgets them on this browser. A start from a remembered number is limited to one per browser
   every 10 seconds unless the one before has ended, and a remembered number Mobile-ID answers NOT_MID_CLIENT for is forgotten.
 
 `RememberedBrowserPurgeJob` erases expired entries and browsers nightly.

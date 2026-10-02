@@ -55,6 +55,45 @@ class MobileIdLoginStarterTest {
   }
 
   @Test
+  void continuingAsTheRememberedPersonStartsWithTheirIdentityCodeAndPhoneAndKeepsRememberingThem() {
+    var session =
+        new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, REMEMBERED_PHONE);
+    given(rememberedPhones.mostRecentPerson())
+        .willReturn(
+            Optional.of(
+                new RememberedMobileIdPerson(
+                    PERSONAL_CODE, "AADU", new RememberedMobileIdPhone(3L, REMEMBERED_PHONE))));
+    given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE)).willReturn(session);
+
+    assertThat(starter.startForRememberedPerson()).isSameAs(session);
+    assertThat(session.getRememberedPhoneId()).isEqualTo(3L);
+    assertThat(session.isRememberMe()).isTrue();
+    verify(rememberedPhones).claimLoginStart();
+  }
+
+  @Test
+  void continuingAsARememberedPersonOnABrowserThatRemembersNobodyAsksForThePhone() {
+    given(rememberedPhones.mostRecentPerson()).willReturn(Optional.empty());
+
+    assertThatThrownBy(starter::startForRememberedPerson).isInstanceOf(MobileIdException.class);
+    verify(authService, never()).startLogin(any(), any());
+  }
+
+  @Test
+  void continuingAsARememberedPersonWhosePhoneIsNoLongerTheirsForgetsItAndAsksForThePhone() {
+    given(rememberedPhones.mostRecentPerson())
+        .willReturn(
+            Optional.of(
+                new RememberedMobileIdPerson(
+                    PERSONAL_CODE, "AADU", new RememberedMobileIdPhone(3L, REMEMBERED_PHONE))));
+    given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE))
+        .willThrow(new MobileIdNotMidClientException());
+
+    assertThatThrownBy(starter::startForRememberedPerson).isInstanceOf(MobileIdException.class);
+    verify(rememberedPhones).forget(3L);
+  }
+
+  @Test
   void aSessionStartedWithATypedPhoneKeepsWhetherThePersonAskedToBeRemembered() {
     var session = new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, "+37251234567");
     given(authService.startLogin("5123 4567", PERSONAL_CODE)).willReturn(session);

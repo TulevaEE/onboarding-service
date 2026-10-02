@@ -809,6 +809,69 @@ class LoginIntegrationTest {
   }
 
   @Test
+  void aBrowserThatRemembersAMobileIdPersonOffersToContinueAsTheirFirstNameAlone()
+      throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
+
+    mockMvc
+        .perform(get("/v1/mobile-id/login/remembered-person").cookie(browser))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"firstName\":\"Aadu\"}", true));
+    mockMvc.perform(get("/v1/mobile-id/login/remembered-person")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void theRememberedMobileIdPersonLogsInWithoutTypingTheirIdentityCodeOrPhone() throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
+    given(midConnector.authenticate(any()))
+        .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
+
+    MvcResult start =
+        mockMvc
+            .perform(rememberedPersonLoginStart().cookie(browser))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.challengeCode").isNotEmpty())
+            .andReturn();
+
+    verify(midConnector, times(2))
+        .authenticate(
+            argThat(
+                request ->
+                    "+37255555555".equals(request.getPhoneNumber())
+                        && personalCode.equals(request.getNationalIdentityNumber())));
+    mockMvc
+        .perform(
+            post("/oauth/token")
+                .cookie(sessionCookie(start), browser)
+                .param("grant_type", "MOBILE_ID"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+    assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  @Test
+  void continuingAsARememberedMobileIdPersonWithoutOneAsksForThePhone() throws Exception {
+    mockMvc
+        .perform(rememberedPersonLoginStart())
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("mobile.id.phone.number.required"));
+  }
+
+  @Test
+  void notYouForgetsTheRememberedMobileIdPersonOnThisBrowser() throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
+
+    mockMvc
+        .perform(delete("/v1/mobile-id/login/remembered-person").cookie(browser))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get("/v1/mobile-id/login/remembered-person").cookie(browser))
+        .andExpect(status().isNoContent());
+    assertThat(rememberedPhonesOf(personalCode)).isEmpty();
+  }
+
+  @Test
   void aBrowserThatRemembersNoPhoneIsAskedForOne() throws Exception {
     mockMvc
         .perform(mobileIdStart(null))
@@ -837,6 +900,12 @@ class LoginIntegrationTest {
     return post("/authenticate")
         .contentType(APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(body));
+  }
+
+  private static MockHttpServletRequestBuilder rememberedPersonLoginStart() {
+    return post("/v1/mobile-id/login/remembered-person")
+        .contentType(APPLICATION_JSON)
+        .content("{}");
   }
 
   private MockHttpServletRequestBuilder rememberedPhoneQuery(String personalCode) {

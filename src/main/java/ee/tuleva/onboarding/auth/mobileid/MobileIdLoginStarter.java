@@ -27,6 +27,19 @@ public class MobileIdLoginStarter {
     }
     RememberedMobileIdPhone remembered =
         rememberedPhones.find(personalCode).orElseThrow(MobileIdException::phoneNumberRequired);
+    return startWithRememberedPhone(remembered, personalCode);
+  }
+
+  public MobileIDSession startForRememberedPerson() {
+    RememberedMobileIdPerson person =
+        rememberedPhones.mostRecentPerson().orElseThrow(MobileIdException::phoneNumberRequired);
+    MobileIDSession session = startWithRememberedPhone(person.phone(), person.personalCode());
+    session.setRememberMe(true);
+    return session;
+  }
+
+  private MobileIDSession startWithRememberedPhone(
+      RememberedMobileIdPhone remembered, String personalCode) {
     rememberedPhones.claimLoginStart();
     try {
       MobileIDSession session = authService.startLogin(remembered.phoneNumber(), personalCode);

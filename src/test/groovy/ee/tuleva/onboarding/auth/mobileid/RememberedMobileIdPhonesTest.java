@@ -35,9 +35,10 @@ class RememberedMobileIdPhonesTest {
   void aSuccessfulLoginRemembersThePersonsPhoneOnThisBrowserForTwelveMonthsFromNow() {
     given(thisBrowser.rememberUntil(NOW.plus(TWELVE_MONTHS))).willReturn(BROWSER_ID);
 
-    phones.remember("38888888888", "+37255555555");
+    phones.remember("38888888888", "+37255555555", "AADU");
 
-    verify(repository).save(BROWSER_ID, "38888888888", "+37255555555", NOW.plus(TWELVE_MONTHS));
+    verify(repository)
+        .save(BROWSER_ID, "38888888888", "+37255555555", "AADU", NOW.plus(TWELVE_MONTHS));
   }
 
   @Test
@@ -100,6 +101,40 @@ class RememberedMobileIdPhonesTest {
     phones.forgetOnThisBrowser("38888888888");
 
     verify(repository, never()).remove(anyLong());
+  }
+
+  @Test
+  void continuesAsThePersonThisBrowserRememberedLast() {
+    var person =
+        new RememberedMobileIdPerson(
+            "38888888888", "AADU", new RememberedMobileIdPhone(3L, "+37255555555"));
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(TWELVE_MONTHS))));
+    given(repository.findMostRecentUnexpired(BROWSER_ID)).willReturn(Optional.of(person));
+
+    assertThat(phones.mostRecentPerson()).contains(person);
+  }
+
+  @Test
+  void hasNobodyToContinueAsOnABrowserWithoutACookie() {
+    given(thisBrowser.remembered()).willReturn(Optional.empty());
+
+    assertThat(phones.mostRecentPerson()).isEmpty();
+  }
+
+  @Test
+  void notYouForgetsThePersonThisBrowserRememberedLast() {
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(TWELVE_MONTHS))));
+    given(repository.findMostRecentUnexpired(BROWSER_ID))
+        .willReturn(
+            Optional.of(
+                new RememberedMobileIdPerson(
+                    "38888888888", "AADU", new RememberedMobileIdPhone(3L, "+37255555555"))));
+
+    phones.forgetMostRecentPerson();
+
+    verify(repository).remove(3L);
   }
 
   @Test

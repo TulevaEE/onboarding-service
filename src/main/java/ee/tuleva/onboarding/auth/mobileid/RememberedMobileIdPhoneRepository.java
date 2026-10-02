@@ -34,20 +34,46 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
         .optional();
   }
 
+  Optional<RememberedMobileIdPerson> findMostRecentUnexpired(long browserId) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT id, personal_code, phone_number, first_name FROM remembered_mobile_id_phone
+            WHERE browser_id = :browserId AND expires_at > :now AND first_name IS NOT NULL
+            ORDER BY expires_at DESC, id DESC
+            FETCH FIRST 1 ROW ONLY
+            """)
+        .param("browserId", browserId)
+        .param("now", Timestamp.from(Instant.now(clock)))
+        .query(
+            (rs, rowNum) ->
+                new RememberedMobileIdPerson(
+                    rs.getString("personal_code"),
+                    rs.getString("first_name"),
+                    new RememberedMobileIdPhone(rs.getLong("id"), rs.getString("phone_number"))))
+        .optional();
+  }
+
   @Transactional
-  void save(long browserId, String personalCode, String phoneNumber, Instant expiresAt) {
+  void save(
+      long browserId,
+      String personalCode,
+      String phoneNumber,
+      String firstName,
+      Instant expiresAt) {
     lockBrowser(browserId);
     int updated =
         jdbcClient
             .sql(
                 """
                 UPDATE remembered_mobile_id_phone
-                SET phone_number = :phoneNumber, expires_at = :expiresAt
+                SET phone_number = :phoneNumber, first_name = :firstName, expires_at = :expiresAt
                 WHERE browser_id = :browserId AND personal_code = :personalCode
                 """)
             .param("browserId", browserId)
             .param("personalCode", personalCode)
             .param("phoneNumber", phoneNumber)
+            .param("firstName", firstName)
             .param("expiresAt", Timestamp.from(expiresAt))
             .update();
     if (updated == 0) {
@@ -55,12 +81,13 @@ class RememberedMobileIdPhoneRepository implements ExpiringRememberedEntries {
           .sql(
               """
               INSERT INTO remembered_mobile_id_phone
-                (browser_id, personal_code, phone_number, expires_at)
-              VALUES (:browserId, :personalCode, :phoneNumber, :expiresAt)
+                (browser_id, personal_code, phone_number, first_name, expires_at)
+              VALUES (:browserId, :personalCode, :phoneNumber, :firstName, :expiresAt)
               """)
           .param("browserId", browserId)
           .param("personalCode", personalCode)
           .param("phoneNumber", phoneNumber)
+          .param("firstName", firstName)
           .param("expiresAt", Timestamp.from(expiresAt))
           .update();
     }

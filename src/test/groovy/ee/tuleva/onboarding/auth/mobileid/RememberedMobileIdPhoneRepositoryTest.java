@@ -51,8 +51,8 @@ class RememberedMobileIdPhoneRepositoryTest {
   void remembersSeveralPeopleOnOneBrowser() {
     long browser = aBrowser("browser");
 
-    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
-    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER);
+    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", "MARI", LATER);
 
     assertThat(rowsOf(browser))
         .containsExactlyInAnyOrder(
@@ -63,9 +63,9 @@ class RememberedMobileIdPhoneRepositoryTest {
   @Test
   void aLaterLoginReplacesThePhoneAndSlidesTheValidity() {
     long browser = aBrowser("browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.plus(Duration.ofDays(30)));
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", NOW.plus(Duration.ofDays(30)));
 
-    phones.save(browser, PERSONAL_CODE, "+37251234567", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37251234567", "AADU", LATER);
 
     assertThat(rowsOf(browser)).containsExactly(new Row(PERSONAL_CODE, "+37251234567", LATER));
   }
@@ -74,8 +74,8 @@ class RememberedMobileIdPhoneRepositoryTest {
   void findsThePhoneRememberedForAPersonOnABrowser() {
     long browser = aBrowser("browser");
     long otherBrowser = aBrowser("other-browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
-    phones.save(otherBrowser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER);
+    phones.save(otherBrowser, OTHER_PERSONAL_CODE, "+37251234567", "MARI", LATER);
 
     assertThat(phones.findUnexpired(browser, PERSONAL_CODE))
         .hasValueSatisfying(phone -> assertThat(phone.phoneNumber()).isEqualTo("+37255555555"));
@@ -84,9 +84,68 @@ class RememberedMobileIdPhoneRepositoryTest {
   }
 
   @Test
+  void findsThePersonLastRememberedOnABrowserWithTheirFirstNameAndPhone() {
+    long browser = aBrowser("browser");
+    long otherBrowser = aBrowser("other-browser");
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER.minusSeconds(1));
+    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", "MARI", LATER);
+    phones.save(otherBrowser, PERSONAL_CODE, "+37255555555", "AADU", LATER.plusSeconds(1));
+
+    assertThat(phones.findMostRecentUnexpired(browser))
+        .hasValueSatisfying(
+            person -> {
+              assertThat(person.personalCode()).isEqualTo(OTHER_PERSONAL_CODE);
+              assertThat(person.firstName()).isEqualTo("MARI");
+              assertThat(person.phone().phoneNumber()).isEqualTo("+37251234567");
+            });
+  }
+
+  @Test
+  void findsNoPersonOnABrowserWhoseRememberedPhonesHaveRunOut() {
+    long browser = aBrowser("browser");
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", NOW.minusSeconds(1));
+
+    assertThat(phones.findMostRecentUnexpired(browser)).isEmpty();
+  }
+
+  @Test
+  void findsNoPersonForAPhoneRememberedBeforeFirstNamesWere() {
+    long browser = aBrowser("browser");
+    jdbcClient
+        .sql(
+            "INSERT INTO remembered_mobile_id_phone (browser_id, personal_code, phone_number,"
+                + " expires_at) VALUES (:browserId, :personalCode, '+37255555555', :expiresAt)")
+        .param("browserId", browser)
+        .param("personalCode", PERSONAL_CODE)
+        .param("expiresAt", Timestamp.from(LATER))
+        .update();
+
+    assertThat(phones.findMostRecentUnexpired(browser)).isEmpty();
+    assertThat(phones.findUnexpired(browser, PERSONAL_CODE)).isPresent();
+  }
+
+  @Test
+  void aLaterLoginRemembersTheFirstNameOfAPhoneRememberedBeforeFirstNamesWere() {
+    long browser = aBrowser("browser");
+    jdbcClient
+        .sql(
+            "INSERT INTO remembered_mobile_id_phone (browser_id, personal_code, phone_number,"
+                + " expires_at) VALUES (:browserId, :personalCode, '+37255555555', :expiresAt)")
+        .param("browserId", browser)
+        .param("personalCode", PERSONAL_CODE)
+        .param("expiresAt", Timestamp.from(NOW.plusSeconds(60)))
+        .update();
+
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER);
+
+    assertThat(phones.findMostRecentUnexpired(browser))
+        .hasValueSatisfying(person -> assertThat(person.firstName()).isEqualTo("AADU"));
+  }
+
+  @Test
   void doesNotFindAPhoneWhoseValidityHasRunOut() {
     long browser = aBrowser("browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.minusSeconds(1));
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", NOW.minusSeconds(1));
 
     assertThat(phones.findUnexpired(browser, PERSONAL_CODE)).isEmpty();
   }
@@ -94,8 +153,8 @@ class RememberedMobileIdPhoneRepositoryTest {
   @Test
   void forgetsOnePhoneAndLeavesTheOthersOnTheBrowser() {
     long browser = aBrowser("browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
-    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER);
+    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", "MARI", LATER);
     long id = phones.findUnexpired(browser, PERSONAL_CODE).orElseThrow().id();
 
     phones.remove(id);
@@ -107,8 +166,8 @@ class RememberedMobileIdPhoneRepositoryTest {
   @Test
   void purgesOnlyPhonesPastTheirValidity() {
     long browser = aBrowser("browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", NOW.minusSeconds(1));
-    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", NOW.minusSeconds(1));
+    phones.save(browser, OTHER_PERSONAL_CODE, "+37251234567", "MARI", LATER);
 
     assertThat(phones.removeExpired()).isEqualTo(1);
 
@@ -119,7 +178,7 @@ class RememberedMobileIdPhoneRepositoryTest {
   @Test
   void goesWithTheBrowserWhenTheBrowserIsErased() {
     long browser = aBrowser("browser");
-    phones.save(browser, PERSONAL_CODE, "+37255555555", LATER);
+    phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER);
 
     jdbcClient.sql("DELETE FROM remembered_browser WHERE id = :id").param("id", browser).update();
 
@@ -148,8 +207,8 @@ class RememberedMobileIdPhoneRepositoryTest {
     try {
       runTogether(
           50,
-          () -> phones.save(browser, PERSONAL_CODE, "+37255555555", LATER),
-          () -> phones.save(browser, PERSONAL_CODE, "+37251234567", LATER));
+          () -> phones.save(browser, PERSONAL_CODE, "+37255555555", "AADU", LATER),
+          () -> phones.save(browser, PERSONAL_CODE, "+37251234567", "AADU", LATER));
 
       assertThat(rowsOf(browser)).hasSize(1);
     } finally {

@@ -69,7 +69,7 @@ class MobileIdAuthProviderSpec extends Specification {
     AuthenticatedPerson result = mobileIdAuthProvider.authenticate(authenticationHash)
     then:
     result == person
-    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber)
+    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber, person.firstName)
     0 * rememberedPhones.forgetOnThisBrowser(_)
   }
 
@@ -88,7 +88,7 @@ class MobileIdAuthProviderSpec extends Specification {
     then:
     result == person
     1 * rememberedPhones.forgetOnThisBrowser(person.personalCode)
-    0 * rememberedPhones.remember(_, _)
+    0 * rememberedPhones.remember(_, _, _)
   }
 
   def "remembers nothing while the login is not complete"() {
@@ -100,7 +100,7 @@ class MobileIdAuthProviderSpec extends Specification {
     mobileIdAuthProvider.authenticate(null)
     then:
     thrown(AuthNotCompleteException)
-    0 * rememberedPhones.remember(_, _)
+    0 * rememberedPhones.remember(_, _, _)
   }
 
   def "forgets a remembered phone Mobile-ID says does not belong to the person and asks for the phone"() {
@@ -143,7 +143,7 @@ class MobileIdAuthProviderSpec extends Specification {
     then:
     1 * rememberedPhones.releaseLoginStart()
     then:
-    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber)
+    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber, person.firstName)
   }
 
   def "a login from a remembered phone that Mobile-ID ends with #failure.class.simpleName releases this browser"() {

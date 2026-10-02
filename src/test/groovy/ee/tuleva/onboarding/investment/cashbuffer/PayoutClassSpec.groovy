@@ -25,4 +25,12 @@ class PayoutClassSpec extends Specification {
     RegistrarPayoutReason.SECOND_PILLAR_EXIT                   || PayoutClass.CYCLE
     RegistrarPayoutReason.UNRECOGNISED                         || PayoutClass.UNRECOGNISED
   }
+
+  def "every registrar payout reason has a class"() {
+    when:
+    RegistrarPayoutReason.values().each { PayoutClass.of(it) }
+
+    then:
+    noExceptionThrown()
+  }
 }

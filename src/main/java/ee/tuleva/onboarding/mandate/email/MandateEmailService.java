@@ -75,7 +75,7 @@ public class MandateEmailService {
             user.getEmail(),
             templateName,
             getMergeVars(user, mandate, decision, locale),
-            List.of("mandate", "pillar_2", decision.tag()),
+            decision.emailTags("mandate", "pillar_2"),
             getAttachments(user, mandate));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -87,7 +87,7 @@ public class MandateEmailService {
                     emailType,
                     response.getStatus(),
                     mandate.getIdOrThrow(),
-                    decision.tag()));
+                    decision.emailTag()));
   }
 
   private Map<String, Object> getMergeVars(
@@ -111,7 +111,6 @@ public class MandateEmailService {
                           "No second pillar pending payment rate to send an email with")));
       mergeVars.put("oldPaymentRate", paymentRates.getCurrent());
 
-      // Add decreased/increased flags for template logic
       Integer newRate = paymentRates.getPending().orElseThrow();
       Integer oldRate =
           requireNonNull(

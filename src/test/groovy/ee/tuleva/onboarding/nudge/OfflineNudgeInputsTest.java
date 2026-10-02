@@ -28,6 +28,7 @@ class OfflineNudgeInputsTest {
 
   @Mock private PensionRegistry pensionRegistry;
   @Mock private SecondPillarLeaverStatus leaverStatus;
+  @Mock private SecondPillarEarlyWithdrawals earlyWithdrawals;
   @Mock private RecurringContributionStatus recurringStatus;
   @Mock private SavingsFundSaverStatus saverStatus;
   @Mock private TaxHeadroom taxHeadroom;
@@ -46,6 +47,7 @@ class OfflineNudgeInputsTest {
         pensionRegistry,
         new KnownLookups(
             leaverStatus,
+            earlyWithdrawals,
             recurringStatus,
             saverStatus,
             taxHeadroom,

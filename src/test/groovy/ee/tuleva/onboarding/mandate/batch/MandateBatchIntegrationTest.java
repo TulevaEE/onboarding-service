@@ -7,33 +7,45 @@ import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
+import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
+import ee.tuleva.onboarding.mandate.email.MandateBatchEmailService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
+import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.util.Streamable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -48,11 +60,13 @@ class MandateBatchIntegrationTest {
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
   @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
   @MockitoBean private OperationsNotificationService notificationService;
+  @MockitoSpyBean private MandateBatchEmailService mandateBatchEmailService;
 
   // The JWT authenticates samplePerson, and the auth filter creates that user on the server
   // thread, which no test-side transaction can roll back. It outlives the test in the shared
@@ -332,5 +346,72 @@ class MandateBatchIntegrationTest {
         .value(status -> assertThat(status).isNotEqualTo(200));
 
     assertThat(Streamable.of(mandateBatchRepository.findAll()).toList().size()).isEqualTo(0);
+  }
+
+  @Test
+  void pollerCompletesASignedBatchAsItsOwnerSoTheContactUpdateReachesEpisAndTheBatchEmailIsSent() {
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(true)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(65)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+    given(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .willReturn(aWithdrawalEligibility);
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    var personalCodesEpisWasCalledAs = new CopyOnWriteArrayList<String>();
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(
+            invocation -> {
+              personalCodesEpisWasCalledAs.add(authenticatedPersonalCode());
+              return invocation.getArgument(1, ContactDetails.class);
+            });
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(h -> h.addAll(getHeaders()))
+        .body(
+            MandateBatchDto.builder()
+                .mandates(
+                    List.of(
+                        MandateDto.builder()
+                            .details(MandateFixture.aFundPensionOpeningMandateDetails)
+                            .build(),
+                        MandateDto.builder()
+                            .details(MandateFixture.aPartialWithdrawalMandateDetails)
+                            .build()))
+                .build())
+        .exchange()
+        .expectStatus()
+        .isOk();
+    var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
+
+    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
+    mandateBatchProcessingPoller.processQueue();
+
+    var ownerPersonalCode = samplePerson().getPersonalCode();
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () ->
+                then(mandateBatchEmailService)
+                    .should()
+                    .sendMandateBatch(
+                        argThat(user -> user.getPersonalCode().equals(ownerPersonalCode)),
+                        argThat(sentBatch -> sentBatch.getId().equals(batch.getId())),
+                        eq(Locale.ENGLISH)));
+    assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
+  }
+
+  private static String authenticatedPersonalCode() {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !(authentication.getCredentials() instanceof String)) {
+      return "no authentication with a token";
+    }
+    return ((AuthenticatedPerson) authentication.getPrincipal()).getPersonalCode();
   }
 }

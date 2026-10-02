@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.nudge;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
+import static ee.tuleva.onboarding.nudge.NudgeKey.NONE;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
@@ -17,8 +18,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 @JsonInclude(NON_NULL)
@@ -48,6 +51,14 @@ public record NudgeDecision(
   @JsonProperty
   public String tag() {
     return key.getTag();
+  }
+
+  public @Nullable String emailTag() {
+    return key == NONE ? null : tag();
+  }
+
+  public List<String> emailTags(String... baseTags) {
+    return Stream.concat(Stream.of(baseTags), Stream.ofNullable(emailTag())).toList();
   }
 
   public Map<String, Object> mergeVars(Locale locale) {

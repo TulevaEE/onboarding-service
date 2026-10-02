@@ -76,6 +76,49 @@ class PaymentEmailServiceSpec extends Specification {
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status, decision.tag())
   }
 
+  def "a third pillar payment email with no nudge carries no nudge tag"() {
+    given:
+    def user = sampleUser().build()
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+    emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> []
+
+    when:
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, aNewSinglePayment(), NudgeDecision.of(NudgeKey.NONE), Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", _, ["pillar_3.1", "mandate", "payment"], []) >> message
+    1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status, null)
+  }
+
+  def "a savings fund payment email with no nudge carries no nudge tag"() {
+    given:
+    def user = sampleUser().build()
+    def email = SavingsFundPaymentEmail.personSuccess()
+    def decision = NudgeDecision.of(NudgeKey.NONE)
+    def mergeVars = [
+        "fname": user.firstName,
+        "lname": user.lastName,
+    ] + decision.mergeVars(Locale.ENGLISH) + email.mergeVars()
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, decision, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_person_en", mergeVars, ["savings_fund"]) >> message
+    1 * emailService.send(user, message, "savings_fund_payment_success_person_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status, null)
+  }
+
   def "send savings fund payment emails"() {
     given:
     def user = sampleUser().build()
@@ -132,7 +175,7 @@ class PaymentEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "savings_fund_payment_failed_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status, null)
   }
 
   def "savings fund payment email includes the recipient name when present"() {

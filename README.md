@@ -267,9 +267,15 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 
 #### References
 
-[hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)
+[Web eID](https://www.id.ee/en/article/web-eid/) (ID card authentication and signing in the browser)
 
-[hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
+[web-eid.js](https://github.com/web-eid/web-eid.js) (frontend library: `authenticate`, `getSigningCertificate`, `sign`)
+
+[web-eid-authtoken-validation-java](https://github.com/web-eid/web-eid-authtoken-validation-java) (backend authentication token validation)
+
+[Web eID system architecture](https://github.com/web-eid/web-eid-system-architecture-doc)
+
+[digidoc4j](https://github.com/open-eid/digidoc4j) (container building and signature finalization)
 
 [Test Authentication Methods](https://www.id.ee/en/article/testing-the-services/)
 

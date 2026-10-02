@@ -46,6 +46,7 @@ class NudgeDecisionServiceTest {
   @Mock private PendingMandateApplications pendingApplications;
   @Mock private SecondPillarPaymentRateService paymentRateService;
   @Mock private SecondPillarLeaverStatus leaverStatus;
+  @Mock private SecondPillarEarlyWithdrawals earlyWithdrawals;
   @Mock private RecurringContributionStatus recurringStatus;
   @Mock private SavingsFundSaverStatus saverStatus;
   @Mock private TaxHeadroom taxHeadroom;
@@ -76,6 +77,7 @@ class NudgeDecisionServiceTest {
             feeComparisonCalculator,
             new KnownLookups(
                 leaverStatus,
+                earlyWithdrawals,
                 recurringStatus,
                 saverStatus,
                 taxHeadroom,
@@ -99,6 +101,7 @@ class NudgeDecisionServiceTest {
     lenient().when(pendingApplications.getPendingExchanges(any(), any())).thenReturn(List.of());
     lenient().when(pendingApplications.hasPendingWithdrawals(any(), any())).thenReturn(false);
     lenient().when(leaverStatus.hasLeft(any())).thenReturn(false);
+    lenient().when(earlyWithdrawals.hasCompleted(any())).thenReturn(false);
     lenient().when(recurringStatus.thirdPillar(any())).thenReturn(true);
     lenient().when(recurringStatus.savingsFund(any())).thenReturn(true);
     lenient().when(saverStatus.savesFor(any())).thenReturn(true);
@@ -182,7 +185,7 @@ class NudgeDecisionServiceTest {
 
     assertThat(service.decide(member, self, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.savingsFund(new BigDecimal("0.28")));
-    verifyNoInteractions(leaverStatus);
+    verifyNoInteractions(leaverStatus, earlyWithdrawals);
   }
 
   @Test
@@ -192,6 +195,37 @@ class NudgeDecisionServiceTest {
 
     assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aLeaverTheRegistryHasNotCaughtUpWithIsKnownFromTheirCompletedEarlyWithdrawal() {
+    given(conversionService.getConversion(member)).willReturn(notConverted());
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, null));
+    given(earlyWithdrawals.hasCompleted(member)).willReturn(true);
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aFailedEarlyWithdrawalLookupSkipsTheSecondPillarNudgeInsteadOfGuessing() {
+    given(conversionService.getConversion(any())).willReturn(notConverted());
+    given(paymentRateService.getPaymentRates(any())).willReturn(new PaymentRates(2, null));
+    given(earlyWithdrawals.hasCompleted(any())).willThrow(new IllegalStateException("epis down"));
+    User nonMember = sampleUserNonMember().build();
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+    assertThat(service.decide(nonMember, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.MEMBERSHIP));
+  }
+
+  @Test
+  void aSecondPillarSaverWhoNeverWithdrewIsStillAskedToMoveIt() {
+    given(conversionService.getConversion(member)).willReturn(notConverted());
+
+    assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
   }
 
   @Test

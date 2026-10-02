@@ -129,7 +129,7 @@ class TrackingDifferenceEscalationIT {
     assertThat(escalated).containsExactly(FRIDAY);
     assertThat(notifications.lastMessage())
         .contains("closed a 3-day breach streak, and no check ran in between")
-        .contains("so it is sent today, late");
+        .contains("so it is sent now, late");
   }
 
   @Test

@@ -704,9 +704,9 @@ class TrackingDifferenceNotifierTest {
             """
             🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
 
-            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits today (TD=+0.05%), but the 3 \
-            working days before it breached. Sisekord 4 p 11.8 makes the notification due today, \
-            on working day 4: identify the cause and act on it.
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
               [3 consecutive days, compounded TD=+0.60%]
               Compounded: fund=+0.60%, benchmark=0.00%
               Multi-day attribution (arithmetic sum of daily contributions):
@@ -742,10 +742,10 @@ class TrackingDifferenceNotifierTest {
             """
             🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
 
-            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits today (TD=+0.05%). The last \
-            check before it, 2 working days earlier, closed a 3-day breach streak, and no check \
-            ran in between. Sisekord 4 p 11.8 made the notification due on working day 4, which \
-            had no check, so it is sent today, late: identify the cause and act on it.
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%). The last check \
+            before it, 2 working days earlier, closed a 3-day breach streak, and no check ran in \
+            between. Sisekord 4 p 11.8 made the notification due on working day 4, which had no \
+            check, so it is sent now, late: identify the cause and act on it.
               [3 consecutive days, 1 of them with no check, compounded TD over the checked \
             days=+0.60%]
               Compounded: fund=+0.60%, benchmark=0.00%""",
@@ -834,7 +834,7 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue())
         .startsWith("🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n🛑 TD BREACH DETECTED\n")
-        .contains("[TUK75] MODEL_PORTFOLIO 2026-04-03: within limits today")
+        .contains("[TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=")
         .contains("[TUV100] MODEL_PORTFOLIO 2026-04-03: TD=+0.15%");
   }
 
@@ -1360,6 +1360,35 @@ class TrackingDifferenceNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(contains("No breach on any of them."), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryCarriesTheNotificationARewrittenCleanDayNowOwes() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var thirdBreachDay =
+        result(true, 3, new BigDecimal("0.0060")).toBuilder()
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .build();
+    var fourthDayWithinLimits = cleanDayEnding(threeDayStreak("0.0060", false));
+
+    notifier.notifyGapFillSummary(gapFill(thirdBreachDay, fourthDayWithinLimits));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-02 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 3 consecutive days
+
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
+              [3 consecutive days, compounded TD=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
   }
 
   @Test

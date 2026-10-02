@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.web.context.request.RequestContextHolder
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -27,6 +28,14 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
 
 class LoginEventBroadcasterSpec extends Specification {
+
+  def setup() {
+    RequestContextHolder.resetRequestAttributes()
+  }
+
+  def cleanup() {
+    RequestContextHolder.resetRequestAttributes()
+  }
 
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()

@@ -51,6 +51,7 @@ class JobTriggerPoller {
           Map.entry("TdAttributionJob", RunTdAttributionMonthlyRequested::new),
           Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)),
           Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new),
+          Map.entry("InstrumentFeeRateJob", RunInstrumentFeeRateResolveRequested::new),
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 

@@ -162,6 +162,14 @@ class OcfCalculationServiceTest {
     assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
     assertThat(result.transactionCostRate().signum()).isGreaterThan(0);
     assertThat(result.totalOcf().signum()).isGreaterThan(0);
+    verify(ocfSnapshotRepository)
+        .save(
+            result,
+            List.of(
+                new OcfHolding(
+                    new BigDecimal("100000000"),
+                    new BigDecimal("100000000"),
+                    rate(ISIN, new BigDecimal("0.0007")))));
   }
 
   @Test
@@ -591,6 +599,29 @@ class OcfCalculationServiceTest {
         .should()
         .notifyRun(
             eq(MONTH), argThat(outcomes -> failedFunds(outcomes).equals(List.of(TUK75))), any());
+  }
+
+  @Test
+  void calculateForAllFundsHandsTheMonthsRatesToTheNotificationSoItCanNameTheFallbacks() {
+    stream(TulevaFund.values()).forEach(this::givenFundComputesWithNothingCharged);
+    var fallback =
+        new InstrumentRate(
+            1L,
+            ISIN,
+            MONTH,
+            new BigDecimal("0.0007"),
+            new BigDecimal("0.0007"),
+            RateBasis.PUBLISHED_FALLBACK,
+            "no volume",
+            RebateKind.FIXED_NET);
+    given(instrumentOcfService.ratesFor(MONTH)).willReturn(rates(fallback));
+
+    service.calculateForAllFunds(MONTH);
+
+    then(ocfNotifier)
+        .should()
+        .notifyRun(
+            eq(MONTH), any(), argThat(rates -> List.copyOf(rates).equals(List.of(fallback))));
   }
 
   private static List<TulevaFund> failedFunds(List<OcfRunOutcome> outcomes) {

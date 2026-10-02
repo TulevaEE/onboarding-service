@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
@@ -21,7 +20,6 @@ import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
-import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -31,11 +29,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +45,6 @@ public class OcfCalculationService {
   private static final int SCALE = 8;
   private static final RebateBasis REBATE_BASIS = RebateBasis.NET;
   private static final BigDecimal DAYS_IN_YEAR = BigDecimal.valueOf(365);
-  private static final String UNIDENTIFIED_HOLDING = "<no isin>";
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FeeRateRepository feeRateRepository;
@@ -252,11 +246,11 @@ public class OcfCalculationService {
           ZERO, ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM), List.of());
     }
     var lines = calculation.securityLines();
-    var unrated = unratedIsins(lines, rates);
+    var unrated = OcfHolding.unratedIsins(lines, rates);
     if (!unrated.isEmpty()) {
       throw new MissingInstrumentRateException(fund, asOf, unrated);
     }
-    var holdings = holdings(lines, rates, aum);
+    var holdings = OcfHolding.of(lines, rates, aum);
     return new UnderlyingFundCost(
         weigh(holdings, InstrumentRate::netOcf, aum),
         weigh(holdings, InstrumentRate::publishedOcf, aum),
@@ -267,43 +261,12 @@ public class OcfCalculationService {
         holdings);
   }
 
-  private static List<OcfHolding> holdings(
-      List<NavAccountLine> lines, Map<String, InstrumentRate> rates, BigDecimal aum) {
-    return lines.stream()
-        .collect(
-            Collectors.groupingBy(
-                line -> requireNonNull(line.accountId(), UNIDENTIFIED_HOLDING),
-                TreeMap::new,
-                Collectors.reducing(ZERO, NavAccountLine::value, BigDecimal::add)))
-        .entrySet()
-        .stream()
-        .map(
-            holding ->
-                new OcfHolding(
-                    holding.getValue(),
-                    aum,
-                    requireNonNull(
-                        rates.get(holding.getKey()),
-                        "Unrated holding passed the guard: " + holding.getKey())))
-        .toList();
-  }
-
   private static BigDecimal weigh(
       List<OcfHolding> holdings, Function<InstrumentRate, BigDecimal> rate, BigDecimal aum) {
     return holdings.stream()
         .map(holding -> holding.value().multiply(rate.apply(holding.rate())))
         .reduce(ZERO, BigDecimal::add)
         .divide(aum, SCALE, HALF_UP);
-  }
-
-  private static List<String> unratedIsins(
-      List<NavAccountLine> lines, Map<String, InstrumentRate> rates) {
-    return lines.stream()
-        .map(NavAccountLine::accountId)
-        .map(isin -> isin == null ? UNIDENTIFIED_HOLDING : isin)
-        .filter(isin -> !rates.containsKey(isin))
-        .distinct()
-        .toList();
   }
 
   TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {

@@ -40,7 +40,7 @@ class FundSettlementTermsSeedTest {
   }
 
   @Test
-  void aFundBeingRetiredKeepsTheFlatRule() {
+  void aRetiredFundIsNotSeeded() {
     assertThat(repository.findByIsin("IE0009FT4LX4").flatMap(InstrumentReference::settlementTerms))
         .isEmpty();
   }

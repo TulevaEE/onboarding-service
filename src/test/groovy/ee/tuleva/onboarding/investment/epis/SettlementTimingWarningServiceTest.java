@@ -126,6 +126,33 @@ class SettlementTimingWarningServiceTest {
   }
 
   @Test
+  void
+      noWarningJustAfterMidnightInTallinnOnTheDayAfterTheExecutionThoughTheUtcDateIsStillThatDay() {
+    var dayAfterTheExecution = EXEC_DATE.plusDays(1);
+    var halfPastMidnightInTallinn = dayAfterTheExecution.atTime(0, 30).atZone(TALLINN).toInstant();
+    var service =
+        new SettlementTimingWarningService(
+            periodService,
+            settlementDateCalculator,
+            allocationRepository,
+            Clock.fixed(halfPastMidnightInTallinn, ZoneOffset.UTC));
+    given(periodService.getCurrentPeriod(dayAfterTheExecution))
+        .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
+    given(allocationRepository.findLatestByFundAsOf(TUK00, dayAfterTheExecution))
+        .willReturn(List.of(allocation(TUK00, "LU0000000002", FUND)));
+    given(
+            settlementDateCalculator.calculateSettlementDate(
+                halfPastMidnightInTallinn, FUND, "LU0000000002"))
+        .willReturn(LocalDate.of(2026, 5, 6));
+    given(
+            settlementDateCalculator.calculateSettlementDate(
+                halfPastMidnightInTallinn, ETF, TUK00.getIsin()))
+        .willReturn(LocalDate.of(2026, 5, 6));
+
+    assertThat(service.activeWarnings()).isEmpty();
+  }
+
+  @Test
   void aSellPlacedJustAfterMidnightInTallinnReadsThatDaysPeriodAndModelThoughTheClockRunsInUtc() {
     var halfPastMidnightInTallinn = TODAY.atTime(0, 30).atZone(TALLINN).toInstant();
     var service =

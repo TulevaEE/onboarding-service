@@ -210,10 +210,10 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
-  void aHoldingSplitOverTwoPositionRowsIsRecordedOnceAtItsNavReportValue() {
+  void aHoldingKeptUnderItsOldAndItsNewNameIsRecordedOnceAtItsNavReportValue() {
     insertTuk75Data();
-    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "first name", 1_750_000);
-    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "second name", 1_750_000);
+    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "name before the resend", 3_500_000);
+    insertPositionRowNamed("TUK75", NAV_DATE, "IE00UNLIMITED", "name after the resend", 3_500_000);
     insertNavReportSecurity("TUK75", NAV_DATE, "IE00UNLIMITED", 3_500_000);
 
     limitCheckService.runChecks();

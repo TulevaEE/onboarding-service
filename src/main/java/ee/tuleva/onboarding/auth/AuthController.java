@@ -60,7 +60,8 @@ public class AuthController {
         yield AuthenticateResponse.fromWebEidChallenge(challengeNonce);
       }
       case MobileIdAuthenticateCommand cmd -> {
-        var loginSession = mobileIdLoginStarter.start(cmd.phoneNumber(), cmd.personalCode());
+        var loginSession =
+            mobileIdLoginStarter.start(cmd.phoneNumber(), cmd.personalCode(), cmd.rememberMe());
         genericSessionStore.save(loginSession);
         yield AuthenticateResponse.fromMobileIdSession(loginSession);
       }

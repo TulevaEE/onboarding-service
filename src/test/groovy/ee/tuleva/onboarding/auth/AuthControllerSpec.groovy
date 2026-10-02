@@ -33,7 +33,7 @@ class AuthControllerSpec extends BaseControllerSpec {
 
   def "Authenticate: Initiate mobile id authentication"() {
     given:
-    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode, false) >> MobileIdFixture.sampleMobileIdSession
     1 * sessionStore.save(_ as MobileIDSession)
     when:
     def result = mockMvc.perform(post("/authenticate")
@@ -43,9 +43,21 @@ class AuthControllerSpec extends BaseControllerSpec {
     result.andExpect(status().isOk())
   }
 
+  def "Authenticate: Initiate mobile id authentication the person asked this browser to remember"() {
+    given:
+    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode, true) >> MobileIdFixture.sampleMobileIdSession
+    1 * sessionStore.save(_ as MobileIDSession)
+    when:
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand() + [rememberMe: true])))
+    then:
+    result.andExpect(status().isOk())
+  }
+
   def "Authenticate: Initiate mobile id authentication without a phone number"() {
     given:
-    1 * mobileIdLoginStarter.start(null, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * mobileIdLoginStarter.start(null, MobileIdFixture.sampleIdCode, false) >> MobileIdFixture.sampleMobileIdSession
     1 * sessionStore.save(_ as MobileIDSession)
     when:
     def result = mockMvc.perform(post("/authenticate")

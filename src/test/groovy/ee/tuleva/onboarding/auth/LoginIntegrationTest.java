@@ -609,12 +609,54 @@ class LoginIntegrationTest {
   }
 
   @Test
-  void aSuccessfulMobileIdLoginRemembersTheCanonicalPhoneOnThisBrowser() throws Exception {
-    MvcResult granted = completeMobileIdLogin("+372 5555 5555");
+  void aMobileIdLoginWithRememberMeRemembersTheCanonicalPhoneOnThisBrowser() throws Exception {
+    MvcResult granted = completeMobileIdLogin("+372 5555 5555", true);
 
     assertThat(granted.getResponse().getHeaders(SET_COOKIE))
         .anyMatch(value -> value.startsWith(COOKIE_NAME + "="));
     assertThat(rememberedPhonesOf(personalCode)).containsExactly("+37255555555");
+  }
+
+  @Test
+  void aMobileIdLoginWithoutRememberMeSetsNoRememberedBrowserCookieAndRemembersNoPhone()
+      throws Exception {
+    MvcResult granted = completeMobileIdLogin("+372 5555 5555", false);
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedPhonesOf(personalCode)).isEmpty();
+  }
+
+  @Test
+  void aMobileIdLoginStartedWithoutTheRememberMeFlagRemembersNothing() throws Exception {
+    MvcResult granted =
+        completeMobileIdLogin(
+            Map.of(
+                "type",
+                "MOBILE_ID",
+                "phoneNumber",
+                "+372 5555 5555",
+                "personalCode",
+                personalCode));
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedPhonesOf(personalCode)).isEmpty();
+  }
+
+  @Test
+  void aMobileIdLoginWithoutRememberMeForgetsThePhoneThisBrowserRemembersForThePerson()
+      throws Exception {
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
+
+    MvcResult granted = completeMobileIdLogin("+372 5555 5555", false, browser);
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedPhonesOf(personalCode)).isEmpty();
+    mockMvc
+        .perform(rememberedPhoneQuery(personalCode).cookie(browser))
+        .andExpect(content().json("{\"remembered\":false}", true));
   }
 
   @Test
@@ -623,7 +665,7 @@ class LoginIntegrationTest {
         rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
 
     Cookie bothRemembered =
-        rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
+        rememberedAccountCookie(completeMobileIdLogin("55555555", true, smartIdRemembered));
 
     mockMvc
         .perform(get("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
@@ -637,7 +679,7 @@ class LoginIntegrationTest {
     Cookie smartIdRemembered =
         rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     Cookie bothRemembered =
-        rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
+        rememberedAccountCookie(completeMobileIdLogin("55555555", true, smartIdRemembered));
 
     mockMvc
         .perform(delete("/v1/smart-id/login/remembered-account").cookie(bothRemembered))
@@ -651,7 +693,7 @@ class LoginIntegrationTest {
 
   @Test
   void anAnonymousBrowserLearnsOnlyWhetherItRemembersAPhoneForAPersonalCode() throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
 
     mockMvc
         .perform(rememberedPhoneQuery(personalCode).cookie(browser))
@@ -676,7 +718,7 @@ class LoginIntegrationTest {
   @Test
   void aBrowserThatRemembersThePhoneStartsMobileIdWithoutOneAndOnlyOnceInTenSeconds()
       throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
     given(midConnector.authenticate(any()))
         .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
 
@@ -695,7 +737,7 @@ class LoginIntegrationTest {
 
   @Test
   void aRememberedPhoneLoginCancelledOnThePhoneLetsTheNextOneStartRightAway() throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
     Cookie session =
         sessionCookie(
             mockMvc
@@ -714,11 +756,11 @@ class LoginIntegrationTest {
 
   @Test
   void aCompletedRememberedPhoneLoginLetsTheNextOneStartRightAway() throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
     Cookie session =
         sessionCookie(
             mockMvc
-                .perform(mobileIdStart(null).cookie(browser))
+                .perform(mobileIdStart(null, true).cookie(browser))
                 .andExpect(status().isOk())
                 .andReturn());
     Cookie rotated =
@@ -734,7 +776,7 @@ class LoginIntegrationTest {
 
   @Test
   void aTypedPhoneWinsOverTheRememberedOneAndIsNotThrottled() throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
     given(midConnector.authenticate(any()))
         .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
 
@@ -748,7 +790,7 @@ class LoginIntegrationTest {
   @Test
   void aRememberedPhoneMobileIdSaysIsNotThePersonsIsForgottenAndThePhoneAskedFor()
       throws Exception {
-    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
+    Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555", true));
     given(midConnector.authenticate(any()))
         .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
     Cookie session =
@@ -782,10 +824,16 @@ class LoginIntegrationTest {
   }
 
   private MockHttpServletRequestBuilder mobileIdStart(@Nullable String phoneNumber) {
+    return mobileIdStart(phoneNumber, false);
+  }
+
+  private MockHttpServletRequestBuilder mobileIdStart(
+      @Nullable String phoneNumber, boolean rememberMe) {
     var body = new java.util.HashMap<String, @Nullable Object>();
     body.put("type", "MOBILE_ID");
     body.put("personalCode", personalCode);
     body.put("phoneNumber", phoneNumber);
+    body.put("rememberMe", rememberMe);
     return post("/authenticate")
         .contentType(APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(body));
@@ -797,7 +845,18 @@ class LoginIntegrationTest {
         .content("{\"personalCode\":\"" + personalCode + "\"}");
   }
 
-  private MvcResult completeMobileIdLogin(String typedPhoneNumber, Cookie... browserCookies)
+  private MvcResult completeMobileIdLogin(
+      String typedPhoneNumber, boolean rememberMe, Cookie... browserCookies) throws Exception {
+    return completeMobileIdLogin(
+        Map.of(
+            "type", "MOBILE_ID",
+            "phoneNumber", typedPhoneNumber,
+            "personalCode", personalCode,
+            "rememberMe", rememberMe),
+        browserCookies);
+  }
+
+  private MvcResult completeMobileIdLogin(Map<String, Object> startBody, Cookie... browserCookies)
       throws Exception {
     given(midConnector.authenticate(any()))
         .willReturn(new MidAuthenticationResponse(MOBILE_ID_SESSION_ID));
@@ -806,12 +865,7 @@ class LoginIntegrationTest {
             .perform(
                 withCookies(post("/authenticate"), browserCookies)
                     .contentType(APPLICATION_JSON)
-                    .content(
-                        objectMapper.writeValueAsString(
-                            Map.of(
-                                "type", "MOBILE_ID",
-                                "phoneNumber", typedPhoneNumber,
-                                "personalCode", personalCode))))
+                    .content(objectMapper.writeValueAsString(startBody)))
             .andExpect(status().isOk())
             .andReturn();
     Cookie session = sessionCookie(start);

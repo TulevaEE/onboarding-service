@@ -33,7 +33,7 @@ class MobileIdLoginStarterTest {
   void aTypedPhoneAlwaysWinsAndIsNotThrottled() {
     given(authService.startLogin("5123 4567", PERSONAL_CODE)).willReturn(sampleMobileIdSession);
 
-    MobileIDSession session = starter.start("5123 4567", PERSONAL_CODE);
+    MobileIDSession session = starter.start("5123 4567", PERSONAL_CODE, false);
 
     assertThat(session).isSameAs(sampleMobileIdSession);
     verifyNoInteractions(rememberedPhones);
@@ -49,9 +49,28 @@ class MobileIdLoginStarterTest {
         .willReturn(Optional.of(new RememberedMobileIdPhone(3L, REMEMBERED_PHONE)));
     given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE)).willReturn(session);
 
-    assertThat(starter.start(typed, PERSONAL_CODE)).isSameAs(session);
+    assertThat(starter.start(typed, PERSONAL_CODE, false)).isSameAs(session);
     assertThat(session.getRememberedPhoneId()).isEqualTo(3L);
     verify(rememberedPhones).claimLoginStart();
+  }
+
+  @Test
+  void aSessionStartedWithATypedPhoneKeepsWhetherThePersonAskedToBeRemembered() {
+    var session = new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, "+37251234567");
+    given(authService.startLogin("5123 4567", PERSONAL_CODE)).willReturn(session);
+
+    assertThat(starter.start("5123 4567", PERSONAL_CODE, true).isRememberMe()).isTrue();
+  }
+
+  @Test
+  void aSessionStartedWithTheRememberedPhoneKeepsWhetherThePersonAskedToBeRemembered() {
+    var session =
+        new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, REMEMBERED_PHONE);
+    given(rememberedPhones.find(PERSONAL_CODE))
+        .willReturn(Optional.of(new RememberedMobileIdPhone(3L, REMEMBERED_PHONE)));
+    given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE)).willReturn(session);
+
+    assertThat(starter.start(null, PERSONAL_CODE, true).isRememberMe()).isTrue();
   }
 
   @Test
@@ -59,7 +78,7 @@ class MobileIdLoginStarterTest {
     var session = new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, "+37251234567");
     given(authService.startLogin("5123 4567", PERSONAL_CODE)).willReturn(session);
 
-    assertThat(starter.start("5123 4567", PERSONAL_CODE).getRememberedPhoneId()).isNull();
+    assertThat(starter.start("5123 4567", PERSONAL_CODE, false).getRememberedPhoneId()).isNull();
   }
 
   @Test
@@ -69,7 +88,7 @@ class MobileIdLoginStarterTest {
     given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE))
         .willThrow(new MobileIdNotMidClientException());
 
-    assertThatThrownBy(() -> starter.start(null, PERSONAL_CODE))
+    assertThatThrownBy(() -> starter.start(null, PERSONAL_CODE, false))
         .isInstanceOf(MobileIdException.class)
         .extracting(
             e -> ((MobileIdException) e).getErrorsResponse().getErrors().getFirst().getCode())
@@ -82,7 +101,7 @@ class MobileIdLoginStarterTest {
     given(authService.startLogin("5123 4567", PERSONAL_CODE))
         .willThrow(new MobileIdNotMidClientException());
 
-    assertThatThrownBy(() -> starter.start("5123 4567", PERSONAL_CODE))
+    assertThatThrownBy(() -> starter.start("5123 4567", PERSONAL_CODE, false))
         .isInstanceOf(MobileIdNotMidClientException.class);
     verifyNoInteractions(rememberedPhones);
   }
@@ -91,7 +110,7 @@ class MobileIdLoginStarterTest {
   void withoutATypedPhoneOrARememberedOneAsksForThePhone() {
     given(rememberedPhones.find(PERSONAL_CODE)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> starter.start(null, PERSONAL_CODE))
+    assertThatThrownBy(() -> starter.start(null, PERSONAL_CODE, false))
         .isInstanceOf(MobileIdException.class)
         .extracting(
             e -> ((MobileIdException) e).getErrorsResponse().getErrors().getFirst().getCode())
@@ -107,7 +126,7 @@ class MobileIdLoginStarterTest {
         .given(rememberedPhones)
         .claimLoginStart();
 
-    assertThatThrownBy(() -> starter.start("", PERSONAL_CODE))
+    assertThatThrownBy(() -> starter.start("", PERSONAL_CODE, false))
         .isInstanceOf(PushLoginStartedTooSoonException.class);
     verify(authService, never()).startLogin(any(), any());
   }

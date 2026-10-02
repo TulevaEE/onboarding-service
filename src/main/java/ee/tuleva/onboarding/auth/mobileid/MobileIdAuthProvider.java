@@ -46,9 +46,16 @@ public class MobileIdAuthProvider implements AuthProvider {
         principalService.getFrom(
             mobileIdSession,
             Map.of(PHONE_NUMBER, mobileIdSession.getPhoneNumber(), GRANT_TYPE, MOBILE_ID.name()));
-    rememberedPhones.remember(
-        authenticatedPerson.getPersonalCode(), mobileIdSession.getPhoneNumber());
+    rememberOrForgetOnThisBrowser(authenticatedPerson.getPersonalCode(), mobileIdSession);
     return authenticatedPerson;
+  }
+
+  private void rememberOrForgetOnThisBrowser(String personalCode, MobileIDSession session) {
+    if (session.isRememberMe()) {
+      rememberedPhones.remember(personalCode, session.getPhoneNumber());
+    } else {
+      rememberedPhones.forgetOnThisBrowser(personalCode);
+    }
   }
 
   private boolean isLoginComplete(MobileIDSession session) {

@@ -53,11 +53,12 @@ class MobileIdAuthProviderSpec extends Specification {
     thrown(AuthNotCompleteException)
   }
 
-  def "returns person when login is complete"() {
+  def "returns person when login is complete and remembers the phone when asked to"() {
     given:
     String authenticationHash = "dummy"
     AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()
-    MobileIDSession session = MobileIdFixture.sampleMobileIdSession
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    session.rememberMe = true
     mobileIdAuthService.isLoginComplete(session) >> true
     genericSessionStore.get(MobileIDSession) >> Optional.of(session)
     principalService.getFrom(session, [
@@ -69,6 +70,25 @@ class MobileIdAuthProviderSpec extends Specification {
     then:
     result == person
     1 * rememberedPhones.remember(person.personalCode, session.phoneNumber)
+    0 * rememberedPhones.forgetOnThisBrowser(_)
+  }
+
+  def "a login not asked to be remembered forgets the person's phone on this browser and remembers none"() {
+    given:
+    AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    mobileIdAuthService.isLoginComplete(session) >> true
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    principalService.getFrom(session, [
+        (PHONE_NUMBER): session.phoneNumber,
+        (GRANT_TYPE)  : MOBILE_ID.name()
+    ]) >> person
+    when:
+    AuthenticatedPerson result = mobileIdAuthProvider.authenticate(null)
+    then:
+    result == person
+    1 * rememberedPhones.forgetOnThisBrowser(person.personalCode)
+    0 * rememberedPhones.remember(_, _)
   }
 
   def "remembers nothing while the login is not complete"() {
@@ -113,6 +133,7 @@ class MobileIdAuthProviderSpec extends Specification {
   def "a login from a remembered phone releases this browser before the remembered phone renews its cookie"() {
     given:
     MobileIDSession session = sessionFromRememberedPhone()
+    session.rememberMe = true
     AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()
     genericSessionStore.get(MobileIDSession) >> Optional.of(session)
     mobileIdAuthService.isLoginComplete(session) >> true

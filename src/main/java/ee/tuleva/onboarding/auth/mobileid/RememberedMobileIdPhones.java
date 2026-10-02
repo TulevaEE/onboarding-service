@@ -51,6 +51,10 @@ public class RememberedMobileIdPhones {
     phones.remove(rememberedPhoneId);
   }
 
+  void forgetOnThisBrowser(String personalCode) {
+    find(personalCode).map(RememberedMobileIdPhone::id).ifPresent(phones::remove);
+  }
+
   public void remember(String personalCode, String phoneNumber) {
     Instant expiresAt = Instant.now(clock).plus(validity);
     long browserId = thisBrowser.rememberUntil(expiresAt);

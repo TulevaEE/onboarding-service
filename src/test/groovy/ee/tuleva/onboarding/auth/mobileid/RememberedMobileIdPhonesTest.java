@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import static ee.tuleva.onboarding.auth.browser.PushLogin.MOBILE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.auth.browser.RememberedBrowser;
@@ -75,6 +78,28 @@ class RememberedMobileIdPhonesTest {
     phones.releaseLoginStart();
 
     verify(thisBrowser).releaseLoginStart(MOBILE_ID);
+  }
+
+  @Test
+  void forgettingAPersonOnThisBrowserDropsThePhoneThisBrowserRemembersForThem() {
+    given(thisBrowser.remembered())
+        .willReturn(Optional.of(new RememberedBrowser(BROWSER_ID, NOW.plus(TWELVE_MONTHS))));
+    given(repository.findUnexpired(BROWSER_ID, "38888888888"))
+        .willReturn(Optional.of(new RememberedMobileIdPhone(3L, "+37255555555")));
+
+    phones.forgetOnThisBrowser("38888888888");
+
+    verify(repository).remove(3L);
+    verify(thisBrowser, never()).rememberUntil(any());
+  }
+
+  @Test
+  void forgettingAPersonOnABrowserWithoutACookieDoesNothing() {
+    given(thisBrowser.remembered()).willReturn(Optional.empty());
+
+    phones.forgetOnThisBrowser("38888888888");
+
+    verify(repository, never()).remove(anyLong());
   }
 
   @Test

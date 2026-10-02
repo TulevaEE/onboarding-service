@@ -13,7 +13,15 @@ public class MobileIdLoginStarter {
   private final MobileIdAuthService authService;
   private final RememberedMobileIdPhones rememberedPhones;
 
-  public MobileIDSession start(@Nullable String typedPhoneNumber, String personalCode) {
+  public MobileIDSession start(
+      @Nullable String typedPhoneNumber, String personalCode, boolean rememberMe) {
+    MobileIDSession session = startWithTypedOrRememberedPhone(typedPhoneNumber, personalCode);
+    session.setRememberMe(rememberMe);
+    return session;
+  }
+
+  private MobileIDSession startWithTypedOrRememberedPhone(
+      @Nullable String typedPhoneNumber, String personalCode) {
     if (isNotBlank(typedPhoneNumber)) {
       return authService.startLogin(typedPhoneNumber, personalCode);
     }

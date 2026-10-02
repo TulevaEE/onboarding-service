@@ -13,7 +13,7 @@ class AuthenticateCommandSpec extends Specification {
   @Unroll
   def "valid phone numbers"() {
     given:
-    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode)
+    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode, false)
 
     when:
     def violations = validator.validate(cmd)
@@ -38,7 +38,7 @@ class AuthenticateCommandSpec extends Specification {
   @Unroll
   def "invalid phone numbers"() {
     given:
-    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode)
+    def cmd = new MobileIdAuthenticateCommand(phoneNumber, personalCode, false)
 
     when:
     def violations = validator.validate(cmd)

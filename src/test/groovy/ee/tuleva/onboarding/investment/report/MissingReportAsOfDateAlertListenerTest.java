@@ -58,7 +58,7 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
-  void asksForTheCorrectedReportBeforeTheNavOnlyWhileThatNavHasNotRun() {
+  void startsRedAsksForAReviewedResendBeforeEachFundsNavTimeAndPingsTheChannelLast() {
     storedWithoutAnAsOfDate(PENDING_TRANSACTIONS, REPORT_DATE, Map.of());
 
     listener().onReportImportCompleted(imported(PENDING_TRANSACTIONS, REPORT_DATE));
@@ -66,10 +66,19 @@ class MissingReportAsOfDateAlertListenerTest {
     then(notificationService)
         .should()
         .sendMessage(
-            contains(
-                "Kui selle kuupäeva NAV on veel arvutamata, peab parandatud fail jõudma enne"
-                    + " NAV-arvutust"),
-            eq(INVESTMENT));
+            """
+            🔴 SEB PENDING_TRANSACTIONS raportis puudub kasutatav „As of“ kuupäev – 2026-01-26
+            Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on \
+            päise kuju muutunud.
+            Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. Kui \
+            faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute reported_date \
+            ühe päeva võrra nihkes.
+            Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis \
+            on vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel \
+            arvutamata, peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel \
+            tööpäeval: TUK75, TUK00 kell 11:00; TUV100, TKF100 kell 15:20. Uus fail \
+            imporditakse automaatselt. <!channel>""",
+            INVESTMENT);
   }
 
   @Test
@@ -145,7 +154,7 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
-  void staysSilent_forAFileOlderThanTheImportLooksBackSinceOnlyABackfillStoresOne() {
+  void staysSilent_forAFileOlderThanTheImportLooksBackEvenWhenAnAdminReimportStoresIt() {
     storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(8), Map.of());
 
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(8)));

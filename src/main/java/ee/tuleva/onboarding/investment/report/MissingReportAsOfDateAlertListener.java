@@ -4,13 +4,19 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.mapping;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Set;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -79,10 +85,28 @@ class MissingReportAsOfDateAlertListener {
         reported_date ühe päeva võrra nihkes.
         Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
         vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel arvutamata, \
-        peab parandatud fail jõudma enne NAV-arvutust. Uus fail imporditakse automaatselt. \
-        <!channel>"""
+        peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel tööpäeval: %s. \
+        Uus fail imporditakse automaatselt. <!channel>"""
         .formatted(
-            report.getProvider(), report.getReportType(), report.getReportDate(), cause(report));
+            report.getProvider(),
+            report.getReportType(),
+            report.getReportDate(),
+            cause(report),
+            navCalculationTimes());
+  }
+
+  private static String navCalculationTimes() {
+    return Arrays.stream(TulevaFund.values())
+        .filter(TulevaFund::hasNavCalculation)
+        .collect(
+            groupingBy(
+                TulevaFund::getNavCutoffTime,
+                TreeMap::new,
+                mapping(TulevaFund::getCode, joining(", "))))
+        .entrySet()
+        .stream()
+        .map(fundsAtATime -> "%s kell %s".formatted(fundsAtATime.getValue(), fundsAtATime.getKey()))
+        .collect(joining("; "));
   }
 
   private static String cause(InvestmentReport report) {

@@ -56,6 +56,47 @@ class NavTrackingDifferenceGateTest {
   }
 
   @Test
+  void passes_whenACleanDayIsDueTheNotificationForTheStreakItEnded() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(NAV_DATE)
+            .checkType(TrackingCheckType.MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0002"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.0098"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(ZERO)
+            .securityAttributions(List.of())
+            .cashDrag(ZERO)
+            .feeDrag(ZERO)
+            .residual(ZERO)
+            .endedStreak(
+                new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+                    3,
+                    new BigDecimal("0.006"),
+                    new BigDecimal("0.006"),
+                    ZERO,
+                    java.util.Map.of(),
+                    ZERO,
+                    ZERO,
+                    ZERO,
+                    true,
+                    false,
+                    false,
+                    0,
+                    0))
+            .build();
+
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+
+    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result));
+  }
+
+  @Test
   void fails_whenNavResidualBreachDetected() {
     var result =
         TrackingDifferenceResult.builder()

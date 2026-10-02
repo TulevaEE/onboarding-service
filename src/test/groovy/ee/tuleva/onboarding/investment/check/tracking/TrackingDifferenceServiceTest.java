@@ -180,10 +180,6 @@ class TrackingDifferenceServiceTest {
     verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE);
   }
 
-  // The escalation streak stops at a hole in the series, so every day stored after one was counted
-  // as though the breach before it had not happened. Writing the missing day fixes the record only
-  // if the days after it are recounted against the completed series - otherwise a breach that ran
-  // through the hole never reaches the fourth consecutive day Sisekord 4 p 11.7 escalates on.
   @Test
   void fillGapsRecomputesTheDaysAlreadyStoredAfterAGapItFilled() {
     var from = CHECK_DATE.minusDays(30);

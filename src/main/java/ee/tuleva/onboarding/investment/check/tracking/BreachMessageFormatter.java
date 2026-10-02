@@ -7,9 +7,6 @@ import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.forma
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatUnits;
 
-import java.math.BigDecimal;
-import java.util.Comparator;
-import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 class BreachMessageFormatter {
@@ -161,46 +158,7 @@ class BreachMessageFormatter {
   }
 
   private void appendEscalationSection() {
-    sb.append(
-        "\n  [%d consecutive days, compounded TD=%s%%]"
-            .formatted(result.consecutiveBreachDays(), formatPercent(result.consecutiveNetTd())));
-
-    if (result.compoundedFundReturn() != null && result.compoundedBenchmarkReturn() != null) {
-      sb.append(
-          "\n  Compounded: fund=%s%%, benchmark=%s%%"
-              .formatted(
-                  formatPercent(result.compoundedFundReturn()),
-                  formatPercent(result.compoundedBenchmarkReturn())));
-    }
-
-    appendMultiDayAttribution();
-
-    if (result.escalationCashDrag() != null && result.escalationCashDrag().signum() != 0) {
-      sb.append("\n    Cash drag: %s%%".formatted(formatPercent(result.escalationCashDrag())));
-    }
-    if (result.escalationFeeDrag() != null && result.escalationFeeDrag().signum() != 0) {
-      sb.append("\n    Fee drag: %s%%".formatted(formatPercent(result.escalationFeeDrag())));
-    }
-    if (result.escalationResidual() != null && result.escalationResidual().signum() != 0) {
-      sb.append("\n    Residual: %s%%".formatted(formatPercent(result.escalationResidual())));
-    }
-  }
-
-  private void appendMultiDayAttribution() {
-    if (result.escalationAttributions() == null || result.escalationAttributions().isEmpty()) {
-      return;
-    }
-    sb.append("\n  Multi-day attribution (arithmetic sum of daily contributions):");
-    var sorted =
-        result.escalationAttributions().entrySet().stream()
-            .sorted(
-                Comparator.comparing(
-                    (Map.Entry<String, BigDecimal> e) -> e.getValue().abs(),
-                    Comparator.reverseOrder()))
-            .toList();
-    for (var entry : sorted) {
-      sb.append("\n    %s: %s%%".formatted(entry.getKey(), formatPercent(entry.getValue())));
-    }
+    sb.append(EscalationSection.throughToday(result).describe());
   }
 
   private String returnLabel() {

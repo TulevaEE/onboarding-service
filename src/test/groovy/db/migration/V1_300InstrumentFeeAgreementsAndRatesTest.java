@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
-class V1_293InstrumentFeeAgreementsAndRatesTest {
+class V1_300InstrumentFeeAgreementsAndRatesTest {
 
   private static final String URL =
       "jdbc:h2:mem:instrumentfeeagreementmigration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
@@ -23,8 +23,8 @@ class V1_293InstrumentFeeAgreementsAndRatesTest {
   private static final String[] FLYWAY_LOCATIONS = {
     "classpath:/db/migration", "classpath:/db/dev", "classpath:/db/h2"
   };
-  private static final String JUST_BEFORE_THE_AGREEMENTS = "1.287?";
-  private static final String THE_AGREEMENTS = "1.293";
+  private static final String JUST_BEFORE_THE_AGREEMENTS = "1.299?";
+  private static final String THE_AGREEMENTS = "1.300";
 
   private static final String REBATE_ISIN = "ZZ0000000001";
   private static final String INVOICED_FEE_ISIN = "ZZ0000000002";

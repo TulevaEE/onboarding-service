@@ -105,10 +105,6 @@ class ConsecutiveBreachTracker {
       if (!isBreachDay(event)) {
         break;
       }
-      // A working day with no check does not say the breach stopped, so it is assumed to have
-      // persisted: between two breach days it counts in the streak. Days with no check at the
-      // streak's edges are not counted. Those before the check date are reported apart, since
-      // only the check date's own result says whether they are inside the streak.
       warnOfUncheckedDays(fund, checkType, checkDate, event, uncheckedBefore);
       if (checkedDays == 0) {
         uncheckedDaysSince = uncheckedBefore;

@@ -158,6 +158,49 @@ class BenchmarkCheckBuilderTest {
     assertThat(result.endedStreak()).isEqualTo(endedStreak);
   }
 
+  @Test
+  void aBreachingBenchmarkModelDayTakesItsStreakLengthAndUncheckedDaysFromTheTracker() {
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(streakOf(2, 0, 1));
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(risingHolding(EMERGING_MARKETS_ISIN)))
+            .orElseThrow();
+
+    assertThat(result.breach()).isTrue();
+    assertThat(result.consecutiveBreachDays()).isEqualTo(4);
+    assertThat(result.escalationUncheckedDays()).isEqualTo(1);
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
+      int count, int uncheckedDays, int uncheckedDaysSince) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        count,
+        new BigDecimal("0.0045"),
+        new BigDecimal("0.0045"),
+        BigDecimal.ZERO,
+        java.util.Map.of(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        false,
+        false,
+        false,
+        uncheckedDays,
+        uncheckedDaysSince);
+  }
+
+  private static SecurityData risingHolding(String isin) {
+    return new SecurityData(
+        isin,
+        BigDecimal.ONE,
+        BigDecimal.ONE,
+        new PriceSnapshot(new BigDecimal("20.20"), CHECK_DATE),
+        new PriceSnapshot(new BigDecimal(FLAT_PRICE), PREVIOUS_DATE));
+  }
+
   private static SecurityData flatHolding(String isin, BigDecimal actualWeight) {
     return new SecurityData(
         isin,

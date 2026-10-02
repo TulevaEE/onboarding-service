@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.investment.fees.rate;
 
 import static java.math.BigDecimal.ZERO;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -9,7 +12,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,9 +24,17 @@ import org.springframework.stereotype.Component;
 class MonthVolumeReader {
 
   private final FundNavQueryService fundNavQueryService;
+  private final PublicHolidays publicHolidays;
 
   Optional<MonthVolume> volumeOf(String isin, List<TulevaFund> funds, YearMonth month) {
-    var navDatesNewestFirst = publishedNavDatesNewestFirst(funds, month);
+    var publishedNavDates = publishedNavDatesByFund(funds, month);
+    requireTheLastNavOfEachFundThatPublishedInTheMonth(publishedNavDates, month);
+    var navDatesNewestFirst =
+        publishedNavDates.values().stream()
+            .flatMap(List::stream)
+            .distinct()
+            .sorted(Comparator.reverseOrder())
+            .toList();
     if (navDatesNewestFirst.isEmpty()) {
       return Optional.empty();
     }
@@ -34,17 +47,28 @@ class MonthVolumeReader {
         .orElseGet(() -> Optional.of(MonthVolume.notHeldDuringTheMonth()));
   }
 
-  private List<LocalDate> publishedNavDatesNewestFirst(List<TulevaFund> funds, YearMonth month) {
+  private Map<TulevaFund, List<LocalDate>> publishedNavDatesByFund(
+      List<TulevaFund> funds, YearMonth month) {
     return funds.stream()
-        .flatMap(
-            fund ->
-                fundNavQueryService
-                    .findPublishedNavDatesBetween(
-                        fund.getCode(), month.atDay(1), month.atEndOfMonth())
-                    .stream())
-        .distinct()
-        .sorted(Comparator.reverseOrder())
-        .toList();
+        .collect(
+            toMap(
+                identity(),
+                fund ->
+                    fundNavQueryService.findPublishedNavDatesBetween(
+                        fund.getCode(), month.atDay(1), month.atEndOfMonth()),
+                (first, second) -> first,
+                LinkedHashMap::new));
+  }
+
+  private void requireTheLastNavOfEachFundThatPublishedInTheMonth(
+      Map<TulevaFund, List<LocalDate>> publishedNavDates, YearMonth month) {
+    var lastNavDate = publicHolidays.previousWorkingDay(month.plusMonths(1).atDay(1));
+    publishedNavDates.forEach(
+        (fund, navDates) -> {
+          if (!navDates.isEmpty() && !navDates.contains(lastNavDate)) {
+            throw new MonthNavNotYetPublishedException(fund, month, lastNavDate);
+          }
+        });
   }
 
   private Optional<BigDecimal> holdingOn(String isin, List<TulevaFund> funds, LocalDate navDate) {

@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
@@ -45,7 +46,8 @@ import tools.jackson.databind.json.JsonMapper;
   InstrumentFeeRateRepository.class,
   MonthVolumeReader.class,
   RebateCalculator.class,
-  FundNavQueryService.class
+  FundNavQueryService.class,
+  PublicHolidays.class
 })
 class InstrumentOcfServiceIT {
 
@@ -64,6 +66,8 @@ class InstrumentOcfServiceIT {
   private static final LocalDate APRIL_28 = LocalDate.of(2026, 4, 28);
   private static final LocalDate APRIL_29 = LocalDate.of(2026, 4, 29);
   private static final LocalDate APRIL_30 = LocalDate.of(2026, 4, 30);
+  private static final YearMonth MAY = YearMonth.of(2026, 5);
+  private static final LocalDate FRIDAY_MAY_29 = LocalDate.of(2026, 5, 29);
   private static final String GATED_FIXED_NET =
       "{\"net\":\"0.00050000\",\"minimum\":\"50000000.00\",\"minimumCurrency\":\"EUR\","
           + "\"funds\":[\"TUK75\",\"TUV100\"]}";
@@ -164,6 +168,34 @@ class InstrumentOcfServiceIT {
                 PUBLISHED_FALLBACK,
                 "the tiered agreement's USD threshold needs the EUR/USD rate",
                 TIERED_VOLUME));
+  }
+
+  @Test
+  void aMonthFailsUntilEachNamedFundHasPublishedTheNavOfTheMonthsLastWorkingDay() {
+    givenAnAgreement("FIXED_NET", GATED_FIXED_NET);
+    heldOn(APRIL_29, TUK75, "30000000.00");
+    heldOn(APRIL_30, TUK75, "30000000.00");
+    heldOn(APRIL_29, TUV100, "25000000.00");
+
+    assertThatThrownBy(() -> service.resolve(APRIL))
+        .isInstanceOf(MonthNavNotYetPublishedException.class);
+    assertThat(storedRates()).isZero();
+  }
+
+  @Test
+  void aMonthEndingOnAWeekendIsMeasuredOnTheNavOfItsLastWorkingDay() {
+    givenAnAgreement("FIXED_NET", GATED_FIXED_NET);
+    heldOn(FRIDAY_MAY_29, TUK75, "30000000.00");
+    heldOn(FRIDAY_MAY_29, TUV100, "25000000.00");
+
+    var rate = service.resolve(MAY).getFirst();
+
+    assertThat(rate)
+        .usingRecursiveComparison(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new InstrumentRate(
+                0, ISIN, MAY, PUBLISHED_OCF, new BigDecimal("0.0005"), AGREEMENT, null, FIXED_NET));
+    assertThat(storedVolumeNavDate()).isEqualTo(FRIDAY_MAY_29);
   }
 
   @Test

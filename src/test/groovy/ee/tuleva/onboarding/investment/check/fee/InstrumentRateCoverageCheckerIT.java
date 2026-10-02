@@ -11,6 +11,7 @@ import static org.assertj.core.groups.Tuple.tuple;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
@@ -34,7 +35,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   InstrumentRateCoverageCheckerIT.RateService.class,
   InstrumentRateCoverageChecker.class,
-  FundNavQueryService.class
+  FundNavQueryService.class,
+  PublicHolidays.class
 })
 class InstrumentRateCoverageCheckerIT {
 

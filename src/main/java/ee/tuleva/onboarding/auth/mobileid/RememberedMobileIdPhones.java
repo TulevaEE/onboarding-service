@@ -43,6 +43,10 @@ public class RememberedMobileIdPhones {
     thisBrowser.claimLoginStart(MOBILE_ID);
   }
 
+  void releaseLoginStart() {
+    thisBrowser.releaseLoginStart(MOBILE_ID);
+  }
+
   void forget(long rememberedPhoneId) {
     phones.remove(rememberedPhoneId);
   }

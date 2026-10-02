@@ -71,6 +71,13 @@ class RememberedMobileIdPhonesTest {
   }
 
   @Test
+  void releasesTheMobileIdLoginStartForThisBrowser() {
+    phones.releaseLoginStart();
+
+    verify(thisBrowser).releaseLoginStart(MOBILE_ID);
+  }
+
+  @Test
   void forgetsOneRememberedPhone() {
     phones.forget(3L);
 

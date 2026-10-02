@@ -10,6 +10,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
+import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError
 
 class MobileIdAuthProviderSpec extends Specification {
   private final GenericSessionStore genericSessionStore = Mock()
@@ -107,5 +108,68 @@ class MobileIdAuthProviderSpec extends Specification {
     def exception = thrown(MobileIdException)
     exception.errorsResponse.errors*.code == ["mobile.id.certificates.revoked"]
     0 * rememberedPhones.forget(_)
+  }
+
+  def "a login from a remembered phone releases this browser before the remembered phone renews its cookie"() {
+    given:
+    MobileIDSession session = sessionFromRememberedPhone()
+    AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> true
+    principalService.getFrom(session, _) >> person
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    1 * rememberedPhones.releaseLoginStart()
+    then:
+    1 * rememberedPhones.remember(person.personalCode, session.phoneNumber)
+  }
+
+  def "a login from a remembered phone that Mobile-ID ends with #failure.class.simpleName releases this browser"() {
+    given:
+    MobileIDSession session = sessionFromRememberedPhone()
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> { throw failure }
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    thrown(RuntimeException)
+    1 * rememberedPhones.releaseLoginStart()
+    where:
+    failure << [
+        new MobileIdException(ofSingleError("mobile.id.cancelled", "Cancelled on the phone.")),
+        new MobileIdNotMidClientException(),
+        new IllegalStateException("Mobile-ID answered with something unexpected")
+    ]
+  }
+
+  def "a login from a remembered phone still running keeps this browser claimed"() {
+    given:
+    MobileIDSession session = sessionFromRememberedPhone()
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> false
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    thrown(AuthNotCompleteException)
+    0 * rememberedPhones.releaseLoginStart()
+  }
+
+  def "a login from a typed phone leaves the claim of this browser alone"() {
+    given:
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37251234567")
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    mobileIdAuthService.isLoginComplete(session) >> true
+    principalService.getFrom(session, _) >> sampleAuthenticatedPersonAndMember().build()
+    when:
+    mobileIdAuthProvider.authenticate(null)
+    then:
+    0 * rememberedPhones.releaseLoginStart()
+  }
+
+  private static MobileIDSession sessionFromRememberedPhone() {
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    session.rememberedPhoneId = 3L
+    return session
   }
 }

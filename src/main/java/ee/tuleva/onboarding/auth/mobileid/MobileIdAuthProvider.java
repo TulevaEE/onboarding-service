@@ -40,6 +40,7 @@ public class MobileIdAuthProvider implements AuthProvider {
     if (!isLoginComplete(mobileIdSession)) {
       throw new AuthNotCompleteException();
     }
+    releaseThisBrowserForTheNextLogin(mobileIdSession);
 
     AuthenticatedPerson authenticatedPerson =
         principalService.getFrom(
@@ -54,12 +55,22 @@ public class MobileIdAuthProvider implements AuthProvider {
     try {
       return mobileIdAuthService.isLoginComplete(session);
     } catch (MobileIdNotMidClientException e) {
+      releaseThisBrowserForTheNextLogin(session);
       Long rememberedPhoneId = session.getRememberedPhoneId();
       if (rememberedPhoneId == null) {
         throw e;
       }
       rememberedPhones.forget(rememberedPhoneId);
       throw MobileIdException.phoneNumberRequired();
+    } catch (RuntimeException e) {
+      releaseThisBrowserForTheNextLogin(session);
+      throw e;
+    }
+  }
+
+  private void releaseThisBrowserForTheNextLogin(MobileIDSession session) {
+    if (session.getRememberedPhoneId() != null) {
+      rememberedPhones.releaseLoginStart();
     }
   }
 }

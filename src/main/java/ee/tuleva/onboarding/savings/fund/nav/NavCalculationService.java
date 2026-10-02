@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -47,7 +46,6 @@ public class NavCalculationService implements NavFeeBackfill {
   private final SubscriptionsComponent subscriptionsComponent;
   private final RedemptionsComponent redemptionsComponent;
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
-  private final PositionPriceResolver positionPriceResolver;
   private final NavFees navFees;
   private final Clock clock;
 
@@ -137,7 +135,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, priceCutoff, positionReportDate))
+            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, positionReportDate, context))
             .build();
 
     validateResult(result);
@@ -224,7 +222,7 @@ public class NavCalculationService implements NavFeeBackfill {
   }
 
   private List<SecurityDetail> buildSecuritiesDetail(
-      TulevaFund fund, Instant cutoff, Instant priceCutoff, LocalDate priceDate) {
+      TulevaFund fund, Instant cutoff, LocalDate priceDate, NavComponentContext context) {
     return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, fund))
         .entrySet().stream()
             .map(
@@ -232,8 +230,7 @@ public class NavCalculationService implements NavFeeBackfill {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
                   ResolvedPrice resolvedPrice =
-                      positionPriceResolver
-                          .resolve(isin, priceDate, priceCutoff)
+                      Optional.ofNullable(context.getSecurityPrices().get(isin))
                           .orElseThrow(
                               () ->
                                   new IllegalStateException(
@@ -251,7 +248,8 @@ public class NavCalculationService implements NavFeeBackfill {
                       units,
                       price,
                       marketValue,
-                      resolvedPrice.priceDate());
+                      resolvedPrice.priceDate(),
+                      resolvedPrice.priceSource());
                 })
             .toList();
   }

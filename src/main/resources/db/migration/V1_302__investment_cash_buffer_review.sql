@@ -18,7 +18,7 @@ CREATE TABLE investment_cash_buffer_review (
     configured_limit_effective_date date            NOT NULL,
     configured_reserve_soft         numeric(19, 2)  NOT NULL,
     configured_reserve_hard         numeric(19, 2),
-    drift_threshold                 numeric(19, 2)  NOT NULL,
+    drift_threshold                 numeric(19, 10) NOT NULL,
     sustain_runs                    integer         NOT NULL,
     soft_divergence                 numeric(19, 2)  NOT NULL,
     soft_drifted                    boolean         NOT NULL,

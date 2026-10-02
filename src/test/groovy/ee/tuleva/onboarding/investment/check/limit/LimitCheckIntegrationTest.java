@@ -8,12 +8,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +47,7 @@ class LimitCheckIntegrationTest {
   @Autowired private LimitCheckService limitCheckService;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -141,6 +146,40 @@ class LimitCheckIntegrationTest {
                 new BigDecimal("-3000"),
                 BigDecimal.ZERO,
                 new BigDecimal("5000")));
+  }
+
+  @Test
+  void storesEveryFreeCashComponentInTheEventResult() {
+    insertTuk75Data();
+
+    limitCheckService.runChecks();
+    entityManager.flush();
+    entityManager.clear();
+
+    var breach = storedFreeCashBreach(TUK75);
+    assertThat(breach)
+        .containsOnlyKeys(
+            "fund",
+            "freeCash",
+            "maxFreeCash",
+            "severity",
+            "cash",
+            "liabilities",
+            "pendingTrades",
+            "reserveUsed")
+        .containsEntry("fund", "TUK75")
+        .containsEntry("severity", "HARD");
+    assertThat(amounts(breach))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            Map.of(
+                "freeCash", new BigDecimal("17000"),
+                "maxFreeCash", new BigDecimal("10000"),
+                "cash", new BigDecimal("25000"),
+                "liabilities", new BigDecimal("-3000"),
+                "pendingTrades", BigDecimal.ZERO,
+                "reserveUsed", new BigDecimal("5000")));
   }
 
   @Test
@@ -357,6 +396,25 @@ class LimitCheckIntegrationTest {
   }
 
   // -- Helper methods --
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> storedFreeCashBreach(TulevaFund fund) {
+    return (Map<String, Object>)
+        limitCheckEventRepository.findByFundAndCheckDate(fund, NAV_DATE).stream()
+            .filter(event -> event.getCheckType() == CheckType.FREE_CASH)
+            .findFirst()
+            .orElseThrow()
+            .getResult()
+            .get("breach");
+  }
+
+  private Map<String, BigDecimal> amounts(Map<String, Object> breach) {
+    return breach.entrySet().stream()
+        .filter(entry -> !entry.getKey().equals("fund") && !entry.getKey().equals("severity"))
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey, entry -> new BigDecimal(entry.getValue().toString())));
+  }
 
   private void insertFundPosition(
       String fund, LocalDate navDate, String accountType, String accountId, long marketValue) {

@@ -20,8 +20,8 @@ final class EndedStreakNotice {
 
   private static String onTheDayItFallsDue(
       TrackingDifferenceResult result, ConsecutiveBreachInfo endedStreak) {
-    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%), but the %d working days before it"
-            + " breached. Sisekord 4 p 11.8 makes the notification due today, on working day"
+    return ("\n🛑 [%s] %s %s: within limits (TD=%s%%), but the %d working days before it"
+            + " breached. Sisekord 4 p 11.8 makes the notification due on this day, working day"
             + " %d: identify the cause and act on it.")
         .formatted(
             result.fund(),
@@ -34,10 +34,10 @@ final class EndedStreakNotice {
 
   private static String afterUncheckedDays(
       TrackingDifferenceResult result, ConsecutiveBreachInfo endedStreak) {
-    return ("\n🛑 [%s] %s %s: within limits today (TD=%s%%). The last check before it, %d working"
+    return ("\n🛑 [%s] %s %s: within limits (TD=%s%%). The last check before it, %d working"
             + " days earlier, closed a %d-day breach streak, and no check ran in between."
             + " Sisekord 4 p 11.8 made the notification due on working day %d, which had no"
-            + " check, so it is sent today, late: identify the cause and act on it.")
+            + " check, so it is sent now, late: identify the cause and act on it.")
         .formatted(
             result.fund(),
             result.checkType(),

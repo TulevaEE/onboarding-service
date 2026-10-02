@@ -231,10 +231,23 @@ class TrackingDifferenceNotifier {
         return;
       }
       notificationService.sendMessage(
-          GapFillSummaryFormatter.format(alertableResults, run.recheckedStaleDates()), INVESTMENT);
+          GapFillSummaryFormatter.format(alertableResults, run.recheckedStaleDates())
+              + notificationsOwedOnRewrittenCleanDays(alertableResults),
+          INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference gap fill summary", e);
     }
+  }
+
+  private String notificationsOwedOnRewrittenCleanDays(
+      List<TrackingDifferenceResult> alertableResults) {
+    var owed =
+        alertableResults.stream()
+            .filter(result -> !result.hasAnyBreach() && result.endedStreak() != null)
+            .map(result -> Verdict.of(result, escalationRule(result.checkDate())))
+            .filter(Verdict::escalation)
+            .toList();
+    return owed.isEmpty() ? "" : "\n\n" + formatAlerts(owed);
   }
 
   void notify(List<TrackingDifferenceResult> results) {

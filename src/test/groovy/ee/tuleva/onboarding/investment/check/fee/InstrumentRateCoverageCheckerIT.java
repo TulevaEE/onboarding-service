@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.groups.Tuple.tuple;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,8 +74,12 @@ class InstrumentRateCoverageCheckerIT {
     held(HELD);
 
     assertThat(checker.check(TUK75, CHECK_DATE))
-        .extracting(FeeCheckFinding::severity, FeeCheckFinding::identifiers)
-        .containsExactly(tuple(FAIL, List.of(HELD)));
+        .containsExactly(
+            finding(
+                FAIL,
+                List.of(HELD),
+                "Held instruments have no fee agreement in investment_instrument_fee, so the"
+                    + " month's OCF cannot be calculated: [ZZ0000000001]"));
   }
 
   @Test
@@ -84,15 +89,23 @@ class InstrumentRateCoverageCheckerIT {
     modelled(MODELLED_ONLY);
 
     assertThat(checker.check(TUK75, CHECK_DATE))
-        .extracting(FeeCheckFinding::severity, FeeCheckFinding::identifiers)
-        .containsExactly(tuple(WARNING, List.of(MODELLED_ONLY)));
+        .containsExactly(
+            finding(
+                WARNING,
+                List.of(MODELLED_ONLY),
+                "Model portfolio instruments have no fee agreement in investment_instrument_fee"
+                    + " yet: [ZZ0000000002]"));
   }
 
   @Test
   void aFundWithNoPublishedNavCannotBeCheckedAndSaysSoRatherThanPassing() {
     assertThat(checker.check(TUK75, CHECK_DATE))
-        .extracting(FeeCheckFinding::severity, FeeCheckFinding::identifiers)
-        .containsExactly(tuple(NOT_RUN, List.of()));
+        .containsExactly(
+            finding(
+                NOT_RUN,
+                List.of(),
+                "No published NAV on or before 2026-09-28 to read the held instruments from, so"
+                    + " their fee agreements could not be checked"));
   }
 
   @Test
@@ -101,8 +114,20 @@ class InstrumentRateCoverageCheckerIT {
     agreementFor(HELD);
 
     assertThat(checker.check(TUK75, CHECK_DATE))
-        .extracting(FeeCheckFinding::severity)
-        .containsExactly(PASS);
+        .containsExactly(FeeCheckFinding.pass(TUK75, INSTRUMENT_RATE_COVERAGE, ALL));
+  }
+
+  private static FeeCheckFinding finding(
+      FeeCheckSeverity severity, List<String> isins, String message) {
+    return new FeeCheckFinding(
+        TUK75,
+        INSTRUMENT_RATE_COVERAGE,
+        ALL,
+        severity,
+        message,
+        null,
+        isins,
+        Map.of("isins", isins));
   }
 
   private void held(String isin) {

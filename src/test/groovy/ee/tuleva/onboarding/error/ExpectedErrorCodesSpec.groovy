@@ -23,6 +23,15 @@ class ExpectedErrorCodesSpec extends Specification {
     "new.user.flow.signup.error.email.duplicate" || true
     "gift.amount.invalid"            || true
     "payment.channel.invalid"        || true
+    "signature.already.signed"       || true
+    "signature.not.signed"           || true
+    "signature.not.awaited"          || true
+    "signature.session.entity.mismatch"         || true
+    "id.card.signature.invalid"                 || true
+    "id.card.signing.certificate.invalid"       || true
+    "id.card.signing.certificate.mismatch"      || true
+    "id.card.signing.certificate.revoked"       || true
+    "id.card.signing.hash.function.unsupported" || true
 
     "mobile.id.configuration.error"  || false
     "mobile.id.communication.error"  || false

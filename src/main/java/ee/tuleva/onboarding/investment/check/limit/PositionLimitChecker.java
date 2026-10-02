@@ -8,9 +8,13 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -130,6 +134,48 @@ class PositionLimitChecker {
                   severity);
             })
         .toList();
+  }
+
+  Map<String, Object> eventResult(
+      List<PositionBreach> breaches,
+      List<FundPosition> positions,
+      Map<String, BigDecimal> navMarketValues,
+      BigDecimal totalNav) {
+    var result = new LinkedHashMap<String, Object>();
+    result.put("breaches", breaches);
+    largestPosition(positions, navMarketValues, totalNav)
+        .ifPresent(largest -> result.put("largestPosition", largest));
+    return result;
+  }
+
+  Optional<LargestPosition> largestPosition(
+      List<FundPosition> positions, Map<String, BigDecimal> navMarketValues, BigDecimal totalNav) {
+    if (totalNav.signum() == 0) {
+      return Optional.empty();
+    }
+    return holdingByIsin(positions, navMarketValues).entrySet().stream()
+        .max(
+            Map.Entry.<String, BigDecimal>comparingByValue()
+                .thenComparing(Map.Entry.comparingByKey(Comparator.reverseOrder())))
+        .map(
+            largest ->
+                new LargestPosition(largest.getKey(), percentOf(largest.getValue(), totalNav)));
+  }
+
+  private static Map<String, BigDecimal> holdingByIsin(
+      List<FundPosition> positions, Map<String, BigDecimal> navMarketValues) {
+    var holdings =
+        positions.stream()
+            .filter(
+                position -> position.getAccountId() != null && position.getMarketValue() != null)
+            .collect(
+                Collectors.toMap(
+                    position -> Objects.requireNonNull(position.getAccountId()),
+                    position -> Objects.requireNonNull(position.getMarketValue()),
+                    BigDecimal::add,
+                    HashMap::new));
+    holdings.putAll(navMarketValues);
+    return holdings;
   }
 
   private BigDecimal percentOf(BigDecimal value, BigDecimal total) {

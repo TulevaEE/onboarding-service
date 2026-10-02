@@ -197,6 +197,8 @@ class LimitCheckService {
     var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
+    var positionResult =
+        positionLimitChecker.eventResult(positionBreaches, positions, navMarketValues, totalNav);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
@@ -208,8 +210,9 @@ class LimitCheckService {
         fund,
         checkDate,
         List.of(
-            event(fund, checkDate, POSITION, positionBreaches),
-            event(fund, checkDate, PROVIDER, providerBreaches),
+            event(fund, checkDate, POSITION, positionBreaches, positionResult),
+            event(
+                fund, checkDate, PROVIDER, providerBreaches, Map.of("breaches", providerBreaches)),
             event(fund, checkDate, RESERVE, reserveBreach),
             event(fund, checkDate, FREE_CASH, freeCashBreach)));
 
@@ -282,7 +285,11 @@ class LimitCheckService {
   }
 
   private LimitCheckEvent event(
-      TulevaFund fund, LocalDate checkDate, CheckType checkType, List<?> breaches) {
+      TulevaFund fund,
+      LocalDate checkDate,
+      CheckType checkType,
+      List<?> breaches,
+      Map<String, Object> result) {
     var hasBreaches =
         breaches.stream()
             .anyMatch(
@@ -292,7 +299,7 @@ class LimitCheckService {
                   return false;
                 });
 
-    return event(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
+    return event(fund, checkDate, checkType, hasBreaches, result);
   }
 
   private LimitCheckEvent event(

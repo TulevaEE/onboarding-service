@@ -145,15 +145,22 @@ class SecurityConfigurationSpec extends Specification {
         .andExpect(status().isForbidden())
 
     where:
-    method | url                                | token
-    POST   | "/v1/mandates"                     | wardToken
-    POST   | "/v1/mandates"                     | wardMemberToken
-    PUT    | "/v1/mandates/1/signature/smartId" | wardToken
-    PATCH  | "/v1/me"                           | wardToken
-    DELETE | "/v1/mandates/1"                   | wardToken
-    POST   | "/v1/listings"                     | wardMemberToken
-    DELETE | "/v1/listings/1"                   | wardMemberToken
-    POST   | "/v1/hackathon-registration"       | wardMemberToken
+    method | url                                                           | token
+    POST   | "/v1/mandates"                                                | wardToken
+    POST   | "/v1/mandates"                                                | wardMemberToken
+    PUT    | "/v1/mandates/1/signature/smart-id"                           | wardToken
+    PUT    | "/v1/mandates/1/signature/mobile-id"                          | wardToken
+    PUT    | "/v1/mandates/1/signature/id-card"                            | wardToken
+    PUT    | "/v1/mandates/1/signature/id-card/signature"                  | wardToken
+    PUT    | "/v1/mandate-batches/1/signature/id-card"                     | wardToken
+    PUT    | "/v1/mandate-batches/1/signature/id-card/signature"           | wardToken
+    PUT    | "/v1/capital-transfer-contracts/1/signature/id-card"          | wardMemberToken
+    PUT    | "/v1/capital-transfer-contracts/1/signature/id-card/signature"| wardMemberToken
+    PATCH  | "/v1/me"                                                      | wardToken
+    DELETE | "/v1/mandates/1"                                              | wardToken
+    POST   | "/v1/listings"                                                | wardMemberToken
+    DELETE | "/v1/listings/1"                                              | wardMemberToken
+    POST   | "/v1/hackathon-registration"                                  | wardMemberToken
   }
 
   def "a USER token is not stopped by the write rule"() {

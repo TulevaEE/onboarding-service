@@ -69,11 +69,12 @@ class SignatureServiceSpec extends Specification {
     def "startIdCardSign() delegates to the id card signer"() {
         given:
         def signingCertificate = "signingCertificate"
-        def signatureSession = Mock(IdCardSignatureSession)
-        1 * idCardSigner.startSign(files, signingCertificate) >> signatureSession
+        def entity = new SignableEntity("Mandate", 1L)
+        def signatureSession = IdCardSignatureSession.builder().signableEntity(entity).build()
+        1 * idCardSigner.startSign(entity, files, signingCertificate, ["SHA-256"], personalCode) >> signatureSession
 
         when:
-        def session = service.startIdCardSign(files, signingCertificate)
+        def session = service.startIdCardSign(entity, files, signingCertificate, ["SHA-256"], personalCode)
 
         then:
         session == signatureSession
@@ -81,13 +82,13 @@ class SignatureServiceSpec extends Specification {
 
     def "getSignedFile() delegates to the id card signer"() {
         given:
-        def session = Mock(IdCardSignatureSession)
+        def entity = new SignableEntity("Mandate", 1L)
+        def session = IdCardSignatureSession.builder().signableEntity(entity).build()
         def file = "fileContent".bytes
-        def signedHashInHex = "signedHashInHex"
-        1 * idCardSigner.getSignedFile(session, signedHashInHex) >> file
+        1 * idCardSigner.getSignedFile(session, entity, "signature") >> file
 
         when:
-        def signedFile = service.getSignedFile(session, signedHashInHex)
+        def signedFile = service.getSignedFile(session, entity, "signature")
 
         then:
         signedFile == file

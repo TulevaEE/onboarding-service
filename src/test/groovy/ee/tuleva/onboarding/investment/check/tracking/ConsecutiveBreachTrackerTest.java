@@ -47,8 +47,6 @@ class ConsecutiveBreachTrackerTest {
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
 
-    // Wednesday was a working day with no check. Nothing says the breach stopped, so it is assumed
-    // to have persisted: the streak runs from Tuesday through Thursday, one of its days unchecked.
     assertThat(info.count()).isEqualTo(3);
     assertThat(info.uncheckedDays()).isEqualTo(1);
     assertThat(info.uncheckedDaysSince()).isZero();
@@ -76,8 +74,6 @@ class ConsecutiveBreachTrackerTest {
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
 
-    // Whether Thursday is inside the streak depends on the check date's own result, so it is not
-    // in the count.
     assertThat(info.count()).isEqualTo(2);
     assertThat(info.uncheckedDays()).isZero();
     assertThat(info.uncheckedDaysSince()).isEqualTo(1);
@@ -102,6 +98,22 @@ class ConsecutiveBreachTrackerTest {
         .willReturn(List.of(breachEvent(CHECK_DATE), breachEvent(THURSDAY)));
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, NEXT_MONDAY);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.uncheckedDays()).isZero();
+    assertThat(info.uncheckedDaysSince()).isZero();
+  }
+
+  @Test
+  void aPublicHolidayInsideAStreakIsNotADayWithNoCheck() {
+    var dayAfterMidsummer = LocalDate.of(2026, 6, 26);
+    given(calculator.escalationLookbackDays(dayAfterMidsummer)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, dayAfterMidsummer, 10))
+        .willReturn(
+            List.of(
+                breachEvent(LocalDate.of(2026, 6, 25)), breachEvent(LocalDate.of(2026, 6, 22))));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, dayAfterMidsummer);
 
     assertThat(info.count()).isEqualTo(2);
     assertThat(info.uncheckedDays()).isZero();

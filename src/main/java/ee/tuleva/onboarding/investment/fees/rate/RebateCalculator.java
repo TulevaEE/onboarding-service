@@ -40,16 +40,18 @@ class RebateCalculator {
         return rebate(NOTHING);
       }
     }
-    return withinZeroAndThePublishedOcf(
-        switch (kind) {
-          case NONE -> rebate(NOTHING);
-          case FIXED -> rebate(decimal(terms, "rate"));
-          case SHARE_OF_PUBLISHED ->
-              rebate(inputs.publishedOcf().multiply(decimal(terms, "share")));
-          case FIXED_NET -> fixedNet(decimal(terms, "net"), inputs.publishedOcf());
-          case TIERED_VOLUME -> tiered(terms, inputs);
-        },
-        inputs.publishedOcf());
+    return withinZeroAndThePublishedOcf(ofTheKind(kind, terms, inputs), inputs.publishedOcf());
+  }
+
+  private static AgreementOutcome ofTheKind(
+      RebateKind kind, Map<String, Object> terms, RebateInputs inputs) {
+    return switch (kind) {
+      case NONE -> rebate(NOTHING);
+      case FIXED -> rebate(decimal(terms, "rate"));
+      case SHARE_OF_PUBLISHED -> rebate(inputs.publishedOcf().multiply(decimal(terms, "share")));
+      case FIXED_NET -> fixedNet(decimal(terms, "net"), inputs.publishedOcf());
+      case TIERED_VOLUME -> tiered(terms, inputs);
+    };
   }
 
   private static List<String> requiredTerms(RebateKind kind, Map<String, Object> terms) {

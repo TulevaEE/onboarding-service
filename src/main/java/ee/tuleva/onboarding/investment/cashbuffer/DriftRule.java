@@ -8,7 +8,9 @@ record DriftRule(BigDecimal threshold, int sustainRuns) {
   Drift judge(BigDecimal divergence, Optional<Drift> previousAgainstTheSameLimit) {
     var drifted = divergence.abs().compareTo(threshold) > 0;
     var runsBefore =
-        previousAgainstTheSameLimit.map(previous -> previous.runsContinuedBy(divergence)).orElse(0);
+        previousAgainstTheSameLimit
+            .map(previous -> previous.runsContinuedBy(divergence, threshold))
+            .orElse(0);
     return new Drift(divergence, threshold, drifted, drifted ? runsBefore + 1 : 0, sustainRuns);
   }
 }

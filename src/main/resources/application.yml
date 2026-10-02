@@ -106,6 +106,15 @@ ariregister:
   username: ${ARIREGISTER_USERNAME:}
   password: ${ARIREGISTER_PASSWORD:}
 
+directo:
+  url: https://login.directo.ee/apidirect
+  api-keys:
+    "[TULEVA_FONDID]": ${DIRECTO_API_KEY_TULEVA_FONDID:}
+  retry-delay: 1s
+
+accounting:
+  max-deletion-share: 0.05
+
 population-register:
   url: ${POPULATION_REGISTER_URL:http://localhost:9000}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}

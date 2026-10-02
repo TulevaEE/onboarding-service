@@ -5,8 +5,8 @@ import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
+import static org.hibernate.type.SqlTypes.JSON;
 
-import ee.tuleva.onboarding.ledger.validation.AccountEntryConsistency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,10 +14,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.jspecify.annotations.Nullable;
 
@@ -27,7 +29,6 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
-@AccountEntryConsistency
 public class LedgerAccount {
 
   @Id
@@ -59,8 +60,10 @@ public class LedgerAccount {
   public enum AccountType {
     ASSET,
     LIABILITY,
+    EQUITY,
     INCOME,
-    EXPENSE
+    EXPENSE,
+    OFF_BALANCE
   }
 
   @ManyToOne
@@ -89,6 +92,9 @@ public class LedgerAccount {
 
   @OneToMany(mappedBy = "account")
   private List<LedgerEntry> entries = new ArrayList<>();
+
+  @JdbcTypeCode(JSON)
+  private @Nullable Map<String, Object> metadata;
 
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
@@ -136,6 +142,10 @@ public class LedgerAccount {
         && party != null
         && owner.getPartyType() == party.getPartyType()
         && owner.getOwnerId().equals(party.getOwnerId());
+  }
+
+  void updateMetadata(Map<String, Object> metadata) {
+    this.metadata = metadata;
   }
 
   void addEntry(LedgerEntry entry) {

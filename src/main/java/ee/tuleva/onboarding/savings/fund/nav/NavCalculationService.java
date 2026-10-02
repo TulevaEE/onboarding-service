@@ -135,9 +135,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(
-                buildSecuritiesDetail(
-                    fund, cutoff, positionReportDate, context.getSecurityPrices()))
+            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, positionReportDate, context))
             .build();
 
     validateResult(result);
@@ -224,10 +222,7 @@ public class NavCalculationService implements NavFeeBackfill {
   }
 
   private List<SecurityDetail> buildSecuritiesDetail(
-      TulevaFund fund,
-      Instant cutoff,
-      LocalDate priceDate,
-      Map<String, ResolvedPrice> securityPrices) {
+      TulevaFund fund, Instant cutoff, LocalDate priceDate, NavComponentContext context) {
     return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, fund))
         .entrySet().stream()
             .map(
@@ -235,7 +230,7 @@ public class NavCalculationService implements NavFeeBackfill {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
                   ResolvedPrice resolvedPrice =
-                      Optional.ofNullable(securityPrices.get(isin))
+                      Optional.ofNullable(context.getSecurityPrices().get(isin))
                           .orElseThrow(
                               () ->
                                   new IllegalStateException(

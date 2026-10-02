@@ -80,12 +80,12 @@ public class RememberedSmartIdAccounts {
             });
   }
 
-  public void claimNotificationLoginStart() {
-    thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION);
+  public Instant claimNotificationLoginStart() {
+    return thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION);
   }
 
-  void releaseNotificationLoginStart() {
-    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+  void releaseNotificationLoginStart(Instant claimedAt) {
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION, claimedAt);
   }
 
   private Optional<VerifiedSmartIdAccount> currentVerification() {

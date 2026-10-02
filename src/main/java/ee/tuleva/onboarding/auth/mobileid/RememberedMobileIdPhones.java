@@ -49,12 +49,12 @@ public class RememberedMobileIdPhones {
     mostRecentPerson().map(person -> person.phone().id()).ifPresent(phones::remove);
   }
 
-  void claimLoginStart() {
-    thisBrowser.claimLoginStart(MOBILE_ID);
+  Instant claimLoginStart() {
+    return thisBrowser.claimLoginStart(MOBILE_ID);
   }
 
-  void releaseLoginStart() {
-    thisBrowser.releaseLoginStart(MOBILE_ID);
+  void releaseLoginStart(Instant claimedAt) {
+    thisBrowser.releaseLoginStart(MOBILE_ID, claimedAt);
   }
 
   void forget(long rememberedPhoneId) {

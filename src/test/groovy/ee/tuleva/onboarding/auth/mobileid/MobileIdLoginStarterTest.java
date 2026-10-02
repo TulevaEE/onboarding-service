@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.auth.browser.PushLoginStartedTooSoonException;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,6 +24,7 @@ class MobileIdLoginStarterTest {
 
   private static final String PERSONAL_CODE = "38888888888";
   private static final String REMEMBERED_PHONE = "+37255555555";
+  private static final Instant CLAIMED_AT = Instant.parse("2026-10-02T10:00:00Z");
 
   private final MobileIdAuthService authService = mock(MobileIdAuthService.class);
   private final RememberedMobileIdPhones rememberedPhones = mock(RememberedMobileIdPhones.class);
@@ -47,11 +49,12 @@ class MobileIdLoginStarterTest {
         new MobileIDSession("mid-session", "1234", MobileIdFixture.hash, REMEMBERED_PHONE);
     given(rememberedPhones.find(PERSONAL_CODE))
         .willReturn(Optional.of(new RememberedMobileIdPhone(3L, REMEMBERED_PHONE)));
+    given(rememberedPhones.claimLoginStart()).willReturn(CLAIMED_AT);
     given(authService.startLogin(REMEMBERED_PHONE, PERSONAL_CODE)).willReturn(session);
 
     assertThat(starter.start(typed, PERSONAL_CODE, false)).isSameAs(session);
     assertThat(session.getRememberedPhoneId()).isEqualTo(3L);
-    verify(rememberedPhones).claimLoginStart();
+    assertThat(session.getPushLoginClaimedAt()).isEqualTo(CLAIMED_AT);
   }
 
   @Test

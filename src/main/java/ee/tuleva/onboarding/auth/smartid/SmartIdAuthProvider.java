@@ -71,8 +71,9 @@ public class SmartIdAuthProvider implements AuthProvider {
   }
 
   private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {
-    if (session.getLogin() instanceof NotificationLogin) {
-      rememberedSmartIdAccounts.releaseNotificationLoginStart();
+    Instant claimedAt = session.getPushLoginClaimedAt();
+    if (claimedAt != null) {
+      rememberedSmartIdAccounts.releaseNotificationLoginStart(claimedAt);
     }
   }
 

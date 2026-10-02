@@ -4,6 +4,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -78,8 +79,9 @@ public class SmartIdLoginController {
             .current()
             .orElseThrow(
                 () -> new SmartIdSessionNotFoundException("No remembered Smart-ID account."));
-    rememberedSmartIdAccounts.claimNotificationLoginStart();
+    Instant claimedAt = rememberedSmartIdAccounts.claimNotificationLoginStart();
     SmartIdSession session = startNotificationLogin(account);
+    session.setPushLoginClaimedAt(claimedAt);
     String redemptionSecret = storeInRenewedSession(session);
     return SmartIdLoginResponse.notification(
         ((NotificationLogin) session.getLogin()).verificationCode(), redemptionSecret);

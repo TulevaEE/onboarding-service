@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import java.time.Instant
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -13,6 +14,8 @@ import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError
 
 class MobileIdAuthProviderSpec extends Specification {
+
+  private static final Instant CLAIMED_AT = Instant.parse("2026-10-02T10:00:00Z")
   private final GenericSessionStore genericSessionStore = Mock()
   private final MobileIdAuthService mobileIdAuthService = Mock()
   private final PrincipalService principalService = Mock()
@@ -141,7 +144,7 @@ class MobileIdAuthProviderSpec extends Specification {
     when:
     mobileIdAuthProvider.authenticate(null)
     then:
-    1 * rememberedPhones.releaseLoginStart()
+    1 * rememberedPhones.releaseLoginStart(CLAIMED_AT)
     then:
     1 * rememberedPhones.remember(person.personalCode, session.phoneNumber, person.firstName)
   }
@@ -155,7 +158,7 @@ class MobileIdAuthProviderSpec extends Specification {
     mobileIdAuthProvider.authenticate(null)
     then:
     thrown(RuntimeException)
-    1 * rememberedPhones.releaseLoginStart()
+    1 * rememberedPhones.releaseLoginStart(CLAIMED_AT)
     where:
     failure << [
         new MobileIdException(ofSingleError("mobile.id.cancelled", "Cancelled on the phone.")),
@@ -173,7 +176,7 @@ class MobileIdAuthProviderSpec extends Specification {
     mobileIdAuthProvider.authenticate(null)
     then:
     thrown(AuthNotCompleteException)
-    0 * rememberedPhones.releaseLoginStart()
+    0 * rememberedPhones.releaseLoginStart(_)
   }
 
   def "a login from a typed phone leaves the claim of this browser alone"() {
@@ -185,12 +188,13 @@ class MobileIdAuthProviderSpec extends Specification {
     when:
     mobileIdAuthProvider.authenticate(null)
     then:
-    0 * rememberedPhones.releaseLoginStart()
+    0 * rememberedPhones.releaseLoginStart(_)
   }
 
   private static MobileIDSession sessionFromRememberedPhone() {
     MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
     session.rememberedPhoneId = 3L
+    session.pushLoginClaimedAt = CLAIMED_AT
     return session
   }
 }

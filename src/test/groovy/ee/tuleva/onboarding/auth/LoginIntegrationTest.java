@@ -521,6 +521,29 @@ class LoginIntegrationTest {
   }
 
   @Test
+  void pollingAnEarlierRefusedPushLoginAgainDoesNotLetAThirdOneStartWhileTheSecondIsRunning()
+      throws Exception {
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
+    given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
+        .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
+    MvcResult refused =
+        mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk()).andReturn();
+    SessionStatus status = failedStatus("USER_REFUSED");
+    given(smartIdConnector.getSessionStatus(PUSH_SESSION_ID)).willReturn(status);
+    given(notificationResponseValidator.validate(eq(status), any(), eq("smart-id-demo")))
+        .willThrow(new UserRefusedException());
+    mockMvc.perform(smartIdToken(refused).cookie(remembered)).andExpect(status().isBadRequest());
+    mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk());
+
+    mockMvc.perform(smartIdToken(refused).cookie(remembered)).andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(pushLoginStart(remembered))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.errors[0].code").value("auth.too.many.requests"));
+  }
+
+  @Test
   void aCompletedPushLoginLetsTheNextOneStartRightAway() throws Exception {
     Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))

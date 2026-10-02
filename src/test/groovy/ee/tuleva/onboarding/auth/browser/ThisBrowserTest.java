@@ -150,11 +150,10 @@ class ThisBrowserTest {
     bindRequest(new Cookie(COOKIE_NAME, "token"));
     given(browsers.findUnexpired(hash("token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
-    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS)).willReturn(true);
+    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS))
+        .willReturn(Optional.of(NOW));
 
-    thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION);
-
-    verify(browsers).claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS);
+    assertThat(thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION)).isEqualTo(NOW);
   }
 
   @Test
@@ -162,7 +161,8 @@ class ThisBrowserTest {
     bindRequest(new Cookie(COOKIE_NAME, "token"));
     given(browsers.findUnexpired(hash("token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
-    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS)).willReturn(false);
+    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS))
+        .willReturn(Optional.empty());
 
     assertThatThrownBy(() -> thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION))
         .isInstanceOf(PushLoginStartedTooSoonException.class);
@@ -183,17 +183,17 @@ class ThisBrowserTest {
     given(browsers.findUnexpired(hash("token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
 
-    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION, NOW);
 
-    verify(browsers).releaseLoginStart(7L, SMART_ID_NOTIFICATION);
+    verify(browsers).releaseLoginStart(7L, SMART_ID_NOTIFICATION, NOW);
   }
 
   @Test
   void releasingOnABrowserThatIsNotRememberedReleasesNothing() {
     bindRequest();
 
-    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION, NOW);
 
-    verify(browsers, never()).releaseLoginStart(anyLong(), any());
+    verify(browsers, never()).releaseLoginStart(anyLong(), any(), any());
   }
 }

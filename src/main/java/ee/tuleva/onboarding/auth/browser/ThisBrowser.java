@@ -59,23 +59,18 @@ public class ThisBrowser {
     addCookie(cookie(token).maxAge(LONGEST_COOKIE_LIFETIME_BROWSERS_ACCEPT));
   }
 
-  public void claimLoginStart(PushLogin pushLogin) {
-    boolean claimed =
-        remembered()
-            .map(
-                browser ->
-                    browsers.claimLoginStart(
-                        browser.id(),
-                        pushLogin,
-                        MINIMUM_INTERVAL_BETWEEN_PUSH_LOGINS_FROM_ONE_BROWSER))
-            .orElse(false);
-    if (!claimed) {
-      throw new PushLoginStartedTooSoonException(pushLogin);
-    }
+  public Instant claimLoginStart(PushLogin pushLogin) {
+    return remembered()
+        .flatMap(
+            browser ->
+                browsers.claimLoginStart(
+                    browser.id(), pushLogin, MINIMUM_INTERVAL_BETWEEN_PUSH_LOGINS_FROM_ONE_BROWSER))
+        .orElseThrow(() -> new PushLoginStartedTooSoonException(pushLogin));
   }
 
-  public void releaseLoginStart(PushLogin pushLogin) {
-    remembered().ifPresent(browser -> browsers.releaseLoginStart(browser.id(), pushLogin));
+  public void releaseLoginStart(PushLogin pushLogin, Instant claimedAt) {
+    remembered()
+        .ifPresent(browser -> browsers.releaseLoginStart(browser.id(), pushLogin, claimedAt));
   }
 
   private Optional<String> cookieToken() {

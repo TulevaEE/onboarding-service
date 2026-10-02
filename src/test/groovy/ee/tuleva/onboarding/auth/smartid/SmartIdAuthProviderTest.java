@@ -204,6 +204,7 @@ class SmartIdAuthProviderTest {
   @Test
   void aCompletedPushLoginReleasesThisBrowserBeforeTheRememberedAccountRenewsItsCookie() {
     SmartIdSession session = aNotificationSession(now);
+    session.setPushLoginClaimedAt(now);
     String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
@@ -216,13 +217,14 @@ class SmartIdAuthProviderTest {
     provider.authenticate(secret);
 
     InOrder inOrder = inOrder(rememberedAccounts);
-    inOrder.verify(rememberedAccounts).releaseNotificationLoginStart();
+    inOrder.verify(rememberedAccounts).releaseNotificationLoginStart(now);
     inOrder.verify(rememberedAccounts).remember(aSmartIdPerson(), false);
   }
 
   @Test
   void aFailedPushLoginReleasesThisBrowserForTheNextOne() {
     SmartIdSession session = aNotificationSession(now);
+    session.setPushLoginClaimedAt(now);
     session.setError(SmartIdLoginError.USER_REFUSED);
     String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
@@ -231,12 +233,13 @@ class SmartIdAuthProviderTest {
 
     assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
 
-    verify(rememberedAccounts).releaseNotificationLoginStart();
+    verify(rememberedAccounts).releaseNotificationLoginStart(now);
   }
 
   @Test
   void aPushLoginStillWaitingForThePersonKeepsThisBrowserClaimed() {
     SmartIdSession session = aNotificationSession(now);
+    session.setPushLoginClaimedAt(now);
     String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session)).willThrow(new AuthNotCompleteException());
@@ -244,7 +247,7 @@ class SmartIdAuthProviderTest {
     assertThatThrownBy(() -> provider.authenticate(secret))
         .isInstanceOf(AuthNotCompleteException.class);
 
-    verify(rememberedAccounts, never()).releaseNotificationLoginStart();
+    verify(rememberedAccounts, never()).releaseNotificationLoginStart(any());
   }
 
   @Test
@@ -256,7 +259,7 @@ class SmartIdAuthProviderTest {
 
     provider.authenticate(secret);
 
-    verify(rememberedAccounts, never()).releaseNotificationLoginStart();
+    verify(rememberedAccounts, never()).releaseNotificationLoginStart(any());
   }
 
   @Test

@@ -31,6 +31,7 @@ public class SmartIdSession implements Serializable {
   @ToString.Exclude private @Nullable String userChallengeVerifier;
   @ToString.Exclude private @Nullable SmartIdPerson person;
   private @Nullable SmartIdLoginError error;
+  private @Nullable Instant pushLoginClaimedAt;
 
   @ToString.Exclude
   @Setter(AccessLevel.NONE)

@@ -4,6 +4,7 @@ import ee.sk.mid.MidHashToSign;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
 import lombok.Data;
 import org.jspecify.annotations.Nullable;
 
@@ -23,6 +24,7 @@ public class MobileIDSession implements Person, Serializable {
   private @Nullable String personalCode;
   private @Nullable Long rememberedPhoneId;
   private boolean rememberMe;
+  private @Nullable Instant pushLoginClaimedAt;
 
   public void updateSessionInfo(String firstName, String lastName, String personalCode) {
     this.firstName = firstName;

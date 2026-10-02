@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth.browser;
 
+import static java.time.temporal.ChronoUnit.MILLIS;
+
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -73,30 +75,38 @@ class RememberedBrowsers {
         .update();
   }
 
-  boolean claimLoginStart(long id, PushLogin pushLogin, Duration minimumInterval) {
-    Instant now = Instant.now(clock);
+  Optional<Instant> claimLoginStart(long id, PushLogin pushLogin, Duration minimumInterval) {
+    Instant now = Instant.now(clock).truncatedTo(MILLIS);
     String startedAt = pushLogin.startedAtColumn;
-    return jdbcClient
-            .sql(
-                "UPDATE remembered_browser SET "
-                    + startedAt
-                    + " = :now WHERE id = :id AND expires_at > :now AND ("
-                    + startedAt
-                    + " IS NULL OR "
-                    + startedAt
-                    + " <= :previousStartedBy)")
-            .param("id", id)
-            .param("now", Timestamp.from(now))
-            .param("previousStartedBy", Timestamp.from(now.minus(minimumInterval)))
-            .update()
-        == 1;
+    boolean claimed =
+        jdbcClient
+                .sql(
+                    "UPDATE remembered_browser SET "
+                        + startedAt
+                        + " = :now WHERE id = :id AND expires_at > :now AND ("
+                        + startedAt
+                        + " IS NULL OR "
+                        + startedAt
+                        + " <= :previousStartedBy)")
+                .param("id", id)
+                .param("now", Timestamp.from(now))
+                .param("previousStartedBy", Timestamp.from(now.minus(minimumInterval)))
+                .update()
+            == 1;
+    return claimed ? Optional.of(now) : Optional.empty();
   }
 
-  void releaseLoginStart(long id, PushLogin pushLogin) {
+  void releaseLoginStart(long id, PushLogin pushLogin, Instant claimedAt) {
+    String startedAt = pushLogin.startedAtColumn;
     jdbcClient
         .sql(
-            "UPDATE remembered_browser SET " + pushLogin.startedAtColumn + " = NULL WHERE id = :id")
+            "UPDATE remembered_browser SET "
+                + startedAt
+                + " = NULL WHERE id = :id AND "
+                + startedAt
+                + " = :claimedAt")
         .param("id", id)
+        .param("claimedAt", Timestamp.from(claimedAt))
         .update();
   }
 

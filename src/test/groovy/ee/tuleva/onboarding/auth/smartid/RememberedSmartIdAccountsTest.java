@@ -193,8 +193,10 @@ class RememberedSmartIdAccountsTest {
 
   @Test
   void releasesThePushLoginStartForThisBrowser() {
-    accounts.releaseNotificationLoginStart();
+    Instant claimedAt = Instant.parse("2026-10-02T10:00:00Z");
 
-    verify(thisBrowser).releaseLoginStart(SMART_ID_NOTIFICATION);
+    accounts.releaseNotificationLoginStart(claimedAt);
+
+    verify(thisBrowser).releaseLoginStart(SMART_ID_NOTIFICATION, claimedAt);
   }
 }

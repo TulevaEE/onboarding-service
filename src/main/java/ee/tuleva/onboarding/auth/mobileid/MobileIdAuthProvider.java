@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -77,8 +78,9 @@ public class MobileIdAuthProvider implements AuthProvider {
   }
 
   private void releaseThisBrowserForTheNextLogin(MobileIDSession session) {
-    if (session.getRememberedPhoneId() != null) {
-      rememberedPhones.releaseLoginStart();
+    Instant claimedAt = session.getPushLoginClaimedAt();
+    if (claimedAt != null) {
+      rememberedPhones.releaseLoginStart(claimedAt);
     }
   }
 }

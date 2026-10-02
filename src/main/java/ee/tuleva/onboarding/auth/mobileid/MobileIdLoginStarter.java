@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -40,10 +41,11 @@ public class MobileIdLoginStarter {
 
   private MobileIDSession startWithRememberedPhone(
       RememberedMobileIdPhone remembered, String personalCode) {
-    rememberedPhones.claimLoginStart();
+    Instant claimedAt = rememberedPhones.claimLoginStart();
     try {
       MobileIDSession session = authService.startLogin(remembered.phoneNumber(), personalCode);
       session.setRememberedPhoneId(remembered.id());
+      session.setPushLoginClaimedAt(claimedAt);
       return session;
     } catch (MobileIdNotMidClientException e) {
       rememberedPhones.forget(remembered.id());

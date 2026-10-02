@@ -245,8 +245,8 @@ In case file has multiple certificate chains, `import-certs.sh` will add all of 
 Smart-ID runs on SK's RP API v3 through `ee.sk.smartid:smart-id-java-client`.
 
 - Login uses the anonymous device-link flow: a QR code on desktop, a same-device link on phones. The
-  personal-code push login is only offered on a browser that has already completed a device-link login
-  (the host-only `__Host-REMEMBERED_BROWSER` cookie, which only the host serving the app
+  personal-code push login is only offered on a browser that has already completed a device-link login the
+  person asked it to remember (the host-only `__Host-REMEMBERED_BROWSER` cookie, which only the host serving the app
   receives), because a push can otherwise be triggered remotely by anyone
   who knows the personal code.
 - Signing stays notification-based. The signing certificate is fetched silently by document number when
@@ -266,14 +266,22 @@ Smart-ID runs on SK's RP API v3 through `ee.sk.smartid:smart-id-java-client`.
 
 ### Remembered browser
 
+A browser is remembered only when the person asks for it, per login: the "remember me" checkbox is unchecked by
+default, because remembering rests on consent and a pre-ticked box is not consent. The choice travels as
+`rememberMe` (absent means `false`) on the Smart-ID device-link start (`POST /v1/smart-id/login`) and on the
+Mobile-ID start (`POST /authenticate`), and it is kept in the server-side login session (`SmartIdSession`,
+`MobileIDSession`) until the login completes, so it cannot be changed in between. A login completed without it sets
+or renews no cookie, and forgets what this browser remembers for that personal code (the Smart-ID account, or the
+Mobile-ID phone). A Smart-ID push login comes from a browser that is already remembered and carries that forward.
+
 `__Host-REMEMBERED_BROWSER` (HttpOnly, Secure, SameSite=Lax, Path=/, no Domain) holds 32 random bytes; only their
 SHA-256 is stored, in `remembered_browser`, and the token is replaced on every login that remembers something.
 What a browser remembers lives server-side next to it:
 
-- one Smart-ID account (`remembered_smart_id_account`), for 90 days from the last device-link login, which is what
-  offers the push login;
-- per personal code, the phone number of the last successful Mobile-ID login (`remembered_mobile_id_phone`), for
-  12 months from the last such login. `POST /v1/mobile-id/login/remembered` only says whether one exists, and a
+- one Smart-ID account (`remembered_smart_id_account`), for 90 days from the last device-link login that asked to
+  be remembered, which is what offers the push login;
+- per personal code, the phone number of the last successful Mobile-ID login that asked to be remembered
+  (`remembered_mobile_id_phone`), for 12 months from the last such login. `POST /v1/mobile-id/login/remembered` only says whether one exists, and a
   Mobile-ID start without a phone number uses it. A start from a remembered number is limited to one per browser
   every 10 seconds unless the one before has ended, and a remembered number Mobile-ID answers NOT_MID_CLIENT for is forgotten.
 

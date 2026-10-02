@@ -176,4 +176,24 @@ class ThisBrowserTest {
         .isInstanceOf(PushLoginStartedTooSoonException.class);
     verify(browsers, never()).claimLoginStart(anyLong(), any(), any());
   }
+
+  @Test
+  void releasesThePushLoginStartOfThisBrowser() {
+    bindRequest(new Cookie(COOKIE_NAME, "token"));
+    given(browsers.findUnexpired(hash("token")))
+        .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
+
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+
+    verify(browsers).releaseLoginStart(7L, SMART_ID_NOTIFICATION);
+  }
+
+  @Test
+  void releasingOnABrowserThatIsNotRememberedReleasesNothing() {
+    bindRequest();
+
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+
+    verify(browsers, never()).releaseLoginStart(anyLong(), any());
+  }
 }

@@ -54,9 +54,11 @@ public class SmartIdAuthProvider implements AuthProvider {
       person = smartIdAuthService.completeLogin(session);
     } catch (SmartIdException e) {
       genericSessionStore.save(session);
+      releaseThisBrowserForTheNextPushLogin(session);
       forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(session);
       throw e;
     }
+    releaseThisBrowserForTheNextPushLogin(session);
     genericSessionStore.remove(SmartIdSession.class);
 
     var authenticatedPerson =
@@ -66,6 +68,12 @@ public class SmartIdAuthProvider implements AuthProvider {
                 GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, person.getDocumentNumber()));
     rememberedSmartIdAccounts.remember(person, session.getLogin() instanceof DeviceLinkLogin);
     return authenticatedPerson;
+  }
+
+  private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {
+    if (session.getLogin() instanceof NotificationLogin) {
+      rememberedSmartIdAccounts.releaseNotificationLoginStart();
+    }
   }
 
   private void forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(SmartIdSession session) {

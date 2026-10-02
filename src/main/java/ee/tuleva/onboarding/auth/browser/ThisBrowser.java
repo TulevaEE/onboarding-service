@@ -74,6 +74,10 @@ public class ThisBrowser {
     }
   }
 
+  public void releaseLoginStart(PushLogin pushLogin) {
+    remembered().ifPresent(browser -> browsers.releaseLoginStart(browser.id(), pushLogin));
+  }
+
   private Optional<String> cookieToken() {
     Cookie[] cookies = requestAttributes().getRequest().getCookies();
     if (cookies == null) {

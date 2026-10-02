@@ -77,6 +77,10 @@ public class RememberedSmartIdAccounts {
     thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION);
   }
 
+  void releaseNotificationLoginStart() {
+    thisBrowser.releaseLoginStart(SMART_ID_NOTIFICATION);
+  }
+
   private Optional<VerifiedSmartIdAccount> currentVerification() {
     return thisBrowser.remembered().map(RememberedBrowser::id).flatMap(accounts::findUnexpired);
   }

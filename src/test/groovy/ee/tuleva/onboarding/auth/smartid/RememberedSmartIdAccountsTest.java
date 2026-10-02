@@ -169,4 +169,11 @@ class RememberedSmartIdAccountsTest {
     assertThatThrownBy(accounts::claimNotificationLoginStart)
         .isInstanceOf(PushLoginStartedTooSoonException.class);
   }
+
+  @Test
+  void releasesThePushLoginStartForThisBrowser() {
+    accounts.releaseNotificationLoginStart();
+
+    verify(thisBrowser).releaseLoginStart(SMART_ID_NOTIFICATION);
+  }
 }

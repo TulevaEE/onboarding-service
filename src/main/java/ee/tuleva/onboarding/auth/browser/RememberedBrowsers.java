@@ -92,6 +92,14 @@ class RememberedBrowsers {
         == 1;
   }
 
+  void releaseLoginStart(long id, PushLogin pushLogin) {
+    jdbcClient
+        .sql(
+            "UPDATE remembered_browser SET " + pushLogin.startedAtColumn + " = NULL WHERE id = :id")
+        .param("id", id)
+        .update();
+  }
+
   int removeExpired() {
     return jdbcClient
         .sql("DELETE FROM remembered_browser WHERE expires_at <= :now")

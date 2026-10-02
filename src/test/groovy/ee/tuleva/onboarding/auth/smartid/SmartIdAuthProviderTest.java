@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +29,7 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 class SmartIdAuthProviderTest {
 
@@ -163,6 +165,64 @@ class SmartIdAuthProviderTest {
     assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
 
     verify(rememberedAccounts, never()).forgetEverywhere();
+  }
+
+  @Test
+  void aCompletedPushLoginReleasesThisBrowserBeforeTheRememberedAccountRenewsItsCookie() {
+    SmartIdSession session = aNotificationSession(now);
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
+    given(
+            principalService.getFrom(
+                aSmartIdPerson(),
+                Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
+        .willReturn(sampleAuthenticatedPersonAndMember().build());
+
+    provider.authenticate(secret);
+
+    InOrder inOrder = inOrder(rememberedAccounts);
+    inOrder.verify(rememberedAccounts).releaseNotificationLoginStart();
+    inOrder.verify(rememberedAccounts).remember(aSmartIdPerson(), false);
+  }
+
+  @Test
+  void aFailedPushLoginReleasesThisBrowserForTheNextOne() {
+    SmartIdSession session = aNotificationSession(now);
+    session.setError(SmartIdLoginError.USER_REFUSED);
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session))
+        .willThrow(new SmartIdException(SmartIdLoginError.USER_REFUSED));
+
+    assertThatThrownBy(() -> provider.authenticate(secret)).isInstanceOf(SmartIdException.class);
+
+    verify(rememberedAccounts).releaseNotificationLoginStart();
+  }
+
+  @Test
+  void aPushLoginStillWaitingForThePersonKeepsThisBrowserClaimed() {
+    SmartIdSession session = aNotificationSession(now);
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session)).willThrow(new AuthNotCompleteException());
+
+    assertThatThrownBy(() -> provider.authenticate(secret))
+        .isInstanceOf(AuthNotCompleteException.class);
+
+    verify(rememberedAccounts, never()).releaseNotificationLoginStart();
+  }
+
+  @Test
+  void aQrLoginLeavesThePushLoginClaimOfThisBrowserAlone() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
+
+    provider.authenticate(secret);
+
+    verify(rememberedAccounts, never()).releaseNotificationLoginStart();
   }
 
   @Test

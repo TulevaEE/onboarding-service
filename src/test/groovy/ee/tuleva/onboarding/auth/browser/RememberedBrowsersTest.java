@@ -149,6 +149,39 @@ class RememberedBrowsersTest {
   }
 
   @Test
+  void aReleasedPushLoginLetsTheNextOneStartRightAway() {
+    long id = browsers.add("token-hash", LATER);
+    browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
+
+    browsers.releaseLoginStart(id, SMART_ID_NOTIFICATION);
+
+    assertThat(browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL)).isTrue();
+  }
+
+  @Test
+  void releasingASmartIdPushLeavesAMobileIdLoginFromTheSameBrowserClaimed() {
+    long id = browsers.add("token-hash", LATER);
+    browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
+    browsers.claimLoginStart(id, MOBILE_ID, PUSH_INTERVAL);
+
+    browsers.releaseLoginStart(id, SMART_ID_NOTIFICATION);
+
+    assertThat(browsers.claimLoginStart(id, MOBILE_ID, PUSH_INTERVAL)).isFalse();
+  }
+
+  @Test
+  void releasingAPushLoginFromOneBrowserLeavesAnotherClaimed() {
+    long first = browsers.add("first", LATER);
+    long second = browsers.add("second", LATER);
+    browsers.claimLoginStart(first, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
+    browsers.claimLoginStart(second, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
+
+    browsers.releaseLoginStart(first, SMART_ID_NOTIFICATION);
+
+    assertThat(browsers.claimLoginStart(second, SMART_ID_NOTIFICATION, PUSH_INTERVAL)).isFalse();
+  }
+
+  @Test
   void refusesAPushLoginFromABrowserWhoseValidityHasRunOut() {
     long id = browsers.add("token-hash", NOW.minusSeconds(1));
 

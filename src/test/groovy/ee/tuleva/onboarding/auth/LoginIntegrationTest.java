@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionSecret;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.anAuthenticationIdentity;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.completeStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.failedStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDigest;
@@ -47,6 +48,7 @@ import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
 import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.DeviceLinkAuthenticationSessionRequest;
 import ee.sk.smartid.rest.dao.NotificationAuthenticationSessionResponse;
@@ -462,6 +464,50 @@ class LoginIntegrationTest {
   }
 
   @Test
+  void aPushLoginRefusedInTheAppLetsTheNextOneStartRightAway() throws Exception {
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
+        .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
+    MvcResult refused =
+        mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk()).andReturn();
+    SessionStatus status = failedStatus("USER_REFUSED");
+    given(smartIdConnector.getSessionStatus(PUSH_SESSION_ID)).willReturn(status);
+    given(notificationResponseValidator.validate(eq(status), any(), eq("smart-id-demo")))
+        .willThrow(new UserRefusedException());
+    mockMvc
+        .perform(smartIdToken(refused).cookie(remembered))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.user.refused"));
+
+    mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk());
+
+    verify(smartIdConnector, times(2)).initNotificationAuthentication(any(), eq(documentNumber));
+  }
+
+  @Test
+  void aCompletedPushLoginLetsTheNextOneStartRightAway() throws Exception {
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
+        .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
+    MvcResult start =
+        mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk()).andReturn();
+    SessionStatus status = completeStatus("Notification");
+    given(smartIdConnector.getSessionStatus(PUSH_SESSION_ID)).willReturn(status);
+    given(notificationResponseValidator.validate(eq(status), any(), eq("smart-id-demo")))
+        .willReturn(anAuthenticationIdentity());
+    Cookie rotated =
+        rememberedAccountCookie(
+            mockMvc
+                .perform(smartIdToken(start).cookie(remembered))
+                .andExpect(status().isOk())
+                .andReturn());
+
+    mockMvc.perform(pushLoginStart(rotated)).andExpect(status().isOk());
+
+    verify(smartIdConnector, times(2)).initNotificationAuthentication(any(), eq(documentNumber));
+  }
+
+  @Test
   void aPushLoginWithoutARememberedAccountIsRefused() throws Exception {
     mockMvc
         .perform(
@@ -649,6 +695,13 @@ class LoginIntegrationTest {
         .perform(mobileIdStart(null))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("mobile.id.phone.number.required"));
+  }
+
+  private static MockHttpServletRequestBuilder pushLoginStart(Cookie remembered) {
+    return post("/v1/smart-id/login")
+        .cookie(remembered)
+        .contentType(APPLICATION_JSON)
+        .content("{\"flow\":\"NOTIFICATION\"}");
   }
 
   private MockHttpServletRequestBuilder mobileIdStart(@Nullable String phoneNumber) {

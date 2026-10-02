@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.SHARE_OF_PUBLISHED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.TIERED_VOLUME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.investment.fees.rate.AgreementOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.rate.AgreementOutcome.Uncomputable;
@@ -196,6 +197,23 @@ class RebateCalculatorTest {
   void anAgreementMissingATermItsKindNeedsCannotBeComputed() {
     assertThat(calculator.apply(FIXED_NET, Map.of("rate", "0.00020000"), inputs(null)))
         .isInstanceOf(Uncomputable.class);
+  }
+
+  @Test
+  void aGateInACurrencyOtherThanEurOrUsdIsRefusedRatherThanReadAsEur() {
+    var terms =
+        Map.<String, Object>of(
+            "rate",
+            "0.00020000",
+            "minimum",
+            "50000000.00",
+            "minimumCurrency",
+            "GBP",
+            "funds",
+            List.of("TUK75"));
+
+    assertThatThrownBy(() -> calculator.apply(FIXED, terms, inputs("60000000.00")))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

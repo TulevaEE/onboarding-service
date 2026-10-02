@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
+import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.TIERED_VOLUME;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -53,6 +54,8 @@ class InstrumentOcfServiceIT {
 
   private static final String ISIN = "ZZ0000000001";
   private static final String SECOND_ISIN = "ZZ0000000002";
+  private static final String THIRD_ISIN = "ZZ0000000003";
+  private static final String FOURTH_ISIN = "ZZ0000000004";
   private static final BigDecimal PUBLISHED_OCF = new BigDecimal("0.0007");
   private static final String NO_VOLUME_FOR_BOTH_FUNDS =
       "the month's volume cannot be measured: a fund named in the agreement has no published NAV"
@@ -260,6 +263,64 @@ class InstrumentOcfServiceIT {
   }
 
   @Test
+  void anAgreementThatCannotBeReadFallsBackWithItsReasonBesideTheAgreementsThatCan() {
+    givenAnAgreement(
+        "FIXED",
+        "{\"rate\":\"0.00010000\",\"minimum\":\"1.00\",\"minimumCurrency\":\"EUR\","
+            + "\"funds\":[\"TUK7\"]}");
+    inTheInstrumentReference(SECOND_ISIN);
+    givenAnAgreement(SECOND_ISIN, "FIXED", "{\"rate\":");
+    inTheInstrumentReference(THIRD_ISIN);
+    givenAnAgreement(
+        THIRD_ISIN,
+        "FIXED",
+        "{\"rate\":\"0.00010000\",\"minimum\":\"1.00\",\"minimumCurrency\":\"GBP\","
+            + "\"funds\":[\"TUK75\"]}");
+    inTheInstrumentReference(FOURTH_ISIN);
+    givenAnAgreement(FOURTH_ISIN, "NONE", "{}");
+    heldOn(APRIL_30, TUK75, "30000000.00");
+
+    var rates = service.resolve(APRIL);
+
+    assertThat(rates)
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactly(
+            fallback(ISIN, "the agreement could not be applied: IllegalArgumentException", FIXED),
+            fallback(
+                SECOND_ISIN,
+                "the agreement could not be applied: UnexpectedEndOfInputException",
+                FIXED),
+            fallback(
+                THIRD_ISIN, "the agreement could not be applied: IllegalArgumentException", FIXED),
+            new InstrumentRate(
+                0, FOURTH_ISIN, APRIL, PUBLISHED_OCF, PUBLISHED_OCF, AGREEMENT, null, NONE));
+  }
+
+  @Test
+  void anAgreementEndingOnTheMonthEndDecidesTheMonthAndItsSuccessorFromTheNextMonthDoesNot() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00010000\"}");
+    jdbcClient
+        .sql("UPDATE investment_instrument_fee SET valid_to = :monthEnd WHERE isin = :isin")
+        .param("monthEnd", APRIL_30)
+        .param("isin", ISIN)
+        .update();
+    givenAnAgreement(ISIN, "NONE", "{}", MAY.atDay(1));
+    var aprilRate =
+        new InstrumentRate(
+            0, ISIN, APRIL, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED);
+
+    var resolved = service.resolve(APRIL);
+
+    assertThat(resolved)
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactly(aprilRate);
+    assertThat(service.ratesFor(APRIL).get(ISIN))
+        .usingRecursiveComparison(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .isEqualTo(aprilRate);
+    assertThat(service.isinsWithAnAgreementOn(APRIL_30)).containsExactly(ISIN);
+  }
+
+  @Test
   void aReaderStoresNoRateSoOnlyTheRateJobSettlesAMonth() {
     givenAnAgreement("NONE", "{}");
 
@@ -436,8 +497,12 @@ class InstrumentOcfServiceIT {
   }
 
   private static InstrumentRate fallback(String reason, RebateKind rebateKind) {
+    return fallback(ISIN, reason, rebateKind);
+  }
+
+  private static InstrumentRate fallback(String isin, String reason, RebateKind rebateKind) {
     return new InstrumentRate(
-        0, ISIN, APRIL, PUBLISHED_OCF, PUBLISHED_OCF, PUBLISHED_FALLBACK, reason, rebateKind);
+        0, isin, APRIL, PUBLISHED_OCF, PUBLISHED_OCF, PUBLISHED_FALLBACK, reason, rebateKind);
   }
 
   private long storedRates() {

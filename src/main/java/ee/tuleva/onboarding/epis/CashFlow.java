@@ -34,7 +34,7 @@ public class CashFlow implements Comparable<CashFlow> {
   private Currency currency;
   private Type type;
   private BigDecimal units;
-  private BigDecimal nav;
+  @Nullable private BigDecimal nav;
 
   public Instant getPriceTime() {
     if (priceTime != null) {

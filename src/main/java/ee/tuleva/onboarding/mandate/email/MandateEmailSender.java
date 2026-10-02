@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_MANDATE;
 import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_PAYMENT_RATE;
 import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_MANDATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.NONE;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -30,8 +31,17 @@ public class MandateEmailSender {
           "Skipping mandate email because it is part of a batch: mandateId={}", mandate.getId());
       return;
     }
-    NudgeDecision decision = nudgeDecisionService.decide(event.getUser(), contextFor(mandate));
+    NudgeDecision decision =
+        carriesNoNudge(mandate)
+            ? NudgeDecision.of(NONE)
+            : nudgeDecisionService.decide(event.getUser(), contextFor(mandate));
     mandateEmailService.sendMandate(event.getUser(), mandate, decision, event.getLocale());
+  }
+
+  private static boolean carriesNoNudge(Mandate mandate) {
+    return mandate.isTransferCancellation()
+        || mandate.isWithdrawalCancellation()
+        || mandate.isEarlyWithdrawalCancellation();
   }
 
   static NudgeContext contextFor(Mandate mandate) {

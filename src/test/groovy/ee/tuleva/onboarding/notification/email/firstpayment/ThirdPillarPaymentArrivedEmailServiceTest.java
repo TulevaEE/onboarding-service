@@ -105,6 +105,26 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
   }
 
   @Test
+  void carriesNoNudgeTagWhenThereIsNoNudge() {
+    acceptedByMandrill();
+    given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(NudgeKey.NONE));
+    Map<String, Object> expected = baseMergeVars(true);
+    expected.putAll(NudgeDecision.of(NudgeKey.NONE).mergeVars(Locale.of("et")));
+
+    service.send(payment(true));
+
+    verify(emailService)
+        .newMandrillMessage(
+            "first.last@example.com",
+            "third_pillar_payment_arrived_et",
+            expected,
+            List.of("third_pillar_payment_arrived"));
+    verify(emailPersistenceService)
+        .save(payment(true), "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", null);
+  }
+
+  @Test
   void returnsFalseAndDoesNotPersistWhenMandrillFailsToSend() {
     given(nudgeDecisionService.decideOffline(any(), any()))
         .willReturn(NudgeDecision.of(NudgeKey.NONE));
@@ -225,7 +245,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
             baseMergeVars(true),
-            List.of("third_pillar_payment_arrived", "nudge_none"));
+            List.of("third_pillar_payment_arrived"));
   }
 
   @Test
@@ -240,6 +260,6 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
             baseMergeVars(true),
-            List.of("third_pillar_payment_arrived", "nudge_none"));
+            List.of("third_pillar_payment_arrived"));
   }
 }

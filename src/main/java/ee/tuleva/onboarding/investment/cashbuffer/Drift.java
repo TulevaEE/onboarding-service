@@ -13,7 +13,9 @@ record Drift(
     return drifted && consecutiveRuns >= sustainRuns;
   }
 
-  int runsContinuedBy(BigDecimal nextDivergence) {
-    return divergence.signum() == nextDivergence.signum() ? consecutiveRuns : 0;
+  int runsContinuedBy(BigDecimal nextDivergence, BigDecimal nextThreshold) {
+    return divergence.signum() == nextDivergence.signum() && threshold.compareTo(nextThreshold) == 0
+        ? consecutiveRuns
+        : 0;
   }
 }

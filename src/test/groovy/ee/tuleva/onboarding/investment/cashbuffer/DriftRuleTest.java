@@ -51,6 +51,30 @@ class DriftRuleTest {
     assertThat(drift.sustained()).isFalse();
   }
 
+  @Test
+  void aChangedThresholdStartsTheRunAgainSinceTheEarlierMonthsWereJudgedByAnotherRule() {
+    var raisedThreshold = new BigDecimal("100000.00");
+
+    var drift =
+        new DriftRule(raisedThreshold, 2)
+            .judge(new BigDecimal("110000.00"), previous("60000.00", 5));
+
+    assertThat(drift)
+        .isEqualTo(new Drift(new BigDecimal("110000.00"), raisedThreshold, true, 1, 2));
+    assertThat(drift.sustained()).isFalse();
+  }
+
+  @Test
+  void theSameThresholdStoredAtAnotherScaleKeepsTheRunGoing() {
+    var sameThresholdUnscaled = new BigDecimal("50000");
+
+    var drift =
+        new DriftRule(sameThresholdUnscaled, 2)
+            .judge(new BigDecimal("75000.00"), previous("60000.00", 4));
+
+    assertThat(drift.consecutiveRuns()).isEqualTo(5);
+  }
+
   private static Optional<Drift> previous(String divergence, int consecutiveRuns) {
     return Optional.of(new Drift(new BigDecimal(divergence), THRESHOLD, true, consecutiveRuns, 2));
   }

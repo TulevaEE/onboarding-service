@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.check.tracking.EscalationRule.Verdict;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -25,8 +26,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  private static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
-  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final String PUBLISHED_WITHOUT_VALIDATION =
       "NAV report published WITHOUT tracking-difference validation";
@@ -244,7 +243,7 @@ class TrackingDifferenceNotifier {
     var owed =
         alertableResults.stream()
             .filter(result -> !result.hasAnyBreach() && result.endedStreak() != null)
-            .map(result -> Verdict.of(result, escalationRule(result.checkDate())))
+            .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
             .filter(Verdict::escalation)
             .toList();
     return owed.isEmpty() ? "" : "\n\n" + formatAlerts(owed);
@@ -264,7 +263,7 @@ class TrackingDifferenceNotifier {
       }
       var verdicts =
           alertableResults.stream()
-              .map(result -> Verdict.of(result, escalationRule(result.checkDate())))
+              .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
               .toList();
       if (verdicts.stream().noneMatch(Verdict::alerts)) {
         notificationService.sendMessage(formatAllWithinLimits(alertableResults), INVESTMENT);
@@ -334,25 +333,6 @@ class TrackingDifferenceNotifier {
     return formatCountWarnings(result);
   }
 
-  private record Verdict(TrackingDifferenceResult result, boolean escalation, boolean fallback) {
-
-    static Verdict of(TrackingDifferenceResult result, EscalationRule rule) {
-      return new Verdict(result, rule.escalates(result), rule.fallback());
-    }
-
-    boolean breached() {
-      return result.hasAnyBreach();
-    }
-
-    boolean alerts() {
-      return breached() || escalation;
-    }
-
-    boolean decidedOnFallback() {
-      return escalation && fallback;
-    }
-  }
-
   private @Nullable RedemptionCycleHint redemptionCycle(TrackingDifferenceResult result) {
     if (result.checkType() != MODEL_PORTFOLIO) {
       return null;
@@ -383,41 +363,6 @@ class TrackingDifferenceNotifier {
       }
     }
     return sb.toString();
-  }
-
-  private record EscalationRule(
-      int notificationWorkingDay, BigDecimal netTdThreshold, boolean fallback) {
-
-    boolean escalates(TrackingDifferenceResult result) {
-      return result.hasAnyBreach() ? escalatesTheBreach(result) : notifiesTheStreakItEnded(result);
-    }
-
-    private boolean escalatesTheBreach(TrackingDifferenceResult result) {
-      return result.consecutiveBreachDays() >= notificationWorkingDay
-          && ((result.consecutiveNetTd() != null
-                  && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
-              || result.escalationNavResidualBreach());
-    }
-
-    private boolean notifiesTheStreakItEnded(TrackingDifferenceResult result) {
-      var endedStreak = result.endedStreak();
-      return endedStreak != null
-          && endedStreak.notificationFallsDueTheNextWorkingDay(
-              notificationWorkingDay, netTdThreshold);
-    }
-  }
-
-  private EscalationRule escalationRule(LocalDate checkDate) {
-    try {
-      return new EscalationRule(
-          calculator.escalationThresholdDays(checkDate),
-          calculator.escalationNetTdThreshold(checkDate),
-          false);
-    } catch (Exception e) {
-      log.error("Escalation parameters unavailable, using fallback: {}", e.getMessage());
-      return new EscalationRule(
-          SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY, ESCALATION_NET_TD_THRESHOLD_FALLBACK, true);
-    }
   }
 
   private static String formatBenchmarkGap(TrackingDifferenceResult result) {

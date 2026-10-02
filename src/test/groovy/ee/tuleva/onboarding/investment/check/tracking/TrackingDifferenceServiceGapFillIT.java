@@ -65,6 +65,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   BenchmarkCheckBuilder.class,
   BenchmarkLegResolver.class,
   StaleFundReturnDetector.class,
+  MissingNavClassifier.class,
   TrackingDifferenceServiceGapFillIT.FixedClockConfiguration.class
 })
 class TrackingDifferenceServiceGapFillIT {
@@ -175,6 +176,15 @@ class TrackingDifferenceServiceGapFillIT {
   void namesNothingForAFundWithNoModelPortfolioSinceNothingWouldEverFillIt() {
     storeHolding(THURSDAY);
     publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesNothingForAFundWithNoModelPortfolioWhoseWorkingDayBeforeHasNoNav() {
+    storeHolding(THURSDAY);
+    publishNav(TUESDAY, "10.0000");
     publishNav(THURSDAY, "10.1000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);

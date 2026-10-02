@@ -16,6 +16,9 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.Checked;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NeverCheckable;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NotCheckable;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
@@ -63,6 +66,7 @@ class TrackingDifferenceService {
   private final ConsecutiveBreachTracker consecutiveBreachTracker;
   private final BenchmarkCheckBuilder benchmarkCheckBuilder;
   private final StaleFundReturnDetector staleFundReturnDetector;
+  private final MissingNavClassifier missingNavClassifier;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -184,46 +188,26 @@ class TrackingDifferenceService {
   private List<TrackingDifferenceResult> checkOrRecordFailure(
       TulevaFund fund, LocalDate checkDate, GapWindow window, List<GapFailure> failures) {
     try {
-      return switch (checkFundOrSayWhyNot(fund, checkDate)) {
-        case Checked checked -> checked.results();
-        case NotCheckable notCheckable -> {
-          failures.add(gapFailure(fund, checkDate, window, notCheckable.reason(), MISSING_NAV));
-          yield List.of();
-        }
-        case NeverCheckable _ -> List.of();
-      };
+      var check = checkFundOrSayWhyNot(fund, checkDate);
+      if (check instanceof NotCheckable notCheckable) {
+        failures.add(
+            GapFailure.inWindow(
+                fund, checkDate, window, notCheckable.reason(), MISSING_NAV, publicHolidays));
+      }
+      return check.results();
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
-      failures.add(gapFailure(fund, checkDate, window, FailureReason.of(e), MISSING_PRICE));
+      failures.add(
+          GapFailure.inWindow(
+              fund, checkDate, window, FailureReason.of(e), MISSING_PRICE, publicHolidays));
       return List.of();
     } catch (Exception e) {
       log.error("Skipping fund due to a failed check: fund={}, checkDate={}", fund, checkDate, e);
+      var reason = "the check errored (%s)".formatted(FailureReason.of(e));
       failures.add(
-          gapFailure(
-              fund,
-              checkDate,
-              window,
-              "the check errored (%s)".formatted(FailureReason.of(e)),
-              CHECK_FAILED));
+          GapFailure.inWindow(fund, checkDate, window, reason, CHECK_FAILED, publicHolidays));
       return List.of();
     }
-  }
-
-  private GapFailure gapFailure(
-      TulevaFund fund, LocalDate checkDate, GapWindow window, String reason, GapCause cause) {
-    return new GapFailure(
-        checkDate,
-        "fund=%s, %s".formatted(fund, reason),
-        cause,
-        DAYS.between(checkDate, window.today()),
-        lastAttemptDate(checkDate, window.lookbackDays()));
-  }
-
-  private LocalDate lastAttemptDate(LocalDate checkDate, int lookbackDays) {
-    var lastDayInWindow = checkDate.plusDays(lookbackDays);
-    return publicHolidays.isWorkingDay(lastDayInWindow)
-        ? lastDayInWindow
-        : publicHolidays.previousWorkingDay(lastDayInWindow);
   }
 
   private List<LocalDate> datesNeedingACheck(
@@ -238,13 +222,6 @@ class TrackingDifferenceService {
     return Stream.concat(uncheckedNavDates, staleCheckDates.stream()).distinct().sorted().toList();
   }
 
-  record GapWindow(LocalDate today, int lookbackDays) {
-
-    LocalDate from() {
-      return today.minusDays(lookbackDays);
-    }
-  }
-
   private static boolean carriesAModelWeightToPrice(SecurityData security) {
     return security.modelWeight().signum() > 0;
   }
@@ -256,10 +233,7 @@ class TrackingDifferenceService {
   }
 
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
-    return switch (checkFundOrSayWhyNot(fund, checkDate)) {
-      case Checked checked -> checked.results();
-      case NotCheckable _, NeverCheckable _ -> List.of();
-    };
+    return checkFundOrSayWhyNot(fund, checkDate).results();
   }
 
   private FundCheck checkFundOrSayWhyNot(TulevaFund fund, LocalDate checkDate) {
@@ -277,7 +251,7 @@ class TrackingDifferenceService {
           previousDate,
           todayValue.isPresent(),
           yesterdayValue.isPresent());
-      return missingNav(fund, checkDate, previousDate, todayValue.isEmpty());
+      return missingNavClassifier.classify(fund, checkDate, previousDate, todayValue.isEmpty());
     }
 
     var todayNav =
@@ -446,41 +420,6 @@ class TrackingDifferenceService {
 
     return new Checked(results);
   }
-
-  private FundCheck missingNav(
-      TulevaFund fund, LocalDate checkDate, LocalDate previousDate, boolean noNavOnTheCheckDate) {
-    if (hasNoModelPortfolio(fund, checkDate)) {
-      return new NeverCheckable();
-    }
-    if (noNavOnTheCheckDate) {
-      return noNavForTheCheckDate(checkDate);
-    }
-    return isTheFundsFirstNavDay(fund, previousDate)
-        ? new NeverCheckable()
-        : new NotCheckable("no NAV for the working day before, " + previousDate);
-  }
-
-  private boolean hasNoModelPortfolio(TulevaFund fund, LocalDate checkDate) {
-    return modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate).isEmpty();
-  }
-
-  private boolean isTheFundsFirstNavDay(TulevaFund fund, LocalDate previousDate) {
-    return fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), previousDate).isEmpty();
-  }
-
-  private FundCheck noNavForTheCheckDate(LocalDate checkDate) {
-    return publicHolidays.isWorkingDay(checkDate)
-        ? new NotCheckable("no NAV for the check date")
-        : new NeverCheckable();
-  }
-
-  private sealed interface FundCheck permits Checked, NotCheckable, NeverCheckable {}
-
-  private record Checked(List<TrackingDifferenceResult> results) implements FundCheck {}
-
-  private record NotCheckable(String reason) implements FundCheck {}
-
-  private record NeverCheckable() implements FundCheck {}
 
   private BigDecimal accruedFeeFraction(
       TulevaFund fund,

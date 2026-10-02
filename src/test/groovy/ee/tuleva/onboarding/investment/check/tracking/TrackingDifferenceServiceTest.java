@@ -156,7 +156,9 @@ class TrackingDifferenceServiceTest {
                 priorityPriceProvider,
                 new BenchmarkLegResolver(trackedInstruments()),
                 consecutiveBreachTracker),
-            new StaleFundReturnDetector(eventRepository, fundNavQueryService, publicHolidays));
+            new StaleFundReturnDetector(eventRepository, fundNavQueryService, publicHolidays),
+            new MissingNavClassifier(
+                modelPortfolioAllocationRepository, fundNavQueryService, publicHolidays));
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }

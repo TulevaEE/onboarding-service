@@ -275,7 +275,7 @@ What a browser remembers lives server-side next to it:
 - per personal code, the phone number of the last successful Mobile-ID login (`remembered_mobile_id_phone`), for
   12 months from the last such login. `POST /v1/mobile-id/login/remembered` only says whether one exists, and a
   Mobile-ID start without a phone number uses it. A start from a remembered number is limited to one per browser
-  every 30 seconds, and a remembered number Mobile-ID answers NOT_MID_CLIENT for is forgotten.
+  every 10 seconds unless the one before has ended, and a remembered number Mobile-ID answers NOT_MID_CLIENT for is forgotten.
 
 `RememberedBrowserPurgeJob` erases expired entries and browsers nightly.
 

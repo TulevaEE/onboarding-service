@@ -29,7 +29,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 class ThisBrowserTest {
 
   private static final Instant NOW = Instant.parse("2026-09-03T10:00:00Z");
-  private static final Duration THIRTY_SECONDS = Duration.ofSeconds(30);
+  private static final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
   private final RememberedBrowsers browsers = mock(RememberedBrowsers.class);
   private final ThisBrowser thisBrowser = new ThisBrowser(browsers);
@@ -150,11 +150,11 @@ class ThisBrowserTest {
     bindRequest(new Cookie(COOKIE_NAME, "token"));
     given(browsers.findUnexpired(hash("token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
-    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, THIRTY_SECONDS)).willReturn(true);
+    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS)).willReturn(true);
 
     thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION);
 
-    verify(browsers).claimLoginStart(7L, SMART_ID_NOTIFICATION, THIRTY_SECONDS);
+    verify(browsers).claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS);
   }
 
   @Test
@@ -162,7 +162,7 @@ class ThisBrowserTest {
     bindRequest(new Cookie(COOKIE_NAME, "token"));
     given(browsers.findUnexpired(hash("token")))
         .willReturn(Optional.of(new RememberedBrowser(7L, NOW.plus(Duration.ofDays(10)))));
-    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, THIRTY_SECONDS)).willReturn(false);
+    given(browsers.claimLoginStart(7L, SMART_ID_NOTIFICATION, TEN_SECONDS)).willReturn(false);
 
     assertThatThrownBy(() -> thisBrowser.claimLoginStart(SMART_ID_NOTIFICATION))
         .isInstanceOf(PushLoginStartedTooSoonException.class);

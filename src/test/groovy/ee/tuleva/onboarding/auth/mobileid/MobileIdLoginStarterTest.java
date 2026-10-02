@@ -100,7 +100,7 @@ class MobileIdLoginStarterTest {
   }
 
   @Test
-  void aRememberedPhoneIsNotPushedToAgainWithinThirtySeconds() {
+  void aRememberedPhoneIsNotPushedToAgainWithinTenSeconds() {
     given(rememberedPhones.find(PERSONAL_CODE))
         .willReturn(Optional.of(new RememberedMobileIdPhone(3L, REMEMBERED_PHONE)));
     willThrow(new PushLoginStartedTooSoonException(MOBILE_ID))

@@ -440,24 +440,14 @@ class LoginIntegrationTest {
   }
 
   @Test
-  void aSecondPushLoginFromTheSameBrowserWithinThirtySecondsIsRefused() throws Exception {
+  void aSecondPushLoginFromTheSameBrowserWithinTenSecondsIsRefused() throws Exception {
     Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
     given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
         .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
 
+    mockMvc.perform(pushLoginStart(remembered)).andExpect(status().isOk());
     mockMvc
-        .perform(
-            post("/v1/smart-id/login")
-                .cookie(remembered)
-                .contentType(APPLICATION_JSON)
-                .content("{\"flow\":\"NOTIFICATION\"}"))
-        .andExpect(status().isOk());
-    mockMvc
-        .perform(
-            post("/v1/smart-id/login")
-                .cookie(remembered)
-                .contentType(APPLICATION_JSON)
-                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .perform(pushLoginStart(remembered))
         .andExpect(status().isTooManyRequests())
         .andExpect(jsonPath("$.errors[0].code").value("auth.too.many.requests"));
 
@@ -637,7 +627,7 @@ class LoginIntegrationTest {
   }
 
   @Test
-  void aBrowserThatRemembersThePhoneStartsMobileIdWithoutOneAndOnlyOnceInThirtySeconds()
+  void aBrowserThatRemembersThePhoneStartsMobileIdWithoutOneAndOnlyOnceInTenSeconds()
       throws Exception {
     Cookie browser = rememberedAccountCookie(completeMobileIdLogin("+372 5555 5555"));
     given(midConnector.authenticate(any()))

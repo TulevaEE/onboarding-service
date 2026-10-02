@@ -28,7 +28,7 @@ public class ThisBrowser {
   private static final int TOKEN_BYTES = 32;
   private static final Duration LONGEST_COOKIE_LIFETIME_BROWSERS_ACCEPT = Duration.ofDays(400);
   private static final Duration MINIMUM_INTERVAL_BETWEEN_PUSH_LOGINS_FROM_ONE_BROWSER =
-      Duration.ofSeconds(30);
+      Duration.ofSeconds(10);
 
   private final RememberedBrowsers browsers;
   private final SecureRandom random = new SecureRandom();

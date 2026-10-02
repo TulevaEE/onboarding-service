@@ -25,7 +25,7 @@ class RememberedBrowsersTest {
 
   private static final Instant NOW = Instant.parse("2026-09-03T10:00:00Z");
   private static final Instant LATER = NOW.plus(Duration.ofDays(80));
-  private static final Duration PUSH_INTERVAL = Duration.ofSeconds(30);
+  private static final Duration PUSH_INTERVAL = Duration.ofSeconds(10);
 
   @TestConfiguration
   static class FixedClockConfig {
@@ -107,7 +107,7 @@ class RememberedBrowsersTest {
   }
 
   @Test
-  void refusesASecondPushLoginFromTheSameBrowserWithinThirtySeconds() {
+  void refusesASecondPushLoginFromTheSameBrowserWithinTenSeconds() {
     long id = browsers.add("token-hash", LATER);
     browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL);
 
@@ -115,7 +115,7 @@ class RememberedBrowsersTest {
   }
 
   @Test
-  void startsAPushLoginAgainOnceThirtySecondsHavePassed() {
+  void startsAPushLoginAgainOnceTenSecondsHavePassed() {
     long id = browsers.add("token-hash", LATER);
     previousPushLoginStartedAt(id, NOW.minus(PUSH_INTERVAL));
 
@@ -123,9 +123,9 @@ class RememberedBrowsersTest {
   }
 
   @Test
-  void stillRefusesAPushLoginStartedTwentyNineSecondsAgo() {
+  void stillRefusesAPushLoginStartedNineSecondsAgo() {
     long id = browsers.add("token-hash", LATER);
-    previousPushLoginStartedAt(id, NOW.minusSeconds(29));
+    previousPushLoginStartedAt(id, NOW.minusSeconds(9));
 
     assertThat(browsers.claimLoginStart(id, SMART_ID_NOTIFICATION, PUSH_INTERVAL)).isFalse();
   }

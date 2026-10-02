@@ -140,11 +140,38 @@ public class CapitalTransferContract {
     return this;
   }
 
-  public boolean canBeAccessedBy(User user) {
-    var isSeller = user.getMemberOrThrow().getId().equals(seller.getId());
-    var isBuyer = user.getMemberOrThrow().getId().equals(buyer.getId());
+  public boolean isSignedBy(User user) {
+    if (isSoldBy(user)) {
+      return isSignedBySeller();
+    }
+    if (isBoughtBy(user)) {
+      return isSignedByBuyer();
+    }
+    return false;
+  }
 
-    return isBuyer || isSeller;
+  public boolean awaitsSignatureFrom(User user) {
+    return (isSoldBy(user) && state == CREATED) || (isBoughtBy(user) && state == SELLER_SIGNED);
+  }
+
+  public boolean isSoldBy(User user) {
+    return user.getMemberOrThrow().getId().equals(seller.getId());
+  }
+
+  private boolean isBoughtBy(User user) {
+    return user.getMemberOrThrow().getId().equals(buyer.getId());
+  }
+
+  private boolean isSignedBySeller() {
+    return state != CREATED && state != CANCELLED;
+  }
+
+  private boolean isSignedByBuyer() {
+    return isSignedBySeller() && state != SELLER_SIGNED;
+  }
+
+  public boolean canBeAccessedBy(User user) {
+    return isSoldBy(user) || isBoughtBy(user);
   }
 
   public BigDecimal getTotalPrice() {

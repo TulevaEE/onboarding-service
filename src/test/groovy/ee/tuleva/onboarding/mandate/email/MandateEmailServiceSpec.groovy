@@ -95,6 +95,28 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, SECOND_PILLAR_MANDATE, mandrillResponse.status, mandate.id, decision.tag())
   }
 
+  def "a mandate email with no nudge carries no nudge tag"() {
+    given:
+    def user = sampleUser().build()
+    def mandate = sampleMandate()
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin(_) >> tuleva2ndPillarStockFund()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, NudgeDecision.of(NONE), Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en", _, ["mandate", "pillar_2"], !null) >> message
+    1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, SECOND_PILLAR_MANDATE, mandrillResponse.status, mandate.id, null)
+  }
+
   def "warns about a high fee fund when the mandate chose another manager's expensive fund"() {
     given:
     def user = sampleUser().build()

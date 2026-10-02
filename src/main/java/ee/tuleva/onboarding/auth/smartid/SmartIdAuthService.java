@@ -57,22 +57,26 @@ public class SmartIdAuthService {
       throw e;
     } catch (Exception e) {
       SmartIdLoginError error = SmartIdLoginError.of(e);
-      if (error == TECHNICAL_ERROR) {
-        log.error("Smart-ID login failed: sessionId={}", session.getSessionId(), e);
-      } else if (error == WRONG_VERIFICATION_CODE) {
-        log.warn(
-            "Smart-ID login refused with a wrong verification code, someone other than the"
-                + " person may have started it: sessionId={}",
-            session.getSessionId());
-      } else {
-        log.info(
-            "Smart-ID login failed: sessionId={}, error={}, reason={}",
-            session.getSessionId(),
-            error,
-            e.getClass().getSimpleName());
-      }
+      logFailure(session, error, e);
       session.setError(error);
       throw new SmartIdException(error);
+    }
+  }
+
+  private static void logFailure(SmartIdSession session, SmartIdLoginError error, Exception e) {
+    if (error == TECHNICAL_ERROR) {
+      log.error("Smart-ID login failed: sessionId={}", session.getSessionId(), e);
+    } else if (error == WRONG_VERIFICATION_CODE) {
+      log.warn(
+          "Smart-ID login refused with a wrong verification code, someone other than the"
+              + " person may have started it: sessionId={}",
+          session.getSessionId());
+    } else {
+      log.info(
+          "Smart-ID login failed: sessionId={}, error={}, reason={}",
+          session.getSessionId(),
+          error,
+          e.getClass().getSimpleName());
     }
   }
 

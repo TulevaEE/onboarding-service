@@ -4,8 +4,6 @@ import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonc
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
@@ -14,11 +12,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import org.bouncycastle.asn1.ocsp.ResponderID;
-import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
 import org.bouncycastle.cert.ocsp.CertificateID;
@@ -82,37 +77,12 @@ final class OcspResponseVerifier {
   private X509Certificate responderCertificate(BasicOCSPResp response, X509Certificate issuer)
       throws GeneralSecurityException {
     ResponderID responderId = response.getResponderId().toASN1Primitive();
-    if (identifies(responderId, new JcaX509CertificateHolder(issuer))) {
+    if (OcspResponderIds.identifies(responderId, new JcaX509CertificateHolder(issuer))) {
       return issuer;
     }
-    X509Certificate responder = includedCertificateOf(responderId, response);
+    X509Certificate responder = OcspResponderIds.includedCertificateOf(responderId, response);
     requireDelegatedBy(issuer, responder);
     return responder;
-  }
-
-  private static X509Certificate includedCertificateOf(
-      ResponderID responderId, BasicOCSPResp response) throws GeneralSecurityException {
-    for (X509CertificateHolder certificate : response.getCerts()) {
-      if (identifies(responderId, certificate)) {
-        return new JcaX509CertificateConverter().getCertificate(certificate);
-      }
-    }
-    throw new SmartIdCertificateStatusUnavailableException(
-        "responder certificate not included in the response");
-  }
-
-  private static boolean identifies(ResponderID responderId, X509CertificateHolder certificate)
-      throws NoSuchAlgorithmException {
-    X500Name name = responderId.getName();
-    if (name != null) {
-      return name.equals(certificate.getSubject());
-    }
-    return Arrays.equals(responderId.getKeyHash(), keyHash(certificate));
-  }
-
-  private static byte[] keyHash(X509CertificateHolder certificate) throws NoSuchAlgorithmException {
-    return MessageDigest.getInstance("SHA-1")
-        .digest(certificate.getSubjectPublicKeyInfo().getPublicKeyData().getBytes());
   }
 
   private void requireDelegatedBy(X509Certificate issuer, X509Certificate responder)

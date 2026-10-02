@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.MORNINGSTAR;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
@@ -367,15 +367,16 @@ class NavCalculationServiceTest {
   void calculate_securitiesDetailIsValuedAtThePricesTheSecuritiesValueWasCalculatedFrom() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+    LocalDate twoWorkingDaysBefore = LocalDate.of(2025, 1, 13);
     // TKF100 cutoff 15:20 EET = 13:20 UTC (winter)
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
     ResolvedPrice priceTheValueUsed =
         ResolvedPrice.builder()
             .usedPrice(new BigDecimal("34.00"))
             .validationStatus(OK)
-            .priceDate(previousWorkingDay)
+            .priceDate(twoWorkingDaysBefore)
             .storageKey("IE00BFG1TM61.EUFUND")
-            .priceSource(EODHD)
+            .priceSource(MORNINGSTAR)
             .build();
 
     givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
@@ -398,8 +399,8 @@ class NavCalculationServiceTest {
                 new BigDecimal("1000.00000"),
                 new BigDecimal("34.00"),
                 new BigDecimal("34000.00"),
-                previousWorkingDay,
-                EODHD));
+                twoWorkingDaysBefore,
+                MORNINGSTAR));
   }
 
   @Test

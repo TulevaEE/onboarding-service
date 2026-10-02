@@ -46,7 +46,7 @@ public class PaymentApprovalBriefService {
 
     var accounts =
         byAccount.entrySet().stream()
-            .map(entry -> summarise(entry.getKey(), entry.getValue()))
+            .map(entry -> summarise(entry.getKey(), entry.getValue(), awaitingApproval))
             .sorted(comparing(PaymentApprovalBrief.AccountSummary::accountName))
             .toList();
 
@@ -84,16 +84,19 @@ public class PaymentApprovalBriefService {
   }
 
   private PaymentApprovalBrief.AccountSummary summarise(
-      String accountName, List<OutgoingPayment> payments) {
+      String accountName, List<OutgoingPayment> payments, List<OutgoingPayment> awaitingApproval) {
+    var iban = payments.getFirst().getRemitterIban();
     var projected =
-        payments.stream()
-            .map(OutgoingPayment::getRemitterIban)
-            .findFirst()
-            .flatMap(bookedBalanceReader::latest)
+        bookedBalanceReader
+            .latest(iban)
             .map(
                 balance ->
                     new PaymentApprovalBrief.ProjectedBalance(
-                        balance.amount().subtract(sum(payments)), balance.asOf()))
+                        balance
+                            .amount()
+                            .add(sum(incomingTo(iban, awaitingApproval)))
+                            .subtract(sum(payments)),
+                        balance.asOf()))
             .orElse(null);
     var flows =
         payments.stream()
@@ -109,6 +112,13 @@ public class PaymentApprovalBriefService {
 
     return new PaymentApprovalBrief.AccountSummary(
         accountName, flows, payments.size(), sum(payments), projected);
+  }
+
+  private static List<OutgoingPayment> incomingTo(
+      String iban, List<OutgoingPayment> awaitingApproval) {
+    return awaitingApproval.stream()
+        .filter(payment -> payment.getBeneficiaryIban().equals(iban))
+        .toList();
   }
 
   private static BigDecimal sum(List<OutgoingPayment> payments) {

@@ -128,24 +128,9 @@ class BenchmarkCheckBuilderTest {
   }
 
   @Test
-  void aBenchmarkModelDayWithinLimitsCarriesTheStreakItEnded() {
-    var endedStreak =
-        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
-            3,
-            new BigDecimal("0.0045"),
-            new BigDecimal("0.0045"),
-            BigDecimal.ZERO,
-            java.util.Map.of(),
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            false,
-            false,
-            false,
-            0,
-            0);
+  void aBenchmarkModelDayWithinLimitsAfterThreeBreachDaysOwesNoFourthDayNotification() {
     given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
-        .willReturn(endedStreak);
+        .willReturn(streakOf(3, 0, 0));
 
     var result =
         builder
@@ -155,7 +140,7 @@ class BenchmarkCheckBuilderTest {
 
     assertThat(result.breach()).isFalse();
     assertThat(result.consecutiveBreachDays()).isZero();
-    assertThat(result.endedStreak()).isEqualTo(endedStreak);
+    assertThat(result.endedStreak()).isNull();
   }
 
   @Test

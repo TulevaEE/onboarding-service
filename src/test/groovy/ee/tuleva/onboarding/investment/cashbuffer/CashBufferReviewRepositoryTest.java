@@ -56,6 +56,21 @@ class CashBufferReviewRepositoryTest {
   }
 
   @Test
+  void keepsTheDriftThresholdAtThePrecisionOfTheParameterItCameFrom() {
+    var review = review(TUK75, SEPTEMBER, "44700.00", "77000.00", "33333.3333");
+
+    repository.save(review);
+
+    assertThat(repository.findByFundAndMonth(TUK75, SEPTEMBER))
+        .hasValueSatisfying(
+            stored ->
+                assertThat(stored)
+                    .usingRecursiveComparison()
+                    .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                    .isEqualTo(review));
+  }
+
+  @Test
   void aSecondRunForTheSameFundAndMonthReplacesTheFirst() {
     repository.save(review(TUK75, SEPTEMBER, "44700.00", "77000.00"));
     var rerun = review(TUK75, SEPTEMBER, "46100.00", "77000.00");
@@ -85,6 +100,15 @@ class CashBufferReviewRepositoryTest {
 
   private static CashBufferReview review(
       TulevaFund fund, YearMonth month, String recommendedSoft, @Nullable String reserveHard) {
+    return review(fund, month, recommendedSoft, reserveHard, "50000.00");
+  }
+
+  private static CashBufferReview review(
+      TulevaFund fund,
+      YearMonth month,
+      String recommendedSoft,
+      @Nullable String reserveHard,
+      String driftThreshold) {
     var model =
         new BufferModel(new BigDecimal("0.95"), new BigDecimal("0.20"), new BigDecimal("0.1"), 4);
     return new CashBufferReview(
@@ -121,9 +145,9 @@ class CashBufferReviewRepositoryTest {
             LocalDate.of(2026, 1, 1),
             new BigDecimal("131000.00"),
             reserveHard == null ? null : new BigDecimal(reserveHard)),
-        new Drift(new BigDecimal("-86300.00"), new BigDecimal("50000.00"), true, 2, 6),
+        new Drift(new BigDecimal("-86300.00"), new BigDecimal(driftThreshold), true, 2, 6),
         reserveHard == null
             ? null
-            : new Drift(new BigDecimal("-53000.00"), new BigDecimal("50000.00"), true, 1, 6));
+            : new Drift(new BigDecimal("-53000.00"), new BigDecimal(driftThreshold), true, 1, 6));
   }
 }

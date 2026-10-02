@@ -300,6 +300,23 @@ class InstrumentOcfServiceIT {
   }
 
   @Test
+  void aLaterAgreementBeginningInTheMonthBesideAnOpenOneReplacesItsRateOnlyOnceResolvedAgain() {
+    givenAnAgreement("NONE", "{}");
+    service.resolve(APRIL);
+    givenAnAgreement(ISIN, "FIXED", "{\"rate\":\"0.00010000\"}", APRIL.atDay(15));
+
+    assertThat(service.ratesFor(APRIL)).doesNotContainKey(ISIN);
+
+    service.resolve(APRIL);
+
+    assertThat(service.ratesFor(APRIL).get(ISIN))
+        .usingRecursiveComparison(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new InstrumentRate(
+                0, ISIN, APRIL, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED));
+  }
+
+  @Test
   void aMonthWhoseInputsCannotBeReadFailsRatherThanStoringAFallbackThatWouldSettleIt() {
     givenAnAgreement(
         "TIERED_VOLUME",

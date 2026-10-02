@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees.rate;
 
+import static ee.tuleva.onboarding.investment.fees.rate.InstrumentFeeAgreementRepository.THE_AGREEMENT_OF_EACH_ISIN_VALID_ON_THE_DATE;
 import static java.util.Objects.requireNonNull;
 
 import java.sql.ResultSet;
@@ -69,16 +70,16 @@ class InstrumentFeeRateRepository {
               SELECT r.*,
                      ROW_NUMBER() OVER (PARTITION BY r.isin ORDER BY r.created_at DESC, r.id DESC) AS rn
               FROM investment_instrument_fee_rate r
-              JOIN investment_instrument_fee a ON a.id = r.instrument_fee_id
+              JOIN (%s) a ON a.id = r.instrument_fee_id
               WHERE r.period_start = :periodStart AND r.period_end = :periodEnd
-                AND a.valid_from <= :periodEnd
-                AND (a.valid_to IS NULL OR a.valid_to >= :periodEnd)
             ) ranked
             WHERE rn = 1
             ORDER BY isin
-            """)
+            """
+                .formatted(THE_AGREEMENT_OF_EACH_ISIN_VALID_ON_THE_DATE))
         .param("periodStart", period.atDay(1))
         .param("periodEnd", period.atEndOfMonth())
+        .param("date", period.atEndOfMonth())
         .query((rs, rowNum) -> rate(rs, period))
         .list();
   }

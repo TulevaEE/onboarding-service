@@ -54,7 +54,7 @@ class RecurringSaversTest {
   @Test
   void savingsFundCadenceIsScopedToTheGivenPersonalAccount() {
     given(
-            savingsFundContributions.countIssuedPaymentMonthsSince(
+            savingsFundContributions.countStandingOrderMonthsSince(
                 SaverId.person(CHILD_CODE), EXPECTED_FROM))
         .willReturn(3);
 
@@ -65,7 +65,7 @@ class RecurringSaversTest {
   @Test
   void savingsFundCadenceIsScopedToTheGivenCompanyAccount() {
     given(
-            savingsFundContributions.countIssuedPaymentMonthsSince(
+            savingsFundContributions.countStandingOrderMonthsSince(
                 new SaverId(SaverId.Type.LEGAL_ENTITY, "12345678"), EXPECTED_FROM))
         .willReturn(2);
 

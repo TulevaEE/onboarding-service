@@ -158,7 +158,10 @@ class TrackingDifferenceServiceTest {
                 consecutiveBreachTracker),
             new StaleFundReturnDetector(eventRepository, fundNavQueryService, publicHolidays),
             new MissingNavClassifier(
-                modelPortfolioAllocationRepository, fundNavQueryService, publicHolidays));
+                FIXED_CLOCK,
+                modelPortfolioAllocationRepository,
+                fundNavQueryService,
+                publicHolidays));
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }
@@ -216,6 +219,7 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(alreadyChecked, CHECK_DATE));
     givenAModelPortfolioOn(PREVIOUS_DATE);
+    givenTheFundHasANavBefore(PREVIOUS_DATE);
 
     var run = service.fillGaps(30);
 
@@ -228,6 +232,7 @@ class TrackingDifferenceServiceTest {
   void fillGapsNamesADateThatHasPositionsButNoNavInsteadOfLettingItAgeOutInSilence() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
     givenAModelPortfolioOn(PREVIOUS_DATE);
+    givenTheFundHasANavBefore(PREVIOUS_DATE);
 
     assertThat(service.fillGaps(30).failures())
         .containsExactly(
@@ -264,6 +269,7 @@ class TrackingDifferenceServiceTest {
   void aNamedNavGapClearsOnceTheNavIsPublished() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
     givenAModelPortfolioOn(PREVIOUS_DATE);
+    givenTheFundHasANavBefore(PREVIOUS_DATE);
     assertThat(service.fillGaps(30).failures()).hasSize(1);
 
     givenACheckableFundOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
@@ -456,6 +462,12 @@ class TrackingDifferenceServiceTest {
                         1,
                         LocalDate.of(2026, 5, 8))),
                 Map.of()));
+  }
+
+  private void givenTheFundHasANavBefore(LocalDate checkDate) {
+    var workingDayBefore = publicHolidays.previousWorkingDay(checkDate);
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), workingDayBefore))
+        .willReturn(Optional.of(publicHolidays.previousWorkingDay(workingDayBefore)));
   }
 
   private void givenPublishedNav(LocalDate navDate, String navPerUnit) {

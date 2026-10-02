@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 import org.flywaydb.core.Flyway;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -14,6 +15,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 class V1_300InstrumentFeeAgreementsAndRatesTest {
 
@@ -31,6 +34,7 @@ class V1_300InstrumentFeeAgreementsAndRatesTest {
   private static final String NO_AGREEMENT_ISIN = "ZZ0000000003";
   private static final LocalDate VALID_FROM = LocalDate.of(2026, 3, 1);
   private static final LocalDate VALID_TO = LocalDate.of(2026, 3, 31);
+  private static final TypeReference<Map<String, Object>> TERMS = new TypeReference<>() {};
 
   private SingleConnectionDataSource dataSource;
   private JdbcClient jdbcClient;
@@ -56,7 +60,8 @@ class V1_300InstrumentFeeAgreementsAndRatesTest {
 
     assertThat(agreementOf(REBATE_ISIN))
         .isEqualTo(new Agreement("0.00200000", "FIXED", "0.00000000", VALID_FROM, VALID_TO));
-    assertThat(termsOf(REBATE_ISIN)).contains("rate").contains("0.00050000");
+    assertThat(JsonMapper.builder().build().readValue(termsOf(REBATE_ISIN), TERMS))
+        .isEqualTo(Map.of("rate", "0.00050000"));
   }
 
   @Test
@@ -68,6 +73,7 @@ class V1_300InstrumentFeeAgreementsAndRatesTest {
 
     assertThat(agreementOf(INVOICED_FEE_ISIN))
         .isEqualTo(new Agreement("0.00070000", "NONE", "0.00040000", VALID_FROM, null));
+    assertThat(termsOf(INVOICED_FEE_ISIN)).isEqualTo("{}");
   }
 
   @Test
@@ -79,7 +85,7 @@ class V1_300InstrumentFeeAgreementsAndRatesTest {
 
     assertThat(agreementOf(NO_AGREEMENT_ISIN))
         .isEqualTo(new Agreement("0.00120000", "NONE", "0.00000000", VALID_FROM, null));
-    assertThat(termsOf(NO_AGREEMENT_ISIN)).doesNotContain("rate");
+    assertThat(termsOf(NO_AGREEMENT_ISIN)).isEqualTo("{}");
   }
 
   @Test

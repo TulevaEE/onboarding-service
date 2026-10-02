@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOURNAL_ENTRY;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOURNAL_ENTRY_REVERSAL;
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.POSTED;
@@ -168,7 +169,17 @@ public class GeneralLedger {
                 .reduce(ZERO, BigDecimal::add)
                 .signum()
             == 0
-        && part.lines().stream().map(JournalEntryLine::accountCode).allMatch(knownCodes::contains);
+        && part.lines().stream().map(JournalEntryLine::accountCode).allMatch(knownCodes::contains)
+        && part.lines().stream()
+            .map(JournalEntryLine::amount)
+            .allMatch(GeneralLedger::fitsTheLedger);
+  }
+
+  private static boolean fitsTheLedger(BigDecimal amount) {
+    final int LEDGER_ENTRY_INTEGER_DIGITS = 15;
+    var stripped = amount.stripTrailingZeros();
+    return stripped.scale() <= EUR.getMaxPrecision()
+        && stripped.precision() - stripped.scale() <= LEDGER_ENTRY_INTEGER_DIGITS;
   }
 
   private static void requireColonFreeName(String field, String name) {

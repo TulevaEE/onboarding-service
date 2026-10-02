@@ -28,6 +28,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -539,6 +541,32 @@ class GeneralLedgerMirrorIntegrationTest {
         .isInstanceOf(IllegalStateException.class);
 
     assertThat(rows.count(JOURNAL_ENTRY_REVERSAL)).isZero();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"1000000000000000.00", "0.005"})
+  void aSummaryStaysLiveWhileAFormerPartHasAnAmountTheLedgerCannotHold(String amount) {
+    var summary =
+        new JournalEntryPart(
+            "SUMMARY:2026-02",
+            "SUMMARY",
+            LocalDate.parse("2026-02-28"),
+            List.of(line(OFFICE_COSTS, "80.00"), line(PAYABLES, "-80.00")),
+            Set.of("OST:1:2026-02-01"));
+    mirror(List.of(OPENING, summary));
+    var formerPart =
+        part(
+            "OST",
+            1,
+            "2026-02-01",
+            line(OFFICE_COSTS, amount),
+            line(PAYABLES, new BigDecimal(amount).negate().toPlainString()));
+
+    var result = mirror(List.of(OPENING, formerPart));
+
+    assertThat(result).isEqualTo(new MirrorResult(0, 0, 0, 1, 1, 0));
+    assertThat(versionsOf(summary)).extracting(JournalEntryVersion::live).containsExactly(true);
+    assertThat(balanceAt(OFFICE_COSTS, "2026-02-28")).isEqualTo(new BigDecimal("80.00"));
   }
 
   private static JournalEntryPart part(

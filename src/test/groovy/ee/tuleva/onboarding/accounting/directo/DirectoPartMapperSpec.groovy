@@ -37,6 +37,7 @@ class DirectoPartMapperSpec extends Specification {
       new DirectoObject("C9", "30"),
       new DirectoObject("40015", "40"),
       new DirectoObject("E001", "50"),
+      new DirectoObject("UNCLASSIFIED", null),
   ]
 
   def mapper = new DirectoPartMapper()
@@ -115,6 +116,7 @@ class DirectoPartMapperSpec extends Specification {
     "an object is unknown"                  | "OST"  | "500100" | "TEAM1,X404"   | null     | null     | null      || true
     "the supplier is unknown"               | "OST"  | "500100" | null           | "40016"  | null     | null      || true
     "the customer is unknown"               | "ARVE" | "500100" | null           | null     | "C10"    | null      || true
+    "an object has no level"                | "OST"  | "500100" | "UNCLASSIFIED" | null     | null     | null      || true
     "nothing matches"                       | "OST"  | "500100" | "TEAM1"        | "40015"  | "C9"     | null      || false
     "only the project is unknown"           | "OST"  | "500100" | " TEAM1 , "    | null     | null     | "PRJ-NEW" || false
     "an expense names employees"            | "OST"  | "500300" | null           | null     | null     | null      || false

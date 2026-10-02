@@ -34,7 +34,11 @@ final class PayrollProtection {
                     .filter(PayrollProtection::isPayrollLiability)
                     .map(account -> require(account.code(), "accounts.code")))
             .collect(toSet());
-    knownObjects = objects.stream().map(PayrollProtection::code).collect(toSet());
+    knownObjects =
+        objects.stream()
+            .filter(PayrollProtection::isClassified)
+            .map(PayrollProtection::code)
+            .collect(toSet());
     employeeObjects =
         objects.stream()
             .filter(object -> EMPLOYEE_OBJECT_LEVEL.equals(trimmed(object.level())))
@@ -62,6 +66,11 @@ final class PayrollProtection {
     return LIABILITY_CLASS.equals(trimmed(account.accountClass()))
         && name != null
         && NAME_OF_A_PAYROLL_LIABILITY.matcher(name).find();
+  }
+
+  private static boolean isClassified(DirectoObject object) {
+    var level = object.level();
+    return level != null && !level.isBlank();
   }
 
   private static String code(DirectoObject object) {

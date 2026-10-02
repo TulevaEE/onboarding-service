@@ -32,7 +32,8 @@ public class EmailPersistenceService {
     return save(person, messageId, type, status, null, null, null);
   }
 
-  public Email save(Person person, String messageId, EmailType type, String status, String nudge) {
+  public Email save(
+      Person person, String messageId, EmailType type, String status, @Nullable String nudge) {
     return save(person, messageId, type, status, null, null, nudge);
   }
 
@@ -55,7 +56,7 @@ public class EmailPersistenceService {
       EmailType type,
       String status,
       Long mandateId,
-      String nudge) {
+      @Nullable String nudge) {
     return save(person, messageId, type, status, mandateId, null, nudge);
   }
 

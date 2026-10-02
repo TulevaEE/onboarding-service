@@ -34,11 +34,17 @@ public class SignatureService {
   }
 
   public IdCardSignatureSession startIdCardSign(
-      List<SignatureFile> files, String signingCertificate) {
-    return idCardSigner.startSign(files, signingCertificate);
+      SignableEntity entity,
+      List<SignatureFile> files,
+      String signingCertificate,
+      List<String> supportedHashFunctions,
+      String personalCode) {
+    return idCardSigner.startSign(
+        entity, files, signingCertificate, supportedHashFunctions, personalCode);
   }
 
-  public byte[] getSignedFile(IdCardSignatureSession session, String signedHashInHex) {
-    return idCardSigner.getSignedFile(session, signedHashInHex);
+  public byte[] getSignedFile(
+      IdCardSignatureSession session, SignableEntity entity, String signature) {
+    return idCardSigner.getSignedFile(session, entity, signature);
   }
 }

@@ -67,8 +67,8 @@ class MemberEmailServiceSpec extends Specification {
     service.sendMemberNumber(user, Locale.ENGLISH)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "membership_en", _, ["memberNumber", "nudge_none"]) >> message
+    1 * emailService.newMandrillMessage(user.email, "membership_en", _, ["memberNumber"]) >> message
     1 * emailService.send(user, message, "membership_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, EmailType.MEMBERSHIP, mandrillResponse.status, "nudge_none")
+    1 * emailPersistenceService.save(user, mandrillResponse.id, EmailType.MEMBERSHIP, mandrillResponse.status, null)
   }
 }

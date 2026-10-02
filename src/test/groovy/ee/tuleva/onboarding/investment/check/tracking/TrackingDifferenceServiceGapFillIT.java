@@ -74,6 +74,7 @@ class TrackingDifferenceServiceGapFillIT {
   private static final LocalDate TUESDAY = LocalDate.of(2026, 4, 7);
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 4, 8);
   private static final LocalDate THURSDAY = LocalDate.of(2026, 4, 9);
+  private static final LocalDate TODAY_FRIDAY = LocalDate.of(2026, 4, 10);
   private static final LocalDate GOOD_FRIDAY = LocalDate.of(2026, 4, 3);
   private static final LocalDate EASTER_SATURDAY = LocalDate.of(2026, 4, 4);
   private static final LocalDate LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW =
@@ -111,6 +112,7 @@ class TrackingDifferenceServiceGapFillIT {
   void namesAWorkingDayWithPositionsAndAModelButNoNavAsAGapForWantOfANav() {
     storeModelPortfolio();
     storeHolding(THURSDAY);
+    publishNav(WEDNESDAY, "10.0000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS))
         .isEqualTo(namedForWantOfANav(THURSDAY, "no NAV for the check date"));
@@ -133,10 +135,10 @@ class TrackingDifferenceServiceGapFillIT {
     storeHolding(THURSDAY);
     givenPrice(WEDNESDAY, "100.00");
     givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
     assertThat(service.fillGaps(LOOKBACK_DAYS))
         .isEqualTo(namedForWantOfANav(THURSDAY, "no NAV for the check date"));
 
-    publishNav(WEDNESDAY, "10.0000");
     publishNav(THURSDAY, "10.1000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS))
@@ -160,6 +162,23 @@ class TrackingDifferenceServiceGapFillIT {
   void namesNothingForAFundsFirstNavDaySinceNoNavBeforeItWillEverBeCalculated() {
     storeModelPortfolio();
     storeHolding(THURSDAY);
+    publishNav(THURSDAY, "10.1000");
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesNothingForAPositionDateBeforeTheFundsFirstNavSinceNoNavCanPrecedeIt() {
+    storeModelPortfolio();
+    storeHolding(THURSDAY);
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesNothingForADateWhoseNavIsNotDueBeforeTheNextWorkingDay() {
+    storeModelPortfolio();
+    storeHolding(TODAY_FRIDAY);
     publishNav(THURSDAY, "10.1000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);

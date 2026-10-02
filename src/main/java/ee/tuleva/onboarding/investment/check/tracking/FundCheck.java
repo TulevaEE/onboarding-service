@@ -13,4 +13,6 @@ sealed interface FundCheck {
   record NotCheckable(String reason) implements FundCheck {}
 
   record NeverCheckable() implements FundCheck {}
+
+  record NavNotDueYet() implements FundCheck {}
 }

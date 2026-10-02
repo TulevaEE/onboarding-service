@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.epis;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.PEVA_DEADLINE_MISS;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.REBALANCE_GAP;
@@ -26,7 +27,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SettlementTimingWarningService {
 
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
   private static final List<TulevaFund> PEVA_RAVA_FUNDS =
       List.of(TulevaFund.TUK75, TulevaFund.TUK00);
 

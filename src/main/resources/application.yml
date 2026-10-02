@@ -184,7 +184,7 @@ pensionikeskus:
 smartid:
   relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-4000-8000-000000000000}
   relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:DEMO}
-  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v3/
+  rp-api-url: https://sid.demo.sk.ee/smart-id-rp/v3/
   scheme-name: smart-id-demo
   callback-url: ${FRONTEND_URL:https://local.tuleva.ee}/login/smart-id/callback
   trusted-ca-certificates: classpath:smart-id/demo/*.pem
@@ -364,7 +364,7 @@ mobile-id:
     name: "Tuleva"
 
 smartid:
-  hostUrl: https://rp-api.smart-id.com/v3/
+  rp-api-url: https://rp-api.smart-id.com/v3/
   scheme-name: smart-id
   callback-url: ${frontend.url}/login/smart-id/callback
   trusted-ca-certificates: classpath:smart-id/live/*.pem
@@ -523,7 +523,7 @@ frontend:
   url: https://staging.tuleva.ee
 
 smartid:
-  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v3/
+  rp-api-url: https://sid.demo.sk.ee/smart-id-rp/v3/
   scheme-name: smart-id-demo
   trusted-ca-certificates: classpath:smart-id/demo/*.pem
 ---

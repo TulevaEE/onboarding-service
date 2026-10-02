@@ -285,7 +285,6 @@ class BenchmarkCheckBuilder {
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)
             .escalationAttributions(escalationAttrs)
-            .endedStreak(breach ? null : priorBreaches)
             .securityAttributions(List.copyOf(attributions))
             .cashDrag(ZERO)
             .feeDrag(ZERO)

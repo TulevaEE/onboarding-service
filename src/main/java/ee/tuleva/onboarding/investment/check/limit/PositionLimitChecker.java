@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -133,6 +134,18 @@ class PositionLimitChecker {
                   severity);
             })
         .toList();
+  }
+
+  Map<String, Object> eventResult(
+      List<PositionBreach> breaches,
+      List<FundPosition> positions,
+      Map<String, BigDecimal> navMarketValues,
+      BigDecimal totalNav) {
+    var result = new LinkedHashMap<String, Object>();
+    result.put("breaches", breaches);
+    largestPosition(positions, navMarketValues, totalNav)
+        .ifPresent(largest -> result.put("largestPosition", largest));
+    return result;
   }
 
   Optional<LargestPosition> largestPosition(

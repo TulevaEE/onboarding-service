@@ -25,7 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -198,8 +197,8 @@ class LimitCheckService {
     var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
-    var largestPosition =
-        positionLimitChecker.largestPosition(positions, navMarketValues, totalNav);
+    var positionResult =
+        positionLimitChecker.eventResult(positionBreaches, positions, navMarketValues, totalNav);
     var providerBreaches =
         providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
@@ -211,8 +210,9 @@ class LimitCheckService {
         fund,
         checkDate,
         List.of(
-            positionEvent(fund, checkDate, positionBreaches, largestPosition),
-            event(fund, checkDate, PROVIDER, providerBreaches),
+            event(fund, checkDate, POSITION, positionBreaches, positionResult),
+            event(
+                fund, checkDate, PROVIDER, providerBreaches, Map.of("breaches", providerBreaches)),
             event(fund, checkDate, RESERVE, reserveBreach),
             event(fund, checkDate, FREE_CASH, freeCashBreach)));
 
@@ -284,24 +284,12 @@ class LimitCheckService {
     return merged;
   }
 
-  private LimitCheckEvent positionEvent(
+  private LimitCheckEvent event(
       TulevaFund fund,
       LocalDate checkDate,
-      List<PositionBreach> breaches,
-      Optional<LargestPosition> largestPosition) {
-    var result = new LinkedHashMap<String, Object>();
-    result.put("breaches", breaches);
-    largestPosition.ifPresent(largest -> result.put("largestPosition", largest));
-    return event(
-        fund,
-        checkDate,
-        POSITION,
-        breaches.stream().anyMatch(breach -> breach.severity() != BreachSeverity.OK),
-        result);
-  }
-
-  private LimitCheckEvent event(
-      TulevaFund fund, LocalDate checkDate, CheckType checkType, List<?> breaches) {
+      CheckType checkType,
+      List<?> breaches,
+      Map<String, Object> result) {
     var hasBreaches =
         breaches.stream()
             .anyMatch(
@@ -311,7 +299,7 @@ class LimitCheckService {
                   return false;
                 });
 
-    return event(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
+    return event(fund, checkDate, checkType, hasBreaches, result);
   }
 
   private LimitCheckEvent event(

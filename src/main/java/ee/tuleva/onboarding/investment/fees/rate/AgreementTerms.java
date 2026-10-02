@@ -4,8 +4,16 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 record AgreementTerms(Map<String, Object> values) {
+
+  static AgreementTerms of(@Nullable Map<String, Object> parsedTerms) {
+    if (parsedTerms == null) {
+      throw new IllegalArgumentException("Agreement terms are JSON null");
+    }
+    return new AgreementTerms(parsedTerms);
+  }
 
   boolean needTheMonthsVolume(RebateKind kind) {
     return kind == RebateKind.TIERED_VOLUME || values.containsKey("minimum");

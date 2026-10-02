@@ -74,7 +74,7 @@ public class InstrumentOcfService {
 
   private ComputedRate compute(InstrumentFeeAgreement agreement, YearMonth period) {
     try {
-      var terms = new AgreementTerms(jsonMapper.readValue(agreement.rebateTerms(), TERMS));
+      var terms = AgreementTerms.of(jsonMapper.readValue(agreement.rebateTerms(), TERMS));
       if (!terms.needTheMonthsVolume(agreement.rebateKind()) || terms.volumeFunds().isEmpty()) {
         return applied(agreement, period, terms, null);
       }

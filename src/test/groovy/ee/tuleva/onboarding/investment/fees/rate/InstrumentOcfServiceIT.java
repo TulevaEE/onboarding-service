@@ -237,6 +237,29 @@ class InstrumentOcfServiceIT {
   }
 
   @Test
+  void anAgreementWhoseTermsAreJsonNullFallsBackWithoutStoppingTheOthers() {
+    givenAnAgreement("FIXED", "null");
+    inTheInstrumentReference(SECOND_ISIN);
+    givenAnAgreement(SECOND_ISIN, "FIXED", "{\"rate\":\"0.00010000\"}");
+
+    var rates = service.resolve(APRIL);
+
+    assertThat(rates)
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactly(
+            fallback("the agreement could not be applied: IllegalArgumentException", FIXED),
+            new InstrumentRate(
+                0,
+                SECOND_ISIN,
+                APRIL,
+                PUBLISHED_OCF,
+                new BigDecimal("0.0006"),
+                AGREEMENT,
+                null,
+                FIXED));
+  }
+
+  @Test
   void aReaderStoresNoRateSoOnlyTheRateJobSettlesAMonth() {
     givenAnAgreement("NONE", "{}");
 

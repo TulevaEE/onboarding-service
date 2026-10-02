@@ -72,7 +72,8 @@ class DriftRuleTest {
         new DriftRule(sameThresholdUnscaled, 2)
             .judge(new BigDecimal("75000.00"), previous("60000.00", 4));
 
-    assertThat(drift.consecutiveRuns()).isEqualTo(5);
+    assertThat(drift)
+        .isEqualTo(new Drift(new BigDecimal("75000.00"), sameThresholdUnscaled, true, 5, 2));
   }
 
   private static Optional<Drift> previous(String divergence, int consecutiveRuns) {

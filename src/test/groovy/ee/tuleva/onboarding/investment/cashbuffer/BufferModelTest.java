@@ -53,8 +53,18 @@ class BufferModelTest {
             businessDays("0.00", "8000.00", "2000.00", "0.00", "0.00"),
             new BigDecimal("100.00"));
 
-    assertThat(recommendation.horizonOutflowAtPercentile()).isEqualByComparingTo("9700.00");
-    assertThat(recommendation.recommendedHard()).isEqualByComparingTo("9800.00");
+    assertThat(recommendation)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Recommendation(
+                MODEL,
+                new BigDecimal("10000"),
+                BigDecimal.ZERO,
+                new BigDecimal("9700"),
+                new BigDecimal("100"),
+                new BigDecimal("10100"),
+                new BigDecimal("9800")));
   }
 
   @Test
@@ -64,8 +74,18 @@ class BufferModelTest {
     var recommendation =
         MODEL.recommend(window, businessDays("40000.00", "0.00"), new BigDecimal("300.00"));
 
-    assertThat(recommendation.recommendedHard()).isEqualByComparingTo("40300.00");
-    assertThat(recommendation.recommendedSoft()).isEqualByComparingTo("40300.00");
+    assertThat(recommendation)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Recommendation(
+                MODEL,
+                new BigDecimal("1950"),
+                new BigDecimal("5000000"),
+                new BigDecimal("40000"),
+                new BigDecimal("300"),
+                new BigDecimal("40300"),
+                new BigDecimal("40300")));
   }
 
   @Test
@@ -78,8 +98,18 @@ class BufferModelTest {
     var recommendation =
         noCredit.recommend(window, businessDays("0.00", "0.00"), new BigDecimal("300.00"));
 
-    assertThat(recommendation.outflowAtPercentile()).isEqualByComparingTo("1950.00");
-    assertThat(recommendation.recommendedSoft()).isEqualByComparingTo("2250.00");
+    assertThat(recommendation)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Recommendation(
+                noCredit,
+                new BigDecimal("1950"),
+                new BigDecimal("5000000"),
+                BigDecimal.ZERO,
+                new BigDecimal("300"),
+                new BigDecimal("2250"),
+                new BigDecimal("300")));
   }
 
   private static FlowWindow window(MonthlyFlows... months) {

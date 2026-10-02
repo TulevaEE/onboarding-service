@@ -64,6 +64,13 @@ public class RememberedSmartIdAccounts {
     thisBrowser.remembered().map(RememberedBrowser::id).ifPresent(accounts::remove);
   }
 
+  public void forgetOnThisBrowser(String personalCode) {
+    thisBrowser
+        .remembered()
+        .map(RememberedBrowser::id)
+        .ifPresent(browserId -> accounts.remove(browserId, personalCode));
+  }
+
   public void forgetEverywhere() {
     currentVerification()
         .ifPresent(

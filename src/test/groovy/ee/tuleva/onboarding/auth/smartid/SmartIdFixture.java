@@ -98,6 +98,10 @@ public class SmartIdFixture {
   }
 
   public static SmartIdSession aDeviceLinkSession(Instant createdAt) {
+    return aDeviceLinkSession(createdAt, false);
+  }
+
+  public static SmartIdSession aDeviceLinkSession(Instant createdAt, boolean rememberMe) {
     var request =
         new DeviceLinkAuthenticationSessionRequest(
             demoRelyingPartyUuid,
@@ -122,7 +126,8 @@ public class SmartIdFixture {
             request,
             aCallbackToken,
             initialCallbackUrl(),
-            "est"));
+            "est"),
+        rememberMe);
   }
 
   public static SmartIdSession aNotificationSession(Instant createdAt) {
@@ -140,7 +145,7 @@ public class SmartIdFixture {
             null,
             null,
             "numeric4");
-    return new SmartIdSession(createdAt, new NotificationLogin(aSessionId, request, "1234"));
+    return new SmartIdSession(createdAt, new NotificationLogin(aSessionId, request, "1234"), true);
   }
 
   public static SessionStatus runningStatus() {

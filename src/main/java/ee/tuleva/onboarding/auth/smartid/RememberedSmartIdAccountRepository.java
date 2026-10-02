@@ -79,6 +79,18 @@ class RememberedSmartIdAccountRepository implements ExpiringRememberedEntries {
         .update();
   }
 
+  void remove(long browserId, String personalCode) {
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM remembered_smart_id_account
+            WHERE browser_id = :browserId AND personal_code = :personalCode
+            """)
+        .param("browserId", browserId)
+        .param("personalCode", personalCode)
+        .update();
+  }
+
   int removeAllOf(String personalCode) {
     return jdbcClient
         .sql("DELETE FROM remembered_smart_id_account WHERE personal_code = :personalCode")

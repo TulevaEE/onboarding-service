@@ -10,9 +10,12 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessio
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSmartIdPerson;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -90,17 +93,10 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
-  void grantsThePersonOnceWithTheDocumentNumberAndRemembersTheAccount() {
-    SmartIdSession session = aDeviceLinkSession(now);
+  void grantsThePersonOnceWithTheDocumentNumberAndRemembersTheAccountWhenAskedTo() {
+    SmartIdSession session = aDeviceLinkSession(now, true);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
-    String secret = session.issueRedemptionSecret();
-    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
-    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
-    given(
-            principalService.getFrom(
-                aSmartIdPerson(),
-                Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
-        .willReturn(expected);
+    String secret = givenACompletedLogin(session, expected);
 
     AuthenticatedPerson person = provider.authenticate(secret);
 
@@ -108,6 +104,44 @@ class SmartIdAuthProviderTest {
     verify(sessionStore).remove(SmartIdSession.class);
     verify(sessionStore, never()).save(session);
     verify(rememberedAccounts).remember(aSmartIdPerson(), true);
+    verify(rememberedAccounts, never()).forgetOnThisBrowser(any());
+  }
+
+  @Test
+  void aDeviceLinkLoginNotAskedToBeRememberedForgetsThePersonOnThisBrowserAndRemembersNothing() {
+    SmartIdSession session = aDeviceLinkSession(now, false);
+    AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
+    String secret = givenACompletedLogin(session, expected);
+
+    AuthenticatedPerson person = provider.authenticate(secret);
+
+    assertThat(person).isEqualTo(expected);
+    verify(rememberedAccounts).forgetOnThisBrowser(personalCode);
+    verify(rememberedAccounts, never()).remember(any(), anyBoolean());
+  }
+
+  @Test
+  void aPushLoginCarriesTheRememberedAccountForward() {
+    SmartIdSession session = aNotificationSession(now);
+    AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
+    String secret = givenACompletedLogin(session, expected);
+
+    provider.authenticate(secret);
+
+    verify(rememberedAccounts).remember(aSmartIdPerson(), false);
+    verify(rememberedAccounts, never()).forgetOnThisBrowser(any());
+  }
+
+  private String givenACompletedLogin(SmartIdSession session, AuthenticatedPerson person) {
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
+    given(
+            principalService.getFrom(
+                aSmartIdPerson(),
+                Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
+        .willReturn(person);
+    return secret;
   }
 
   @Test
@@ -236,7 +270,7 @@ class SmartIdAuthProviderTest {
     assertThatThrownBy(
             () ->
                 provider.authenticate(
-                    new SmartIdSession(now, session.getLogin()).issueRedemptionSecret()))
+                    new SmartIdSession(now, session.getLogin(), false).issueRedemptionSecret()))
         .isInstanceOf(SmartIdSessionNotFoundException.class);
     verify(smartIdAuthService, never()).completeLogin(session);
     verify(sessionStore, never()).remove(SmartIdSession.class);

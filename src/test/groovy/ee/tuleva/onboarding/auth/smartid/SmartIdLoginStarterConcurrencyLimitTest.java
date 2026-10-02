@@ -77,11 +77,11 @@ class SmartIdLoginStarterConcurrencyLimitTest {
   void turnsAwayALoginStartedWhileTheAllowedNumberAreAlreadyInFlight() throws Exception {
     try (ExecutorService starts = Executors.newVirtualThreadPerTaskExecutor()) {
       for (int i = 0; i < ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD; i++) {
-        starts.submit(() -> starter.startDeviceLinkLogin("et"));
+        starts.submit(() -> starter.startDeviceLinkLogin("et", false));
       }
       assertThat(allStartsInFlight.await(5, SECONDS)).isTrue();
 
-      assertThatThrownBy(() -> starter.startDeviceLinkLogin("et"))
+      assertThatThrownBy(() -> starter.startDeviceLinkLogin("et", false))
           .isInstanceOf(InvocationRejectedException.class);
 
       held.countDown();

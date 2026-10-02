@@ -39,7 +39,7 @@ public class SmartIdLoginStarter {
   @ConcurrencyLimit(
       value = ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD,
       policy = REJECT)
-  public SmartIdSession startDeviceLinkLogin(@Nullable String language) {
+  public SmartIdSession startDeviceLinkLogin(@Nullable String language, boolean rememberMe) {
     String deviceLinkLanguage = DeviceLinkLanguage.of(language);
     CallbackUrl callbackUrl = CallbackUrlUtil.createCallbackUrl(properties.callbackUrl());
     var builder =
@@ -61,10 +61,12 @@ public class SmartIdLoginStarter {
             builder.getAuthenticationSessionRequest(),
             callbackUrl.urlToken(),
             callbackUrl.initialCallbackUri().toString(),
-            deviceLinkLanguage));
+            deviceLinkLanguage),
+        rememberMe);
   }
 
   public SmartIdSession startNotificationLogin(RememberedSmartIdAccount account) {
+    final boolean ALREADY_REMEMBERED_BROWSER_KEEPS_REMEMBERING = true;
     RpChallenge rpChallenge = RpChallengeGenerator.generate();
     var builder =
         smartIdClient
@@ -84,7 +86,8 @@ public class SmartIdLoginStarter {
         new NotificationLogin(
             response.sessionID(),
             builder.getAuthenticationSessionRequest(),
-            VerificationCodeCalculator.calculate(rpChallenge.value())));
+            VerificationCodeCalculator.calculate(rpChallenge.value())),
+        ALREADY_REMEMBERED_BROWSER_KEEPS_REMEMBERING);
   }
 
   private static <T> T initiate(Supplier<T> initiation) {

@@ -66,13 +66,21 @@ public class SmartIdAuthProvider implements AuthProvider {
             person,
             Map.of(
                 GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, person.getDocumentNumber()));
-    rememberedSmartIdAccounts.remember(person, session.getLogin() instanceof DeviceLinkLogin);
+    rememberOrForgetOnThisBrowser(person, session);
     return authenticatedPerson;
   }
 
   private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {
     if (session.getLogin() instanceof NotificationLogin) {
       rememberedSmartIdAccounts.releaseNotificationLoginStart();
+    }
+  }
+
+  private void rememberOrForgetOnThisBrowser(SmartIdPerson person, SmartIdSession session) {
+    if (session.isRememberMe()) {
+      rememberedSmartIdAccounts.remember(person, session.getLogin() instanceof DeviceLinkLogin);
+    } else {
+      rememberedSmartIdAccounts.forgetOnThisBrowser(person.getPersonalCode());
     }
   }
 

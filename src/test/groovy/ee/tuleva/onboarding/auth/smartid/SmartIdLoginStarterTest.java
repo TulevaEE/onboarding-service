@@ -47,7 +47,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin("et");
+    SmartIdSession session = service.startDeviceLinkLogin("et", false);
 
     assertThat(session.getCreatedAt()).isEqualTo(now);
     assertThat(session.getLogin()).isInstanceOf(DeviceLinkLogin.class);
@@ -66,11 +66,20 @@ class SmartIdLoginStarterTest {
   }
 
   @Test
+  void startDeviceLinkLoginKeepsWhetherThePersonAskedThisBrowserToRememberThem() {
+    given(connector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(aSessionId));
+
+    assertThat(service.startDeviceLinkLogin("et", true).isRememberMe()).isTrue();
+    assertThat(service.startDeviceLinkLogin("et", false).isRememberMe()).isFalse();
+  }
+
+  @Test
   void startDeviceLinkLoginDefaultsToEstonianWhenTheLanguageIsMissing() {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin(null);
+    SmartIdSession session = service.startDeviceLinkLogin(null, false);
 
     assertThat(((DeviceLinkLogin) session.getLogin()).language()).isEqualTo("est");
   }
@@ -80,7 +89,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin("zz");
+    SmartIdSession session = service.startDeviceLinkLogin("zz", false);
 
     assertThat(((DeviceLinkLogin) session.getLogin()).language()).isEqualTo("est");
   }
@@ -90,9 +99,9 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("en").getLogin()).language())
+    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("en", false).getLogin()).language())
         .isEqualTo("eng");
-    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("ru").getLogin()).language())
+    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("ru", false).getLogin()).language())
         .isEqualTo("rus");
   }
 
@@ -112,7 +121,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willThrow(new ServerMaintenanceException());
 
-    assertThatThrownBy(() -> service.startDeviceLinkLogin("et"))
+    assertThatThrownBy(() -> service.startDeviceLinkLogin("et", false))
         .isInstanceOf(SmartIdException.class)
         .extracting(e -> ((SmartIdException) e).getLoginError())
         .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
@@ -134,5 +143,6 @@ class SmartIdLoginStarterTest {
         .hasSize(4)
         .isEqualTo(VerificationCodeCalculator.calculate(rpChallenge));
     assertThat(login.request().vcType()).isEqualTo("numeric4");
+    assertThat(session.isRememberMe()).isTrue();
   }
 }

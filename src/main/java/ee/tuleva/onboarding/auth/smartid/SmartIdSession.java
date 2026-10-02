@@ -26,6 +26,7 @@ public class SmartIdSession implements Serializable {
 
   private final Instant createdAt;
   @ToString.Exclude private final SmartIdLogin login;
+  private final boolean rememberMe;
   @ToString.Exclude private @Nullable SessionStatus finalStatus;
   @ToString.Exclude private @Nullable String userChallengeVerifier;
   @ToString.Exclude private @Nullable SmartIdPerson person;

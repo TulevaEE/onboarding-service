@@ -97,6 +97,23 @@ class RememberedSmartIdAccountRepositoryTest {
   }
 
   @Test
+  void forgetsThePersonsAccountOnOneBrowserOnlyWhenThatBrowserRemembersThatPerson() {
+    long mine = aBrowser("mine");
+    long theirs = aBrowser("theirs");
+    long alsoMine = aBrowser("also-mine");
+    accounts.replace(mine, anAccount(), LATER);
+    accounts.replace(theirs, somebodyElse(), LATER);
+    accounts.replace(alsoMine, anAccount(), LATER);
+
+    accounts.remove(mine, personalCode);
+    accounts.remove(theirs, personalCode);
+
+    assertThat(accounts.findUnexpired(mine)).isEmpty();
+    assertThat(accounts.findUnexpired(theirs)).contains(somebodyElse());
+    assertThat(accounts.findUnexpired(alsoMine)).contains(anAccount());
+  }
+
+  @Test
   void forgetsOnePersonOnEveryBrowserAndLeavesOthersAlone() {
     long mineOne = aBrowser("mine-one");
     long mineTwo = aBrowser("mine-two");

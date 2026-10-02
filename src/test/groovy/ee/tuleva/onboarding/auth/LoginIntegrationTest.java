@@ -125,7 +125,7 @@ class LoginIntegrationTest {
   }
 
   @Test
-  void qrCodeLoginCompletesEndToEndAndRemembersTheAccount() throws Exception {
+  void qrCodeLoginCompletesEndToEndAndRemembersTheAccountWhenAskedTo() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
 
@@ -134,7 +134,7 @@ class LoginIntegrationTest {
             .perform(
                 post("/v1/smart-id/login")
                     .contentType(APPLICATION_JSON)
-                    .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
+                    .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\",\"rememberMe\":true}"))
             .andExpect(status().isOk())
             .andExpect(cookie().exists("SESSION"))
             .andExpect(jsonPath("$.flow").value("DEVICE_LINK"))
@@ -405,7 +405,7 @@ class LoginIntegrationTest {
 
   @Test
   void rememberedAccountLogsInWithAPushNotification() throws Exception {
-    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
 
     mockMvc
         .perform(get("/v1/smart-id/login/remembered-account").cookie(remembered))
@@ -433,15 +433,60 @@ class LoginIntegrationTest {
     given(notificationResponseValidator.validate(eq(status), any(), eq("smart-id-demo")))
         .willReturn(anAuthenticationIdentity());
 
+    MvcResult granted =
+        mockMvc
+            .perform(smartIdToken(start).cookie(remembered))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.access_token").isNotEmpty())
+            .andReturn();
     mockMvc
-        .perform(smartIdToken(start))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.access_token").isNotEmpty());
+        .perform(
+            get("/v1/smart-id/login/remembered-account").cookie(rememberedAccountCookie(granted)))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void aQrLoginWithoutRememberMeSetsNoRememberedBrowserCookieAndRemembersNoAccount()
+      throws Exception {
+    MvcResult granted = completeQrLogin(anAuthenticationIdentity(), false);
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedSmartIdAccountsOf(personalCode)).isZero();
+  }
+
+  @Test
+  void aQrLoginStartedWithoutTheRememberMeFlagRemembersNothing() throws Exception {
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    MvcResult start = startDeviceLinkLogin();
+    givenTheQrLoginCompletesAs(anAuthenticationIdentity());
+
+    MvcResult granted = mockMvc.perform(smartIdToken(start)).andExpect(status().isOk()).andReturn();
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    assertThat(rememberedSmartIdAccountsOf(personalCode)).isZero();
+  }
+
+  @Test
+  void aQrLoginWithoutRememberMeForgetsTheAccountThisBrowserRemembersForThePerson()
+      throws Exception {
+    Cookie browser = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
+
+    MvcResult granted = completeQrLogin(anAuthenticationIdentity(), false, browser);
+
+    assertThat(granted.getResponse().getHeaders(SET_COOKIE))
+        .noneMatch(value -> value.startsWith(COOKIE_NAME + "="));
+    mockMvc
+        .perform(get("/v1/smart-id/login/remembered-account").cookie(browser))
+        .andExpect(status().isNoContent());
+    assertThat(rememberedSmartIdAccountsOf(personalCode)).isZero();
   }
 
   @Test
   void aSecondPushLoginFromTheSameBrowserWithinTenSecondsIsRefused() throws Exception {
-    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
         .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
 
@@ -456,7 +501,7 @@ class LoginIntegrationTest {
 
   @Test
   void aPushLoginRefusedInTheAppLetsTheNextOneStartRightAway() throws Exception {
-    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
         .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
     MvcResult refused =
@@ -477,7 +522,7 @@ class LoginIntegrationTest {
 
   @Test
   void aCompletedPushLoginLetsTheNextOneStartRightAway() throws Exception {
-    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie remembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     given(smartIdConnector.initNotificationAuthentication(any(), eq(documentNumber)))
         .willReturn(new NotificationAuthenticationSessionResponse(PUSH_SESSION_ID));
     MvcResult start =
@@ -520,7 +565,7 @@ class LoginIntegrationTest {
     amlCheckRepository.save(
         AmlCheck.builder().personalCode(personalCode).type(SK_NAME).success(true).build());
 
-    MvcResult granted = completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"));
+    MvcResult granted = completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"), false);
 
     User user = userRepository.findByPersonalCode(personalCode).orElseThrow();
     assertThat(user.getFirstName()).isEqualTo("Aadu");
@@ -548,7 +593,7 @@ class LoginIntegrationTest {
             .active(true)
             .build());
 
-    completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"));
+    completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"), false);
 
     List<AmlCheck> failedSkNameChecks =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, false);
@@ -574,7 +619,8 @@ class LoginIntegrationTest {
 
   @Test
   void aMobileIdLoginOnABrowserThatRemembersASmartIdAccountKeepsIt() throws Exception {
-    Cookie smartIdRemembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie smartIdRemembered =
+        rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
 
     Cookie bothRemembered =
         rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
@@ -588,7 +634,8 @@ class LoginIntegrationTest {
 
   @Test
   void forgettingTheSmartIdAccountKeepsThePhoneMobileIdRemembers() throws Exception {
-    Cookie smartIdRemembered = rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity()));
+    Cookie smartIdRemembered =
+        rememberedAccountCookie(completeQrLogin(anAuthenticationIdentity(), true));
     Cookie bothRemembered =
         rememberedAccountCookie(completeMobileIdLogin("55555555", smartIdRemembered));
 
@@ -810,32 +857,53 @@ class LoginIntegrationTest {
         .list();
   }
 
-  private MvcResult completeQrLogin(AuthenticationIdentity identity) throws Exception {
+  private MvcResult completeQrLogin(
+      AuthenticationIdentity identity, boolean rememberMe, Cookie... browserCookies)
+      throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
-    MvcResult start = startDeviceLinkLogin();
-    Cookie session = sessionCookie(start);
-
-    SessionStatus status = completeStatus("QR");
-    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
-    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
-        .willReturn(identity);
+    MvcResult start = startDeviceLinkLogin(rememberMe);
+    givenTheQrLoginCompletesAs(identity);
 
     return mockMvc
-        .perform(smartIdToken(start))
+        .perform(withCookies(smartIdToken(start), browserCookies))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.access_token").isNotEmpty())
         .andReturn();
   }
 
+  private void givenTheQrLoginCompletesAs(AuthenticationIdentity identity) {
+    SessionStatus status = completeStatus("QR");
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
+    given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
+        .willReturn(identity);
+  }
+
   private MvcResult startDeviceLinkLogin() throws Exception {
+    return startDeviceLinkLogin(Map.of("flow", "DEVICE_LINK", "language", "et"));
+  }
+
+  private MvcResult startDeviceLinkLogin(boolean rememberMe) throws Exception {
+    return startDeviceLinkLogin(
+        Map.of("flow", "DEVICE_LINK", "language", "et", "rememberMe", rememberMe));
+  }
+
+  private MvcResult startDeviceLinkLogin(Map<String, Object> body) throws Exception {
     return mockMvc
         .perform(
             post("/v1/smart-id/login")
                 .contentType(APPLICATION_JSON)
-                .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\"}"))
+                .content(objectMapper.writeValueAsString(body)))
         .andExpect(status().isOk())
         .andReturn();
+  }
+
+  private int rememberedSmartIdAccountsOf(String personalCode) {
+    return jdbcClient
+        .sql("SELECT count(*) FROM remembered_smart_id_account WHERE personal_code = :code")
+        .param("code", personalCode)
+        .query(Integer.class)
+        .single();
   }
 
   private MockHttpServletRequestBuilder smartIdToken(MvcResult start) throws Exception {

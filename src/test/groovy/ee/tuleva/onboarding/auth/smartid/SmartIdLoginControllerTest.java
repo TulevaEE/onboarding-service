@@ -50,8 +50,27 @@ class SmartIdLoginControllerTest {
   private final SmartIdSession notificationSession = aNotificationSession(Instant.EPOCH);
 
   @Test
-  void startingADeviceLinkLoginReturnsTheSameDeviceLink() throws Exception {
-    given(smartIdLoginStarter.startDeviceLinkLogin("et")).willReturn(deviceLinkSession);
+  void startingADeviceLinkLoginAsksToBeRememberedOnlyWhenThePersonTickedRememberMe()
+      throws Exception {
+    given(smartIdLoginStarter.startDeviceLinkLogin("et", true)).willReturn(deviceLinkSession);
+    given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
+        .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\",\"rememberMe\":true}"))
+        .andExpect(status().isOk());
+
+    verify(smartIdLoginStarter).startDeviceLinkLogin("et", true);
+  }
+
+  @Test
+  void startingADeviceLinkLoginReturnsTheSameDeviceLinkAndDoesNotAskToBeRememberedByDefault()
+      throws Exception {
+    given(smartIdLoginStarter.startDeviceLinkLogin("et", false)).willReturn(deviceLinkSession);
     given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
         .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
 

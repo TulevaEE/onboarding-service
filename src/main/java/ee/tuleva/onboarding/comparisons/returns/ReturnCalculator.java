@@ -55,32 +55,30 @@ public class ReturnCalculator {
 
   @Nullable
   private BigDecimal getPersonalRateOfReturn(AccountOverview accountOverview) {
-    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
-
     return calculateReturn(
-        purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
+        getPurchaseTransactions(accountOverview),
+        accountOverview.getEndingBalance(),
+        accountOverview.getEndingBalanceTime());
   }
 
   @Nullable
   private BigDecimal getSimulatedRateOfReturn(
       AccountOverview accountOverview, String comparisonFund) {
-    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
-
-    final var sellAmount =
-        getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
+    final var sellAmount = getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund);
 
     if (sellAmount.isEmpty()) {
       return ZERO;
     }
 
     return calculateReturn(
-        purchaseTransactions, sellAmount.orElseThrow(), accountOverview.getEndTime());
+        getPurchaseTransactions(accountOverview),
+        sellAmount.orElseThrow(),
+        accountOverview.getEndingBalanceTime());
   }
 
   private Optional<BigDecimal> getSimulatedEndingBalanceForAFund(
-      AccountOverview accountOverview,
-      String comparisonFund,
-      List<Transaction> purchaseTransactions) {
+      AccountOverview accountOverview, String comparisonFund) {
+    List<Transaction> purchaseTransactions = getComparisonPurchases(accountOverview);
     BigDecimal virtualFundUnitsBought = ZERO;
     LocalDate beginningBalanceLookupDate =
         beginningBalanceIndexDate(accountOverview, comparisonFund);
@@ -102,7 +100,7 @@ public class ReturnCalculator {
       virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
     }
     Optional<FundValue> finalVirtualFundValue =
-        fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndDate());
+        fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndingBalanceDate());
     if (finalVirtualFundValue.isEmpty()) {
       return Optional.empty();
     }
@@ -184,10 +182,7 @@ public class ReturnCalculator {
 
   private CashReturn getSimulatedCashReturn(
       AccountOverview accountOverview, String comparisonFund) {
-    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
-
-    final var endingBalance =
-        getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
+    final var endingBalance = getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund);
 
     if (endingBalance.isEmpty()) {
       return new CashReturn();
@@ -210,16 +205,24 @@ public class ReturnCalculator {
   }
 
   private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
-    List<Transaction> transactions = accountOverview.getTransactions();
+    return purchasesWithBeginningBalanceAt(
+        accountOverview, accountOverview.getBeginningBalanceTime());
+  }
+
+  private List<Transaction> getComparisonPurchases(AccountOverview accountOverview) {
+    return purchasesWithBeginningBalanceAt(
+        accountOverview, accountOverview.getStartTime().minus(1, DAYS));
+  }
+
+  private List<Transaction> purchasesWithBeginningBalanceAt(
+      AccountOverview accountOverview, Instant beginningBalanceTime) {
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
     BigDecimal beginningBalance = accountOverview.getBeginningBalance();
     if (beginningBalance.compareTo(ZERO) != 0) {
-      Instant priceDate = accountOverview.getStartTime().minus(1, DAYS);
-      Transaction beginningTransaction = new Transaction(beginningBalance, priceDate);
-      purchaseTransactions.add(beginningTransaction);
+      purchaseTransactions.add(new Transaction(beginningBalance, beginningBalanceTime));
     }
-    purchaseTransactions.addAll(transactions);
+    purchaseTransactions.addAll(accountOverview.getTransactions());
 
     return purchaseTransactions;
   }
@@ -234,9 +237,9 @@ public class ReturnCalculator {
 
   @Nullable
   private BigDecimal calculateReturn(
-      List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endTime) {
+      List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endingBalanceTime) {
     List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
-    Transaction endingTransaction = new Transaction(endingBalance, endTime);
+    Transaction endingTransaction = new Transaction(endingBalance, endingBalanceTime);
 
     List<Transaction> internalTransactions = new ArrayList<>(negatedTransactions);
     internalTransactions.add(endingTransaction);

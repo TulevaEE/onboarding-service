@@ -19,6 +19,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public class PersonalCode {
 
+  private static final String ESTONIAN_SUBJECT_ID_CODE_PREFIX = "PNOEE-";
+
   private static final NavigableMap<Integer, Period> ESTABLISHED_RETIREMENT_AGE_BY_YEAR =
       new TreeMap<>(
           Map.of(
@@ -26,6 +28,12 @@ public class PersonalCode {
               2028, Period.of(65, 3, 0)));
 
   private static final Period BASE_RETIREMENT_AGE = Period.ofYears(65);
+
+  public static String fromSubjectIdCode(String subjectIdCode) {
+    return subjectIdCode.startsWith(ESTONIAN_SUBJECT_ID_CODE_PREFIX)
+        ? subjectIdCode.substring(ESTONIAN_SUBJECT_ID_CODE_PREFIX.length())
+        : subjectIdCode;
+  }
 
   public static int getAge(String personalCode) {
     LocalDate today = clock().instant().atZone(ZoneId.systemDefault()).toLocalDate();

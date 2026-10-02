@@ -75,7 +75,9 @@ class NudgeInputsAssembler {
           "Second pillar joined but not active, not inviting to open one: userId={}", user.getId());
       return Known.YES;
     }
-    return lookups.leftSecondPillar(user.getPersonalCode());
+    return lookups
+        .leftSecondPillar(user.getPersonalCode())
+        .or(lookups.completedEarlyWithdrawal(user));
   }
 
   private @Nullable FeeComparison feeComparison(User user, ConversionResponse conversion) {

@@ -90,7 +90,7 @@ final class PensionNudges {
   }
 
   private static Optional<NudgeDecision> thirdPillar(NudgeInputs in, NudgeContext context) {
-    if (context.suppresses(THIRD_PILLAR_START)) {
+    if (context.suppresses(THIRD_PILLAR_START) || !in.adult()) {
       return Optional.empty();
     }
     if (!in.thirdPillarActive()) {
@@ -100,8 +100,10 @@ final class PensionNudges {
   }
 
   private static boolean thirdPillarFeesMatter(NudgeInputs in) {
-    return !in.thirdPillarPartiallyConverted()
-        || (!in.thirdPillarFullyConverted() && FundFees.isHigh(in.thirdPillarFee()));
+    if (!in.thirdPillarPartiallyConverted()) {
+      return !FundFees.isLow(in.thirdPillarFee());
+    }
+    return !in.thirdPillarFullyConverted() && FundFees.isHigh(in.thirdPillarFee());
   }
 
   private static Optional<NudgeDecision> thirdPillarRecurring(
@@ -122,6 +124,9 @@ final class PensionNudges {
   }
 
   private static boolean thirdPillarSaver(NudgeInputs in) {
-    return thirdPillarDecidable(in) && in.adult() && in.thirdPillarActive();
+    return thirdPillarDecidable(in)
+        && in.adult()
+        && in.thirdPillarActive()
+        && in.thirdPillarPartiallyConverted();
   }
 }

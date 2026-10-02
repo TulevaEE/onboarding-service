@@ -22,7 +22,20 @@ class QuarterTest {
   }
 
   @Test
-  void aQuarterOutsideOneToFourIsRefused() {
+  void theFirstQuarterRunsFromJanuaryThroughMarch() {
+    var quarter = new Quarter(2026, 1);
+
+    assertThat(quarter.start()).isEqualTo(LocalDate.of(2026, 1, 1));
+    assertThat(quarter.end()).isEqualTo(LocalDate.of(2026, 3, 31));
+  }
+
+  @Test
+  void aQuarterBelowOneIsRefused() {
+    assertThatThrownBy(() -> new Quarter(2026, 0)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void aQuarterAboveFourIsRefused() {
     assertThatThrownBy(() -> new Quarter(2026, 5)).isInstanceOf(IllegalArgumentException.class);
   }
 }

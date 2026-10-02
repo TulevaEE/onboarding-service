@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record SmartIdProperties(
     String relyingPartyUUID,
     String relyingPartyName,
-    String hostUrl,
+    String rpApiUrl,
     String schemeName,
     String callbackUrl,
     String trustedCaCertificates) {}

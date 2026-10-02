@@ -175,7 +175,7 @@ Make sure you are running against the right backend environment (dev or prod).
 
 - Digital signing does not work in the dev environment. Use the production
  configuration to test it locally. See `DigiDocConfiguration.digiDocConfigDev()` and
-  `smartid.hostUrl`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName`, `smartid.scheme-name` and
+  `smartid.rp-api-url`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName`, `smartid.scheme-name` and
    `smartid.trusted-ca-certificates` config values in `application.yml` and change them to production
    values. Use VPN for testing.
 

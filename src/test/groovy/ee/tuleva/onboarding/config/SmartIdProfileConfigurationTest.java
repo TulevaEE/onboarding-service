@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.core.env.StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME;
 import static org.springframework.core.env.StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME;
 
+import ee.tuleva.onboarding.auth.SmartIdProperties;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -11,9 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.core.io.DefaultResourceLoader;
 
 class SmartIdProfileConfigurationTest {
@@ -22,7 +25,7 @@ class SmartIdProfileConfigurationTest {
   void productionTalksToTheLiveRpApiV3WithTheLiveSchemeAndCertificates() {
     ConfigurableEnvironment production = environmentFor("production");
 
-    assertThat(production.getProperty("smartid.hostUrl"))
+    assertThat(production.getProperty("smartid.rp-api-url"))
         .isEqualTo("https://rp-api.smart-id.com/v3/");
     assertThat(production.getProperty("smartid.scheme-name")).isEqualTo("smart-id");
     assertThat(production.getProperty("smartid.trusted-ca-certificates"))
@@ -30,10 +33,26 @@ class SmartIdProfileConfigurationTest {
   }
 
   @Test
+  void aLeftoverSmartIdHostEnvironmentVariableCannotPointProductionAtAnOlderRpApi() {
+    ConfigurableEnvironment production = environmentFor("production");
+    production
+        .getPropertySources()
+        .addFirst(
+            new SystemEnvironmentPropertySource(
+                SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+                Map.of("SMARTID_HOSTURL", "https://rp-api.smart-id.com/v1")));
+
+    SmartIdProperties properties =
+        Binder.get(production).bind("smartid", SmartIdProperties.class).get();
+
+    assertThat(properties.rpApiUrl()).isEqualTo("https://rp-api.smart-id.com/v3/");
+  }
+
+  @Test
   void stagingTalksToTheDemoRpApiV3WithTheDemoSchemeAndCertificates() {
     ConfigurableEnvironment staging = environmentFor("staging");
 
-    assertThat(staging.getProperty("smartid.hostUrl"))
+    assertThat(staging.getProperty("smartid.rp-api-url"))
         .isEqualTo("https://sid.demo.sk.ee/smart-id-rp/v3/");
     assertThat(staging.getProperty("smartid.scheme-name")).isEqualTo("smart-id-demo");
     assertThat(staging.getProperty("smartid.trusted-ca-certificates"))

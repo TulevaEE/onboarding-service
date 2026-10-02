@@ -44,7 +44,7 @@ public class SmartIdClientConfiguration {
     SmartIdClient smartIdClient = new SmartIdClient();
     smartIdClient.setRelyingPartyUUID(properties.relyingPartyUUID());
     smartIdClient.setRelyingPartyName(properties.relyingPartyName());
-    smartIdClient.setHostUrl(properties.hostUrl());
+    smartIdClient.setHostUrl(properties.rpApiUrl());
     smartIdClient.setSessionStatusResponseSocketOpenTime(SECONDS, 1L);
     smartIdClient.setTrustStore(trustStore);
     return smartIdClient;

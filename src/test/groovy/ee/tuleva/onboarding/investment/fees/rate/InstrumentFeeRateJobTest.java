@@ -77,13 +77,26 @@ class InstrumentFeeRateJobTest {
   }
 
   @Test
-  void onAnyOtherDayNothingIsResolved() {
+  void beforeTheThirdBusinessDayNothingIsResolved() {
     given(service.hasRatesResolvedAfterItClosed(any())).willReturn(false);
 
-    jobOn(LocalDate.of(2026, 6, 4)).resolveTheClosedMonthsIfDue();
+    jobOn(LocalDate.of(2026, 6, 2)).resolveTheClosedMonthsIfDue();
 
     verify(service, never()).resolve(any());
     verifyNoInteractions(notifier);
+  }
+
+  @Test
+  void aLaterRunInTheWindowResolvesTheMonthsStillNotResolvedAfterTheyClosed() {
+    given(service.hasRatesResolvedAfterItClosed(any())).willReturn(true);
+    given(service.hasRatesResolvedAfterItClosed(MAY)).willReturn(false);
+
+    jobOn(LocalDate.of(2026, 6, 10)).resolveTheClosedMonthsIfDue();
+
+    verify(service, never()).resolve(MARCH);
+    verify(service, never()).resolve(APRIL);
+    verify(service).resolve(MAY);
+    verify(service, never()).resolve(YearMonth.of(2026, 6));
   }
 
   @Test

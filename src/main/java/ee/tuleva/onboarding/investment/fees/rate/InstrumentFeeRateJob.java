@@ -25,8 +25,8 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class InstrumentFeeRateJob {
 
-  private static final int THIRD_BUSINESS_DAY_A_DAY_BEFORE_OCF_AND_TD_ATTRIBUTION_READ_THE_RATES =
-      3;
+  private static final int
+      FIRST_RESOLVING_BUSINESS_DAY_A_DAY_BEFORE_OCF_AND_TD_ATTRIBUTION_READ_THE_RATES = 3;
   private static final YearMonth FIRST_MONTH_WITH_A_PUBLISHED_NAV = YearMonth.of(2026, 3);
 
   private final InstrumentOcfService service;
@@ -38,8 +38,8 @@ class InstrumentFeeRateJob {
   @SchedulerLock(name = "InstrumentFeeRateJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void resolveTheClosedMonthsIfDue() {
     var today = todayInTallinn();
-    if (!businessDays.isNthBusinessDayOfMonth(
-        today, THIRD_BUSINESS_DAY_A_DAY_BEFORE_OCF_AND_TD_ATTRIBUTION_READ_THE_RATES)) {
+    if (!businessDays.isOnOrAfterNthBusinessDayOfMonth(
+        today, FIRST_RESOLVING_BUSINESS_DAY_A_DAY_BEFORE_OCF_AND_TD_ATTRIBUTION_READ_THE_RATES)) {
       return;
     }
     resolveAndAnnounce(

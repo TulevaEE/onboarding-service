@@ -53,6 +53,12 @@ class RebateCalculatorTest {
   }
 
   @Test
+  void tieredRebateOnAZeroVolumeIsTheBelowRateRatherThanADivisionByZero() {
+    assertThat(calculator.apply(TIERED_VOLUME, usdTiers(), inputs("0.00")))
+        .isEqualTo(rebate("0.00040000"));
+  }
+
+  @Test
   void tieredThresholdCanBeDenominatedInEurWithoutAnExchangeRate() {
     var terms =
         Map.<String, Object>of(

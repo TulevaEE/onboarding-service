@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -22,6 +23,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Optional;
@@ -147,6 +149,64 @@ class InstrumentOcfServiceIT {
 
     assertThat(storedVolume()).isEqualByComparingTo("60000000.00");
     assertThat(storedVolumeNavDate()).isEqualTo(APRIL_28);
+  }
+
+  @Test
+  void aUsdGateIsConvertedAtTheExchangeRateOfTheDayTheVolumeWasMeasured() {
+    givenAnAgreement(
+        "FIXED_NET",
+        "{\"net\":\"0.00050000\",\"minimum\":\"55000000.00\",\"minimumCurrency\":\"USD\","
+            + "\"funds\":[\"TUK75\",\"TUV100\"]}");
+    heldOn(APRIL_28, TUK75, "30000000.00");
+    heldOn(APRIL_28, TUV100, "20000000.00");
+    heldOn(APRIL_29, TUK75, "0.00");
+    heldOn(APRIL_29, TUV100, "0.00");
+    heldOn(APRIL_30, TUK75, "0.00");
+    heldOn(APRIL_30, TUV100, "0.00");
+    given(fundValueProvider.getLatestValue("EURUSD.FOREX", APRIL_28))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "EURUSD.FOREX", APRIL_28, new BigDecimal("1.10"), "EODHD", Instant.EPOCH)));
+
+    var rate = service.resolve(APRIL).getFirst();
+
+    assertThat(rate)
+        .usingRecursiveComparison(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new InstrumentRate(
+                0,
+                ISIN,
+                APRIL,
+                PUBLISHED_OCF,
+                new BigDecimal("0.0005"),
+                AGREEMENT,
+                null,
+                FIXED_NET));
+    assertThat(storedEurUsd()).isEqualByComparingTo("1.10");
+    assertThat(storedVolumeNavDate()).isEqualTo(APRIL_28);
+  }
+
+  @Test
+  void anInstrumentNotHeldAnyDayOfTheMonthIsMeasuredAtZeroRatherThanFallingBack() {
+    givenAnAgreement("FIXED_NET", GATED_FIXED_NET);
+    heldOn(APRIL_30, TUK75, "0.00");
+    heldOn(APRIL_30, TUV100, "0.00");
+
+    var rate = service.resolve(APRIL).getFirst();
+
+    assertThat(rate)
+        .usingRecursiveComparison(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new InstrumentRate(
+                0, ISIN, APRIL, PUBLISHED_OCF, PUBLISHED_OCF, AGREEMENT, null, FIXED_NET));
+    assertThat(storedVolume()).isEqualByComparingTo("0.00");
+    assertThat(
+            jdbcClient
+                .sql("SELECT volume_nav_date FROM investment_instrument_fee_rate")
+                .query()
+                .singleRow())
+        .containsEntry("volume_nav_date", null);
   }
 
   @Test
@@ -515,6 +575,13 @@ class InstrumentOcfServiceIT {
   private BigDecimal storedVolume() {
     return jdbcClient
         .sql("SELECT volume_eur FROM investment_instrument_fee_rate")
+        .query(BigDecimal.class)
+        .single();
+  }
+
+  private BigDecimal storedEurUsd() {
+    return jdbcClient
+        .sql("SELECT eur_usd FROM investment_instrument_fee_rate")
         .query(BigDecimal.class)
         .single();
   }

@@ -36,7 +36,9 @@ class InstrumentFeeRateNotifierTest {
             List.of(
                 new Resolved(
                     SEPTEMBER,
-                    List.of(rate("ZZ0000000001", "0.00070000", AGREEMENT, null, NONE)))));
+                    List.of(
+                        rate("ZZ0000000001", "0.00070000", AGREEMENT, null, NONE),
+                        rate("ZZ0000000002", "0.00110000", AGREEMENT, null, NONE)))));
 
     then(notificationService).shouldHaveNoInteractions();
   }

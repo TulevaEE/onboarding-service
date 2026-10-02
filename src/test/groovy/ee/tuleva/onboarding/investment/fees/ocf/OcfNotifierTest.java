@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
+import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -325,7 +326,9 @@ class OcfNotifierTest {
     notifier.notifyRun(
         MONTH,
         List.of(computed(TUK75, "0.0034")),
-        List.of(rate("ZZ0000000002", "0.00200000", "0.00150000", AGREEMENT, FIXED, null)));
+        List.of(
+            rate("ZZ0000000002", "0.00200000", "0.00150000", AGREEMENT, FIXED, null),
+            rate("ZZ0000000003", "0.00070000", "0.00110000", AGREEMENT, NONE, null)));
 
     then(notificationService)
         .should()
@@ -333,7 +336,7 @@ class OcfNotifierTest {
             """
             ✅ OCF RUN COMPLETE: month=2026-04
               ✅ TUK75 2026-04: 0.34%
-            Instrument rates: 1 from agreements, 0 fell back to the published OCF""",
+            Instrument rates: 2 from agreements, 0 fell back to the published OCF""",
             INVESTMENT, INFO);
   }
 

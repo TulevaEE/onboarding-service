@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -113,7 +112,7 @@ class SebPendingTransactionReconciliationServiceTest {
         executionRepository,
         orderRepository,
         eventPublisher,
-        new SebReportAsOfDate(eventPublisher),
+        new SebReportAsOfDate(),
         auditRecorder,
         settlementRepository,
         new TransactionSettlementService(settlementRepository, orderRepository, clock),
@@ -1607,7 +1606,7 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_alertsAndFallsBackToTheReportDateWhenThereIsNoAsOfDate() {
+  void reconcile_fallsBackToTheReportDateWhenThereIsNoAsOfDate() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
@@ -1621,10 +1620,6 @@ class SebPendingTransactionReconciliationServiceTest {
         .singleElement()
         .extracting(TransactionExecution::getReportedDate)
         .isEqualTo(LocalDate.of(2026, 5, 13));
-    verify(eventPublisher)
-        .publishEvent(
-            new MissingReportAsOfDateEvent(
-                SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13), null));
   }
 
   @Test

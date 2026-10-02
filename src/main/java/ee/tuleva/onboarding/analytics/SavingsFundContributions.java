@@ -5,5 +5,5 @@ import java.time.LocalDate;
 @FunctionalInterface
 public interface SavingsFundContributions {
 
-  int countIssuedPaymentMonthsSince(SaverId saver, LocalDate from);
+  int countStandingOrderMonthsSince(SaverId saver, LocalDate from);
 }

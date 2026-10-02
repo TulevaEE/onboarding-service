@@ -4,18 +4,15 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeni
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate;
 import static ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.MAX_POLL_COUNT;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.auth.SecurityContextRunner;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateContacts;
+import ee.tuleva.onboarding.mandate.batch.MandateBatchCompletion;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.MandateBatchPollingContext;
-import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
-import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
-import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import java.util.List;
 import java.util.Locale;
@@ -31,20 +28,29 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class MandateBatchProcessingPollerTest {
 
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
   @Mock private MandateProcessorService mandateProcessor;
-  @Mock private MandateContacts mandateContacts;
+  @Mock private MandateBatchCompletion mandateBatchCompletion;
+  @Mock private SecurityContextRunner securityContextRunner;
 
   @InjectMocks private MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
   @AfterEach
   void tearDown() {
     mandateBatchProcessingPoller.stop();
+  }
+
+  private void runActionsAsTheGivenPerson() {
+    willAnswer(
+            invocation -> {
+              invocation.getArgument(1, Runnable.class).run();
+              return null;
+            })
+        .given(securityContextRunner)
+        .runAs(any(Person.class), any(Runnable.class));
   }
 
   @SneakyThrows
@@ -135,7 +141,7 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(applicationEventPublisher, times(0)).publishEvent(any());
+    verifyNoInteractions(mandateBatchCompletion);
     verify(mockedQueue, times(0)).add(any());
   }
 
@@ -158,7 +164,7 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(applicationEventPublisher, times(0)).publishEvent(any());
+    verifyNoInteractions(mandateBatchCompletion);
     verify(mockedQueue, times(0)).add(any());
   }
 
@@ -184,7 +190,7 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(applicationEventPublisher, times(0)).publishEvent(any());
+    verifyNoInteractions(mandateBatchCompletion);
     verify(mockedQueue, times(1))
         .add(
             argThat(
@@ -193,38 +199,35 @@ class MandateBatchProcessingPollerTest {
   }
 
   @Test
-  @DisplayName("Poller should publish events on finished successful mandates")
-  void pollerMandatesFinished() {
-    var locale = Locale.ENGLISH;
-
+  void pollerFinishesABatchOnlyInsideItsOwnersSecurityContext() {
     Mandate mandate1 = sampleFundPensionOpeningMandate();
     Mandate mandate2 = samplePartialWithdrawalMandate();
     var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, 1);
-
     var mockedQueue = getMockQueue();
-
-    when(mockedQueue.poll()).thenReturn(pollingContext);
-
+    when(mockedQueue.poll())
+        .thenReturn(new MandateBatchPollingContext(Locale.ENGLISH, mandateBatch, 1));
     when(mandateProcessor.isFinished(any())).thenReturn(true);
-    when(mandateProcessor.getErrors(any())).thenReturn(new ErrorsResponse(List.of()));
 
-    var poller = mandateBatchProcessingPoller.getPoller();
+    mandateBatchProcessingPoller.getPoller().run();
 
-    poller.run();
+    verify(securityContextRunner).runAs(eq(mandate1.getUser()), any(Runnable.class));
+    verifyNoInteractions(mandateBatchCompletion);
+  }
 
-    verify(mandateContacts, times(1)).clearCache(mandate1.getUser());
-    verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
-    verify(applicationEventPublisher, times(1))
-        .publishEvent(
-            argThat(
-                event ->
-                    event instanceof AfterMandateBatchSignedEvent
-                        && ((AfterMandateBatchSignedEvent) event)
-                            .getMandateBatch()
-                            .equals(mandateBatch)));
-    verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+  @Test
+  void pollerCompletesAFinishedBatchAsItsOwner() {
+    runActionsAsTheGivenPerson();
+    var mandateBatch =
+        MandateBatchFixture.aSavedMandateBatch(
+            List.of(sampleFundPensionOpeningMandate(), samplePartialWithdrawalMandate()));
+    var mockedQueue = getMockQueue();
+    when(mockedQueue.poll())
+        .thenReturn(new MandateBatchPollingContext(Locale.ENGLISH, mandateBatch, 1));
+    when(mandateProcessor.isFinished(any())).thenReturn(true);
+
+    mandateBatchProcessingPoller.getPoller().run();
+
+    verify(mandateBatchCompletion).complete(mandateBatch, Locale.ENGLISH);
   }
 
   @Test
@@ -247,104 +250,11 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(applicationEventPublisher, times(0)).publishEvent(any());
+    verifyNoInteractions(mandateBatchCompletion);
     verify(mockedQueue, times(1))
         .add(
             argThat(
                 context ->
                     context.batch().equals(mandateBatch) && context.count() == MAX_POLL_COUNT + 1));
-  }
-
-  @Test
-  @DisplayName("Poller should not notify on a single-mandate batch that failed")
-  void pollerSingleMandateBatchWithErrorDoesNotNotify() {
-    var locale = Locale.ENGLISH;
-
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1));
-
-    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, 1);
-
-    var mockedQueue = getMockQueue();
-
-    when(mockedQueue.poll()).thenReturn(pollingContext);
-
-    when(mandateProcessor.isFinished(any())).thenReturn(true);
-    when(mandateProcessor.getErrors(any()))
-        .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
-
-    var poller = mandateBatchProcessingPoller.getPoller();
-
-    assertThrows(MandateProcessingException.class, poller::run);
-
-    verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
-  }
-
-  @Test
-  @DisplayName("Poller should not public events on finished but only mandates with errors")
-  void pollerMandatesFinishedOnlyErrors() {
-    var locale = Locale.ENGLISH;
-
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
-    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, 1);
-
-    var mockedQueue = getMockQueue();
-
-    when(mockedQueue.poll()).thenReturn(pollingContext);
-
-    when(mandateProcessor.isFinished(any())).thenReturn(true);
-    when(mandateProcessor.getErrors(any()))
-        .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
-
-    var poller = mandateBatchProcessingPoller.getPoller();
-
-    assertThrows(MandateProcessingException.class, poller::run);
-
-    verify(mandateContacts, times(1)).clearCache(any());
-    verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
-    verify(applicationEventPublisher, times(0))
-        .publishEvent(any(AfterMandateBatchSignedEvent.class));
-    verify(applicationEventPublisher, times(0)).publishEvent(any(AfterMandateSignedEvent.class));
-  }
-
-  @Test
-  @DisplayName("Poller should publish event on finished and both successful and errored mandates")
-  void pollerMandatesFinishedSomeErrors() {
-    var locale = Locale.ENGLISH;
-
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
-    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, 1);
-
-    var mockedQueue = getMockQueue();
-
-    when(mockedQueue.poll()).thenReturn(pollingContext);
-
-    when(mandateProcessor.isFinished(any())).thenReturn(true);
-    when(mandateProcessor.getErrors(eq(mandate1)))
-        .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
-    when(mandateProcessor.getErrors(eq(mandate2))).thenReturn(new ErrorsResponse(List.of()));
-
-    var poller = mandateBatchProcessingPoller.getPoller();
-
-    assertThrows(MandateProcessingException.class, poller::run);
-
-    verify(mandateContacts, times(1)).clearCache(any());
-    verify(applicationEventPublisher, times(1))
-        .publishEvent(
-            argThat(
-                event ->
-                    event instanceof OnMandateBatchFailedEvent
-                        && ((OnMandateBatchFailedEvent) event)
-                            .getMandateBatch()
-                            .equals(mandateBatch)));
-    verify(applicationEventPublisher, times(0))
-        .publishEvent(any(AfterMandateBatchSignedEvent.class));
-    verify(applicationEventPublisher, times(0)).publishEvent(any(AfterMandateSignedEvent.class));
   }
 }

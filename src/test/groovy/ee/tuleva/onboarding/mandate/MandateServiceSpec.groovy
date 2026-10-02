@@ -20,8 +20,10 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
+import ee.tuleva.onboarding.signature.SignableEntity
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
+import ee.tuleva.onboarding.signature.SignatureStateException
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession
@@ -214,7 +216,32 @@ class MandateServiceSpec extends Specification {
     status == OUTSTANDING_TRANSACTION
   }
 
-  def "finalizeSmartIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
+  def "finalizeSmartIdSignature: notifies and invalidates the EPIS cache in the poll that stores the signed file"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    byte[] sampleFile = "file".getBytes()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> sampleFile
+    1 * mandateRepository.save(sampleMandate) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    1 * mandateProcessor.start(sampleUser, sampleMandate)
+    1 * mandateContacts.clearCache(sampleUser)
+    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
+      event.user == sampleUser
+      event.mandate == sampleMandate
+    })
+    status == SIGNATURE
+  }
+
+  def "finalizeSmartIdSignature: answers signature for a processed mandate without notifying again"() {
     given:
     Mandate sampleMandate = sampleMandate()
     def signatureSession = new SmartIdSignatureSession(null, null, null)
@@ -222,17 +249,14 @@ class MandateServiceSpec extends Specification {
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-    1 * mandateContacts.clearCache(sampleUser)
 
     when:
     def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
     status == SIGNATURE
-    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
-      event.user == sampleUser
-      event.mandate == sampleMandate
-    })
+    0 * mandateContacts.clearCache(_)
+    0 * eventPublisher.publishEvent(_)
   }
 
   def "get: returns the mandate by id"() {
@@ -304,7 +328,32 @@ class MandateServiceSpec extends Specification {
     status == OUTSTANDING_TRANSACTION
   }
 
-  def "finalizeMobileIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
+  def "finalizeMobileIdSignature: notifies and invalidates the EPIS cache in the poll that stores the signed file"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    byte[] sampleFile = "file".getBytes()
+    def signatureSession = MobileIdSignatureSession.builder().build()
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> sampleFile
+    1 * mandateRepository.save(sampleMandate) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+
+    when:
+    def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    1 * mandateProcessor.start(sampleUser, sampleMandate)
+    1 * mandateContacts.clearCache(sampleUser)
+    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
+      event.user == sampleUser
+      event.mandate == sampleMandate
+    })
+    status == SIGNATURE
+  }
+
+  def "finalizeMobileIdSignature: answers signature for a processed mandate without notifying again"() {
     given:
     Mandate sampleMandate = sampleMandate()
     def signatureSession = MobileIdSignatureSession.builder().build()
@@ -312,17 +361,14 @@ class MandateServiceSpec extends Specification {
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-    1 * mandateContacts.clearCache(sampleUser)
 
     when:
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
     status == SIGNATURE
-    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
-      event.user == sampleUser
-      event.mandate == sampleMandate
-    })
+    0 * mandateContacts.clearCache(_)
+    0 * eventPublisher.publishEvent(_)
   }
 
   def "finalizeMobileIdSignature: throw exception if mandate is signed and processed and has errors"() {
@@ -345,102 +391,146 @@ class MandateServiceSpec extends Specification {
 
   def "id card signing works"() {
     given:
-    def user = sampleUser()
     def signatureSession = IdCardSignatureSession.builder().build()
 
-    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-    1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >> signatureSession
+    1 * mandateFileService.getMandateFiles(sampleMandateId, sampleUser.id) >> sampleFiles()
+    1 * signService.startIdCardSign(
+        new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, "signingCertificate", ["SHA-256"], sampleUser.personalCode) >> signatureSession
 
     when:
-    def session = service.idCardSign(sampleMandateId, user.id, "signingCertificate")
+    def session = service.idCardSign(sampleMandateId, sampleUser.id, sampleStartIdCardSignCommand("signingCertificate"))
 
     then:
     session == signatureSession
   }
 
-  def "finalizeIdCardSignature: throws exception when no signed file exist"() {
-    given:
-    Mandate sampleMandate = sampleUnsignedMandate()
-    def signatureSession = IdCardSignatureSession.builder().build()
-
-    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(signatureSession, "signedHash") >> null
-    0 * eventPublisher.publishEvent(_)
-
-    when:
-    service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
-
-    then:
-    thrown(IllegalStateException)
-  }
-
-  def "finalizeIdCardSignature: get correct status if currently signed a mandate and start processing"() {
+  def "persistIdCardSignature: persists the signed file and starts processing"() {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
     byte[] sampleFile = "file".getBytes()
-    1 * signService.getSignedFile(signatureSession, "signedHash") >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> sampleFile
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
     0 * eventPublisher.publishEvent(_)
 
     when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    def status = service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature", ENGLISH)
 
     then:
     1 * mandateProcessor.start(sampleUser, sampleMandate)
     status == OUTSTANDING_TRANSACTION
   }
 
-  def "finalizeIdCardSignature: get correct status if mandate is signed and being processed"() {
+  def "persistIdCardSignature: notifies and invalidates the EPIS cache once the processing it started has finished"() {
     given:
-    Mandate sampleMandate = sampleMandate()
+    Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
-
+    byte[] sampleFile = "file".getBytes()
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> sampleFile
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * mandateProcessor.isFinished(sampleMandate) >> false
-    0 * eventPublisher.publishEvent(_)
-
-    when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
-
-    then:
-    status == OUTSTANDING_TRANSACTION
-  }
-
-  def "finalizeIdCardSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
-    given:
-    Mandate sampleMandate = sampleMandate()
-    def signatureSession = IdCardSignatureSession.builder().build()
-
-    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateRepository.save(sampleMandate) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-    1 * mandateContacts.clearCache(sampleUser)
 
     when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    def status = service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature", ENGLISH)
 
     then:
-    status == SIGNATURE
+    1 * mandateProcessor.start(sampleUser, sampleMandate)
+    1 * mandateContacts.clearCache(sampleUser)
     1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
       event.user == sampleUser
       event.mandate == sampleMandate
     })
+    status == SIGNATURE
   }
 
-  def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
+  def "persistIdCardSignature: throws without notifying when the processing it started failed"() {
     given:
-    Mandate sampleMandate = sampleMandate()
+    Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
-
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id), "signature") >> "file".getBytes()
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
     0 * eventPublisher.publishEvent(_)
 
     when:
-    service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature", ENGLISH)
+
+    then:
+    thrown MandateProcessingException
+  }
+
+  def "persistIdCardSignature: rejects a mandate that is already signed"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    def signatureSession = IdCardSignatureSession.builder().build()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    0 * signService.getSignedFile(_, _, _)
+    0 * mandateProcessor.start(_, _)
+
+    when:
+    service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature", ENGLISH)
+
+    then:
+    thrown(SignatureStateException)
+  }
+
+  def "getIdCardSignatureStatus: rejects a mandate that is not signed"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    0 * eventPublisher.publishEvent(_)
+
+    when:
+    service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id)
+
+    then:
+    thrown(SignatureStateException)
+  }
+
+  def "getIdCardSignatureStatus: outstanding while the signed mandate is being processed"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> false
+    0 * eventPublisher.publishEvent(_)
+
+    when:
+    def status = service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id)
+
+    then:
+    status == OUTSTANDING_TRANSACTION
+  }
+
+  def "getIdCardSignatureStatus: answers signature for a processed mandate without notifying again"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+
+    when:
+    def status = service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id)
+
+    then:
+    status == SIGNATURE
+    0 * mandateContacts.clearCache(_)
+    0 * eventPublisher.publishEvent(_)
+  }
+
+  def "getIdCardSignatureStatus: throws when the mandate was processed with errors"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
+    0 * eventPublisher.publishEvent(_)
+
+    when:
+    service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id)
 
     then:
     thrown MandateProcessingException

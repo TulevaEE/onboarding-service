@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.event.broadcasting;
 
+import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER;
+import static ee.tuleva.onboarding.event.TrackableEvent.IP_ADDRESS;
+import static ee.tuleva.onboarding.event.TrackableEvent.USER_AGENT;
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
 
+import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -30,16 +34,19 @@ public class LoginEventBroadcaster {
   private final ConversionDecorator conversionDecorator;
   private final SecurityContextRunner securityContextRunner;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
+  private final ClientConnection clientConnection;
 
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     AuthenticatedPerson person = event.getPerson();
     Map<String, @Nullable Object> data = new HashMap<>(person.getAttributes());
+    data.remove(SMART_ID_DOCUMENT_NUMBER);
 
     data.put("method", event.getGrantType());
     if (event.isIdCard()) {
       data.put("document", event.getIdDocumentType());
     }
+    data.putAll(connectionReadOnTheRequestThread());
 
     securityContextRunner.runAs(
         person,
@@ -58,5 +65,12 @@ public class LoginEventBroadcaster {
 
           eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, data));
         });
+  }
+
+  private Map<String, Object> connectionReadOnTheRequestThread() {
+    Map<String, Object> connection = new HashMap<>();
+    clientConnection.ipAddress().ifPresent(ipAddress -> connection.put(IP_ADDRESS, ipAddress));
+    clientConnection.userAgent().ifPresent(userAgent -> connection.put(USER_AGENT, userAgent));
+    return connection;
   }
 }

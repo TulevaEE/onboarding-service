@@ -25,17 +25,26 @@ public class MobileIdAuthService {
 
   public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
+    String canonicalPhoneNumber = normalizer.normalize(phoneNumber);
     MidAuthenticationHashToSign authenticationHash =
         MidAuthenticationHashToSign.generateRandomHashOfDefaultType();
 
     String verificationCode = authenticationHash.calculateVerificationCode();
 
     MidAuthenticationRequest request =
-        getBuildMidAuthenticationRequest(phoneNumber, personalCode, authenticationHash);
-    MidAuthenticationResponse response = connector.authenticate(request);
+        getBuildMidAuthenticationRequest(canonicalPhoneNumber, personalCode, authenticationHash);
+    MidAuthenticationResponse response = authenticate(request);
 
     return new MobileIDSession(
         response.getSessionID(), verificationCode, authenticationHash, request.getPhoneNumber());
+  }
+
+  private MidAuthenticationResponse authenticate(MidAuthenticationRequest request) {
+    try {
+      return connector.authenticate(request);
+    } catch (MidNotMidClientException e) {
+      throw new MobileIdNotMidClientException();
+    }
   }
 
   public boolean isLoginComplete(MobileIDSession session) {
@@ -74,10 +83,7 @@ public class MobileIdAuthService {
       throw new MobileIdException(
           ofSingleError("mobile.id.cancelled", "You cancelled operation from your phone."));
     } catch (MidNotMidClientException e) {
-      throw new MobileIdException(
-          ofSingleError(
-              "mobile.id.certificates.revoked",
-              "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator."));
+      throw new MobileIdNotMidClientException();
     } catch (MidSessionTimeoutException e) {
       throw new MobileIdException(
           ofSingleError(
@@ -116,7 +122,7 @@ public class MobileIdAuthService {
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(
       String phoneNumber, String personalCode, MidAuthenticationHashToSign authenticationHash) {
     return MidAuthenticationRequest.newBuilder()
-        .withPhoneNumber(normalizer.normalizePhoneNumber(phoneNumber))
+        .withPhoneNumber(phoneNumber)
         .withNationalIdentityNumber(personalCode)
         .withHashToSign(authenticationHash)
         .withLanguage(MidLanguage.ENG)

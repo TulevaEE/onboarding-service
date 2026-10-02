@@ -27,7 +27,7 @@ public class RecurringSavers implements RecurringContributionStatus {
 
   @Override
   public boolean savingsFund(NudgeAccount account) {
-    return savingsFundContributions.countIssuedPaymentMonthsSince(saverId(account), windowStart())
+    return savingsFundContributions.countStandingOrderMonthsSince(saverId(account), windowStart())
         >= MIN_CONTRIBUTION_MONTHS;
   }
 

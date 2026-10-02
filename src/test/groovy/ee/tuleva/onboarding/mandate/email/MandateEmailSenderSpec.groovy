@@ -9,16 +9,20 @@ import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleEarlyWithdrawalCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
 import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_MANDATE
 import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_PAYMENT_RATE
 import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_MANDATE
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP
+import static ee.tuleva.onboarding.nudge.NudgeKey.NONE
 
 class MandateEmailSenderSpec extends Specification {
 
@@ -44,6 +48,25 @@ class MandateEmailSenderSpec extends Specification {
     "second pillar mandate"  | sampleMandate()               || SECOND_PILLAR_MANDATE
     "payment rate change"    | sampleMandateWithPaymentRate() || SECOND_PILLAR_PAYMENT_RATE
     "third pillar mandate"   | thirdPillarMandate()          || THIRD_PILLAR_MANDATE
+  }
+
+  def "a cancellation email carries no nudge, so none is decided: #description"() {
+    given:
+    User user = sampleUser().build()
+    def event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+
+    when:
+    mandateEmailSender.sendEmail(event)
+
+    then:
+    0 * nudgeDecisionService._
+    1 * mandateEmailService.sendMandate(user, mandate, NudgeDecision.of(NONE), Locale.ENGLISH)
+
+    where:
+    description                     | mandate
+    "transfer cancellation"         | sampleTransferCancellationMandate()
+    "withdrawal cancellation"       | sampleWithdrawalCancellationMandate()
+    "early withdrawal cancellation" | sampleEarlyWithdrawalCancellationMandate()
   }
 
   def "does not send a separate email for a mandate that is part of a batch"() {

@@ -41,14 +41,14 @@ public class PaymentEmailService {
             user.getEmail(),
             templateName,
             getMergeVars(user, payment, decision, locale),
-            List.of("pillar_3.1", "mandate", "payment", decision.tag()),
+            decision.emailTags("pillar_3.1", "mandate", "payment"),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), decision.tag()));
+                    user, response.getId(), emailType, response.getStatus(), decision.emailTag()));
   }
 
   void sendSavingsFundPaymentEmail(
@@ -58,7 +58,7 @@ public class PaymentEmailService {
     mergeVars.putAll(email.mergeVars());
 
     sendSavingsFundEmail(
-        user, email, mergeVars, List.of(SAVINGS_FUND_TAG, decision.tag()), decision.tag(), locale);
+        user, email, mergeVars, decision.emailTags(SAVINGS_FUND_TAG), decision.emailTag(), locale);
   }
 
   void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {
@@ -82,15 +82,9 @@ public class PaymentEmailService {
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
-            response -> {
-              if (nudge == null) {
+            response ->
                 emailPersistenceService.save(
-                    user, response.getId(), email.emailType(), response.getStatus());
-              } else {
-                emailPersistenceService.save(
-                    user, response.getId(), email.emailType(), response.getStatus(), nudge);
-              }
-            });
+                    user, response.getId(), email.emailType(), response.getStatus(), nudge));
   }
 
   private Map<String, Object> getMergeVars(

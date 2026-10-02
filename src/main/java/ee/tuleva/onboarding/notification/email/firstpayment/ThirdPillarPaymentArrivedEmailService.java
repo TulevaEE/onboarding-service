@@ -11,14 +11,13 @@ import ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler;
 import ee.tuleva.onboarding.nudge.NudgeContext;
 import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.nudge.NudgeDecisionService;
-import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,16 +45,15 @@ public class ThirdPillarPaymentArrivedEmailService {
 
     Optional<NudgeDecision> decision = decisionFor(payment);
     String nudge =
-        payment.hasTulevaUser()
-            ? decision.map(NudgeDecision::tag).orElse(NudgeKey.NONE.getTag())
-            : LOG_IN_NUDGE;
+        payment.hasTulevaUser() ? decision.map(NudgeDecision::emailTag).orElse(null) : LOG_IN_NUDGE;
     String templateName = THIRD_PILLAR_PAYMENT_ARRIVED.getTemplateName(payment.emailLanguage());
     var message =
         emailService.newMandrillMessage(
             payment.getEmail(),
             templateName,
             mergeVars(payment, decision),
-            List.of("third_pillar_payment_arrived", nudge));
+            Stream.concat(Stream.of("third_pillar_payment_arrived"), Stream.ofNullable(nudge))
+                .toList());
 
     return emailService
         .send(payment, message, templateName)

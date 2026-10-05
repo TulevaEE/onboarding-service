@@ -77,6 +77,17 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
+  void throwsWhenTheLoginIsExactlyThreeMinutesOld() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(180));
+    String secret = session.issueRedemptionSecret();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+
+    assertThatThrownBy(() -> provider.authenticate(secret))
+        .isInstanceOf(SmartIdSessionNotFoundException.class);
+    verify(smartIdAuthService, never()).completeLogin(session);
+  }
+
+  @Test
   void leavesTheStoredSessionAloneWhileTheLoginIsNotComplete() {
     SmartIdSession session = aDeviceLinkSession(now.minusSeconds(170));
     String secret = session.issueRedemptionSecret();

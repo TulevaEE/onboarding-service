@@ -45,7 +45,7 @@ public class SmartIdAuthProvider implements AuthProvider {
       throw new SmartIdSessionNotFoundException();
     }
 
-    if (Instant.now(clock).isAfter(session.getCreatedAt().plus(LOGIN_TTL))) {
+    if (!Instant.now(clock).isBefore(session.getCreatedAt().plus(LOGIN_TTL))) {
       throw new SmartIdSessionNotFoundException();
     }
 

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONB
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
@@ -19,6 +20,7 @@ import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
 import ee.tuleva.onboarding.party.ParentChildLinkStatus;
+import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -152,11 +154,11 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   @Test
-  void neverRemindsTheSameParentTwice() {
+  void doesNotRemindAParentAgainAboutAnAttemptTheyWereAlreadyRemindedOf() {
     user(PARENT);
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
-    emailSentTo(PARENT, SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD);
+    emailSentTo(PARENT, SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, NOW.minus(5, DAYS));
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
@@ -164,11 +166,25 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   @Test
+  void remindsAParentAgainAboutAChildAccountStartedAfterTheirLastReminder() {
+    user(PARENT);
+    emailSentTo(PARENT, SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, NOW.minus(20, DAYS));
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    childOf(PARENT, CHILD);
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .containsExactly(PARENT);
+  }
+
+  @Test
   void stillRemindsAParentWhoGotADifferentEmail() {
     user(PARENT);
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
-    emailSentTo(PARENT, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD);
+    emailSentTo(PARENT, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD, NOW.minus(5, DAYS));
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
@@ -216,6 +232,28 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     assertThat(reminders)
         .extracting(ChildOnboardingAbandonmentReminder::parentCode)
         .containsExactly(PARENT);
+  }
+
+  @Test
+  void leavesOutGuardiansWhoseLinkOperationsCreatedForAnAdultWard() {
+    user(PARENT);
+    childAccountStarted(OTHER_PARENT, NOW.minus(10, DAYS));
+    childOf(PARENT, OTHER_PARENT, GUARDIAN, ACTIVE);
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutParentsWithABlankEmailAddress() {
+    entityManager.persist(userBuilder(PARENT).email("").build());
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    childOf(PARENT, CHILD);
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders).isEmpty();
   }
 
   @Test
@@ -274,14 +312,16 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     entityManager.flush();
   }
 
-  private void emailSentTo(String personalCode, EmailType type) {
-    entityManager.persist(
+  private void emailSentTo(String personalCode, EmailType type, Instant sentAt) {
+    ClockHolder.setClock(Clock.fixed(sentAt, ZoneOffset.UTC));
+    entityManager.persistAndFlush(
         Email.builder()
             .personalCode(personalCode)
             .mandrillMessageId("message-" + personalCode)
             .type(type)
             .status(SENT)
             .build());
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   private void childOf(String parentCode, String childCode) {
@@ -289,11 +329,19 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   private void childOf(String parentCode, String childCode, ParentChildLinkStatus status) {
+    childOf(parentCode, childCode, LEGAL_REPRESENTATIVE, status);
+  }
+
+  private void childOf(
+      String parentCode,
+      String childCode,
+      RepresentationType relationshipType,
+      ParentChildLinkStatus status) {
     parentChildLinkRepository.save(
         ParentChildLink.builder()
             .parentPersonalCode(parentCode)
             .childPersonalCode(childCode)
-            .relationshipType(LEGAL_REPRESENTATIVE)
+            .relationshipType(relationshipType)
             .status(status)
             .validUntil(LocalDate.of(2030, 1, 1))
             .build());

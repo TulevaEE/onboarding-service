@@ -24,15 +24,6 @@ class ChildOnboardingAbandonmentReminderRepository {
     return jdbcClient
         .sql(
             """
-            WITH latest_snapshot AS (
-              SELECT MAX(snapshot_date) AS snapshot_date FROM unit_owner
-            ),
-            english_speakers AS (
-              SELECT unit_owner.personal_id
-              FROM unit_owner
-              JOIN latest_snapshot ON unit_owner.snapshot_date = latest_snapshot.snapshot_date
-              WHERE unit_owner.language_preference = 'ENG'
-            )
             SELECT DISTINCT parent.personal_code AS parent_code,
                             parent.first_name AS first_name,
                             parent.last_name AS last_name,
@@ -40,6 +31,7 @@ class ChildOnboardingAbandonmentReminderRepository {
             FROM savings_fund_onboarding child
             JOIN parent_child_link link
               ON link.child_personal_code = child.code
+             AND link.relationship_type = 'LEGAL_REPRESENTATIVE'
              AND link.status = 'ACTIVE'
              AND link.suspended_at IS NULL
              AND link.valid_until > :today
@@ -48,7 +40,7 @@ class ChildOnboardingAbandonmentReminderRepository {
               AND child.status = 'PENDING'
               AND child.created_at >= :startedFrom
               AND child.created_at < :startedUntil
-              AND parent.email IS NOT NULL
+              AND TRIM(parent.email) <> ''
               AND NOT EXISTS (SELECT 1
                               FROM kyc_survey survey
                               JOIN users child_user ON child_user.id = survey.user_id
@@ -56,10 +48,14 @@ class ChildOnboardingAbandonmentReminderRepository {
               AND NOT EXISTS (SELECT 1
                               FROM email
                               WHERE email.personal_code = parent.personal_code
-                                AND email.type = :emailType)
+                                AND email.type = :emailType
+                                AND email.created_date >= child.created_at)
               AND NOT EXISTS (SELECT 1
-                              FROM english_speakers
-                              WHERE english_speakers.personal_id = parent.personal_code)
+                              FROM unit_owner
+                              WHERE unit_owner.personal_id = parent.personal_code
+                                AND unit_owner.language_preference = 'ENG'
+                                AND unit_owner.snapshot_date =
+                                    (SELECT MAX(snapshot_date) FROM unit_owner))
             ORDER BY parent.personal_code
             """)
         .param("startedFrom", Timestamp.from(startedFrom))

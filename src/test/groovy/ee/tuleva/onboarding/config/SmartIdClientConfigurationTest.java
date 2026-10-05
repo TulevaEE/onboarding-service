@@ -6,7 +6,9 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.liveProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 import ee.sk.smartid.CertificateParser;
 import ee.sk.smartid.CertificateValidator;
@@ -126,6 +128,15 @@ class SmartIdClientConfigurationTest {
   }
 
   @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderSaysHowLongToWait() {
+    HttpHeaders waitTwoSeconds = new HttpHeaders();
+    waitTwoSeconds.set(RETRY_AFTER, "2");
+
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(TOO_MANY_REQUESTS, waitTwoSeconds)))
+        .isEqualTo(1);
+  }
+
+  @Test
   void smartIdOcspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
       throws Exception {
     Object requestFactory =
@@ -156,8 +167,12 @@ class SmartIdClientConfigurationTest {
   }
 
   private static HttpClientErrorException refusal(HttpStatus status) {
+    return refusal(status, HttpHeaders.EMPTY);
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status, HttpHeaders headers) {
     return HttpClientErrorException.create(
-        status, status.getReasonPhrase(), HttpHeaders.EMPTY, new byte[0], null);
+        status, status.getReasonPhrase(), headers, new byte[0], null);
   }
 
   @Test

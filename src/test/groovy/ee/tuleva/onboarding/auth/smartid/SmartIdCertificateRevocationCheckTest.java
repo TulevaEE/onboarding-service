@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.issuedBy;
 import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.keyPair;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.ExpectedCount.times;
@@ -240,6 +241,19 @@ class SmartIdCertificateRevocationCheckTest {
 
     assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"TOO_MANY_REQUESTS", "SERVICE_UNAVAILABLE"})
+  void cannotTellWithoutAskingAgainWhenTheResponderSaysHowLongToWaitBeforeAskingAgain(
+      HttpStatus status) {
+    responder
+        .expect(once(), requestTo(RESPONDER_URL))
+        .andRespond(withStatus(status).header(RETRY_AFTER, "2"));
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
     responder.verify();
   }
 

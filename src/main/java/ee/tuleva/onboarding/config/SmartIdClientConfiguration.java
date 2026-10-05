@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.config;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.springframework.core.NestedExceptionUtils.getMostSpecificCause;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
 import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
@@ -37,8 +38,10 @@ import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryState;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.core.retry.Retryable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -99,7 +102,7 @@ public class SmartIdClientConfiguration {
         new RetryTemplate(
             RetryPolicy.builder()
                 .includes(RestClientException.class)
-                .predicate(SmartIdClientConfiguration::isNotAPermanentRefusal)
+                .predicate(SmartIdClientConfiguration::isWorthAskingAgainAtOnce)
                 .maxRetries(RETRIES_WHILE_THE_PERSON_WAITS)
                 .delay(DELAY_BEFORE_ASKING_AGAIN)
                 .timeout(RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT)
@@ -108,10 +111,19 @@ public class SmartIdClientConfiguration {
     return retryTemplate;
   }
 
-  private static boolean isNotAPermanentRefusal(Throwable failure) {
-    return !(failure instanceof HttpClientErrorException refusal)
-        || refusal.getStatusCode().isSameCodeAs(REQUEST_TIMEOUT)
-        || refusal.getStatusCode().isSameCodeAs(TOO_MANY_REQUESTS);
+  private static boolean isWorthAskingAgainAtOnce(Throwable failure) {
+    return switch (failure) {
+      case HttpStatusCodeException answer when namesHowLongToWait(answer) -> false;
+      case HttpClientErrorException refusal ->
+          refusal.getStatusCode().isSameCodeAs(REQUEST_TIMEOUT)
+              || refusal.getStatusCode().isSameCodeAs(TOO_MANY_REQUESTS);
+      default -> true;
+    };
+  }
+
+  private static boolean namesHowLongToWait(HttpStatusCodeException answer) {
+    HttpHeaders headers = answer.getResponseHeaders();
+    return headers != null && headers.containsHeader(RETRY_AFTER);
   }
 
   @Bean

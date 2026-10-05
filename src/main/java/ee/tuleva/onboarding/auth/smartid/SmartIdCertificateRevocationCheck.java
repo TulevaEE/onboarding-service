@@ -138,12 +138,8 @@ public class SmartIdCertificateRevocationCheck {
   private OCSPResp ask(URI responder, byte[] request) {
     try {
       return retryTemplate.invoke(() -> post(responder, request));
-    } catch (EmptyOcspResponseException e) {
-      throw new SmartIdCertificateStatusUnavailableException("empty response");
-    } catch (ResponderAskedToTryAgainException e) {
-      throw new SmartIdCertificateStatusUnavailableException("responder kept asking to try again");
     } catch (RestClientException e) {
-      throw new SmartIdCertificateStatusUnavailableException("responder unreachable", e);
+      throw new SmartIdCertificateStatusUnavailableException("responder unavailable", e);
     }
   }
 

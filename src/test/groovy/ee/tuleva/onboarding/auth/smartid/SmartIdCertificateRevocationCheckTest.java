@@ -15,6 +15,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.sk.smartid.DefaultTrustedCAStoreBuilder;
@@ -41,9 +42,11 @@ import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -224,6 +227,17 @@ class SmartIdCertificateRevocationCheckTest {
   @Test
   void letsALoginThroughWhenTheResponderAnswersGoodAfterAnEmptyResponse() {
     responder.expect(requestTo(RESPONDER_URL)).andRespond(withSuccess());
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"REQUEST_TIMEOUT", "TOO_MANY_REQUESTS"})
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterRefusingOnlyForNow(HttpStatus status) {
+    responder.expect(requestTo(RESPONDER_URL)).andRespond(withStatus(status));
     responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
 
     assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))

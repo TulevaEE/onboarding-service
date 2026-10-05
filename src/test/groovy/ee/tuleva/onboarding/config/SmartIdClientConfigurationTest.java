@@ -21,6 +21,8 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpHeaders;
@@ -115,6 +117,12 @@ class SmartIdClientConfigurationTest {
   @Test
   void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
     assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"REQUEST_TIMEOUT", "TOO_MANY_REQUESTS"})
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenTheResponderRefusesOnlyForNow(HttpStatus status) {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(status))).isEqualTo(3);
   }
 
   @Test

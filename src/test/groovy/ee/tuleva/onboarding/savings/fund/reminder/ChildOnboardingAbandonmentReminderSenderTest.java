@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.SavingsFundFees;
@@ -33,9 +34,9 @@ class ChildOnboardingAbandonmentReminderSenderTest {
 
   @InjectMocks private ChildOnboardingAbandonmentReminderSender sender;
 
-  private final ChildOnboardingAbandonmentReminder parent =
-      new ChildOnboardingAbandonmentReminder(
-          1L, "38812121215", "mari", "Example", "parent@example.com");
+  private final PersonImpl parent = new PersonImpl("38812121215", "mari", "Example");
+  private final ChildOnboardingAbandonmentReminder reminder =
+      new ChildOnboardingAbandonmentReminder(1L, parent, "parent@example.com");
 
   @Test
   void sendsTheEstonianReminderToTheParentAndRecordsItAgainstTheParent() {
@@ -43,7 +44,7 @@ class ChildOnboardingAbandonmentReminderSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
 
-    sender.send(parent);
+    sender.send(reminder);
 
     verify(emailPersistenceService)
         .save(parent, "message-id", SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, "sent");
@@ -54,7 +55,7 @@ class ChildOnboardingAbandonmentReminderSenderTest {
     var message = message();
     given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.empty());
 
-    sender.send(parent);
+    sender.send(reminder);
 
     verifyNoInteractions(emailPersistenceService);
   }

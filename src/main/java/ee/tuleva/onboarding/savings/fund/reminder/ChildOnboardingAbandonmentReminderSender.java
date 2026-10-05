@@ -31,11 +31,11 @@ class ChildOnboardingAbandonmentReminderSender {
             reminder.parentEmail(), templateName, mergeVars(reminder), TAGS);
 
     emailService
-        .send(reminder, message, templateName)
+        .send(reminder.parent(), message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    reminder,
+                    reminder.parent(),
                     response.getId(),
                     SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD,
                     response.getStatus()));
@@ -43,7 +43,7 @@ class ChildOnboardingAbandonmentReminderSender {
 
   private Map<String, Object> mergeVars(ChildOnboardingAbandonmentReminder reminder) {
     return Map.of(
-        "fname", Names.formatted(reminder.parentFirstName()),
+        "fname", Names.formatted(reminder.parent().getFirstName()),
         "savingsFundFee", savingsFundFees.ongoingChargesPercent(ESTONIAN));
   }
 }

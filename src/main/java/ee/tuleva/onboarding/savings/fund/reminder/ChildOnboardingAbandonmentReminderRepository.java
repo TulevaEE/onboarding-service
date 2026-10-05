@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD;
 
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -71,9 +72,8 @@ class ChildOnboardingAbandonmentReminderRepository {
       throws SQLException {
     return new ChildOnboardingAbandonmentReminder(
         rs.getLong("parent_id"),
-        rs.getString("parent_code"),
-        rs.getString("first_name"),
-        rs.getString("last_name"),
+        new PersonImpl(
+            rs.getString("parent_code"), rs.getString("first_name"), rs.getString("last_name")),
         rs.getString("email"));
   }
 }

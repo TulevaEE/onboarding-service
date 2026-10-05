@@ -2,26 +2,4 @@ package ee.tuleva.onboarding.savings.fund.reminder;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 
-record ChildOnboardingAbandonmentReminder(
-    long parentUserId,
-    String parentCode,
-    String parentFirstName,
-    String parentLastName,
-    String parentEmail)
-    implements Person {
-
-  @Override
-  public String getPersonalCode() {
-    return parentCode;
-  }
-
-  @Override
-  public String getFirstName() {
-    return parentFirstName;
-  }
-
-  @Override
-  public String getLastName() {
-    return parentLastName;
-  }
-}
+record ChildOnboardingAbandonmentReminder(long parentUserId, Person parent, String parentEmail) {}

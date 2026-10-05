@@ -16,6 +16,10 @@ import ee.sk.smartid.rest.dao.SessionSignature;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.SmartIdProperties;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
+import jakarta.ws.rs.ServerErrorException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +31,15 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdAuthService {
 
+  private static final Duration SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS =
+      Duration.ofSeconds(90);
+
   private final SmartIdConnector smartIdConnector;
   private final DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   private final NotificationAuthenticationResponseValidator notificationResponseValidator;
   private final SmartIdCertificateRevocationCheck certificateRevocationCheck;
   private final SmartIdProperties properties;
+  private final Clock clock;
 
   public SmartIdPerson completeLogin(SmartIdSession session) {
     SmartIdPerson person = session.getPerson();
@@ -85,12 +93,33 @@ public class SmartIdAuthService {
     if (cached != null) {
       return cached;
     }
-    SessionStatus status = smartIdConnector.getSessionStatus(session.getSessionId());
+    SessionStatus status = currentStatus(session);
     if (status == null || !"COMPLETE".equalsIgnoreCase(status.getState())) {
       throw new AuthNotCompleteException();
     }
     session.setFinalStatus(status);
     return status;
+  }
+
+  private @Nullable SessionStatus currentStatus(SmartIdSession session) {
+    try {
+      return smartIdConnector.getSessionStatus(session.getSessionId());
+    } catch (ServerErrorException e) {
+      if (isPastSmartIdsLifetime(session)) {
+        log.info(
+            "Smart-ID answered a server error for a session past its lifetime: sessionId={},"
+                + " status={}",
+            session.getSessionId(),
+            e.getResponse().getStatus());
+        throw new SmartIdSessionExpiredException(e);
+      }
+      throw e;
+    }
+  }
+
+  private boolean isPastSmartIdsLifetime(SmartIdSession session) {
+    Duration age = Duration.between(session.getCreatedAt(), Instant.now(clock));
+    return age.compareTo(SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS) >= 0;
   }
 
   private AuthenticationIdentity validate(

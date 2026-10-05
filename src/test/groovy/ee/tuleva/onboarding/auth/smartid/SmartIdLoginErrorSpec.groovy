@@ -16,6 +16,7 @@ import ee.sk.smartid.exception.useraction.UserRefusedDisplayTextAndPinException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.exception.useraction.UserSelectedWrongVerificationCodeException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
+import jakarta.ws.rs.InternalServerErrorException
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -38,6 +39,7 @@ class SmartIdLoginErrorSpec extends Specification {
     new UserSelectedWrongVerificationCodeException()      | WRONG_VERIFICATION_CODE
     new SessionTimeoutException()                         | TIMEOUT
     new SessionNotFoundException()                        | TIMEOUT
+    new SmartIdSessionExpiredException(new InternalServerErrorException()) | TIMEOUT
     new UserAccountNotFoundException()                    | ACCOUNT_NOT_FOUND
     new DocumentUnusableException()                       | ACCOUNT_UNUSABLE
     new UserAccountUnusableException()                    | ACCOUNT_UNUSABLE

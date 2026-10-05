@@ -42,6 +42,7 @@ public enum SmartIdLoginError {
       case UserSelectedWrongVerificationCodeException _ -> WRONG_VERIFICATION_CODE;
       case SessionTimeoutException _ -> TIMEOUT;
       case SessionNotFoundException _ -> TIMEOUT;
+      case SmartIdSessionExpiredException _ -> TIMEOUT;
       case CertificateLevelMismatchException _ -> VALIDATION_FAILED;
       case RequiredInteractionNotSupportedByAppException _ -> TECHNICAL_ERROR;
       case UserAccountNotFoundException _ -> ACCOUNT_NOT_FOUND;

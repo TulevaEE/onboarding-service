@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.sk.smartid.FlowType.NOTIFICATION;
+import static ee.sk.smartid.FlowType.QR;
+import static ee.sk.smartid.FlowType.WEB2APP;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionId;
@@ -86,7 +89,7 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber));
+    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, QR));
     assertThat(session.getPerson()).isEqualTo(person);
     assertThat(session.getError()).isNull();
   }
@@ -150,7 +153,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person.getDocumentNumber()).isEqualTo(documentNumber);
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, WEB2APP));
   }
 
   @Test
@@ -192,7 +196,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber));
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, NOTIFICATION));
     verify(deviceLinkValidator, never()).validate(any(), any(), any(), any());
   }
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.sk.smartid.FlowType.NOTIFICATION;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
 import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
@@ -119,6 +120,30 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
+  void grantsThePersonWithTheSmartIdFlowThatCompletedTheLogin() {
+    SmartIdSession session = aNotificationSession(now);
+    String secret = session.issueRedemptionSecret();
+    AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
+    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
+    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson(NOTIFICATION));
+    given(
+            principalService.getFrom(
+                aSmartIdPerson(NOTIFICATION),
+                Map.of(
+                    GRANT_TYPE,
+                    SMART_ID.name(),
+                    SMART_ID_DOCUMENT_NUMBER,
+                    documentNumber,
+                    "smartIdFlow",
+                    "NOTIFICATION")))
+        .willReturn(expected);
+
+    AuthenticatedPerson person = provider.authenticate(secret);
+
+    assertThat(person).isEqualTo(expected);
+  }
+
+  @Test
   void aDeviceLinkLoginNotAskedToBeRememberedForgetsThePersonOnThisBrowserAndRemembersNothing() {
     SmartIdSession session = aDeviceLinkSession(now, false);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
@@ -150,7 +175,13 @@ class SmartIdAuthProviderTest {
     given(
             principalService.getFrom(
                 aSmartIdPerson(),
-                Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
+                Map.of(
+                    GRANT_TYPE,
+                    SMART_ID.name(),
+                    SMART_ID_DOCUMENT_NUMBER,
+                    documentNumber,
+                    "smartIdFlow",
+                    "QR")))
         .willReturn(person);
     return secret;
   }
@@ -222,7 +253,13 @@ class SmartIdAuthProviderTest {
     given(
             principalService.getFrom(
                 aSmartIdPerson(),
-                Map.of(GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, documentNumber)))
+                Map.of(
+                    GRANT_TYPE,
+                    SMART_ID.name(),
+                    SMART_ID_DOCUMENT_NUMBER,
+                    documentNumber,
+                    "smartIdFlow",
+                    "QR")))
         .willReturn(sampleAuthenticatedPersonAndMember().build());
 
     provider.authenticate(secret);

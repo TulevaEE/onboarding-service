@@ -60,13 +60,20 @@ public class SmartIdAuthProvider implements AuthProvider {
     releaseThisBrowserForTheNextPushLogin(session);
     genericSessionStore.remove(SmartIdSession.class);
 
-    var authenticatedPerson =
-        principalService.getFrom(
-            person,
-            Map.of(
-                GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, person.getDocumentNumber()));
+    var authenticatedPerson = principalService.getFrom(person, loginAttributes(person));
     rememberOrForgetOnThisBrowser(person, session);
     return authenticatedPerson;
+  }
+
+  private static Map<String, String> loginAttributes(SmartIdPerson person) {
+    final String SMART_ID_FLOW = "smartIdFlow";
+    return Map.of(
+        GRANT_TYPE,
+        SMART_ID.name(),
+        SMART_ID_DOCUMENT_NUMBER,
+        person.getDocumentNumber(),
+        SMART_ID_FLOW,
+        person.getFlow().name());
   }
 
   private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {

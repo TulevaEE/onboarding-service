@@ -79,10 +79,12 @@ public class SmartIdClientConfiguration {
 
   @Bean
   public RestClient smartIdOcspRestClient(RestClient.Builder restClientBuilder) {
+    final Duration OCSP_CONNECT_TIMEOUT = Duration.ofSeconds(3);
+    final Duration OCSP_READ_TIMEOUT = Duration.ofSeconds(5);
     var requestFactory =
         new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
-    requestFactory.setReadTimeout(Duration.ofSeconds(5));
+            HttpClient.newBuilder().connectTimeout(OCSP_CONNECT_TIMEOUT).build());
+    requestFactory.setReadTimeout(OCSP_READ_TIMEOUT);
     return restClientBuilder.clone().requestFactory(requestFactory).build();
   }
 
@@ -90,7 +92,7 @@ public class SmartIdClientConfiguration {
   public RetryTemplate smartIdOcspRetryTemplate() {
     final int RETRIES_WHILE_THE_PERSON_WAITS = 2;
     final Duration DELAY_BEFORE_ASKING_AGAIN = Duration.ofMillis(200);
-    final Duration RETRY_WINDOW_NO_LONGER_THAN_ONE_OCSP_READ_TIMEOUT = Duration.ofSeconds(5);
+    final Duration RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT = Duration.ofSeconds(2);
     var retryTemplate =
         new RetryTemplate(
             RetryPolicy.builder()
@@ -98,7 +100,7 @@ public class SmartIdClientConfiguration {
                 .excludes(HttpClientErrorException.class)
                 .maxRetries(RETRIES_WHILE_THE_PERSON_WAITS)
                 .delay(DELAY_BEFORE_ASKING_AGAIN)
-                .timeout(RETRY_WINDOW_NO_LONGER_THAN_ONE_OCSP_READ_TIMEOUT)
+                .timeout(RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT)
                 .build());
     retryTemplate.setRetryListener(new LoggingEachOcspRetry());
     return retryTemplate;

@@ -14,8 +14,10 @@ import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture;
 import java.lang.reflect.Field;
+import java.net.http.HttpClient;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
 
 class SmartIdClientConfigurationTest {
 
@@ -112,6 +115,21 @@ class SmartIdClientConfigurationTest {
   @Test
   void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
     assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
+      throws Exception {
+    Object requestFactory =
+        privateField(
+            configuration.smartIdOcspRestClient(RestClient.builder()), "clientRequestFactory");
+    Duration connectTimeout =
+        ((HttpClient) privateField(requestFactory, "httpClient")).connectTimeout().orElseThrow();
+    Duration readTimeout = (Duration) privateField(requestFactory, "readTimeout");
+
+    Duration retryWindow = configuration.smartIdOcspRetryTemplate().getRetryPolicy().getTimeout();
+
+    assertThat(retryWindow).isPositive().isLessThan(connectTimeout).isLessThan(readTimeout);
   }
 
   private int ocspAttemptsUntilGivingUpOn(RuntimeException failure) {

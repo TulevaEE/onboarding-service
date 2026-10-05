@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD;
+import static java.util.Locale.ENGLISH;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -25,7 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ChildOnboardingAbandonmentReminderSenderTest {
 
-  private static final String TEMPLATE = "savings_fund_onboarding_abandonment_child_et";
+  private static final Locale ESTONIAN = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund", "onboarding_abandonment");
 
   @Mock private EmailService emailService;
@@ -35,16 +36,28 @@ class ChildOnboardingAbandonmentReminderSenderTest {
   @InjectMocks private ChildOnboardingAbandonmentReminderSender sender;
 
   private final PersonImpl parent = new PersonImpl("38812121215", "mari", "Example");
-  private final ChildOnboardingAbandonmentReminder reminder =
-      new ChildOnboardingAbandonmentReminder(1L, parent, "parent@example.com");
 
   @Test
   void sendsTheEstonianReminderToTheParentAndRecordsItAgainstTheParent() {
-    var message = message();
+    var message = message(ESTONIAN, "savings_fund_onboarding_abandonment_child_et", "0,28");
     var response = mandrillResponse("message-id", "sent");
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.send(parent, message, "savings_fund_onboarding_abandonment_child_et"))
+        .willReturn(Optional.of(response));
 
-    sender.send(reminder);
+    sender.send(reminder(ESTONIAN));
+
+    verify(emailPersistenceService)
+        .save(parent, "message-id", SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, "sent");
+  }
+
+  @Test
+  void sendsTheEnglishReminderToAParentWhoPrefersEnglish() {
+    var message = message(ENGLISH, "savings_fund_onboarding_abandonment_child_en", "0.28");
+    var response = mandrillResponse("message-id", "sent");
+    given(emailService.send(parent, message, "savings_fund_onboarding_abandonment_child_en"))
+        .willReturn(Optional.of(response));
+
+    sender.send(reminder(ENGLISH));
 
     verify(emailPersistenceService)
         .save(parent, "message-id", SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, "sent");
@@ -52,22 +65,27 @@ class ChildOnboardingAbandonmentReminderSenderTest {
 
   @Test
   void recordsNothingWhenMandrillDoesNotAcceptTheMessage() {
-    var message = message();
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.empty());
+    var message = message(ESTONIAN, "savings_fund_onboarding_abandonment_child_et", "0,28");
+    given(emailService.send(parent, message, "savings_fund_onboarding_abandonment_child_et"))
+        .willReturn(Optional.empty());
 
-    sender.send(reminder);
+    sender.send(reminder(ESTONIAN));
 
     verifyNoInteractions(emailPersistenceService);
   }
 
-  private MandrillMessage message() {
+  private ChildOnboardingAbandonmentReminder reminder(Locale locale) {
+    return new ChildOnboardingAbandonmentReminder(1L, parent, "parent@example.com", locale);
+  }
+
+  private MandrillMessage message(Locale locale, String template, String fee) {
     var message = new MandrillMessage();
-    given(savingsFundFees.ongoingChargesPercent(Locale.of("et"))).willReturn("0,28");
+    given(savingsFundFees.ongoingChargesPercent(locale)).willReturn(fee);
     given(
             emailService.newMandrillMessage(
                 "parent@example.com",
-                TEMPLATE,
-                Map.of("fname", "Mari", "savingsFundFee", "0,28"),
+                template,
+                Map.of("fname", "Mari", "savingsFundFee", fee),
                 TAGS))
         .willReturn(message);
     return message;

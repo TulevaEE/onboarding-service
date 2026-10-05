@@ -1,0 +1,47 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          You started opening a Tuleva Additional Investment Fund account for your child, but did
+          not finish. Opening the account takes only a few minutes:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/onboarding/child?language=en">
+          Continue opening the account
+        </mj-button>
+        <mj-text>
+          Tuleva Additional Investment Fund is a broadly diversified index fund that invests in
+          world equity markets. The ongoing fees are *|savingsFundFee|*%&nbsp;per year and there
+          are no other fees.
+        </mj-text>
+        <mj-text>If you have any questions, these may help:</mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/child-savings/">Saving for your child</a>
+        </mj-text>
+        <mj-text>
+          <a
+            href="https://tuleva.ee/en/additional-investment-fund/where-does-the-tuleva-additional-investment-fund-invest/"
+          >
+            Where does the Tuleva Additional Investment Fund invest?
+          </a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

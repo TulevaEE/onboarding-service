@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,9 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   private static final Instant NOW = Instant.parse("2026-10-01T12:00:00Z");
   private static final Instant STARTED_FROM = NOW.minus(30, DAYS);
   private static final Instant STARTED_UNTIL = NOW.minus(3, DAYS);
+  private static final LocalDate LATEST_SNAPSHOT = LocalDate.of(2026, 9, 30);
+
+  private static final Locale ESTONIAN = Locale.of("et");
 
   private static final String PARENT = "37508295796";
   private static final String OTHER_PARENT = "39001109103";
@@ -86,7 +91,8 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
             new ChildOnboardingAbandonmentReminder(
                 parent.getId(),
                 new PersonImpl(PARENT, "Parent " + PARENT, "Example"),
-                PARENT + "@example.com"));
+                PARENT + "@example.com",
+                ESTONIAN));
   }
 
   @Test
@@ -195,29 +201,50 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   @Test
-  void leavesOutParentsWhoPreferEnglish() {
+  void remindsParentsWhoPreferEnglishInEnglish() {
     user(PARENT);
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
-    languagePreference(PARENT, "ENG");
-
-    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
-
-    assertThat(reminders).isEmpty();
-  }
-
-  @Test
-  void remindsParentsWhoPreferEstonian() {
-    user(PARENT);
-    childAccountStarted(CHILD, NOW.minus(10, DAYS));
-    childOf(PARENT, CHILD);
-    languagePreference(PARENT, "EST");
+    languagePreference(PARENT, "ENG", LATEST_SNAPSHOT);
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(reminder -> reminder.parent().getPersonalCode())
-        .containsExactly(PARENT);
+        .extracting(ChildOnboardingAbandonmentReminder::locale)
+        .containsExactly(ENGLISH);
+  }
+
+  @Test
+  void remindsParentsWhoPreferEstonianInEstonian() {
+    user(PARENT);
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    childOf(PARENT, CHILD);
+    languagePreference(PARENT, "EST", LATEST_SNAPSHOT);
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(ChildOnboardingAbandonmentReminder::locale)
+        .containsExactly(ESTONIAN);
+  }
+
+  @Test
+  void followsTheLanguagePreferenceInTheLatestRegistrySnapshot() {
+    user(PARENT);
+    user(OTHER_PARENT);
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    childOf(PARENT, CHILD);
+    childAccountStarted(SECOND_CHILD, NOW.minus(10, DAYS));
+    childOf(OTHER_PARENT, SECOND_CHILD);
+    languagePreference(PARENT, "ENG", LATEST_SNAPSHOT.minusDays(1));
+    languagePreference(PARENT, "EST", LATEST_SNAPSHOT);
+    languagePreference(OTHER_PARENT, "ENG", LATEST_SNAPSHOT.minusDays(1));
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(ChildOnboardingAbandonmentReminder::locale)
+        .containsExactly(ESTONIAN, ESTONIAN);
   }
 
   @Test
@@ -365,7 +392,8 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
         .validUntil(LocalDate.of(2030, 1, 1));
   }
 
-  private void languagePreference(String personalCode, String languagePreference) {
+  private void languagePreference(
+      String personalCode, String languagePreference, LocalDate snapshotDate) {
     jdbcClient
         .sql(
             """
@@ -375,7 +403,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
         .param("personalCode", personalCode)
         .param("languagePreference", languagePreference)
         .param("dateCreated", Timestamp.from(NOW))
-        .param("snapshotDate", LocalDate.of(2026, 9, 30))
+        .param("snapshotDate", snapshotDate)
         .update();
   }
 }

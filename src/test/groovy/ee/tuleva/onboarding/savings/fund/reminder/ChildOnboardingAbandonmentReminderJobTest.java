@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
@@ -90,6 +91,6 @@ class ChildOnboardingAbandonmentReminderJobTest {
 
   private ChildOnboardingAbandonmentReminder reminder(String personalCode) {
     return new ChildOnboardingAbandonmentReminder(
-        1L, personalCode, "Parent", "Example", personalCode + "@example.com");
+        1L, new PersonImpl(personalCode, "Parent", "Example"), personalCode + "@example.com");
   }
 }

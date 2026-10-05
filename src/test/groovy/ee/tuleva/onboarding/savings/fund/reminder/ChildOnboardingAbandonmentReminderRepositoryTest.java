@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.kyc.survey.KycSurvey;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponse;
 import ee.tuleva.onboarding.notification.email.Email;
@@ -83,7 +84,9 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     assertThat(reminders)
         .containsExactly(
             new ChildOnboardingAbandonmentReminder(
-                parent.getId(), PARENT, "Parent " + PARENT, "Example", PARENT + "@example.com"));
+                parent.getId(),
+                new PersonImpl(PARENT, "Parent " + PARENT, "Example"),
+                PARENT + "@example.com"));
   }
 
   @Test
@@ -147,7 +150,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .extracting(reminder -> reminder.parent().getPersonalCode())
         .containsExactly(PARENT);
   }
 
@@ -173,7 +176,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .extracting(reminder -> reminder.parent().getPersonalCode())
         .containsExactly(PARENT);
   }
 
@@ -187,7 +190,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .extracting(reminder -> reminder.parent().getPersonalCode())
         .containsExactly(PARENT);
   }
 
@@ -213,7 +216,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .extracting(reminder -> reminder.parent().getPersonalCode())
         .containsExactly(PARENT);
   }
 
@@ -228,7 +231,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::parentCode)
+        .extracting(reminder -> reminder.parent().getPersonalCode())
         .containsExactly(PARENT);
   }
 

@@ -52,6 +52,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
+import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.web.client.RestClient;
 
 class SmartIdCertificateRevocationCheckTest {
@@ -79,7 +80,7 @@ class SmartIdCertificateRevocationCheckTest {
         new SmartIdClientConfiguration().smartIdOcspRetryTemplate().getRetryPolicy();
     return RetryPolicy.builder()
         .predicate(configured::shouldRetry)
-        .maxRetries(2)
+        .maxRetries(((ExponentialBackOff) configured.getBackOff()).getMaxAttempts())
         .delay(Duration.ZERO);
   }
 

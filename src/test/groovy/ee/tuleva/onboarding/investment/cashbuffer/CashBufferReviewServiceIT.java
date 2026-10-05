@@ -76,6 +76,7 @@ class CashBufferReviewServiceIT {
   private static final YearMonth OCTOBER = YearMonth.of(2026, 10);
   private static final LocalDate FOURTH_BUSINESS_DAY_OF_OCTOBER = LocalDate.of(2026, 10, 6);
   private static final LocalDate FOURTH_BUSINESS_DAY_OF_NOVEMBER = LocalDate.of(2026, 11, 5);
+  private static final LocalDate FIFTH_BUSINESS_DAY_OF_NOVEMBER = LocalDate.of(2026, 11, 6);
 
   private static final String RECURRING = "Fondipensioni maksete lunastamine";
   private static final String ONE_OFF = "Ühekordsete maksete osakute lunastamine";
@@ -182,7 +183,31 @@ class CashBufferReviewServiceIT {
             new Drift(amount("-178400.00"), amount("50000"), true, 1, 2));
   }
 
+  @Test
+  void aMonthNotReviewableOnItsFourthBusinessDayIsReviewedOnALaterOneAndKeepsItsDriftRun() {
+    julyThroughOctoberOnTheLedgerWithSeptembersFees();
+    fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "77000.00");
+    service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+    service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
+
+    octobersFees();
+    service.reviewTheFundsStillWithoutAReview(OCTOBER, FIFTH_BUSINESS_DAY_OF_NOVEMBER);
+
+    var october = reviewRepository.findByFundAndMonth(TUK75, OCTOBER).orElseThrow();
+    assertThat(october.reviewedOn()).isEqualTo(FIFTH_BUSINESS_DAY_OF_NOVEMBER);
+    assertThat(List.of(october.softDrift(), october.hardDrift()))
+        .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new Drift(amount("-99400.00"), amount("50000"), true, 2, 2),
+            new Drift(amount("-45400.00"), amount("50000"), false, 0, 2));
+  }
+
   private void julyThroughOctoberOnTheLedgerWithTheirFees() {
+    julyThroughOctoberOnTheLedgerWithSeptembersFees();
+    octobersFees();
+  }
+
+  private void julyThroughOctoberOnTheLedgerWithSeptembersFees() {
     fundBankLedger.recordOpeningBalance(TUK75, new BigDecimal("1000.00"), LocalDate.of(2026, 7, 1));
     contribution("900000.00", LocalDate.of(2026, 7, 10));
     payout("10000.00", LocalDate.of(2026, 7, 15), RECURRING);
@@ -199,6 +224,9 @@ class CashBufferReviewServiceIT {
     parameter(CASH_BUFFER_INFLOW_CREDIT, TUK75, "0.1");
     dailyAccruals(TUK75, MANAGEMENT, SEPTEMBER, "100.00");
     dailyAccruals(TUK75, DEPOT, SEPTEMBER, "10.00");
+  }
+
+  private void octobersFees() {
     dailyAccruals(TUK75, MANAGEMENT, OCTOBER, "100.00");
     dailyAccruals(TUK75, DEPOT, OCTOBER, "10.00");
   }

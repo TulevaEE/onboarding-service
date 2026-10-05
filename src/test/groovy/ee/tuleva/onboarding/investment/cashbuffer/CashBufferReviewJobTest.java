@@ -36,6 +36,7 @@ class CashBufferReviewJobTest {
     job.reviewTheClosedMonthIfDue();
 
     verify(service).reviewAllFunds(YearMonth.of(2026, 9), LocalDate.of(2026, 10, 6));
+    verify(service, never()).reviewTheFundsStillWithoutAReview(any(), any());
   }
 
   @Test
@@ -48,12 +49,24 @@ class CashBufferReviewJobTest {
   }
 
   @Test
-  void doesNothingOnTheOtherDaysTheScheduleFires() {
+  void retriesTheFundsStillWithoutAReviewOnTheDaysAfterTheFourthBusinessDay() {
+    today(LocalDate.of(2026, 10, 7));
+
+    job.reviewTheClosedMonthIfDue();
+
+    verify(service)
+        .reviewTheFundsStillWithoutAReview(YearMonth.of(2026, 9), LocalDate.of(2026, 10, 7));
+    verify(service, never()).reviewAllFunds(any(), any());
+  }
+
+  @Test
+  void doesNothingBeforeTheFourthBusinessDay() {
     today(LocalDate.of(2026, 10, 5));
 
     job.reviewTheClosedMonthIfDue();
 
     verify(service, never()).reviewAllFunds(any(), any());
+    verify(service, never()).reviewTheFundsStillWithoutAReview(any(), any());
   }
 
   private void today(LocalDate date) {

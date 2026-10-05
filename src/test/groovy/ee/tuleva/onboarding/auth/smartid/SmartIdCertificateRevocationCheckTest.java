@@ -8,15 +8,20 @@ import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.keyPair;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.sk.smartid.DefaultTrustedCAStoreBuilder;
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
+import java.io.EOFException;
 import java.math.BigInteger;
+import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.security.KeyPair;
 import java.security.cert.TrustAnchor;
@@ -28,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.locks.LockSupport;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
@@ -51,6 +57,10 @@ class SmartIdCertificateRevocationCheckTest {
       MockRestServiceServer.bindTo(restClientBuilder).build();
 
   private SmartIdCertificateRevocationCheck check() {
+    return checkRetryingWithin(Duration.ofSeconds(5));
+  }
+
+  private SmartIdCertificateRevocationCheck checkRetryingWithin(Duration retryWindow) {
     return new SmartIdCertificateRevocationCheck(
         new DefaultTrustedCAStoreBuilder()
             .withTrustAnchors(Set.of(new TrustAnchor(fixture.root, null)))
@@ -59,7 +69,16 @@ class SmartIdCertificateRevocationCheckTest {
             .build(),
         restClientBuilder.build(),
         new OCSPUtils(),
-        Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock.fixed(NOW, ZoneOffset.UTC),
+        Duration.ZERO,
+        retryWindow);
+  }
+
+  private static void waitAtLeast(Duration duration) {
+    long deadline = System.nanoTime() + duration.toNanos();
+    for (long left = duration.toNanos(); left > 0; left = deadline - System.nanoTime()) {
+      LockSupport.parkNanos(left);
+    }
   }
 
   private ResponseCreator answering(OcspResponderFixture.Answer answer) {
@@ -88,12 +107,13 @@ class SmartIdCertificateRevocationCheckTest {
   }
 
   @Test
-  void refusesARevokedCertificate() {
+  void refusesARevokedCertificateWithoutAskingAgain() {
     responderAnswers(
         fixture.answering(new RevokedStatus(Date.from(NOW.minus(Duration.ofDays(1))), 1), NOW));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .isInstanceOf(SmartIdCertificateRevokedException.class);
+    responder.verify();
   }
 
   @Test
@@ -105,34 +125,108 @@ class SmartIdCertificateRevocationCheckTest {
   }
 
   @Test
-  void cannotTellWhenTheResponderFails() {
-    responder.expect(requestTo(RESPONDER_URL)).andRespond(withServerError());
+  void cannotTellWhenTheResponderKeepsFailingForThreeAttempts() {
+    responder.expect(times(3), requestTo(RESPONDER_URL)).andRespond(withServerError());
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
   }
 
   @Test
-  void cannotTellWhenTheResponderIsUnreachable() {
+  void cannotTellWhenTheResponderKeepsRefusingTheConnectionForThreeAttempts() {
     responder
-        .expect(requestTo(RESPONDER_URL))
+        .expect(times(3), requestTo(RESPONDER_URL))
         .andRespond(
             request -> {
-              throw new SocketTimeoutException("read timed out");
+              throw new ConnectException("connection refused");
             });
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
   }
 
   @Test
-  void cannotTellFromAResponseThatIsNotOcsp() {
+  void cannotTellWhenTheResponderKeepsAnsweringEmptyForThreeAttempts() {
+    responder.expect(times(3), requestTo(RESPONDER_URL)).andRespond(withSuccess());
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
+  }
+
+  @Test
+  void cannotTellWithoutAskingAgainWhenTheResponderFailsTooSlowlyToRetryWithinTheWindow() {
+    responder
+        .expect(once(), requestTo(RESPONDER_URL))
+        .andRespond(
+            request -> {
+              waitAtLeast(Duration.ofMillis(100));
+              throw new SocketTimeoutException("read timed out");
+            });
+
+    assertThatThrownBy(
+            () ->
+                checkRetryingWithin(Duration.ofMillis(50))
+                    .requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
+  }
+
+  @Test
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterTheConnectionDropped() {
     responder
         .expect(requestTo(RESPONDER_URL))
+        .andRespond(
+            request -> {
+              throw new EOFException("EOF reached while reading");
+            });
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @Test
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterAServerError() {
+    responder.expect(requestTo(RESPONDER_URL)).andRespond(withServerError());
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @Test
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterAnEmptyResponse() {
+    responder.expect(requestTo(RESPONDER_URL)).andRespond(withSuccess());
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @Test
+  void cannotTellWithoutAskingAgainWhenTheResponderRejectsTheRequest() {
+    responder.expect(once(), requestTo(RESPONDER_URL)).andRespond(withBadRequest());
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
+  }
+
+  @Test
+  void cannotTellWithoutAskingAgainFromAResponseThatIsNotOcsp() {
+    responder
+        .expect(once(), requestTo(RESPONDER_URL))
         .andRespond(withSuccess("<html>maintenance</html>", MediaType.TEXT_HTML));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
   }
 
   @Test

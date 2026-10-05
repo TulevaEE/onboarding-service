@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPReq;
+import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class OcspResponseVerifierLiveResponderTest {
     OCSPReq request = new OCSPReq(bytes("smart-id/ocsp/" + recording + "-request.der"));
     return new OcspResponseVerifier(Clock.fixed(answeredAt, ZoneOffset.UTC))
         .verifiedStatus(
-            bytes("smart-id/ocsp/" + recording + "-response.der"),
+            new OCSPResp(bytes("smart-id/ocsp/" + recording + "-response.der")),
             request.getRequestList()[0].getCertID(),
             request.getExtension(id_pkix_ocsp_nonce),
             certificate(issuer));

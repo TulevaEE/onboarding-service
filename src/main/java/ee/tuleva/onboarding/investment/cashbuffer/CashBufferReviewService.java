@@ -36,10 +36,21 @@ class CashBufferReviewService {
   private final CashBufferReviewNotifier notifier;
 
   List<FundReviewOutcome> reviewAllFunds(YearMonth reviewMonth, LocalDate reviewedOn) {
-    var outcomes =
+    return reviewAndReport(fundsSettlingWithThePensionRegistrar(), reviewMonth, reviewedOn);
+  }
+
+  List<FundReviewOutcome> reviewTheFundsStillWithoutAReview(
+      YearMonth reviewMonth, LocalDate reviewedOn) {
+    return reviewAndReport(
         fundsSettlingWithThePensionRegistrar()
-            .map(fund -> reviewOrSayWhyNot(fund, reviewMonth, reviewedOn))
-            .toList();
+            .filter(fund -> repository.findByFundAndMonth(fund, reviewMonth).isEmpty()),
+        reviewMonth,
+        reviewedOn);
+  }
+
+  private List<FundReviewOutcome> reviewAndReport(
+      Stream<TulevaFund> funds, YearMonth reviewMonth, LocalDate reviewedOn) {
+    var outcomes = funds.map(fund -> reviewOrSayWhyNot(fund, reviewMonth, reviewedOn)).toList();
     notifier.notify(reviewMonth, outcomes);
     return outcomes;
   }

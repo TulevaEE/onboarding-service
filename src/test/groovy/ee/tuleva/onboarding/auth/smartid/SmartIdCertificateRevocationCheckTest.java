@@ -35,7 +35,7 @@ import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.locks.LockSupport;
+import lombok.SneakyThrows;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
@@ -95,11 +95,9 @@ class SmartIdCertificateRevocationCheckTest {
         new RetryTemplate(retryPolicy));
   }
 
+  @SneakyThrows
   private static void waitAtLeast(Duration duration) {
-    long deadline = System.nanoTime() + duration.toNanos();
-    for (long left = duration.toNanos(); left > 0; left = deadline - System.nanoTime()) {
-      LockSupport.parkNanos(left);
-    }
+    Thread.sleep(duration);
   }
 
   private ResponseCreator answering(OcspResponderFixture.Answer answer) {

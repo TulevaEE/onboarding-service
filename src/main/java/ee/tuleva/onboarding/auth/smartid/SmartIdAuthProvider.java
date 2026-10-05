@@ -21,8 +21,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmartIdAuthProvider implements AuthProvider {
 
-  private static final Duration LOGIN_TTL = Duration.ofSeconds(180);
-
   private final GenericSessionStore genericSessionStore;
   private final SmartIdAuthService smartIdAuthService;
   private final RememberedSmartIdAccounts rememberedSmartIdAccounts;
@@ -45,7 +43,8 @@ public class SmartIdAuthProvider implements AuthProvider {
       throw new SmartIdSessionNotFoundException();
     }
 
-    if (!Instant.now(clock).isBefore(session.getCreatedAt().plus(LOGIN_TTL))) {
+    final Duration LOGIN_TTL = Duration.ofSeconds(180);
+    if (session.hasLived(LOGIN_TTL, Instant.now(clock))) {
       throw new SmartIdSessionNotFoundException();
     }
 

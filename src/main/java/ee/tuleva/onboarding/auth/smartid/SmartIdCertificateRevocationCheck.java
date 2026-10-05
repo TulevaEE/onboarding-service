@@ -22,6 +22,7 @@ import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPReq;
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
@@ -139,6 +140,8 @@ public class SmartIdCertificateRevocationCheck {
       return retryTemplate.invoke(() -> post(responder, request));
     } catch (EmptyOcspResponseException e) {
       throw new SmartIdCertificateStatusUnavailableException("empty response");
+    } catch (ResponderAskedToTryAgainException e) {
+      throw new SmartIdCertificateStatusUnavailableException("responder kept asking to try again");
     } catch (RestClientException e) {
       throw new SmartIdCertificateStatusUnavailableException("responder unreachable", e);
     }
@@ -157,12 +160,30 @@ public class SmartIdCertificateRevocationCheck {
     if (response == null) {
       throw new EmptyOcspResponseException();
     }
+    if (asksToTryAgain(response)) {
+      throw new ResponderAskedToTryAgainException();
+    }
     return response;
+  }
+
+  private static boolean asksToTryAgain(byte[] response) {
+    try {
+      int responseStatus = new OCSPResp(response).getStatus();
+      return responseStatus == OCSPResp.TRY_LATER || responseStatus == OCSPResp.INTERNAL_ERROR;
+    } catch (IOException notAnOcspResponse) {
+      return false;
+    }
   }
 
   private static class EmptyOcspResponseException extends RestClientException {
     EmptyOcspResponseException() {
       super("Smart-ID OCSP responder answered empty");
+    }
+  }
+
+  private static class ResponderAskedToTryAgainException extends RestClientException {
+    ResponderAskedToTryAgainException() {
+      super("Smart-ID OCSP responder asked to try again");
     }
   }
 }

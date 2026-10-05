@@ -40,6 +40,8 @@ import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
@@ -103,6 +105,10 @@ class SmartIdCertificateRevocationCheckTest {
                 fixture.respond(((MockClientHttpRequest) request).getBodyAsBytes(), answer),
                 OCSP_RESPONSE)
             .createResponse(request);
+  }
+
+  private static ResponseCreator answeringUnsuccessfully(int responseStatus) {
+    return withSuccess(OcspResponderFixture.unsuccessful(responseStatus), OCSP_RESPONSE);
   }
 
   private void responderAnswers(OcspResponderFixture.Answer answer) {
@@ -246,15 +252,55 @@ class SmartIdCertificateRevocationCheckTest {
   }
 
   @Test
-  void cannotTellWhenTheResponderAsksToTryLater() {
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterAskingToTryLater() {
     responder
         .expect(requestTo(RESPONDER_URL))
-        .andRespond(
-            withSuccess(
-                OcspResponderFixture.unsuccessful(OCSPRespBuilder.TRY_LATER), OCSP_RESPONSE));
+        .andRespond(answeringUnsuccessfully(OCSPRespBuilder.TRY_LATER));
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @Test
+  void cannotTellWhenTheResponderKeepsAskingToTryLaterForThreeAttempts() {
+    responder
+        .expect(times(3), requestTo(RESPONDER_URL))
+        .andRespond(answeringUnsuccessfully(OCSPRespBuilder.TRY_LATER));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
         .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
+  }
+
+  @Test
+  void letsALoginThroughWhenTheResponderAnswersGoodAfterAnsweringWithItsOwnInternalError() {
+    responder
+        .expect(requestTo(RESPONDER_URL))
+        .andRespond(answeringUnsuccessfully(OCSPRespBuilder.INTERNAL_ERROR));
+    responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW));
+
+    assertThatCode(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .doesNotThrowAnyException();
+    responder.verify();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      ints = {
+        OCSPRespBuilder.MALFORMED_REQUEST,
+        OCSPRespBuilder.UNAUTHORIZED,
+        OCSPRespBuilder.SIG_REQUIRED
+      })
+  void cannotTellWithoutAskingAgainWhenTheResponderRefusesOurRequest(int responseStatus) {
+    responder
+        .expect(once(), requestTo(RESPONDER_URL))
+        .andRespond(answeringUnsuccessfully(responseStatus));
+
+    assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
+        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+    responder.verify();
   }
 
   @Test

@@ -69,7 +69,13 @@ public class SmartIdAuthService {
   }
 
   private static void logFailure(SmartIdSession session, SmartIdLoginError error, Exception e) {
-    if (error == TECHNICAL_ERROR) {
+    if (e instanceof SmartIdSessionExpiredException expired) {
+      log.info(
+          "Smart-ID answered a server error for a session past its lifetime: sessionId={},"
+              + " status={}",
+          session.getSessionId(),
+          expired.status());
+    } else if (error == TECHNICAL_ERROR) {
       log.error("Smart-ID login failed: sessionId={}", session.getSessionId(), e);
     } else if (error == WRONG_VERIFICATION_CODE) {
       log.warn(
@@ -103,11 +109,6 @@ public class SmartIdAuthService {
       return smartIdConnector.getSessionStatus(session.getSessionId());
     } catch (ServerErrorException e) {
       if (isPastSmartIdsLifetime(session)) {
-        log.info(
-            "Smart-ID answered a server error for a session past its lifetime: sessionId={},"
-                + " status={}",
-            session.getSessionId(),
-            e.getResponse().getStatus());
         throw new SmartIdSessionExpiredException(e);
       }
       throw e;

@@ -22,6 +22,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
@@ -40,6 +44,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 class SmartIdAuthServiceTest {
 
@@ -250,6 +255,30 @@ class SmartIdAuthServiceTest {
         .isEqualTo(SmartIdLoginError.TIMEOUT);
 
     assertThat(session.getError()).isEqualTo(SmartIdLoginError.TIMEOUT);
+  }
+
+  @Test
+  void aServerErrorOnASessionPastSmartIdsLifetimeIsLoggedOnceWithTheSessionAndTheStatus() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(120));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new ServerErrorException(502));
+    Logger logger = (Logger) LoggerFactory.getLogger(SmartIdAuthService.class);
+    ListAppender<ILoggingEvent> logged = new ListAppender<>();
+    logged.start();
+    logger.addAppender(logged);
+
+    try {
+      assertThatThrownBy(() -> service.completeLogin(session)).isInstanceOf(SmartIdException.class);
+    } finally {
+      logger.detachAppender(logged);
+    }
+
+    assertThat(logged.list)
+        .singleElement()
+        .satisfies(
+            event -> {
+              assertThat(event.getLevel()).isEqualTo(Level.INFO);
+              assertThat(event.getArgumentArray()).containsExactly(aSessionId, 502);
+            });
   }
 
   @Test

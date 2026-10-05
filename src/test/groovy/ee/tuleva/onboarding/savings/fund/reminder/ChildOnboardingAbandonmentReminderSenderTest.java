@@ -35,7 +35,7 @@ class ChildOnboardingAbandonmentReminderSenderTest {
 
   private final ChildOnboardingAbandonmentReminder parent =
       new ChildOnboardingAbandonmentReminder(
-          "38812121215", "mari", "Example", "parent@example.com");
+          1L, "38812121215", "mari", "Example", "parent@example.com");
 
   @Test
   void sendsTheEstonianReminderToTheParentAndRecordsItAgainstTheParent() {

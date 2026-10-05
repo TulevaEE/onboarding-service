@@ -90,6 +90,6 @@ class ChildOnboardingAbandonmentReminderJobTest {
 
   private ChildOnboardingAbandonmentReminder reminder(String personalCode) {
     return new ChildOnboardingAbandonmentReminder(
-        personalCode, "Parent", "Example", personalCode + "@example.com");
+        1L, personalCode, "Parent", "Example", personalCode + "@example.com");
   }
 }

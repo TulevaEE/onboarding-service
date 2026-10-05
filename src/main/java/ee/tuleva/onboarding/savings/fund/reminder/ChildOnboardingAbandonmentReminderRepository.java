@@ -24,7 +24,8 @@ class ChildOnboardingAbandonmentReminderRepository {
     return jdbcClient
         .sql(
             """
-            SELECT DISTINCT parent.personal_code AS parent_code,
+            SELECT DISTINCT parent.id AS parent_id,
+                            parent.personal_code AS parent_code,
                             parent.first_name AS first_name,
                             parent.last_name AS last_name,
                             parent.email AS email
@@ -69,6 +70,7 @@ class ChildOnboardingAbandonmentReminderRepository {
   private ChildOnboardingAbandonmentReminder reminder(ResultSet rs, int rowNum)
       throws SQLException {
     return new ChildOnboardingAbandonmentReminder(
+        rs.getLong("parent_id"),
         rs.getString("parent_code"),
         rs.getString("first_name"),
         rs.getString("last_name"),

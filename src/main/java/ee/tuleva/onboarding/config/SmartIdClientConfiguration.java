@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.config;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.springframework.core.NestedExceptionUtils.getMostSpecificCause;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 import ee.sk.smartid.CertificateChoiceResponseValidator;
 import ee.sk.smartid.CertificateValidator;
@@ -97,13 +99,19 @@ public class SmartIdClientConfiguration {
         new RetryTemplate(
             RetryPolicy.builder()
                 .includes(RestClientException.class)
-                .excludes(HttpClientErrorException.class)
+                .predicate(SmartIdClientConfiguration::isNotAPermanentRefusal)
                 .maxRetries(RETRIES_WHILE_THE_PERSON_WAITS)
                 .delay(DELAY_BEFORE_ASKING_AGAIN)
                 .timeout(RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT)
                 .build());
     retryTemplate.setRetryListener(new LoggingEachOcspRetry());
     return retryTemplate;
+  }
+
+  private static boolean isNotAPermanentRefusal(Throwable failure) {
+    return !(failure instanceof HttpClientErrorException refusal)
+        || refusal.getStatusCode().isSameCodeAs(REQUEST_TIMEOUT)
+        || refusal.getStatusCode().isSameCodeAs(TOO_MANY_REQUESTS);
   }
 
   @Bean

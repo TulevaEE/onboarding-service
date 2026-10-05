@@ -184,7 +184,7 @@ class LoginIntegrationTest {
   void aSmartIdLoginEventRecordsWhichSmartIdFlowCompletedTheLogin() throws Exception {
     completeQrLogin(anAuthenticationIdentity(), false);
 
-    assertThat(loginEventDataOf(personalCode)).containsEntry("smartIdFlow", "QR");
+    assertThat(loginEventDataOf(personalCode)).containsEntry("smartIdFlow", "QR_CODE");
   }
 
   @Test

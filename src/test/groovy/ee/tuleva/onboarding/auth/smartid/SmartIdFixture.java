@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth.smartid;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.FlowType;
 import ee.sk.smartid.SignatureProtocol;
 import ee.sk.smartid.common.InteractionsMapper;
 import ee.sk.smartid.common.devicelink.interactions.DeviceLinkInteraction;
@@ -83,10 +82,10 @@ public class SmartIdFixture {
   }
 
   public static SmartIdPerson aSmartIdPerson() {
-    return aSmartIdPerson(FlowType.QR);
+    return aSmartIdPerson(SmartIdCompletedFlow.QR_CODE);
   }
 
-  public static SmartIdPerson aSmartIdPerson(FlowType flow) {
+  public static SmartIdPerson aSmartIdPerson(SmartIdCompletedFlow flow) {
     return new SmartIdPerson(anAuthenticationIdentity(), documentNumber, flow);
   }
 

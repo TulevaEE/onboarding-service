@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.FlowType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serial;
 import java.io.Serializable;
@@ -16,9 +15,10 @@ public class SmartIdPerson implements Person, Serializable {
   private final String lastName;
   private final String country;
   private final String documentNumber;
-  private final FlowType flow;
+  private final SmartIdCompletedFlow flow;
 
-  public SmartIdPerson(AuthenticationIdentity identity, String documentNumber, FlowType flow) {
+  public SmartIdPerson(
+      AuthenticationIdentity identity, String documentNumber, SmartIdCompletedFlow flow) {
     this.firstName = identity.getGivenName();
     this.lastName = identity.getSurname();
     this.country = identity.getCountry();

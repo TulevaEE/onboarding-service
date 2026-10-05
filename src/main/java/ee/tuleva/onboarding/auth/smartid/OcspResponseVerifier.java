@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;
+import static org.bouncycastle.cert.ocsp.OCSPResp.INTERNAL_ERROR;
+import static org.bouncycastle.cert.ocsp.OCSPResp.SUCCESSFUL;
+import static org.bouncycastle.cert.ocsp.OCSPResp.TRY_LATER;
 
-import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
@@ -36,27 +38,26 @@ final class OcspResponseVerifier {
     this.clock = clock;
   }
 
+  static boolean asksToBeAskedAgain(OCSPResp response) {
+    return response.getStatus() == TRY_LATER || response.getStatus() == INTERNAL_ERROR;
+  }
+
   CertificateStatus verifiedStatus(
-      byte[] encodedResponse,
-      CertificateID certificateId,
-      Extension nonce,
-      X509Certificate issuer) {
+      OCSPResp ocspResponse, CertificateID certificateId, Extension nonce, X509Certificate issuer) {
     try {
-      BasicOCSPResp response = basicResponse(encodedResponse);
+      BasicOCSPResp response = basicResponse(ocspResponse);
       requireSignedByAnAuthorisedResponder(response, issuer);
       requireEchoed(nonce, response.getExtension(id_pkix_ocsp_nonce));
       SingleResp answer = onlyAnswerAbout(certificateId, response);
       requireFresh(answer);
       return answer.getCertStatus();
-    } catch (IOException | OCSPException | GeneralSecurityException | OperatorCreationException e) {
+    } catch (OCSPException | GeneralSecurityException | OperatorCreationException e) {
       throw new SmartIdCertificateStatusUnavailableException("unreadable response", e);
     }
   }
 
-  private static BasicOCSPResp basicResponse(byte[] encodedResponse)
-      throws IOException, OCSPException {
-    OCSPResp response = new OCSPResp(encodedResponse);
-    if (response.getStatus() != OCSPResp.SUCCESSFUL) {
+  private static BasicOCSPResp basicResponse(OCSPResp response) throws OCSPException {
+    if (response.getStatus() != SUCCESSFUL) {
       throw new SmartIdCertificateStatusUnavailableException(
           "responder status " + response.getStatus());
     }

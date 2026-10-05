@@ -73,7 +73,7 @@ public class SmartIdCertificateRevocationCheck {
     X509Certificate issuer = issuerOf(certificate);
     CertificateID certificateId = certificateId(issuer, certificate);
     Extension nonce = nonce();
-    byte[] response = ask(responderOf(certificate), request(certificateId, nonce));
+    OCSPResp response = ask(responderOf(certificate), request(certificateId, nonce));
     CertificateStatus status =
         responseVerifier.verifiedStatus(response, certificateId, nonce, issuer);
     if (status != CertificateStatus.GOOD) {
@@ -135,7 +135,7 @@ public class SmartIdCertificateRevocationCheck {
     }
   }
 
-  private byte[] ask(URI responder, byte[] request) {
+  private OCSPResp ask(URI responder, byte[] request) {
     try {
       return retryTemplate.invoke(() -> post(responder, request));
     } catch (EmptyOcspResponseException e) {
@@ -147,8 +147,8 @@ public class SmartIdCertificateRevocationCheck {
     }
   }
 
-  private byte[] post(URI responder, byte[] request) {
-    byte[] response =
+  private OCSPResp post(URI responder, byte[] request) {
+    byte[] body =
         restClient
             .post()
             .uri(responder)
@@ -157,21 +157,21 @@ public class SmartIdCertificateRevocationCheck {
             .body(request)
             .retrieve()
             .body(byte[].class);
-    if (response == null) {
+    if (body == null) {
       throw new EmptyOcspResponseException();
     }
-    if (asksToTryAgain(response)) {
+    OCSPResp response = parsed(body);
+    if (OcspResponseVerifier.asksToBeAskedAgain(response)) {
       throw new ResponderAskedToTryAgainException();
     }
     return response;
   }
 
-  private static boolean asksToTryAgain(byte[] response) {
+  private static OCSPResp parsed(byte[] body) {
     try {
-      int responseStatus = new OCSPResp(response).getStatus();
-      return responseStatus == OCSPResp.TRY_LATER || responseStatus == OCSPResp.INTERNAL_ERROR;
-    } catch (IOException notAnOcspResponse) {
-      return false;
+      return new OCSPResp(body);
+    } catch (IOException e) {
+      throw new SmartIdCertificateStatusUnavailableException("unreadable response", e);
     }
   }
 

@@ -31,9 +31,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdAuthService {
 
-  private static final Duration SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS =
-      Duration.ofSeconds(90);
-
   private final SmartIdConnector smartIdConnector;
   private final DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   private final NotificationAuthenticationResponseValidator notificationResponseValidator;
@@ -118,6 +115,8 @@ public class SmartIdAuthService {
   }
 
   private boolean isPastSmartIdsLifetime(SmartIdSession session) {
+    final Duration SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS =
+        Duration.ofSeconds(90);
     Duration age = Duration.between(session.getCreatedAt(), Instant.now(clock));
     return age.compareTo(SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS) >= 0;
   }

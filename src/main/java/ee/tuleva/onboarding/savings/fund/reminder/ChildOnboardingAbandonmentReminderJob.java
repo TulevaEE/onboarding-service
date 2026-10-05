@@ -63,8 +63,8 @@ class ChildOnboardingAbandonmentReminderJob {
       sender.send(reminder);
     } catch (Exception e) {
       log.error(
-          "Failed to send a child onboarding abandonment reminder: parentCode={}",
-          reminder.parentCode(),
+          "Failed to send a child onboarding abandonment reminder: parentUserId={}",
+          reminder.parentUserId(),
           e);
     }
   }

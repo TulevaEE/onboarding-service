@@ -19,8 +19,6 @@ import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
-import ee.tuleva.onboarding.party.ParentChildLinkStatus;
-import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -53,10 +51,10 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   private static final Instant STARTED_FROM = NOW.minus(30, DAYS);
   private static final Instant STARTED_UNTIL = NOW.minus(3, DAYS);
 
-  private static final String PARENT = "38812121215";
-  private static final String OTHER_PARENT = "38001085718";
-  private static final String CHILD = "61506150006";
-  private static final String SECOND_CHILD = "60001019906";
+  private static final String PARENT = "37508295796";
+  private static final String OTHER_PARENT = "39001109103";
+  private static final String CHILD = "66003229972";
+  private static final String SECOND_CHILD = "66112229833";
 
   @Autowired ChildOnboardingAbandonmentReminderRepository repository;
   @Autowired SavingsFundOnboardingRepository onboardingRepository;
@@ -76,7 +74,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
 
   @Test
   void remindsTheParentWhoStartedAChildAccountInTheWindowAndLeftItUnfinished() {
-    user(PARENT);
+    var parent = user(PARENT);
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
 
@@ -85,7 +83,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     assertThat(reminders)
         .containsExactly(
             new ChildOnboardingAbandonmentReminder(
-                PARENT, "Parent " + PARENT, "Example", PARENT + "@example.com"));
+                parent.getId(), PARENT, "Parent " + PARENT, "Example", PARENT + "@example.com"));
   }
 
   @Test
@@ -225,7 +223,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     user(OTHER_PARENT);
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
-    childOf(OTHER_PARENT, CHILD, PENDING_KYC);
+    linked(linkOf(OTHER_PARENT, CHILD).status(PENDING_KYC));
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
@@ -238,7 +236,29 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   void leavesOutGuardiansWhoseLinkOperationsCreatedForAnAdultWard() {
     user(PARENT);
     childAccountStarted(OTHER_PARENT, NOW.minus(10, DAYS));
-    childOf(PARENT, OTHER_PARENT, GUARDIAN, ACTIVE);
+    linked(linkOf(PARENT, OTHER_PARENT).relationshipType(GUARDIAN));
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutParentsWhoseRepresentationIsSuspended() {
+    user(PARENT);
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    linked(linkOf(PARENT, CHILD).suspendedAt(NOW.minus(1, DAYS)));
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutParentsWhoseRepresentationEndsTodayAsTheChildComesOfAge() {
+    user(PARENT);
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    linked(linkOf(PARENT, CHILD).validUntil(LocalDate.ofInstant(NOW, ZoneOffset.UTC)));
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
@@ -325,27 +345,21 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   private void childOf(String parentCode, String childCode) {
-    childOf(parentCode, childCode, ACTIVE);
+    linked(linkOf(parentCode, childCode));
   }
 
-  private void childOf(String parentCode, String childCode, ParentChildLinkStatus status) {
-    childOf(parentCode, childCode, LEGAL_REPRESENTATIVE, status);
-  }
-
-  private void childOf(
-      String parentCode,
-      String childCode,
-      RepresentationType relationshipType,
-      ParentChildLinkStatus status) {
-    parentChildLinkRepository.save(
-        ParentChildLink.builder()
-            .parentPersonalCode(parentCode)
-            .childPersonalCode(childCode)
-            .relationshipType(relationshipType)
-            .status(status)
-            .validUntil(LocalDate.of(2030, 1, 1))
-            .build());
+  private void linked(ParentChildLink.ParentChildLinkBuilder link) {
+    parentChildLinkRepository.save(link.build());
     entityManager.flush();
+  }
+
+  private ParentChildLink.ParentChildLinkBuilder linkOf(String parentCode, String childCode) {
+    return ParentChildLink.builder()
+        .parentPersonalCode(parentCode)
+        .childPersonalCode(childCode)
+        .relationshipType(LEGAL_REPRESENTATIVE)
+        .status(ACTIVE)
+        .validUntil(LocalDate.of(2030, 1, 1));
   }
 
   private void languagePreference(String personalCode, String languagePreference) {

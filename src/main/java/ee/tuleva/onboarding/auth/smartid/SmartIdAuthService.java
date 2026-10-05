@@ -5,6 +5,7 @@ import static ee.sk.smartid.FlowType.QR;
 import static ee.sk.smartid.FlowType.WEB2APP;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.WRONG_VERIFICATION_CODE;
+import static java.util.Objects.requireNonNull;
 
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
@@ -44,12 +45,13 @@ public class SmartIdAuthService {
     }
     try {
       SessionStatus status = finalStatus(session);
-      AuthenticationIdentity identity =
-          validate(session, status, flowTypeOfAProducedSignature(status));
+      FlowType flowType = flowTypeOfAProducedSignature(status);
+      AuthenticationIdentity identity = validate(session, status, flowType);
       requireEstonianAccount(identity);
       certificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
       SmartIdPerson authenticated =
-          new SmartIdPerson(identity, status.getResult().getDocumentNumber());
+          new SmartIdPerson(
+              identity, status.getResult().getDocumentNumber(), requireNonNull(flowType));
       session.setPerson(authenticated);
       log.info("Smart-ID login completed: sessionId={}", session.getSessionId());
       return authenticated;

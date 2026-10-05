@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import static ee.sk.smartid.FlowType.NOTIFICATION;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
 import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
 import static ee.tuleva.onboarding.auth.GrantType.MOBILE_ID;
 import static ee.tuleva.onboarding.auth.GrantType.SMART_ID;
 import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.NOTIFICATION;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.QR_CODE;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSmartIdPerson;
@@ -97,7 +98,7 @@ class SmartIdAuthProviderTest {
   void grantsThePersonOnceWithTheDocumentNumberAndRemembersTheAccountWhenAskedTo() {
     SmartIdSession session = aDeviceLinkSession(now, true);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
-    String secret = givenACompletedLogin(session, expected);
+    String secret = givenACompletedLogin(session, QR_CODE, expected);
 
     AuthenticatedPerson person = provider.authenticate(secret);
 
@@ -136,7 +137,7 @@ class SmartIdAuthProviderTest {
   void aDeviceLinkLoginNotAskedToBeRememberedForgetsThePersonOnThisBrowserAndRemembersNothing() {
     SmartIdSession session = aDeviceLinkSession(now, false);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
-    String secret = givenACompletedLogin(session, expected);
+    String secret = givenACompletedLogin(session, QR_CODE, expected);
 
     AuthenticatedPerson person = provider.authenticate(secret);
 
@@ -149,28 +150,29 @@ class SmartIdAuthProviderTest {
   void aPushLoginCarriesTheRememberedAccountForward() {
     SmartIdSession session = aNotificationSession(now);
     AuthenticatedPerson expected = sampleAuthenticatedPersonAndMember().build();
-    String secret = givenACompletedLogin(session, expected);
+    String secret = givenACompletedLogin(session, NOTIFICATION, expected);
 
     provider.authenticate(secret);
 
-    verify(rememberedAccounts).remember(aSmartIdPerson(), false);
+    verify(rememberedAccounts).remember(aSmartIdPerson(NOTIFICATION), false);
     verify(rememberedAccounts, never()).forgetOnThisBrowser(any());
   }
 
-  private String givenACompletedLogin(SmartIdSession session, AuthenticatedPerson person) {
+  private String givenACompletedLogin(
+      SmartIdSession session, SmartIdCompletedFlow flow, AuthenticatedPerson person) {
     String secret = session.issueRedemptionSecret();
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
-    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
+    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson(flow));
     given(
             principalService.getFrom(
-                aSmartIdPerson(),
+                aSmartIdPerson(flow),
                 Map.of(
                     GRANT_TYPE,
                     SMART_ID.name(),
                     SMART_ID_DOCUMENT_NUMBER,
                     documentNumber,
                     "smartIdFlow",
-                    "QR")))
+                    flow.name())))
         .willReturn(person);
     return secret;
   }
@@ -236,26 +238,14 @@ class SmartIdAuthProviderTest {
   void aCompletedPushLoginReleasesThisBrowserBeforeTheRememberedAccountRenewsItsCookie() {
     SmartIdSession session = aNotificationSession(now);
     session.setPushLoginClaimedAt(now);
-    String secret = session.issueRedemptionSecret();
-    given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
-    given(smartIdAuthService.completeLogin(session)).willReturn(aSmartIdPerson());
-    given(
-            principalService.getFrom(
-                aSmartIdPerson(),
-                Map.of(
-                    GRANT_TYPE,
-                    SMART_ID.name(),
-                    SMART_ID_DOCUMENT_NUMBER,
-                    documentNumber,
-                    "smartIdFlow",
-                    "QR")))
-        .willReturn(sampleAuthenticatedPersonAndMember().build());
+    String secret =
+        givenACompletedLogin(session, NOTIFICATION, sampleAuthenticatedPersonAndMember().build());
 
     provider.authenticate(secret);
 
     InOrder inOrder = inOrder(rememberedAccounts);
     inOrder.verify(rememberedAccounts).releaseNotificationLoginStart(now);
-    inOrder.verify(rememberedAccounts).remember(aSmartIdPerson(), false);
+    inOrder.verify(rememberedAccounts).remember(aSmartIdPerson(NOTIFICATION), false);
   }
 
   @Test

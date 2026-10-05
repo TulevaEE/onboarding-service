@@ -5,7 +5,6 @@ import static ee.sk.smartid.FlowType.QR;
 import static ee.sk.smartid.FlowType.WEB2APP;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.WRONG_VERIFICATION_CODE;
-import static java.util.Objects.requireNonNull;
 
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
@@ -51,7 +50,7 @@ public class SmartIdAuthService {
       certificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
       SmartIdPerson authenticated =
           new SmartIdPerson(
-              identity, status.getResult().getDocumentNumber(), requireNonNull(flowType));
+              identity, status.getResult().getDocumentNumber(), completedFlow(flowType));
       session.setPerson(authenticated);
       log.info("Smart-ID login completed: sessionId={}", session.getSessionId());
       return authenticated;
@@ -125,6 +124,17 @@ public class SmartIdAuthService {
       throw new UnprocessableSmartIdResponseException(
           "Unexpected Smart-ID flow type: flowType=" + flowType);
     }
+  }
+
+  private static SmartIdCompletedFlow completedFlow(@Nullable FlowType flowType) {
+    return switch (flowType) {
+      case QR -> SmartIdCompletedFlow.QR_CODE;
+      case WEB2APP -> SmartIdCompletedFlow.SAME_DEVICE;
+      case NOTIFICATION -> SmartIdCompletedFlow.NOTIFICATION;
+      case null, default ->
+          throw new UnprocessableSmartIdResponseException(
+              "Smart-ID login completed without a usable flow type: flowType=" + flowType);
+    };
   }
 
   private static @Nullable FlowType flowTypeOfAProducedSignature(SessionStatus status) {

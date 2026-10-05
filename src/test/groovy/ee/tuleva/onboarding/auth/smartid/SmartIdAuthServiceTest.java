@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import static ee.sk.smartid.FlowType.NOTIFICATION;
-import static ee.sk.smartid.FlowType.QR;
-import static ee.sk.smartid.FlowType.WEB2APP;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.NOTIFICATION;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.QR_CODE;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.SAME_DEVICE;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionId;
@@ -72,7 +72,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, QR));
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, QR_CODE));
     assertThat(session.getPerson()).isEqualTo(person);
     assertThat(session.getError()).isNull();
   }
@@ -137,7 +138,7 @@ class SmartIdAuthServiceTest {
     SmartIdPerson person = service.completeLogin(session);
 
     assertThat(person)
-        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, WEB2APP));
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, SAME_DEVICE));
   }
 
   @Test
@@ -152,6 +153,23 @@ class SmartIdAuthServiceTest {
         .extracting(e -> ((SmartIdException) e).getLoginError())
         .isEqualTo(SmartIdLoginError.VALIDATION_FAILED);
     verify(deviceLinkValidator, never()).validate(any(), any(), any(), any());
+  }
+
+  @Test
+  void completeLoginReportsASessionWithoutASignatureAsAValidationFailureEvenWhenItIsValidated() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    status.setSignature(null);
+    var login = (DeviceLinkLogin) session.getLogin();
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
+        .willReturn(anAuthenticationIdentity());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.VALIDATION_FAILED);
+    assertThat(session.getPerson()).isNull();
   }
 
   @Test

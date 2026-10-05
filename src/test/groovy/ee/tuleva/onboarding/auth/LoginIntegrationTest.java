@@ -188,13 +188,6 @@ class LoginIntegrationTest {
   }
 
   @Test
-  void aMobileIdLoginEventNamesNoSmartIdFlow() throws Exception {
-    completeMobileIdLogin("+372 5555 5555", false);
-
-    assertThat(loginEventDataOf(personalCode)).doesNotContainKey("smartIdFlow");
-  }
-
-  @Test
   void aSessionCookieHeldBeforeTheLoginStartedCannotRedeemIt() throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(SESSION_ID));

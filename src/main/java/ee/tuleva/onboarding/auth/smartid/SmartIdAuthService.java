@@ -118,8 +118,8 @@ public class SmartIdAuthService {
   private boolean isPastSmartIdsLifetime(SmartIdSession session) {
     final Duration SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS =
         Duration.ofSeconds(90);
-    Duration age = Duration.between(session.getCreatedAt(), Instant.now(clock));
-    return age.compareTo(SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS) >= 0;
+    return session.hasLived(
+        SAFELY_BELOW_SMART_IDS_SESSION_LIFETIME_OBSERVED_FROM_99_SECONDS, Instant.now(clock));
   }
 
   private AuthenticationIdentity validate(

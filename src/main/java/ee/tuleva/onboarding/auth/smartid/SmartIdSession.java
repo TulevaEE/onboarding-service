@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import lombok.AccessLevel;
@@ -39,6 +40,10 @@ public class SmartIdSession implements Serializable {
 
   public String getSessionId() {
     return login.sessionId();
+  }
+
+  public boolean hasLived(Duration lifetime, Instant now) {
+    return !now.isBefore(createdAt.plus(lifetime));
   }
 
   public void acceptCallback(SmartIdCallback callback) {

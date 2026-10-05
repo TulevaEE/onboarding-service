@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -91,6 +92,9 @@ class ChildOnboardingAbandonmentReminderJobTest {
 
   private ChildOnboardingAbandonmentReminder reminder(String personalCode) {
     return new ChildOnboardingAbandonmentReminder(
-        1L, new PersonImpl(personalCode, "Parent", "Example"), personalCode + "@example.com");
+        1L,
+        new PersonImpl(personalCode, "Parent", "Example"),
+        personalCode + "@example.com",
+        Locale.of("et"));
   }
 }

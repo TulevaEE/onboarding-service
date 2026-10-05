@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class ChildOnboardingAbandonmentReminderSender {
 
-  private static final Locale ESTONIAN = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund", "onboarding_abandonment");
 
   private final EmailService emailService;
@@ -24,7 +22,8 @@ class ChildOnboardingAbandonmentReminderSender {
   private final SavingsFundFees savingsFundFees;
 
   void send(ChildOnboardingAbandonmentReminder reminder) {
-    String templateName = SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD.getTemplateName(ESTONIAN);
+    String templateName =
+        SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD.getTemplateName(reminder.locale());
 
     var message =
         emailService.newMandrillMessage(
@@ -44,6 +43,6 @@ class ChildOnboardingAbandonmentReminderSender {
   private Map<String, Object> mergeVars(ChildOnboardingAbandonmentReminder reminder) {
     return Map.of(
         "fname", Names.formatted(reminder.parent().getFirstName()),
-        "savingsFundFee", savingsFundFees.ongoingChargesPercent(ESTONIAN));
+        "savingsFundFee", savingsFundFees.ongoingChargesPercent(reminder.locale()));
   }
 }

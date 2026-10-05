@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.liveProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 import ee.sk.smartid.CertificateParser;
 import ee.sk.smartid.CertificateValidator;
@@ -16,9 +17,15 @@ import java.lang.reflect.Field;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 class SmartIdClientConfigurationTest {
 
@@ -88,6 +95,43 @@ class SmartIdClientConfigurationTest {
 
     assertThatThrownBy(() -> validator.validate(demoTestAccountCertificate()))
         .isInstanceOf(UnprocessableSmartIdResponseException.class);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenAnExchangeWithTheResponderFails() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new ResourceAccessException("connection reset")))
+        .isEqualTo(3);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainAfterAFailureOtherThanAFailedExchange() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new IllegalStateException("not an exchange failure")))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
+  }
+
+  private int ocspAttemptsUntilGivingUpOn(RuntimeException failure) {
+    RetryTemplate retryTemplate = configuration.smartIdOcspRetryTemplate();
+    var attempts = new AtomicInteger();
+
+    assertThatThrownBy(
+            () ->
+                retryTemplate.invoke(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw failure;
+                    }))
+        .isSameAs(failure);
+    return attempts.get();
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status) {
+    return HttpClientErrorException.create(
+        status, status.getReasonPhrase(), HttpHeaders.EMPTY, new byte[0], null);
   }
 
   @Test

@@ -19,6 +19,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import ee.sk.smartid.DefaultTrustedCAStoreBuilder;
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
+import ee.tuleva.onboarding.config.SmartIdClientConfiguration;
 import java.io.EOFException;
 import java.math.BigInteger;
 import java.net.ConnectException;
@@ -39,6 +40,8 @@ import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -57,10 +60,24 @@ class SmartIdCertificateRevocationCheckTest {
       MockRestServiceServer.bindTo(restClientBuilder).build();
 
   private SmartIdCertificateRevocationCheck check() {
-    return checkRetryingWithin(Duration.ofSeconds(5));
+    return checkRetrying(theConfiguredRetryDecisionsAskingAgainAtOnce().build());
   }
 
   private SmartIdCertificateRevocationCheck checkRetryingWithin(Duration retryWindow) {
+    return checkRetrying(
+        theConfiguredRetryDecisionsAskingAgainAtOnce().timeout(retryWindow).build());
+  }
+
+  private static RetryPolicy.Builder theConfiguredRetryDecisionsAskingAgainAtOnce() {
+    RetryPolicy configured =
+        new SmartIdClientConfiguration().smartIdOcspRetryTemplate().getRetryPolicy();
+    return RetryPolicy.builder()
+        .predicate(configured::shouldRetry)
+        .maxRetries(2)
+        .delay(Duration.ZERO);
+  }
+
+  private SmartIdCertificateRevocationCheck checkRetrying(RetryPolicy retryPolicy) {
     return new SmartIdCertificateRevocationCheck(
         new DefaultTrustedCAStoreBuilder()
             .withTrustAnchors(Set.of(new TrustAnchor(fixture.root, null)))
@@ -70,8 +87,7 @@ class SmartIdCertificateRevocationCheckTest {
         restClientBuilder.build(),
         new OCSPUtils(),
         Clock.fixed(NOW, ZoneOffset.UTC),
-        Duration.ZERO,
-        retryWindow);
+        new RetryTemplate(retryPolicy));
   }
 
   private static void waitAtLeast(Duration duration) {

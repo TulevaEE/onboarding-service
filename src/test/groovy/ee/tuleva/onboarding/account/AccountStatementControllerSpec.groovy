@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.fund.FundFixture
+import ee.tuleva.onboarding.fund.PublishedManagementFeeFixture
 import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import org.springframework.test.web.servlet.MockMvc
@@ -13,6 +14,7 @@ import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -30,7 +32,21 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
   AccountStatementService accountStatementService = Mock(AccountStatementService)
   SavingsFundStatementService savingsFundStatementService = Mock(SavingsFundStatementService)
   LocaleService localeService = Mock(LocaleService)
-  AccountStatementController controller = new AccountStatementController(accountStatementService, savingsFundStatementService, localeService)
+  AccountStatementController controller = new AccountStatementController(accountStatementService, savingsFundStatementService, localeService,
+      PublishedManagementFeeFixture.withNoRateInForce())
+
+  def "a Tuleva fund in the statement shows the management fee rate in force"() {
+    given:
+    def controllerWithRates = new AccountStatementController(accountStatementService, savingsFundStatementService, localeService,
+        PublishedManagementFeeFixture.withRateInForce(TUK75, 0.00205))
+    accountStatementService.getAccountStatement(_ as Person, _, _) >> activeTuleva2ndPillarFundBalance
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+
+    expect:
+    mockMvc(controllerWithRates).perform(get("/v1/pension-account-statement"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('$[0].fund.managementFeeRate', is(0.00205d)))
+  }
 
   def "/pension-account-statement endpoint works"() {
     given:

@@ -57,12 +57,12 @@ class LimitCheckIntegrationTest {
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-03T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
+  @Autowired private TransactionBatchRepository transactionBatchRepository;
+  @Autowired private TransactionOrderRepository transactionOrderRepository;
   @Autowired private LimitCheckService limitCheckService;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EntityManager entityManager;
-  @Autowired private TransactionBatchRepository transactionBatchRepository;
-  @Autowired private TransactionOrderRepository transactionOrderRepository;
 
   @BeforeEach
   void setUp() {

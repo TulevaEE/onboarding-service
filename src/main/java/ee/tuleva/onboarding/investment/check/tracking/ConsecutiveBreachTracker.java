@@ -47,8 +47,7 @@ class ConsecutiveBreachTracker {
       return uncheckedDays + uncheckedDaysSince;
     }
 
-    boolean notificationFallsDueTheNextWorkingDay(
-        int notificationWorkingDay, BigDecimal netTdThreshold) {
+    boolean owesTheNotification(int notificationWorkingDay, BigDecimal netTdThreshold) {
       return count == notificationWorkingDay - 1
           && (hadNavResidualBreach || compoundedTd.abs().compareTo(netTdThreshold) >= 0);
     }
@@ -59,8 +58,6 @@ class ConsecutiveBreachTracker {
     try {
       return doCountConsecutiveBreaches(fund, checkType, checkDate);
     } catch (Exception e) {
-      // "No streak" and "we could not work out the streak" are different facts, and reporting the
-      // second as the first suppresses the escalation without anyone being told.
       log.error(
           "Escalation count failed: fund={}, checkType={}, checkDate={}, error={}",
           fund,
@@ -141,11 +138,9 @@ class ConsecutiveBreachTracker {
     var compoundedBenchmarkReturn = compoundedBenchmark.subtract(BigDecimal.ONE);
     var compoundedTd = compoundedFundReturn.subtract(compoundedBenchmarkReturn);
 
-    // The lookback bounds the query, not the breach. A streak that consumed the whole window may
-    // run further back than the window can see, so the count and the compounded net TD are a lower
-    // bound rather than the answer.
-    var truncated = checkedDays > 0 && checkedDays == recent.size() && recent.size() >= lookback;
-    if (truncated) {
+    var streakMayRunPastTheLookbackWindow =
+        checkedDays > 0 && checkedDays == recent.size() && recent.size() >= lookback;
+    if (streakMayRunPastTheLookbackWindow) {
       log.warn(
           "Escalation streak fills the whole lookback window: fund={}, checkType={}, checkDate={}, lookbackDays={}",
           fund,
@@ -164,7 +159,7 @@ class ConsecutiveBreachTracker {
         feeDragSum,
         residualSum,
         hadNavResidualBreach,
-        truncated,
+        streakMayRunPastTheLookbackWindow,
         false,
         uncheckedDays,
         uncheckedDaysSince);

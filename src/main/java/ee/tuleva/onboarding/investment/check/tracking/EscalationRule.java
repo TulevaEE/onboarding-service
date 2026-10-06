@@ -41,8 +41,7 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   private boolean notifiesTheStreakItEnded(TrackingDifferenceResult result) {
     var endedStreak = result.endedStreak();
     return endedStreak != null
-        && endedStreak.notificationFallsDueTheNextWorkingDay(
-            notificationWorkingDay, netTdThreshold);
+        && endedStreak.owesTheNotification(notificationWorkingDay, netTdThreshold);
   }
 
   record Verdict(TrackingDifferenceResult result, boolean escalation, boolean fallback) {

@@ -171,8 +171,6 @@ class ConsecutiveBreachTrackerTest {
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
 
-    // The window bounds the query, not the breach: every row fetched was a breach, so the streak
-    // may run further back than the window can see.
     assertThat(info.count()).isEqualTo(2);
     assertThat(info.truncated()).isTrue();
   }

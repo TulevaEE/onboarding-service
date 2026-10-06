@@ -113,7 +113,8 @@ class PeriodicTdAttributionServiceTest {
             new BenchmarkLegResolver(trackedInstruments()),
             parameterRepository,
             notifier,
-            periodReconciler);
+            periodReconciler,
+            new ResolvedInstrumentRatesGate(instrumentOcfService, notifier));
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))

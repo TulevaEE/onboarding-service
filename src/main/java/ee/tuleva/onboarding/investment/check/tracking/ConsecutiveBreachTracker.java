@@ -77,16 +77,7 @@ class ConsecutiveBreachTracker {
 
   private ConsecutiveBreachInfo doCountConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
-    int lookback;
-    try {
-      lookback = calculator.escalationLookbackDays(checkDate);
-    } catch (IllegalStateException e) {
-      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
-      lookback = ESCALATION_LOOKBACK_FALLBACK;
-    } catch (Exception e) {
-      log.warn("Escalation lookback parameter lookup failed, using fallback: {}", e.getMessage());
-      lookback = ESCALATION_LOOKBACK_FALLBACK;
-    }
+    int lookback = escalationLookbackDays(checkDate);
     var recent = eventRepository.findMostRecentEvents(fund, checkType, checkDate, lookback);
     int count = 0;
     int checkedDays = 0;
@@ -173,6 +164,18 @@ class ConsecutiveBreachTracker {
         false,
         uncheckedDays,
         uncheckedDaysSince);
+  }
+
+  private int escalationLookbackDays(LocalDate checkDate) {
+    try {
+      return calculator.escalationLookbackDays(checkDate);
+    } catch (IllegalStateException e) {
+      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
+      return ESCALATION_LOOKBACK_FALLBACK;
+    } catch (Exception e) {
+      log.warn("Escalation lookback parameter lookup failed, using fallback: {}", e.getMessage());
+      return ESCALATION_LOOKBACK_FALLBACK;
+    }
   }
 
   private static boolean isBreachDay(TrackingDifferenceEvent event) {

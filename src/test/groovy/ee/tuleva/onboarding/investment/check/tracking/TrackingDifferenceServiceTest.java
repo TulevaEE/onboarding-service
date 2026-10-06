@@ -282,6 +282,8 @@ class TrackingDifferenceServiceTest {
   @Test
   void fillGapsSaysNothingOfAPositionDateOnAPublicHolidaySinceNoNavIsEverCalculatedForIt() {
     givenTheOnlyNavDateWithoutACheckIs(GOOD_FRIDAY);
+    givenAModelPortfolioOn(GOOD_FRIDAY);
+    givenTheFundHasANavBefore(GOOD_FRIDAY);
 
     assertThat(service.fillGaps(30).failures()).isEmpty();
   }
@@ -299,6 +301,11 @@ class TrackingDifferenceServiceTest {
   @Test
   void fillGapsSaysNothingOfADateWithNoNavWhoseFundHasNoModelPortfolio() {
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    lenient()
+        .when(
+            fundNavQueryService.findLatestNavDateOnOrBefore(
+                TUK75.getCode(), publicHolidays.previousWorkingDay(PREVIOUS_DATE)))
+        .thenReturn(Optional.of(LocalDate.of(2026, 4, 7)));
 
     assertThat(service.fillGaps(30).failures()).isEmpty();
   }

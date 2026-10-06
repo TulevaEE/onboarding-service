@@ -630,11 +630,8 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue()).contains("TD ESCALATION");
   }
 
-  // Sisekord nr 4 p 11.8 notifies on the fourth working day of a breach that "püsib sellisena
-  // kolmel järjestikusel tööpäeval", so the third breach day is still just a breach - the fallback
-  // must not escalate one day early either.
   @Test
-  void escalationFallbackStreakLengthMatchesTheInternalRule() {
+  void escalationFallbackKeepsTheThirdBreachDayABreachSinceSisekord4P11_8NotifiesOnTheFourth() {
     given(calculator.escalationThresholdDays(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))

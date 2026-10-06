@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.auth.command;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import org.hibernate.validator.constraints.Length;
+import org.jspecify.annotations.Nullable;
 
 public record MobileIdAuthenticateCommand(
-    @NotBlank @Length(min = 7, max = 30) @Pattern(regexp = "^\\+?\\d{7,30}$") String phoneNumber,
-    @ValidPersonalCode String personalCode)
+    @Nullable String phoneNumber,
+    @ValidPersonalCode String personalCode,
+    @JsonSetter(nulls = Nulls.AS_EMPTY) boolean rememberMe)
     implements AuthenticateCommand {}

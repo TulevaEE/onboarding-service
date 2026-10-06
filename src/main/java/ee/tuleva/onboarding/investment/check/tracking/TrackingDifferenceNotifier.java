@@ -242,7 +242,7 @@ class TrackingDifferenceNotifier {
       List<TrackingDifferenceResult> alertableResults) {
     var owed =
         alertableResults.stream()
-            .filter(result -> !result.hasAnyBreach() && result.endedStreak() != null)
+            .filter(result -> !result.hasAnyBreach() && result.streakBefore() != null)
             .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
             .filter(Verdict::escalation)
             .toList();

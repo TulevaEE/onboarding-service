@@ -148,7 +148,7 @@ class ConsecutiveBreachTrackerTest {
 
     assertThat(result.consecutiveBreachDays()).isZero();
     assertThat(result.escalationUncheckedDays()).isZero();
-    assertThat(result.endedStreak()).isEqualTo(endedStreak);
+    assertThat(result.streakBefore()).isEqualTo(endedStreak);
   }
 
   @Test
@@ -310,9 +310,19 @@ class ConsecutiveBreachTrackerTest {
 
     var result = tracker.updateConsecutiveCount(nonBreachingResult(), endedStreak);
 
-    assertThat(result.endedStreak()).isEqualTo(endedStreak);
+    assertThat(result.streakBefore()).isEqualTo(endedStreak);
     assertThat(result.consecutiveBreachDays()).isZero();
     assertThat(result.consecutiveNetTd()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aBreachDayCarriesTheStreakBeforeItSoTheRuleCanJudgeTheDaysThatMadeTheNotificationDue() {
+    var streakBefore = streakOf(3, 0, 0);
+
+    var result = tracker.updateConsecutiveCount(breachingResult(), streakBefore);
+
+    assertThat(result.streakBefore()).isEqualTo(streakBefore);
+    assertThat(result.consecutiveBreachDays()).isEqualTo(4);
   }
 
   @Test

@@ -28,20 +28,21 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   }
 
   private boolean escalates(TrackingDifferenceResult result) {
-    return result.hasAnyBreach() ? escalatesTheBreach(result) : notifiesTheStreakItEnded(result);
+    return (result.hasAnyBreach() && theStreakThroughTheCheckDateEscalates(result))
+        || theStreakBeforeTheCheckDateOwesTheNotification(result);
   }
 
-  private boolean escalatesTheBreach(TrackingDifferenceResult result) {
+  private boolean theStreakThroughTheCheckDateEscalates(TrackingDifferenceResult result) {
     return result.consecutiveBreachDays() >= notificationWorkingDay
         && ((result.consecutiveNetTd() != null
                 && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
             || result.escalationNavResidualBreach());
   }
 
-  private boolean notifiesTheStreakItEnded(TrackingDifferenceResult result) {
-    var endedStreak = result.endedStreak();
-    return endedStreak != null
-        && endedStreak.owesTheNotification(notificationWorkingDay, netTdThreshold);
+  private boolean theStreakBeforeTheCheckDateOwesTheNotification(TrackingDifferenceResult result) {
+    var streakBefore = result.streakBefore();
+    return streakBefore != null
+        && streakBefore.owesTheNotification(notificationWorkingDay, netTdThreshold);
   }
 
   record Verdict(TrackingDifferenceResult result, boolean escalation, boolean fallback) {

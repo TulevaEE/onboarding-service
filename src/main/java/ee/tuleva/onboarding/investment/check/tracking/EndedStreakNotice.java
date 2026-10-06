@@ -10,7 +10,7 @@ final class EndedStreakNotice {
   private EndedStreakNotice() {}
 
   static String format(TrackingDifferenceResult result) {
-    var endedStreak = requireNonNull(result.endedStreak());
+    var endedStreak = requireNonNull(result.streakBefore());
     return (endedStreak.uncheckedDaysSince() > 0
             ? afterUncheckedDays(result, endedStreak)
             : onTheDayItFallsDue(result, endedStreak))

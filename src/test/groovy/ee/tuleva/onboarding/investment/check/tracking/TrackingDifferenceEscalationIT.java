@@ -102,6 +102,19 @@ class TrackingDifferenceEscalationIT {
   }
 
   @Test
+  void aFourthBreachDayThatNetsTheStreakBelowTheThresholdIsStillNotifiedForTheThreeDaysBeforeIt() {
+    var escalated =
+        escalatedOn(
+            breach(TUESDAY, "0.0020"),
+            breach(WEDNESDAY, "0.0020"),
+            breach(THURSDAY, "-0.0012"),
+            breach(FRIDAY, "-0.0020"),
+            clean(NEXT_MONDAY));
+
+    assertThat(escalated).containsExactly(FRIDAY);
+  }
+
+  @Test
   void aCleanDayAfterFiveBreachDaysIsNotNotifiedAgainBecauseTheFourthDayAlreadyWas() {
     var escalated =
         escalatedOn(

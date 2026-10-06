@@ -8,7 +8,8 @@ sealed interface FundReviewOutcome {
 
   TulevaFund fund();
 
-  record Reviewed(CashBufferReview review) implements FundReviewOutcome {
+  record Reviewed(CashBufferReview review, int outgoingEntriesStillInSuspense)
+      implements FundReviewOutcome {
 
     @Override
     public TulevaFund fund() {

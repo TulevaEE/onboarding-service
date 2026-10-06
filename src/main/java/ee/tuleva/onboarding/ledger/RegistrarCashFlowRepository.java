@@ -63,6 +63,24 @@ public class RegistrarCashFlowRepository {
       ORDER BY t.transaction_date, t.id
       """;
 
+  private static final String OUTGOING_ENTRIES_STILL_IN_SUSPENSE_BOOKED_BETWEEN =
+      """
+      SELECT COUNT(*)
+      FROM ledger.entry e
+      JOIN ledger.account a ON e.account_id = a.id
+      JOIN ledger.transaction t ON e.transaction_id = t.id
+      WHERE a.name = :suspenseAccount
+        AND a.purpose = 'SYSTEM_ACCOUNT'
+        AND t.transaction_type = CAST(:suspenseType AS ledger.transaction_type)
+        AND e.amount > 0
+        AND t.transaction_date >= :fromInclusive
+        AND t.transaction_date < :toExclusive
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger.transaction resolved
+          WHERE resolved.external_reference = t.external_reference
+            AND resolved.transaction_type <> t.transaction_type)
+      """;
+
   private final JdbcClient jdbcClient;
 
   public List<RegistrarContribution> findContributions(
@@ -86,6 +104,18 @@ public class RegistrarCashFlowRepository {
                     rs.getBigDecimal("amount"),
                     RegistrarPayoutReason.fromRemittance(remittance(rs))))
         .list();
+  }
+
+  public int countOutgoingEntriesStillInSuspense(
+      TulevaFund fund, LocalDate fromInclusive, LocalDate toInclusive) {
+    return jdbcClient
+        .sql(OUTGOING_ENTRIES_STILL_IN_SUSPENSE_BOOKED_BETWEEN)
+        .param("suspenseAccount", SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(fund))
+        .param("suspenseType", UNCLASSIFIED_BANK_ENTRY.name())
+        .param("fromInclusive", startOf(fromInclusive))
+        .param("toExclusive", startOf(toInclusive.plusDays(1)))
+        .query(Integer.class)
+        .single();
   }
 
   public Optional<LocalDate> findFirstCashBookingDate(TulevaFund fund) {

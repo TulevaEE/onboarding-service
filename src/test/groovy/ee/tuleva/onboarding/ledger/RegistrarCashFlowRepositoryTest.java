@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +98,30 @@ class RegistrarCashFlowRepositoryTest {
   }
 
   @Test
+  void anOutgoingBankEntryStillInSuspenseIsCountedInTheWindowItWasBookedIn() {
+    suspense(TUK75, "-420.00", JUNE_FIRST);
+    suspense(TUK75, "-80.00", JUNE_LAST);
+    suspense(TUK75, "300.00", LocalDate.of(2026, 6, 19));
+    suspense(TUK75, "-50.00", LocalDate.of(2026, 5, 29));
+    suspense(TUK75, "-70.00", LocalDate.of(2026, 7, 1));
+    suspense(TUK00, "-60.00", LocalDate.of(2026, 6, 12));
+
+    assertThat(repository.countOutgoingEntriesStillInSuspense(TUK75, JUNE_FIRST, JUNE_LAST))
+        .isEqualTo(2);
+  }
+
+  @Test
+  void reclassifyingAnOutgoingBankEntryOutOfSuspenseTakesItOutOfTheCount() {
+    var bookingDate = LocalDate.of(2026, 6, 18);
+    var externalReference = suspense(TUK75, "-420.00", bookingDate);
+    fundBankLedger.reclassifySuspenseEntry(
+        TUK75, new BigDecimal("-420.00"), externalReference, REGISTRAR_PAYOUT, bookingDate);
+
+    assertThat(repository.countOutgoingEntriesStillInSuspense(TUK75, JUNE_FIRST, JUNE_LAST))
+        .isZero();
+  }
+
+  @Test
   void theFirstCashBookingDateIsTheOpeningBalanceTheLedgerWasSeededFrom() {
     fundBankLedger.recordOpeningBalance(TUK75, new BigDecimal("5000.00"), JUNE_FIRST);
     contribution(TUK75, "100.00", LocalDate.of(2026, 6, 3));
@@ -110,6 +135,18 @@ class RegistrarCashFlowRepositoryTest {
     contribution(TUK00, "100.00", LocalDate.of(2026, 5, 4));
 
     assertThat(repository.findFirstCashBookingDate(TUK75)).isEmpty();
+  }
+
+  private UUID suspense(TulevaFund fund, String amount, LocalDate bookingDate) {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        fund,
+        new BigDecimal(amount),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        bookingDate,
+        new UnclassifiedEntryDetails(null, null, ONE_OFF, null));
+    return externalReference;
   }
 
   private void contribution(TulevaFund fund, String amount, LocalDate bookingDate) {

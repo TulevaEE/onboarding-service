@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.NOTIFICATION;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.QR_CODE;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdCompletedFlow.SAME_DEVICE;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aNotificationSession;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionId;
@@ -9,6 +12,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.demoProperties;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.failedStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +25,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
@@ -30,9 +38,16 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.ServerErrorException;
 import java.security.cert.X509Certificate;
+import java.time.Clock;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 class SmartIdAuthServiceTest {
 
@@ -46,7 +61,12 @@ class SmartIdAuthServiceTest {
       mock(SmartIdCertificateRevocationCheck.class);
   private final SmartIdAuthService service =
       new SmartIdAuthService(
-          connector, deviceLinkValidator, notificationValidator, revocationCheck, demoProperties);
+          connector,
+          deviceLinkValidator,
+          notificationValidator,
+          revocationCheck,
+          demoProperties,
+          Clock.fixed(now, UTC));
 
   @Test
   void completeLoginKeepsWaitingWhileTheSessionIsRunning() {
@@ -69,7 +89,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber));
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, QR_CODE));
     assertThat(session.getPerson()).isEqualTo(person);
     assertThat(session.getError()).isNull();
   }
@@ -133,7 +154,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person.getDocumentNumber()).isEqualTo(documentNumber);
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, SAME_DEVICE));
   }
 
   @Test
@@ -148,6 +170,23 @@ class SmartIdAuthServiceTest {
         .extracting(e -> ((SmartIdException) e).getLoginError())
         .isEqualTo(SmartIdLoginError.VALIDATION_FAILED);
     verify(deviceLinkValidator, never()).validate(any(), any(), any(), any());
+  }
+
+  @Test
+  void completeLoginReportsASessionWithoutASignatureAsAValidationFailureEvenWhenItIsValidated() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    status.setSignature(null);
+    var login = (DeviceLinkLogin) session.getLogin();
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
+        .willReturn(anAuthenticationIdentity());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.VALIDATION_FAILED);
+    assertThat(session.getPerson()).isNull();
   }
 
   @Test
@@ -175,7 +214,8 @@ class SmartIdAuthServiceTest {
 
     SmartIdPerson person = service.completeLogin(session);
 
-    assertThat(person).isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber));
+    assertThat(person)
+        .isEqualTo(new SmartIdPerson(anAuthenticationIdentity(), documentNumber, NOTIFICATION));
     verify(deviceLinkValidator, never()).validate(any(), any(), any(), any());
   }
 
@@ -206,6 +246,97 @@ class SmartIdAuthServiceTest {
     assertThatThrownBy(() -> service.completeLogin(session)).isInstanceOf(SmartIdException.class);
 
     assertThat(session.getError()).isEqualTo(SmartIdLoginError.TIMEOUT);
+  }
+
+  @Test
+  void aServerErrorOnASessionPastSmartIdsLifetimeEndsTheLoginAsATimeoutWithoutAskingAgain() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(120));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new InternalServerErrorException());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TIMEOUT);
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TIMEOUT);
+
+    assertThat(session.getError()).isEqualTo(SmartIdLoginError.TIMEOUT);
+    verify(connector, times(1)).getSessionStatus(aSessionId);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {502, 503, 504})
+  void anyServerErrorOnASessionPastSmartIdsLifetimeEndsTheLoginAsATimeout(int status) {
+    SmartIdSession session = aNotificationSession(now.minusSeconds(120));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new ServerErrorException(status));
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TIMEOUT);
+
+    assertThat(session.getError()).isEqualTo(SmartIdLoginError.TIMEOUT);
+  }
+
+  @Test
+  void aServerErrorOnASessionPastSmartIdsLifetimeIsLoggedOnceWithTheSessionAndTheStatus() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(120));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new ServerErrorException(502));
+    Logger logger = (Logger) LoggerFactory.getLogger(SmartIdAuthService.class);
+    ListAppender<ILoggingEvent> logged = new ListAppender<>();
+    logged.start();
+    logger.addAppender(logged);
+
+    try {
+      assertThatThrownBy(() -> service.completeLogin(session)).isInstanceOf(SmartIdException.class);
+    } finally {
+      logger.detachAppender(logged);
+    }
+
+    assertThat(logged.list)
+        .singleElement()
+        .satisfies(
+            event -> {
+              assertThat(event.getLevel()).isEqualTo(Level.INFO);
+              assertThat(event.getArgumentArray()).containsExactly(aSessionId, 502);
+            });
+  }
+
+  @Test
+  void aServerErrorOnASessionExactlyAtSmartIdsLifetimeEndsTheLoginAsATimeout() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(90));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new InternalServerErrorException());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TIMEOUT);
+  }
+
+  @Test
+  void aServerErrorOnASessionStillWithinSmartIdsLifetimeIsATechnicalError() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(89));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new InternalServerErrorException());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
+
+    assertThat(session.getError()).isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
+  }
+
+  @Test
+  void aClientErrorOnASessionPastSmartIdsLifetimeIsStillATechnicalError() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(120));
+    given(connector.getSessionStatus(aSessionId)).willThrow(new BadRequestException());
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
   }
 
   @Test

@@ -31,8 +31,8 @@ plugins {
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
-    id("com.diffplug.spotless") version "8.10.1"
-    id("io.freefair.lombok") version "9.5.0"
+    id("com.diffplug.spotless") version "8.10.3"
+    id("io.freefair.lombok") version "9.8.0"
     id("net.ltgt.errorprone") version "5.1.1"
     id("info.solidsoft.pitest") version "1.19.0"
     pmd
@@ -40,11 +40,11 @@ plugins {
 }
 
 lombok {
-    version = "1.18.46"
+    version = "1.18.48"
 }
 
 pmd {
-    toolVersion = "7.27.0"
+    toolVersion = "7.28.0"
     isConsoleOutput = false
     isIgnoreFailures = true
     ruleSets = listOf()
@@ -122,15 +122,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.1")
     errorprone("com.google.errorprone:error_prone_core:2.50.0")
-    errorprone("com.uber.nullaway:nullaway:0.14.1")
+    errorprone("com.uber.nullaway:nullaway:0.14.2")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.10")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
-    implementation("org.springdoc:springdoc-openapi-starter-common:3.1.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.1.1")
     implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -147,7 +147,7 @@ dependencies {
     implementation("commons-net:commons-net:3.13.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.1")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:5.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.5")
     implementation("org.springframework.boot:spring-boot-starter-web-services")
     testImplementation("org.springframework.ws:spring-ws-test")
@@ -172,13 +172,13 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:6.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
-    implementation("org.bouncycastle:bcutil-jdk18on:1.85")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.86")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.54.0")
-    implementation("io.sentry:sentry-logback:8.54.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.59.0")
+    implementation("io.sentry:sentry-logback:8.59.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -188,7 +188,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.54.7")
+    implementation("software.amazon.awssdk:s3:2.55.10")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     // commons-csv references this at compile time (annotation-only, no runtime impact)
@@ -199,8 +199,8 @@ dependencies {
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.9.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
@@ -222,14 +222,14 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.1.1")
-    testImplementation("org.apache.groovy:groovy-json:5.1.1")
+    testImplementation("org.apache.groovy:groovy:5.1.3")
+    testImplementation("org.apache.groovy:groovy-json:5.1.3")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:7.6.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:7.6.0")
+    testImplementation("org.mock-server:mockserver-netty:8.0.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:8.0.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")

@@ -21,8 +21,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmartIdAuthProvider implements AuthProvider {
 
-  private static final Duration LOGIN_TTL = Duration.ofSeconds(180);
-
   private final GenericSessionStore genericSessionStore;
   private final SmartIdAuthService smartIdAuthService;
   private final RememberedSmartIdAccounts rememberedSmartIdAccounts;
@@ -45,7 +43,8 @@ public class SmartIdAuthProvider implements AuthProvider {
       throw new SmartIdSessionNotFoundException();
     }
 
-    if (Instant.now(clock).isAfter(session.getCreatedAt().plus(LOGIN_TTL))) {
+    final Duration LOGIN_TTL = Duration.ofSeconds(180);
+    if (session.hasLived(LOGIN_TTL, Instant.now(clock))) {
       throw new SmartIdSessionNotFoundException();
     }
 
@@ -61,13 +60,20 @@ public class SmartIdAuthProvider implements AuthProvider {
     releaseThisBrowserForTheNextPushLogin(session);
     genericSessionStore.remove(SmartIdSession.class);
 
-    var authenticatedPerson =
-        principalService.getFrom(
-            person,
-            Map.of(
-                GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, person.getDocumentNumber()));
+    var authenticatedPerson = principalService.getFrom(person, loginAttributes(person));
     rememberOrForgetOnThisBrowser(person, session);
     return authenticatedPerson;
+  }
+
+  private static Map<String, String> loginAttributes(SmartIdPerson person) {
+    final String SMART_ID_FLOW = "smartIdFlow";
+    return Map.of(
+        GRANT_TYPE,
+        SMART_ID.name(),
+        SMART_ID_DOCUMENT_NUMBER,
+        person.getDocumentNumber(),
+        SMART_ID_FLOW,
+        person.getFlow().name());
   }
 
   private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {

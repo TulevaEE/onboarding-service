@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.config;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.springframework.core.NestedExceptionUtils.getMostSpecificCause;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 import ee.sk.smartid.CertificateChoiceResponseValidator;
 import ee.sk.smartid.CertificateValidator;
@@ -22,18 +26,29 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.retry.RetryListener;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryState;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Configuration
 @EnableConfigurationProperties(SmartIdProperties.class)
 @RequiredArgsConstructor
+@Slf4j
 public class SmartIdClientConfiguration {
 
   @Value("${truststore.path}")
@@ -69,11 +84,46 @@ public class SmartIdClientConfiguration {
 
   @Bean
   public RestClient smartIdOcspRestClient(RestClient.Builder restClientBuilder) {
+    final Duration OCSP_CONNECT_TIMEOUT = Duration.ofSeconds(3);
+    final Duration OCSP_READ_TIMEOUT = Duration.ofSeconds(5);
     var requestFactory =
         new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
-    requestFactory.setReadTimeout(Duration.ofSeconds(5));
+            HttpClient.newBuilder().connectTimeout(OCSP_CONNECT_TIMEOUT).build());
+    requestFactory.setReadTimeout(OCSP_READ_TIMEOUT);
     return restClientBuilder.clone().requestFactory(requestFactory).build();
+  }
+
+  @Bean
+  public RetryTemplate smartIdOcspRetryTemplate() {
+    final int RETRIES_WHILE_THE_PERSON_WAITS = 2;
+    final Duration DELAY_BEFORE_ASKING_AGAIN = Duration.ofMillis(200);
+    final Duration RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT = Duration.ofSeconds(2);
+    var retryTemplate =
+        new RetryTemplate(
+            RetryPolicy.builder()
+                .includes(RestClientException.class)
+                .predicate(SmartIdClientConfiguration::isWorthAskingAgainAtOnce)
+                .maxRetries(RETRIES_WHILE_THE_PERSON_WAITS)
+                .delay(DELAY_BEFORE_ASKING_AGAIN)
+                .timeout(RETRY_WINDOW_SHORTER_THAN_EITHER_OCSP_TIMEOUT)
+                .build());
+    retryTemplate.setRetryListener(new LoggingEachOcspRetry());
+    return retryTemplate;
+  }
+
+  private static boolean isWorthAskingAgainAtOnce(Throwable failure) {
+    return switch (failure) {
+      case HttpStatusCodeException answer when namesHowLongToWait(answer) -> false;
+      case HttpClientErrorException refusal ->
+          refusal.getStatusCode().isSameCodeAs(REQUEST_TIMEOUT)
+              || refusal.getStatusCode().isSameCodeAs(TOO_MANY_REQUESTS);
+      default -> true;
+    };
+  }
+
+  private static boolean namesHowLongToWait(HttpStatusCodeException answer) {
+    HttpHeaders headers = answer.getResponseHeaders();
+    return headers != null && headers.containsHeader(RETRY_AFTER);
   }
 
   @Bean
@@ -112,6 +162,17 @@ public class SmartIdClientConfiguration {
       return trustStore;
     } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
       throw new SmartIdClientException("Error initializing trusted CA certificates", e);
+    }
+  }
+
+  private static class LoggingEachOcspRetry implements RetryListener {
+    @Override
+    public void beforeRetry(
+        RetryPolicy retryPolicy, Retryable<?> retryable, RetryState retryState) {
+      log.warn(
+          "Smart-ID OCSP responder failed, asking again: attempt={}, reason={}",
+          retryState.getRetryCount() + 1,
+          getMostSpecificCause(retryState.getLastException()).getClass().getSimpleName());
     }
   }
 }

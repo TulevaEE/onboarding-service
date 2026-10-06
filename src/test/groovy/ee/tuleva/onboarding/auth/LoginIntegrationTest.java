@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.failedStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDigest;
+import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -59,6 +60,8 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevocationCheck;
 import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevokedException;
+import ee.tuleva.onboarding.event.EventLog;
+import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -67,6 +70,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.StreamSupport;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,6 +104,7 @@ class LoginIntegrationTest {
   @Autowired private JsonMapper objectMapper;
   @Autowired private UserRepository userRepository;
   @Autowired private AmlCheckRepository amlCheckRepository;
+  @Autowired private EventLogRepository eventLogRepository;
 
   @MockitoBean private SmartIdConnector smartIdConnector;
   @MockitoBean private DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
@@ -173,6 +178,13 @@ class LoginIntegrationTest {
     assertThat(claims.get("attributes").get("smartIdDocumentNumber").asText())
         .isEqualTo(documentNumber);
     assertThat(claims.get("attributes").get("grantType").asText()).isEqualTo("SMART_ID");
+  }
+
+  @Test
+  void aSmartIdLoginEventRecordsWhichSmartIdFlowCompletedTheLogin() throws Exception {
+    completeQrLogin(anAuthenticationIdentity(), false);
+
+    assertThat(loginEventDataOf(personalCode)).containsEntry("smartIdFlow", "QR_CODE");
   }
 
   @Test
@@ -1042,6 +1054,16 @@ class LoginIntegrationTest {
                 .content(objectMapper.writeValueAsString(body)))
         .andExpect(status().isOk())
         .andReturn();
+  }
+
+  private Map<String, @Nullable Object> loginEventDataOf(String principal) {
+    List<EventLog> logins =
+        StreamSupport.stream(eventLogRepository.findAll().spliterator(), false)
+            .filter(event -> LOGIN.name().equals(event.getType()))
+            .filter(event -> principal.equals(event.getPrincipal()))
+            .toList();
+    assertThat(logins).hasSize(1);
+    return logins.getFirst().getData();
   }
 
   private int rememberedSmartIdAccountsOf(String personalCode) {

@@ -6,6 +6,9 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.liveProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 import ee.sk.smartid.CertificateParser;
 import ee.sk.smartid.CertificateValidator;
@@ -13,12 +16,23 @@ import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture;
 import java.lang.reflect.Field;
+import java.net.http.HttpClient;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
 
 class SmartIdClientConfigurationTest {
 
@@ -88,6 +102,77 @@ class SmartIdClientConfigurationTest {
 
     assertThatThrownBy(() -> validator.validate(demoTestAccountCertificate()))
         .isInstanceOf(UnprocessableSmartIdResponseException.class);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenAnExchangeWithTheResponderFails() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new ResourceAccessException("connection reset")))
+        .isEqualTo(3);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainAfterAFailureOtherThanAFailedExchange() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new IllegalStateException("not an exchange failure")))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"REQUEST_TIMEOUT", "TOO_MANY_REQUESTS"})
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenTheResponderRefusesOnlyForNow(HttpStatus status) {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(status))).isEqualTo(3);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderSaysHowLongToWait() {
+    HttpHeaders waitTwoSeconds = new HttpHeaders();
+    waitTwoSeconds.set(RETRY_AFTER, "2");
+
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(TOO_MANY_REQUESTS, waitTwoSeconds)))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
+      throws Exception {
+    Object requestFactory =
+        privateField(
+            configuration.smartIdOcspRestClient(RestClient.builder()), "clientRequestFactory");
+    Duration connectTimeout =
+        ((HttpClient) privateField(requestFactory, "httpClient")).connectTimeout().orElseThrow();
+    Duration readTimeout = (Duration) privateField(requestFactory, "readTimeout");
+
+    Duration retryWindow = configuration.smartIdOcspRetryTemplate().getRetryPolicy().getTimeout();
+
+    assertThat(retryWindow).isPositive().isLessThan(connectTimeout).isLessThan(readTimeout);
+  }
+
+  private int ocspAttemptsUntilGivingUpOn(RuntimeException failure) {
+    RetryTemplate retryTemplate = configuration.smartIdOcspRetryTemplate();
+    var attempts = new AtomicInteger();
+
+    assertThatThrownBy(
+            () ->
+                retryTemplate.invoke(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw failure;
+                    }))
+        .isSameAs(failure);
+    return attempts.get();
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status) {
+    return refusal(status, HttpHeaders.EMPTY);
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status, HttpHeaders headers) {
+    return HttpClientErrorException.create(
+        status, status.getReasonPhrase(), headers, new byte[0], null);
   }
 
   @Test

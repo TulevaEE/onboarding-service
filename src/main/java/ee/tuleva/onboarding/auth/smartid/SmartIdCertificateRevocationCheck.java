@@ -22,10 +22,12 @@ import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPReq;
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -44,17 +46,20 @@ public class SmartIdCertificateRevocationCheck {
   private final RestClient restClient;
   private final OCSPUtils ocspUtils;
   private final OcspResponseVerifier responseVerifier;
+  private final RetryTemplate retryTemplate;
   private final SecureRandom random = new SecureRandom();
 
   public SmartIdCertificateRevocationCheck(
       TrustedCACertStore smartIdTrustedCaCertStore,
       @Qualifier("smartIdOcspRestClient") RestClient restClient,
       OCSPUtils ocspUtils,
-      Clock clock) {
+      Clock clock,
+      @Qualifier("smartIdOcspRetryTemplate") RetryTemplate retryTemplate) {
     this.issuingCaCertificates = issuingCaCertificatesOf(smartIdTrustedCaCertStore);
     this.restClient = restClient;
     this.ocspUtils = ocspUtils;
     this.responseVerifier = new OcspResponseVerifier(clock);
+    this.retryTemplate = retryTemplate;
   }
 
   private static List<X509Certificate> issuingCaCertificatesOf(TrustedCACertStore store) {
@@ -68,7 +73,7 @@ public class SmartIdCertificateRevocationCheck {
     X509Certificate issuer = issuerOf(certificate);
     CertificateID certificateId = certificateId(issuer, certificate);
     Extension nonce = nonce();
-    byte[] response = ask(responderOf(certificate), request(certificateId, nonce));
+    OCSPResp response = ask(responderOf(certificate), request(certificateId, nonce));
     CertificateStatus status =
         responseVerifier.verifiedStatus(response, certificateId, nonce, issuer);
     if (status != CertificateStatus.GOOD) {
@@ -130,23 +135,51 @@ public class SmartIdCertificateRevocationCheck {
     }
   }
 
-  private byte[] ask(URI responder, byte[] request) {
+  private OCSPResp ask(URI responder, byte[] request) {
     try {
-      byte[] response =
-          restClient
-              .post()
-              .uri(responder)
-              .contentType(OCSP_REQUEST)
-              .accept(OCSP_RESPONSE)
-              .body(request)
-              .retrieve()
-              .body(byte[].class);
-      if (response == null) {
-        throw new SmartIdCertificateStatusUnavailableException("empty response");
-      }
-      return response;
+      return retryTemplate.invoke(() -> post(responder, request));
     } catch (RestClientException e) {
-      throw new SmartIdCertificateStatusUnavailableException("responder unreachable", e);
+      throw new SmartIdCertificateStatusUnavailableException("responder unavailable", e);
+    }
+  }
+
+  private OCSPResp post(URI responder, byte[] request) {
+    byte[] body =
+        restClient
+            .post()
+            .uri(responder)
+            .contentType(OCSP_REQUEST)
+            .accept(OCSP_RESPONSE)
+            .body(request)
+            .retrieve()
+            .body(byte[].class);
+    if (body == null) {
+      throw new EmptyOcspResponseException();
+    }
+    OCSPResp response = parsed(body);
+    if (OcspResponseVerifier.asksToBeAskedAgain(response)) {
+      throw new ResponderAskedToTryAgainException();
+    }
+    return response;
+  }
+
+  private static OCSPResp parsed(byte[] body) {
+    try {
+      return new OCSPResp(body);
+    } catch (IOException e) {
+      throw new SmartIdCertificateStatusUnavailableException("unreadable response", e);
+    }
+  }
+
+  private static class EmptyOcspResponseException extends RestClientException {
+    EmptyOcspResponseException() {
+      super("Smart-ID OCSP responder answered empty");
+    }
+  }
+
+  private static class ResponderAskedToTryAgainException extends RestClientException {
+    ResponderAskedToTryAgainException() {
+      super("Smart-ID OCSP responder asked to try again");
     }
   }
 }

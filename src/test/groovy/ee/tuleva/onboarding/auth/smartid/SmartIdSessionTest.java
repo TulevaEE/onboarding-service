@@ -8,12 +8,22 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDige
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 class SmartIdSessionTest {
 
   private final Instant now = Instant.parse("2026-09-02T10:00:00Z");
+
+  @Test
+  void hasLivedADurationOnlyOnceThatMuchTimeHasPassedSinceItWasCreated() {
+    SmartIdSession session = aDeviceLinkSession(now.minusSeconds(90));
+
+    assertThat(session.hasLived(Duration.ofSeconds(89), now)).isTrue();
+    assertThat(session.hasLived(Duration.ofSeconds(90), now)).isTrue();
+    assertThat(session.hasLived(Duration.ofSeconds(91), now)).isFalse();
+  }
 
   @Test
   void acceptCallbackStoresTheUserChallengeVerifier() {

@@ -82,7 +82,11 @@ public class SmartIdFixture {
   }
 
   public static SmartIdPerson aSmartIdPerson() {
-    return new SmartIdPerson(anAuthenticationIdentity(), documentNumber);
+    return aSmartIdPerson(SmartIdCompletedFlow.QR_CODE);
+  }
+
+  public static SmartIdPerson aSmartIdPerson(SmartIdCompletedFlow flow) {
+    return new SmartIdPerson(anAuthenticationIdentity(), documentNumber, flow);
   }
 
   public static RememberedSmartIdAccount aRememberedAccount() {

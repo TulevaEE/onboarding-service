@@ -1,20 +1,43 @@
 package ee.tuleva.onboarding.config;
 
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.demoProperties;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.demoTestAccountSigningCertificate;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.liveProperties;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpHeaders.RETRY_AFTER;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
-import ee.sk.smartid.AuthenticationResponseValidator;
+import ee.sk.smartid.CertificateParser;
+import ee.sk.smartid.CertificateValidator;
 import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture;
 import java.lang.reflect.Field;
+import java.net.http.HttpClient;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
 
 class SmartIdClientConfigurationTest {
 
   private final SmartIdClientConfiguration configuration = new SmartIdClientConfiguration();
+  private final DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
 
   private static KeyStore trustStoreWithCertificates(X509Certificate... certificates)
       throws Exception {
@@ -33,13 +56,16 @@ class SmartIdClientConfigurationTest {
   }
 
   @Test
-  void smartIdClientAppliesTheSocketOpenTimeAndTheTrustStore() throws Exception {
+  void smartIdClientAppliesThePropertiesTheSocketOpenTimeAndTheTlsTrustStore() throws Exception {
     KeyStore trustStore =
         trustStoreWithCertificates(WebEidCertificateFixture.certificateWithSubjectDn("CN=CA"));
 
-    SmartIdClient smartIdClient = configuration.smartIdClient(trustStore);
+    SmartIdClient smartIdClient = configuration.smartIdClient(demoProperties, trustStore);
 
-    assertThat(smartIdClient).isNotNull();
+    assertThat(smartIdClient.getRelyingPartyUUID()).isEqualTo(demoProperties.relyingPartyUUID());
+    assertThat(smartIdClient.getRelyingPartyName()).isEqualTo("DEMO");
+    assertThat(privateField(smartIdClient, "hostUrl"))
+        .isEqualTo("https://sid.demo.sk.ee/smart-id-rp/v3/");
     assertThat(privateField(smartIdClient, "sessionStatusResponseSocketOpenTimeUnit"))
         .isEqualTo(TimeUnit.SECONDS);
     assertThat(privateField(smartIdClient, "sessionStatusResponseSocketOpenTimeValue"))
@@ -51,7 +77,7 @@ class SmartIdClientConfigurationTest {
   void smartIdConnectorComesFromTheConfiguredClient() throws Exception {
     KeyStore trustStore =
         trustStoreWithCertificates(WebEidCertificateFixture.certificateWithSubjectDn("CN=CA"));
-    SmartIdClient smartIdClient = configuration.smartIdClient(trustStore);
+    SmartIdClient smartIdClient = configuration.smartIdClient(demoProperties, trustStore);
 
     var connector = configuration.smartIdConnector(smartIdClient);
 
@@ -59,29 +85,94 @@ class SmartIdClientConfigurationTest {
   }
 
   @Test
-  void authenticationResponseValidatorTrustsEveryCertificateInTheTrustStore() throws Exception {
-    // AuthenticationResponseValidator() always seeds a bundled default trust list, so we assert
-    // that our two certificates were added on top of it rather than that the result is exact.
-    X509Certificate first = WebEidCertificateFixture.certificateWithSubjectDn("CN=First CA");
-    X509Certificate second = WebEidCertificateFixture.certificateWithSubjectDn("CN=Second CA");
-    KeyStore trustStore = trustStoreWithCertificates(first, second);
+  void demoCertificateValidatorTrustsACertificateIssuedByTheDemoCa() {
+    CertificateValidator validator =
+        configuration.smartIdCertificateValidator(
+            configuration.smartIdTrustedCaCertStore(demoProperties, resourceLoader));
 
-    AuthenticationResponseValidator validator =
-        configuration.authenticationResponseValidator(trustStore);
-
-    assertThat(validator.getTrustedCACertificates()).contains(first, second);
+    assertThatCode(() -> validator.validate(demoTestAccountCertificate()))
+        .doesNotThrowAnyException();
   }
 
   @Test
-  void authenticationResponseValidatorAddsNoneWhenTheTrustStoreIsEmpty() throws Exception {
-    KeyStore trustStore = trustStoreWithCertificates();
-    int defaultTrustedCertificateCount =
-        new AuthenticationResponseValidator().getTrustedCACertificates().size();
+  void liveCertificateValidatorRejectsACertificateIssuedByTheDemoCa() {
+    CertificateValidator validator =
+        configuration.smartIdCertificateValidator(
+            configuration.smartIdTrustedCaCertStore(liveProperties, resourceLoader));
 
-    AuthenticationResponseValidator validator =
-        configuration.authenticationResponseValidator(trustStore);
+    assertThatThrownBy(() -> validator.validate(demoTestAccountCertificate()))
+        .isInstanceOf(UnprocessableSmartIdResponseException.class);
+  }
 
-    assertThat(validator.getTrustedCACertificates()).hasSize(defaultTrustedCertificateCount);
+  @Test
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenAnExchangeWithTheResponderFails() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new ResourceAccessException("connection reset")))
+        .isEqualTo(3);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainAfterAFailureOtherThanAFailedExchange() {
+    assertThat(ocspAttemptsUntilGivingUpOn(new IllegalStateException("not an exchange failure")))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"REQUEST_TIMEOUT", "TOO_MANY_REQUESTS"})
+  void smartIdOcspRetryTemplateAsksTwiceMoreWhenTheResponderRefusesOnlyForNow(HttpStatus status) {
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(status))).isEqualTo(3);
+  }
+
+  @Test
+  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderSaysHowLongToWait() {
+    HttpHeaders waitTwoSeconds = new HttpHeaders();
+    waitTwoSeconds.set(RETRY_AFTER, "2");
+
+    assertThat(ocspAttemptsUntilGivingUpOn(refusal(TOO_MANY_REQUESTS, waitTwoSeconds)))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void smartIdOcspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
+      throws Exception {
+    Object requestFactory =
+        privateField(
+            configuration.smartIdOcspRestClient(RestClient.builder()), "clientRequestFactory");
+    Duration connectTimeout =
+        ((HttpClient) privateField(requestFactory, "httpClient")).connectTimeout().orElseThrow();
+    Duration readTimeout = (Duration) privateField(requestFactory, "readTimeout");
+
+    Duration retryWindow = configuration.smartIdOcspRetryTemplate().getRetryPolicy().getTimeout();
+
+    assertThat(retryWindow).isPositive().isLessThan(connectTimeout).isLessThan(readTimeout);
+  }
+
+  private int ocspAttemptsUntilGivingUpOn(RuntimeException failure) {
+    RetryTemplate retryTemplate = configuration.smartIdOcspRetryTemplate();
+    var attempts = new AtomicInteger();
+
+    assertThatThrownBy(
+            () ->
+                retryTemplate.invoke(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw failure;
+                    }))
+        .isSameAs(failure);
+    return attempts.get();
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status) {
+    return refusal(status, HttpHeaders.EMPTY);
+  }
+
+  private static HttpClientErrorException refusal(HttpStatus status, HttpHeaders headers) {
+    return HttpClientErrorException.create(
+        status, status.getReasonPhrase(), headers, new byte[0], null);
   }
 
   @Test
@@ -95,5 +186,9 @@ class SmartIdClientConfigurationTest {
 
     assertThat(trustStore).isNotNull();
     assertThat(java.util.Collections.list(trustStore.aliases())).hasSize(1);
+  }
+
+  private static X509Certificate demoTestAccountCertificate() {
+    return CertificateParser.parseX509Certificate(demoTestAccountSigningCertificate);
   }
 }

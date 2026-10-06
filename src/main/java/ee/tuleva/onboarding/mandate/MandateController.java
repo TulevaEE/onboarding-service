@@ -109,7 +109,7 @@ public class MandateController implements SignatureController<Long> {
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SmartIdSignatureSession signatureSession =
-        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserIdOrThrow());
+        mandateService.smartIdSign(mandateId, authenticatedPerson);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

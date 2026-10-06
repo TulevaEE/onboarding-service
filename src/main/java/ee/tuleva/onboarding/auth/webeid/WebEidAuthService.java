@@ -74,11 +74,17 @@ public class WebEidAuthService {
       var serialNumber =
           CertificateData.getSubjectIdCode(certificate)
               .orElseThrow(() -> new WebEidAuthException("Missing personal code in certificate"));
-      var personalCode = PersonalCode.fromSubjectIdCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);
+      documentTypeExtractor.checkDocumentType(documentType);
       documentTypeExtractor.checkClientAuthentication(certificate);
       documentTypeExtractor.checkIssuer(certificate);
+      documentTypeExtractor.checkCountry(certificate);
+
+      var personalCode =
+          PersonalCode.fromEstonianSubjectIdCode(serialNumber)
+              .orElseThrow(
+                  () -> new WebEidAuthException("Personal code in certificate is not Estonian"));
 
       return IdCardSession.builder()
           .firstName(firstName)

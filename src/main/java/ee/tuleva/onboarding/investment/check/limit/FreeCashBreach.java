@@ -11,4 +11,4 @@ public record FreeCashBreach(
     BigDecimal cash,
     BigDecimal liabilities,
     BigDecimal pendingTrades,
-    BigDecimal reserveUsed) {}
+    BigDecimal reserveSoft) {}

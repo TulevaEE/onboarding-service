@@ -1,12 +1,24 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
+import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.EntityManager;
@@ -16,6 +28,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -48,6 +61,8 @@ class LimitCheckIntegrationTest {
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EntityManager entityManager;
+  @Autowired private TransactionBatchRepository transactionBatchRepository;
+  @Autowired private TransactionOrderRepository transactionOrderRepository;
 
   @BeforeEach
   void setUp() {
@@ -166,7 +181,7 @@ class LimitCheckIntegrationTest {
             "cash",
             "liabilities",
             "pendingTrades",
-            "reserveUsed")
+            "reserveSoft")
         .containsEntry("fund", "TUK75")
         .containsEntry("severity", "HARD");
     assertThat(amounts(breach))
@@ -179,7 +194,38 @@ class LimitCheckIntegrationTest {
                 "cash", new BigDecimal("25000"),
                 "liabilities", new BigDecimal("-3000"),
                 "pendingTrades", BigDecimal.ZERO,
-                "reserveUsed", new BigDecimal("5000")));
+                "reserveSoft", new BigDecimal("5000")));
+  }
+
+  @Test
+  void freeCashFoldsAccruedFeesIntoLiabilitiesAndSubtractsPendingBuysNetOfSells() {
+    insertTuk75Data();
+    insertFundPosition("TUK75", NAV_DATE, "FEE", "FEE_ACCOUNT", -1_000);
+    var batch =
+        transactionBatchRepository.save(
+            TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
+    persistPendingOrder(batch, BUY, SENT, NAV_DATE.plusDays(2), 8_000);
+    persistPendingOrder(batch, SELL, EXECUTED, NAV_DATE, 2_000);
+
+    var tuk75 =
+        limitCheckService.runChecks().results().stream()
+            .filter(result -> result.fund() == TUK75)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(tuk75.freeCashBreach())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new FreeCashBreach(
+                TUK75,
+                new BigDecimal("10000"),
+                new BigDecimal("10000"),
+                OK,
+                new BigDecimal("25000"),
+                new BigDecimal("-4000"),
+                new BigDecimal("6000"),
+                new BigDecimal("5000")));
   }
 
   @Test
@@ -414,6 +460,27 @@ class LimitCheckIntegrationTest {
         .collect(
             Collectors.toMap(
                 Map.Entry::getKey, entry -> new BigDecimal(entry.getValue().toString())));
+  }
+
+  private void persistPendingOrder(
+      TransactionBatch batch,
+      TransactionType transactionType,
+      OrderStatus orderStatus,
+      LocalDate expectedSettlementDate,
+      long orderAmount) {
+    transactionOrderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUK75)
+            .instrumentIsin("IE00BFG1TM61")
+            .transactionType(transactionType)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderStatus(orderStatus)
+            .orderAmount(BigDecimal.valueOf(orderAmount))
+            .expectedSettlementDate(expectedSettlementDate)
+            .createdAt(NAV_DATE.atTime(12, 0).toInstant(ZoneOffset.UTC))
+            .build());
   }
 
   private void insertFundPosition(

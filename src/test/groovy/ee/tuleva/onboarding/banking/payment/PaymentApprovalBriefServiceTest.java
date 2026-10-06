@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -82,7 +83,8 @@ class PaymentApprovalBriefServiceTest {
   void theProjectedBalanceIsWhatTheLastProcessedStatementLeavesOnceThesePaymentsExecute() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("1000.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("1000.00"), STATEMENT_TIME, Set.of())));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -116,7 +118,8 @@ class PaymentApprovalBriefServiceTest {
   void anAccountThatWouldGoNegativeNeedsAttention() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME, Set.of())));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -131,7 +134,8 @@ class PaymentApprovalBriefServiceTest {
   void theTransferIntoAnAccountOnTheSameBriefFundsItsPayoutsSoARedemptionDayIsNotCalledNegative() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
     givenPayments(
         transfer(SUBMITTED, "400.00", BATCH),
         batched(SUBMITTED, PAYOUT, "250.00", BATCH),
@@ -157,7 +161,8 @@ class PaymentApprovalBriefServiceTest {
   void payoutsLargerThanTheTransferIntoTheAccountStillGoNegative() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
     givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
 
     var brief = service().build(DATE, List.of());
@@ -179,7 +184,8 @@ class PaymentApprovalBriefServiceTest {
   void aTransferStillInFlightMayNeverReachTheBankSoItsPayoutsStillGoNegative() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
     givenPayments(
         transfer(ATTEMPTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
 
@@ -200,7 +206,8 @@ class PaymentApprovalBriefServiceTest {
   void aTransferAlreadyExecutedIsInTheBalanceAndIsNotCountedTwice() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME, Set.of())));
     givenPayments(transfer(EXECUTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
 
     var brief = service().build(DATE, List.of());
@@ -214,10 +221,57 @@ class PaymentApprovalBriefServiceTest {
   }
 
   @Test
+  void aTransferTheReceivingStatementAlreadyCreditsIsInTheBalanceAndIsNotCountedTwice() {
+    givenAccountResolves();
+    var transfer = transfer(SUBMITTED, "400.00", BATCH);
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(
+                new BookedBalance(
+                    new BigDecimal("400.00"), STATEMENT_TIME, Set.of(transfer.getEndToEndId()))));
+    givenPayments(transfer, batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), ZERO, STATEMENT_TIME)));
+  }
+
+  @Test
+  void aCreditForSomeOtherPaymentDoesNotStandInForTheTransfer() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(
+                new BookedBalance(
+                    new BigDecimal("0.00"), STATEMENT_TIME, Set.of("someotherendtoendid"))));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(
+                        new ProjectedBalance(
+                            new BigDecimal("0.00"), new BigDecimal("400.00"), STATEMENT_TIME)));
+  }
+
+  @Test
   void payoutsThatOnlyTheIncomingTransferCoversSaySoSoTheTransferIsApprovedFirst() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME, Set.of())));
     givenPayments(
         transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "450.00", BATCH));
 
@@ -237,7 +291,8 @@ class PaymentApprovalBriefServiceTest {
   void payoutsTheBalanceAlreadyCoversDoNotWaitOnTheIncomingTransfer() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME, Set.of())));
     givenPayments(
         transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
 
@@ -253,7 +308,8 @@ class PaymentApprovalBriefServiceTest {
   void payoutsThatGoNegativeEvenWithTheIncomingTransferAreNotCalledCovered() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
     givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
 
     var brief = service().build(DATE, List.of());

@@ -147,6 +147,39 @@ class PaymentApprovalBriefServiceIT {
   }
 
   @Test
+  void
+      aTransferTheReceivingAccountsProcessedReportAlreadyCreditsIsNotCountedAgainWhileTheSenderLags() {
+    given(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .willReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "client")));
+    given(bankAccounts.find(WITHDRAWAL_IBAN))
+        .willReturn(
+            Optional.of(new BankAccount(WITHDRAWAL_IBAN, WITHDRAWAL_EUR, TKF100, "client")));
+    var transfer =
+        storePayment(REDEMPTION_TRANSFER, FUND_INVESTMENT_IBAN, WITHDRAWAL_IBAN, "12345.67");
+    storeIntraDayReport(
+        WITHDRAWAL_IBAN,
+        FOUR_PM_REPORT,
+        "12345.67",
+        FOUR_PM_REPORT,
+        credit(FUND_INVESTMENT_IBAN, "12345.67", transfer.getEndToEndId()));
+    storePayment(PAYOUT, WITHDRAWAL_IBAN, BENEFICIARY_IBAN, "12000.00");
+    storePayment(PAYOUT, WITHDRAWAL_IBAN, BENEFICIARY_IBAN, "345.67");
+
+    var withdrawal =
+        service.build(TODAY, List.of()).accounts().stream()
+            .filter(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(withdrawal.projectedBalance())
+        .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), ZERO, FOUR_PM_REPORT));
+    assertThat(withdrawal.goesNegative()).isFalse();
+    assertThat(withdrawal.coveredOnlyByIncomingTransfer()).isFalse();
+  }
+
+  @Test
   void anAccountWithNoProcessedStatementShowsNoProjection() {
     storeIntraDayReport(DEPOSIT_IBAN, FOUR_PM_REPORT, "175345.82", null);
     storeSubmittedPayments();
@@ -166,11 +199,11 @@ class PaymentApprovalBriefServiceIT {
     storePayment(type, DEPOSIT_IBAN, BENEFICIARY_IBAN, amount);
   }
 
-  private void storePayment(
+  private OutgoingPayment storePayment(
       OutgoingPaymentType type, String remitterIban, String beneficiaryIban, String amount) {
-    outgoingPaymentRepository.save(
+    return outgoingPaymentRepository.save(
         OutgoingPayment.builder()
-            .endToEndId(UUID.randomUUID().toString())
+            .endToEndId(UUID.randomUUID().toString().replace("-", ""))
             .paymentType(type)
             .remitterIban(remitterIban)
             .beneficiaryIban(beneficiaryIban)
@@ -184,6 +217,15 @@ class PaymentApprovalBriefServiceIT {
 
   private void storeIntraDayReport(
       String iban, Instant receivedAt, String interimBooked, @Nullable Instant processedAt) {
+    storeIntraDayReport(iban, receivedAt, interimBooked, processedAt, "");
+  }
+
+  private void storeIntraDayReport(
+      String iban,
+      Instant receivedAt,
+      String interimBooked,
+      @Nullable Instant processedAt,
+      String entries) {
     var reportedUntil = receivedAt.atZone(TALLINN);
     store(
         iban,
@@ -204,6 +246,7 @@ class PaymentApprovalBriefServiceIT {
               %4$s
               %5$s
               %6$s
+              %7$s
             </Rpt>
           </BkToCstmrAcctRpt>
         </Document>
@@ -214,7 +257,30 @@ class PaymentApprovalBriefServiceIT {
                 account(iban),
                 balance("OPBD", reportedUntil.toLocalDate(), interimBooked),
                 balance("ITBD", reportedUntil.toLocalDate(), interimBooked),
-                balance("ITAV", reportedUntil.toLocalDate(), "180345.82")));
+                balance("ITAV", reportedUntil.toLocalDate(), "180345.82"),
+                entries));
+  }
+
+  private static String credit(String remitterIban, String amount, String endToEndId) {
+    return """
+        <Ntry>
+          <NtryRef>credit-1</NtryRef>
+          <Amt Ccy="EUR">%2$s</Amt>
+          <CdtDbtInd>CRDT</CdtDbtInd>
+          <Sts>BOOK</Sts>
+          <BookgDt><Dt>2026-09-23</Dt></BookgDt>
+          <NtryDtls><TxDtls>
+            <Refs><AcctSvcrRef>credit-1</AcctSvcrRef><EndToEndId>%3$s</EndToEndId></Refs>
+            <AmtDtls><TxAmt><Amt Ccy="EUR">%2$s</Amt></TxAmt></AmtDtls>
+            <RltdPties>
+              <Dbtr><Nm>BGW TESTCLIENT1</Nm></Dbtr>
+              <DbtrAcct><Id><IBAN>%1$s</IBAN></Id></DbtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>transfer to withdrawal account</Ustrd></RmtInf>
+          </TxDtls></NtryDtls>
+        </Ntry>
+        """
+        .formatted(remitterIban, amount, endToEndId);
   }
 
   private void storeHistoricStatement(

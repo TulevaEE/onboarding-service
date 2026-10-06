@@ -217,7 +217,7 @@ public class PeriodicTdAttributionService {
         .build();
   }
 
-  public void computeQuarterly(TulevaFund fund, Quarter quarter) {
+  void computeQuarterly(TulevaFund fund, Quarter quarter) {
     computeAttribution(fund, quarter.start(), quarter.end(), PeriodType.QUARTERLY);
   }
 

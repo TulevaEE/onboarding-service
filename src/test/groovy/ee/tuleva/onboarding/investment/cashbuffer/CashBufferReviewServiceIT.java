@@ -14,6 +14,7 @@ import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.context.annotation.FilterType.REGEX;
@@ -200,6 +201,50 @@ class CashBufferReviewServiceIT {
         .containsExactly(
             new Drift(amount("-99400.00"), amount("50000"), true, 2, 2),
             new Drift(amount("-45400.00"), amount("50000"), false, 0, 2));
+  }
+
+  @Test
+  void anUnrecognisedPayoutIsAnErrorWhenItsMonthIsReviewedAndNotAgainOnceALaterMonthIs() {
+    julyThroughOctoberOnTheLedgerWithTheirFees();
+    dailyAccruals(TUK75, MANAGEMENT, AUGUST, "100.00");
+    dailyAccruals(TUK75, DEPOT, AUGUST, "10.00");
+    fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "77000.00");
+
+    service.reviewAllFunds(AUGUST, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+    service.reviewAllFunds(OCTOBER, FOURTH_BUSINESS_DAY_OF_NOVEMBER);
+
+    var notifications = inOrder(notificationService);
+    notifications
+        .verify(notificationService)
+        .sendMessage(
+            header(AUGUST)
+                + "\nPAYOUT REASON NOT RECOGNISED — left out of the buffer until it is mapped in"
+                + " RegistrarPayoutReason"
+                + "\n  TUK75: 1 registrar payout(s), 5000.00 EUR booked in 2026-08"
+                + otherFundsWithoutAReserve(FOURTH_BUSINESS_DAY_OF_OCTOBER),
+            INVESTMENT,
+            ERROR);
+    notifications
+        .verify(notificationService)
+        .sendMessage(
+            header(OCTOBER) + otherFundsWithoutAReserve(FOURTH_BUSINESS_DAY_OF_NOVEMBER),
+            INVESTMENT,
+            ERROR);
+  }
+
+  private static String header(YearMonth reviewMonth) {
+    return ("CASH BUFFER REVIEW %s — the recommended day-to-day operating buffer (recurring and"
+            + " one-off payouts; PEVA, RAVA and PIK cycle outflows left out), not the fund's total"
+            + " cash requirement. The job recommends only; investment_fund_limit is never changed"
+            + " by it.")
+        .formatted(reviewMonth);
+  }
+
+  private static String otherFundsWithoutAReserve(LocalDate asOf) {
+    return ("\nREVIEW COULD NOT RUN"
+            + "\n  TUK00: no reserve_soft in investment_fund_limit (asOf=%s)"
+            + "\n  TUV100: no reserve_soft in investment_fund_limit (asOf=%s)")
+        .formatted(asOf, asOf);
   }
 
   private void julyThroughOctoberOnTheLedgerWithTheirFees() {

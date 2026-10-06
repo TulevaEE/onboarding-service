@@ -33,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CashBufferReviewNotifierTest {
 
+  private static final YearMonth AUGUST = YearMonth.of(2026, 8);
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final String HEADER =
       "CASH BUFFER REVIEW 2026-09 — the recommended day-to-day operating buffer (recurring and"
@@ -48,9 +49,8 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(
-                review(TUK75, drift("-110300.00", true, 5), drift("-56000.00", true, 5), 0)),
-            new Reviewed(review(TUK00, drift("-100.00", false, 0), null, 0))));
+            new Reviewed(review(TUK75, drift("-110300.00", true, 5), drift("-56000.00", true, 5))),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null))));
 
     verify(notificationService, never()).sendMessage(anyString(), any(), any());
   }
@@ -60,9 +60,8 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(
-                review(TUK75, drift("-110300.00", true, 6), drift("-100.00", false, 0), 0)),
-            new Reviewed(review(TUK00, drift("-100.00", false, 0), null, 0))));
+            new Reviewed(review(TUK75, drift("-110300.00", true, 6), drift("-100.00", false, 0))),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null))));
 
     verify(notificationService)
         .sendMessage(
@@ -81,8 +80,7 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(
-                review(TUK75, drift("-100.00", false, 0), drift("-56000.00", true, 6), 0))));
+            new Reviewed(review(TUK75, drift("-100.00", false, 0), drift("-56000.00", true, 6)))));
 
     verify(notificationService)
         .sendMessage(
@@ -97,11 +95,11 @@ class CashBufferReviewNotifierTest {
   }
 
   @Test
-  void anUnrecognisedPayoutReasonOrAFundThatCouldNotBeReviewedIsAnError() {
+  void anUnrecognisedPayoutReasonInTheReviewMonthOrAFundThatCouldNotBeReviewedIsAnError() {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(review(TUK75, drift("-100.00", false, 0), null, 1)),
+            new Reviewed(reviewWithAnUnrecognisedPayoutIn(SEPTEMBER)),
             new NotRun(
                 TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
             new NotRun(TUV100, NO_COMPLETE_MONTH_OF_FLOWS, "reviewMonth=2026-09")));
@@ -111,8 +109,7 @@ class CashBufferReviewNotifierTest {
             HEADER
                 + "\nPAYOUT REASON NOT RECOGNISED — left out of the buffer until it is mapped in"
                 + " RegistrarPayoutReason"
-                + "\n  TUK75: 1 registrar payout(s), 5000.00 EUR; window 2026-08..2026-09 (2"
-                + " months)"
+                + "\n  TUK75: 1 registrar payout(s), 5000.00 EUR booked in 2026-09"
                 + "\nREVIEW COULD NOT RUN"
                 + "\n  TUK00: missing investment_parameter"
                 + " (parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS])"
@@ -120,6 +117,13 @@ class CashBufferReviewNotifierTest {
                 + " (reviewMonth=2026-09)",
             INVESTMENT,
             ERROR);
+  }
+
+  @Test
+  void anUnrecognisedPayoutFromAMonthBeforeTheReviewMonthIsNotRaisedAgain() {
+    notifier.notify(SEPTEMBER, List.of(new Reviewed(reviewWithAnUnrecognisedPayoutIn(AUGUST))));
+
+    verify(notificationService, never()).sendMessage(anyString(), any(), any());
   }
 
   @Test
@@ -145,8 +149,23 @@ class CashBufferReviewNotifierTest {
   }
 
   private static CashBufferReview review(
-      TulevaFund fund, Drift softDrift, @Nullable Drift hardDrift, int unrecognisedPayouts) {
-    var unrecognisedOutflow = unrecognisedPayouts == 0 ? amount("0.00") : amount("5000.00");
+      TulevaFund fund, Drift softDrift, @Nullable Drift hardDrift) {
+    return review(fund, softDrift, hardDrift, 0, 0);
+  }
+
+  private static CashBufferReview reviewWithAnUnrecognisedPayoutIn(YearMonth month) {
+    var noDrift = drift("-100.00", false, 0);
+    return month.equals(SEPTEMBER)
+        ? review(TUK75, noDrift, null, 0, 1)
+        : review(TUK75, noDrift, null, 1, 0);
+  }
+
+  private static CashBufferReview review(
+      TulevaFund fund,
+      Drift softDrift,
+      @Nullable Drift hardDrift,
+      int unrecognisedInAugust,
+      int unrecognisedInSeptember) {
     return new CashBufferReview(
         fund,
         SEPTEMBER,
@@ -154,21 +173,21 @@ class CashBufferReviewNotifierTest {
         new FlowWindow(
             List.of(
                 new MonthlyFlows(
-                    YearMonth.of(2026, 8),
+                    AUGUST,
                     amount("800000.00"),
                     amount("12000.00"),
                     amount("60000.00"),
                     amount("0.00"),
-                    unrecognisedOutflow,
-                    unrecognisedPayouts),
+                    unrecognisedOutflow(unrecognisedInAugust),
+                    unrecognisedInAugust),
                 new MonthlyFlows(
                     SEPTEMBER,
                     amount("1000000.00"),
                     amount("11000.00"),
                     amount("4000.00"),
                     amount("0.00"),
-                    amount("0.00"),
-                    0))),
+                    unrecognisedOutflow(unrecognisedInSeptember),
+                    unrecognisedInSeptember))),
         new Recommendation(
             new BufferModel(
                 new BigDecimal("0.9500000000"),
@@ -187,6 +206,10 @@ class CashBufferReviewNotifierTest {
             hardDrift == null ? null : amount("80000.00")),
         softDrift,
         hardDrift);
+  }
+
+  private static BigDecimal unrecognisedOutflow(int unrecognisedPayouts) {
+    return unrecognisedPayouts == 0 ? amount("0.00") : amount("5000.00");
   }
 
   private static BigDecimal amount(String value) {

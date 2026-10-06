@@ -31,7 +31,9 @@ class CashBufferReviewNotifier {
   void notify(YearMonth reviewMonth, List<FundReviewOutcome> outcomes) {
     var sustainedDrifts = reviews(outcomes).filter(CashBufferReview::driftSustained).toList();
     var unrecognisedPayouts =
-        reviews(outcomes).filter(review -> review.window().unrecognisedPayouts() > 0).toList();
+        reviews(outcomes)
+            .filter(review -> review.reviewMonthFlows().unrecognisedPayouts() > 0)
+            .toList();
     var notRun =
         outcomes.stream().filter(NotRun.class::isInstance).map(NotRun.class::cast).toList();
     if (sustainedDrifts.isEmpty() && unrecognisedPayouts.isEmpty() && notRun.isEmpty()) {
@@ -136,12 +138,13 @@ class CashBufferReviewNotifier {
   }
 
   private static String unrecognisedLine(CashBufferReview review) {
-    return "%s: %d registrar payout(s), %s EUR; %s"
+    var flows = review.reviewMonthFlows();
+    return "%s: %d registrar payout(s), %s EUR booked in %s"
         .formatted(
             review.fund(),
-            review.window().unrecognisedPayouts(),
-            eur(review.window().unrecognisedOutflow()),
-            window(review));
+            flows.unrecognisedPayouts(),
+            eur(flows.unrecognisedOutflow()),
+            flows.month());
   }
 
   private static String notRunLine(NotRun notRun) {

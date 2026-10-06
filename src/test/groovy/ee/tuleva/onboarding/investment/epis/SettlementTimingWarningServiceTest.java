@@ -10,6 +10,8 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -136,9 +138,9 @@ class SettlementTimingWarningServiceTest {
             settlementDateCalculator,
             allocationRepository,
             Clock.fixed(halfPastMidnightInTallinn, ZoneOffset.UTC));
-    given(periodService.getCurrentPeriod(dayAfterTheExecution))
+    given(periodService.getCurrentPeriod(any(LocalDate.class)))
         .willReturn(Optional.of(period(TUK00_ACTIVE, notDActive(), dActive())));
-    given(allocationRepository.findLatestByFundAsOf(TUK00, dayAfterTheExecution))
+    given(allocationRepository.findLatestByFundAsOf(eq(TUK00), any(LocalDate.class)))
         .willReturn(List.of(allocation(TUK00, "LU0000000002", FUND)));
     given(
             settlementDateCalculator.calculateSettlementDate(

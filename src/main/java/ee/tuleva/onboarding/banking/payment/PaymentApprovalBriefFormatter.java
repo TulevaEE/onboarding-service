@@ -87,7 +87,7 @@ public class PaymentApprovalBriefFormatter {
       return "  ⚠️ would go negative";
     }
     if (account.coveredOnlyByIncomingTransfer()) {
-      return "  ⚠️ covered by the incoming transfer: approve that transfer first";
+      return "  covered by the incoming transfer: approve that transfer first";
     }
     return "";
   }

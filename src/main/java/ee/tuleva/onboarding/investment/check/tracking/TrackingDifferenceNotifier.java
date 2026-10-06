@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeMap;
@@ -136,6 +137,27 @@ class TrackingDifferenceNotifier {
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send TD attribution not written notification", e);
+    }
+  }
+
+  void notifyAttributionRefusedForUnresolvedRates(
+      List<TulevaFund> funds, LocalDate periodStart, LocalDate periodEnd, YearMonth rateMonth) {
+    try {
+      notificationService.sendMessage(
+          """
+          ⚠️ TD ATTRIBUTION NOT COMPUTED: funds=%s, period=%s to %s
+            The instrument rates of %s are not resolved yet, so nothing was written for
+            this period. Any attribution already stored for it is left as it was. Resolve them
+            with INSERT INTO investment_job_trigger (job_name) VALUES ('InstrumentFeeRateJob'),
+            then rerun the attribution."""
+              .formatted(
+                  funds.stream().map(TulevaFund::getCode).collect(joining(", ")),
+                  periodStart,
+                  periodEnd,
+                  rateMonth),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send TD attribution refused notification", e);
     }
   }
 

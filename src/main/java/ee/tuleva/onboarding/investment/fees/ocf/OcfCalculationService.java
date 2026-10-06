@@ -10,18 +10,16 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
-import ee.tuleva.onboarding.investment.fees.InstrumentFee;
-import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
-import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -31,9 +29,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,13 +45,12 @@ public class OcfCalculationService {
   private static final int SCALE = 8;
   private static final RebateBasis REBATE_BASIS = RebateBasis.NET;
   private static final BigDecimal DAYS_IN_YEAR = BigDecimal.valueOf(365);
-  private static final String UNIDENTIFIED_HOLDING = "<no isin>";
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FeeRateRepository feeRateRepository;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final DepotRateResolver depotRateResolver;
-  private final InstrumentFeeRepository instrumentFeeRepository;
+  private final InstrumentOcfService instrumentOcfService;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final OcfSnapshotRepository ocfSnapshotRepository;
   private final FundNavQueryService fundNavQueryService;
@@ -90,7 +86,7 @@ public class OcfCalculationService {
             ocfJson.checks(gaps),
             audit(mgmt, depot, underlying, txn));
 
-    ocfSnapshotRepository.save(snapshot);
+    ocfSnapshotRepository.save(snapshot, underlying.holdings());
 
     log.info(
         "OCF calculated: fund={}, month={}, mgmt={}, depot={}, underlying={}, txn={}, total={},"
@@ -105,11 +101,12 @@ public class OcfCalculationService {
         gaps.isEmpty(),
         gaps);
 
-    return new Computed(fund, month, snapshot, gaps);
+    return new Computed(fund, month, snapshot, gaps, underlying.holdings());
   }
 
   public void calculateForAllFunds(YearMonth month) {
-    ocfNotifier.notifyRun(month, computeAllFunds(month));
+    var outcomes = computeAllFunds(month);
+    ocfNotifier.notifyRun(month, outcomes, instrumentOcfService.ratesFor(month).values());
   }
 
   public void backfillMonths(int monthsBack, Clock clock) {
@@ -222,28 +219,7 @@ public class OcfCalculationService {
   }
 
   UnderlyingFundCost getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {
-    var rates = instrumentFeeRepository.findAllValidRates(asOf);
-    var netByIsin =
-        rates.stream()
-            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
-    var grossByIsin =
-        rates.stream()
-            .collect(
-                Collectors.toMap(
-                    InstrumentFee::isin, OcfCalculationService::publishedOrNet, (a, b) -> a));
-
-    return computeFromPublishedNav(fund, asOf, netByIsin, grossByIsin);
-  }
-
-  private static BigDecimal publishedOrNet(InstrumentFee fee) {
-    return fee.publishedOcf() != null ? fee.publishedOcf() : fee.netOcf();
-  }
-
-  private UnderlyingFundCost computeFromPublishedNav(
-      TulevaFund fund,
-      LocalDate asOf,
-      Map<String, BigDecimal> rateByIsin,
-      Map<String, BigDecimal> grossByIsin) {
+    var rates = instrumentOcfService.ratesFor(YearMonth.from(asOf));
     var navDate =
         fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOf).orElse(null);
     var calculation =
@@ -256,7 +232,7 @@ public class OcfCalculationService {
           fund.getCode(),
           asOf);
       return new UnderlyingFundCost(
-          ZERO, ZERO, navDate, null, null, List.of(NO_PUBLISHED_NAV_CALCULATION));
+          ZERO, ZERO, navDate, null, null, List.of(NO_PUBLISHED_NAV_CALCULATION), List.of());
     }
     var aum = calculation.assetsUnderManagement();
     if (aum.signum() <= 0) {
@@ -267,39 +243,30 @@ public class OcfCalculationService {
           asOf,
           aum);
       return new UnderlyingFundCost(
-          ZERO, ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM));
+          ZERO, ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM), List.of());
     }
     var lines = calculation.securityLines();
-    var unrated = unratedIsins(lines, rateByIsin);
+    var unrated = OcfHolding.unratedIsins(lines, rates);
     if (!unrated.isEmpty()) {
       throw new MissingInstrumentRateException(fund, asOf, unrated);
     }
-    var net = weigh(lines, rateByIsin, aum);
-    var gross = weigh(lines, grossByIsin, aum);
-    return new UnderlyingFundCost(net, gross, navDate, calculation.id(), aum, List.of());
+    var holdings = OcfHolding.of(lines, rates, aum);
+    return new UnderlyingFundCost(
+        weigh(holdings, InstrumentRate::netOcf, aum),
+        weigh(holdings, InstrumentRate::publishedOcf, aum),
+        navDate,
+        calculation.id(),
+        aum,
+        List.of(),
+        holdings);
   }
 
   private static BigDecimal weigh(
-      List<NavAccountLine> lines, Map<String, BigDecimal> rateByIsin, BigDecimal aum) {
-    return lines.stream()
-        .map(line -> line.value().multiply(rateFor(line, rateByIsin)))
+      List<OcfHolding> holdings, Function<InstrumentRate, BigDecimal> rate, BigDecimal aum) {
+    return holdings.stream()
+        .map(holding -> holding.value().multiply(rate.apply(holding.rate())))
         .reduce(ZERO, BigDecimal::add)
         .divide(aum, SCALE, HALF_UP);
-  }
-
-  private static List<String> unratedIsins(
-      List<NavAccountLine> lines, Map<String, BigDecimal> rateByIsin) {
-    return lines.stream()
-        .map(NavAccountLine::accountId)
-        .map(isin -> isin == null ? UNIDENTIFIED_HOLDING : isin)
-        .filter(isin -> !rateByIsin.containsKey(isin))
-        .distinct()
-        .toList();
-  }
-
-  private static BigDecimal rateFor(NavAccountLine line, Map<String, BigDecimal> rateByIsin) {
-    return requireNonNull(
-        rateByIsin.get(line.accountId()), "Unrated holding passed the guard: " + line.accountId());
   }
 
   TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {
@@ -382,7 +349,8 @@ public class OcfCalculationService {
       @Nullable LocalDate navDate,
       @Nullable UUID navCalculationId,
       @Nullable BigDecimal assetsUnderManagement,
-      List<OcfGap> gaps) {}
+      List<OcfGap> gaps,
+      List<OcfHolding> holdings) {}
 
   record TransactionCost(
       BigDecimal rate,

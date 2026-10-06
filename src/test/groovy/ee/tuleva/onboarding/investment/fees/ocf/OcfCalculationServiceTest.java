@@ -17,6 +17,10 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
+import ee.tuleva.onboarding.investment.fees.rate.RateBasis;
+import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
@@ -32,6 +36,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -49,7 +54,7 @@ class OcfCalculationServiceTest {
 
   @Mock private FeeRateRepository feeRateRepository;
   @Mock private DepotRateResolver depotRateResolver;
-  @Mock private InstrumentFeeRepository instrumentFeeRepository;
+  @Mock private InstrumentOcfService instrumentOcfService;
   @Mock private TransactionExecutionRepository transactionExecutionRepository;
   @Mock private OcfSnapshotRepository ocfSnapshotRepository;
   @Mock private FundNavQueryService fundNavQueryService;
@@ -85,8 +90,7 @@ class OcfCalculationServiceTest {
   }
 
   private void givenRate(BigDecimal netOcf) {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(List.of(InstrumentFee.builder().isin(ISIN).netOcf(netOcf).build()));
+    given(instrumentOcfService.ratesFor(MONTH)).willReturn(rates(rate(ISIN, netOcf)));
   }
 
   private void givenPublishedCalculation(TulevaFund fund, NavAccountLine... lines) {
@@ -109,7 +113,7 @@ class OcfCalculationServiceTest {
     assertThat(result.managementFeeRate()).isEqualByComparingTo(new BigDecimal("0.0034"));
     assertThat(result.depotFeeRate()).isEqualByComparingTo(ZERO);
     assertThat(result.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0034"));
-    verify(ocfSnapshotRepository).save(any());
+    verify(ocfSnapshotRepository).save(any(), any());
   }
 
   @Test
@@ -133,9 +137,8 @@ class OcfCalculationServiceTest {
     setupManagementFee(fund, new BigDecimal("0.0034"));
     setupDepotFee(fund, new BigDecimal("0.0010"));
 
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(InstrumentFee.builder().isin(ISIN).netOcf(new BigDecimal("0.0007")).build()));
+    given(instrumentOcfService.ratesFor(MONTH))
+        .willReturn(rates(rate(ISIN, new BigDecimal("0.0007"))));
     givenPublishedCalculation(
         fund,
         securityLine(ISIN, new BigDecimal("100000000")),
@@ -159,6 +162,14 @@ class OcfCalculationServiceTest {
     assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
     assertThat(result.transactionCostRate().signum()).isGreaterThan(0);
     assertThat(result.totalOcf().signum()).isGreaterThan(0);
+    verify(ocfSnapshotRepository)
+        .save(
+            result,
+            List.of(
+                new OcfHolding(
+                    new BigDecimal("100000000"),
+                    new BigDecimal("100000000"),
+                    rate(ISIN, new BigDecimal("0.0007")))));
   }
 
   @Test
@@ -168,9 +179,8 @@ class OcfCalculationServiceTest {
     setupDepotFee(fund, ZERO);
     setupNoTransactionCosts(fund);
 
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(InstrumentFee.builder().isin(ISIN).netOcf(new BigDecimal("0.0010")).build()));
+    given(instrumentOcfService.ratesFor(MONTH))
+        .willReturn(rates(rate(ISIN, new BigDecimal("0.0010"))));
     givenPublishedCalculation(
         fund,
         securityLine(ISIN, new BigDecimal("80000000")),
@@ -190,15 +200,8 @@ class OcfCalculationServiceTest {
     setupDepotFee(fund, ZERO);
     setupNoTransactionCosts(fund);
 
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin(ISIN)
-                    .publishedOcf(new BigDecimal("0.0020"))
-                    .rebateRate(new BigDecimal("0.0005"))
-                    .netOcf(new BigDecimal("0.0015"))
-                    .build()));
+    given(instrumentOcfService.ratesFor(MONTH))
+        .willReturn(rates(rate(ISIN, new BigDecimal("0.0020"), new BigDecimal("0.0015"))));
     givenPublishedCalculation(
         fund,
         securityLine(ISIN, new BigDecimal("100000000")),
@@ -281,17 +284,11 @@ class OcfCalculationServiceTest {
     setupDepotFee(fund, ZERO);
     setupNoTransactionCosts(fund);
 
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+    given(instrumentOcfService.ratesFor(MONTH))
         .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("XX0000000002")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build(),
-                InstrumentFee.builder()
-                    .isin("XX0000000003")
-                    .netOcf(new BigDecimal("0.0016"))
-                    .build()));
+            rates(
+                rate("XX0000000002", new BigDecimal("0.0007")),
+                rate("XX0000000003", new BigDecimal("0.0016"))));
     givenPublishedCalculation(
         fund,
         securityLine("XX0000000002", new BigDecimal("600000")),
@@ -346,7 +343,7 @@ class OcfCalculationServiceTest {
 
   @Test
   void anEmptyRateTableFailsTheSameWayAsASingleMissingRate() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END)).willReturn(List.of());
+    given(instrumentOcfService.ratesFor(MONTH)).willReturn(Map.of());
     givenPublishedCalculation(
         TUK75,
         securityLine(ISIN, new BigDecimal("100000000")),
@@ -403,13 +400,8 @@ class OcfCalculationServiceTest {
 
   @Test
   void tkf100ReturnsZeroWhenNoPublishedCalculation() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("XX0000000002")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build()));
+    given(instrumentOcfService.ratesFor(MONTH))
+        .willReturn(rates(rate("XX0000000002", new BigDecimal("0.0007"))));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TKF100.getCode(), MONTH_END))
         .willReturn(Optional.empty());
 
@@ -594,7 +586,7 @@ class OcfCalculationServiceTest {
 
     service.calculateForAllFunds(MONTH);
 
-    verify(ocfSnapshotRepository, times(TulevaFund.values().length - 1)).save(any());
+    verify(ocfSnapshotRepository, times(TulevaFund.values().length - 1)).save(any(), any());
   }
 
   @Test
@@ -605,7 +597,31 @@ class OcfCalculationServiceTest {
 
     then(ocfNotifier)
         .should()
-        .notifyRun(eq(MONTH), argThat(outcomes -> failedFunds(outcomes).equals(List.of(TUK75))));
+        .notifyRun(
+            eq(MONTH), argThat(outcomes -> failedFunds(outcomes).equals(List.of(TUK75))), any());
+  }
+
+  @Test
+  void calculateForAllFundsHandsTheMonthsRatesToTheNotificationSoItCanNameTheFallbacks() {
+    stream(TulevaFund.values()).forEach(this::givenFundComputesWithNothingCharged);
+    var fallback =
+        new InstrumentRate(
+            1L,
+            ISIN,
+            MONTH,
+            new BigDecimal("0.0007"),
+            new BigDecimal("0.0007"),
+            RateBasis.PUBLISHED_FALLBACK,
+            "no volume",
+            RebateKind.FIXED_NET);
+    given(instrumentOcfService.ratesFor(MONTH)).willReturn(rates(fallback));
+
+    service.calculateForAllFunds(MONTH);
+
+    then(ocfNotifier)
+        .should()
+        .notifyRun(
+            eq(MONTH), any(), argThat(rates -> List.copyOf(rates).equals(List.of(fallback))));
   }
 
   private static List<TulevaFund> failedFunds(List<OcfRunOutcome> outcomes) {
@@ -630,7 +646,7 @@ class OcfCalculationServiceTest {
                                 MONTH.minusMonths(1),
                                 MONTH.minusMonths(2),
                                 MONTH.minusMonths(3)))));
-    then(ocfNotifier).should(never()).notifyRun(any(), any());
+    then(ocfNotifier).should(never()).notifyRun(any(), any(), any());
   }
 
   @Test
@@ -639,12 +655,12 @@ class OcfCalculationServiceTest {
 
     service.backfillMonths(3, clockIn(MONTH));
 
-    verify(ocfSnapshotRepository, times(3 * TulevaFund.values().length)).save(any());
+    verify(ocfSnapshotRepository, times(3 * TulevaFund.values().length)).save(any(), any());
   }
 
   private void givenEveryFundComputesWithNothingCharged() {
     stream(TulevaFund.values()).forEach(this::givenFundComputesWithNothingCharged);
-    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    given(instrumentOcfService.ratesFor(any())).willReturn(Map.of());
   }
 
   private void givenEveryFundButTuk75ComputesWithNothingCharged() {
@@ -653,7 +669,7 @@ class OcfCalculationServiceTest {
         .forEach(this::givenFundComputesWithNothingCharged);
     given(feeRateRepository.findValidRate(eq(TUK75), eq(MANAGEMENT), any()))
         .willThrow(new RuntimeException("test error"));
-    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    given(instrumentOcfService.ratesFor(any())).willReturn(Map.of());
   }
 
   private void givenFundComputesWithNothingCharged(TulevaFund fund) {
@@ -877,7 +893,7 @@ class OcfCalculationServiceTest {
   }
 
   private void setupNoInstrumentFees() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END)).willReturn(List.of());
+    given(instrumentOcfService.ratesFor(MONTH)).willReturn(Map.of());
   }
 
   private void setupNoTransactionCosts(TulevaFund fund) {
@@ -885,5 +901,19 @@ class OcfCalculationServiceTest {
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(fund.getCode()), any(), any()))
         .willReturn(ZERO);
+  }
+
+  private static InstrumentRate rate(String isin, BigDecimal netOcf) {
+    return rate(isin, netOcf, netOcf);
+  }
+
+  private static InstrumentRate rate(String isin, BigDecimal publishedOcf, BigDecimal netOcf) {
+    return new InstrumentRate(
+        1L, isin, MONTH, publishedOcf, netOcf, RateBasis.AGREEMENT, null, RebateKind.NONE);
+  }
+
+  private static Map<String, InstrumentRate> rates(InstrumentRate... rates) {
+    return java.util.Arrays.stream(rates)
+        .collect(java.util.stream.Collectors.toMap(InstrumentRate::isin, rate -> rate));
   }
 }

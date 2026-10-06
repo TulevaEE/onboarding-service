@@ -191,6 +191,8 @@ class FeeCheckIntegrationTest {
     assertThat(findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL").get("severity")).isEqualTo("PASS");
     assertThat(findEvent(TUK75, "CUSTODIAN_POSITION_COMPLETENESS", "ALL").get("severity"))
         .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "INSTRUMENT_RATE_COVERAGE", "ALL").get("severity"))
+        .isEqualTo("PASS");
     verifyNoInteractions(notificationService);
   }
 

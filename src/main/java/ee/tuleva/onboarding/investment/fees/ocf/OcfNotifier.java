@@ -13,10 +13,12 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -30,33 +32,81 @@ class OcfNotifier {
 
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final int PERCENT_DECIMAL_PLACES = 2;
+  private static final int INSTRUMENT_RATE_DECIMAL_PLACES = 3;
   private static final String OUTCOME_LINE_INDENT = "  ";
 
   private final OperationsNotificationService notificationService;
 
-  void notifyRun(YearMonth month, List<OcfRunOutcome> outcomes) {
-    send(RUN, "month=%s".formatted(month), outcomes);
+  void notifyRun(YearMonth month, List<OcfRunOutcome> outcomes, Collection<InstrumentRate> rates) {
+    send(RUN, "month=%s".formatted(month), outcomes, rates);
   }
 
   void notifyBackfill(int monthsBack, List<OcfRunOutcome> outcomes) {
-    send(BACKFILL, "monthsBack=%d".formatted(monthsBack), outcomes);
+    send(BACKFILL, "monthsBack=%d".formatted(monthsBack), outcomes, List.of());
   }
 
-  private void send(OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
+  private void send(
+      OcfRunKind kind,
+      String scope,
+      List<OcfRunOutcome> outcomes,
+      Collection<InstrumentRate> rates) {
     if (outcomes.isEmpty()) {
       log.warn("Nothing to report about an OCF run: run={}, scope={}", kind.label, scope);
       return;
     }
     try {
       notificationService.sendMessage(
-          message(kind, scope, outcomes), INVESTMENT, severity(outcomes));
+          Stream.concat(Stream.of(message(kind, scope, outcomes)), rateLines(rates))
+              .collect(joining("\n")),
+          INVESTMENT,
+          severity(outcomes));
     } catch (Exception e) {
       log.error("Failed to send OCF run notification: run={}, scope={}", kind.label, scope, e);
     }
   }
 
   private static Severity severity(List<OcfRunOutcome> outcomes) {
-    return outcomes.stream().allMatch(outcome -> status(outcome) == COMPLETE) ? INFO : ERROR;
+    var allComplete = outcomes.stream().allMatch(outcome -> status(outcome) == COMPLETE);
+    var noHeldFallback =
+        outcomes.stream()
+            .filter(Computed.class::isInstance)
+            .map(Computed.class::cast)
+            .flatMap(computed -> computed.holdings().stream())
+            .map(OcfHolding::rate)
+            .noneMatch(InstrumentRate::fellBackToThePublishedOcf);
+    return allComplete && noHeldFallback ? INFO : ERROR;
+  }
+
+  private static Stream<String> rateLines(Collection<InstrumentRate> rates) {
+    if (rates.isEmpty()) {
+      return Stream.empty();
+    }
+    var fallbacks = rates.stream().filter(InstrumentRate::fellBackToThePublishedOcf).toList();
+    var agreedAbovePublished =
+        rates.stream().filter(InstrumentRate::agreedNetAboveThePublishedOcf).toList();
+    var summary =
+        "Instrument rates: %d from agreements, %d fell back to the published OCF"
+            .formatted(rates.size() - fallbacks.size(), fallbacks.size());
+    return Stream.of(
+            Stream.of(summary),
+            fallbacks.stream()
+                .map(
+                    rate ->
+                        OUTCOME_LINE_INDENT
+                            + "%s %s fell back to the published OCF: %s"
+                                .formatted(INCOMPLETE.icon, rate.isin(), rate.fallbackReason())),
+            agreedAbovePublished.stream()
+                .map(
+                    rate ->
+                        OUTCOME_LINE_INDENT
+                            + ("%s %s agreed net OCF %s%% is above the published %s%%; the fund"
+                                    + " bears the agreed net, check the agreement")
+                                .formatted(
+                                    INCOMPLETE.icon,
+                                    rate.isin(),
+                                    percent(rate.netOcf(), INSTRUMENT_RATE_DECIMAL_PLACES),
+                                    percent(rate.publishedOcf(), INSTRUMENT_RATE_DECIMAL_PLACES))))
+        .flatMap(lines -> lines);
   }
 
   private static String message(OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
@@ -175,12 +225,11 @@ class OcfNotifier {
   }
 
   private static String totalOcfPercent(Computed computed) {
-    return computed
-        .snapshot()
-        .totalOcf()
-        .multiply(HUNDRED)
-        .setScale(PERCENT_DECIMAL_PLACES, HALF_UP)
-        .toPlainString();
+    return percent(computed.snapshot().totalOcf(), PERCENT_DECIMAL_PLACES);
+  }
+
+  private static String percent(BigDecimal rate, int decimalPlaces) {
+    return rate.multiply(HUNDRED).setScale(decimalPlaces, HALF_UP).toPlainString();
   }
 
   @RequiredArgsConstructor

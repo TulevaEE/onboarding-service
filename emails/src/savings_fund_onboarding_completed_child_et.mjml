@@ -8,20 +8,40 @@
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Lapse *|IF:RECIPIENTNAME|*(*|RECIPIENTNAME|*) *|END:IF|*konto Tuleva Täiendavas
-          Kogumisfondis on avatud. Nüüd saad teha esimese sissemakse:
+          Kogumisfondis on nüüd avatud.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+        <mj-text>
+          Järgmise sammuna saad teha esimese sissemakse ja panna lapsele kogumise käima.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*">
           Teen esimese sissemakse
         </mj-button>
         <mj-text>
-          Sissemakse ja püsimakse saad seadistada oma Tuleva kontol lapse rolli vaates. Osakud
-          jõuavad lapse kontole kahe tööpäeva jooksul.
+          Sissemakse saad teha oma Tuleva kontol lapse vaates. Seal saad soovi korral seadistada
+          ka püsimakse, et edaspidi toimuks kogumine automaatselt. Ostetud fondiosakud jõuavad
+          lapse kontole kahe tööpäeva jooksul.
+        </mj-text>
+        <mj-raw>*|IF:hasCoParent|*</mj-raw>
+        <mj-text><strong>Kontot saavad hallata mõlemad vanemad</strong></mj-text>
+        <mj-text>
+          Et ka teine vanem näeks ja saaks hallata lapse kontot, jaga temaga seda linki:<br />
+          <a href="https://pension.tuleva.ee/savings-fund/onboarding/child">pension.tuleva.ee/savings-fund/onboarding/child</a>
         </mj-text>
         <mj-text>
-          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
-          aktsiatesse. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ning lisatasud puuduvad.
+          Pärast sisselogimist saab ta kinnitada, et on lapse vanem. Seejärel näeb ta lapse
+          kontot ka oma Tuleva kontol.
         </mj-text>
-        <mj-text>Kui sul on tekkinud küsimusi, on sulle abiks veel need materjalid:</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text><strong>Kuhu lapse raha investeeritakse?</strong></mj-text>
+        <mj-text>
+          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailma
+          aktsiaturgudele. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ning sisenemis-,
+          väljumis- ega edukustasu ei lisandu.
+        </mj-text>
+        <mj-text>
+          Kui soovid lapsele kogumise kohta rohkem teada, leiad siit vastused levinumatele
+          küsimustele:
+        </mj-text>
         <mj-text>
           <a href="https://tuleva.ee/lapsele-kogumine/kas-koguda-lapse-voi-vanema-nimel/">
             Kas koguda lapse või vanema nimel?
@@ -29,7 +49,7 @@
         </mj-text>
         <mj-text>
           <a href="https://tuleva.ee/taiendav-kogumisfond/kas-lapsele-kogudes-on-vaja-investeerimiskontot-kaks-lahenemist-mille-vahel-valida/">
-            Kas lapsele kogudes on vaja investeerimiskontot? Kaks lähenemist, mille vahel valida
+            Kas lapsele kogudes on vaja investeerimiskontot?
           </a>
         </mj-text>
         <mj-text>
@@ -38,8 +58,8 @@
           </a>
         </mj-text>
         <mj-text>
-          Kui sul tekib küsimusi, kirjuta
-          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          Küsimuste korral anna meile julgesti märku
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
           <a href="tel:+3726445100">644&nbsp;5100</a>.
         </mj-text>
       </mj-column>

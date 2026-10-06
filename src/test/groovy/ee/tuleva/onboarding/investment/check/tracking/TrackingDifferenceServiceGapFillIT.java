@@ -225,6 +225,10 @@ class TrackingDifferenceServiceGapFillIT {
         Map.of());
   }
 
+  private static final ConsecutiveBreachTracker.ConsecutiveBreachInfo NO_STREAK_BEFORE =
+      new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+          0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false, false, false, 0, 0);
+
   private static TrackingDifferenceResult passingModelPortfolioCheckOn(LocalDate checkDate) {
     var onePercent = new BigDecimal("0.01");
     return TrackingDifferenceResult.builder()
@@ -237,6 +241,7 @@ class TrackingDifferenceServiceGapFillIT {
         .breach(false)
         .consecutiveBreachDays(0)
         .consecutiveNetTd(ZERO)
+        .streakBefore(NO_STREAK_BEFORE)
         .securityAttributions(
             List.of(
                 new SecurityAttribution(

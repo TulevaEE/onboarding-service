@@ -40,6 +40,23 @@ class PaymentApprovalBriefFormatterTest {
   }
 
   @Test
+  void payoutsOnlyTheIncomingTransferCoversTellTheSignatoryToApproveTheTransferFirst() {
+    var text = formatter.format(brief(projected("0.00", "12345.67", "2026-08-10T13:00:05Z")));
+
+    assertThat(text)
+        .contains(
+            "      after execution: 0.00 (balance as of 16:00 statement)"
+                + "  ⚠️ covered by the incoming transfer: approve that transfer first\n");
+  }
+
+  @Test
+  void payoutsTheBalanceAlreadyCoversCarryNoApprovalOrder() {
+    var text = formatter.format(brief(projected("12345.67", "12345.67", "2026-08-10T13:00:05Z")));
+
+    assertThat(text).doesNotContain("approve that transfer first");
+  }
+
+  @Test
   void theProjectionSaysWhichStatementItsBalanceComesFromSoItsAgeIsVisible() {
     var text = formatter.format(brief(projected("19386.49", "2026-08-10T13:00:05Z")));
 
@@ -97,7 +114,13 @@ class PaymentApprovalBriefFormatterTest {
   }
 
   private static PaymentApprovalBrief.ProjectedBalance projected(String amount, String asOf) {
-    return new PaymentApprovalBrief.ProjectedBalance(new BigDecimal(amount), Instant.parse(asOf));
+    return projected(amount, "0.00", asOf);
+  }
+
+  private static PaymentApprovalBrief.ProjectedBalance projected(
+      String amount, String incomingTransfers, String asOf) {
+    return new PaymentApprovalBrief.ProjectedBalance(
+        new BigDecimal(amount), new BigDecimal(incomingTransfers), Instant.parse(asOf));
   }
 
   private static PaymentApprovalBrief brief(
@@ -139,7 +162,9 @@ class PaymentApprovalBriefFormatterTest {
                 7,
                 new BigDecimal("12345.67"),
                 new PaymentApprovalBrief.ProjectedBalance(
-                    new BigDecimal("-1.00"), Instant.parse("2026-08-10T13:00:05Z")))),
+                    new BigDecimal("-1.00"),
+                    BigDecimal.ZERO,
+                    Instant.parse("2026-08-10T13:00:05Z")))),
         List.of(
             new PaymentApprovalBrief.Verdict(
                 "payouts == transfer to withdrawal account", true, "12,345.67 = 12,345.67"),

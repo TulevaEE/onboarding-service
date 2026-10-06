@@ -89,7 +89,7 @@ class PaymentApprovalBriefServiceIT {
     var account = service.build(TODAY, List.of()).accounts().getFirst();
 
     assertThat(account.projectedBalance())
-        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), FOUR_PM_REPORT));
+        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), ZERO, FOUR_PM_REPORT));
     assertThat(account.goesNegative()).isFalse();
   }
 
@@ -102,7 +102,7 @@ class PaymentApprovalBriefServiceIT {
     var account = service.build(TODAY, List.of()).accounts().getFirst();
 
     assertThat(account.projectedBalance())
-        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), FOUR_PM_REPORT));
+        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), ZERO, FOUR_PM_REPORT));
     assertThat(account.goesNegative()).isFalse();
   }
 
@@ -114,7 +114,7 @@ class PaymentApprovalBriefServiceIT {
     var account = service.build(TODAY, List.of()).accounts().getFirst();
 
     assertThat(account.projectedBalance())
-        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), YESTERDAYS_STATEMENT));
+        .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), ZERO, YESTERDAYS_STATEMENT));
   }
 
   @Test
@@ -139,8 +139,11 @@ class PaymentApprovalBriefServiceIT {
             .orElseThrow();
 
     assertThat(withdrawal.projectedBalance())
-        .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), FOUR_PM_REPORT));
+        .isEqualTo(
+            new ProjectedBalance(
+                new BigDecimal("0.00"), new BigDecimal("12345.67"), FOUR_PM_REPORT));
     assertThat(withdrawal.goesNegative()).isFalse();
+    assertThat(withdrawal.coveredOnlyByIncomingTransfer()).isTrue();
   }
 
   @Test

@@ -92,7 +92,8 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account ->
                 assertThat(account.projectedBalance())
-                    .isEqualTo(new ProjectedBalance(new BigDecimal("700.00"), STATEMENT_TIME)));
+                    .isEqualTo(
+                        new ProjectedBalance(new BigDecimal("700.00"), ZERO, STATEMENT_TIME)));
   }
 
   @Test
@@ -144,7 +145,9 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account -> {
               assertThat(account.projectedBalance())
-                  .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), STATEMENT_TIME));
+                  .isEqualTo(
+                      new ProjectedBalance(
+                          new BigDecimal("0.00"), new BigDecimal("400.00"), STATEMENT_TIME));
               assertThat(account.goesNegative()).isFalse();
             });
     assertThat(brief.attention()).isFalse();
@@ -165,7 +168,9 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account -> {
               assertThat(account.projectedBalance())
-                  .isEqualTo(new ProjectedBalance(new BigDecimal("-100.00"), STATEMENT_TIME));
+                  .isEqualTo(
+                      new ProjectedBalance(
+                          new BigDecimal("-100.00"), new BigDecimal("400.00"), STATEMENT_TIME));
               assertThat(account.goesNegative()).isTrue();
             });
   }
@@ -186,7 +191,7 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account -> {
               assertThat(account.projectedBalance())
-                  .isEqualTo(new ProjectedBalance(new BigDecimal("-400.00"), STATEMENT_TIME));
+                  .isEqualTo(new ProjectedBalance(new BigDecimal("-400.00"), ZERO, STATEMENT_TIME));
               assertThat(account.goesNegative()).isTrue();
             });
   }
@@ -205,7 +210,58 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account ->
                 assertThat(account.projectedBalance())
-                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), ZERO, STATEMENT_TIME)));
+  }
+
+  @Test
+  void payoutsThatOnlyTheIncomingTransferCoversSaySoSoTheTransferIsApprovedFirst() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME)));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "450.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.coveredOnlyByIncomingTransfer()).isTrue();
+              assertThat(account.goesNegative()).isFalse();
+            });
+  }
+
+  @Test
+  void payoutsTheBalanceAlreadyCoversDoNotWaitOnTheIncomingTransfer() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME)));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(account -> assertThat(account.coveredOnlyByIncomingTransfer()).isFalse());
+  }
+
+  @Test
+  void payoutsThatGoNegativeEvenWithTheIncomingTransferAreNotCalledCovered() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+    givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(account -> assertThat(account.coveredOnlyByIncomingTransfer()).isFalse());
   }
 
   // In flight means the call never returned a verdict: the payment may or may not have reached the

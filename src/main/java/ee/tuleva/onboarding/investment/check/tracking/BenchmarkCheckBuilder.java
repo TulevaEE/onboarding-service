@@ -123,7 +123,7 @@ class BenchmarkCheckBuilder {
             .breach(breach)
             .consecutiveBreachDays(days)
             .escalationUncheckedDays(
-                breach ? priorBreaches.uncheckedDaysIfTheCheckDateBreaches() : 0)
+                breach ? priorBreaches.uncheckedStreakDaysBeforeTheCheckDate() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)
@@ -280,7 +280,7 @@ class BenchmarkCheckBuilder {
             .breach(breach)
             .consecutiveBreachDays(days)
             .escalationUncheckedDays(
-                breach ? priorBreaches.uncheckedDaysIfTheCheckDateBreaches() : 0)
+                breach ? priorBreaches.uncheckedStreakDaysBeforeTheCheckDate() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)

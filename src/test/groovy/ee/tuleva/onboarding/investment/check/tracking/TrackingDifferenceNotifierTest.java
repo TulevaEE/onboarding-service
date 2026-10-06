@@ -743,10 +743,66 @@ class TrackingDifferenceNotifierTest {
             before it, 2 working days earlier, closed a 3-day breach streak, and no check ran in \
             between. Sisekord 4 p 11.8 made the notification due on working day 4, which had no \
             check, so it is sent now, late: identify the cause and act on it.
+              [4 consecutive days, 2 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void anUncheckedThirdDayIsAssumedToHaveBreachedSoTheCleanDayAfterItIsNotifiedAsTheFourth() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(2, 0, 1))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
               [3 consecutive days, 1 of them with no check, compounded TD over the checked \
             days=+0.60%]
               Compounded: fund=+0.60%, benchmark=0.00%""",
             INVESTMENT);
+  }
+
+  @Test
+  void twoBreachDaysAndTwoUncheckedDaysBeforeACleanDayAreNotifiedLateForTheFourthWorkingDay() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(2, 0, 2))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%). The last check \
+            before it, 3 working days earlier, closed a 2-day breach streak, and no check ran in \
+            between. Sisekord 4 p 11.8 made the notification due on working day 4, which had no \
+            check, so it is sent now, late: identify the cause and act on it.
+              [4 consecutive days, 2 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void aBreachDayAndAnUncheckedDayBeforeACleanDayAreNotNotified() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(1, 0, 1))));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("✅ TUK75 TD check completed: within limits")
+        .doesNotContain("TD ESCALATION");
   }
 
   @Test
@@ -888,6 +944,24 @@ class TrackingDifferenceNotifierTest {
   private TrackingDifferenceResult cleanDayEnding(
       ConsecutiveBreachTracker.ConsecutiveBreachInfo streak) {
     return withinLimitsResult(TUK75).toBuilder().streakBefore(streak).build();
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
+      int checkedThroughDays, int uncheckedDaysInside, int uncheckedDaysSince) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        checkedThroughDays,
+        new BigDecimal("0.0060"),
+        new BigDecimal("0.0060"),
+        ZERO,
+        Map.of(),
+        ZERO,
+        ZERO,
+        ZERO,
+        false,
+        false,
+        false,
+        uncheckedDaysInside,
+        uncheckedDaysSince);
   }
 
   private static ConsecutiveBreachTracker.ConsecutiveBreachInfo threeDayStreak(

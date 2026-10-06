@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.jspecify.annotations.NullMarked;
 
@@ -29,10 +30,11 @@ public class PersonalCode {
 
   private static final Period BASE_RETIREMENT_AGE = Period.ofYears(65);
 
-  public static String fromSubjectIdCode(String subjectIdCode) {
-    return subjectIdCode.startsWith(ESTONIAN_SUBJECT_ID_CODE_PREFIX)
-        ? subjectIdCode.substring(ESTONIAN_SUBJECT_ID_CODE_PREFIX.length())
-        : subjectIdCode;
+  public static Optional<String> fromEstonianSubjectIdCode(String subjectIdCode) {
+    if (!subjectIdCode.startsWith(ESTONIAN_SUBJECT_ID_CODE_PREFIX)) {
+      return Optional.empty();
+    }
+    return Optional.of(subjectIdCode.substring(ESTONIAN_SUBJECT_ID_CODE_PREFIX.length()));
   }
 
   public static int getAge(String personalCode) {

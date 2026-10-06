@@ -14,11 +14,16 @@ class ExpectedErrorCodesSpec extends Specification {
     code                             || expected
     "smart.id.user.refused"          || true
     "smart.id.account.not.found"     || true
+    "smart.id.account.unusable"      || true
     "smart.id.timeout"               || true
+    "smart.id.wrong.verification.code" || true
+    "smart.id.certificate.revoked"   || true
     "mobile.id.cancelled"            || true
     "mobile.id.timeout"              || true
     "mobile.id.no.signal"            || true
     "mobile.id.certificates.revoked" || true
+    "mobile.id.phone.number.invalid" || true
+    "mobile.id.phone.number.required" || true
     "invalid.mandate.checks.missing" || true
     "new.user.flow.signup.error.email.duplicate" || true
     "gift.amount.invalid"            || true

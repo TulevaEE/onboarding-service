@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -27,9 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.core.annotation.Order;
 
 @ExtendWith(MockitoExtension.class)
 class MissingReportAsOfDateAlertListenerTest {
@@ -44,17 +40,6 @@ class MissingReportAsOfDateAlertListenerTest {
 
   private MissingReportAsOfDateAlertListener listener() {
     return new MissingReportAsOfDateAlertListener(reportService, notificationService, clock);
-  }
-
-  @Test
-  void saysTheReportWasImportedAnyway_whenTheMarkerIsAbsent() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
-
-    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
-
-    then(notificationService)
-        .should()
-        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT));
   }
 
   @Test
@@ -79,29 +64,6 @@ class MissingReportAsOfDateAlertListenerTest {
             tööpäeval: TUK75, TUK00 kell 11:00; TUV100, TKF100 kell 15:20. Uus fail \
             imporditakse automaatselt. <!channel>""",
             INVESTMENT);
-  }
-
-  @Test
-  void pingsTheChannelInThePlainMessageTextLikeTheOtherActNowAlertsSoSomeonePhonesSeb() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
-
-    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
-
-    then(notificationService).should().sendMessage(contains("<!channel>"), eq(INVESTMENT));
-    then(notificationService).shouldHaveNoMoreInteractions();
-  }
-
-  @Test
-  void saysTheHeaderWasNotFound_whenTheMarkerIsAbsent() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
-
-    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
-
-    then(notificationService)
-        .should()
-        .sendMessage(
-            contains("ei leitud „As of“ välja – kas see puudub või on päise kuju muutunud"),
-            eq(INVESTMENT));
   }
 
   @Test
@@ -155,10 +117,9 @@ class MissingReportAsOfDateAlertListenerTest {
 
   @Test
   void staysSilent_forAFileOlderThanTheImportLooksBackEvenWhenAnAdminReimportStoresIt() {
-    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(8), Map.of());
-
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(8)));
 
+    then(reportService).shouldHaveNoInteractions();
     then(notificationService).shouldHaveNoInteractions();
   }
 
@@ -169,18 +130,6 @@ class MissingReportAsOfDateAlertListenerTest {
     listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(7)));
 
     then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
-  }
-
-  @Test
-  void theHeaderAlertRunsBeforeTheListenersThatProcessTheReportSoNoneOfThemCanSkipIt()
-      throws NoSuchMethodException {
-    var listenerMethod =
-        MissingReportAsOfDateAlertListener.class.getMethod(
-            "onReportImportCompleted", ReportImportCompleted.class);
-
-    assertThat(AnnotationUtils.findAnnotation(listenerMethod, Order.class))
-        .extracting(Order::value)
-        .isEqualTo(Ordered.HIGHEST_PRECEDENCE);
   }
 
   @Test

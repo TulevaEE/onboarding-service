@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.investment.report.ReportImportJob.LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
@@ -43,15 +44,24 @@ class MissingReportAsOfDateAlertListener {
         || !REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER.contains(event.reportType())) {
       return;
     }
+    if (isOlderThanTheImportLooksBack(event.reportDate())) {
+      log.info(
+          "Stored report is older than the import looks back, not checking its As-of date:"
+              + " provider={}, reportType={}, reportDate={}",
+          event.provider(),
+          event.reportType(),
+          event.reportDate());
+      return;
+    }
     try {
       reportService
           .getReport(event.provider(), event.reportType(), event.reportDate())
           .filter(report -> SebReportHeaders.asOfDate(report) == null)
-          .ifPresent(this::alertUnlessOlderThanTheImportLooksBack);
+          .ifPresent(
+              report -> notificationService.sendMessage(buildSlackMessage(report), INVESTMENT));
     } catch (RuntimeException e) {
       log.error(
-          "Failed to send missing report As-of date alert: provider={}, reportType={},"
-              + " reportDate={}",
+          "Missing report As-of date check failed: provider={}, reportType={}, reportDate={}",
           event.provider(),
           event.reportType(),
           event.reportDate(),
@@ -59,21 +69,8 @@ class MissingReportAsOfDateAlertListener {
     }
   }
 
-  private void alertUnlessOlderThanTheImportLooksBack(InvestmentReport report) {
-    if (isOlderThanTheImportLooksBack(report.getReportDate())) {
-      log.info(
-          "Report with no usable As-of date is older than the import looks back, skipping alert:"
-              + " provider={}, reportType={}, reportDate={}",
-          report.getProvider(),
-          report.getReportType(),
-          report.getReportDate());
-      return;
-    }
-    notificationService.sendMessage(buildSlackMessage(report), INVESTMENT);
-  }
-
   private boolean isOlderThanTheImportLooksBack(LocalDate reportDate) {
-    return reportDate.isBefore(LocalDate.now(clock).minusDays(ReportImportJob.LOOKBACK_DAYS));
+    return reportDate.isBefore(LocalDate.now(clock).minusDays(LOOKBACK_DAYS));
   }
 
   private static String buildSlackMessage(InvestmentReport report) {

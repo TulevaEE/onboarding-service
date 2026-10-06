@@ -180,7 +180,7 @@ class LimitCheckIntegrationTest {
             "severity",
             "cash",
             "liabilities",
-            "pendingTrades",
+            "pendingNetBuys",
             "reserveSoft")
         .containsEntry("fund", "TUK75")
         .containsEntry("severity", "HARD");
@@ -193,7 +193,7 @@ class LimitCheckIntegrationTest {
                 "maxFreeCash", new BigDecimal("10000"),
                 "cash", new BigDecimal("25000"),
                 "liabilities", new BigDecimal("-3000"),
-                "pendingTrades", BigDecimal.ZERO,
+                "pendingNetBuys", BigDecimal.ZERO,
                 "reserveSoft", new BigDecimal("5000")));
   }
 

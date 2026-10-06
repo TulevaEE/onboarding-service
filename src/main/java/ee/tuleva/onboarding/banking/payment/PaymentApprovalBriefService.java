@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
@@ -94,7 +95,7 @@ public class PaymentApprovalBriefService {
                     new PaymentApprovalBrief.ProjectedBalance(
                         balance
                             .amount()
-                            .add(sum(incomingTo(iban, awaitingApproval)))
+                            .add(sum(submittedTransfersInto(iban, awaitingApproval)))
                             .subtract(sum(payments)),
                         balance.asOf()))
             .orElse(null);
@@ -114,9 +115,10 @@ public class PaymentApprovalBriefService {
         accountName, flows, payments.size(), sum(payments), projected);
   }
 
-  private static List<OutgoingPayment> incomingTo(
+  private static List<OutgoingPayment> submittedTransfersInto(
       String iban, List<OutgoingPayment> awaitingApproval) {
     return awaitingApproval.stream()
+        .filter(payment -> payment.getStatus() == SUBMITTED)
         .filter(payment -> payment.getBeneficiaryIban().equals(iban))
         .toList();
   }

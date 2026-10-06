@@ -32,7 +32,7 @@ class CashBufferReviewNotifier {
     var sustainedDrifts = reviews(outcomes).filter(CashBufferReview::driftSustained).toList();
     var unrecognisedPayouts =
         reviews(outcomes)
-            .filter(review -> review.reviewMonthFlows().unrecognisedPayouts() > 0)
+            .filter(review -> review.window().lastMonthFlows().unrecognisedPayouts() > 0)
             .toList();
     var debitsInSuspense =
         reviewed(outcomes)
@@ -150,7 +150,7 @@ class CashBufferReviewNotifier {
   }
 
   private static String unrecognisedLine(CashBufferReview review) {
-    var flows = review.reviewMonthFlows();
+    var flows = review.window().lastMonthFlows();
     return "%s: %d registrar payout(s), %s EUR booked in %s"
         .formatted(
             review.fund(),

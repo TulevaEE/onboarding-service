@@ -45,6 +45,10 @@ record FlowWindow(List<MonthlyFlows> months) {
     return months.getLast().month();
   }
 
+  MonthlyFlows lastMonthFlows() {
+    return months.getLast();
+  }
+
   int depth() {
     return months.size();
   }

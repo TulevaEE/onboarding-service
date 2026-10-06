@@ -380,7 +380,7 @@ class NavCalculationServiceTest {
             .priceSource(MORNINGSTAR)
             .build();
 
-    givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
+    givenAWorkingDayWithOnlySecuritiesAndCash(previousWorkingDay, ZERO);
     given(securitiesValueComponent.calculate(any()))
         .willAnswer(
             invocation -> {
@@ -405,12 +405,12 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void calculate_failsWhenAHeldSecurityHasNoPriceInTheSecuritiesValue() {
+  void calculate_failsWhenAHeldSecurityHasNoPriceInTheSecuritiesValueThoughTheNavIsPositive() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
 
-    givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
+    givenAWorkingDayWithOnlySecuritiesAndCash(previousWorkingDay, new BigDecimal("1000.00"));
     given(securitiesValueComponent.calculate(any()))
         .willAnswer(
             invocation -> {
@@ -425,12 +425,13 @@ class NavCalculationServiceTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
-  private void givenAWorkingDayWithNothingButSecurities(LocalDate previousWorkingDay) {
+  private void givenAWorkingDayWithOnlySecuritiesAndCash(
+      LocalDate previousWorkingDay, BigDecimal cash) {
     given(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .willReturn(Optional.of(previousWorkingDay));
     given(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .willReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
-    given(cashPositionComponent.calculate(any())).willReturn(ZERO);
+    given(cashPositionComponent.calculate(any())).willReturn(cash);
     given(receivablesComponent.calculate(any())).willReturn(ZERO);
     given(payablesComponent.calculate(any())).willReturn(ZERO);
     given(subscriptionsComponent.calculate(any())).willReturn(ZERO);

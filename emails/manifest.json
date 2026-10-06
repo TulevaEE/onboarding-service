@@ -206,7 +206,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_en": {
-      "subject": "Contribution to Tuleva Additional Investment Fund is done",
+      "subject": "Your contribution has been received",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -216,7 +216,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Contribution to Tuleva Additional Investment Fund is done",
+      "subject": "Your contribution has been received",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },

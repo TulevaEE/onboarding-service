@@ -43,7 +43,7 @@ class CashBufferReviewService {
       YearMonth reviewMonth, LocalDate reviewedOn) {
     return reviewAndReport(
         fundsSettlingWithThePensionRegistrar()
-            .filter(fund -> repository.findByFundAndMonth(fund, reviewMonth).isEmpty()),
+            .filter(fund -> !repository.existsFor(fund, reviewMonth)),
         reviewMonth,
         reviewedOn);
   }

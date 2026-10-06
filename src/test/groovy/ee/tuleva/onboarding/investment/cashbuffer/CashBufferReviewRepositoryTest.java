@@ -94,6 +94,18 @@ class CashBufferReviewRepositoryTest {
     assertThat(repository.findByFundAndMonth(TUK75, SEPTEMBER.minusMonths(1))).isEmpty();
   }
 
+  @Test
+  void knowsWhichFundsAlreadyHaveAStoredReviewForTheMonth() {
+    repository.save(review(TUK75, SEPTEMBER, "44700.00", null));
+
+    assertThat(
+            List.of(
+                repository.existsFor(TUK75, SEPTEMBER),
+                repository.existsFor(TUK00, SEPTEMBER),
+                repository.existsFor(TUK75, SEPTEMBER.minusMonths(1))))
+        .containsExactly(true, false, false);
+  }
+
   private long rowsIn(String table) {
     return jdbcClient.sql("SELECT COUNT(*) FROM " + table).query(Long.class).single();
   }

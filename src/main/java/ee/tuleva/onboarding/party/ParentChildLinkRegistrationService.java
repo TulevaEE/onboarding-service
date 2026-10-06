@@ -13,7 +13,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +23,6 @@ public class ParentChildLinkRegistrationService {
 
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final UserService userService;
-  private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
   @Transactional
@@ -111,16 +109,13 @@ public class ParentChildLinkRegistrationService {
         childPersonalCode,
         relationshipType,
         validUntil);
-    ParentChildLink saved =
-        parentChildLinkRepository.save(
-            ParentChildLink.builder()
-                .parentPersonalCode(parentPersonalCode)
-                .childPersonalCode(childPersonalCode)
-                .relationshipType(relationshipType)
-                .validUntil(validUntil)
-                .build());
-    publishCreated(saved);
-    return saved;
+    return parentChildLinkRepository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(parentPersonalCode)
+            .childPersonalCode(childPersonalCode)
+            .relationshipType(relationshipType)
+            .validUntil(validUntil)
+            .build());
   }
 
   private ParentChildLink activate(ParentChildLink pending) {
@@ -129,15 +124,7 @@ public class ParentChildLinkRegistrationService {
         pending.getParentPersonalCode(),
         pending.getChildPersonalCode());
     pending.activate();
-    ParentChildLink saved = parentChildLinkRepository.save(pending);
-    publishCreated(saved);
-    return saved;
-  }
-
-  private void publishCreated(ParentChildLink link) {
-    applicationEventPublisher.publishEvent(
-        new ParentChildLinkCreatedEvent(
-            link.getParentPersonalCode(), link.getChildPersonalCode(), link.getRelationshipType()));
+    return parentChildLinkRepository.save(pending);
   }
 
   private void requireMinor(String childPersonalCode) {

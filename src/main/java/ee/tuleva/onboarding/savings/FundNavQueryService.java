@@ -25,6 +25,10 @@ public class FundNavQueryService {
 
   private final NavReportRepository navReportRepository;
 
+  public boolean hasPublishedNav(String fundCode, LocalDate navDate) {
+    return navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode);
+  }
+
   public Optional<BigDecimal> findPublishedNavPerUnit(String fundCode, LocalDate navDate) {
     return navReportRepository.findPublishedNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
   }
@@ -98,7 +102,7 @@ public class FundNavQueryService {
 
   private Optional<BigDecimal> sumForPublishedCalculation(
       String fundCode, LocalDate navDate, List<String> accountTypes) {
-    if (!navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)) {
+    if (!hasPublishedNav(fundCode, navDate)) {
       return Optional.empty();
     }
     return Optional.of(

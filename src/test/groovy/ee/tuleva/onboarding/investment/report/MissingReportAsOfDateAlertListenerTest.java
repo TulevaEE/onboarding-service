@@ -16,6 +16,7 @@ import static org.mockito.BDDMockito.willThrow;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -34,12 +35,14 @@ class MissingReportAsOfDateAlertListenerTest {
 
   @Mock private InvestmentReportService reportService;
   @Mock private OperationsNotificationService notificationService;
+  @Mock private FundNavQueryService fundNavQueryService;
 
   private final Clock clock =
       Clock.fixed(REPORT_DATE.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
 
   private MissingReportAsOfDateAlertListener listener() {
-    return new MissingReportAsOfDateAlertListener(reportService, notificationService, clock);
+    return new MissingReportAsOfDateAlertListener(
+        reportService, fundNavQueryService, notificationService, clock);
   }
 
   @Test
@@ -63,6 +66,28 @@ class MissingReportAsOfDateAlertListenerTest {
             arvutamata, peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel \
             tööpäeval: TUK75, TUK00 kell 11:00; TUV100, TKF100 kell 15:20. Uus fail \
             imporditakse automaatselt. <!channel>""",
+            INVESTMENT);
+  }
+
+  @Test
+  void
+      saysTheNavIsAlreadyCalculatedWithoutPingingTheChannel_whenEveryFundsNavForThatDateIsPublished() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
+    given(fundNavQueryService.hasPublishedNav(any(), eq(REPORT_DATE))).willReturn(true);
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ SEB POSITIONS raportis puudub kasutatav „As of“ kuupäev – 2026-01-26
+            Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on \
+            päise kuju muutunud.
+            Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. Kui \
+            faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute reported_date \
+            ühe päeva võrra nihkes.
+            Selle kuupäeva NAV on kõigile fondidele juba arvutatud.""",
             INVESTMENT);
   }
 

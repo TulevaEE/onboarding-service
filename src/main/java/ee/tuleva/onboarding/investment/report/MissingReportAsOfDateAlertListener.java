@@ -12,6 +12,7 @@ import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -34,6 +35,7 @@ class MissingReportAsOfDateAlertListener {
   private static final int MAX_QUOTED_VALUE_LENGTH = 100;
 
   private final InvestmentReportService reportService;
+  private final FundNavQueryService fundNavQueryService;
   private final OperationsNotificationService notificationService;
   private final Clock clock;
 
@@ -57,8 +59,7 @@ class MissingReportAsOfDateAlertListener {
       reportService
           .getReport(event.provider(), event.reportType(), event.reportDate())
           .filter(report -> SebReportHeaders.asOfDate(report) == null)
-          .ifPresent(
-              report -> notificationService.sendMessage(buildSlackMessage(report), INVESTMENT));
+          .ifPresent(report -> notificationService.sendMessage(slackMessage(report), INVESTMENT));
     } catch (RuntimeException e) {
       log.error(
           "Missing report As-of date check failed: provider={}, reportType={}, reportDate={}",
@@ -73,23 +74,45 @@ class MissingReportAsOfDateAlertListener {
     return reportDate.isBefore(LocalDate.now(clock).minusDays(LOOKBACK_DAYS));
   }
 
-  private static String buildSlackMessage(InvestmentReport report) {
+  private String slackMessage(InvestmentReport report) {
+    return isNavCalculatedForEveryFund(report.getReportDate())
+        ? navAlreadyCalculatedMessage(report)
+        : resendBeforeNavMessage(report);
+  }
+
+  private boolean isNavCalculatedForEveryFund(LocalDate navDate) {
+    return Arrays.stream(TulevaFund.values())
+        .filter(TulevaFund::hasNavCalculation)
+        .allMatch(fund -> fundNavQueryService.hasPublishedNav(fund.getCode(), navDate));
+  }
+
+  private static String navAlreadyCalculatedMessage(InvestmentReport report) {
     return """
-        🔴 %s %s raportis puudub kasutatav „As of“ kuupäev – %s
-        %s
-        Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. \
-        Kui faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute \
-        reported_date ühe päeva võrra nihkes.
+        ⚠️ %s
+        Selle kuupäeva NAV on kõigile fondidele juba arvutatud."""
+        .formatted(whatIsWrong(report));
+  }
+
+  private static String resendBeforeNavMessage(InvestmentReport report) {
+    return """
+        🔴 %s
         Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
         vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel arvutamata, \
         peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel tööpäeval: %s. \
         Uus fail imporditakse automaatselt. <!channel>"""
+        .formatted(whatIsWrong(report), navCalculationTimes());
+  }
+
+  private static String whatIsWrong(InvestmentReport report) {
+    return """
+        %s %s raportis puudub kasutatav „As of“ kuupäev – %s
+        %s
+        Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. \
+        Kui faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute \
+        reported_date ühe päeva võrra nihkes.\
+        """
         .formatted(
-            report.getProvider(),
-            report.getReportType(),
-            report.getReportDate(),
-            cause(report),
-            navCalculationTimes());
+            report.getProvider(), report.getReportType(), report.getReportDate(), cause(report));
   }
 
   private static String navCalculationTimes() {

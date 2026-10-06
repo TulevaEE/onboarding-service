@@ -17,6 +17,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -280,5 +281,125 @@ class ParentChildLinkServiceTest {
         .willReturn(false);
 
     assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday, TODAY)).isFalse();
+  }
+
+  @Test
+  void findsTheParentWhoseActiveLinkToTheChildWasCreatedFirst() {
+    var coParent = "48001010000";
+    var coParentLink =
+        link(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            coParent,
+            LEGAL_REPRESENTATIVE,
+            ACTIVE,
+            Instant.parse("2026-05-02T10:00:00Z"));
+    var startingParentLink =
+        link(LINK_ID, PARENT, LEGAL_REPRESENTATIVE, ACTIVE, Instant.parse("2026-05-01T10:00:00Z"));
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, ACTIVE, TODAY))
+        .willReturn(List.of(coParentLink, startingParentLink));
+
+    assertThat(service.findFirstActiveRepresentative(CHILD)).contains(PARENT);
+  }
+
+  @Test
+  void prefersTheParentOverAnOlderGuardianLinkOperationsCreated() {
+    var guardian = "48001010000";
+    var guardianLink =
+        link(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            guardian,
+            GUARDIAN,
+            ACTIVE,
+            Instant.parse("2026-04-01T10:00:00Z"));
+    var parentLink =
+        link(LINK_ID, PARENT, LEGAL_REPRESENTATIVE, ACTIVE, Instant.parse("2026-05-01T10:00:00Z"));
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, ACTIVE, TODAY))
+        .willReturn(List.of(guardianLink, parentLink));
+
+    assertThat(service.findFirstActiveRepresentative(CHILD)).contains(PARENT);
+  }
+
+  @Test
+  void ranksALinkWithoutACreationTimeAfterOnesThatHaveIt() {
+    var legacyParent = "48001010000";
+    var legacyLink =
+        link(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            legacyParent,
+            LEGAL_REPRESENTATIVE,
+            ACTIVE,
+            null);
+    var datedLink =
+        link(LINK_ID, PARENT, LEGAL_REPRESENTATIVE, ACTIVE, Instant.parse("2026-05-01T10:00:00Z"));
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, ACTIVE, TODAY))
+        .willReturn(List.of(legacyLink, datedLink));
+
+    assertThat(service.findFirstActiveRepresentative(CHILD)).contains(PARENT);
+  }
+
+  @Test
+  void findsNoFirstRepresentativeWhenNobodyActivelyRepresentsTheChild() {
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, ACTIVE, TODAY))
+        .willReturn(List.of());
+
+    assertThat(service.findFirstActiveRepresentative(CHILD)).isEmpty();
+  }
+
+  @Test
+  void knowsWhenAChildHasARepresentativeWhoHasNotConfirmedYet() {
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, PENDING_KYC, TODAY))
+        .willReturn(
+            List.of(
+                link(
+                    LINK_ID,
+                    PARENT,
+                    LEGAL_REPRESENTATIVE,
+                    PENDING_KYC,
+                    Instant.parse("2026-05-01T10:00:00Z"))));
+
+    assertThat(service.hasPendingRepresentative(CHILD)).isTrue();
+  }
+
+  @Test
+  void knowsWhenNobodyIsWaitingToConfirm() {
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, PENDING_KYC, TODAY))
+        .willReturn(List.of());
+
+    assertThat(service.hasPendingRepresentative(CHILD)).isFalse();
+  }
+
+  private static ParentChildLink link(
+      UUID id,
+      String parent,
+      RepresentationType type,
+      ParentChildLinkStatus status,
+      @Nullable Instant createdDate) {
+    return ParentChildLink.builder()
+        .id(id)
+        .parentPersonalCode(parent)
+        .childPersonalCode(CHILD)
+        .relationshipType(type)
+        .status(status)
+        .validUntil(LocalDate.of(2030, 1, 1))
+        .createdDate(createdDate)
+        .build();
   }
 }

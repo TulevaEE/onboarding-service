@@ -44,6 +44,25 @@ public class ParentChildLinkService implements ChildRepresentations {
     return children;
   }
 
+  public Optional<String> findFirstActiveRepresentative(String childPersonalCode) {
+    return parentChildLinkRepository
+        .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+            childPersonalCode, ACTIVE, today())
+        .stream()
+        .min(
+            comparing((ParentChildLink link) -> link.getRelationshipType() == GUARDIAN ? 1 : 0)
+                .thenComparing(ParentChildLink::getCreatedDate, nullsLast(naturalOrder()))
+                .thenComparing(CANONICAL_LINK))
+        .map(ParentChildLink::getParentPersonalCode);
+  }
+
+  public boolean hasPendingRepresentative(String childPersonalCode) {
+    return !parentChildLinkRepository
+        .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+            childPersonalCode, PENDING_KYC, today())
+        .isEmpty();
+  }
+
   // One canonical link per parent and child, so a role listed in /v1/me/roles and a deep link
   // built for the same child always name the same one.
   public Optional<UUID> findRepresentation(

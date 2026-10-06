@@ -117,10 +117,9 @@ class PaymentApprovalBriefServiceIT {
         .isEqualTo(new ProjectedBalance(new BigDecimal("19386.49"), YESTERDAYS_STATEMENT));
   }
 
-  // The 16:00 report shows the withdrawal account at zero: the money for today's payouts is still
-  // in the fund account, and the transfer that moves it is waiting on the same brief.
   @Test
-  void theTransferIntoTheWithdrawalAccountIsAddedBeforeItsPayoutsAreSubtracted() {
+  void
+      theTransferStillInTheFundAccountAtFourIsAddedToTheWithdrawalAccountBeforeItsPayoutsAreSubtracted() {
     given(bankAccounts.find(FUND_INVESTMENT_IBAN))
         .willReturn(
             Optional.of(

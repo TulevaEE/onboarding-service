@@ -126,10 +126,8 @@ class PaymentApprovalBriefServiceTest {
     assertThat(brief.attention()).isTrue();
   }
 
-  // The withdrawal account sits at zero until the fund account's transfer lands, and that transfer
-  // is on the same brief. Leaving it out would call the account negative on every redemption day.
   @Test
-  void theTransferIntoAnAccountOnTheSameBriefFundsItsPayouts() {
+  void theTransferIntoAnAccountOnTheSameBriefFundsItsPayoutsSoARedemptionDayIsNotCalledNegative() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
         .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
@@ -172,10 +170,29 @@ class PaymentApprovalBriefServiceTest {
             });
   }
 
-  // An executed transfer is already in the processed statement's balance, so adding it again would
-  // hide a shortfall behind money counted twice.
   @Test
-  void aTransferAlreadyExecutedIsInTheBalanceAndIsNotAddedAgain() {
+  void aTransferStillInFlightMayNeverReachTheBankSoItsPayoutsStillGoNegative() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME)));
+    givenPayments(
+        transfer(ATTEMPTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(new ProjectedBalance(new BigDecimal("-400.00"), STATEMENT_TIME));
+              assertThat(account.goesNegative()).isTrue();
+            });
+  }
+
+  @Test
+  void aTransferAlreadyExecutedIsInTheBalanceAndIsNotCountedTwice() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
         .willReturn(Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME)));

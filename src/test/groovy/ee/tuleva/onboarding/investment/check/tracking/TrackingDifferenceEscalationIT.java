@@ -35,6 +35,13 @@ class TrackingDifferenceEscalationIT {
   private static final LocalDate THURSDAY = LocalDate.of(2026, 9, 17);
   private static final LocalDate FRIDAY = LocalDate.of(2026, 9, 18);
   private static final LocalDate NEXT_MONDAY = LocalDate.of(2026, 9, 21);
+  private static final LocalDate SEPTEMBER_28 = LocalDate.of(2026, 9, 28);
+  private static final LocalDate SEPTEMBER_29 = LocalDate.of(2026, 9, 29);
+  private static final LocalDate SEPTEMBER_30 = LocalDate.of(2026, 9, 30);
+  private static final LocalDate TEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER =
+      LocalDate.of(2026, 10, 15);
+  private static final LocalDate ELEVEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER =
+      LocalDate.of(2026, 10, 16);
 
   private static final LocalDate TUESDAY_BEFORE_ANY_ESCALATION_PARAMETER =
       LocalDate.of(2024, 12, 10);
@@ -164,6 +171,46 @@ class TrackingDifferenceEscalationIT {
     var escalated = escalatedOn(breach(TUESDAY), breach(WEDNESDAY), clean(FRIDAY));
 
     assertThat(escalated).isEmpty();
+  }
+
+  @Test
+  void aStreakIsStillNotifiedLateAfterTenWorkingDaysWithNoCheck() {
+    var escalated =
+        escalatedOn(
+            breach(SEPTEMBER_28),
+            breach(SEPTEMBER_29),
+            breach(SEPTEMBER_30),
+            clean(TEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER));
+
+    assertThat(escalated).containsExactly(TEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER);
+    assertThat(notifications.lastMessage()).contains("so it is sent now, late");
+  }
+
+  @Test
+  void elevenWorkingDaysWithNoCheckEndTheStreakSoTheCleanDayAfterThemSendsNoLateNotice() {
+    var escalated =
+        escalatedOn(
+            breach(SEPTEMBER_28),
+            breach(SEPTEMBER_29),
+            breach(SEPTEMBER_30),
+            clean(ELEVEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER));
+
+    assertThat(escalated).isEmpty();
+  }
+
+  @Test
+  void aBreachAfterElevenWorkingDaysWithNoCheckStartsANewStreak() {
+    escalatedOn(
+        breach(SEPTEMBER_28),
+        breach(SEPTEMBER_29),
+        breach(SEPTEMBER_30),
+        breach(ELEVEN_WORKING_DAYS_WITHOUT_A_CHECK_LATER));
+
+    assertThat(
+            eventRepository.findAll().stream()
+                .sorted(comparing(TrackingDifferenceEvent::getCheckDate))
+                .map(TrackingDifferenceEvent::getConsecutiveBreachDays))
+        .containsExactly(1, 2, 3, 1);
   }
 
   @Test

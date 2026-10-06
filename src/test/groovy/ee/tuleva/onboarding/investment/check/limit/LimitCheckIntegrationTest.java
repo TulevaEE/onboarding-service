@@ -200,13 +200,7 @@ class LimitCheckIntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(storedLargestPosition(TUK75))
-        .asInstanceOf(MAP)
-        .containsOnlyKeys("isin", "percentOfNav")
-        .containsEntry("isin", "IE00UNLIMITED")
-        .extractingByKey("percentOfNav")
-        .satisfies(
-            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("35"));
+    assertStoredLargestPosition(TUK75, "IE00UNLIMITED", "35");
   }
 
   @Test
@@ -220,13 +214,7 @@ class LimitCheckIntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(storedLargestPosition(TUK75))
-        .asInstanceOf(MAP)
-        .containsOnlyKeys("isin", "percentOfNav")
-        .containsEntry("isin", "IE00UNLIMITED")
-        .extractingByKey("percentOfNav")
-        .satisfies(
-            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("35"));
+    assertStoredLargestPosition(TUK75, "IE00UNLIMITED", "35");
   }
 
   @Test
@@ -238,13 +226,7 @@ class LimitCheckIntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(storedLargestPosition(TUK75))
-        .asInstanceOf(MAP)
-        .containsOnlyKeys("isin", "percentOfNav")
-        .containsEntry("isin", "IE00NAVONLY")
-        .extractingByKey("percentOfNav")
-        .satisfies(
-            percent -> assertThat(new BigDecimal(percent.toString())).isEqualByComparingTo("40"));
+    assertStoredLargestPosition(TUK75, "IE00NAVONLY", "40");
   }
 
   @Test
@@ -423,6 +405,19 @@ class LimitCheckIntegrationTest {
         .param("accountId", accountId)
         .param("marketValue", BigDecimal.valueOf(marketValue))
         .update();
+  }
+
+  private void assertStoredLargestPosition(
+      TulevaFund fund, String expectedIsin, String expectedPercentOfNav) {
+    assertThat(storedLargestPosition(fund))
+        .asInstanceOf(MAP)
+        .containsOnlyKeys("isin", "percentOfNav")
+        .containsEntry("isin", expectedIsin)
+        .extractingByKey("percentOfNav")
+        .satisfies(
+            percent ->
+                assertThat(new BigDecimal(percent.toString()))
+                    .isEqualByComparingTo(expectedPercentOfNav));
   }
 
   private Object storedLargestPosition(TulevaFund fund) {

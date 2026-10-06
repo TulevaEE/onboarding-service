@@ -326,7 +326,7 @@ class TrackingDifferenceNotifier {
           + formatBenchmarkGap(result);
     }
     if (verdict.escalation()) {
-      return EndedStreakNotice.format(result)
+      return EndedStreakNotice.format(result, verdict.notificationWorkingDay())
           + formatCountWarnings(result)
           + formatBenchmarkGap(result);
     }

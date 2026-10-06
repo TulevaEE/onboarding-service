@@ -24,7 +24,7 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   }
 
   Verdict judge(TrackingDifferenceResult result) {
-    return new Verdict(result, escalates(result), fallback);
+    return new Verdict(result, escalates(result), notificationWorkingDay, fallback);
   }
 
   private boolean escalates(TrackingDifferenceResult result) {
@@ -45,7 +45,11 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
         && streakBefore.owesTheNotification(notificationWorkingDay, netTdThreshold);
   }
 
-  record Verdict(TrackingDifferenceResult result, boolean escalation, boolean fallback) {
+  record Verdict(
+      TrackingDifferenceResult result,
+      boolean escalation,
+      int notificationWorkingDay,
+      boolean fallback) {
 
     boolean breached() {
       return result.hasAnyBreach();

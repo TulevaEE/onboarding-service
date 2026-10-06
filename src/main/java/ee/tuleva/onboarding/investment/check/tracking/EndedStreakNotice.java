@@ -9,10 +9,10 @@ final class EndedStreakNotice {
 
   private EndedStreakNotice() {}
 
-  static String format(TrackingDifferenceResult result) {
+  static String format(TrackingDifferenceResult result, int notificationWorkingDay) {
     var endedStreak = requireNonNull(result.streakBefore());
-    return (endedStreak.uncheckedDaysSince() > 0
-            ? afterUncheckedDays(result, endedStreak)
+    return (endedStreak.streakDaysBeforeTheCheckDate() >= notificationWorkingDay
+            ? afterUncheckedDays(result, endedStreak, notificationWorkingDay)
             : onTheDayItFallsDue(result, endedStreak))
         + EscalationSection.ofEndedStreak(endedStreak).describe()
         + navResidualBreachNote(endedStreak);
@@ -28,12 +28,14 @@ final class EndedStreakNotice {
             result.checkType(),
             result.checkDate(),
             formatPercent(result.trackingDifference()),
-            endedStreak.count(),
-            endedStreak.count() + 1);
+            endedStreak.streakDaysBeforeTheCheckDate(),
+            endedStreak.streakDaysBeforeTheCheckDate() + 1);
   }
 
   private static String afterUncheckedDays(
-      TrackingDifferenceResult result, ConsecutiveBreachInfo endedStreak) {
+      TrackingDifferenceResult result,
+      ConsecutiveBreachInfo endedStreak,
+      int notificationWorkingDay) {
     return ("\n🛑 [%s] %s %s: within limits (TD=%s%%). The last check before it, %d working"
             + " days earlier, closed a %d-day breach streak, and no check ran in between."
             + " Sisekord 4 p 11.8 made the notification due on working day %d, which had no"
@@ -45,7 +47,7 @@ final class EndedStreakNotice {
             formatPercent(result.trackingDifference()),
             endedStreak.uncheckedDaysSince() + 1,
             endedStreak.count(),
-            endedStreak.count() + 1);
+            notificationWorkingDay);
   }
 
   private static String navResidualBreachNote(ConsecutiveBreachInfo endedStreak) {

@@ -167,8 +167,19 @@ class TrackingDifferenceEscalationIT {
   }
 
   @Test
-  void anUncheckedDayBeforeACleanDayDoesNotLengthenTheStreakItEnded() {
+  void anUncheckedThirdDayIsAssumedToHaveBreachedSoTheCleanDayAfterItIsNotifiedAsTheFourth() {
     var escalated = escalatedOn(breach(TUESDAY), breach(WEDNESDAY), clean(FRIDAY));
+
+    assertThat(escalated).containsExactly(FRIDAY);
+    assertThat(notifications.lastMessage())
+        .contains("but the 3 working days before it breached")
+        .contains("makes the notification due on this day, working day 4")
+        .contains("[3 consecutive days, 1 of them with no check");
+  }
+
+  @Test
+  void aBreachDayAndAnUncheckedDayBeforeACleanDayAreNotNotified() {
+    var escalated = escalatedOn(breach(WEDNESDAY), clean(FRIDAY));
 
     assertThat(escalated).isEmpty();
   }

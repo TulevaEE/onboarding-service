@@ -34,8 +34,8 @@ record EscalationSection(
 
   static EscalationSection ofEndedStreak(ConsecutiveBreachInfo streak) {
     return new EscalationSection(
-        streak.count(),
-        streak.uncheckedDays(),
+        streak.streakDaysBeforeTheCheckDate(),
+        streak.uncheckedStreakDaysBeforeTheCheckDate(),
         streak.compoundedTd(),
         streak.compoundedFundReturn(),
         streak.compoundedBenchmarkReturn(),

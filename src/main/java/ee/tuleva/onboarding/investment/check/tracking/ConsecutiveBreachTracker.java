@@ -40,16 +40,21 @@ class ConsecutiveBreachTracker {
       int uncheckedDays,
       int uncheckedDaysSince) {
 
-    int streakDaysIfTheCheckDateBreaches() {
-      return count + uncheckedDaysSince + 1;
+    int streakDaysBeforeTheCheckDate() {
+      return count + uncheckedDaysSince;
     }
 
-    int uncheckedDaysIfTheCheckDateBreaches() {
+    int uncheckedStreakDaysBeforeTheCheckDate() {
       return uncheckedDays + uncheckedDaysSince;
     }
 
+    int streakDaysIfTheCheckDateBreaches() {
+      return streakDaysBeforeTheCheckDate() + 1;
+    }
+
     boolean owesTheNotification(int notificationWorkingDay, BigDecimal netTdThreshold) {
-      return count == notificationWorkingDay - 1
+      return count < notificationWorkingDay
+          && streakDaysBeforeTheCheckDate() >= notificationWorkingDay - 1
           && (hadNavResidualBreach || compoundedTd.abs().compareTo(netTdThreshold) >= 0);
     }
   }
@@ -250,7 +255,7 @@ class ConsecutiveBreachTracker {
     return result.toBuilder()
         .consecutiveBreachDays(days)
         .streakBefore(priorBreaches)
-        .escalationUncheckedDays(priorBreaches.uncheckedDaysIfTheCheckDateBreaches())
+        .escalationUncheckedDays(priorBreaches.uncheckedStreakDaysBeforeTheCheckDate())
         .consecutiveNetTd(compoundedTd)
         .escalationNavResidualBreach(streakHadNavResidualBreach)
         .escalationCountTruncated(priorBreaches.truncated())

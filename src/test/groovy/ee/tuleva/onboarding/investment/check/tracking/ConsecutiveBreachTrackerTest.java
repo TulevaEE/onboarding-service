@@ -187,7 +187,8 @@ class ConsecutiveBreachTrackerTest {
   }
 
   @Test
-  void aCleanCheckDateLeavesTheUncheckedDaysBeforeItOutOfTheStreakItEnded() {
+  void
+      aCleanCheckDateKeepsNoStreakOfItsOwnAndCarriesTheUncheckedDaysBeforeItWithTheStreakItEnded() {
     var endedStreak = streakOf(3, 0, 1);
 
     var result = tracker.updateConsecutiveCount(nonBreachingResult(), endedStreak);

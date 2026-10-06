@@ -8,13 +8,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.command.IdCardAuthenticateCommand;
 import ee.tuleva.onboarding.auth.command.MobileIdAuthenticateCommand;
-import ee.tuleva.onboarding.auth.command.SmartIdAuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
-import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdLoginStarter;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
 import ee.tuleva.onboarding.auth.response.IdCardLoginResponse;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,8 +36,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-  private final MobileIdAuthService mobileIdAuthService;
-  private final SmartIdAuthService smartIdAuthService;
+  private final MobileIdLoginStarter mobileIdLoginStarter;
   private final IdCardAuthService idCardAuthService;
   private final WebEidAuthService webEidAuthService;
   private final GenericSessionStore genericSessionStore;
@@ -62,14 +59,9 @@ public class AuthController {
         var challengeNonce = webEidAuthService.generateChallenge();
         yield AuthenticateResponse.fromWebEidChallenge(challengeNonce);
       }
-      case SmartIdAuthenticateCommand cmd -> {
-        var httpSessionId = request.getSession(true).getId();
-        var loginSession = smartIdAuthService.startLogin(cmd.personalCode(), httpSessionId);
-        genericSessionStore.save(loginSession);
-        yield AuthenticateResponse.fromSmartIdSession(loginSession);
-      }
       case MobileIdAuthenticateCommand cmd -> {
-        var loginSession = mobileIdAuthService.startLogin(cmd.phoneNumber(), cmd.personalCode());
+        var loginSession =
+            mobileIdLoginStarter.start(cmd.phoneNumber(), cmd.personalCode(), cmd.rememberMe());
         genericSessionStore.save(loginSession);
         yield AuthenticateResponse.fromMobileIdSession(loginSession);
       }

@@ -45,6 +45,10 @@ public enum IdDocumentType {
         .orElseThrow(() -> new UnknownDocumentTypeException(identifier));
   }
 
+  public boolean isAllowedToLogIn() {
+    return !List.of(E_RESIDENT_DIGITAL_ID_CARD, EUROPEAN_CITIZEN_ID_CARD).contains(this);
+  }
+
   public @Nullable Boolean isResident() {
     if (List.of(ESTONIAN_CITIZEN_ID_CARD, OLD_ID_CARD).contains(this)) {
       return true;

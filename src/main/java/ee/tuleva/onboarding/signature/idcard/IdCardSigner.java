@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.signature.idcard;
 
+import static ee.tuleva.onboarding.signature.SigningCertificates.belongsTo;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.digidoc4j.exceptions.CertificateValidationException.CertificateValidationStatus.REVOKED;
 
-import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.SignableEntity;
@@ -126,16 +126,13 @@ public class IdCardSigner {
   }
 
   private static void requireBelongsToSigner(X509Certificate certificate, String personalCode) {
-    if (!subjectIdCode(certificate).equals(personalCode)) {
-      throw new SigningCertificateMismatchException();
-    }
-  }
-
-  private static String subjectIdCode(X509Certificate certificate) {
     try {
-      return PersonalCode.fromSubjectIdCode(
-          CertificateData.getSubjectIdCode(certificate)
-              .orElseThrow(InvalidSigningCertificateException::new));
+      if (CertificateData.getSubjectIdCode(certificate).isEmpty()) {
+        throw new InvalidSigningCertificateException();
+      }
+      if (!belongsTo(certificate, personalCode)) {
+        throw new SigningCertificateMismatchException();
+      }
     } catch (CertificateEncodingException e) {
       throw new InvalidSigningCertificateException(e);
     }

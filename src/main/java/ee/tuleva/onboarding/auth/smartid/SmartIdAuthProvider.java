@@ -2,13 +2,12 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
 import static ee.tuleva.onboarding.auth.GrantType.SMART_ID;
-import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
+import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER;
 
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.time.Clock;
 import java.time.Duration;
@@ -22,10 +21,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmartIdAuthProvider implements AuthProvider {
 
-  // SK accepts up to ~90s of user idle; 180s covers that plus poll/write-back roundtrip.
-  private static final Duration GRANT_TTL = Duration.ofSeconds(180);
-
   private final GenericSessionStore genericSessionStore;
+  private final SmartIdAuthService smartIdAuthService;
+  private final RememberedSmartIdAccounts rememberedSmartIdAccounts;
   private final PrincipalService principalService;
   private final Clock clock;
 
@@ -41,22 +39,62 @@ public class SmartIdAuthProvider implements AuthProvider {
             .get(SmartIdSession.class)
             .orElseThrow(SmartIdSessionNotFoundException::new);
 
-    if (!session.getAuthenticationHash().getHashInBase64().equals(authenticationHash)) {
+    if (!session.isRedeemableWith(authenticationHash)) {
       throw new SmartIdSessionNotFoundException();
     }
 
-    if (Instant.now(clock).isAfter(session.getCreatedAt().plus(GRANT_TTL))) {
+    final Duration LOGIN_TTL = Duration.ofSeconds(180);
+    if (session.hasLived(LOGIN_TTL, Instant.now(clock))) {
       throw new SmartIdSessionNotFoundException();
     }
 
-    if (session.getErrorCode() != null) {
-      throw new SmartIdException(ofSingleError(session.getErrorCode(), session.getErrorMessage()));
+    SmartIdPerson person;
+    try {
+      person = smartIdAuthService.completeLogin(session);
+    } catch (SmartIdException e) {
+      genericSessionStore.save(session);
+      releaseThisBrowserForTheNextPushLogin(session);
+      forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(session);
+      throw e;
     }
+    releaseThisBrowserForTheNextPushLogin(session);
+    genericSessionStore.remove(SmartIdSession.class);
 
-    if (session.getPerson() == null) {
-      throw new AuthNotCompleteException();
+    var authenticatedPerson = principalService.getFrom(person, loginAttributes(person));
+    rememberOrForgetOnThisBrowser(person, session);
+    return authenticatedPerson;
+  }
+
+  private static Map<String, String> loginAttributes(SmartIdPerson person) {
+    final String SMART_ID_FLOW = "smartIdFlow";
+    return Map.of(
+        GRANT_TYPE,
+        SMART_ID.name(),
+        SMART_ID_DOCUMENT_NUMBER,
+        person.getDocumentNumber(),
+        SMART_ID_FLOW,
+        person.getFlow().name());
+  }
+
+  private void releaseThisBrowserForTheNextPushLogin(SmartIdSession session) {
+    Instant claimedAt = session.getPushLoginClaimedAt();
+    if (claimedAt != null) {
+      rememberedSmartIdAccounts.releaseNotificationLoginStart(claimedAt);
     }
+  }
 
-    return principalService.getFrom(session.getPerson(), Map.of(GRANT_TYPE, SMART_ID.name()));
+  private void rememberOrForgetOnThisBrowser(SmartIdPerson person, SmartIdSession session) {
+    if (session.isRememberMe()) {
+      rememberedSmartIdAccounts.remember(person, session.getLogin() instanceof DeviceLinkLogin);
+    } else {
+      rememberedSmartIdAccounts.forgetOnThisBrowser(person.getPersonalCode());
+    }
+  }
+
+  private void forgetEveryBrowserRememberingAnAccountSmartIdNoLongerHas(SmartIdSession session) {
+    if (session.getError() == SmartIdLoginError.ACCOUNT_NOT_FOUND
+        && session.getLogin() instanceof NotificationLogin) {
+      rememberedSmartIdAccounts.forgetEverywhere();
+    }
   }
 }

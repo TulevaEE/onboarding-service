@@ -15,6 +15,10 @@ record CashBufferReview(
     Drift softDrift,
     @Nullable Drift hardDrift) {
 
+  MonthlyFlows reviewMonthFlows() {
+    return window.months().getLast();
+  }
+
   boolean driftSustained() {
     return softDrift.sustained() || (hardDrift != null && hardDrift.sustained());
   }

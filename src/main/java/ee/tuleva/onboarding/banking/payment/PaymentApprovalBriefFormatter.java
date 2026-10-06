@@ -41,7 +41,7 @@ public class PaymentApprovalBriefFormatter {
             .append(" (balance as of ")
             .append(statementTime(projected.asOf(), brief.date()))
             .append(" statement)")
-            .append(account.goesNegative() ? "  ⚠️ would go negative" : "")
+            .append(warning(account))
             .append("\n");
       }
       for (var flow : account.flows()) {
@@ -80,6 +80,16 @@ public class PaymentApprovalBriefFormatter {
     text.append(
         "\n  Approve per account. Each account's count and total must match its bank list.");
     return text.toString();
+  }
+
+  private static String warning(PaymentApprovalBrief.AccountSummary account) {
+    if (account.goesNegative()) {
+      return "  ⚠️ would go negative";
+    }
+    if (account.coveredOnlyByIncomingTransfer()) {
+      return "  ⚠️ covered by the incoming transfer: approve that transfer first";
+    }
+    return "";
   }
 
   private static String statementTime(Instant asOf, LocalDate briefDate) {

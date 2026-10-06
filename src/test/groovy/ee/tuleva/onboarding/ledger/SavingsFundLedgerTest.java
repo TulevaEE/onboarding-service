@@ -592,7 +592,30 @@ class SavingsFundLedgerTest {
             () ->
                 savingsFundLedger.reserveFundUnitsForRedemption(
                     testParty, new BigDecimal("150.00000"), randomUUID()))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(UnitBalanceViolationException.class);
+    assertThat(getUserUnitsAccount().getBalance())
+        .isEqualByComparingTo(new BigDecimal("-100.00000"));
+  }
+
+  @Test
+  void holderAccounts_canNeverBeLeftInDebit_adjustingAwayMoreUnitsThanHeldIsRefused() {
+    setupUserWithFundUnits(
+        new BigDecimal("100.00"),
+        new BigDecimal("100.00000"),
+        new BigDecimal("1.00000"),
+        randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordAdjustment(
+                    "FUND_UNITS",
+                    testParty,
+                    "FUND_UNITS_OUTSTANDING",
+                    null,
+                    new BigDecimal("150.00000"),
+                    null,
+                    "Unit adjustment"))
+        .isExactlyInstanceOf(IllegalStateException.class);
     assertThat(getUserUnitsAccount().getBalance())
         .isEqualByComparingTo(new BigDecimal("-100.00000"));
   }

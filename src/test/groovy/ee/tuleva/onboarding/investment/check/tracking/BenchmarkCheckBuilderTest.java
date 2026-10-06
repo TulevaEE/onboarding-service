@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.instrumentReferenceService;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -124,6 +125,65 @@ class BenchmarkCheckBuilderTest {
 
     assertThat(result.benchmarkGapIsins()).isEmpty();
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aBenchmarkModelDayWithinLimitsAfterThreeBreachDaysOwesNoFourthDayNotification() {
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(streakOf(3, 0, 0));
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE)))
+            .orElseThrow();
+
+    assertThat(result.breach()).isFalse();
+    assertThat(result.consecutiveBreachDays()).isZero();
+    assertThat(result.streakBefore()).isNull();
+  }
+
+  @Test
+  void aBreachingBenchmarkModelDayTakesItsStreakLengthAndUncheckedDaysFromTheTracker() {
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(streakOf(2, 0, 1));
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(risingHolding(EMERGING_MARKETS_ISIN)))
+            .orElseThrow();
+
+    assertThat(result.breach()).isTrue();
+    assertThat(result.consecutiveBreachDays()).isEqualTo(4);
+    assertThat(result.escalationUncheckedDays()).isEqualTo(1);
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
+      int count, int uncheckedDays, int uncheckedDaysSince) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        count,
+        new BigDecimal("0.0045"),
+        new BigDecimal("0.0045"),
+        BigDecimal.ZERO,
+        java.util.Map.of(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        false,
+        false,
+        false,
+        uncheckedDays,
+        uncheckedDaysSince);
+  }
+
+  private static SecurityData risingHolding(String isin) {
+    return new SecurityData(
+        isin,
+        BigDecimal.ONE,
+        BigDecimal.ONE,
+        new PriceSnapshot(new BigDecimal("20.20"), CHECK_DATE),
+        new PriceSnapshot(new BigDecimal(FLAT_PRICE), PREVIOUS_DATE));
   }
 
   private static SecurityData flatHolding(String isin, BigDecimal actualWeight) {

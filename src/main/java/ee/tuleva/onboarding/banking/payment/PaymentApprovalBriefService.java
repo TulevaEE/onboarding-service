@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.message.BookedBalance;
 import ee.tuleva.onboarding.banking.message.BookedBalanceReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,7 +48,7 @@ public class PaymentApprovalBriefService {
 
     var accounts =
         byAccount.entrySet().stream()
-            .map(entry -> summarise(entry.getKey(), entry.getValue()))
+            .map(entry -> summarise(entry.getKey(), entry.getValue(), awaitingApproval))
             .sorted(comparing(PaymentApprovalBrief.AccountSummary::accountName))
             .toList();
 
@@ -84,16 +86,12 @@ public class PaymentApprovalBriefService {
   }
 
   private PaymentApprovalBrief.AccountSummary summarise(
-      String accountName, List<OutgoingPayment> payments) {
+      String accountName, List<OutgoingPayment> payments, List<OutgoingPayment> awaitingApproval) {
+    var iban = payments.getFirst().getRemitterIban();
     var projected =
-        payments.stream()
-            .map(OutgoingPayment::getRemitterIban)
-            .findFirst()
-            .flatMap(bookedBalanceReader::latest)
-            .map(
-                balance ->
-                    new PaymentApprovalBrief.ProjectedBalance(
-                        balance.amount().subtract(sum(payments)), balance.asOf()))
+        bookedBalanceReader
+            .latest(iban)
+            .map(balance -> project(balance, iban, payments, awaitingApproval))
             .orElse(null);
     var flows =
         payments.stream()
@@ -109,6 +107,27 @@ public class PaymentApprovalBriefService {
 
     return new PaymentApprovalBrief.AccountSummary(
         accountName, flows, payments.size(), sum(payments), projected);
+  }
+
+  private static PaymentApprovalBrief.ProjectedBalance project(
+      BookedBalance balance,
+      String iban,
+      List<OutgoingPayment> payments,
+      List<OutgoingPayment> awaitingApproval) {
+    var incomingTransfers = sum(transfersStillOnTheirWayInto(iban, balance, awaitingApproval));
+    return new PaymentApprovalBrief.ProjectedBalance(
+        balance.amount().add(incomingTransfers).subtract(sum(payments)),
+        incomingTransfers,
+        balance.asOf());
+  }
+
+  private static List<OutgoingPayment> transfersStillOnTheirWayInto(
+      String iban, BookedBalance balance, List<OutgoingPayment> awaitingApproval) {
+    return awaitingApproval.stream()
+        .filter(payment -> payment.getStatus() == SUBMITTED)
+        .filter(payment -> payment.getBeneficiaryIban().equals(iban))
+        .filter(payment -> !balance.credits(payment.getEndToEndId()))
+        .toList();
   }
 
   private static BigDecimal sum(List<OutgoingPayment> payments) {

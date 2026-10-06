@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 class ConsecutiveBreachTracker {
 
   private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
+  private static final int LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES = 10;
 
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
@@ -35,15 +36,34 @@ class ConsecutiveBreachTracker {
       BigDecimal residualSum,
       boolean hadNavResidualBreach,
       boolean truncated,
-      boolean unavailable) {}
+      boolean unavailable,
+      int uncheckedDays,
+      int uncheckedDaysSince) {
+
+    int streakDaysBeforeTheCheckDate() {
+      return count + uncheckedDaysSince;
+    }
+
+    int uncheckedStreakDaysBeforeTheCheckDate() {
+      return uncheckedDays + uncheckedDaysSince;
+    }
+
+    int streakDaysIfTheCheckDateBreaches() {
+      return streakDaysBeforeTheCheckDate() + 1;
+    }
+
+    boolean owesTheNotification(int notificationWorkingDay, BigDecimal netTdThreshold) {
+      return count < notificationWorkingDay
+          && streakDaysBeforeTheCheckDate() >= notificationWorkingDay - 1
+          && (hadNavResidualBreach || compoundedTd.abs().compareTo(netTdThreshold) >= 0);
+    }
+  }
 
   ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
     try {
       return doCountConsecutiveBreaches(fund, checkType, checkDate);
     } catch (Exception e) {
-      // "No streak" and "we could not work out the streak" are different facts, and reporting the
-      // second as the first suppresses the escalation without anyone being told.
       log.error(
           "Escalation count failed: fund={}, checkType={}, checkDate={}, error={}",
           fund,
@@ -51,7 +71,7 @@ class ConsecutiveBreachTracker {
           checkDate,
           e.getMessage());
       return new ConsecutiveBreachInfo(
-          0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false, false, true);
+          0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false, false, true, 0, 0);
     }
   }
 
@@ -69,6 +89,9 @@ class ConsecutiveBreachTracker {
     }
     var recent = eventRepository.findMostRecentEvents(fund, checkType, checkDate, lookback);
     int count = 0;
+    int checkedDays = 0;
+    int uncheckedDays = 0;
+    int uncheckedDaysSince = 0;
     var compoundedFund = BigDecimal.ONE;
     var compoundedBenchmark = BigDecimal.ONE;
     var cashDragSum = ZERO;
@@ -77,28 +100,28 @@ class ConsecutiveBreachTracker {
     var hadNavResidualBreach = false;
     var contributionByIsin = new LinkedHashMap<String, BigDecimal>();
 
-    var expectedDate = publicHolidays.previousWorkingDay(checkDate);
+    var laterDate = checkDate;
     for (var event : recent) {
-      // A working day with no check says nothing about whether the breach persisted through it,
-      // so the streak ends there rather than joining two separate breaches across the hole.
-      if (!event.getCheckDate().equals(expectedDate)) {
-        log.warn(
-            "Escalation streak stops at a gap in the daily series: fund={}, checkType={}, checkDate={}, expectedPreviousDay={}, nextStoredDay={}",
-            fund,
-            checkType,
-            checkDate,
-            expectedDate,
-            event.getCheckDate());
+      var uncheckedBefore = uncheckedWorkingDaysBetween(event.getCheckDate(), laterDate);
+      laterDate = event.getCheckDate();
+
+      if (!isBreachDay(event)) {
         break;
       }
-      expectedDate = publicHolidays.previousWorkingDay(expectedDate);
-
-      var navResidualBreach = Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
-      if (!event.isBreach() && !navResidualBreach) {
+      if (uncheckedBefore > LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES) {
+        warnOfAGapTooLongToBridge(fund, checkType, checkDate, event, uncheckedBefore);
         break;
+      }
+      warnOfUncheckedDays(fund, checkType, checkDate, event, uncheckedBefore);
+      if (checkedDays == 0) {
+        uncheckedDaysSince = uncheckedBefore;
+      } else {
+        count += uncheckedBefore;
+        uncheckedDays += uncheckedBefore;
       }
       count++;
-      hadNavResidualBreach = hadNavResidualBreach || navResidualBreach;
+      checkedDays++;
+      hadNavResidualBreach = hadNavResidualBreach || hadNavResidualBreach(event);
       compoundedFund = compoundedFund.multiply(BigDecimal.ONE.add(event.getFundReturn()));
       compoundedBenchmark =
           compoundedBenchmark.multiply(BigDecimal.ONE.add(event.getBenchmarkReturn()));
@@ -125,11 +148,9 @@ class ConsecutiveBreachTracker {
     var compoundedBenchmarkReturn = compoundedBenchmark.subtract(BigDecimal.ONE);
     var compoundedTd = compoundedFundReturn.subtract(compoundedBenchmarkReturn);
 
-    // The lookback bounds the query, not the breach. A streak that consumed the whole window may
-    // run further back than the window can see, so the count and the compounded net TD are a lower
-    // bound rather than the answer.
-    var truncated = count > 0 && count == recent.size() && recent.size() >= lookback;
-    if (truncated) {
+    var streakMayRunPastTheLookbackWindow =
+        checkedDays > 0 && checkedDays == recent.size() && recent.size() >= lookback;
+    if (streakMayRunPastTheLookbackWindow) {
       log.warn(
           "Escalation streak fills the whole lookback window: fund={}, checkType={}, checkDate={}, lookbackDays={}",
           fund,
@@ -148,8 +169,61 @@ class ConsecutiveBreachTracker {
         feeDragSum,
         residualSum,
         hadNavResidualBreach,
-        truncated,
-        false);
+        streakMayRunPastTheLookbackWindow,
+        false,
+        uncheckedDays,
+        uncheckedDaysSince);
+  }
+
+  private static boolean isBreachDay(TrackingDifferenceEvent event) {
+    return event.isBreach() || hadNavResidualBreach(event);
+  }
+
+  private static boolean hadNavResidualBreach(TrackingDifferenceEvent event) {
+    return Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
+  }
+
+  private static void warnOfUncheckedDays(
+      TulevaFund fund,
+      TrackingCheckType checkType,
+      LocalDate checkDate,
+      TrackingDifferenceEvent event,
+      int uncheckedDays) {
+    if (uncheckedDays > 0) {
+      log.warn(
+          "Escalation streak runs across working days with no check: fund={}, checkType={}, checkDate={}, uncheckedDays={}, after={}",
+          fund,
+          checkType,
+          checkDate,
+          uncheckedDays,
+          event.getCheckDate());
+    }
+  }
+
+  private static void warnOfAGapTooLongToBridge(
+      TulevaFund fund,
+      TrackingCheckType checkType,
+      LocalDate checkDate,
+      TrackingDifferenceEvent event,
+      int uncheckedDays) {
+    log.warn(
+        "Escalation streak ends at working days with no check, too many to bridge: fund={}, checkType={}, checkDate={}, uncheckedDays={}, longestBridged={}, after={}",
+        fund,
+        checkType,
+        checkDate,
+        uncheckedDays,
+        LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES,
+        event.getCheckDate());
+  }
+
+  private int uncheckedWorkingDaysBetween(LocalDate earlier, LocalDate later) {
+    int days = 0;
+    for (var day = publicHolidays.previousWorkingDay(later);
+        day.isAfter(earlier);
+        day = publicHolidays.previousWorkingDay(day)) {
+      days++;
+    }
+    return days;
   }
 
   TrackingDifferenceResult updateConsecutiveCount(
@@ -159,9 +233,10 @@ class ConsecutiveBreachTracker {
           .consecutiveBreachDays(0)
           .consecutiveNetTd(ZERO)
           .escalationCountUnavailable(priorBreaches.unavailable())
+          .streakBefore(priorBreaches)
           .build();
     }
-    int days = priorBreaches.count() + 1;
+    int days = priorBreaches.streakDaysIfTheCheckDateBreaches();
     var streakHadNavResidualBreach =
         priorBreaches.hadNavResidualBreach() || result.navResidualBreach();
 
@@ -179,6 +254,8 @@ class ConsecutiveBreachTracker {
 
     return result.toBuilder()
         .consecutiveBreachDays(days)
+        .streakBefore(priorBreaches)
+        .escalationUncheckedDays(priorBreaches.uncheckedStreakDaysBeforeTheCheckDate())
         .consecutiveNetTd(compoundedTd)
         .escalationNavResidualBreach(streakHadNavResidualBreach)
         .escalationCountTruncated(priorBreaches.truncated())

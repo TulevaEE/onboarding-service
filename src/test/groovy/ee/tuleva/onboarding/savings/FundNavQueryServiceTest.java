@@ -24,6 +24,22 @@ class FundNavQueryServiceTest {
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 5, 7);
 
   @Test
+  void hasPublishedNav_isTrueOnceTheDatesCalculationIsPublished() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(true);
+
+    assertThat(service.hasPublishedNav("TUK00", NAV_DATE)).isTrue();
+  }
+
+  @Test
+  void hasPublishedNav_isFalseWhileNothingIsPublishedForTheDate() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(false);
+
+    assertThat(service.hasPublishedNav("TUK00", NAV_DATE)).isFalse();
+  }
+
+  @Test
   void findPublishedNavPerUnit_returnsTheOfficialNavPerUnit() {
     given(navReportRepository.findPublishedNavPerUnit(NAV_DATE, "TUK00", "NAV"))
         .willReturn(Optional.of(new BigDecimal("0.60985")));

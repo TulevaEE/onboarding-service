@@ -1,44 +1,68 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.investment.report.ReportImportJob.LOOKBACK_DAYS;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.mapping;
+import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 class MissingReportAsOfDateAlertListener {
 
-  private static final int ALERT_WINDOW_DAYS = 3;
+  private static final Set<ReportType> REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER =
+      Set.of(POSITIONS, PENDING_TRANSACTIONS);
   private static final int MAX_QUOTED_VALUE_LENGTH = 100;
 
+  private final InvestmentReportService reportService;
+  private final FundNavQueryService fundNavQueryService;
   private final OperationsNotificationService notificationService;
   private final Clock clock;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-  public void onMissingReportAsOfDate(MissingReportAsOfDateEvent event) {
+  @EventListener
+  @Order(HIGHEST_PRECEDENCE)
+  public void onReportImportCompleted(ReportImportCompleted event) {
+    if (event.provider() != SEB
+        || !REPORT_TYPES_DATED_BY_THEIR_AS_OF_HEADER.contains(event.reportType())) {
+      return;
+    }
+    if (isOlderThanTheImportLooksBack(event.reportDate())) {
+      log.info(
+          "Stored report is older than the import looks back, not checking its As-of date:"
+              + " provider={}, reportType={}, reportDate={}",
+          event.provider(),
+          event.reportType(),
+          event.reportDate());
+      return;
+    }
     try {
-      if (isOlderThanTheAlertWindow(event)) {
-        log.info(
-            "Report with no usable As-of date is outside the alert window, skipping alert:"
-                + " provider={}, reportType={}, reportDate={}",
-            event.provider(),
-            event.reportType(),
-            event.reportDate());
-        return;
-      }
-      notificationService.sendMessage(buildSlackMessage(event), INVESTMENT);
+      reportService
+          .getReport(event.provider(), event.reportType(), event.reportDate())
+          .filter(report -> SebReportHeaders.asOfDate(report) == null)
+          .ifPresent(report -> notificationService.sendMessage(slackMessage(report), INVESTMENT));
     } catch (RuntimeException e) {
       log.error(
-          "Failed to send missing report As-of date alert: provider={}, reportType={},"
-              + " reportDate={}",
+          "Missing report As-of date check failed: provider={}, reportType={}, reportDate={}",
           event.provider(),
           event.reportType(),
           event.reportDate(),
@@ -46,24 +70,68 @@ class MissingReportAsOfDateAlertListener {
     }
   }
 
-  private boolean isOlderThanTheAlertWindow(MissingReportAsOfDateEvent event) {
-    return event.reportDate().isBefore(LocalDate.now(clock).minusDays(ALERT_WINDOW_DAYS));
+  private boolean isOlderThanTheImportLooksBack(LocalDate reportDate) {
+    return reportDate.isBefore(LocalDate.now(clock).minusDays(LOOKBACK_DAYS));
   }
 
-  private static String buildSlackMessage(MissingReportAsOfDateEvent event) {
+  private String slackMessage(InvestmentReport report) {
+    return isNavCalculatedForEveryFund(report.getReportDate())
+        ? navAlreadyCalculatedMessage(report)
+        : resendBeforeNavMessage(report);
+  }
+
+  private boolean isNavCalculatedForEveryFund(LocalDate navDate) {
+    return Arrays.stream(TulevaFund.values())
+        .filter(TulevaFund::hasNavCalculation)
+        .allMatch(fund -> fundNavQueryService.hasPublishedNav(fund.getCode(), navDate));
+  }
+
+  private static String navAlreadyCalculatedMessage(InvestmentReport report) {
     return """
-        ⚠️ %s %s raportis puudub kasutatav „As of“ kuupäev – %s
+        ⚠️ %s
+        Selle kuupäeva NAV on kõigile fondidele juba arvutatud."""
+        .formatted(whatIsWrong(report));
+  }
+
+  private static String resendBeforeNavMessage(InvestmentReport report) {
+    return """
+        🔴 %s
+        Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis on \
+        vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel arvutamata, \
+        peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel tööpäeval: %s. \
+        Uus fail imporditakse automaatselt. <!channel>"""
+        .formatted(whatIsWrong(report), navCalculationTimes());
+  }
+
+  private static String whatIsWrong(InvestmentReport report) {
+    return """
+        %s %s raportis puudub kasutatav „As of“ kuupäev – %s
         %s
         Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. \
         Kui faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute \
-        reported_date ühe päeva võrra nihkes.
-        Palu SEB-lt uus raport ja lase neil see enne saatmist üle vaadata – kui päis on vigane, \
-        võib ka ülejäänud sisu olla vigane. Uus fail imporditakse automaatselt."""
-        .formatted(event.provider(), event.reportType(), event.reportDate(), cause(event));
+        reported_date ühe päeva võrra nihkes.\
+        """
+        .formatted(
+            report.getProvider(), report.getReportType(), report.getReportDate(), cause(report));
   }
 
-  private static String cause(MissingReportAsOfDateEvent event) {
-    String unreadable = event.unreadableValue();
+  private static String navCalculationTimes() {
+    return Arrays.stream(TulevaFund.values())
+        .filter(TulevaFund::hasNavCalculation)
+        .collect(
+            groupingBy(
+                TulevaFund::getNavCutoffTime,
+                TreeMap::new,
+                mapping(TulevaFund::getCode, joining(", "))))
+        .entrySet()
+        .stream()
+        .map(fundsAtATime -> "%s kell %s".formatted(fundsAtATime.getValue(), fundsAtATime.getKey()))
+        .collect(joining("; "));
+  }
+
+  private static String cause(InvestmentReport report) {
+    String unreadable =
+        SebReportHeaders.unreadableAsOfValue(report.getMetadata(), report.getRawData());
     if (unreadable == null) {
       return "Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on"
           + " päise kuju muutunud.";

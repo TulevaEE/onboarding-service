@@ -560,6 +560,16 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void theComponentsSumIsNotStoredBecauseTheResidualMakesItZeroByConstruction() {
+    var input =
+        toleranceInput(buildConstantDays(30, "0.0015", "0.0005"), new BigDecimal("0.00175"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.checks()).doesNotContainKey("sumCheck");
+  }
+
+  @Test
   void anUnconfiguredToleranceLeavesNoVerdictRatherThanAPass() {
     var input = toleranceInput(buildConstantDays(30, "0.0015", "0.0005"), null);
 

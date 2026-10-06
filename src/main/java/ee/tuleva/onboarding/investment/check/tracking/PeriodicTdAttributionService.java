@@ -217,10 +217,8 @@ public class PeriodicTdAttributionService {
         .build();
   }
 
-  public void computeQuarterly(TulevaFund fund, int year, int quarter) {
-    var start = LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
-    var end = start.plusMonths(3).minusDays(1);
-    computeAttribution(fund, start, end, PeriodType.QUARTERLY);
+  void computeQuarterly(TulevaFund fund, Quarter quarter) {
+    computeAttribution(fund, quarter.start(), quarter.end(), PeriodType.QUARTERLY);
   }
 
   public void computeAnnual(TulevaFund fund, int year) {

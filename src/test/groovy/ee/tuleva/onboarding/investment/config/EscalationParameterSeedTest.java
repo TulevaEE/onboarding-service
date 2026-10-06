@@ -28,11 +28,8 @@ class EscalationParameterSeedTest {
     assertThat(netTdThreshold).isEqualByComparingTo(new BigDecimal("0.001"));
   }
 
-  // Sisekord nr 4 p 11.7 escalates when the breach "püsib enam kui kolm (3) tööpäeva" - persists
-  // MORE THAN three working days - so the fourth consecutive breach day is the first that
-  // escalates, not the third.
   @Test
-  void escalationStreakLengthMatchesTheInternalRule() {
+  void escalationThresholdIsTheFourthWorkingDayOnWhichSisekord4P11_8NotifiesAThreeDayBreach() {
     BigDecimal thresholdDays =
         repository.findLatestValue(ESCALATION_THRESHOLD_DAYS, AFTER_LATEST_SEED);
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,8 +46,11 @@ class PaymentApprovalBriefServiceTest {
   private static final String IBAN = "EE222222222222222222";
   private static final UUID BATCH = UUID.fromString("11111111-1111-1111-1111-111111111111");
   private static final UUID OTHER_BATCH = UUID.fromString("22222222-2222-2222-2222-222222222222");
+  private static final String FUND_IBAN = "EE444444444444444444";
   private static final BankAccount ACCOUNT =
       new BankAccount(IBAN, WITHDRAWAL_EUR, TKF100, "gateway-client");
+  private static final BankAccount FUND_ACCOUNT =
+      new BankAccount(FUND_IBAN, FUND_INVESTMENT_EUR, TKF100, "gateway-client");
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
   @Mock BankAccounts bankAccounts;
@@ -78,7 +83,8 @@ class PaymentApprovalBriefServiceTest {
   void theProjectedBalanceIsWhatTheLastProcessedStatementLeavesOnceThesePaymentsExecute() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("1000.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("1000.00"), STATEMENT_TIME, Set.of())));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -88,7 +94,8 @@ class PaymentApprovalBriefServiceTest {
         .satisfies(
             account ->
                 assertThat(account.projectedBalance())
-                    .isEqualTo(new ProjectedBalance(new BigDecimal("700.00"), STATEMENT_TIME)));
+                    .isEqualTo(
+                        new ProjectedBalance(new BigDecimal("700.00"), ZERO, STATEMENT_TIME)));
   }
 
   @Test
@@ -111,7 +118,8 @@ class PaymentApprovalBriefServiceTest {
   void anAccountThatWouldGoNegativeNeedsAttention() {
     givenAccountResolves();
     given(bookedBalanceReader.latest(IBAN))
-        .willReturn(Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME)));
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME, Set.of())));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -120,6 +128,196 @@ class PaymentApprovalBriefServiceTest {
         .singleElement()
         .satisfies(account -> assertThat(account.goesNegative()).isTrue());
     assertThat(brief.attention()).isTrue();
+  }
+
+  @Test
+  void theTransferIntoAnAccountOnTheSameBriefFundsItsPayoutsSoARedemptionDayIsNotCalledNegative() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "250.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "150.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(
+                      new ProjectedBalance(
+                          new BigDecimal("0.00"), new BigDecimal("400.00"), STATEMENT_TIME));
+              assertThat(account.goesNegative()).isFalse();
+            });
+    assertThat(brief.attention()).isFalse();
+  }
+
+  @Test
+  void payoutsLargerThanTheTransferIntoTheAccountStillGoNegative() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(
+                      new ProjectedBalance(
+                          new BigDecimal("-100.00"), new BigDecimal("400.00"), STATEMENT_TIME));
+              assertThat(account.goesNegative()).isTrue();
+            });
+  }
+
+  @Test
+  void aTransferStillInFlightMayNeverReachTheBankSoItsPayoutsStillGoNegative() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(
+        transfer(ATTEMPTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance())
+                  .isEqualTo(new ProjectedBalance(new BigDecimal("-400.00"), ZERO, STATEMENT_TIME));
+              assertThat(account.goesNegative()).isTrue();
+            });
+  }
+
+  @Test
+  void aTransferAlreadyExecutedIsInTheBalanceAndIsNotCountedTwice() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(transfer(EXECUTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), ZERO, STATEMENT_TIME)));
+  }
+
+  @Test
+  void aTransferTheReceivingStatementAlreadyCreditsIsInTheBalanceAndIsNotCountedTwice() {
+    givenAccountResolves();
+    var transfer = transfer(SUBMITTED, "400.00", BATCH);
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(
+                new BookedBalance(
+                    new BigDecimal("400.00"), STATEMENT_TIME, Set.of(transfer.getEndToEndId()))));
+    givenPayments(transfer, batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("0.00"), ZERO, STATEMENT_TIME)));
+  }
+
+  @Test
+  void aCreditForSomeOtherPaymentDoesNotStandInForTheTransfer() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(
+                new BookedBalance(
+                    new BigDecimal("0.00"), STATEMENT_TIME, Set.of("someotherendtoendid"))));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(
+                        new ProjectedBalance(
+                            new BigDecimal("0.00"), new BigDecimal("400.00"), STATEMENT_TIME)));
+  }
+
+  @Test
+  void payoutsThatOnlyTheIncomingTransferCoversSaySoSoTheTransferIsApprovedFirst() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "450.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.coveredOnlyByIncomingTransfer()).isTrue();
+              assertThat(account.goesNegative()).isFalse();
+            });
+  }
+
+  @Test
+  void payoutsTheBalanceAlreadyCoversDoNotWaitOnTheIncomingTransfer() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("400.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(
+        transfer(SUBMITTED, "400.00", BATCH), batched(SUBMITTED, PAYOUT, "400.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(account -> assertThat(account.coveredOnlyByIncomingTransfer()).isFalse());
+  }
+
+  @Test
+  void payoutsThatGoNegativeEvenWithTheIncomingTransferAreNotCalledCovered() {
+    givenAccountResolves();
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(
+            Optional.of(new BookedBalance(new BigDecimal("0.00"), STATEMENT_TIME, Set.of())));
+    givenPayments(transfer(SUBMITTED, "400.00", BATCH), payment(SUBMITTED, PAYOUT, "500.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .filteredOn(account -> account.accountName().equals("WITHDRAWAL_EUR"))
+        .singleElement()
+        .satisfies(account -> assertThat(account.coveredOnlyByIncomingTransfer()).isFalse());
   }
 
   // In flight means the call never returned a verdict: the payment may or may not have reached the
@@ -393,6 +591,7 @@ class PaymentApprovalBriefServiceTest {
 
   private void givenAccountResolves() {
     lenient().when(bankAccounts.find(IBAN)).thenReturn(Optional.of(ACCOUNT));
+    lenient().when(bankAccounts.find(FUND_IBAN)).thenReturn(Optional.of(FUND_ACCOUNT));
     lenient().when(bookedBalanceReader.latest(any())).thenReturn(Optional.empty());
   }
 
@@ -464,6 +663,15 @@ class PaymentApprovalBriefServiceTest {
       Instant attemptedAt,
       UUID batchId) {
     return builder(status, type, amount, attemptedAt).batchId(batchId).build();
+  }
+
+  private static OutgoingPayment transfer(
+      OutgoingPaymentStatus status, String amount, UUID batchId) {
+    return builder(status, REDEMPTION_TRANSFER, amount, TODAY_AFTERNOON)
+        .remitterIban(FUND_IBAN)
+        .beneficiaryIban(IBAN)
+        .batchId(batchId)
+        .build();
   }
 
   private static OutgoingPayment.OutgoingPaymentBuilder builder(

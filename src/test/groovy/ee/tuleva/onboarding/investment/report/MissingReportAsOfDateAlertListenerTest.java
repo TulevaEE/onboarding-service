@@ -1,20 +1,28 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -25,42 +33,69 @@ class MissingReportAsOfDateAlertListenerTest {
 
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
 
+  @Mock private InvestmentReportService reportService;
   @Mock private OperationsNotificationService notificationService;
+  @Mock private FundNavQueryService fundNavQueryService;
 
   private final Clock clock =
       Clock.fixed(REPORT_DATE.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
 
   private MissingReportAsOfDateAlertListener listener() {
-    return new MissingReportAsOfDateAlertListener(notificationService, clock);
+    return new MissingReportAsOfDateAlertListener(
+        reportService, fundNavQueryService, notificationService, clock);
   }
 
   @Test
-  void saysTheReportWasImportedAnyway_whenTheMarkerIsAbsent() {
-    listener()
-        .onMissingReportAsOfDate(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null));
+  void startsRedAsksForAReviewedResendBeforeEachFundsNavTimeAndPingsTheChannelLast() {
+    storedWithoutAnAsOfDate(PENDING_TRANSACTIONS, REPORT_DATE, Map.of());
 
-    then(notificationService)
-        .should()
-        .sendMessage(contains("Raport imporditi sellegipoolest"), eq(INVESTMENT));
-  }
-
-  @Test
-  void saysTheHeaderWasNotFound_whenTheMarkerIsAbsent() {
-    listener()
-        .onMissingReportAsOfDate(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null));
+    listener().onReportImportCompleted(imported(PENDING_TRANSACTIONS, REPORT_DATE));
 
     then(notificationService)
         .should()
         .sendMessage(
-            contains("ei leitud „As of“ välja – kas see puudub või on päise kuju muutunud"),
-            eq(INVESTMENT));
+            """
+            🔴 SEB PENDING_TRANSACTIONS raportis puudub kasutatav „As of“ kuupäev – 2026-01-26
+            Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on \
+            päise kuju muutunud.
+            Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. Kui \
+            faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute reported_date \
+            ühe päeva võrra nihkes.
+            Helista SEB-le kohe ja palu uus raport, mis on enne saatmist üle vaadatud – kui päis \
+            on vigane, võib ka ülejäänud sisu olla vigane. Kui selle kuupäeva NAV on veel \
+            arvutamata, peab parandatud fail jõudma enne NAV-arvutust, mis toimub järgmisel \
+            tööpäeval: TUK75, TUK00 kell 11:00; TUV100, TKF100 kell 15:20. Uus fail \
+            imporditakse automaatselt. <!channel>""",
+            INVESTMENT);
+  }
+
+  @Test
+  void
+      saysTheNavIsAlreadyCalculatedWithoutPingingTheChannel_whenEveryFundsNavForThatDateIsPublished() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
+    given(fundNavQueryService.hasPublishedNav(any(), eq(REPORT_DATE))).willReturn(true);
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ SEB POSITIONS raportis puudub kasutatav „As of“ kuupäev – 2026-01-26
+            Raporti päise esimesest viiest reast ei leitud „As of“ välja – kas see puudub või on \
+            päise kuju muutunud.
+            Raport imporditi sellegipoolest ja read on dateeritud faili nime kuupäeva järgi. Kui \
+            faili nime kuupäev ei ole ridade äripäev, on NAV-i kuupäev ja tehingute reported_date \
+            ühe päeva võrra nihkes.
+            Selle kuupäeva NAV on kõigile fondidele juba arvutatud.""",
+            INVESTMENT);
   }
 
   @Test
   void namesTheUnreadableValue_whenTheMarkerIsPresentButNotADate() {
-    listener()
-        .onMissingReportAsOfDate(
-            new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, "25.01.2026"));
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of("asOfDate", "25.01.2026"));
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
 
     then(notificationService)
         .should()
@@ -68,28 +103,10 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
-  void staysSilent_whenTheReportIsOlderThanTheAlertWindow() {
-    listener()
-        .onMissingReportAsOfDate(
-            new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE.minusDays(4), null));
-
-    then(notificationService).should(never()).sendMessage(any(), any());
-  }
-
-  @Test
-  void alerts_whenTheReportIsAtTheEdgeOfTheAlertWindow() {
-    listener()
-        .onMissingReportAsOfDate(
-            new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE.minusDays(3), null));
-
-    then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
-  }
-
-  @Test
   void shortensAnUnreadableValueThatIsTooLongToQuote() {
-    listener()
-        .onMissingReportAsOfDate(
-            new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, "x".repeat(250)));
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of("asOfDate", "x".repeat(250)));
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
 
     then(notificationService)
         .should()
@@ -97,16 +114,78 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
+  void staysSilent_whenTheStoredReportCarriesItsAsOfDate() {
+    given(reportService.getReport(SEB, POSITIONS, REPORT_DATE))
+        .willReturn(Optional.of(report(POSITIONS, REPORT_DATE, Map.of("asOfDate", "2026-01-23"))));
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE));
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void staysSilent_forAReportTypeItsParsersDoNotDateByTheAsOfHeader() {
+    listener().onReportImportCompleted(imported(R45, REPORT_DATE));
+
+    then(reportService).shouldHaveNoInteractions();
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void staysSilent_forAnotherProvidersReport() {
+    listener()
+        .onReportImportCompleted(new ReportImportCompleted(SWEDBANK, POSITIONS, REPORT_DATE, 1));
+
+    then(reportService).shouldHaveNoInteractions();
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void staysSilent_forAFileOlderThanTheImportLooksBackEvenWhenAnAdminReimportStoresIt() {
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(8)));
+
+    then(reportService).shouldHaveNoInteractions();
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void alerts_forANewFileAnywhereInTheImportLookback() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE.minusDays(7), Map.of());
+
+    listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE.minusDays(7)));
+
+    then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
+  }
+
+  @Test
   void doesNotPropagateANotificationFailure() {
+    storedWithoutAnAsOfDate(POSITIONS, REPORT_DATE, Map.of());
     willThrow(new RuntimeException("slack down"))
         .given(notificationService)
         .sendMessage(any(), any());
 
-    assertThatCode(
-            () ->
-                listener()
-                    .onMissingReportAsOfDate(
-                        new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null)))
+    assertThatCode(() -> listener().onReportImportCompleted(imported(POSITIONS, REPORT_DATE)))
         .doesNotThrowAnyException();
+  }
+
+  private void storedWithoutAnAsOfDate(
+      ReportType reportType, LocalDate reportDate, Map<String, Object> metadata) {
+    given(reportService.getReport(SEB, reportType, reportDate))
+        .willReturn(Optional.of(report(reportType, reportDate, metadata)));
+  }
+
+  private static InvestmentReport report(
+      ReportType reportType, LocalDate reportDate, Map<String, Object> metadata) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(reportType)
+        .reportDate(reportDate)
+        .rawData(List.of())
+        .metadata(metadata)
+        .build();
+  }
+
+  private static ReportImportCompleted imported(ReportType reportType, LocalDate reportDate) {
+    return new ReportImportCompleted(SEB, reportType, reportDate, 1);
   }
 }

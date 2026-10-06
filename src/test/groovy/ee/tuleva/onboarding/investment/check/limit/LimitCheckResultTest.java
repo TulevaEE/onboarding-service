@@ -48,7 +48,16 @@ class LimitCheckResultTest {
 
   @Test
   void freeCashBreachAloneIsNotABreach() {
-    var breach = new FreeCashBreach(TUK75, new BigDecimal("25000"), new BigDecimal("10000"), HARD);
+    var breach =
+        new FreeCashBreach(
+            TUK75,
+            new BigDecimal("25000"),
+            new BigDecimal("10000"),
+            HARD,
+            new BigDecimal("40000"),
+            new BigDecimal("-5000"),
+            BigDecimal.ZERO,
+            new BigDecimal("10000"));
     var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), List.of(), null, breach);
 
     assertThat(result.hasBreaches()).isFalse();

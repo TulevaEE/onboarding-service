@@ -25,9 +25,17 @@ public record PaymentApprovalBrief(
     public boolean goesNegative() {
       return projectedBalance != null && projectedBalance.amount().signum() < 0;
     }
+
+    public boolean coveredOnlyByIncomingTransfer() {
+      return projectedBalance != null && projectedBalance.coveredOnlyByIncomingTransfer();
+    }
   }
 
-  public record ProjectedBalance(BigDecimal amount, Instant asOf) {}
+  public record ProjectedBalance(BigDecimal amount, BigDecimal incomingTransfers, Instant asOf) {
+    boolean coveredOnlyByIncomingTransfer() {
+      return amount.signum() >= 0 && amount.subtract(incomingTransfers).signum() < 0;
+    }
+  }
 
   public record FlowSummary(String label, int paymentCount, BigDecimal total) {}
 

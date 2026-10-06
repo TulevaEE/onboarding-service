@@ -542,20 +542,7 @@ class TrackingDifferenceService {
   }
 
   private void saveEvent(TrackingDifferenceResult result) {
-    var event =
-        TrackingDifferenceEvent.builder()
-            .fund(result.fund())
-            .checkDate(result.checkDate())
-            .checkType(result.checkType())
-            .trackingDifference(result.trackingDifference())
-            .fundReturn(result.fundReturn())
-            .benchmarkReturn(result.benchmarkReturn())
-            .breach(result.breach())
-            .consecutiveBreachDays(result.consecutiveBreachDays())
-            .result(TrackingDifferenceEventMapper.buildResultMap(result))
-            .build();
-
-    eventRepository.save(event);
+    eventRepository.save(TrackingDifferenceEventMapper.toEvent(result));
   }
 
   static class IncompletePriceDataException extends RuntimeException {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
+import static ee.tuleva.onboarding.investment.check.limit.SecurityPositions.mostRecentlyWrittenRowPerIsin;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -166,7 +167,8 @@ class LimitCheckService {
 
   LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
     var positions =
-        fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY);
+        mostRecentlyWrittenRowPerIsin(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY));
 
     var navMarketValues = navReportPositionProvider.getSecurityMarketValues(fund, checkDate);
     positions.forEach(

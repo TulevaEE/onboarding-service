@@ -1,19 +1,24 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
+import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
 class LimitCheckIntegrationTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 3, 2);
+  private static final String RESENT_ISIN = "XS0000RESNT1";
+  private static final String RESENT_LABEL = "Synthetic resent holding";
+  private static final String RESENT_INDEX = "Synthetic resent index";
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-03T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -185,6 +193,71 @@ class LimitCheckIntegrationTest {
         .containsExactlyInAnyOrder(
             tuple("XTRACKERS_IE", new BigDecimal("19.0000"), OK),
             tuple("XTRACKERS_LU", new BigDecimal("2.0000"), OK));
+  }
+
+  @Test
+  void aHoldingKeptUnderItsOldAndItsNewNameCountsOnceInTheProviderAndIndexGroupLimits() {
+    insertRenamedResendOfOneHolding();
+    insertNavReportSecurity("TUK75", NAV_DATE, RESENT_ISIN, 2_000_000);
+
+    var tuk75 = checkTuk75();
+
+    assertThat(tuk75.positionBreaches())
+        .extracting(PositionBreach::isin, PositionBreach::actualPercent, PositionBreach::severity)
+        .containsExactly(
+            tuple(RESENT_ISIN, new BigDecimal("20.0000"), SOFT),
+            tuple(RESENT_INDEX, new BigDecimal("20.0000"), OK));
+    assertThat(tuk75.providerBreaches())
+        .extracting(
+            ProviderBreach::provider, ProviderBreach::actualPercent, ProviderBreach::severity)
+        .containsExactly(tuple(ISHARES, new BigDecimal("20.0000"), OK));
+  }
+
+  @Test
+  void aHoldingKeptUnderItsOldAndItsNewNameIsListedOnceInTheBreachNotification() {
+    insertRenamedResendOfOneHolding();
+    insertNavReportSecurity("TUK75", NAV_DATE, RESENT_ISIN, 2_000_000);
+    var notifications = new RecordedNotifications();
+
+    new LimitCheckNotifier(notifications).notify(limitCheckService.runChecks());
+
+    assertThat(notifications.messages()).singleElement().asString().doesNotContain("[HARD]");
+    assertThat(
+            notifications.messages().getFirst().lines().filter(line -> line.contains(RESENT_LABEL)))
+        .singleElement()
+        .asString()
+        .contains("[SOFT] POSITION TUK75 2026-03-02: " + RESENT_LABEL + "=20.0000%");
+  }
+
+  @Test
+  void withNoNavReportValueTheRenamedRowWrittenLastIsTheHolding() {
+    insertRenamedResendLimits();
+    insertPositionRowWritten("name before the resend", 2_600_000, "2026-03-02T18:00:00Z", null);
+    insertPositionRowWritten("name after the resend", 2_000_000, "2026-03-03T08:00:00Z", null);
+
+    var tuk75 = checkTuk75();
+
+    assertThat(tuk75.positionBreaches())
+        .extracting(PositionBreach::isin, PositionBreach::actualPercent, PositionBreach::severity)
+        .containsExactly(
+            tuple(RESENT_ISIN, new BigDecimal("20.0000"), SOFT),
+            tuple(RESENT_INDEX, new BigDecimal("20.0000"), OK));
+  }
+
+  @Test
+  void aRowUpdatedAfterTheRenamedResendIsTheHoldingAgain() {
+    insertRenamedResendLimits();
+    insertPositionRowWritten(
+        "name before the resend", 2_000_000, "2026-03-02T18:00:00Z", "2026-03-03T09:00:00Z");
+    insertPositionRowWritten("name after the resend", 2_600_000, "2026-03-03T08:00:00Z", null);
+
+    var tuk75 = checkTuk75();
+
+    assertThat(tuk75.positionBreaches())
+        .extracting(PositionBreach::isin, PositionBreach::actualPercent, PositionBreach::severity)
+        .containsExactly(
+            tuple(RESENT_ISIN, new BigDecimal("20.0000"), SOFT),
+            tuple(RESENT_INDEX, new BigDecimal("20.0000"), OK));
   }
 
   @Test
@@ -347,6 +420,101 @@ class LimitCheckIntegrationTest {
   }
 
   // -- Helper methods --
+
+  private LimitCheckResult checkTuk75() {
+    return limitCheckService.runChecks().results().stream()
+        .filter(result -> result.fund() == TUK75)
+        .findFirst()
+        .orElseThrow();
+  }
+
+  private void insertRenamedResendOfOneHolding() {
+    insertRenamedResendLimits();
+    insertPositionRowNamed("name before the resend", 2_000_000);
+    insertPositionRowNamed("name after the resend", 2_000_000);
+  }
+
+  private void insertRenamedResendLimits() {
+    insertNavReportUnits("TUK75", NAV_DATE, 10_000_000);
+    insertPositionLimit("TUK75", RESENT_ISIN, RESENT_LABEL, RESENT_INDEX, 15.0, 25.0);
+    insertPositionLimit("TUK75", null, RESENT_INDEX, RESENT_INDEX, 30.0, 35.0);
+    insertModelPortfolioAllocation("TUK75", RESENT_ISIN, "ISHARES");
+    insertProviderLimit("TUK75", "ISHARES", 30.0, 35.0);
+  }
+
+  private void insertPositionRowNamed(String accountName, long marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+            (nav_date, fund_code, account_type, account_name, account_id, market_value)
+            VALUES (:navDate, 'TUK75', 'SECURITY', :accountName, :isin, :marketValue)
+            """)
+        .param("navDate", NAV_DATE)
+        .param("accountName", accountName)
+        .param("isin", RESENT_ISIN)
+        .param("marketValue", BigDecimal.valueOf(marketValue))
+        .update();
+  }
+
+  private void insertPositionRowWritten(
+      String accountName, long marketValue, String createdAt, String updatedAt) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+            (nav_date, fund_code, account_type, account_name, account_id, market_value,
+             created_at, updated_at)
+            VALUES (:navDate, 'TUK75', 'SECURITY', :accountName, :isin, :marketValue,
+                    :createdAt, :updatedAt)
+            """)
+        .param("navDate", NAV_DATE)
+        .param("accountName", accountName)
+        .param("isin", RESENT_ISIN)
+        .param("marketValue", BigDecimal.valueOf(marketValue))
+        .param("createdAt", Timestamp.from(Instant.parse(createdAt)))
+        .param("updatedAt", updatedAt == null ? null : Timestamp.from(Instant.parse(updatedAt)))
+        .update();
+  }
+
+  private void insertNavReportSecurity(
+      String fund, LocalDate navDate, String isin, long marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
+            (nav_date, fund_code, account_type, account_name, account_id, market_value,
+             calculation_id, published_at)
+            SELECT nav_date, fund_code, 'SECURITY', :isin, :isin, :marketValue,
+                   calculation_id, published_at
+            FROM nav_report
+            WHERE fund_code = :fund AND nav_date = :navDate AND account_type = 'UNITS'
+            """)
+        .param("navDate", navDate)
+        .param("fund", fund)
+        .param("isin", isin)
+        .param("marketValue", BigDecimal.valueOf(marketValue))
+        .update();
+  }
+
+  private static final class RecordedNotifications implements OperationsNotificationService {
+
+    private final List<String> messages = new ArrayList<>();
+
+    @Override
+    public void sendMessage(String message, Channel channel) {
+      messages.add(message);
+    }
+
+    @Override
+    public void sendMessage(String message, Channel channel, Severity severity) {
+      messages.add(message);
+    }
+
+    List<String> messages() {
+      return messages;
+    }
+  }
 
   private void insertFundPosition(
       String fund, LocalDate navDate, String accountType, String accountId, long marketValue) {

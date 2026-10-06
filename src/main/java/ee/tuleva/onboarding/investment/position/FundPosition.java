@@ -65,7 +65,7 @@ public class FundPosition {
 
   private Instant createdAt;
 
-  private Instant updatedAt;
+  private @Nullable Instant updatedAt;
 
   public boolean isTradePayable() {
     return TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);

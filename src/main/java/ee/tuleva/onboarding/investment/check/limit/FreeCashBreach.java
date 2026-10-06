@@ -10,5 +10,5 @@ public record FreeCashBreach(
     BreachSeverity severity,
     BigDecimal cash,
     BigDecimal liabilities,
-    BigDecimal pendingTrades,
+    BigDecimal pendingNetBuys,
     BigDecimal reserveSoft) {}

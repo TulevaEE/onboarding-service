@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BU
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.CASH_BUFFER_INFLOW_CREDIT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_PAYOUT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -30,6 +32,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -37,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
@@ -142,7 +146,7 @@ class CashBufferReviewServiceIT {
     assertThat(outcomes)
         .usingRecursiveFieldByFieldElementComparator(AMOUNTS_BY_VALUE)
         .containsExactly(
-            new Reviewed(expectedOctober),
+            new Reviewed(expectedOctober, 0),
             new NotRun(TUK00, NO_RESERVE_CONFIGURED, "asOf=2026-11-05"),
             new NotRun(TUV100, NO_RESERVE_CONFIGURED, "asOf=2026-11-05"));
     assertThat(reviewRepository.findByFundAndMonth(TUK75, OCTOBER))
@@ -232,6 +236,39 @@ class CashBufferReviewServiceIT {
             ERROR);
   }
 
+  @Test
+  void anOutgoingBankEntryStillInSuspenseIsAnErrorUntilItIsReclassifiedAndTheMonthReviewedAgain() {
+    julyThroughOctoberOnTheLedgerWithTheirFees();
+    fundLimit(TUK75, LocalDate.of(2026, 1, 1), "131000.00", "77000.00");
+    var bookingDate = LocalDate.of(2026, 8, 25);
+    var externalReference = outgoingEntryInSuspense("7000.00", bookingDate, RECURRING);
+
+    service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+    fundBankLedger.reclassifySuspenseEntry(
+        TUK75, new BigDecimal("-7000.00"), externalReference, REGISTRAR_PAYOUT, bookingDate);
+    service.reviewAllFunds(SEPTEMBER, FOURTH_BUSINESS_DAY_OF_OCTOBER);
+
+    var notifications = inOrder(notificationService);
+    notifications
+        .verify(notificationService)
+        .sendMessage(
+            header(SEPTEMBER)
+                + "\nBANK DEBITS STILL IN SUSPENSE — a registrar payout among them is left out of"
+                + " the outflows, so both recommended limits may come out low until it is"
+                + " reclassified"
+                + "\n  TUK75: 1 outgoing bank entry(ies) in suspense; window 2026-07..2026-09 (3"
+                + " months)"
+                + otherFundsWithoutAReserve(FOURTH_BUSINESS_DAY_OF_OCTOBER),
+            INVESTMENT,
+            ERROR);
+    notifications
+        .verify(notificationService)
+        .sendMessage(
+            header(SEPTEMBER) + otherFundsWithoutAReserve(FOURTH_BUSINESS_DAY_OF_OCTOBER),
+            INVESTMENT,
+            ERROR);
+  }
+
   private static String header(YearMonth reviewMonth) {
     return ("CASH BUFFER REVIEW %s — the recommended day-to-day operating buffer (recurring and"
             + " one-off payouts; PEVA, RAVA and PIK cycle outflows left out), not the fund's total"
@@ -288,6 +325,19 @@ class CashBufferReviewServiceIT {
         randomUUID(),
         bookingDate,
         SYNTHETIC_PERSONAL_CODE + ", " + remittance);
+  }
+
+  private UUID outgoingEntryInSuspense(String amount, LocalDate bookingDate, String remittance) {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal(amount).negate(),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        bookingDate,
+        new UnclassifiedEntryDetails(
+            null, null, SYNTHETIC_PERSONAL_CODE + ", " + remittance, null));
+    return externalReference;
   }
 
   private void parameter(InvestmentParameter parameter, TulevaFund fund, String value) {

@@ -34,13 +34,19 @@ class CashBufferReviewNotifier {
         reviews(outcomes)
             .filter(review -> review.reviewMonthFlows().unrecognisedPayouts() > 0)
             .toList();
+    var debitsInSuspense =
+        reviewed(outcomes)
+            .filter(reviewed -> reviewed.outgoingEntriesStillInSuspense() > 0)
+            .toList();
     var notRun =
         outcomes.stream().filter(NotRun.class::isInstance).map(NotRun.class::cast).toList();
-    if (sustainedDrifts.isEmpty() && unrecognisedPayouts.isEmpty() && notRun.isEmpty()) {
+    var leftOutOfTheBufferOrNotRun =
+        !unrecognisedPayouts.isEmpty() || !debitsInSuspense.isEmpty() || !notRun.isEmpty();
+    if (sustainedDrifts.isEmpty() && !leftOutOfTheBufferOrNotRun) {
       log.info("Cash buffer review has nothing to report: reviewMonth={}", reviewMonth);
       return;
     }
-    var severity = unrecognisedPayouts.isEmpty() && notRun.isEmpty() ? INFO : ERROR;
+    var severity = leftOutOfTheBufferOrNotRun ? ERROR : INFO;
     var message =
         Stream.of(
                 Stream.of(header(reviewMonth)),
@@ -51,6 +57,11 @@ class CashBufferReviewNotifier {
                     "PAYOUT REASON NOT RECOGNISED — left out of the buffer until it is mapped in"
                         + " RegistrarPayoutReason",
                     unrecognisedPayouts.stream().map(CashBufferReviewNotifier::unrecognisedLine)),
+                section(
+                    "BANK DEBITS STILL IN SUSPENSE — a registrar payout among them is left out of"
+                        + " the outflows, so both recommended limits may come out low until it is"
+                        + " reclassified",
+                    debitsInSuspense.stream().map(CashBufferReviewNotifier::suspenseLine)),
                 section(
                     "REVIEW COULD NOT RUN",
                     notRun.stream().map(CashBufferReviewNotifier::notRunLine)))
@@ -64,10 +75,11 @@ class CashBufferReviewNotifier {
   }
 
   private static Stream<CashBufferReview> reviews(List<FundReviewOutcome> outcomes) {
-    return outcomes.stream()
-        .filter(Reviewed.class::isInstance)
-        .map(Reviewed.class::cast)
-        .map(Reviewed::review);
+    return reviewed(outcomes).map(Reviewed::review);
+  }
+
+  private static Stream<Reviewed> reviewed(List<FundReviewOutcome> outcomes) {
+    return outcomes.stream().filter(Reviewed.class::isInstance).map(Reviewed.class::cast);
   }
 
   private static String header(YearMonth reviewMonth) {
@@ -145,6 +157,12 @@ class CashBufferReviewNotifier {
             flows.unrecognisedPayouts(),
             eur(flows.unrecognisedOutflow()),
             flows.month());
+  }
+
+  private static String suspenseLine(Reviewed reviewed) {
+    return "%s: %d outgoing bank entry(ies) in suspense; %s"
+        .formatted(
+            reviewed.fund(), reviewed.outgoingEntriesStillInSuspense(), window(reviewed.review()));
   }
 
   private static String notRunLine(NotRun notRun) {

@@ -134,7 +134,7 @@ class CashBufferReviewService {
             softDrift,
             hardDrift(rules.driftRule(), recommendation, configured, previous));
     repository.save(review);
-    return new Reviewed(review);
+    return new Reviewed(review, flowWindowReader.outgoingEntriesStillInSuspense(fund, window));
   }
 
   private static @Nullable Drift hardDrift(

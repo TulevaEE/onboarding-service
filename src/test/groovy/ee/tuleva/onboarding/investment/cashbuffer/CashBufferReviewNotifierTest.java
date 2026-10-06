@@ -49,8 +49,9 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(review(TUK75, drift("-110300.00", true, 5), drift("-56000.00", true, 5))),
-            new Reviewed(review(TUK00, drift("-100.00", false, 0), null))));
+            new Reviewed(
+                review(TUK75, drift("-110300.00", true, 5), drift("-56000.00", true, 5)), 0),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null), 0)));
 
     verify(notificationService, never()).sendMessage(anyString(), any(), any());
   }
@@ -60,8 +61,9 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(review(TUK75, drift("-110300.00", true, 6), drift("-100.00", false, 0))),
-            new Reviewed(review(TUK00, drift("-100.00", false, 0), null))));
+            new Reviewed(
+                review(TUK75, drift("-110300.00", true, 6), drift("-100.00", false, 0)), 0),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null), 0)));
 
     verify(notificationService)
         .sendMessage(
@@ -80,7 +82,8 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(review(TUK75, drift("-100.00", false, 0), drift("-56000.00", true, 6)))));
+            new Reviewed(
+                review(TUK75, drift("-100.00", false, 0), drift("-56000.00", true, 6)), 0)));
 
     verify(notificationService)
         .sendMessage(
@@ -99,7 +102,7 @@ class CashBufferReviewNotifierTest {
     notifier.notify(
         SEPTEMBER,
         List.of(
-            new Reviewed(reviewWithAnUnrecognisedPayoutIn(SEPTEMBER)),
+            new Reviewed(reviewWithAnUnrecognisedPayoutIn(SEPTEMBER), 0),
             new NotRun(
                 TUK00, MISSING_PARAMETERS, "parameters=[CASH_BUFFER_SETTLEMENT_HORIZON_DAYS]"),
             new NotRun(TUV100, NO_COMPLETE_MONTH_OF_FLOWS, "reviewMonth=2026-09")));
@@ -121,9 +124,29 @@ class CashBufferReviewNotifierTest {
 
   @Test
   void anUnrecognisedPayoutFromAMonthBeforeTheReviewMonthIsNotRaisedAgain() {
-    notifier.notify(SEPTEMBER, List.of(new Reviewed(reviewWithAnUnrecognisedPayoutIn(AUGUST))));
+    notifier.notify(SEPTEMBER, List.of(new Reviewed(reviewWithAnUnrecognisedPayoutIn(AUGUST), 0)));
 
     verify(notificationService, never()).sendMessage(anyString(), any(), any());
+  }
+
+  @Test
+  void anOutgoingBankEntryStillInSuspenseIsAnErrorBecauseBothRecommendedLimitsMayBeLow() {
+    notifier.notify(
+        SEPTEMBER,
+        List.of(
+            new Reviewed(review(TUK75, drift("-100.00", false, 0), drift("-100.00", false, 0)), 2),
+            new Reviewed(review(TUK00, drift("-100.00", false, 0), null), 0)));
+
+    verify(notificationService)
+        .sendMessage(
+            HEADER
+                + "\nBANK DEBITS STILL IN SUSPENSE — a registrar payout among them is left out of"
+                + " the outflows, so both recommended limits may come out low until it is"
+                + " reclassified"
+                + "\n  TUK75: 2 outgoing bank entry(ies) in suspense; window 2026-08..2026-09 (2"
+                + " months)",
+            INVESTMENT,
+            ERROR);
   }
 
   @Test

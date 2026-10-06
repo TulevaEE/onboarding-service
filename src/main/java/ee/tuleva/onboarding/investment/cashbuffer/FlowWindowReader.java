@@ -57,6 +57,11 @@ class FlowWindowReader {
             .toList());
   }
 
+  int outgoingEntriesStillInSuspense(TulevaFund fund, FlowWindow window) {
+    return registrarCashFlows.countOutgoingEntriesStillInSuspense(
+        fund, window.firstMonth().atDay(1), window.lastMonth().atEndOfMonth());
+  }
+
   private LocalDate businessDayOf(LocalDate bookingDate, LocalDate lastBusinessDay) {
     if (publicHolidays.isWorkingDay(bookingDate)) {
       return bookingDate;

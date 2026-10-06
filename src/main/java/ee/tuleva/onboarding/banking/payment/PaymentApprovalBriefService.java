@@ -87,16 +87,15 @@ public class PaymentApprovalBriefService {
   private PaymentApprovalBrief.AccountSummary summarise(
       String accountName, List<OutgoingPayment> payments, List<OutgoingPayment> awaitingApproval) {
     var iban = payments.getFirst().getRemitterIban();
+    var incomingTransfers = sum(submittedTransfersInto(iban, awaitingApproval));
     var projected =
         bookedBalanceReader
             .latest(iban)
             .map(
                 balance ->
                     new PaymentApprovalBrief.ProjectedBalance(
-                        balance
-                            .amount()
-                            .add(sum(submittedTransfersInto(iban, awaitingApproval)))
-                            .subtract(sum(payments)),
+                        balance.amount().add(incomingTransfers).subtract(sum(payments)),
+                        incomingTransfers,
                         balance.asOf()))
             .orElse(null);
     var flows =

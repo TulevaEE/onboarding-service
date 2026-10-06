@@ -135,7 +135,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .positionReportDate(positionReportDate)
             .priceDate(positionReportDate)
             .calculatedAt(Instant.now(clock))
-            .securitiesDetail(buildSecuritiesDetail(fund, cutoff, positionReportDate, context))
+            .securitiesDetail(buildSecuritiesDetail(context))
             .build();
 
     validateResult(result);
@@ -221,9 +221,9 @@ public class NavCalculationService implements NavFeeBackfill {
     return aum.divide(unitsOutstanding, fund.getNavScale(), HALF_UP);
   }
 
-  private List<SecurityDetail> buildSecuritiesDetail(
-      TulevaFund fund, Instant cutoff, LocalDate priceDate, NavComponentContext context) {
-    return new TreeMap<>(navLedgerRepository.getSecuritiesUnitBalancesAt(cutoff, fund))
+  private List<SecurityDetail> buildSecuritiesDetail(NavComponentContext context) {
+    return new TreeMap<>(
+            navLedgerRepository.getSecuritiesUnitBalancesAt(context.getCutoff(), context.getFund()))
         .entrySet().stream()
             .map(
                 entry -> {
@@ -235,11 +235,11 @@ public class NavCalculationService implements NavFeeBackfill {
                               () ->
                                   new IllegalStateException(
                                       "Price not resolved: fund="
-                                          + fund
+                                          + context.getFund()
                                           + ", isin="
                                           + isin
                                           + ", priceDate="
-                                          + priceDate));
+                                          + context.getPriceDate()));
                   BigDecimal price = resolvedPrice.usedPrice();
                   BigDecimal marketValue = units.multiply(price).setScale(2, HALF_UP);
                   return new SecurityDetail(

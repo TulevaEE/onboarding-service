@@ -29,17 +29,34 @@ class CashBufferReviewRepository {
     review.window().months().forEach(month -> insertMonth(reviewId, month));
   }
 
+  boolean existsFor(TulevaFund fund, YearMonth reviewMonth) {
+    return idOf(fund, reviewMonth).isPresent();
+  }
+
   Optional<CashBufferReview> findByFundAndMonth(TulevaFund fund, YearMonth reviewMonth) {
+    return idOf(fund, reviewMonth).map(this::findById);
+  }
+
+  private Optional<Long> idOf(TulevaFund fund, YearMonth reviewMonth) {
     return jdbcClient
         .sql(
             """
-            SELECT * FROM investment_cash_buffer_review
+            SELECT id FROM investment_cash_buffer_review
             WHERE fund_code = :fundCode AND review_month = :reviewMonth
             """)
         .param("fundCode", fund.name())
         .param("reviewMonth", reviewMonth.atDay(1))
-        .query((rs, rowNum) -> toReview(rs, monthsOf(rs.getLong("id"))))
+        .query(Long.class)
         .optional();
+  }
+
+  private CashBufferReview findById(long reviewId) {
+    var months = monthsOf(reviewId);
+    return jdbcClient
+        .sql("SELECT * FROM investment_cash_buffer_review WHERE id = :reviewId")
+        .param("reviewId", reviewId)
+        .query((rs, rowNum) -> toReview(rs, months))
+        .single();
   }
 
   private void deleteEarlierRunFor(TulevaFund fund, YearMonth reviewMonth) {

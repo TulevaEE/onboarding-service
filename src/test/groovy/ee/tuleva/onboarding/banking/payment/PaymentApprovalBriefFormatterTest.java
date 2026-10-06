@@ -46,7 +46,16 @@ class PaymentApprovalBriefFormatterTest {
     assertThat(text)
         .contains(
             "      after execution: 0.00 (balance as of 16:00 statement)"
-                + "  ⚠️ covered by the incoming transfer: approve that transfer first\n");
+                + "  covered by the incoming transfer: approve that transfer first\n");
+  }
+
+  // Approving the transfer first is an ordering instruction, not something to review, so it
+  // carries no warning sign.
+  @Test
+  void payoutsTheIncomingTransferCoversAreNotFlaggedForReview() {
+    var text = formatter.format(brief(projected("0.00", "12345.67", "2026-08-10T13:00:05Z")));
+
+    assertThat(text).doesNotContain("⚠️", "ATTENTION");
   }
 
   @Test

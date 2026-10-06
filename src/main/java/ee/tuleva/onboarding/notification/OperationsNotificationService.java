@@ -19,6 +19,7 @@ public interface OperationsNotificationService {
 
   enum Severity {
     INFO,
+    WARNING,
     ERROR
   }
 }

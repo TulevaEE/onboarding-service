@@ -14,6 +14,8 @@ public final class JobRunSchedule {
   public static final String LIMIT_CHECK_GAP_FILL = "0 15 19 * * MON-FRI";
   public static final String INSTRUMENT_RETIREMENT = "0 30 19 * * MON-FRI";
 
+  public static final String OWNERSHIP_LIMIT_CHECK = "0 45 7 1-14 * *";
+
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 7 12 3 *";
 
   public static final String PEVA_RAVA_PHASE_UPDATE = "0 0 7 * * MON-FRI";

@@ -70,6 +70,32 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aBreachOnADayWithNoBeginningOfDayPositionsStillShowsCashFeeAndResidual() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("-0.0065"))
+            .fundReturn(new BigDecimal("0.0035"))
+            .benchmarkReturn(new BigDecimal("0.0100"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .securityAttributions(List.of())
+            .cashDrag(new BigDecimal("-0.0010"))
+            .feeDrag(new BigDecimal("-0.0005"))
+            .residual(new BigDecimal("-0.0050"))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("Cash drag: -0.10%", "Fee drag: -0.05%", "Residual: -0.50%");
+  }
+
+  @Test
   void withinLimitsShowsGreenIcon() {
     var result = result(false, 0, BigDecimal.ZERO);
 

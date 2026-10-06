@@ -133,6 +133,7 @@ class TrackingDifferenceServiceGapFillIT {
   @Test
   void aDateNamedForWantOfANavIsCheckedOnceTheNavIsPublishedAndIsNotNamedAgain() {
     storeModelPortfolio();
+    storeHolding(WEDNESDAY);
     storeHolding(THURSDAY);
     givenPrice(WEDNESDAY, "100.00");
     givenPrice(THURSDAY, "101.00");
@@ -249,6 +250,8 @@ class TrackingDifferenceServiceGapFillIT {
         .cashDrag(ZERO)
         .feeDrag(ZERO)
         .residual(ZERO)
+        .bodImpliedFundReturn(onePercent)
+        .navResidual(ZERO)
         .build();
   }
 

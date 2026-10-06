@@ -280,7 +280,7 @@ class IndicatorDetailFormatterTest {
   }
 
   @Test
-  void aStableSrriIndicatorReportsTheCesrMajority() {
+  void aStableSrriIndicatorReportsTheCesrPersistenceRule() {
     disclose(SRRI, TUK00, 4);
 
     assertThat(detailFormatter.detailBlock(outcome(undisclosedSrri())))

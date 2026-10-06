@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +38,7 @@ class FeeCheckServiceTest {
   @Mock private BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   @Mock private SettlementCompletenessChecker settlementCompletenessChecker;
   @Mock private CashSettlementChecker cashSettlementChecker;
+  @Mock private InstrumentRateCoverageChecker instrumentRateCoverageChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
 
@@ -52,6 +54,7 @@ class FeeCheckServiceTest {
             blackrockAdjustmentFreshnessChecker,
             settlementCompletenessChecker,
             cashSettlementChecker,
+            instrumentRateCoverageChecker,
             eventRepository,
             notifier,
             35);
@@ -71,7 +74,8 @@ class FeeCheckServiceTest {
             org.assertj.core.groups.Tuple.tuple(LEDGER_ACCRUAL_CONSISTENCY, FeeCheckScope.DEPOT),
             org.assertj.core.groups.Tuple.tuple(FEE_BASE_COMPLETENESS, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(CUSTODIAN_POSITION_COMPLETENESS, FeeCheckScope.ALL),
-            org.assertj.core.groups.Tuple.tuple(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL));
+            org.assertj.core.groups.Tuple.tuple(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL),
+            org.assertj.core.groups.Tuple.tuple(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL));
   }
 
   @Test
@@ -130,6 +134,15 @@ class FeeCheckServiceTest {
     verify(feeBaseCompletenessChecker).check(TUK75, CHECK_DATE.minusDays(35), CHECK_DATE);
   }
 
+  @Test
+  void theInstrumentRateCoverageIsCheckedOnTheCheckDateRatherThanOverTheWindow() {
+    givenAllCheckersPass();
+
+    service.runDailyChecks(List.of(TUK75), CHECK_DATE);
+
+    verify(instrumentRateCoverageChecker).check(TUK75, CHECK_DATE);
+  }
+
   // An unfixed divergence used to age out of the rolling window: on day D+36 the divergent date
   // fell outside it, the checker was no longer asked about it and returned a pass, and the notifier
   // read PASS against a previous FAIL and announced "[CLEARED]" under the header "Fee check
@@ -166,6 +179,8 @@ class FeeCheckServiceTest {
     givenCustodianCheckerPasses();
     given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
         .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
+    given(instrumentRateCoverageChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL)));
   }
 
   private void givenCustodianCheckerPasses() {

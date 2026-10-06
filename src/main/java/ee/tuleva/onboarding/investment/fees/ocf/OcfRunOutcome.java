@@ -10,7 +10,12 @@ sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Fai
 
   YearMonth month();
 
-  record Computed(TulevaFund fund, YearMonth month, OcfSnapshot snapshot, List<OcfGap> gaps)
+  record Computed(
+      TulevaFund fund,
+      YearMonth month,
+      OcfSnapshot snapshot,
+      List<OcfGap> gaps,
+      List<OcfHolding> holdings)
       implements OcfRunOutcome {
 
     boolean incomplete() {

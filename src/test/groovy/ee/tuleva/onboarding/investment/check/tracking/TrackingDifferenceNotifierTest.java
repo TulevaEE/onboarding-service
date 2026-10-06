@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
@@ -21,6 +22,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -1671,6 +1673,42 @@ class TrackingDifferenceNotifierTest {
               this period. Any attribution already stored for it is left as it was. Rerun it once
               the cause is fixed; the stack trace is in the logs.""",
             INVESTMENT);
+  }
+
+  @Test
+  void anAttributionRefusedForUnresolvedInstrumentRatesNamesEveryFundOnceAndHowToResolveThem() {
+    notifier.notifyAttributionRefusedForUnresolvedRates(
+        List.of(TUK75, TUK00),
+        LocalDate.of(2026, 9, 1),
+        LocalDate.of(2026, 9, 30),
+        YearMonth.of(2026, 9));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION NOT COMPUTED: funds=TUK75, TUK00, period=2026-09-01 to 2026-09-30
+              The instrument rates of 2026-09 are not resolved yet, so nothing was written for
+              this period. Any attribution already stored for it is left as it was. Resolve them
+              with INSERT INTO investment_job_trigger (job_name) VALUES ('InstrumentFeeRateJob'),
+              then rerun the attribution.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionRefusedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionRefusedForUnresolvedRates(
+                    List.of(TUK75),
+                    LocalDate.of(2026, 9, 1),
+                    LocalDate.of(2026, 9, 30),
+                    YearMonth.of(2026, 9)))
+        .doesNotThrowAnyException();
   }
 
   @Test

@@ -132,9 +132,10 @@ class NavPipelineIntegrationTest {
         .sql(
             """
             SELECT account_id, price_date, price_source FROM nav_report
-            WHERE nav_date = :navDate AND account_type = 'SECURITY'
+            WHERE nav_date = :navDate AND fund_code = :fundCode AND account_type = 'SECURITY'
             """)
         .param("navDate", navDate)
+        .param("fundCode", TKF100.getCode())
         .query(
             (rs, rowNum) ->
                 new SecurityPricing(

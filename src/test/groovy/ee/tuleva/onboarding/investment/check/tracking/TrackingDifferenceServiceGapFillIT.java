@@ -75,6 +75,7 @@ class TrackingDifferenceServiceGapFillIT {
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 4, 8);
   private static final LocalDate THURSDAY = LocalDate.of(2026, 4, 9);
   private static final LocalDate TODAY_FRIDAY = LocalDate.of(2026, 4, 10);
+  private static final LocalDate MAUNDY_THURSDAY = LocalDate.of(2026, 4, 2);
   private static final LocalDate GOOD_FRIDAY = LocalDate.of(2026, 4, 3);
   private static final LocalDate EASTER_SATURDAY = LocalDate.of(2026, 4, 4);
   private static final LocalDate LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW =
@@ -154,6 +155,7 @@ class TrackingDifferenceServiceGapFillIT {
     storeModelPortfolio();
     storeHolding(GOOD_FRIDAY);
     storeHolding(EASTER_SATURDAY);
+    publishNav(MAUNDY_THURSDAY, "10.0000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
   }
@@ -187,6 +189,7 @@ class TrackingDifferenceServiceGapFillIT {
   @Test
   void namesNothingForAFundWithNoModelPortfolioEvenWhenItsNavIsMissing() {
     storeHolding(THURSDAY);
+    publishNav(WEDNESDAY, "10.0000");
 
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
   }

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 class ConsecutiveBreachTracker {
 
   private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
+  private static final int LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES = 10;
 
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
@@ -100,6 +101,10 @@ class ConsecutiveBreachTracker {
       laterDate = event.getCheckDate();
 
       if (!isBreachDay(event)) {
+        break;
+      }
+      if (uncheckedBefore > LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES) {
+        warnOfAGapTooLongToBridge(fund, checkType, checkDate, event, uncheckedBefore);
         break;
       }
       warnOfUncheckedDays(fund, checkType, checkDate, event, uncheckedBefore);
@@ -188,6 +193,22 @@ class ConsecutiveBreachTracker {
           uncheckedDays,
           event.getCheckDate());
     }
+  }
+
+  private static void warnOfAGapTooLongToBridge(
+      TulevaFund fund,
+      TrackingCheckType checkType,
+      LocalDate checkDate,
+      TrackingDifferenceEvent event,
+      int uncheckedDays) {
+    log.warn(
+        "Escalation streak ends at working days with no check, too many to bridge: fund={}, checkType={}, checkDate={}, uncheckedDays={}, longestBridged={}, after={}",
+        fund,
+        checkType,
+        checkDate,
+        uncheckedDays,
+        LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES,
+        event.getCheckDate());
   }
 
   private int uncheckedWorkingDaysBetween(LocalDate earlier, LocalDate later) {

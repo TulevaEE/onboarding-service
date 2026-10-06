@@ -300,6 +300,35 @@ class SecurityDataBuilder {
     return holdings;
   }
 
+  static BigDecimal totalMarketValue(List<FundPosition> positions) {
+    return positions.stream()
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  static @Nullable Map<String, BigDecimal> beginningOfDayWeights(
+      List<FundPosition> bodPositions, BigDecimal bodTotalSecurities) {
+    if (bodTotalSecurities.signum() <= 0
+        || bodPositions.stream().anyMatch(SecurityDataBuilder::isValuedWithoutIsin)) {
+      return null;
+    }
+    return bodPositions.stream()
+        .filter(p -> p.getAccountId() != null && p.getMarketValue() != null)
+        .collect(
+            Collectors.toMap(
+                p -> Objects.requireNonNull(p.getAccountId()),
+                p ->
+                    Objects.requireNonNull(p.getMarketValue())
+                        .divide(bodTotalSecurities, SCALE, RoundingMode.HALF_UP),
+                BigDecimal::add));
+  }
+
+  private static boolean isValuedWithoutIsin(FundPosition position) {
+    var marketValue = position.getMarketValue();
+    return position.getAccountId() == null && marketValue != null && marketValue.signum() != 0;
+  }
+
   static boolean isStaleDate(PriceSnapshot snapshot, LocalDate expectedDate) {
     return snapshot.date() != null && !snapshot.date().equals(expectedDate);
   }

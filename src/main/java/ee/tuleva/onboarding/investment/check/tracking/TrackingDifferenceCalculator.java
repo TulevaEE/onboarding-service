@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.Builder;
@@ -130,26 +131,11 @@ class TrackingDifferenceCalculator {
     var trackingDifference = fundReturn.subtract(benchmarkReturn).setScale(SCALE, HALF_UP);
     var breach = trackingDifference.abs().compareTo(breachThreshold) >= 0;
 
+    var bodWeights = input.bodWeights();
     var securityAttributions =
-        validSecurities.stream()
-            .map(
-                s -> {
-                  var secReturn =
-                      dailyReturn(
-                          s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
-                  var weightDiff =
-                      s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
-                  var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
-                  return new SecurityAttribution(
-                      s.isin(),
-                      s.modelWeight(),
-                      s.actualWeight(),
-                      weightDiff,
-                      secReturn,
-                      null,
-                      contribution);
-                })
-            .toList();
+        bodWeights == null
+            ? List.<SecurityAttribution>of()
+            : attributeAtTheWeightsTheDayStartedWith(validSecurities, bodWeights);
 
     var cashDrag = input.cashWeight().negate().multiply(benchmarkReturn).setScale(SCALE, HALF_UP);
 
@@ -185,6 +171,23 @@ class TrackingDifferenceCalculator {
             .navResidualBreach(navResidual.breach())
             .navFlow(computeNavFlow(input, feeDrag))
             .build());
+  }
+
+  private static List<SecurityAttribution> attributeAtTheWeightsTheDayStartedWith(
+      List<SecurityData> securities, Map<String, BigDecimal> bodWeights) {
+    return securities.stream()
+        .map(s -> attribute(s, bodWeights.getOrDefault(s.isin(), ZERO)))
+        .toList();
+  }
+
+  private static SecurityAttribution attribute(SecurityData security, BigDecimal bodWeight) {
+    var isin = security.isin();
+    var secReturn =
+        dailyReturn(security.today().requirePrice(isin), security.previous().requirePrice(isin));
+    var weightDiff = bodWeight.subtract(security.modelWeight()).setScale(SCALE, HALF_UP);
+    var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
+    return new SecurityAttribution(
+        isin, security.modelWeight(), bodWeight, weightDiff, secReturn, null, contribution);
   }
 
   private NavResidualCheck computeNavResidual(
@@ -296,6 +299,7 @@ class TrackingDifferenceCalculator {
       BigDecimal accruedFeeFraction,
       int consecutiveBreachDays,
       @Nullable List<BodHolding> bodHoldings,
+      @Nullable Map<String, BigDecimal> bodWeights,
       @Nullable BigDecimal bodSecuritiesFraction,
       @Nullable BigDecimal openingNetAssets,
       @Nullable BigDecimal closingNetAssets,

@@ -10,6 +10,9 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALAT
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ONE;
+import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -21,7 +24,9 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +44,10 @@ class TrackingDifferenceCalculatorTest {
   private static final BigDecimal BREACH_THRESHOLD = new BigDecimal("0.005");
   private static final BigDecimal BENCHMARK_MODEL_OWN_BREACH_THRESHOLD = new BigDecimal("0.0015");
   private static final BigDecimal MAX_DAILY_RETURN = new BigDecimal("0.5");
+  private static final RecursiveComparisonConfiguration BIG_DECIMALS_BY_VALUE =
+      RecursiveComparisonConfiguration.builder()
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .build();
 
   @Mock private InvestmentParameterRepository parameterRepository;
 
@@ -208,6 +217,89 @@ class TrackingDifferenceCalculatorTest {
         attributions.stream().filter(a -> a.isin().equals("IE00B")).findFirst().orElseThrow();
     assertThat(attrB.weightDifference()).isEqualByComparingTo(new BigDecimal("0.05"));
     assertThat(attrB.contribution()).isEqualByComparingTo(new BigDecimal("-0.0005"));
+  }
+
+  @Test
+  void weightDeviationIsZeroWhenTheDayStartedAtTheModelWhateverThePricesDidDuringIt() {
+    var securities =
+        List.of(
+            security("IE00A", new BigDecimal("0.50"), new BigDecimal("0.51"), "102", "100"),
+            security("IE00B", new BigDecimal("0.50"), new BigDecimal("0.49"), "98", "100"));
+
+    var result =
+        calculator
+            .calculate(
+                flatDayInput(securities)
+                    .bodWeights(
+                        Map.of("IE00A", new BigDecimal("0.50"), "IE00B", new BigDecimal("0.50")))
+                    .build())
+            .orElseThrow();
+
+    assertThat(result.securityAttributions())
+        .usingRecursiveFieldByFieldElementComparator(BIG_DECIMALS_BY_VALUE)
+        .containsExactly(
+            new SecurityAttribution(
+                "IE00A",
+                new BigDecimal("0.50"),
+                new BigDecimal("0.50"),
+                ZERO,
+                new BigDecimal("0.02"),
+                null,
+                ZERO),
+            new SecurityAttribution(
+                "IE00B",
+                new BigDecimal("0.50"),
+                new BigDecimal("0.50"),
+                ZERO,
+                new BigDecimal("-0.02"),
+                null,
+                ZERO));
+    assertThat(result.residual()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void anInstrumentBoughtDuringTheDayExplainsTheReturnTheFundDidNotHoldItFor() {
+    var securities =
+        List.of(
+            security("IE00A", new BigDecimal("0.50"), new BigDecimal("0.50"), "100", "100"),
+            security("IE00B", new BigDecimal("0.50"), new BigDecimal("0.50"), "102", "100"));
+
+    var result =
+        calculator
+            .calculate(flatDayInput(securities).bodWeights(Map.of("IE00A", ONE)).build())
+            .orElseThrow();
+
+    assertThat(result.trackingDifference()).isEqualByComparingTo(new BigDecimal("-0.01"));
+    assertThat(result.securityAttributions())
+        .usingRecursiveFieldByFieldElementComparator(BIG_DECIMALS_BY_VALUE)
+        .containsExactly(
+            new SecurityAttribution(
+                "IE00A", new BigDecimal("0.50"), ONE, new BigDecimal("0.50"), ZERO, null, ZERO),
+            new SecurityAttribution(
+                "IE00B",
+                new BigDecimal("0.50"),
+                ZERO,
+                new BigDecimal("-0.50"),
+                new BigDecimal("0.02"),
+                null,
+                new BigDecimal("-0.01")));
+    assertThat(result.residual()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void leavesTheWeightEffectInTheResidualWhenTheDayHasNoBeginningOfDayPositions() {
+    var securities =
+        List.of(
+            security("IE00A", new BigDecimal("0.50"), new BigDecimal("0.51"), "102", "100"),
+            security("IE00B", new BigDecimal("0.50"), new BigDecimal("0.49"), "98", "100"));
+
+    var result =
+        calculator.calculate(flatDayInput(securities).bodWeights(null).build()).orElseThrow();
+
+    assertThat(result.securityAttributions()).isEmpty();
+    assertThat(result.residual())
+        .isEqualByComparingTo(
+            result.trackingDifference().subtract(result.cashDrag()).subtract(result.feeDrag()));
   }
 
   @Test
@@ -664,7 +756,24 @@ class TrackingDifferenceCalculatorTest {
         .securities(securities)
         .cashWeight(BigDecimal.ZERO)
         .accruedFeeFraction(BigDecimal.ZERO)
+        .bodWeights(weightsTheDayStartedWith(securities))
         .build();
+  }
+
+  private TrackingInput.TrackingInputBuilder flatDayInput(List<SecurityData> securities) {
+    return TrackingInput.builder()
+        .fund(TUK75)
+        .checkDate(CHECK_DATE)
+        .checkType(MODEL_PORTFOLIO)
+        .todayNav(new BigDecimal("10.00"))
+        .yesterdayNav(new BigDecimal("10.00"))
+        .securities(securities)
+        .cashWeight(ZERO)
+        .accruedFeeFraction(ZERO);
+  }
+
+  private static Map<String, BigDecimal> weightsTheDayStartedWith(List<SecurityData> securities) {
+    return securities.stream().collect(toMap(SecurityData::isin, SecurityData::actualWeight));
   }
 
   @Test

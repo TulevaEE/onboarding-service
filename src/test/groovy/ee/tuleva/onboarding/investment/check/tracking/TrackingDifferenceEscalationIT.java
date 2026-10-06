@@ -173,27 +173,13 @@ class TrackingDifferenceEscalationIT {
           tracker.updateConsecutiveCount(
               day.calculated(),
               tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, day.date()));
-      eventRepository.save(storedEvent(result));
+      eventRepository.save(TrackingDifferenceEventMapper.toEvent(result));
       notifier.notify(List.of(result));
       if (notifications.lastMessage().contains(ESCALATION_HEADER)) {
         escalated.add(day.date());
       }
     }
     return escalated;
-  }
-
-  private static TrackingDifferenceEvent storedEvent(TrackingDifferenceResult result) {
-    return TrackingDifferenceEvent.builder()
-        .fund(result.fund())
-        .checkDate(result.checkDate())
-        .checkType(result.checkType())
-        .trackingDifference(result.trackingDifference())
-        .fundReturn(result.fundReturn())
-        .benchmarkReturn(result.benchmarkReturn())
-        .breach(result.breach())
-        .consecutiveBreachDays(result.consecutiveBreachDays())
-        .result(TrackingDifferenceEventMapper.buildResultMap(result))
-        .build();
   }
 
   private static CheckedDay breach(LocalDate date) {

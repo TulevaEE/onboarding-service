@@ -4,12 +4,9 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.command.AuthenticationType
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
-import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
+import ee.tuleva.onboarding.auth.mobileid.MobileIdLoginStarter
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
-import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
-import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
-import ee.tuleva.onboarding.auth.smartid.SmartIdSession
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -22,13 +19,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AuthControllerSpec extends BaseControllerSpec {
 
-  MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
-  SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
+  MobileIdLoginStarter mobileIdLoginStarter = Mock(MobileIdLoginStarter)
   IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
   WebEidAuthService webEidAuthService = Mock(WebEidAuthService)
   GenericSessionStore sessionStore = Mock(GenericSessionStore)
   AuthService authService = Mock(AuthService)
-  AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, webEidAuthService, sessionStore, authService)
+  AuthController controller = new AuthController(mobileIdLoginStarter, idCardAuthService, webEidAuthService, sessionStore, authService)
   private MockMvc mockMvc
 
   def setup() {
@@ -37,7 +33,7 @@ class AuthControllerSpec extends BaseControllerSpec {
 
   def "Authenticate: Initiate mobile id authentication"() {
     given:
-    1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode, false) >> MobileIdFixture.sampleMobileIdSession
     1 * sessionStore.save(_ as MobileIDSession)
     when:
     def result = mockMvc.perform(post("/authenticate")
@@ -47,14 +43,29 @@ class AuthControllerSpec extends BaseControllerSpec {
     result.andExpect(status().isOk())
   }
 
-  def "Authenticate: Initiate smart id authentication"() {
+  def "Authenticate: Initiate mobile id authentication the person asked this browser to remember"() {
     given:
-    1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode, _ as String) >> SmartIdFixture.sampleSmartIdSession
-    1 * sessionStore.save(_ as SmartIdSession)
+    1 * mobileIdLoginStarter.start(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode, true) >> MobileIdFixture.sampleMobileIdSession
+    1 * sessionStore.save(_ as MobileIDSession)
     when:
     def result = mockMvc.perform(post("/authenticate")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand())))
+        .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand() + [rememberMe: true])))
+    then:
+    result.andExpect(status().isOk())
+  }
+
+  def "Authenticate: Initiate mobile id authentication without a phone number"() {
+    given:
+    1 * mobileIdLoginStarter.start(null, MobileIdFixture.sampleIdCode, false) >> MobileIdFixture.sampleMobileIdSession
+    1 * sessionStore.save(_ as MobileIDSession)
+    when:
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString([
+            personalCode: MobileIdFixture.sampleIdCode,
+            type        : AuthenticationType.MOBILE_ID.toString()
+        ])))
     then:
     result.andExpect(status().isOk())
   }
@@ -225,13 +236,6 @@ class AuthControllerSpec extends BaseControllerSpec {
         phoneNumber : MobileIdFixture.samplePhoneNumber,
         personalCode: MobileIdFixture.sampleIdCode,
         type        : AuthenticationType.MOBILE_ID.toString()
-    ]
-  }
-
-  private static sampleSmartIdAuthenticateCommand() {
-    [
-        personalCode: SmartIdFixture.personalCode,
-        type        : AuthenticationType.SMART_ID.toString()
     ]
   }
 

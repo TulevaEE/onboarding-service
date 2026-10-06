@@ -45,6 +45,10 @@ for (const name of distTemplates) {
     assert.equal(opens, ends, `IF count ${opens} does not match END:IF count ${ends}`);
   });
 
+  test(`${name}: every mj-include is resolved, because mjml drops a denied or unreadable include without failing the build`, () => {
+    assert.doesNotMatch(html, /<!-- mj-include (denied|fails)/);
+  });
+
   test(`${name}: every conditional variable is covered by a fixture variant`, () => {
     const fixturePath = join(root, 'fixtures', `${name}.json`);
     assert.ok(existsSync(fixturePath), `missing fixtures/${name}.json`);

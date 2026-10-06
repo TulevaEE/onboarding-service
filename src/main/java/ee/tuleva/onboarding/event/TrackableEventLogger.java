@@ -1,7 +1,13 @@
 package ee.tuleva.onboarding.event;
 
+import static ee.tuleva.onboarding.event.TrackableEvent.IP_ADDRESS;
+import static ee.tuleva.onboarding.event.TrackableEvent.USER_AGENT;
+
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.actuate.audit.AuditEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -29,7 +35,7 @@ public class TrackableEventLogger {
         event.getTimestamp(),
         event.getPrincipal(),
         event.getType(),
-        event.getData());
+        withoutClientConnection(event.getData()));
 
     eventLogRepository.save(
         EventLog.builder()
@@ -38,5 +44,13 @@ public class TrackableEventLogger {
             .timestamp(event.getTimestamp())
             .data(event.getData())
             .build());
+  }
+
+  private static Map<String, @Nullable Object> withoutClientConnection(
+      Map<String, @Nullable Object> data) {
+    Map<String, @Nullable Object> loggable = new HashMap<>(data);
+    loggable.remove(IP_ADDRESS);
+    loggable.remove(USER_AGENT);
+    return loggable;
   }
 }

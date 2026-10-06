@@ -90,7 +90,7 @@ class SriCalculatorTest {
   }
 
   @Test
-  void publishesAtExactlyTheAnnexTwoMinimumObservationCount() {
+  void publishesAtExactlyTheMinimumObservationFloor() {
     var prices = new ArrayList<FundValue>();
     var monday = LocalDate.of(2020, 1, 6);
     for (int week = 0; week <= 200; week++) {

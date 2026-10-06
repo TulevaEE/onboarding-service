@@ -90,7 +90,7 @@ class IndicatorDetailFormatter {
           "✅ %s %s — stabiilne, dokument ajakohane"
               .formatted(indicator.fund(), indicator.indicatorType()));
       block.add(rangeFormatter.rangeLine(indicator));
-      block.add(majorityLine(indicator));
+      block.add(publicationRuleLine(indicator));
     }
 
     return String.join("\n", diagnosticsFormatter.withDiagnostics(block, outcome));
@@ -106,7 +106,7 @@ class IndicatorDetailFormatter {
             indicator.publishedClass());
   }
 
-  private String majorityLine(PublishedRiskIndicator indicator) {
+  private String publicationRuleLine(PublishedRiskIndicator indicator) {
     if (indicator.indicatorType() == SRI) {
       var needed = indicator.windowReferencePoints() / 2 + 1;
       return "PRIIPs 4-kuu enamus: %d/%d referentspunkti klassile %s; pöördeks on vaja %d"

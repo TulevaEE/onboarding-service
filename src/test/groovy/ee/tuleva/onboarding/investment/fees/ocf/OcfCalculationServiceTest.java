@@ -565,6 +565,26 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void aFullYearThatContainsALeapDayIsLeftAtItsObservedRate() {
+    var leapMonthEnd = LocalDate.of(2028, 3, 31);
+    var periodStart = leapMonthEnd.minusYears(1).plusDays(1);
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), periodStart, leapMonthEnd))
+        .willReturn(List.of(periodStart, leapMonthEnd));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCost(TUK75, leapMonthEnd).rate();
+
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+  }
+
+  @Test
   void transactionCostReturnsZeroWhenZeroAum() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(

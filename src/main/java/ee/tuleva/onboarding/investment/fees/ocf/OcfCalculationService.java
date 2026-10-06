@@ -298,12 +298,19 @@ public class OcfCalculationService {
           txnCosts);
       return window.at(ZERO, List.of(TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM));
     }
-    var daysOfFundLifeInThePeriod = ChronoUnit.DAYS.between(periodStart, monthEnd) + 1;
-    return window.at(
-        txnCosts
-            .multiply(DAYS_IN_YEAR)
-            .divide(avgAum.multiply(BigDecimal.valueOf(daysOfFundLifeInThePeriod)), SCALE, HALF_UP),
-        List.of());
+    var rate =
+        periodStart.equals(trailingYearStart)
+            ? txnCosts.divide(avgAum, SCALE, HALF_UP)
+            : annualisedOverTheFundsLife(txnCosts, avgAum, periodStart, monthEnd);
+    return window.at(rate, List.of());
+  }
+
+  private static BigDecimal annualisedOverTheFundsLife(
+      BigDecimal txnCosts, BigDecimal avgAum, LocalDate inception, LocalDate monthEnd) {
+    var daysOfFundLife = ChronoUnit.DAYS.between(inception, monthEnd) + 1;
+    return txnCosts
+        .multiply(DAYS_IN_YEAR)
+        .divide(avgAum.multiply(BigDecimal.valueOf(daysOfFundLife)), SCALE, HALF_UP);
   }
 
   private static LocalDate laterOf(LocalDate one, LocalDate other) {

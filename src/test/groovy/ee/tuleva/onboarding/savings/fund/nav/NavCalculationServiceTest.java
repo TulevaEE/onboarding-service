@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
@@ -380,15 +381,15 @@ class NavCalculationServiceTest {
             .build();
 
     givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
-    when(securitiesValueComponent.calculate(any()))
-        .thenAnswer(
+    given(securitiesValueComponent.calculate(any()))
+        .willAnswer(
             invocation -> {
               NavComponentContext context = invocation.getArgument(0);
               context.setSecurityPrices(Map.of("IE00BFG1TM61", priceTheValueUsed));
               return new BigDecimal("34000.00");
             });
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
-        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    given(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
+        .willReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 
     assertThat(result.securitiesDetail())
@@ -410,33 +411,33 @@ class NavCalculationServiceTest {
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
 
     givenAWorkingDayWithNothingButSecurities(previousWorkingDay);
-    when(securitiesValueComponent.calculate(any()))
-        .thenAnswer(
+    given(securitiesValueComponent.calculate(any()))
+        .willAnswer(
             invocation -> {
               NavComponentContext context = invocation.getArgument(0);
               context.setSecurityPrices(Map.of());
               return ZERO;
             });
-    when(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
-        .thenReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
+    given(navLedgerRepository.getSecuritiesUnitBalancesAt(expectedCutoff, TKF100))
+        .willReturn(Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")));
 
     assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
         .isInstanceOf(IllegalStateException.class);
   }
 
   private void givenAWorkingDayWithNothingButSecurities(LocalDate previousWorkingDay) {
-    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
-        .thenReturn(Optional.of(previousWorkingDay));
-    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
-        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
-    when(cashPositionComponent.calculate(any())).thenReturn(ZERO);
-    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
-    when(payablesComponent.calculate(any())).thenReturn(ZERO);
-    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(navFees.calculateFeesForNav(any(), any(), any(), any()))
-        .thenReturn(new NavFeeResult(ZERO, ZERO));
-    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
-    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+    given(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .willReturn(Optional.of(previousWorkingDay));
+    given(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
+        .willReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
+    given(cashPositionComponent.calculate(any())).willReturn(ZERO);
+    given(receivablesComponent.calculate(any())).willReturn(ZERO);
+    given(payablesComponent.calculate(any())).willReturn(ZERO);
+    given(subscriptionsComponent.calculate(any())).willReturn(ZERO);
+    given(navFees.calculateFeesForNav(any(), any(), any(), any()))
+        .willReturn(new NavFeeResult(ZERO, ZERO));
+    given(blackrockAdjustmentComponent.calculate(any())).willReturn(ZERO);
+    given(redemptionsComponent.calculate(any())).willReturn(ZERO);
   }
 
   @Test

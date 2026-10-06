@@ -81,7 +81,7 @@ nudge:
   payment-rate-redirect:
     seed: ${PAYMENT_RATE_REDIRECT_SEED:local-development-seed}
     holdout-percent: ${PAYMENT_RATE_REDIRECT_HOLDOUT_PERCENT:20}
-    salary-threshold: ${PAYMENT_RATE_REDIRECT_SALARY_THRESHOLD:3300}
+    salary-threshold: ${PAYMENT_RATE_REDIRECT_SALARY_THRESHOLD:800}
     start-date: ${PAYMENT_RATE_REDIRECT_START_DATE:2026-09-01}
 
 hackathon:
@@ -91,7 +91,8 @@ hackathon:
   idea-deadline: 2026-09-30T20:59:59Z
 
 mobile-id:
-  # use "https://mid.sk.ee/mid-api" for testing signing
+  relyingPartyUUID: 00000000-0000-0000-0000-000000000000
+  relyingPartyName: DEMO
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 1
   service:
@@ -181,9 +182,12 @@ pensionikeskus:
     third-pillar-fee-comparison-url: https://www.pensionikeskus.ee/iii-sammas/vabatahtlikud-fondid/fonditasude-vordlus/
 
 smartid:
-  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-0000-0000-000000000000}
-  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:Demo}
-  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v1/
+  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-4000-8000-000000000000}
+  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:DEMO}
+  rp-api-url: https://sid.demo.sk.ee/smart-id-rp/v3/
+  scheme-name: smart-id-demo
+  callback-url: ${FRONTEND_URL:https://local.tuleva.ee}/login/smart-id/callback
+  trusted-ca-certificates: classpath:smart-id/demo/*.pem
 
 web-eid:
   origin: ${FRONTEND_URL:https://local.tuleva.ee}
@@ -210,28 +214,6 @@ management:
     tracing:
       export:
         enabled: false
-
-logging:
-  level:
-    ee:
-      sk:
-        smartid: TRACE
-#      tuleva:
-#        onboarding:
-#          comparisons:
-#            fundvalue:
-#              retrieval:
-#                globalstock: DEBUG
-#    com:
-#      zaxxer:
-#        hikari:
-#          HikariConfig: DEBUG
-#    org:
-#      hibernate:
-#        SQL: DEBUG
-#    org:
-#      springframework:
-#        security: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}
@@ -378,12 +360,14 @@ partner:
   publicKey2: "file:/partner-public-key2.pem"
 
 mobile-id:
-  hostUrl: "https://mid.sk.ee/mid-api"
   service:
     name: "Tuleva"
 
 smartid:
-  hostUrl: https://rp-api.smart-id.com/v1
+  rp-api-url: https://rp-api.smart-id.com/v3/
+  scheme-name: smart-id
+  callback-url: ${frontend.url}/login/smart-id/callback
+  trusted-ca-certificates: classpath:smart-id/live/*.pem
 
 truststore:
   path: "/truststore.jks"
@@ -533,6 +517,20 @@ spring:
   config:
     activate:
       on-profile:
+        - staging
+
+frontend:
+  url: https://staging.tuleva.ee
+
+smartid:
+  rp-api-url: https://sid.demo.sk.ee/smart-id-rp/v3/
+  scheme-name: smart-id-demo
+  trusted-ca-certificates: classpath:smart-id/demo/*.pem
+---
+spring:
+  config:
+    activate:
+      on-profile:
         - dev
 
 sentry:
@@ -566,6 +564,11 @@ spring:
 
 sentry:
   environment: production
+
+mobile-id:
+  hostUrl: "https://mid.sk.ee/mid-api"
+  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID}
+  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME}
 
 population-register:
   url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
-import ee.tuleva.onboarding.user.User;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -12,19 +12,17 @@ class OfflineNudgeInputs {
   private final KnownLookups lookups;
   private final PaymentRateSeasons paymentRateSeasons;
 
-  NudgeInputs assemble(User user, NudgeContext context) {
-    PensionRegistrySnapshot registry =
-        pensionRegistry
-            .snapshotFor(user.getPersonalCode())
-            .orElse(PensionRegistrySnapshot.UNKNOWN_PERSON);
+  NudgeInputs assemble(OfflineSaver saver, NudgeContext context) {
+    Optional<PensionRegistrySnapshot> snapshot = pensionRegistry.snapshotFor(saver.personalCode());
+    PensionRegistrySnapshot registry = snapshot.orElse(PensionRegistrySnapshot.UNKNOWN_PERSON);
     boolean thirdPillarActive = registry.thirdPillarActive() || context.impliesThirdPillar();
-    NudgeAccount self = NudgeAccount.self(user);
+    NudgeAccount self = saver.account();
     Known savingsFundRecurring = lookups.savingsFundRecurring(self);
     Known savingsFundSaver = lookups.savesFor(self);
     return NudgeInputs.builder()
-        .adult(user.getAge() >= 18)
-        .reachedRetirementAge(user.hasReachedRetirementAge())
-        .member(user.isMember())
+        .adult(saver.adult())
+        .reachedRetirementAge(saver.reachedRetirementAge())
+        .member(saver.member())
         .secondPillarActive(registry.secondPillarActive())
         .thirdPillarActive(thirdPillarActive)
         .secondPillarPartiallyConverted(registry.secondPillarAtTuleva())
@@ -36,10 +34,13 @@ class OfflineNudgeInputs {
         .canIncreasePaymentRate(registry.canIncreasePaymentRate())
         .pendingSecondPillarTransfer(false)
         .pendingSecondPillarWithdrawal(false)
-        .leftSecondPillar(Known.of(registry.leftSecondPillar()))
-        .thirdPillarRecurring(thirdPillarActive ? lookups.thirdPillarRecurring(user) : Known.NO)
+        .leftSecondPillar(
+            snapshot.map(found -> Known.of(found.leftSecondPillar())).orElse(Known.UNKNOWN))
+        .thirdPillarRecurring(
+            thirdPillarActive ? lookups.thirdPillarRecurring(saver.personalCode()) : Known.NO)
         .savingsFundRecurring(savingsFundRecurring)
-        .savesInSavingsFund(lookups.savesForAnyRepresentedParty(user, savingsFundSaver))
+        .savesInSavingsFund(
+            lookups.savesForAnyRepresentedParty(saver.personalCode(), savingsFundSaver))
         .savingsFundSaver(savingsFundSaver)
         .taxHeadroom(Known.UNKNOWN)
         .feeComparison(null)

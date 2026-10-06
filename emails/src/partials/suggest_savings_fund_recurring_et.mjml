@@ -1,7 +1,7 @@
 <mj-raw>*|IF:recipientIsChild|*</mj-raw>
 <mj-text>
-  Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii jõuab sissemakse lapse kontole iga kuu
-  ilma, et peaksid sellele eraldi mõtlema.
+  Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii jõuab sissemakse lapse kontole iga kuu,
+  ilma et peaksid sellele eraldi mõtlema.
 </mj-text>
 <mj-text>
   <strong>Püsimakse saad seadistada lapse Tuleva kontol:</strong>
@@ -12,7 +12,7 @@
 <mj-raw>*|ELSEIF:recipientIsCompany|*</mj-raw>
 <mj-text>
   Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii jõuab sissemakse ettevõtte kontole iga
-  kuu ilma, et peaksid sellele eraldi mõtlema.
+  kuu, ilma et peaksid sellele eraldi mõtlema.
 </mj-text>
 <mj-text>
   <strong>Püsimakse saad seadistada ettevõtte Tuleva kontol:</strong>
@@ -28,8 +28,8 @@
 <mj-raw>*|END:IF|*</mj-raw>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
-  Paljud Tuleva kogujad on seadistanud kogumisfondi püsimakse. Nii ei pea nad edaspidi
-  sissemaksete tegemist pidevalt meeles hoidma.
+  Täiendavasse Kogumisfondi saad koguda ka püsimaksega. Nii jõuab sissemakse sinu kontole iga
+  kuu, ilma et peaksid sellele eraldi mõtlema.
 </mj-text>
 <mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
 <mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&utm_content=nudge_savings_fund_recurring">

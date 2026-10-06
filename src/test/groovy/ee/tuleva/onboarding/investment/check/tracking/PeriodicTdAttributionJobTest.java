@@ -74,16 +74,6 @@ class PeriodicTdAttributionJobTest {
   }
 
   @Test
-  void theAprilThroughAugustBackfillRecomputesTheFiveMonthsBeforeSeptember() {
-    var september28 = clockFor("2026-09-28");
-    var jobWithClock = new PeriodicTdAttributionJob(service, businessDays, september28);
-
-    jobWithClock.backfillAprilThroughAugust();
-
-    verify(service).backfillMonths(5, september28);
-  }
-
-  @Test
   void onBackfillRequestedCallsServiceBackfill() {
     var jobWithClock = new PeriodicTdAttributionJob(service, businessDays, clockFor("2026-05-07"));
 

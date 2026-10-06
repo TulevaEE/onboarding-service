@@ -7,9 +7,11 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your payment arrived on *|paymentDate|*. This puts you among
-          the 30% of dedicated people in Estonia who save in the third pillar. The fund units are already
-          in your pension account.
+          Your payment arrived on *|paymentDate|* and the fund units are in your pension account.
+        </mj-text>
+        <mj-text>
+          Only 30% of people in Estonia save in the third pillar. You are one of them, and you
+          are deliberately putting money aside for your future.
         </mj-text>
 
         <mj-raw>*|IF:hasTulevaUser|*</mj-raw>
@@ -24,7 +26,7 @@
           whenever you like. You do not need to create a separate account with us, you already
           have one. Just log in:
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Log in</mj-button>
+        <mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_log_in">Log in</mj-button>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

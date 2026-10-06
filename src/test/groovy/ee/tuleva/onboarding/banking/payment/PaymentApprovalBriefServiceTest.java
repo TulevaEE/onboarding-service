@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTIO
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.SUBSCRIPTION_TRANSFER;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -24,7 +25,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -52,12 +55,14 @@ class PaymentApprovalBriefServiceTest {
   @Mock BankAccounts bankAccounts;
   @Mock BookedBalanceReader bookedBalanceReader;
 
+  private final Map<UUID, BigDecimal> held = new HashMap<>();
+
   private PaymentApprovalBriefService service() {
     return new PaymentApprovalBriefService(
         outgoingPaymentRepository,
         bankAccounts,
         bookedBalanceReader,
-        new BatchTies(outgoingPaymentRepository));
+        new BatchTies(outgoingPaymentRepository, batchId -> held.getOrDefault(batchId, ZERO)));
   }
 
   // A payment already executed was approved earlier and is no longer on the bank's pending screen,
@@ -237,6 +242,47 @@ class PaymentApprovalBriefServiceTest {
 
     assertThat(brief.verdicts()).contains(tie(BATCH, false, "100.00 = 400.00"));
     assertThat(brief.attention()).isTrue();
+  }
+
+  @Test
+  void aPayoutHeldBackForAmlReviewIsCountedAgainstTheTransferThatFundedIt() {
+    givenAccountResolves();
+    givenPayments(
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "250.00", BATCH));
+    held.put(BATCH, new BigDecimal("150.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts()).contains(heldTie(BATCH, true, "250.00 + 150.00 held = 400.00"));
+    assertThat(brief.attention()).isFalse();
+  }
+
+  @Test
+  void aPayoutHeldBackForAmlReviewDoesNotHideAPayoutThatWentMissing() {
+    givenAccountResolves();
+    givenPayments(
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "100.00", BATCH));
+    held.put(BATCH, new BigDecimal("150.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts()).contains(heldTie(BATCH, false, "100.00 + 150.00 held = 400.00"));
+    assertThat(brief.attention()).isTrue();
+  }
+
+  @Test
+  void aReleasedPayoutTiesBackToTheBatchThatFundedIt() {
+    givenAccountResolves();
+    givenPayments(
+        batched(EXECUTED, REDEMPTION_TRANSFER, "400.00", YESTERDAY_AFTERNOON, BATCH),
+        batched(EXECUTED, PAYOUT, "250.00", YESTERDAY_AFTERNOON, BATCH),
+        batched(SUBMITTED, PAYOUT, "150.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts()).contains(tie(BATCH, true, "400.00 = 400.00"));
   }
 
   // An already approved transfer drops off the pending screen while its payouts are still on it, so
@@ -436,6 +482,14 @@ class PaymentApprovalBriefServiceTest {
   private static List<OutgoingPayment> inBatches(
       List<OutgoingPayment> payments, Collection<UUID> batchIds) {
     return payments.stream().filter(payment -> batchIds.contains(payment.getBatchId())).toList();
+  }
+
+  private static PaymentApprovalBrief.Verdict heldTie(UUID batchId, boolean passed, String detail) {
+    return new PaymentApprovalBrief.Verdict(
+        "payouts + held == transfer to withdrawal account (batch %s)"
+            .formatted(batchId.toString().substring(0, 8)),
+        passed,
+        detail);
   }
 
   private static PaymentApprovalBrief.Verdict tie(UUID batchId, boolean passed, String detail) {

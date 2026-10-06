@@ -22,10 +22,13 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -95,10 +98,11 @@ public class MandateService {
     return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
   }
 
-  public SmartIdSignatureSession smartIdSign(Long mandateId, Long userId) {
-    User user = userService.getById(userId).orElseThrow();
-    List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-    return signService.startSmartIdSign(files, user.getPersonalCode());
+  public SmartIdSignatureSession smartIdSign(
+      Long mandateId, AuthenticatedPerson authenticatedPerson) {
+    List<SignatureFile> files =
+        mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserIdOrThrow());
+    return signService.startSmartIdSign(files, authenticatedPerson);
   }
 
   public SignatureStatus finalizeSmartIdSignature(
@@ -107,28 +111,42 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateSmartId(user, mandate, session);
+      return statusOfSignedMandate(mandate);
     }
+    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
   }
 
-  private SignatureStatus handleUnsignedMandateSmartId(
-      User user, Mandate mandate, SmartIdSignatureSession session) {
-    return getStatus(user, mandate, signService.getSignedFile(session));
-  }
-
-  private SignatureStatus getStatus(User user, Mandate mandate, byte @Nullable [] signedFile) {
-    if (signedFile != null) {
-      persistSignedFile(mandate, signedFile);
-      mandateProcessor.start(user, mandate);
+  private SignatureStatus persistIfSigned(
+      User user, Mandate mandate, byte @Nullable [] signedFile, Locale locale) {
+    if (signedFile == null) {
+      return OUTSTANDING_TRANSACTION;
     }
-    return OUTSTANDING_TRANSACTION;
+    return persistAndProcess(user, mandate, signedFile, locale);
   }
 
-  public IdCardSignatureSession idCardSign(Long mandateId, Long userId, String signingCertificate) {
+  private SignatureStatus persistAndProcess(
+      User user, Mandate mandate, byte[] signedFile, Locale locale) {
+    persistSignedFile(mandate, signedFile);
+    mandateProcessor.start(user, mandate);
+    if (!mandateProcessor.isFinished(mandate)) {
+      return OUTSTANDING_TRANSACTION;
+    }
+    mandateContacts.clearCache(user);
+    handleMandateProcessingErrors(mandate);
+    notifyAboutSignedMandate(user, mandate, locale);
+    return SIGNATURE;
+  }
+
+  public IdCardSignatureSession idCardSign(
+      Long mandateId, Long userId, StartIdCardSignCommand signCommand) {
+    User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-    return signService.startIdCardSign(files, signingCertificate);
+    return signService.startIdCardSign(
+        signableMandate(mandateId),
+        files,
+        signCommand.certificate(),
+        signCommand.supportedHashFunctions(),
+        user.getPersonalCode());
   }
 
   public SignatureStatus finalizeMobileIdSignature(
@@ -137,46 +155,50 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateMobileId(user, mandate, session);
+      return statusOfSignedMandate(mandate);
     }
+    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
   }
 
-  private SignatureStatus handleUnsignedMandateMobileId(
-      User user, Mandate mandate, MobileIdSignatureSession session) {
-    return getStatus(user, mandate, signService.getSignedFile(session));
-  }
-
-  public SignatureStatus finalizeIdCardSignature(
+  public SignatureStatus persistIdCardSignature(
       Long userId,
       Long mandateId,
       IdCardSignatureSession session,
-      String signedHashInHex,
+      String signature,
       Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateIdCard(user, mandate, session, signedHashInHex);
+      throw SignatureStateException.alreadySigned("Mandate", mandateId);
     }
+    byte[] signedFile = signService.getSignedFile(session, signableMandate(mandateId), signature);
+    return persistAndProcess(user, mandate, signedFile, locale);
+  }
+
+  private static SignableEntity signableMandate(Long mandateId) {
+    return new SignableEntity("Mandate", mandateId);
+  }
+
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateId) {
+    Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
+
+    if (!mandate.isSigned()) {
+      throw SignatureStateException.notSigned("Mandate", mandateId);
+    }
+    return statusOfSignedMandate(mandate);
   }
 
   public Mandate get(Long id) {
     return mandateRepository.findById(id).orElseThrow(IllegalStateException::new);
   }
 
-  private SignatureStatus handleSignedMandate(User user, Mandate mandate, Locale locale) {
-    if (mandateProcessor.isFinished(mandate)) {
-      mandateContacts.clearCache(user);
-      handleMandateProcessingErrors(mandate);
-      notifyAboutSignedMandate(user, mandate, locale);
-      return SIGNATURE;
-    } else {
+  private SignatureStatus statusOfSignedMandate(Mandate mandate) {
+    if (!mandateProcessor.isFinished(mandate)) {
       return OUTSTANDING_TRANSACTION;
     }
+    handleMandateProcessingErrors(mandate);
+    return SIGNATURE;
   }
 
   private void handleMandateProcessingErrors(Mandate mandate) {
@@ -185,18 +207,6 @@ public class MandateService {
     log.info("Mandate processing errors {}", errorsResponse);
     if (errorsResponse.hasErrors()) {
       throw new MandateProcessingException(errorsResponse);
-    }
-  }
-
-  private SignatureStatus handleUnsignedMandateIdCard(
-      User user, Mandate mandate, IdCardSignatureSession session, String signedHashInHex) {
-    byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
-    if (signedFile != null) { // TODO: use Optional
-      persistSignedFile(mandate, signedFile);
-      mandateProcessor.start(user, mandate);
-      return OUTSTANDING_TRANSACTION;
-    } else {
-      throw new IllegalStateException("There is no signed file to persist");
     }
   }
 

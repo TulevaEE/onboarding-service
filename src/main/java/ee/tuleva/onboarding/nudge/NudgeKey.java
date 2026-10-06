@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum NudgeKey {
+  SECOND_PILLAR_START("nudge_second_pillar_start"),
   SECOND_PILLAR_TRANSFER("nudge_second_pillar"),
   SECOND_PILLAR_PAYMENT_RATE("nudge_payment_rate"),
   THIRD_PILLAR_START("nudge_third_pillar"),

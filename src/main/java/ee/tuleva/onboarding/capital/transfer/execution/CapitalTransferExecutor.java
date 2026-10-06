@@ -153,7 +153,7 @@ public class CapitalTransferExecutor {
     createSellerWithdrawalEvent(
         contract, transferAmount, totalUnitsToTransfer, proportionalFiatValue, accountingDate);
     createBuyerAcquisitionEvent(
-        contract, transferAmount, totalUnitsToTransfer, proportionalFiatValue, accountingDate);
+        contract, totalUnitsToTransfer, proportionalFiatValue, accountingDate);
   }
 
   private void createSellerWithdrawalEvent(
@@ -186,7 +186,6 @@ public class CapitalTransferExecutor {
 
   private void createBuyerAcquisitionEvent(
       CapitalTransferContract contract,
-      CapitalTransferAmount transferAmount,
       BigDecimal totalUnitsToTransfer,
       BigDecimal proportionalFiatValue,
       LocalDate accountingDate) {

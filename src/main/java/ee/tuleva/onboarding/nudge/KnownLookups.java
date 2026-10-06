@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,18 +16,23 @@ import org.springframework.stereotype.Component;
 class KnownLookups {
 
   private final SecondPillarLeaverStatus leaverStatus;
+  private final SecondPillarEarlyWithdrawals earlyWithdrawals;
   private final RecurringContributionStatus recurringStatus;
   private final SavingsFundSaverStatus saverStatus;
   private final TaxHeadroom taxHeadroom;
   private final ActingParties actingParties;
   private final SavingsFundFeeRate savingsFundFeeRate;
 
-  Known leftSecondPillar(User user) {
-    return known("leftSecondPillar", () -> leaverStatus.hasLeft(user.getPersonalCode()));
+  Known leftSecondPillar(String personalCode) {
+    return known("leftSecondPillar", () -> leaverStatus.hasLeft(personalCode));
   }
 
-  Known thirdPillarRecurring(User user) {
-    return known("thirdPillarRecurring", () -> recurringStatus.thirdPillar(user.getPersonalCode()));
+  Known completedEarlyWithdrawal(Person person) {
+    return known("completedEarlyWithdrawal", () -> earlyWithdrawals.hasCompleted(person));
+  }
+
+  Known thirdPillarRecurring(String personalCode) {
+    return known("thirdPillarRecurring", () -> recurringStatus.thirdPillar(personalCode));
   }
 
   Known savingsFundRecurring(NudgeAccount account) {
@@ -37,13 +43,13 @@ class KnownLookups {
     return known("savesFor", () -> saverStatus.savesFor(account));
   }
 
-  Known savesForAnyRepresentedParty(User user, Known ownSaver) {
+  Known savesForAnyRepresentedParty(String personalCode, Known ownSaver) {
     if (ownSaver.isYes()) {
       return Known.YES;
     }
     List<NudgeAccount> parties;
     try {
-      parties = actingParties.representedBy(user);
+      parties = actingParties.representedBy(personalCode);
     } catch (RuntimeException e) {
       log.warn(
           "Nudge input unavailable, skipping the nudges that need it: input=representedParties", e);

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.signature;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.signature.idcard.IdCardSigner;
 import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner;
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner;
@@ -16,8 +17,9 @@ public class SignatureService {
   private final MobileIdSigner mobileIdSigner;
   private final IdCardSigner idCardSigner;
 
-  public SmartIdSignatureSession startSmartIdSign(List<SignatureFile> files, String personalCode) {
-    return smartIdSigner.startSign(files, personalCode);
+  public SmartIdSignatureSession startSmartIdSign(
+      List<SignatureFile> files, AuthenticatedPerson signer) {
+    return smartIdSigner.startSign(files, signer);
   }
 
   public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
@@ -34,11 +36,17 @@ public class SignatureService {
   }
 
   public IdCardSignatureSession startIdCardSign(
-      List<SignatureFile> files, String signingCertificate) {
-    return idCardSigner.startSign(files, signingCertificate);
+      SignableEntity entity,
+      List<SignatureFile> files,
+      String signingCertificate,
+      List<String> supportedHashFunctions,
+      String personalCode) {
+    return idCardSigner.startSign(
+        entity, files, signingCertificate, supportedHashFunctions, personalCode);
   }
 
-  public byte[] getSignedFile(IdCardSignatureSession session, String signedHashInHex) {
-    return idCardSigner.getSignedFile(session, signedHashInHex);
+  public byte[] getSignedFile(
+      IdCardSignatureSession session, SignableEntity entity, String signature) {
+    return idCardSigner.getSignedFile(session, entity, signature);
   }
 }

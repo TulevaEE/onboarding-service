@@ -1,21 +1,23 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler.Trigger.PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 
 import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler;
 import ee.tuleva.onboarding.nudge.NudgeContext;
 import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.nudge.NudgeDecisionService;
-import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class ThirdPillarPaymentArrivedEmailService {
   private final EmailPersistenceService emailPersistenceService;
   private final UserService userService;
   private final NudgeDecisionService nudgeDecisionService;
+  private final SecondPillarLetterScheduler secondPillarLetter;
 
   public boolean send(FirstThirdPillarPayment payment) {
     if (!claims.claim(payment.personalCode())) {
@@ -42,16 +45,15 @@ public class ThirdPillarPaymentArrivedEmailService {
 
     Optional<NudgeDecision> decision = decisionFor(payment);
     String nudge =
-        payment.hasTulevaUser()
-            ? decision.map(NudgeDecision::tag).orElse(NudgeKey.NONE.getTag())
-            : LOG_IN_NUDGE;
+        payment.hasTulevaUser() ? decision.map(NudgeDecision::emailTag).orElse(null) : LOG_IN_NUDGE;
     String templateName = THIRD_PILLAR_PAYMENT_ARRIVED.getTemplateName(payment.emailLanguage());
     var message =
         emailService.newMandrillMessage(
             payment.getEmail(),
             templateName,
             mergeVars(payment, decision),
-            List.of("third_pillar_payment_arrived", nudge));
+            Stream.concat(Stream.of("third_pillar_payment_arrived"), Stream.ofNullable(nudge))
+                .toList());
 
     return emailService
         .send(payment, message, templateName)
@@ -63,6 +65,9 @@ public class ThirdPillarPaymentArrivedEmailService {
                   THIRD_PILLAR_PAYMENT_ARRIVED,
                   response.getStatus(),
                   nudge);
+              if (!payment.hasTulevaUser()) {
+                scheduleSecondPillarLetter(payment, response.getId());
+              }
               return true;
             })
         .orElseGet(
@@ -88,6 +93,24 @@ public class ThirdPillarPaymentArrivedEmailService {
     } catch (RuntimeException e) {
       log.warn("Sending the payment arrived email without a nudge, the decision failed", e);
       return Optional.empty();
+    }
+  }
+
+  private void scheduleSecondPillarLetter(
+      FirstThirdPillarPayment payment, String arrivedMessageId) {
+    try {
+      NudgeDecision decision =
+          nudgeDecisionService.decideForRegistryOnly(
+              payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED);
+      if (decision.key() == SECOND_PILLAR_TRANSFER) {
+        secondPillarLetter.schedule(
+            payment, Locale.forLanguageTag(payment.emailLanguage()), PAYMENT_ARRIVED);
+      }
+    } catch (RuntimeException e) {
+      log.error(
+          "Second pillar letter skipped, the decision or scheduling failed: arrivedMessageId={}",
+          arrivedMessageId,
+          e);
     }
   }
 

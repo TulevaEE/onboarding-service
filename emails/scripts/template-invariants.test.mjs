@@ -16,6 +16,15 @@ const TEMPLATE_SCOPED_VARIABLES = {
   hasFeeComparison: /^(?!second_pillar_mandate_)/,
 };
 
+const PENSION_PILLAR_NUDGE_FLAGS = [
+  'suggestSecondPillarStart',
+  'suggestSecondPillar',
+  'suggestPaymentRate',
+  'suggestThirdPillar',
+  'suggestThirdPillarRecurringPayment',
+  'suggestThirdPillarRaise',
+];
+
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
   .map((f) => basename(f, '.html'));
@@ -36,6 +45,10 @@ for (const name of distTemplates) {
     assert.equal(opens, ends, `IF count ${opens} does not match END:IF count ${ends}`);
   });
 
+  test(`${name}: every mj-include is resolved, because mjml drops a denied or unreadable include without failing the build`, () => {
+    assert.doesNotMatch(html, /<!-- mj-include (denied|fails)/);
+  });
+
   test(`${name}: every conditional variable is covered by a fixture variant`, () => {
     const fixturePath = join(root, 'fixtures', `${name}.json`);
     assert.ok(existsSync(fixturePath), `missing fixtures/${name}.json`);
@@ -53,6 +66,18 @@ for (const name of distTemplates) {
         variants.some((vars) => Boolean(vars[variable])),
         `no fixture variant exercises ${variable}=true`,
       );
+    }
+  });
+}
+
+for (const name of distTemplates.filter((template) =>
+  readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:anyPillarSuggestion|*'),
+)) {
+  test(`${name}: a variant asks the bridge question exactly when it shows a pension pillar nudge`, () => {
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants)) {
+      const showsPensionPillarNudge = PENSION_PILLAR_NUDGE_FLAGS.some((flag) => Boolean(vars[flag]));
+      assert.equal(Boolean(vars.anyPillarSuggestion), showsPensionPillarNudge, `variant "${variant}"`);
     }
   });
 }
@@ -117,5 +142,16 @@ test('every template family has a description and no description is orphaned', (
   }
   for (const family of Object.keys(manifest.descriptions)) {
     assert.ok(families.has(family), `${family}: description has no matching template`);
+  }
+});
+
+test('no closing tag is split across lines, because Mandrill drops a split closing tag', () => {
+  const sources = [
+    ...readdirSync(join(root, 'src')).filter((file) => file.endsWith('.mjml')).map((file) => join('src', file)),
+    ...readdirSync(join(root, 'src', 'partials')).filter((file) => file.endsWith('.mjml')).map((file) => join('src', 'partials', file)),
+  ];
+  for (const source of sources) {
+    const mjml = readFileSync(join(root, source), 'utf8');
+    assert.doesNotMatch(mjml, /<\/[a-z][a-z0-9-]*\s+>/, `${source}: a closing tag spans lines`);
   }
 });

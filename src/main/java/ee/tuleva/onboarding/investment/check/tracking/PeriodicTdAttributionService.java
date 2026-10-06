@@ -59,6 +59,7 @@ public class PeriodicTdAttributionService {
   private final InvestmentParameterRepository parameterRepository;
   private final TrackingDifferenceNotifier notifier;
   private final TdAttributionPeriodReconciler periodReconciler;
+  private final ResolvedInstrumentRatesGate rateGate;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -78,7 +79,7 @@ public class PeriodicTdAttributionService {
 
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
-    requireTheRateJobToHaveResolved(fund, YearMonth.from(periodEnd));
+    rateGate.requireResolvedFor(fund, periodEnd);
     return computeWithResolvedRates(fund, periodStart, periodEnd, periodType);
   }
 
@@ -111,21 +112,9 @@ public class PeriodicTdAttributionService {
     return result;
   }
 
-  private void requireTheRateJobToHaveResolved(TulevaFund fund, YearMonth rateMonth) {
-    if (!instrumentOcfService.hasRatesResolvedAfterItClosed(rateMonth)) {
-      throw new InstrumentRatesNotResolvedException(
-          "Instrument rates not resolved for the month, run InstrumentFeeRateJob first: fund="
-              + fund
-              + ", month="
-              + rateMonth);
-    }
-  }
-
   public void computeForAllFunds(
       LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
-    var rateMonth = YearMonth.from(periodEnd);
-    if (!instrumentOcfService.hasRatesResolvedAfterItClosed(rateMonth)) {
-      refuseEveryFundForUnresolvedRates(periodStart, periodEnd, rateMonth);
+    if (!rateGate.admitsEveryFund(periodStart, periodEnd)) {
       return;
     }
     for (var fund : TulevaFund.values()) {
@@ -149,18 +138,6 @@ public class PeriodicTdAttributionService {
             fund, periodStart, periodEnd, e.getClass().getSimpleName());
       }
     }
-  }
-
-  private void refuseEveryFundForUnresolvedRates(
-      LocalDate periodStart, LocalDate periodEnd, YearMonth rateMonth) {
-    var funds = List.of(TulevaFund.values());
-    log.error(
-        "TD attribution refused, instrument rates not resolved: funds={}, period={}-{}, month={}",
-        funds,
-        periodStart,
-        periodEnd,
-        rateMonth);
-    notifier.notifyAttributionRefusedForUnresolvedRates(funds, periodStart, periodEnd, rateMonth);
   }
 
   public void backfillMonths(int monthsBack, Clock clock) {

@@ -836,6 +836,34 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aFourthBreachDayThatNetsTheStreakBelowTheThresholdEscalatesForTheThreeDaysBeforeIt() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0008")).toBuilder()
+            .streakBefore(threeDayStreak("0.0028", false))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFourthBreachDayWhoseStreakBeforeNetsOutBelowTheThresholdIsJudgedOnItsOwnStreak() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0008")).toBuilder()
+            .streakBefore(threeDayStreak("0.0005", false))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD BREACH DETECTED").doesNotContain("TD ESCALATION");
+  }
+
+  @Test
   void escalationFallbackNotifiesACleanDayEndingAThreeDayStreak() {
     given(calculator.escalationThresholdDays(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
@@ -859,7 +887,7 @@ class TrackingDifferenceNotifierTest {
 
   private TrackingDifferenceResult cleanDayEnding(
       ConsecutiveBreachTracker.ConsecutiveBreachInfo streak) {
-    return withinLimitsResult(TUK75).toBuilder().endedStreak(streak).build();
+    return withinLimitsResult(TUK75).toBuilder().streakBefore(streak).build();
   }
 
   private static ConsecutiveBreachTracker.ConsecutiveBreachInfo threeDayStreak(

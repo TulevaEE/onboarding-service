@@ -72,7 +72,7 @@ class NavTrackingDifferenceGateTest {
             .cashDrag(ZERO)
             .feeDrag(ZERO)
             .residual(ZERO)
-            .endedStreak(
+            .streakBefore(
                 new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
                     3,
                     new BigDecimal("0.006"),

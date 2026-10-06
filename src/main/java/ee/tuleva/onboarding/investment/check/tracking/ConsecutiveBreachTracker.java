@@ -207,7 +207,7 @@ class ConsecutiveBreachTracker {
           .consecutiveBreachDays(0)
           .consecutiveNetTd(ZERO)
           .escalationCountUnavailable(priorBreaches.unavailable())
-          .endedStreak(priorBreaches)
+          .streakBefore(priorBreaches)
           .build();
     }
     int days = priorBreaches.streakDaysIfTheCheckDateBreaches();
@@ -228,6 +228,7 @@ class ConsecutiveBreachTracker {
 
     return result.toBuilder()
         .consecutiveBreachDays(days)
+        .streakBefore(priorBreaches)
         .escalationUncheckedDays(priorBreaches.uncheckedDaysIfTheCheckDateBreaches())
         .consecutiveNetTd(compoundedTd)
         .escalationNavResidualBreach(streakHadNavResidualBreach)

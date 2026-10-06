@@ -140,7 +140,7 @@ class BenchmarkCheckBuilderTest {
 
     assertThat(result.breach()).isFalse();
     assertThat(result.consecutiveBreachDays()).isZero();
-    assertThat(result.endedStreak()).isNull();
+    assertThat(result.streakBefore()).isNull();
   }
 
   @Test

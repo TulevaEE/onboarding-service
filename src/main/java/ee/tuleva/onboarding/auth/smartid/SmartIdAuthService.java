@@ -10,9 +10,7 @@ import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
 import ee.sk.smartid.FlowType;
 import ee.sk.smartid.NotificationAuthenticationResponseValidator;
-import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.rest.SmartIdConnector;
-import ee.sk.smartid.rest.dao.SessionSignature;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.SmartIdProperties;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
@@ -49,13 +47,13 @@ public class SmartIdAuthService {
     }
     try {
       SessionStatus status = finalStatus(session);
-      FlowType flowType = flowTypeOfAProducedSignature(status);
+      FlowType flowType = SmartIdFlowTypes.ofAProducedSignature(status);
       AuthenticationIdentity identity = validate(session, status, flowType);
       requireEstonianAccount(identity);
       certificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
       SmartIdPerson authenticated =
           new SmartIdPerson(
-              identity, status.getResult().getDocumentNumber(), completedFlow(flowType));
+              identity, status.getResult().getDocumentNumber(), SmartIdCompletedFlow.of(flowType));
       session.setPerson(authenticated);
       log.info("Smart-ID login completed: sessionId={}", session.getSessionId());
       return authenticated;
@@ -127,7 +125,7 @@ public class SmartIdAuthService {
       SmartIdSession session, SessionStatus status, @Nullable FlowType flowType) {
     return switch (session.getLogin()) {
       case DeviceLinkLogin login -> {
-        requireOffered(flowType, Set.of(QR, WEB2APP));
+        SmartIdFlowTypes.requireOffered(flowType, Set.of(QR, WEB2APP));
         if (flowType == WEB2APP && session.getUserChallengeVerifier() == null) {
           throw new AuthNotCompleteException();
         }
@@ -135,7 +133,7 @@ public class SmartIdAuthService {
             status, login.request(), session.getUserChallengeVerifier(), properties.schemeName());
       }
       case NotificationLogin login -> {
-        requireOffered(flowType, Set.of(NOTIFICATION));
+        SmartIdFlowTypes.requireOffered(flowType, Set.of(NOTIFICATION));
         yield notificationResponseValidator.validate(
             status, login.request(), properties.schemeName());
       }
@@ -146,36 +144,5 @@ public class SmartIdAuthService {
     if (!"EE".equals(identity.getCountry())) {
       throw new UnsupportedSmartIdCountryException(identity.getCountry());
     }
-  }
-
-  private static void requireOffered(@Nullable FlowType flowType, Set<FlowType> offered) {
-    if (flowType != null && !offered.contains(flowType)) {
-      throw new UnprocessableSmartIdResponseException(
-          "Unexpected Smart-ID flow type: flowType=" + flowType);
-    }
-  }
-
-  private static SmartIdCompletedFlow completedFlow(@Nullable FlowType flowType) {
-    return switch (flowType) {
-      case QR -> SmartIdCompletedFlow.QR_CODE;
-      case WEB2APP -> SmartIdCompletedFlow.SAME_DEVICE;
-      case NOTIFICATION -> SmartIdCompletedFlow.NOTIFICATION;
-      case null, default ->
-          throw new UnprocessableSmartIdResponseException(
-              "Smart-ID login completed without a usable flow type: flowType=" + flowType);
-    };
-  }
-
-  private static @Nullable FlowType flowTypeOfAProducedSignature(SessionStatus status) {
-    SessionSignature signature = status.getSignature();
-    if (signature == null) {
-      return null;
-    }
-    String flowType = signature.getFlowType();
-    if (flowType == null || !FlowType.isSupported(flowType)) {
-      throw new UnprocessableSmartIdResponseException(
-          "Unusable Smart-ID flow type: flowType=" + flowType);
-    }
-    return FlowType.fromString(flowType);
   }
 }

@@ -74,6 +74,7 @@ public class SlackService implements OperationsNotificationService {
   private static Object payload(String message, Severity severity) {
     return switch (severity) {
       case INFO -> new SlackMessage(message);
+      case WARNING -> new SlackAlert(List.of(new Attachment("warning", message, message)));
       case ERROR -> new SlackAlert(List.of(new Attachment("danger", message, message)));
     };
   }

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
@@ -76,6 +77,27 @@ class SlackServiceSpec extends Specification {
 
     when:
     slackService.sendMessage(testMessage, INVESTMENT, ERROR)
+
+    then:
+    server.verify()
+  }
+
+  def "should send warning message as a yellow attachment"() {
+    given:
+    def testMessage = "Ownership share over the soft limit"
+
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.INVESTMENT)).thenReturn(dummyWebhookUrl)
+
+    server.expect(requestTo(dummyWebhookUrl))
+        .andExpect(method(POST))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.attachments[0].color').value("warning"))
+        .andExpect(jsonPath('$.attachments[0].text').value(testMessage))
+        .andExpect(jsonPath('$.attachments[0].fallback').value(testMessage))
+        .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
+
+    when:
+    slackService.sendMessage(testMessage, INVESTMENT, WARNING)
 
     then:
     server.verify()

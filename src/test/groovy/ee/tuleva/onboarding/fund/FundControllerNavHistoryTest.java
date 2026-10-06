@@ -32,6 +32,7 @@ class FundControllerNavHistoryTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private FundService fundService;
+  @MockitoBean private PublishedManagementFee publishedManagementFee;
 
   @Test
   void getNavHistories_returnsNavForAllPillarFundsWithCacheControlHeader() throws Exception {

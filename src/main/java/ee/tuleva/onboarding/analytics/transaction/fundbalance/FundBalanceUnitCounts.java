@@ -24,7 +24,8 @@ class FundBalanceUnitCounts implements FundUnitCounts, FundManagerUnitsInRegiste
   @Override
   public Optional<BigDecimal> fundManagerUnitsOn(String isin, LocalDate date) {
     return fundBalanceRepository
-        .findByIsinAndRequestDate(isin, date)
+        .findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(isin, date)
+        .filter(balance -> date.equals(balance.getRequestDate()))
         .map(FundBalance::getCountUnitsFm);
   }
 }

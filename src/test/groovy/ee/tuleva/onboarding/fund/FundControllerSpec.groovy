@@ -99,6 +99,19 @@ class FundControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].fundManagerUnitsDate', contains("2026-09-30")))
     }
 
+    def "get: a fund without the fund manager's units leaves both fields out"() {
+        given:
+        registerCounts.fundManagerUnitsOn(_, _) >> Optional.empty()
+        1 * fundService.getFunds(Optional.empty()) >> responsesFor(sampleFunds())
+        expect:
+        mockMvc
+            .perform(get("/v1/funds"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")]', hasSize(1)))
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].fundManagerUnits', hasSize(0)))
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].fundManagerUnitsDate', hasSize(0)))
+    }
+
     private static List<ExtendedApiFundResponse> responsesFor(Iterable<Fund> funds) {
         funds.collect { new ExtendedApiFundResponse(it, PensionFundStatistics.getNull(), Locale.ENGLISH) }
     }

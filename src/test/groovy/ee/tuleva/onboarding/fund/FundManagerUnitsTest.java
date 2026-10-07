@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund;
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
@@ -81,6 +82,25 @@ class FundManagerUnitsTest {
 
     assertThat(responses)
         .containsExactly(responseWithUnits(tuleva2ndPillarStockFund(), new BigDecimal("5747351")));
+  }
+
+  @Test
+  void onTheLastDayOfAMonthTheLastMonthEndIsStillThePreviousMonths() {
+    var lateEveningOnSeptember30InTallinn = clockAt("2026-09-30T20:30:00Z");
+    given(
+            unitsInRegister.fundManagerUnitsOn(
+                tuleva2ndPillarStockFund().getIsin(), LocalDate.parse("2026-08-31")))
+        .willReturn(Optional.of(new BigDecimal("5747351")));
+
+    var responses =
+        fundManagerUnits(lateEveningOnSeptember30InTallinn)
+            .applyTo(responsesFor(tuleva2ndPillarStockFund()));
+
+    assertThat(responses)
+        .extracting(
+            ExtendedApiFundResponse::getFundManagerUnits,
+            ExtendedApiFundResponse::getFundManagerUnitsDate)
+        .containsExactly(tuple(new BigDecimal("5747351"), LocalDate.parse("2026-08-31")));
   }
 
   @Test

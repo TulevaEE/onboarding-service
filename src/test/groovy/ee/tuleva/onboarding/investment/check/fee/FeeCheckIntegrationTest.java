@@ -493,6 +493,10 @@ class FeeCheckIntegrationTest {
           .param("fundCode", fund.name())
           .param("validFrom", LocalDate.of(2025, 1, 1))
           .update();
+      jdbcClient
+          .sql("UPDATE fund SET management_fee_rate = 0.0025 WHERE isin = :isin")
+          .param("isin", fund.getIsin())
+          .update();
     }
   }
 

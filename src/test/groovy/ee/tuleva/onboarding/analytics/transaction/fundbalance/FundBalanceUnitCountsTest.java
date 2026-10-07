@@ -50,4 +50,27 @@ class FundBalanceUnitCountsTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void fundManagerUnitsAreTheCountUnitsFmOnExactlyThatDate() {
+    var fundBalance =
+        FundBalance.builder()
+            .isin("EE3600109435")
+            .countUnits(new BigDecimal("9000000"))
+            .countUnitsFm(new BigDecimal("5747351"))
+            .build();
+    given(fundBalanceRepository.findByIsinAndRequestDate("EE3600109435", DATE))
+        .willReturn(Optional.of(fundBalance));
+
+    assertThat(fundUnitCounts.fundManagerUnitsOn("EE3600109435", DATE))
+        .contains(new BigDecimal("5747351"));
+  }
+
+  @Test
+  void noFundManagerUnitsWhenThatDateHasNoFundBalanceYet() {
+    given(fundBalanceRepository.findByIsinAndRequestDate("EE3600109435", DATE))
+        .willReturn(Optional.empty());
+
+    assertThat(fundUnitCounts.fundManagerUnitsOn("EE3600109435", DATE)).isEmpty();
+  }
 }

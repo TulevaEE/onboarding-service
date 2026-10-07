@@ -227,6 +227,9 @@ async:
 savings-fund:
   isin: EE0000003283
 
+fund-manager:
+  registry-code: '14118923'
+
 transaction-registry:
   alerts:
     to:

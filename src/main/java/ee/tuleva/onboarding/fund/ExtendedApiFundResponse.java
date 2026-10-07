@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.fund;
 
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Locale;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,6 +19,8 @@ class ExtendedApiFundResponse extends ApiFundResponse {
   private BigDecimal volume;
   private Integer peopleCount;
   private String shortName;
+  private BigDecimal fundManagerUnits;
+  private LocalDate fundManagerUnitsDate;
 
   ExtendedApiFundResponse(Fund fund, PensionFundStatistics pensionFundStatistics, Locale locale) {
     super(fund, locale);

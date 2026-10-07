@@ -150,6 +150,17 @@ class OpenedAccountRepositoryTest {
         .containsExactlyInAnyOrder(tuple(ADULT, true), tuple(OTHER, false));
   }
 
+  @Test
+  void tellsWhetherAnyPersonPrefersEnglishInTheLatestRegistrySnapshot() {
+    languagePreference(ADULT, "ENG", LocalDate.of(2026, 10, 6));
+    languagePreference(OTHER, "ENG", LocalDate.of(2026, 9, 30));
+    languagePreference(OTHER, "EST", LocalDate.of(2026, 10, 6));
+
+    assertThat(repository.prefersEnglish(ADULT)).isTrue();
+    assertThat(repository.prefersEnglish(OTHER)).isFalse();
+    assertThat(repository.prefersEnglish(CHILD)).isFalse();
+  }
+
   private void holder(String code, String firstName, String lastName, String email) {
     entityManager.persist(
         User.builder()

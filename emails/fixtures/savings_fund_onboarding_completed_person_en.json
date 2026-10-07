@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "no payment yet": {
+      "FNAME": "Mari",
+      "savingsFundFee": "0.28",
+      "awaitingFirstPayment": true
+    },
+    "payment already made": {
+      "FNAME": "Mari",
+      "savingsFundFee": "0.28"
+    }
+  }
+}

@@ -71,6 +71,22 @@ class OpenedAccountRepository {
         .list();
   }
 
+  boolean prefersEnglish(String personalCode) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT EXISTS (SELECT 1
+                           FROM unit_owner
+                           WHERE unit_owner.personal_id = :personalCode
+                             AND unit_owner.language_preference = 'ENG'
+                             AND unit_owner.snapshot_date =
+                                 (SELECT MAX(snapshot_date) FROM unit_owner))
+            """)
+        .param("personalCode", personalCode)
+        .query(Boolean.class)
+        .single();
+  }
+
   private OpenedAccount openedAccount(ResultSet rs, int rowNum) throws SQLException {
     return new OpenedAccount(
         rs.getString("code"),

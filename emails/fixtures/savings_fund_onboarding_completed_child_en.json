@@ -1,0 +1,32 @@
+{
+  "variants": {
+    "no payment yet, no co-parent": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Kati Tamm",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "savingsFundFee": "0.28",
+      "awaitingFirstPayment": true
+    },
+    "no payment yet, co-parent waiting": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Kati Tamm",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "savingsFundFee": "0.28",
+      "awaitingFirstPayment": true,
+      "hasCoParent": true
+    },
+    "payment already made, co-parent waiting": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Kati Tamm",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "savingsFundFee": "0.28",
+      "hasCoParent": true
+    },
+    "child name unknown": {
+      "FNAME": "Mari",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "savingsFundFee": "0.28",
+      "awaitingFirstPayment": true
+    }
+  }
+}

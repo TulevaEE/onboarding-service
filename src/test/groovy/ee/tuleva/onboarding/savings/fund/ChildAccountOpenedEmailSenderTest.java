@@ -43,6 +43,7 @@ class ChildAccountOpenedEmailSenderTest {
   private final ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
   private final SavingsFundFees savingsFundFees = mock(SavingsFundFees.class);
   private final AccountOpenedEmailClaims claims = mock(AccountOpenedEmailClaims.class);
+  private final OpenedAccountRepository openedAccounts = mock(OpenedAccountRepository.class);
 
   private final ChildAccountOpenedEmailSender sender =
       new ChildAccountOpenedEmailSender(
@@ -51,7 +52,8 @@ class ChildAccountOpenedEmailSenderTest {
           userService,
           parentChildLinkService,
           savingsFundFees,
-          claims);
+          claims,
+          openedAccounts);
 
   private final OpenedAccount unpaidChild =
       new OpenedAccount(CHILD_CODE, "KATI", "TAMM", null, false, true, false);
@@ -72,6 +74,37 @@ class ChildAccountOpenedEmailSenderTest {
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     given(claims.claim(CHILD_CODE)).willReturn(true);
+  }
+
+  @Test
+  void releasesTheClaimWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    var message = new MandrillMessage();
+    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
+        .willReturn(message);
+    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.empty());
+
+    sender.send(unpaidChild);
+
+    verify(claims).release(CHILD_CODE);
+  }
+
+  @Test
+  void writesInEnglishToAParentWhoPrefersEnglish() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    given(openedAccounts.prefersEnglish(PARENT_CODE)).willReturn(true);
+    given(savingsFundFees.ongoingChargesPercent(Locale.ENGLISH)).willReturn("0.28");
+
+    sender.send(unpaidChild);
+
+    var englishMergeVars = new java.util.HashMap<>(mergeVars(false, true));
+    englishMergeVars.put("savingsFundFee", "0.28");
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_onboarding_completed_child_en",
+            englishMergeVars,
+            TAGS);
   }
 
   @Test

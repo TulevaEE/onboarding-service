@@ -78,13 +78,9 @@ class AccountOpenedEmailJobTest {
         new OpenedAccount("61506150006", "Kati", "Tamm", null, false, false, false);
     var adultWithoutEmail =
         new OpenedAccount("38812121215", "Mari", "Tamm", " ", false, false, false);
-    var adultPreferringEnglish =
-        new OpenedAccount("38812121215", "Mari", "Tamm", "mari@example.com", true, false, false);
     var adultUnderGuardianship =
         new OpenedAccount("38812121215", "Mari", "Tamm", "mari@example.com", false, true, false);
-    givenOpened(
-        List.of(
-            unrepresentedMinor, adultWithoutEmail, adultPreferringEnglish, adultUnderGuardianship));
+    givenOpened(List.of(unrepresentedMinor, adultWithoutEmail, adultUnderGuardianship));
 
     job().sendEmails();
 
@@ -92,11 +88,22 @@ class AccountOpenedEmailJobTest {
   }
 
   @Test
-  void countsOnlyAccountsThatCanBeWelcomedTowardsTheCap() {
+  void welcomesAnAdultWhoPrefersEnglish() {
     var adultPreferringEnglish =
         new OpenedAccount("38812121215", "Mari", "Tamm", "mari@example.com", true, false, false);
+    givenOpened(List.of(adultPreferringEnglish));
+
+    job().sendEmails();
+
+    verify(adultSender).send(adultPreferringEnglish);
+  }
+
+  @Test
+  void countsOnlyAccountsThatCanBeWelcomedTowardsTheCap() {
+    var adultWithoutEmail =
+        new OpenedAccount("38812121215", "Mari", "Tamm", null, false, false, false);
     var accounts = new java.util.ArrayList<>(adults(100));
-    accounts.add(adultPreferringEnglish);
+    accounts.add(adultWithoutEmail);
     givenOpened(accounts);
 
     job().sendEmails();

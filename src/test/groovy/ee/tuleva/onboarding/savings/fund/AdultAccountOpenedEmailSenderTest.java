@@ -101,6 +101,37 @@ class AdultAccountOpenedEmailSenderTest {
   }
 
   @Test
+  void writesInEnglishToAHolderWhoPrefersEnglish() {
+    given(savingsFundFees.ongoingChargesPercent(Locale.ENGLISH)).willReturn("0.28");
+
+    sender.send(account("mari@example.com", true, false, false));
+
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_onboarding_completed_person_en",
+            Map.of(
+                "fname", "Mari",
+                "lname", "Tamm",
+                "savingsFundFee", "0.28",
+                "awaitingFirstPayment", true),
+            TAGS);
+  }
+
+  @Test
+  void releasesTheClaimWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
+    var message = new MandrillMessage();
+    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
+        .willReturn(message);
+    given(emailService.send(unpaid, message, TEMPLATE)).willReturn(Optional.empty());
+
+    sender.send(unpaid);
+
+    verify(claims).release(CODE);
+    verifyNoInteractions(emailPersistenceService);
+  }
+
+  @Test
   void neitherClaimsNorSendsWithoutAnEmailAddress() {
     sender.send(account(null, false, false, false));
 

@@ -165,8 +165,18 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_onboarding_completed_child_en": {
+      "subject": "Your child's fund account is open",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_onboarding_completed_child_et": {
       "subject": "Lapse kogumiskonto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_person_en": {
+      "subject": "Your Tuleva Additional Investment Fund account is open",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -342,8 +352,8 @@
     "third_pillar_payment_success_mandate": "Sent when the third pillar payment made inside the app is completed, with the signed mandate attached. Cancels the pending payment reminder.",
     "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, or after the first bank payment of a saver without a Tuleva account, only for adults who have a second pillar that is not with Tuleva.",
     "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
-    "savings_fund_onboarding_completed_person": "Sent once, at 9:00 Tallinn time the morning after an adult’s savings fund account opens, to the account holder. The first payment call and button show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button takes their place. Adults who prefer English or still have an active guardian are left out.",
-    "savings_fund_onboarding_completed_child": "Sent once, at 9:00 Tallinn time the morning after a minor’s savings fund account opens, to the parent who started it (the earliest active parent link, ahead of any ops-created guardian link). The first payment call and its button to the child’s payment page show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button to the child’s recurring payment page takes their place. When a co-parent captured from the population register is still waiting to confirm, it also tells the parent how to bring them in (hasCoParent).",
+    "savings_fund_onboarding_completed_person": "Sent once, at 9:00 Tallinn time the morning after an adult’s savings fund account opens, to the account holder. The first payment call and button show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button takes their place. Sent in English to holders who prefer English in the latest registry snapshot. Adults who still have an active guardian are left out.",
+    "savings_fund_onboarding_completed_child": "Sent once, at 9:00 Tallinn time the morning after a minor’s savings fund account opens, to the parent who started it (the earliest active parent link, ahead of any ops-created guardian link). The first payment call and its button to the child’s payment page show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button to the child’s recurring payment page takes their place. When a co-parent captured from the population register is still waiting to confirm, it also tells the parent how to bring them in (hasCoParent). Sent in English to parents who prefer English in the latest registry snapshot.",
     "savings_fund_onboarding_abandonment_person": "Planned: sent to a person who started opening a savings fund account but stopped. No signal exists yet for adults who abandon before submitting the KYC survey.",
     "savings_fund_onboarding_abandonment_child": "Sent by a daily job at 12:30 Europe/Tallinn to the parent who started opening a child’s account but never submitted the KYC survey (PENDING row without kyc_survey), 3 to 30 days after starting. Once per attempt: a parent is reminded again only about a child account started after their last reminder. In Estonian or English by the parent’s language preference.",
     "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. Since the company-waits flow, PENDING means waiting for related persons to verify, not abandonment, so this trigger needs its own definition before wiring.",

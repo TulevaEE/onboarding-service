@@ -33,4 +33,12 @@ class AccountOpenedEmailClaims {
       return false;
     }
   }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  void release(String accountCode) {
+    jdbcClient
+        .sql("DELETE FROM savings_fund_account_opened_email_claim WHERE code = :code")
+        .param("code", accountCode)
+        .update();
+  }
 }

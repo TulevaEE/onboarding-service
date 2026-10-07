@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_P
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
 
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -41,6 +42,7 @@ class FeeCheckService {
   private final SettlementCompletenessChecker settlementCompletenessChecker;
   private final CashSettlementChecker cashSettlementChecker;
   private final InstrumentRateCoverageChecker instrumentRateCoverageChecker;
+  private final PensionikeskusManagementFeeChecker pensionikeskusManagementFeeChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
   private final int lookbackDays;
@@ -53,6 +55,7 @@ class FeeCheckService {
       SettlementCompletenessChecker settlementCompletenessChecker,
       CashSettlementChecker cashSettlementChecker,
       InstrumentRateCoverageChecker instrumentRateCoverageChecker,
+      PensionikeskusManagementFeeChecker pensionikeskusManagementFeeChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
       @Value("${investment.fee-check.daily-check-lookback-days:35}") int lookbackDays) {
@@ -63,6 +66,7 @@ class FeeCheckService {
     this.settlementCompletenessChecker = settlementCompletenessChecker;
     this.cashSettlementChecker = cashSettlementChecker;
     this.instrumentRateCoverageChecker = instrumentRateCoverageChecker;
+    this.pensionikeskusManagementFeeChecker = pensionikeskusManagementFeeChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
     this.lookbackDays = lookbackDays;
@@ -185,6 +189,12 @@ class FeeCheckService {
             INSTRUMENT_RATE_COVERAGE,
             List.of(ALL),
             () -> instrumentRateCoverageChecker.check(fund, checkDate)));
+    findings.addAll(
+        runChecker(
+            fund,
+            PENSIONIKESKUS_MANAGEMENT_FEE,
+            List.of(MANAGEMENT),
+            () -> pensionikeskusManagementFeeChecker.check(fund, checkDate)));
     return findings;
   }
 

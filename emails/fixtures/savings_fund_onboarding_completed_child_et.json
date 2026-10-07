@@ -1,22 +1,32 @@
 {
   "variants": {
-    "lapse nimi teada": {
+    "makset pole, teist vanemat pole": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Kati Tamm",
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
-      "savingsFundFee": "0,28"
+      "savingsFundFee": "0,28",
+      "awaitingFirstPayment": true
     },
-    "lapse nimi teadmata": {
+    "makset pole, teine vanem ootel": {
       "FNAME": "Mari",
+      "RECIPIENTNAME": "Kati Tamm",
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
-      "savingsFundFee": "0,28"
+      "savingsFundFee": "0,28",
+      "awaitingFirstPayment": true,
+      "hasCoParent": true
     },
-    "teine vanem olemas": {
+    "makse juba tehtud, teine vanem ootel": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Kati Tamm",
       "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
       "savingsFundFee": "0,28",
       "hasCoParent": true
+    },
+    "lapse nimi teadmata": {
+      "FNAME": "Mari",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "savingsFundFee": "0,28",
+      "awaitingFirstPayment": true
     }
   }
 }

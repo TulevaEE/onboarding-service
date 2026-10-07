@@ -14,15 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @Transactional(propagation = NOT_SUPPORTED)
-@Import({ChildAccountOpenedEmailClaims.class, ClockConfig.class})
-class ChildAccountOpenedEmailClaimsTest {
+@Import({AccountOpenedEmailClaims.class, ClockConfig.class})
+class AccountOpenedEmailClaimsTest {
 
-  @Autowired ChildAccountOpenedEmailClaims claims;
+  @Autowired AccountOpenedEmailClaims claims;
   @Autowired JdbcClient jdbcClient;
 
   @AfterEach
   void forgetClaims() {
-    jdbcClient.sql("DELETE FROM child_account_opened_email_claim").update();
+    jdbcClient.sql("DELETE FROM savings_fund_account_opened_email_claim").update();
   }
 
   @Test

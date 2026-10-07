@@ -1,13 +1,21 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import org.jspecify.annotations.Nullable;
 
-record OpenedChildAccount(String childCode, String firstName, String lastName, boolean paid)
+record OpenedAccount(
+    String code,
+    String firstName,
+    String lastName,
+    @Nullable String email,
+    boolean prefersEnglish,
+    boolean represented,
+    boolean paid)
     implements Person {
 
   @Override
   public String getPersonalCode() {
-    return childCode;
+    return code;
   }
 
   @Override

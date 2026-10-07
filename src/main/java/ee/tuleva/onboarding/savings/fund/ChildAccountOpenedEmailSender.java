@@ -9,12 +9,9 @@ import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
-import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.time.Clock;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,40 +37,27 @@ class ChildAccountOpenedEmailSender {
   private final UserService userService;
   private final ParentChildLinkService parentChildLinkService;
   private final SavingsFundFees savingsFundFees;
-  private final ChildAccountOpenedEmailClaims claims;
-  private final Clock clock;
+  private final AccountOpenedEmailClaims claims;
 
-  void send(OpenedChildAccount account) {
-    if (!isMinor(account)) {
-      return;
-    }
+  void send(OpenedAccount child) {
     parentChildLinkService
-        .findFirstActiveRepresentative(account.childCode())
-        .ifPresent(parentCode -> emailParent(parentCode, account));
+        .findFirstActiveRepresentative(child.code())
+        .ifPresent(parentCode -> emailParent(parentCode, child));
   }
 
-  private boolean isMinor(OpenedChildAccount account) {
-    try {
-      return PersonalCode.isMinor(account.childCode(), LocalDate.now(clock));
-    } catch (RuntimeException e) {
-      return false;
-    }
-  }
-
-  private void emailParent(String parentCode, OpenedChildAccount account) {
+  private void emailParent(String parentCode, OpenedAccount child) {
     UUID accountId =
         parentChildLinkService
-            .findRepresentation(parentCode, account.childCode(), Set.of(ACTIVE))
+            .findRepresentation(parentCode, child.code(), Set.of(ACTIVE))
             .orElseThrow();
     boolean hasCoParent =
-        parentChildLinkService.hasPendingRepresentativeOtherThan(account.childCode(), parentCode);
+        parentChildLinkService.hasPendingRepresentativeOtherThan(child.code(), parentCode);
     userService
         .findByPersonalCode(parentCode)
         .filter(parent -> parent.getEmail() != null && !parent.getEmail().isBlank())
         .ifPresentOrElse(
             parent ->
-                send(
-                    parent, account, accountId, mergeVars(parent, accountId, account, hasCoParent)),
+                send(parent, child, accountId, mergeVars(parent, accountId, child, hasCoParent)),
             () ->
                 log.warn(
                     "Parent has no email, skipping the child account opened email: accountId={}",
@@ -81,19 +65,19 @@ class ChildAccountOpenedEmailSender {
   }
 
   private Map<String, Object> mergeVars(
-      User parent, UUID accountId, OpenedChildAccount account, boolean hasCoParent) {
+      User parent, UUID accountId, OpenedAccount child, boolean hasCoParent) {
     var mergeVars = new HashMap<String, Object>(getNameMergeVars(parent));
-    mergeVars.put("recipientName", Names.formatted(account.firstName() + " " + account.lastName()));
+    mergeVars.put("recipientName", Names.formatted(child.firstName() + " " + child.lastName()));
     mergeVars.put("recipientAccountId", accountId.toString());
     mergeVars.put("savingsFundFee", savingsFundFees.ongoingChargesPercent(ESTONIAN));
     mergeVars.put("hasCoParent", hasCoParent);
-    mergeVars.put("awaitingFirstPayment", !account.paid());
+    mergeVars.put("awaitingFirstPayment", !child.paid());
     return mergeVars;
   }
 
   private void send(
-      User parent, OpenedChildAccount account, UUID accountId, Map<String, Object> mergeVars) {
-    if (!claims.claim(account.childCode())) {
+      User parent, OpenedAccount child, UUID accountId, Map<String, Object> mergeVars) {
+    if (!claims.claim(child.code())) {
       log.info("Child account opened email already claimed, skipping: accountId={}", accountId);
       return;
     }
@@ -101,16 +85,16 @@ class ChildAccountOpenedEmailSender {
     var message = emailService.newMandrillMessage(parent.getEmail(), templateName, mergeVars, TAGS);
     emailService
         .send(parent, message, templateName)
-        .ifPresent(response -> record(account, accountId, response));
+        .ifPresent(response -> record(child, accountId, response));
   }
 
-  private void record(OpenedChildAccount account, UUID accountId, MandrillMessageStatus response) {
+  private void record(OpenedAccount child, UUID accountId, MandrillMessageStatus response) {
     try {
       emailPersistenceService.save(
-          account, response.getId(), SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, response.getStatus());
+          child, response.getId(), SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, response.getStatus());
     } catch (RuntimeException e) {
       log.error(
-          "Child account opened email sent but not recorded, it may be sent again: accountId={}, mandrillMessageId={}",
+          "Child account opened email sent but not recorded: accountId={}, mandrillMessageId={}",
           accountId,
           response.getId(),
           e);

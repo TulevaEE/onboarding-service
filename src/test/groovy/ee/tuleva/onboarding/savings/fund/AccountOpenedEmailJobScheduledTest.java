@@ -6,11 +6,12 @@ import java.time.Clock;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@ScheduledTest(ChildAccountOpenedEmailJob.class)
-class ChildAccountOpenedEmailJobScheduledTest {
+@ScheduledTest(AccountOpenedEmailJob.class)
+class AccountOpenedEmailJobScheduledTest {
 
-  @MockitoBean OpenedChildAccountRepository repository;
-  @MockitoBean ChildAccountOpenedEmailSender sender;
+  @MockitoBean OpenedAccountRepository repository;
+  @MockitoBean ChildAccountOpenedEmailSender childSender;
+  @MockitoBean AdultAccountOpenedEmailSender adultSender;
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean Clock clock;
 

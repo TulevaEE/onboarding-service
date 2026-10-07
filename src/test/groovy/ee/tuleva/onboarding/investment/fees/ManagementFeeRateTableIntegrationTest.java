@@ -16,7 +16,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
-@Import({FeeRateRepository.class, ManagementFeeRateTable.class})
+@Import({
+  FeeRateRepository.class,
+  DepotFeeTierRepository.class,
+  FeeAccrualRepository.class,
+  FeeChargedToFundPolicy.class,
+  ManagementFeeRateTable.class
+})
 class ManagementFeeRateTableIntegrationTest {
 
   @Autowired private JdbcClient jdbcClient;

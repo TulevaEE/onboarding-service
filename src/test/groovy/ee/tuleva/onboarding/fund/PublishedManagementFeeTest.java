@@ -42,10 +42,10 @@ class PublishedManagementFeeTest {
                 LocalDate.parse("2026-10-28"), new BigDecimal("0.00152000"),
                 LocalDate.parse("2026-10-29"), new BigDecimal("0.00178000")),
             TKF100);
-    var halfPastOneInTallinnOnOctober29 = clockAt("2026-10-28T22:30:00Z");
+    var halfPastMidnightInTallinnOnOctober29 = clockAt("2026-10-28T22:30:00Z");
 
     var response =
-        new PublishedManagementFee(rates, halfPastOneInTallinnOnOctober29)
+        new PublishedManagementFee(rates, halfPastMidnightInTallinnOnOctober29)
             .applyTo(responseFor(additionalSavingsFund()));
 
     assertThat(response)

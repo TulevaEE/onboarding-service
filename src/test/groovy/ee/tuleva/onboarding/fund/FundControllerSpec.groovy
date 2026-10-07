@@ -3,13 +3,13 @@ package ee.tuleva.onboarding.fund
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.mandate.MandateFixture
-import ee.tuleva.onboarding.tulevafund.TulevaFund
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
 import java.util.stream.Collectors
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
 import static org.hamcrest.Matchers.contains
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
@@ -71,7 +71,7 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: a Tuleva fund shows the management fee rate in force"() {
         given:
         def controllerWithRates = new FundController(fundService,
-            PublishedManagementFeeFixture.withRateInForce(TulevaFund.TUK00, 0.00163))
+            PublishedManagementFeeFixture.withRateInForce(TUK00, 0.00163))
         1 * fundService.getFunds(Optional.empty()) >> responsesFor(sampleFunds())
         expect:
         mockMvc(controllerWithRates)

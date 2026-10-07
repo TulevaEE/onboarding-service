@@ -11,21 +11,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-class ChildAccountOpenedEmailClaims {
+class AccountOpenedEmailClaims {
 
   private final JdbcClient jdbcClient;
   private final Clock clock;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  boolean claim(String childCode) {
+  boolean claim(String accountCode) {
     try {
       jdbcClient
           .sql(
               """
-              INSERT INTO child_account_opened_email_claim (child_code, created_at)
-              VALUES (:childCode, :createdAt)
+              INSERT INTO savings_fund_account_opened_email_claim (code, created_at)
+              VALUES (:code, :createdAt)
               """)
-          .param("childCode", childCode)
+          .param("code", accountCode)
           .param("createdAt", OffsetDateTime.now(clock))
           .update();
       return true;

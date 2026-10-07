@@ -10,7 +10,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -20,9 +19,6 @@ import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,8 +42,7 @@ class ChildAccountOpenedEmailSenderTest {
   private final UserService userService = mock(UserService.class);
   private final ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
   private final SavingsFundFees savingsFundFees = mock(SavingsFundFees.class);
-  private final ChildAccountOpenedEmailClaims claims = mock(ChildAccountOpenedEmailClaims.class);
-  private final Clock clock = Clock.fixed(Instant.parse("2026-10-08T06:00:00Z"), ZoneOffset.UTC);
+  private final AccountOpenedEmailClaims claims = mock(AccountOpenedEmailClaims.class);
 
   private final ChildAccountOpenedEmailSender sender =
       new ChildAccountOpenedEmailSender(
@@ -56,13 +51,12 @@ class ChildAccountOpenedEmailSenderTest {
           userService,
           parentChildLinkService,
           savingsFundFees,
-          claims,
-          clock);
+          claims);
 
-  private final OpenedChildAccount unpaidChild =
-      new OpenedChildAccount(CHILD_CODE, "KATI", "TAMM", false);
-  private final OpenedChildAccount paidChild =
-      new OpenedChildAccount(CHILD_CODE, "KATI", "TAMM", true);
+  private final OpenedAccount unpaidChild =
+      new OpenedAccount(CHILD_CODE, "KATI", "TAMM", null, false, true, false);
+  private final OpenedAccount paidChild =
+      new OpenedAccount(CHILD_CODE, "KATI", "TAMM", null, false, true, true);
   private final User parent =
       sampleUserNonMember()
           .personalCode(PARENT_CODE)
@@ -162,20 +156,6 @@ class ChildAccountOpenedEmailSenderTest {
 
     verify(emailPersistenceService)
         .save(unpaidChild, "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
-  }
-
-  @Test
-  void sendsNothingForAnAccountHolderWhoIsNoLongerAMinor() {
-    sender.send(new OpenedChildAccount("38812121215", "Kati", "Tamm", false));
-
-    verifyNoInteractions(parentChildLinkService, emailService, emailPersistenceService);
-  }
-
-  @Test
-  void sendsNothingForACodeThatIsNotAnEstonianPersonalCode() {
-    sender.send(new OpenedChildAccount("PNOGB-1234567890", "Kati", "Tamm", false));
-
-    verifyNoInteractions(parentChildLinkService, emailService, emailPersistenceService);
   }
 
   @Test

@@ -24,7 +24,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
   FeeRateRepository.class,
   DepotFeeTierRepository.class,
   FeeAccrualRepository.class,
-  FeeChargedToFundPolicy.class
+  FeeChargedToFundPolicy.class,
+  ManagementFeeRateTable.class
 })
 class FeeRepositoriesIntegrationTest {
 

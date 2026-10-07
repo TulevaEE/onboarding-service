@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -32,6 +33,7 @@ class PensionikeskusManagementFeeCheckerIT {
 
   @Autowired private PensionikeskusManagementFeeChecker checker;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private TestEntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -87,6 +89,21 @@ class PensionikeskusManagementFeeCheckerIT {
   }
 
   @Test
+  void aMissedFeeChangeFailsUntilPensionikeskusShowsTheNewRateAndThenClears() {
+    pensionikeskusShows("0.00163");
+    rate("0.00163000", "2026-02-27", "2026-10-28");
+    rate("0.00150000", "2026-10-29", null);
+    assertThat(checker.check(TUK00, FRIDAY_AFTER))
+        .extracting(FeeCheckFinding::severity)
+        .containsExactly(FAIL);
+
+    theNextSyncFromPensionikeskusShows("0.0015");
+
+    assertThat(checker.check(TUK00, FRIDAY_AFTER))
+        .containsExactly(FeeCheckFinding.pass(TUK00, PENSIONIKESKUS_MANAGEMENT_FEE, MANAGEMENT));
+  }
+
+  @Test
   void aNewRateThatPensionikeskusShowsAWorkingDayEarlyIsNotAMismatch() {
     pensionikeskusShows("0.0015");
     rate("0.00163000", "2026-02-27", "2026-10-28");
@@ -120,6 +137,11 @@ class PensionikeskusManagementFeeCheckerIT {
         .param("rate", new BigDecimal(rate))
         .param("isin", TUK00.getIsin())
         .update();
+  }
+
+  private void theNextSyncFromPensionikeskusShows(String rate) {
+    pensionikeskusShows(rate);
+    entityManager.clear();
   }
 
   private void rate(String annualRate, String validFrom, @Nullable String validTo) {

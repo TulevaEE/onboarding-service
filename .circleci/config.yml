@@ -83,7 +83,7 @@ jobs:
       GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=4
     docker:
       - image: cimg/openjdk:25.0
-      - image: postgres:17-alpine
+      - image: postgres:18-alpine
         environment:
           POSTGRES_DB: testdb
           POSTGRES_USER: test

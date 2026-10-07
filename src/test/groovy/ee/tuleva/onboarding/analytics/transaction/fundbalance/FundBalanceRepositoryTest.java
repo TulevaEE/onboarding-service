@@ -142,4 +142,18 @@ class FundBalanceRepositoryTest {
     assertThat(deletedCount).isZero();
     assertThat(repository.count()).isZero();
   }
+
+  @Test
+  void aDateSyncedTwiceStillGivesOneFundBalanceOnThatDate() {
+    repository.saveAll(
+        List.of(
+            entityBuilder(creationTime).requestDate(DATE_1).isin(ISIN_1).build(),
+            entityBuilder(creationTime).requestDate(DATE_2).isin(ISIN_1).build(),
+            entityBuilder(creationTime).requestDate(DATE_2).isin(ISIN_1).build()));
+
+    assertThat(
+            repository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
+                ISIN_1, DATE_2))
+        .hasValueSatisfying(balance -> assertThat(balance.getRequestDate()).isEqualTo(DATE_2));
+  }
 }

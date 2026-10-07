@@ -10,17 +10,25 @@
           Lapse *|IF:RECIPIENTNAME|*(*|RECIPIENTNAME|*) *|END:IF|*konto Tuleva Täiendavas
           Kogumisfondis on nüüd avatud.
         </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
         <mj-text>
           Järgmise sammuna saad teha esimese sissemakse ja panna lapsele kogumise käima.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*">
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?utm_content=onboarding_completed_child_first_payment">
           Teen esimese sissemakse
         </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>
           Sissemakse saad teha oma Tuleva kontol lapse vaates. Seal saad soovi korral seadistada
           ka püsimakse, et edaspidi toimuks kogumine automaatselt. Ostetud fondiosakud jõuavad
           lapse kontole kahe tööpäeva jooksul.
         </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?type=RECURRING&utm_content=onboarding_completed_child_recurring">
+          Seadistan püsimakse
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:hasCoParent|*</mj-raw>
         <mj-text><strong>Kontot saavad hallata mõlemad vanemad</strong></mj-text>
         <mj-text>

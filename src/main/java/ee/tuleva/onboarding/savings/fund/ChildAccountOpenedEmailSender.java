@@ -3,11 +3,9 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
-import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.principal.Names;
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -27,16 +25,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
 @NullMarked
 @RequiredArgsConstructor
-public class ChildAccountOpenedEmailSender {
+class ChildAccountOpenedEmailSender {
 
   private static final Locale ESTONIAN = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund", "onboarding_completed");
@@ -46,94 +40,80 @@ public class ChildAccountOpenedEmailSender {
   private final UserService userService;
   private final ParentChildLinkService parentChildLinkService;
   private final SavingsFundFees savingsFundFees;
-  private final PlatformTransactionManager transactionManager;
+  private final ChildAccountOpenedEmailClaims claims;
   private final Clock clock;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  public void onOnboardingCompleted(SavingsFundOnboardingCompletedEvent event) {
-    Person child = event.person();
-    try {
-      if (!isMinor(child)) {
-        return;
-      }
-      parentChildLinkService
-          .findFirstActiveRepresentative(child.getPersonalCode())
-          .ifPresent(parentCode -> emailParent(parentCode, child));
-    } catch (RuntimeException e) {
-      log.error(
-          "Failed to send the child account opened email: childCode={}",
-          child.getPersonalCode(),
-          e);
+  void send(OpenedChildAccount account) {
+    if (!isMinor(account)) {
+      return;
     }
+    parentChildLinkService
+        .findFirstActiveRepresentative(account.childCode())
+        .ifPresent(parentCode -> emailParent(parentCode, account));
   }
 
-  private boolean isMinor(Person person) {
+  private boolean isMinor(OpenedChildAccount account) {
     try {
-      return PersonalCode.isMinor(person.getPersonalCode(), LocalDate.now(clock));
+      return PersonalCode.isMinor(account.childCode(), LocalDate.now(clock));
     } catch (RuntimeException e) {
       return false;
     }
   }
 
-  private void emailParent(String parentCode, Person child) {
+  private void emailParent(String parentCode, OpenedChildAccount account) {
     UUID accountId =
         parentChildLinkService
-            .findRepresentation(parentCode, child.getPersonalCode(), Set.of(ACTIVE))
+            .findRepresentation(parentCode, account.childCode(), Set.of(ACTIVE))
             .orElseThrow();
-    boolean hasCoParent = parentChildLinkService.hasPendingRepresentative(child.getPersonalCode());
+    boolean hasCoParent =
+        parentChildLinkService.hasPendingRepresentativeOtherThan(account.childCode(), parentCode);
     userService
         .findByPersonalCode(parentCode)
         .filter(parent -> parent.getEmail() != null && !parent.getEmail().isBlank())
         .ifPresentOrElse(
-            parent -> send(parent, child, mergeVars(parent, accountId, child, hasCoParent)),
+            parent ->
+                send(
+                    parent, account, accountId, mergeVars(parent, accountId, account, hasCoParent)),
             () ->
                 log.warn(
-                    "Parent has no email, skipping the child account opened email: parentCode={}, childCode={}",
-                    parentCode,
-                    child.getPersonalCode()));
+                    "Parent has no email, skipping the child account opened email: accountId={}",
+                    accountId));
   }
 
   private Map<String, Object> mergeVars(
-      User parent, UUID accountId, Person child, boolean hasCoParent) {
+      User parent, UUID accountId, OpenedChildAccount account, boolean hasCoParent) {
     var mergeVars = new HashMap<String, Object>(getNameMergeVars(parent));
-    mergeVars.put(
-        "recipientName", Names.formatted(child.getFirstName() + " " + child.getLastName()));
+    mergeVars.put("recipientName", Names.formatted(account.firstName() + " " + account.lastName()));
     mergeVars.put("recipientAccountId", accountId.toString());
     mergeVars.put("savingsFundFee", savingsFundFees.ongoingChargesPercent(ESTONIAN));
     mergeVars.put("hasCoParent", hasCoParent);
+    mergeVars.put("awaitingFirstPayment", !account.paid());
     return mergeVars;
   }
 
-  private void send(User parent, Person child, Map<String, Object> mergeVars) {
+  private void send(
+      User parent, OpenedChildAccount account, UUID accountId, Map<String, Object> mergeVars) {
+    if (!claims.claim(account.childCode())) {
+      log.info("Child account opened email already claimed, skipping: accountId={}", accountId);
+      return;
+    }
     var templateName = SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD.getTemplateName(ESTONIAN);
     var message = emailService.newMandrillMessage(parent.getEmail(), templateName, mergeVars, TAGS);
     emailService
         .send(parent, message, templateName)
-        .ifPresent(response -> recordAgainstTheChild(child, response));
+        .ifPresent(response -> record(account, accountId, response));
   }
 
-  private void recordAgainstTheChild(Person child, MandrillMessageStatus response) {
+  private void record(OpenedChildAccount account, UUID accountId, MandrillMessageStatus response) {
     try {
-      transactionOfItsOwn()
-          .executeWithoutResult(
-              status ->
-                  emailPersistenceService.save(
-                      child,
-                      response.getId(),
-                      SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD,
-                      response.getStatus()));
+      emailPersistenceService.save(
+          account, response.getId(), SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, response.getStatus());
     } catch (RuntimeException e) {
       log.error(
-          "Child account opened email sent but not recorded: childCode={}, mandrillMessageId={}",
-          child.getPersonalCode(),
+          "Child account opened email sent but not recorded, it may be sent again: accountId={}, mandrillMessageId={}",
+          accountId,
           response.getId(),
           e);
     }
-  }
-
-  private TransactionTemplate transactionOfItsOwn() {
-    var transactionOfItsOwn = new TransactionTemplate(transactionManager);
-    transactionOfItsOwn.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
-    return transactionOfItsOwn;
   }
 }

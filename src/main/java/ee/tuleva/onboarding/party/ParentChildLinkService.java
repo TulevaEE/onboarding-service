@@ -56,11 +56,13 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getParentPersonalCode);
   }
 
-  public boolean hasPendingRepresentative(String childPersonalCode) {
-    return !parentChildLinkRepository
+  public boolean hasPendingRepresentativeOtherThan(
+      String childPersonalCode, String parentPersonalCode) {
+    return parentChildLinkRepository
         .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
             childPersonalCode, PENDING_KYC, today())
-        .isEmpty();
+        .stream()
+        .anyMatch(link -> !link.getParentPersonalCode().equals(parentPersonalCode));
   }
 
   // One canonical link per parent and child, so a role listed in /v1/me/roles and a deep link

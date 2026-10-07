@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -32,7 +31,6 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.transaction.PlatformTransactionManager;
 
 class ChildAccountOpenedEmailSenderTest {
 
@@ -48,9 +46,8 @@ class ChildAccountOpenedEmailSenderTest {
   private final UserService userService = mock(UserService.class);
   private final ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
   private final SavingsFundFees savingsFundFees = mock(SavingsFundFees.class);
-  private final PlatformTransactionManager transactionManager =
-      mock(PlatformTransactionManager.class);
-  private final Clock clock = Clock.fixed(Instant.parse("2026-10-06T12:00:00Z"), ZoneOffset.UTC);
+  private final ChildAccountOpenedEmailClaims claims = mock(ChildAccountOpenedEmailClaims.class);
+  private final Clock clock = Clock.fixed(Instant.parse("2026-10-08T06:00:00Z"), ZoneOffset.UTC);
 
   private final ChildAccountOpenedEmailSender sender =
       new ChildAccountOpenedEmailSender(
@@ -59,11 +56,13 @@ class ChildAccountOpenedEmailSenderTest {
           userService,
           parentChildLinkService,
           savingsFundFees,
-          transactionManager,
+          claims,
           clock);
 
-  private final User child =
-      sampleUserNonMember().personalCode(CHILD_CODE).firstName("KATI").lastName("TAMM").build();
+  private final OpenedChildAccount unpaidChild =
+      new OpenedChildAccount(CHILD_CODE, "KATI", "TAMM", false);
+  private final OpenedChildAccount paidChild =
+      new OpenedChildAccount(CHILD_CODE, "KATI", "TAMM", true);
   private final User parent =
       sampleUserNonMember()
           .personalCode(PARENT_CODE)
@@ -78,28 +77,76 @@ class ChildAccountOpenedEmailSenderTest {
     given(userService.findByPersonalCode(PARENT_CODE)).willReturn(Optional.of(parent));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
+    given(claims.claim(CHILD_CODE)).willReturn(true);
+  }
+
+  @Test
+  void sendsNothingWhenTheEmailWasAlreadyClaimed() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    given(claims.claim(CHILD_CODE)).willReturn(false);
+
+    sender.send(unpaidChild);
+
+    verify(emailService, never()).send(any(), any(), any());
+  }
+
+  @Test
+  void keepsTheClaimWhenRecordingTheSentEmailFailsSoItIsNotSentAgain() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    var message = new MandrillMessage();
+    var response = mandrillResponse("message-id", "sent");
+    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
+        .willReturn(message);
+    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailPersistenceService.save(any(), any(), any(), any()))
+        .willThrow(new RuntimeException("database is down"));
+
+    assertThatCode(() -> sender.send(unpaidChild)).doesNotThrowAnyException();
+    verify(claims).claim(CHILD_CODE);
+  }
+
+  @Test
+  void doesNotCountTheParentsOwnPendingLinkAsAnotherParent() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    given(parentChildLinkService.hasPendingRepresentativeOtherThan(CHILD_CODE, PARENT_CODE))
+        .willReturn(false);
+
+    sender.send(paidChild);
+
+    verify(emailService)
+        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(false, false), TAGS);
   }
 
   @Test
   void emailsTheParentWhoStartedTheAccountWithALinkToTheChildsPaymentPage() {
     startedBy(PARENT_CODE, PARENT_LINK);
 
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child));
+    sender.send(unpaidChild);
 
     verify(emailService)
-        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(PARENT_LINK, false), TAGS);
-    verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any());
+        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(false, true), TAGS);
+  }
+
+  @Test
+  void leavesOutTheFirstPaymentCallWhenThePaymentHasAlreadyArrived() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+
+    sender.send(paidChild);
+
+    verify(emailService)
+        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(false, false), TAGS);
   }
 
   @Test
   void tellsTheParentHowToBringInTheOtherParentWhenOneIsWaitingToConfirm() {
     startedBy(PARENT_CODE, PARENT_LINK);
-    given(parentChildLinkService.hasPendingRepresentative(CHILD_CODE)).willReturn(true);
+    given(parentChildLinkService.hasPendingRepresentativeOtherThan(CHILD_CODE, PARENT_CODE))
+        .willReturn(true);
 
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child));
+    sender.send(paidChild);
 
     verify(emailService)
-        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(PARENT_LINK, true), TAGS);
+        .newMandrillMessage("mari@example.com", TEMPLATE, mergeVars(true, false), TAGS);
   }
 
   @Test
@@ -111,43 +158,22 @@ class ChildAccountOpenedEmailSenderTest {
         .willReturn(message);
     given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
 
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child));
+    sender.send(unpaidChild);
 
     verify(emailPersistenceService)
-        .save(child, "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
+        .save(unpaidChild, "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
   }
 
   @Test
-  void aFailureToRecordTheSentEmailIsContained() {
-    startedBy(PARENT_CODE, PARENT_LINK);
-    var message = new MandrillMessage();
-    var response = mandrillResponse("message-id", "sent");
-    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
-        .willReturn(message);
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
-    given(emailPersistenceService.save(any(), any(), any(), any()))
-        .willThrow(new RuntimeException("database is down"));
+  void sendsNothingForAnAccountHolderWhoIsNoLongerAMinor() {
+    sender.send(new OpenedChildAccount("38812121215", "Kati", "Tamm", false));
 
-    assertThatCode(
-            () -> sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child)))
-        .doesNotThrowAnyException();
+    verifyNoInteractions(parentChildLinkService, emailService, emailPersistenceService);
   }
 
   @Test
-  void sendsNothingWhenTheAccountHolderHasANonEstonianCode() {
-    var foreigner = sampleUserNonMember().personalCode("PNOGB-1234567890").build();
-
-    assertThatCode(
-            () -> sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(foreigner)))
-        .doesNotThrowAnyException();
-    verifyNoInteractions(parentChildLinkService, emailService);
-  }
-
-  @Test
-  void sendsNothingWhenAnAdultsAccountOpens() {
-    var adult = sampleUserNonMember().personalCode(PARENT_CODE).build();
-
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(adult));
+  void sendsNothingForACodeThatIsNotAnEstonianPersonalCode() {
+    sender.send(new OpenedChildAccount("PNOGB-1234567890", "Kati", "Tamm", false));
 
     verifyNoInteractions(parentChildLinkService, emailService, emailPersistenceService);
   }
@@ -157,7 +183,7 @@ class ChildAccountOpenedEmailSenderTest {
     given(parentChildLinkService.findFirstActiveRepresentative(CHILD_CODE))
         .willReturn(Optional.empty());
 
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child));
+    sender.send(unpaidChild);
 
     verify(emailService, never()).newMandrillMessage(any(), any(), any(), any());
   }
@@ -169,20 +195,9 @@ class ChildAccountOpenedEmailSenderTest {
         .willReturn(
             Optional.of(sampleUserNonMember().personalCode(PARENT_CODE).email(" ").build()));
 
-    sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child));
+    sender.send(unpaidChild);
 
     verify(emailService, never()).newMandrillMessage(any(), any(), any(), any());
-  }
-
-  @Test
-  void aFailedSendDoesNotBreakTheAccountOpening() {
-    startedBy(PARENT_CODE, PARENT_LINK);
-    given(emailService.newMandrillMessage(any(), any(), any(), any()))
-        .willThrow(new RuntimeException("Mandrill is down"));
-
-    assertThatCode(
-            () -> sender.onOnboardingCompleted(new SavingsFundOnboardingCompletedEvent(child)))
-        .doesNotThrowAnyException();
   }
 
   private void startedBy(String parentCode, UUID accountId) {
@@ -192,14 +207,15 @@ class ChildAccountOpenedEmailSenderTest {
         .willReturn(Optional.of(accountId));
   }
 
-  private Map<String, Object> mergeVars(UUID accountId, boolean hasCoParent) {
+  private Map<String, Object> mergeVars(boolean hasCoParent, boolean awaitingFirstPayment) {
     return Map.of(
         "fname", "Mari",
         "lname", "Tamm",
         "recipientName", "Kati Tamm",
-        "recipientAccountId", accountId.toString(),
+        "recipientAccountId", PARENT_LINK.toString(),
         "savingsFundFee", "0,28",
-        "hasCoParent", hasCoParent);
+        "hasCoParent", hasCoParent,
+        "awaitingFirstPayment", awaitingFirstPayment);
   }
 
   private MandrillMessageStatus mandrillResponse(String id, String status) {

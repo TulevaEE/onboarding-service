@@ -358,32 +358,40 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
-  void knowsWhenAChildHasARepresentativeWhoHasNotConfirmedYet() {
-    given(
-            parentChildLinkRepository
-                .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    CHILD, PENDING_KYC, TODAY))
-        .willReturn(
-            List.of(
-                link(
-                    LINK_ID,
-                    PARENT,
-                    LEGAL_REPRESENTATIVE,
-                    PENDING_KYC,
-                    Instant.parse("2026-05-01T10:00:00Z"))));
+  void knowsWhenAnotherParentOfTheChildHasNotConfirmedYet() {
+    var coParent = "48001010000";
+    givenPendingLinks(
+        link(
+            LINK_ID,
+            coParent,
+            LEGAL_REPRESENTATIVE,
+            PENDING_KYC,
+            Instant.parse("2026-05-01T10:00:00Z")));
 
-    assertThat(service.hasPendingRepresentative(CHILD)).isTrue();
+    assertThat(service.hasPendingRepresentativeOtherThan(CHILD, PARENT)).isTrue();
+  }
+
+  @Test
+  void doesNotCountTheParentsOwnPendingLinkAsAnotherParent() {
+    givenPendingLinks(
+        link(LINK_ID, PARENT, GUARDIAN, PENDING_KYC, Instant.parse("2026-05-01T10:00:00Z")));
+
+    assertThat(service.hasPendingRepresentativeOtherThan(CHILD, PARENT)).isFalse();
   }
 
   @Test
   void knowsWhenNobodyIsWaitingToConfirm() {
+    givenPendingLinks();
+
+    assertThat(service.hasPendingRepresentativeOtherThan(CHILD, PARENT)).isFalse();
+  }
+
+  private void givenPendingLinks(ParentChildLink... links) {
     given(
             parentChildLinkRepository
                 .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
                     CHILD, PENDING_KYC, TODAY))
-        .willReturn(List.of());
-
-    assertThat(service.hasPendingRepresentative(CHILD)).isFalse();
+        .willReturn(List.of(links));
   }
 
   private static ParentChildLink link(

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON;
+import static java.util.Locale.ENGLISH;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.principal.Names;
@@ -34,18 +35,21 @@ class AdultAccountOpenedEmailSender {
     if (email == null || !claims.claim(account.code())) {
       return;
     }
-    var templateName = SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON.getTemplateName(ESTONIAN);
-    var message = emailService.newMandrillMessage(email, templateName, mergeVars(account), TAGS);
+    var locale = account.prefersEnglish() ? ENGLISH : ESTONIAN;
+    var templateName = SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON.getTemplateName(locale);
+    var message =
+        emailService.newMandrillMessage(email, templateName, mergeVars(account, locale), TAGS);
     emailService
         .send(account, message, templateName)
-        .ifPresent(response -> record(account, response));
+        .ifPresentOrElse(
+            response -> record(account, response), () -> claims.release(account.code()));
   }
 
-  private Map<String, Object> mergeVars(OpenedAccount account) {
+  private Map<String, Object> mergeVars(OpenedAccount account, Locale locale) {
     return Map.of(
         "fname", Names.formatted(account.firstName()),
         "lname", Names.formatted(account.lastName()),
-        "savingsFundFee", savingsFundFees.ongoingChargesPercent(ESTONIAN),
+        "savingsFundFee", savingsFundFees.ongoingChargesPercent(locale),
         "awaitingFirstPayment", !account.paid());
   }
 

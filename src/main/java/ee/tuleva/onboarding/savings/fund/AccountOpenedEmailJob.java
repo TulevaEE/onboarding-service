@@ -82,7 +82,7 @@ class AccountOpenedEmailJob {
       return account.represented();
     }
     var email = account.email();
-    return email != null && !email.isBlank() && !account.prefersEnglish() && !account.represented();
+    return email != null && !email.isBlank() && !account.represented();
   }
 
   private static boolean isMinor(OpenedAccount account, LocalDate today) {

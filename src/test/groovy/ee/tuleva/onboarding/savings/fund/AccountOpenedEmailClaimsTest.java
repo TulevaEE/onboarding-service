@@ -32,6 +32,15 @@ class AccountOpenedEmailClaimsTest {
   }
 
   @Test
+  void aReleasedAccountCanBeClaimedAgain() {
+    claims.claim("61506150006");
+
+    claims.release("61506150006");
+
+    assertThat(claims.claim("61506150006")).isTrue();
+  }
+
+  @Test
   void claimsEachChildAccountSeparately() {
     assertThat(claims.claim("61506150006")).isTrue();
     assertThat(claims.claim("60001019906")).isTrue();

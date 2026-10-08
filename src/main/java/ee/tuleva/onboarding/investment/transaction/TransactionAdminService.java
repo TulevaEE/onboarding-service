@@ -46,16 +46,7 @@ class TransactionAdminService {
       String actor,
       @Nullable CashOverride cash) {
     TransactionCommand command =
-        TransactionCommand.builder()
-            .fund(fund)
-            .mode(mode)
-            .asOfDate(asOfDate)
-            .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
-            .cash(cash == null ? null : cash.amount())
-            .cashComment(cash == null ? null : cash.comment())
-            .actor(actor)
-            .status(CommandStatus.PROCESSING)
-            .build();
+        TransactionCommand.requested(fund, mode, asOfDate, manualAdjustments, actor, cash);
     commandRepository.save(command);
     log.info(
         "Admin transaction command created: id={}, fund={}, mode={}, asOfDate={}",

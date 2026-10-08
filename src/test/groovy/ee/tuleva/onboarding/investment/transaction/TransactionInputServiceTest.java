@@ -15,8 +15,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -428,7 +428,8 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_forTKF100_includesLedgerBalancesInLiabilities() {
+  void
+      gatherInput_forTKF100_countsTheCollectionAccountAndReservesUnattributedPaymentsAndRedemptions() {
     var positionDate = AS_OF_DATE;
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, AS_OF_DATE))
         .thenReturn(Optional.of(positionDate));
@@ -465,21 +466,38 @@ class TransactionInputServiceTest {
         .thenReturn(Optional.of(zeroFundLimit(TKF100)));
     when(positionLimitRepository.findLatestByFundAsOf(TKF100, AS_OF_DATE)).thenReturn(List.of());
 
-    when(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING"))
-        .thenReturn(new BigDecimal("10000"));
-    when(navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS"))
-        .thenReturn(new BigDecimal("2000"));
-    when(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED"))
-        .thenReturn(new BigDecimal("100"));
-    when(fundValueQueries.findLastValueForFund("EE0000003283"))
-        .thenReturn(
+    given(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING:TKF100"))
+        .willReturn(new BigDecimal("12000"));
+    given(navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS:TKF100"))
+        .willReturn(new BigDecimal("-2000"));
+    given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED"))
+        .willReturn(new BigDecimal("-100"));
+    given(fundValueQueries.findLastValueForFund("EE0000003283"))
+        .willReturn(
             Optional.of(new FundValue("EE0000003283", null, new BigDecimal("50"), null, null)));
 
     var result = service.gatherInput(TKF100, AS_OF_DATE, Map.of());
 
+    assertThat(result.liabilityBreakdown().incomingPaymentsClearing())
+        .isEqualByComparingTo(new BigDecimal("12000"));
+    assertThat(result.liabilityBreakdown().unreconciledBankReceipts())
+        .isEqualByComparingTo(new BigDecimal("2000"));
+    assertThat(result.liabilityBreakdown().fundUnitsReservedValue())
+        .isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("10000"));
-    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("10000"));
-    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("200000"));
+    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("12000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("202000"));
+  }
+
+  @Test
+  void gatherInput_forTKF100_refusesToSizeTradesWhenReservedRedemptionsHaveNoNavToValueThem() {
+    stubEmptyBaseline(TKF100);
+    given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED"))
+        .willReturn(new BigDecimal("-100"));
+    given(fundValueQueries.findLastValueForFund("EE0000003283")).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.gatherInput(TKF100, AS_OF_DATE, Map.of()))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -508,9 +526,7 @@ class TransactionInputServiceTest {
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("1000"));
     assertThat(result.receivables()).isEqualByComparingTo(ZERO);
     verify(navLedgerRepository).getSystemAccountBalance("CASH_POSITION:TUV100");
-    verify(navLedgerRepository, never()).getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS");
-    verify(navLedgerRepository, never()).getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
-    verify(navLedgerRepository, never()).getFundUnitsBalance(any());
+    verifyNoMoreInteractions(navLedgerRepository);
   }
 
   @Test
@@ -984,10 +1000,6 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_forNonR16Fund_doesNotQueryR16Services() {
     stubEmptyBaseline(TKF100);
-    given(navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS"))
-        .willReturn(ZERO);
-    given(navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING"))
-        .willReturn(ZERO);
     given(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED")).willReturn(ZERO);
 
     service.gatherInput(TKF100, AS_OF_DATE, Map.of());

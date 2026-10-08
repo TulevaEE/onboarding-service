@@ -120,6 +120,6 @@ class PensionFundEntryClassifierSpec extends Specification {
         "entry-ref",
         null,
         subFamilyCode,
-        null)
+        null, true)
   }
 }

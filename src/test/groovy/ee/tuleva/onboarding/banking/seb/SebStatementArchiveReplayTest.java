@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -46,6 +47,8 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @EnabledIfEnvironmentVariable(named = "SEB_STATEMENT_ARCHIVE_DIR", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "SEB_GATEWAY_REGISTRAR_IBANS", matches = ".+")
 class SebStatementArchiveReplayTest {
+
+  private static final Instant AFTER_EVERY_BOOKING = Instant.parse("2100-01-01T00:00:00Z");
 
   private static final List<TulevaFund> ARCHIVE_FUNDS = List.of(TUK75, TUK00, TUV100);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -98,7 +101,8 @@ class SebStatementArchiveReplayTest {
     for (var fund : ARCHIVE_FUNDS) {
       assertThat(cashBalance(fund))
           .isEqualByComparingTo(closingBalance(lastStatement(fund)).balance());
-      assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(fund)).isZero();
+      assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(fund, AFTER_EVERY_BOOKING))
+          .isZero();
     }
   }
 
@@ -125,7 +129,7 @@ class SebStatementArchiveReplayTest {
           .as("ledger matches closing balance: fund=%s, file=%s", fund, file.getFileName())
           .isEqualByComparingTo(closing.balance());
     }
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(fund))
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(fund, AFTER_EVERY_BOOKING))
         .as("unresolved suspense entries: fund=%s", fund)
         .isZero();
     assertThat(matchedReconciliations(fund) - matchedBefore)

@@ -105,7 +105,8 @@ public class SuspenseReclassificationService {
         "suspense-reclassification",
         null,
         (String) metadata.get("subFamilyCode"),
-        null);
+        null,
+        true);
   }
 
   private static @Nullable CounterPartyDetails counterpartyDetails(Map<String, Object> metadata) {

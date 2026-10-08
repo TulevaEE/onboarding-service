@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -81,6 +82,29 @@ class SebStatementFetchingSchedulerTest {
         "fetchCurrentDayTransactions",
         CURRENT_DAY_FETCH_CRON,
         LocalDateTime.of(2026, 7, 24, 14, 0));
+  }
+
+  @Test
+  void fetchCurrentDayTransactionsForTradePreparation_releasesItsLockBeforeTheNextTenMinuteTick()
+      throws Exception {
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactionsForTradePreparation",
+        CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON,
+        LocalDateTime.of(2026, 7, 24, 9, 0));
+  }
+
+  @Test
+  void tradePreparationFetch_publishesEventsForEveryFundsAccounts() {
+    given(bankAccounts.findAll()).willReturn(ALL_ACCOUNTS);
+
+    scheduler().fetchCurrentDayTransactionsForTradePreparation();
+
+    for (BankAccount account : ALL_ACCOUNTS) {
+      then(eventPublisher)
+          .should()
+          .publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
+    }
+    then(eventPublisher).shouldHaveNoMoreInteractions();
   }
 
   @Test
@@ -285,6 +309,39 @@ class SebStatementFetchingSchedulerTest {
     then(eventPublisher)
         .should()
         .publishEvent(new FetchSebCurrentDayTransactionsRequested(SAVINGS_FUND_ACCOUNTS.get(0)));
+    then(eventPublisher).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void tradePreparationFetch_stillReachesThePensionFundsWhenOneAccountFails() {
+    given(bankAccounts.findAll()).willReturn(ALL_ACCOUNTS);
+    var scheduler = scheduler();
+    willThrow(new RuntimeException("Error"))
+        .given(eventPublisher)
+        .publishEvent(new FetchSebCurrentDayTransactionsRequested(ALL_ACCOUNTS.get(3)));
+
+    scheduler.fetchCurrentDayTransactionsForTradePreparation();
+
+    for (BankAccount account : ALL_ACCOUNTS) {
+      then(eventPublisher)
+          .should()
+          .publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
+    }
+  }
+
+  @Test
+  void tradePreparationFetch_stopsTheRunWhenTheGatewayAnswersWithAServerError() {
+    given(bankAccounts.findAll()).willReturn(ALL_ACCOUNTS);
+    var scheduler = scheduler();
+    willThrow(HttpServerErrorException.create(SERVICE_UNAVAILABLE, "Unavailable", null, null, null))
+        .given(eventPublisher)
+        .publishEvent(new FetchSebCurrentDayTransactionsRequested(ALL_ACCOUNTS.get(0)));
+
+    scheduler.fetchCurrentDayTransactionsForTradePreparation();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new FetchSebCurrentDayTransactionsRequested(ALL_ACCOUNTS.get(0)));
     then(eventPublisher).shouldHaveNoMoreInteractions();
   }
 

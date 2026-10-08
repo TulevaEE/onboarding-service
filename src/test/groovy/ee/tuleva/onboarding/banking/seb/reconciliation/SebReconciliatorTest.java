@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWith
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -195,7 +196,8 @@ class SebReconciliatorTest {
   }
 
   @Test
-  void reconcile_shouldThrowException_whenUnresolvedUnclassifiedEntriesExist() {
+  void
+      reconcile_shouldThrowException_whenUnresolvedUnclassifiedEntriesExistByTheEndOfTheStatementDay() {
     BigDecimal matchingBalance = new BigDecimal("1000.00");
     BankStatementBalance closingBalance =
         new BankStatementBalance(CLOSE, LocalDate.of(2024, 1, 15), matchingBalance);
@@ -213,7 +215,10 @@ class SebReconciliatorTest {
     when(bankAccounts.find("EE123456789012345678"))
         .thenReturn(
             Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
-    when(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).thenReturn(2L);
+    given(
+            fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                TKF100, Instant.parse("2024-01-15T22:00:00Z")))
+        .willReturn(2L);
 
     var exception =
         assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));

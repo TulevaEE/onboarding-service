@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -38,13 +39,37 @@ public class PensionFundStatementProcessor {
         account,
         statement.getType(),
         statement.getEntries().size());
-    seedOpeningBalance(statement, account);
-    statement.getEntries().forEach(entry -> processEntry(entry, account));
+    if (statement.getType() != INTRA_DAY_REPORT) {
+      seedOpeningBalance(statement, account);
+    } else if (!fundBankLedger.hasBankEntries(account.fund())) {
+      // Only an end-of-day statement seeds the opening balance, and only on an account with no
+      // entries yet. Booking today's entries first would leave the account unseeded for good.
+      log.info(
+          "Leaving an intraday report to the account's first end-of-day statement: account={}",
+          account);
+      return;
+    }
+    statement.getEntries().stream()
+        .filter(entry -> isFinal(entry, statement))
+        .forEach(entry -> processEntry(entry, account));
+  }
+
+  private static boolean isFinal(BankStatementEntry entry, BankStatement statement) {
+    if (statement.getType() != INTRA_DAY_REPORT || entry.booked()) {
+      return true;
+    }
+    log.info(
+        "Leaving an entry the intraday report does not show as booked to the end-of-day statement:"
+            + " externalId={}, amount={}",
+        entry.externalId(),
+        entry.amount());
+    return false;
   }
 
   private void seedOpeningBalance(BankStatement statement, BankAccount account) {
     statement.getBalances().stream()
         .filter(balance -> balance.type() == BankStatementBalance.StatementBalanceType.OPEN)
+        .filter(balance -> balance.balance().signum() != 0)
         .findFirst()
         .ifPresent(
             opening ->

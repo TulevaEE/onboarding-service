@@ -417,7 +417,16 @@ class BankStatementTest {
 
   private static BankStatementEntry zeroAmountEntry() {
     return new BankStatementEntry(
-        null, BigDecimal.ZERO, "EUR", TransactionType.CREDIT, "ref", "ext-0", null, null, null);
+        null,
+        BigDecimal.ZERO,
+        "EUR",
+        TransactionType.CREDIT,
+        "ref",
+        "ext-0",
+        null,
+        null,
+        null,
+        true);
   }
 
   private static BankStatementEntry creditEntry(String amount) {
@@ -430,7 +439,8 @@ class BankStatementTest {
         "ext-1",
         null,
         null,
-        null);
+        null,
+        true);
   }
 
   private static BankStatementEntry debitEntry(String amount) {
@@ -443,6 +453,7 @@ class BankStatementTest {
         "ext-1",
         null,
         null,
-        null);
+        null,
+        true);
   }
 }

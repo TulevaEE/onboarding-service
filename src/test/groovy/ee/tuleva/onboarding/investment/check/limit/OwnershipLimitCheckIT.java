@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -205,6 +206,7 @@ class OwnershipLimitCheckIT {
                 instrument(XTRACKERS_CANADA)
                     .displayName("Xtrackers MSCI Canada Screened")
                     .eodhdTicker("D5BH.XETRA")
+                    .fundCurrency("EUR")
                     .build()));
     given(fundSizeClient.fetch("D5BH.XETRA"))
         .willReturn(new FundSize.Reported(new BigDecimal("1000000000"), "EUR", EODHD_UPDATED));
@@ -260,6 +262,7 @@ class OwnershipLimitCheckIT {
                 instrument(XTRACKERS_CANADA)
                     .displayName("Xtrackers MSCI Canada Screened")
                     .eodhdTicker("D5BH.XETRA")
+                    .fundCurrency("EUR")
                     .build()));
     given(fundSizeClient.fetch("D5BH.XETRA")).willThrow(new IllegalStateException("boom"));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
@@ -357,9 +360,9 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
-  void aFundSizeReportedInUsd_isConvertedAtTheEurUsdRateBeforeComparing() {
-    givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "USD", EODHD_UPDATED));
+  void aFundSizeOfAUsdFund_isConvertedFromUsd_althoughEodhdGivesTheEurListingsCurrency() {
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "EUR", EODHD_UPDATED));
     given(fundValueProvider.getLatestValue(EODHD_EUR_USD_STORAGE_KEY, LocalDate.of(2026, 10, 6)))
         .willReturn(
             Optional.of(
@@ -378,6 +381,8 @@ class OwnershipLimitCheckIT {
         .satisfies(
             holding -> {
               assertThat(holding.underlyingFundSize()).isEqualByComparingTo(HUNDRED_MILLION);
+              assertThat(holding.reportedFundSize()).isEqualByComparingTo("116000000");
+              assertThat(holding.reportedCurrency()).isEqualTo("USD");
               assertThat(holding.severity()).isEqualTo(SOFT);
             });
   }
@@ -401,9 +406,9 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
-  void aFundSizeInUsdWithoutAStoredEurUsdRate_isUnverified() {
-    givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "USD", EODHD_UPDATED));
+  void aFundSizeOfAUsdFundWithoutAStoredEurUsdRate_isUnverified() {
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "EUR", EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -416,8 +421,22 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
+  void aHoldingWhoseInstrumentHasNoFundCurrency_isUnverified_withoutAskingEodhd() {
+    givenInvescoEmInstrument(null);
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().unverified())
+        .singleElement()
+        .satisfies(
+            holding -> assertThat(holding.reason()).isEqualTo("no fund currency in instruments"));
+    then(fundSizeClient).shouldHaveNoInteractions();
+  }
+
+  @Test
   void aFundSizeInACurrencyWithoutAnEurRate_isUnverified() {
-    givenInvescoEmInstrument();
+    givenInvescoEmInstrument("GBP");
     givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "GBP", EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
@@ -509,12 +528,17 @@ class OwnershipLimitCheckIT {
   }
 
   private void givenInvescoEmInstrument() {
+    givenInvescoEmInstrument("EUR");
+  }
+
+  private void givenInvescoEmInstrument(@Nullable String fundCurrency) {
     given(instrumentReferenceService.findByIsin(INVESCO_EM))
         .willReturn(
             Optional.of(
                 instrument(INVESCO_EM)
                     .displayName("Invesco MSCI EM Universal Screened")
                     .eodhdTicker(INVESCO_EM_TICKER)
+                    .fundCurrency(fundCurrency)
                     .build()));
   }
 

@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.SOFT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.investment.check.limit.EODHDFundSizeClient.FundSize;
 import ee.tuleva.onboarding.investment.check.limit.UnderlyingFunds.SizeInEur;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -70,8 +69,7 @@ class OwnershipLimitCheckerTest {
         "IE00BMDBMY19",
         "Invesco EM",
         new BigDecimal(holdingValue),
-        new SizeInEur.Known(
-            FUND_SIZE, new FundSize.Reported(new BigDecimal("117000000"), "USD", UPDATED)),
+        new SizeInEur.Known(FUND_SIZE, new BigDecimal("117000000"), "USD", UPDATED),
         LIMIT);
   }
 }

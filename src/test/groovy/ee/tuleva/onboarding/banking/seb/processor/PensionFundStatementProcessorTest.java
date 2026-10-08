@@ -9,6 +9,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -286,7 +287,8 @@ class PensionFundStatementProcessorTest {
             "entry-ref-1",
             null,
             "INTR",
-            null);
+            null,
+            true);
 
     assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
         .isInstanceOf(IllegalStateException.class)
@@ -316,7 +318,8 @@ class PensionFundStatementProcessorTest {
             null,
             null,
             "OTHR",
-            Instant.parse("2025-10-01T20:59:59.999999Z"));
+            Instant.parse("2025-10-01T20:59:59.999999Z"),
+            true);
 
     assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
         .isInstanceOf(IllegalStateException.class);
@@ -414,10 +417,94 @@ class PensionFundStatementProcessorTest {
   }
 
   @Test
+  void intradayReport_leavesAPendingEntryForTheEndOfDayStatement() {
+    var pending = pendingEntry(new BigDecimal("1000000.00"), "osakute laekumine");
+
+    processor.process(intradayReportWith(pending), TUK75_ACCOUNT);
+
+    verifyNoInteractions(classifier, fundBankLedger);
+  }
+
+  @Test
+  void intradayReport_recordsABookedEntryAsItArrives() {
+    var entry = entry(new BigDecimal("2.00"), "intress");
+    given(classifier.classify(entry)).willReturn(new PensionFundEntryClassifier.InterestReceived());
+
+    processor.process(intradayReportWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordInterestReceived(
+            eq(TUK75),
+            eq(new BigDecimal("2.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void intradayReport_neverSeedsTheOpeningBalanceSoTheEndOfDayStatementSetsIt() {
+    var report =
+        new BankStatement(
+            BankStatementType.INTRA_DAY_REPORT,
+            new BankStatementAccount(
+                TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
+            List.of(
+                new BankStatementBalance(
+                    BankStatementBalance.StatementBalanceType.OPEN,
+                    LocalDate.of(2026, 2, 10),
+                    new BigDecimal("123456.78"))),
+            List.of(),
+            STATEMENT_PERIOD);
+
+    processor.process(report, TUK75_ACCOUNT);
+
+    verify(fundBankLedger, never()).seedOpeningBalanceIfFirstStatement(any(), any(), any());
+  }
+
+  @Test
+  void endOfDayStatement_recordsEveryEntryWhateverItsStatus() {
+    var entry = pendingEntry(new BigDecimal("2.00"), "intress");
+    given(classifier.classify(entry)).willReturn(new PensionFundEntryClassifier.InterestReceived());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordInterestReceived(
+            eq(TUK75),
+            eq(new BigDecimal("2.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
   void statementWithoutAnOpeningBalance_seedsNothing() {
     processor.process(statementWith(), TUK75_ACCOUNT);
 
     verify(fundBankLedger, never()).seedOpeningBalanceIfFirstStatement(any(), any(), any());
+  }
+
+  private BankStatement intradayReportWith(BankStatementEntry... entries) {
+    return new BankStatement(
+        BankStatementType.INTRA_DAY_REPORT,
+        new BankStatementAccount(TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
+        List.of(),
+        List.of(entries),
+        STATEMENT_PERIOD);
+  }
+
+  private BankStatementEntry pendingEntry(BigDecimal amount, String remittanceInformation) {
+    return new BankStatementEntry(
+        null,
+        amount,
+        "EUR",
+        amount.signum() >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
+        remittanceInformation,
+        "entry-ref-1",
+        null,
+        null,
+        Instant.parse("2025-10-01T20:59:59.999999Z"),
+        false);
   }
 
   private BankStatement statementWith(BankStatementEntry... entries) {
@@ -439,7 +526,8 @@ class PensionFundStatementProcessorTest {
         "entry-ref-1",
         null,
         null,
-        Instant.parse("2025-10-01T20:59:59.999999Z"));
+        Instant.parse("2025-10-01T20:59:59.999999Z"),
+        true);
   }
 
   private BankStatementEntry entryWithCounterparty(
@@ -457,6 +545,7 @@ class PensionFundStatementProcessorTest {
         "entry-ref-1",
         null,
         subFamilyCode,
-        Instant.parse("2025-10-01T20:59:59.999999Z"));
+        Instant.parse("2025-10-01T20:59:59.999999Z"),
+        true);
   }
 }

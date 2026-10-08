@@ -117,6 +117,7 @@ class SebStatementRouterTest {
         "ext-1",
         null,
         null,
-        null);
+        null,
+        true);
   }
 }

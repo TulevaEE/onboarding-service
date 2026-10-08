@@ -200,9 +200,9 @@ public class FundBankLedger {
     return ledgerTransactionService.existsByExternalReference(externalReference);
   }
 
-  public long countUnresolvedUnclassifiedEntries(TulevaFund fund) {
-    return ledgerTransactionService.countUnresolvedByTransactionTypeAndAccountName(
-        UNCLASSIFIED_BANK_ENTRY, SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(fund));
+  public long countUnresolvedUnclassifiedEntriesBefore(TulevaFund fund, Instant before) {
+    var account = SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(fund);
+    return ledgerTransactionService.countUnresolvedBefore(UNCLASSIFIED_BANK_ENTRY, account, before);
   }
 
   public List<LedgerTransaction> findUnresolvedUnclassifiedEntries(TulevaFund fund) {

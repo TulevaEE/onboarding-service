@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.instrument;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.BeanUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -60,6 +61,10 @@ public class InstrumentReferenceFixture {
 
   public InstrumentReferenceFixture eodhdTicker(String eodhdTicker) {
     return set("eodhdTicker", eodhdTicker);
+  }
+
+  public InstrumentReferenceFixture fundCurrency(@Nullable String fundCurrency) {
+    return set("fundCurrency", fundCurrency);
   }
 
   public InstrumentReferenceFixture bloombergTicker(String bloombergTicker) {

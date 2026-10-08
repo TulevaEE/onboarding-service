@@ -94,7 +94,7 @@ class TransactionInputServiceTest {
             feeAccrualRepository,
             feeChargedToFundPolicy,
             navLedgerRepository,
-            fundValueQueries,
+            new UnitRegisterCashFlows(navLedgerRepository, fundValueQueries),
             pevaRavaPeriodService,
             pevaRavaFlowService,
             r45ReportService,

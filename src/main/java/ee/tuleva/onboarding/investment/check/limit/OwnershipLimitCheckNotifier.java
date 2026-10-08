@@ -30,6 +30,7 @@ class OwnershipLimitCheckNotifier {
   private static final String EUR = "EUR";
   private static final String LINE_INDENT = "  ";
   private static final String NOT_VERIFIED_ICON = "⏸";
+  private static final String LEFT_OUT_ICON = "ℹ️";
 
   private final OperationsNotificationService notificationService;
 
@@ -96,7 +97,8 @@ class OwnershipLimitCheckNotifier {
             result.holdings().stream()
                 .filter(holding -> holding.severity() != OK)
                 .map(holding -> breachLine(result, holding)),
-            result.unverified().stream().map(holding -> unverifiedLine(result, holding)))
+            result.unverified().stream().map(holding -> unverifiedLine(result, holding)),
+            result.leftOut().stream().map(holding -> leftOutLine(result, holding)))
         .flatMap(lines -> lines);
   }
 
@@ -156,6 +158,17 @@ class OwnershipLimitCheckNotifier {
             result.checkDate(),
             holding.name(),
             Objects.requireNonNullElse(holding.isin(), "no ISIN"),
+            holding.reason());
+  }
+
+  private static String leftOutLine(Result result, LeftOutHolding holding) {
+    return "%s %s %s %s (%s): left out by design — %s"
+        .formatted(
+            LEFT_OUT_ICON,
+            result.fund().getCode(),
+            result.checkDate(),
+            holding.name(),
+            holding.isin(),
             holding.reason());
   }
 

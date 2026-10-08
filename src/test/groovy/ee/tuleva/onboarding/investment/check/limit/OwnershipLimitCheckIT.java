@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -53,6 +54,7 @@ class OwnershipLimitCheckIT {
   private static final String INVESCO_EM = "IE00BMDBMY19";
   private static final String INVESCO_EM_TICKER = "ESGM.XETRA";
   private static final String XTRACKERS_CANADA = "LU0476289540";
+  private static final String ISHARES_DEVELOPED_WORLD = "IE00BFG1TM61";
   private static final BigDecimal HUNDRED_MILLION = new BigDecimal("100000000");
   private static final LocalDate EODHD_UPDATED = LocalDate.of(2026, 10, 3);
 
@@ -398,6 +400,40 @@ class OwnershipLimitCheckIT {
                 new BigDecimal("21000000.00"),
                 "EODHD has no total assets"));
     assertThat(run.coveredEveryHolding()).isFalse();
+  }
+
+  @Test
+  void theIsharesDevelopedWorldIndexFund_isLeftOutByDesign_andTheMonthIsCoveredWithoutItsSize() {
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    given(instrumentReferenceService.findByIsin(ISHARES_DEVELOPED_WORLD))
+        .willReturn(
+            Optional.of(
+                instrument(ISHARES_DEVELOPED_WORLD)
+                    .displayName("iShares Developed World Screened Index Fund")
+                    .eodhdTicker("IE00BFG1TM61.EUFUND")
+                    .build()));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+    insertSecurity(TKF100.name(), MONTH_END, ISHARES_DEVELOPED_WORLD, "40000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    var result = run.results().getFirst();
+    assertThat(result.holdings()).extracting(OwnershipBreach::isin).containsExactly(INVESCO_EM);
+    assertThat(result.unverified()).isEmpty();
+    assertThat(result.leftOut())
+        .singleElement()
+        .satisfies(
+            holding -> {
+              assertThat(holding.isin()).isEqualTo(ISHARES_DEVELOPED_WORLD);
+              assertThat(holding.name()).isEqualTo("iShares Developed World Screened Index Fund");
+              assertThat(holding.holdingValue()).isEqualByComparingTo("40000000");
+              assertThat(holding.reason()).contains("EODHD has no total assets");
+            });
+    assertThat(run.coveredEveryHolding()).isTrue();
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+    then(fundSizeClient).should().fetch(INVESCO_EM_TICKER);
+    then(fundSizeClient).shouldHaveNoMoreInteractions();
   }
 
   @Test

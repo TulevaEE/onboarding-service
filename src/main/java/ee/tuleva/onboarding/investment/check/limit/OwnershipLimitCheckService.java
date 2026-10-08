@@ -29,6 +29,15 @@ class OwnershipLimitCheckService {
   private final OwnershipLimitChecker ownershipLimitChecker;
   private static final String COVERED_EVERY_HOLDING = "coveredEveryHolding";
 
+  // Left out of the check on purpose, and listed in its message instead of being sized.
+  // IE00BFG1TM61, iShares Developed World Screened Index Fund: EODHD has no total assets for it, so
+  // it could only ever be "not verified", which made every month INCOMPLETE and re-ran the check
+  // each morning to the 14th. The fund is so large that TKF100 will never own 25% of it.
+  private static final Map<String, String> LEFT_OUT_BY_DESIGN =
+      Map.of(
+          "IE00BFG1TM61",
+          "EODHD has no total assets, and the fund is too large for TKF100 to own 25% of it");
+
   private final LimitCheckEventWriter limitCheckEventWriter;
   private final LimitCheckEventRepository limitCheckEventRepository;
 
@@ -107,6 +116,10 @@ class OwnershipLimitCheckService {
             assessments.stream()
                 .filter(UnverifiedHolding.class::isInstance)
                 .map(UnverifiedHolding.class::cast)
+                .toList(),
+            assessments.stream()
+                .filter(LeftOutHolding.class::isInstance)
+                .map(LeftOutHolding.class::cast)
                 .toList());
     limitCheckEventWriter.replaceEvents(fund, checkDate, List.of(event(result)));
     return result;
@@ -130,6 +143,10 @@ class OwnershipLimitCheckService {
     }
     var name = underlyingFunds.name(isin, held.name());
     var holdingValue = held.value();
+    var leftOutBecause = LEFT_OUT_BY_DESIGN.get(isin);
+    if (leftOutBecause != null) {
+      return new LeftOutHolding(isin, name, holdingValue, leftOutBecause);
+    }
     if (holdingValue == null) {
       return new UnverifiedHolding(isin, name, null, "no market value");
     }
@@ -153,6 +170,8 @@ class OwnershipLimitCheckService {
                 result.holdings(),
                 "unverified",
                 result.unverified(),
+                "leftOut",
+                result.leftOut(),
                 COVERED_EVERY_HOLDING,
                 result.coveredEveryHolding()))
         .build();

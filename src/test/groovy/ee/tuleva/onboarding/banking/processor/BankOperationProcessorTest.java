@@ -391,7 +391,8 @@ class BankOperationProcessorTest {
             null,
             null,
             "OTHR",
-            Instant.parse("2025-10-01T20:59:59.999999Z"));
+            Instant.parse("2025-10-01T20:59:59.999999Z"),
+            true);
 
     assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
         .isInstanceOf(IllegalStateException.class)
@@ -411,7 +412,8 @@ class BankOperationProcessorTest {
             "bank-op-ref",
             null,
             "INTR",
-            null);
+            null,
+            true);
 
     assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
         .isInstanceOf(IllegalStateException.class)
@@ -429,7 +431,8 @@ class BankOperationProcessorTest {
         "test-ref",
         null,
         null,
-        null);
+        null,
+        true);
   }
 
   private BankStatementEntry createBankOperationEntry(String subFamilyCode, BigDecimal amount) {
@@ -447,6 +450,7 @@ class BankOperationProcessorTest {
         "bank-op-ref",
         null,
         subFamilyCode,
-        Instant.parse("2025-10-01T20:59:59.999999Z"));
+        Instant.parse("2025-10-01T20:59:59.999999Z"),
+        true);
   }
 }

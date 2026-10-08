@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ import org.springframework.test.context.DynamicPropertySource;
 
 @SebIntegrationTest
 class SuspenseReclassificationServiceTest {
+
+  private static final Instant AFTER_EVERY_BOOKING = Instant.parse("2100-01-01T00:00:00Z");
 
   private static final String REGISTRAR_IBAN = "EE001234567890123477";
   private static final String OWN_ACCOUNT_IBAN = "EE001234567890123490";
@@ -77,7 +80,8 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(SystemAccount.MANAGEMENT_FEE_REBATE))
         .isEqualByComparingTo(new BigDecimal("-34720.54"));
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isZero();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
   }
 
   @Test
@@ -137,7 +141,8 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("-99.99"));
     assertThat(balance(FUND_INVESTMENT_CASH_CLEARING))
         .isEqualByComparingTo(new BigDecimal("750099.99"));
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(1);
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
 
     var replay = service.reclassify(TUK75);
 

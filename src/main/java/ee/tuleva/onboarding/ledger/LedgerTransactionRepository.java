@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,14 +50,16 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
       select count(distinct t.id) from LedgerTransaction t join t.entries e
       where t.transactionType = :transactionType
         and e.account.name = :accountName
+        and t.transactionDate < :before
         and not exists (
           select 1 from LedgerTransaction r
           where r.externalReference = t.externalReference
             and r.transactionType <> :transactionType)
       """)
-  long countUnresolvedByTransactionTypeAndAccountName(
+  long countUnresolvedBefore(
       @Param("transactionType") TransactionType transactionType,
-      @Param("accountName") String accountName);
+      @Param("accountName") String accountName,
+      @Param("before") Instant before);
 
   @Query(
       """

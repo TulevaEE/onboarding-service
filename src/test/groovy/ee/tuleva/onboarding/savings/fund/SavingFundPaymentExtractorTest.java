@@ -143,7 +143,8 @@ class SavingFundPaymentExtractorTest {
             "test-ref",
             null,
             null,
-            null);
+            null,
+            true);
 
     var statement = createBankStatement(account, List.of(usdEntry));
 
@@ -251,7 +252,8 @@ class SavingFundPaymentExtractorTest {
             "fee-ref",
             null,
             "FEES",
-            null);
+            null,
+            true);
 
     var statement = createBankStatement(account, List.of(paymentEntry, bankOperationEntry));
 
@@ -295,7 +297,8 @@ class SavingFundPaymentExtractorTest {
         externalId,
         null,
         null,
-        null);
+        null,
+        true);
   }
 
   private BankStatementEntry createCreditEntryWithReceivedBefore(
@@ -317,7 +320,8 @@ class SavingFundPaymentExtractorTest {
         externalId,
         null,
         null,
-        receivedBefore);
+        receivedBefore,
+        true);
   }
 
   private BankStatementEntry createDebitEntry(
@@ -338,7 +342,8 @@ class SavingFundPaymentExtractorTest {
         externalId,
         null,
         null,
-        null);
+        null,
+        true);
   }
 
   private BankStatementEntry.CounterPartyDetails createCounterPartyDetails(

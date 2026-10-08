@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,8 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @SebIntegrationTest
 @RecordApplicationEvents
 class PensionFundBankStatementIntegrationTest {
+
+  private static final Instant AFTER_EVERY_BOOKING = Instant.parse("2100-01-01T00:00:00Z");
 
   private static final String REGISTRAR_IBAN = "EE001234567890123477";
   private static final String SUBFUND_ISIN = "IE00BFG1TM61";
@@ -72,7 +75,8 @@ class PensionFundBankStatementIntegrationTest {
         .isEqualByComparingTo(new BigDecimal("27549.75"));
     assertThat(instrumentBalance(SystemAccount.TRADE_CASH_SETTLEMENT, TUK75))
         .isEqualByComparingTo(new BigDecimal("949000.00"));
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isZero();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
     assertThat(balance(FUND_INVESTMENT_CASH_CLEARING, TKF100))
         .isEqualByComparingTo(BigDecimal.ZERO);
 

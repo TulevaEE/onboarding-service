@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.seb.fetcher;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.END_OF_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.GAP_REPORT_CRON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,15 +24,39 @@ class SebStatementFetchingScheduleTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Test
-  void currentDayFetch_firesEveryThirtyMinutesOnAWorkingDayOutsideTheHourBeforeTheCutoff() {
+  void tradePreparationFetch_firesEveryTenMinutesFromEightUntilTenToOneAroundTheMorningTrades() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON);
+
+    assertThat(fires).hasSize(30);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("08:00");
+    assertThat(fires.getLast().toLocalTime()).hasToString("12:50");
+    for (int i = 1; i < fires.size(); i++) {
+      assertThat(Duration.between(fires.get(i - 1), fires.get(i)))
+          .isEqualTo(Duration.ofMinutes(10));
+    }
+  }
+
+  @Test
+  void currentDayFetch_firesEveryThirtyMinutesInTheAfternoonOutsideTheHourBeforeTheCutoff() {
     var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_CRON);
 
-    assertThat(fires).hasSize(16);
-    assertThat(fires.getFirst().toLocalTime()).hasToString("09:00");
-    assertThat(fires.get(11).toLocalTime()).hasToString("14:30");
-    assertThat(fires.get(12).toLocalTime()).hasToString("16:00");
+    assertThat(fires).hasSize(8);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("13:00");
+    assertThat(fires.get(3).toLocalTime()).hasToString("14:30");
+    assertThat(fires.get(4).toLocalTime()).hasToString("16:00");
     assertThat(fires.getLast().toLocalTime()).hasToString("17:30");
     assertThat(fires).allSatisfy(fire -> assertThat(fire.getMinute()).isIn(0, 30));
+  }
+
+  @Test
+  void currentDayFetches_neverFireTwiceAtTheSameTime() {
+    var tradePreparationFires =
+        firesOn("2026-07-24", CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON);
+
+    assertThat(firesOn("2026-07-24", CURRENT_DAY_FETCH_CRON))
+        .doesNotContainAnyElementsOf(tradePreparationFires);
+    assertThat(firesOn("2026-07-24", CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON))
+        .doesNotContainAnyElementsOf(tradePreparationFires);
   }
 
   @Test
@@ -75,6 +100,7 @@ class SebStatementFetchingScheduleTest {
 
   @Test
   void currentDayFetches_doNotFireAtTheWeekend() {
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON)).isEmpty();
     assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_CRON)).isEmpty();
     assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON))
         .isEmpty();

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.statement;
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 import static java.time.temporal.ChronoUnit.MICROS;
 
+import ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.ReportEntry2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import ee.tuleva.onboarding.banking.iso20022.camt053.DateAndDateTimeChoice;
@@ -25,7 +26,8 @@ public record BankStatementEntry(
     String externalId,
     @Nullable String endToEndId,
     @Nullable String subFamilyCode,
-    @Nullable Instant receivedBefore) {
+    @Nullable Instant receivedBefore,
+    boolean booked) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -88,7 +90,8 @@ public record BankStatementEntry(
         externalId,
         endToEndId,
         subFamilyCode,
-        receivedBefore);
+        receivedBefore,
+        entry.getSts() == ee.tuleva.onboarding.banking.iso20022.camt053.EntryStatus2Code.BOOK);
   }
 
   @Nullable
@@ -145,7 +148,8 @@ public record BankStatementEntry(
         externalId,
         endToEndId,
         subFamilyCode,
-        receivedBefore);
+        receivedBefore,
+        entry.getSts() == EntryStatus2Code.BOOK);
   }
 
   @Nullable

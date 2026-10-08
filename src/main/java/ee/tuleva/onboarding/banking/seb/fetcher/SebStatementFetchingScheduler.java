@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTran
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -23,7 +24,8 @@ import org.springframework.web.client.ResourceAccessException;
 @Slf4j
 public class SebStatementFetchingScheduler {
 
-  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-14,16-17 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON = "0 0/10 8-12 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 13-14,16-17 * * MON-FRI";
   static final String CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON =
       "0 0/5 15 * * MON-FRI";
   static final String CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON = "30 59 15 * * MON-FRI";
@@ -36,6 +38,16 @@ public class SebStatementFetchingScheduler {
   private final StatementCoverage statementCoverage;
   private final Clock clock;
 
+  @Scheduled(cron = CURRENT_DAY_FETCH_TRADE_PREPARATION_HOURS_CRON, zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SebStatementFetchingScheduler_fetchCurrentDayTransactionsForTradePreparation",
+      lockAtMostFor = "9m",
+      lockAtLeastFor = "1m")
+  public void fetchCurrentDayTransactionsForTradePreparation() {
+    log.info("Running SEB current day transactions fetch for every fund's accounts");
+    publishCurrentDayFetches(bankAccounts.findAll());
+  }
+
   @Scheduled(cron = CURRENT_DAY_FETCH_CRON, zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "SebStatementFetchingScheduler_fetchCurrentDayTransactions",
@@ -43,7 +55,7 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "1m")
   public void fetchCurrentDayTransactions() {
     log.info("Running SEB current day transactions fetching scheduler");
-    publishCurrentDayFetches();
+    publishSavingsFundCurrentDayFetches();
   }
 
   @Scheduled(
@@ -56,7 +68,7 @@ public class SebStatementFetchingScheduler {
   public void fetchCurrentDayTransactionsInTheHourBeforeCutoff() {
     log.info(
         "Running SEB current day transactions fetch in the hour before the subscription cutoff");
-    publishCurrentDayFetches();
+    publishSavingsFundCurrentDayFetches();
   }
 
   @Scheduled(cron = CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON, zone = "Europe/Tallinn")
@@ -66,11 +78,15 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "10s")
   public void fetchCurrentDayTransactionsBeforeCutoff() {
     log.info("Running SEB current day transactions fetch before the subscription cutoff");
-    publishCurrentDayFetches();
+    publishSavingsFundCurrentDayFetches();
   }
 
-  private void publishCurrentDayFetches() {
-    for (BankAccount account : bankAccounts.findAll(TKF100)) {
+  private void publishSavingsFundCurrentDayFetches() {
+    publishCurrentDayFetches(bankAccounts.findAll(TKF100));
+  }
+
+  private void publishCurrentDayFetches(List<BankAccount> accounts) {
+    for (BankAccount account : accounts) {
       try {
         eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
       } catch (Exception exception) {

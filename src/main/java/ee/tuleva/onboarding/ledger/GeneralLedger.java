@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOURNAL_ENTRY;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.JOURNAL_ENTRY_REVERSAL;
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.POSTED;
@@ -9,14 +8,12 @@ import static ee.tuleva.onboarding.ledger.MirrorOutcome.QUARANTINED_WITH_LIVE_VE
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.REVERSED;
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.REVISED;
 import static ee.tuleva.onboarding.ledger.MirrorOutcome.UNCHANGED;
-import static java.math.BigDecimal.ZERO;
 import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 import jakarta.validation.ConstraintViolationException;
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -69,8 +66,8 @@ public class GeneralLedger {
     refuseMassDeletion(
         entity, parts.size(), live.size(), unexplained(absent, parts).size(), maxDeletionShare);
 
-    var knownCodes = accounts.codesOf(entity);
-    var heldRetirements = retirementsWithAFormerPartThatCannotPost(absent, parts, knownCodes);
+    var postability = new Postability(accounts.codesOf(entity));
+    var heldRetirements = retirementsWithAFormerPartThatCannotPost(absent, parts, postability);
     var heldBackParts =
         heldRetirements.stream()
             .flatMap(entry -> entry.replacedSourceKeys().stream())
@@ -83,7 +80,7 @@ public class GeneralLedger {
                         ? quarantined(
                             live.get(
                                 JournalEntryWriter.reference(entity, source, part.sourceKey())))
-                        : mirrorPart(entity, source, part, live, knownCodes))
+                        : mirrorPart(entity, source, part, live, postability))
             .toList();
     logQuarantined(entity, parts, partOutcomes);
     var heldByAQuarantinedReplacement =
@@ -112,10 +109,10 @@ public class GeneralLedger {
   }
 
   private static Set<LiveJournalEntry> retirementsWithAFormerPartThatCannotPost(
-      List<LiveJournalEntry> absent, List<JournalEntryPart> parts, Set<String> knownCodes) {
+      List<LiveJournalEntry> absent, List<JournalEntryPart> parts, Postability postability) {
     var unpostable =
         parts.stream()
-            .filter(part -> !isPostable(part, knownCodes))
+            .filter(not(postability::allows))
             .map(JournalEntryPart::sourceKey)
             .collect(toSet());
     return absent.stream()
@@ -143,9 +140,9 @@ public class GeneralLedger {
       String source,
       JournalEntryPart part,
       Map<UUID, LiveJournalEntry> live,
-      Set<String> knownCodes) {
+      Postability postability) {
     var current = live.get(JournalEntryWriter.reference(entity, source, part.sourceKey()));
-    if (!isPostable(part, knownCodes)) {
+    if (!postability.allows(part)) {
       return quarantined(current);
     }
     if (current != null && current.fingerprint().equals(JournalEntryFingerprint.of(part))) {
@@ -160,26 +157,6 @@ public class GeneralLedger {
 
   private static MirrorOutcome quarantined(@Nullable LiveJournalEntry current) {
     return current == null ? QUARANTINED : QUARANTINED_WITH_LIVE_VERSION;
-  }
-
-  private static boolean isPostable(JournalEntryPart part, Set<String> knownCodes) {
-    return part.lines().size() >= 2
-        && part.lines().stream()
-                .map(JournalEntryLine::amount)
-                .reduce(ZERO, BigDecimal::add)
-                .signum()
-            == 0
-        && part.lines().stream().map(JournalEntryLine::accountCode).allMatch(knownCodes::contains)
-        && part.lines().stream()
-            .map(JournalEntryLine::amount)
-            .allMatch(GeneralLedger::fitsTheLedger);
-  }
-
-  private static boolean fitsTheLedger(BigDecimal amount) {
-    final int LEDGER_ENTRY_INTEGER_DIGITS = 15;
-    var stripped = amount.stripTrailingZeros();
-    return stripped.scale() <= EUR.getMaxPrecision()
-        && stripped.precision() - stripped.scale() <= LEDGER_ENTRY_INTEGER_DIGITS;
   }
 
   private static void requireColonFreeName(String field, String name) {

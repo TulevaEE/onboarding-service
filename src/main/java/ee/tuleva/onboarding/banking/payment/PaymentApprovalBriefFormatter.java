@@ -92,7 +92,7 @@ public class PaymentApprovalBriefFormatter {
     return "";
   }
 
-  private static String statementTime(Instant asOf, LocalDate briefDate) {
+  static String statementTime(Instant asOf, LocalDate briefDate) {
     var local = asOf.atZone(TALLINN);
     return (local.toLocalDate().equals(briefDate) ? TIME_OF_DAY : DATE_AND_TIME).format(local);
   }

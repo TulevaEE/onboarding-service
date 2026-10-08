@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.banking.seb.fetcher;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.END_OF_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.GAP_REPORT_CRON;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -23,15 +25,41 @@ class SebStatementFetchingScheduleTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Test
-  void currentDayFetch_firesEveryThirtyMinutesOnAWorkingDayOutsideTheHourBeforeTheCutoff() {
+  void currentDayFetch_firesEveryThirtyMinutesOnAWorkingDayUntilTheHourBeforeTheCutoff() {
     var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_CRON);
 
-    assertThat(fires).hasSize(16);
+    assertThat(fires).hasSize(12);
     assertThat(fires.getFirst().toLocalTime()).hasToString("09:00");
-    assertThat(fires.get(11).toLocalTime()).hasToString("14:30");
-    assertThat(fires.get(12).toLocalTime()).hasToString("16:00");
-    assertThat(fires.getLast().toLocalTime()).hasToString("17:30");
+    assertThat(fires.getLast().toLocalTime()).hasToString("14:30");
     assertThat(fires).allSatisfy(fire -> assertThat(fire.getMinute()).isIn(0, 30));
+  }
+
+  @Test
+  void currentDayFetchWhilePaymentsAwaitApproval_firesEveryFiveMinutesFromAfterTheCutoffUntilSix() {
+    var fires = firesOn("2026-07-24", CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON);
+
+    assertThat(fires).hasSize(24);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("16:03");
+    assertThat(fires.getLast().toLocalTime()).hasToString("17:58");
+    for (int i = 1; i < fires.size(); i++) {
+      assertThat(Duration.between(fires.get(i - 1), fires.get(i))).isEqualTo(Duration.ofMinutes(5));
+    }
+  }
+
+  @Test
+  void
+      currentDayFetchWhilePaymentsAwaitApproval_landsTwoMinutesBeforeEachApprovalReminderSoTheReminderReadsAProcessedStatement() {
+    var fetches = firesOn("2026-07-24", CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON);
+    var reminders =
+        Stream.of(
+                PaymentApprovalReminderJob.FROM_TWENTY_PAST_FOUR_CRON,
+                PaymentApprovalReminderJob.UNTIL_SIX_CRON)
+            .flatMap(cron -> firesOn("2026-07-24", cron).stream())
+            .toList();
+
+    assertThat(reminders)
+        .isNotEmpty()
+        .allSatisfy(reminder -> assertThat(fetches).contains(reminder.minusMinutes(2)));
   }
 
   @Test
@@ -79,6 +107,8 @@ class SebStatementFetchingScheduleTest {
     assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON))
         .isEmpty();
     assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON)).isEmpty();
+    assertThat(firesOn("2026-07-25", CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON))
+        .isEmpty();
   }
 
   @Test

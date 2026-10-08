@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_CRON;
 import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON;
+import static ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler.CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -92,6 +93,16 @@ class SebStatementFetchingSchedulerTest {
         LocalDateTime.of(2026, 7, 24, 15, 0));
   }
 
+  @Test
+  void
+      fetchCurrentDayTransactionsWhilePaymentsAwaitApproval_releasesItsLockBeforeTheNextFiveMinuteTick()
+          throws Exception {
+    assertReleasesLockBeforeNextTick(
+        "fetchCurrentDayTransactionsWhilePaymentsAwaitApproval",
+        CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON,
+        LocalDateTime.of(2026, 7, 24, 16, 23));
+  }
+
   @ParameterizedTest
   @MethodSource("currentDayFetches")
   void currentDayFetch_publishesEventsOnlyForSavingsFundAccounts(
@@ -112,7 +123,8 @@ class SebStatementFetchingSchedulerTest {
     return Stream.of(
         SebStatementFetchingScheduler::fetchCurrentDayTransactions,
         SebStatementFetchingScheduler::fetchCurrentDayTransactionsInTheHourBeforeCutoff,
-        SebStatementFetchingScheduler::fetchCurrentDayTransactionsBeforeCutoff);
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsBeforeCutoff,
+        SebStatementFetchingScheduler::fetchCurrentDayTransactionsWhilePaymentsAwaitApproval);
   }
 
   private static void assertReleasesLockBeforeNextTick(

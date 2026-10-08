@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class PaymentApprovalBriefJob {
+  static final String BRIEF_CRON = "0 10 16 * * MON-FRI";
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final PaymentApprovalBriefService briefService;
@@ -29,7 +30,7 @@ public class PaymentApprovalBriefJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  @Scheduled(cron = "0 10 16 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = BRIEF_CRON, zone = "Europe/Tallinn")
   @SchedulerLock(name = "PaymentApprovalBriefJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void postBrief() {
     var today = clock.instant().atZone(TALLINN).toLocalDate();

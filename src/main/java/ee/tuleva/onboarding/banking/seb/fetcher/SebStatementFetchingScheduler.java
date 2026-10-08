@@ -23,10 +23,12 @@ import org.springframework.web.client.ResourceAccessException;
 @Slf4j
 public class SebStatementFetchingScheduler {
 
-  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-14,16-17 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_CRON = "0 0/30 9-14 * * MON-FRI";
   static final String CURRENT_DAY_FETCH_IN_THE_HOUR_BEFORE_SUBSCRIPTION_CUTOFF_CRON =
       "0 0/5 15 * * MON-FRI";
   static final String CURRENT_DAY_FETCH_BEFORE_SUBSCRIPTION_CUTOFF_CRON = "30 59 15 * * MON-FRI";
+  static final String CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON =
+      "0 3/5 16-17 * * MON-FRI";
   static final String END_OF_DAY_FETCH_CRON = "0 0/30 4-23 * * *";
   static final String GAP_REPORT_CRON = "0 10 9 * * *";
   private static final int CATCH_UP_DAYS = 7;
@@ -66,6 +68,16 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "10s")
   public void fetchCurrentDayTransactionsBeforeCutoff() {
     log.info("Running SEB current day transactions fetch before the subscription cutoff");
+    publishCurrentDayFetches();
+  }
+
+  @Scheduled(cron = CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON, zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "SebStatementFetchingScheduler_fetchCurrentDayTransactionsWhilePaymentsAwaitApproval",
+      lockAtMostFor = "4m",
+      lockAtLeastFor = "1m")
+  public void fetchCurrentDayTransactionsWhilePaymentsAwaitApproval() {
+    log.info("Running SEB current day transactions fetch while payments await approval");
     publishCurrentDayFetches();
   }
 

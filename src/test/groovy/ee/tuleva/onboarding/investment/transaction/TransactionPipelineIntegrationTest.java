@@ -10,14 +10,19 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
+import ee.tuleva.onboarding.ledger.PartyRef;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
@@ -56,14 +61,16 @@ class TransactionPipelineIntegrationTest {
       TEST_DATE.atStartOfDay(TALLINN).toInstant().plusSeconds(3600);
   private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, TALLINN);
 
-  private static final BigDecimal EXPECTED_SELL_IE000F60HVH9 = new BigDecimal("118094.61");
-  private static final BigDecimal EXPECTED_SELL_IE00BJZ2DC62 = new BigDecimal("127582.57");
-  private static final BigDecimal EXPECTED_BUY_IE000O58J820 = new BigDecimal("124291.20");
-  private static final BigDecimal EXPECTED_BUY_IE00BFG1TM61 = new BigDecimal("116881.35");
-  private static final BigDecimal EXPECTED_BUY_IE00BMDBMY19 = new BigDecimal("85266.68");
-  private static final BigDecimal EXPECTED_BUY_LU1291099718 = new BigDecimal("269536.01");
-  private static final BigDecimal EXPECTED_FT_TOTAL = new BigDecimal("639504.39");
+  private static final BigDecimal EXPECTED_SELL_IE000F60HVH9 = new BigDecimal("118307.04");
+  private static final BigDecimal EXPECTED_SELL_IE00BJZ2DC62 = new BigDecimal("127784.21");
+  private static final BigDecimal EXPECTED_BUY_IE000O58J820 = new BigDecimal("124132.35");
+  private static final BigDecimal EXPECTED_BUY_IE00BFG1TM61 = new BigDecimal("116686.43");
+  private static final BigDecimal EXPECTED_BUY_IE00BMDBMY19 = new BigDecimal("85163.40");
+  private static final BigDecimal EXPECTED_BUY_LU1291099718 = new BigDecimal("269402.16");
+  private static final BigDecimal EXPECTED_FT_TOTAL = new BigDecimal("639625.76");
   private static final BigDecimal ESGM_PRICE = new BigDecimal("45.00");
+  private static final BigDecimal SNAPSHOT_RESERVED_UNITS = new BigDecimal("500.90162");
+  private static final BigDecimal SNAPSHOT_TKF100_NAV = new BigDecimal("1.00320");
 
   @TestConfiguration
   static class TestClockConfig {
@@ -81,6 +88,8 @@ class TransactionPipelineIntegrationTest {
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private TransactionInputService transactionInputService;
+  @Autowired private SavingsFundLedger savingsFundLedger;
 
   @BeforeEach
   void setUp() {
@@ -133,6 +142,33 @@ class TransactionPipelineIntegrationTest {
     assertThat(result).isNotNull();
     List<TransactionOrder> orders = result.orders();
     assertThat(orders).isEmpty();
+  }
+
+  @Test
+  void gatherInput_readsTheUnitRegisterBalancesTheSavingsFundLedgerWrites() {
+    var saver = new PartyRef(PERSON, "38888888888");
+    savingsFundLedger.recordPaymentReceived(saver, new BigDecimal("1000.00"), randomUUID());
+    savingsFundLedger.reservePaymentForSubscription(saver, new BigDecimal("1000.00"), randomUUID());
+    savingsFundLedger.issueFundUnitsFromReserved(
+        saver,
+        new BigDecimal("1000.00"),
+        new BigDecimal("1000.00000"),
+        ONE,
+        TEST_DATE,
+        randomUUID());
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        saver, new BigDecimal("400.00000"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(saver, new BigDecimal("2500.00"), randomUUID());
+    savingsFundLedger.recordUnattributedPayment(new BigDecimal("700.00"), randomUUID());
+
+    var breakdown =
+        transactionInputService.gatherInput(TKF100, TEST_DATE, Map.of()).liabilityBreakdown();
+
+    assertThat(breakdown.incomingPaymentsClearing()).isEqualByComparingTo("4200.00");
+    assertThat(breakdown.unreconciledBankReceipts()).isEqualByComparingTo("700.00");
+    assertThat(breakdown.fundUnitsReservedValue())
+        .isEqualByComparingTo(
+            SNAPSHOT_RESERVED_UNITS.add(new BigDecimal("400.00000")).multiply(SNAPSHOT_TKF100_NAV));
   }
 
   @Test

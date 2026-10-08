@@ -769,6 +769,8 @@ class TransactionPreparationServiceTest {
                     new BigDecimal("-4000"),
                     new BigDecimal("1500"),
                     new BigDecimal("500"),
+                    new BigDecimal("1100"),
+                    new BigDecimal("350"),
                     new BigDecimal("600"),
                     new BigDecimal("900"),
                     new BigDecimal("400")))
@@ -788,6 +790,8 @@ class TransactionPreparationServiceTest {
         .containsEntry("r45Net", "-4000")
         .containsEntry("pendingBuys", "1500")
         .containsEntry("pendingSells", "500")
+        .containsEntry("unsettledTradePayables", "1100")
+        .containsEntry("unsettledTradeReceivables", "350")
         .containsEntry("unreconciledBankReceipts", "600")
         .containsEntry("fundUnitsReservedValue", "900")
         .containsEntry("incomingPaymentsClearing", "400");

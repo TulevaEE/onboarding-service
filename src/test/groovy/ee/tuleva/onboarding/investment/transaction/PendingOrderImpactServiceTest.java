@@ -175,7 +175,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void anExecutedOrderReservesItsActualConsiderationAndIsLeftToTheSebPositionReport() {
+  void anExecutedOrderTheCustodianHasReportedIsLeftEntirelyToTheSebPositionReport() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -200,7 +200,7 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
-    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("4123.45"));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
   }
@@ -516,11 +516,11 @@ class PendingOrderImpactServiceTest {
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
     assertThat(impact.unreportedPositionQuantities())
         .containsExactly(Map.entry("IE00A", new BigDecimal("40")));
-    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("2000"));
   }
 
   @Test
-  void aFillTheCustodianHasAlreadyReportedIsNotSynthesizedOnTopOfIt() {
+  void aFillTheCustodianHasAlreadyReportedIsNeitherSynthesizedNorReservedOnTopOfIt() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -539,7 +539,7 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
-    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -565,7 +565,7 @@ class PendingOrderImpactServiceTest {
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
-    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("2000"));
   }
 
   @Test
@@ -640,7 +640,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void aFillWithNoReportedDateIsNotSynthesizedBecauseItsPositionIsUnknown() {
+  void aFillWithNoReportedDateIsNotSynthesizedButStillReservesItsCash() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -663,7 +663,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void aHistoricalImportFillIsNeverSynthesizedBecauseNoCustodianReportCarriedIt() {
+  void aHistoricalImportFillIsNeverSynthesizedButStillReservesItsCash() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -684,6 +684,71 @@ class PendingOrderImpactServiceTest {
     assertThat(impact.unreportedPositionValues()).isEmpty();
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aSaleFillWithNoReportedDateIsNotCountedAsIncomingCash() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(List.of(executedSell()));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "20", "1000", null)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void aHistoricalImportSaleFillIsNotCountedAsIncomingCash() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(List.of(executedSell()));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(historicalImportExecution(1L, "20", "1000", POSITION_DATE.plusDays(1))));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void anUnfilledSalePlacedByTheReportDateIsSynthesizedButNotCountedAsIncomingCash() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.SELL,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("20"),
+                    new BigDecimal("1000"),
+                    POSITION_DATE)));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("-1000")));
+    assertThat(impact.unreportedPositionQuantities())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("-20")));
+    assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  private TransactionOrder executedSell() {
+    return order(
+        1L,
+        "IE00A",
+        TransactionType.SELL,
+        InstrumentType.ETF,
+        OrderStatus.EXECUTED,
+        new BigDecimal("20"),
+        new BigDecimal("1000"));
   }
 
   private TransactionExecution execution(

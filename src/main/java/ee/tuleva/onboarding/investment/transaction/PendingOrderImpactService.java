@@ -8,7 +8,9 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,16 @@ import org.springframework.stereotype.Component;
 class PendingOrderImpactService {
 
   private static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
+  // Whether the custodian's position report already shows a trade decides who carries its cash:
+  // the report, as an unsettled payable or receivable, or the order. When that cannot be told, a
+  // purchase is still reserved and a sale is not counted, so free cash is never overstated.
+  private enum InPositionReport {
+    YES,
+    NO,
+    UNKNOWN
+  }
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
@@ -49,21 +61,21 @@ class PendingOrderImpactService {
       List<TransactionExecution> executions =
           executionsByOrder.getOrDefault(order.getId(), List.of());
       ExecutedTotals executed = ExecutedTotals.of(executions);
-      BigDecimal cashImpact = expectedConsideration(order, executed, asOfDate);
-      if (order.getTransactionType() == BUY) {
-        pendingBuys = pendingBuys.add(cashImpact);
-      } else {
-        pendingSells = pendingSells.add(cashImpact);
-      }
-
+      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
       addUnreportedPositions(
           order,
           executions,
           executed,
+          unfilledValue,
           positionDate,
-          asOfDate,
           unreportedValues,
           unreportedQuantities);
+      BigDecimal cash = cashNotInPositionReport(order, executions, unfilledValue, positionDate);
+      if (order.getTransactionType() == BUY) {
+        pendingBuys = pendingBuys.add(cash);
+      } else {
+        pendingSells = pendingSells.add(cash);
+      }
     }
 
     log.info(
@@ -80,17 +92,18 @@ class PendingOrderImpactService {
         pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
   }
 
-  private void addUnreportedPositions(
+  private static void addUnreportedPositions(
       TransactionOrder order,
       List<TransactionExecution> executions,
       ExecutedTotals executed,
+      BigDecimal unfilledValue,
       LocalDate positionDate,
-      LocalDate asOfDate,
       Map<String, BigDecimal> unreportedValues,
       Map<String, BigDecimal> unreportedQuantities) {
     String isin = order.getInstrumentIsin();
     for (TransactionExecution execution : executions) {
-      if (!isMissingFromPositionReport(execution, positionDate)) {
+      warnIfUndated(execution, positionDate);
+      if (inPositionReport(execution, positionDate) != InPositionReport.NO) {
         continue;
       }
       BigDecimal consideration = absOrZero(execution.getTotalConsideration());
@@ -103,7 +116,6 @@ class PendingOrderImpactService {
       }
     }
 
-    BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
     if (unfilledValue.signum() == 0) {
       return;
     }
@@ -111,6 +123,42 @@ class PendingOrderImpactService {
     if (order.getTransactionType() == SELL) {
       addUnfilledQuantity(order, executed, isin, unreportedQuantities);
     }
+  }
+
+  private static void warnIfUndated(TransactionExecution execution, LocalDate positionDate) {
+    if (execution.getReportedDate() != null
+        || HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
+      return;
+    }
+    log.warn(
+        "Execution carries no reported date, leaving its position to the custodian report:"
+            + " executionId={}, orderId={}, positionDate={}",
+        execution.getId(),
+        execution.getOrderId(),
+        positionDate);
+  }
+
+  private static BigDecimal cashNotInPositionReport(
+      TransactionOrder order,
+      List<TransactionExecution> executions,
+      BigDecimal unfilledValue,
+      LocalDate positionDate) {
+    BigDecimal cash = ZERO;
+    for (TransactionExecution execution : executions) {
+      BigDecimal consideration = absOrZero(execution.getTotalConsideration());
+      cash = cash.add(cashToCount(order, inPositionReport(execution, positionDate), consideration));
+    }
+    return cash.add(
+        cashToCount(order, unfilledInPositionReport(order, positionDate), unfilledValue));
+  }
+
+  private static BigDecimal cashToCount(
+      TransactionOrder order, InPositionReport reported, BigDecimal value) {
+    return switch (reported) {
+      case YES -> ZERO;
+      case NO -> value;
+      case UNKNOWN -> order.getTransactionType() == BUY ? value : ZERO;
+    };
   }
 
   private static void addUnfilledQuantity(
@@ -131,22 +179,24 @@ class PendingOrderImpactService {
         : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
-  private static boolean isMissingFromPositionReport(
+  private static InPositionReport inPositionReport(
       TransactionExecution execution, LocalDate positionDate) {
-    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
-      return false;
-    }
     LocalDate reportedDate = execution.getReportedDate();
-    if (reportedDate == null) {
-      log.warn(
-          "Execution carries no reported date, leaving its position to the custodian report:"
-              + " executionId={}, orderId={}, positionDate={}",
-          execution.getId(),
-          execution.getOrderId(),
-          positionDate);
-      return false;
+    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource()) || reportedDate == null) {
+      return InPositionReport.UNKNOWN;
     }
-    return reportedDate.isAfter(positionDate);
+    return reportedDate.isAfter(positionDate) ? InPositionReport.NO : InPositionReport.YES;
+  }
+
+  // An unfilled order placed after the report date cannot be in it. One placed on or before it may
+  // have been filled with the fill not yet received from the custodian, or, for a fund dealing at a
+  // later NAV, not filled yet at all.
+  private static InPositionReport unfilledInPositionReport(
+      TransactionOrder order, LocalDate positionDate) {
+    Instant placedAt = order.getOrderTimestamp();
+    return placedAt != null && placedAt.atZone(TALLINN).toLocalDate().isAfter(positionDate)
+        ? InPositionReport.NO
+        : InPositionReport.UNKNOWN;
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {
@@ -177,11 +227,6 @@ class PendingOrderImpactService {
         orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
     return executionRepository.findByOrderIdIn(orderIds).stream()
         .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
-  }
-
-  private BigDecimal expectedConsideration(
-      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
-    return executed.consideration().add(unfilledValue(order, executed, asOfDate));
   }
 
   private BigDecimal unfilledValue(

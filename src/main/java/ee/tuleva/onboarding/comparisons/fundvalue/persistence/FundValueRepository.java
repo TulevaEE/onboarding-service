@@ -16,4 +16,9 @@ public interface FundValueRepository extends FundValueQueries, FundValueWriter {
   Map<String, LocalDate> findEarliestDates();
 
   Map<String, LocalDate> findLatestDateByKeys(Set<String> keys);
+
+  List<FundValue> findLatestValuesByKeys(List<String> keys);
+
+  List<FundValue> findValuesBetweenDatesForKeys(
+      List<String> keys, LocalDate startDate, LocalDate endDate, int maxRows);
 }

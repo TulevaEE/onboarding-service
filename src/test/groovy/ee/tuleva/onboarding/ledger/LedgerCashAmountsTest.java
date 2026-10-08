@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Import;
 
 @DataJpaTest
 @Import(SavingsFundLedgerStackConfiguration.class)
-class SavingsFundLedgerCashAmountTest {
+class LedgerCashAmountsTest {
 
   private static final PartyRef PARTY = new PartyRef(PERSON, "38888888888");
   private static final LocalDate NAV_DATE = LocalDate.parse("2026-09-22");
@@ -32,6 +32,7 @@ class SavingsFundLedgerCashAmountTest {
   private static final Instant PREVIOUS_BRIEF = Instant.parse("2026-09-22T13:10:00Z");
   private static final Instant BRIEF = Instant.parse("2026-09-23T13:10:00Z");
 
+  @Autowired LedgerCashAmounts ledgerCashAmounts;
   @Autowired SavingsFundLedger savingsFundLedger;
 
   @AfterEach
@@ -53,7 +54,7 @@ class SavingsFundLedgerCashAmountTest {
         NAV_DATE,
         redemptionRequestId);
 
-    assertThat(savingsFundLedger.cashAmountOf(redemptionRequestId, REDEMPTION_REQUEST))
+    assertThat(ledgerCashAmounts.cashAmountOf(redemptionRequestId, REDEMPTION_REQUEST))
         .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("300.00"));
   }
 
@@ -63,20 +64,20 @@ class SavingsFundLedgerCashAmountTest {
     var second = priceRedemption("125.50", "100.40000");
 
     assertThat(
-            savingsFundLedger.cashAmountOf(
+            ledgerCashAmounts.cashAmountOf(
                 List.of(first, second, randomUUID()), REDEMPTION_REQUEST))
         .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("425.50"));
   }
 
   @Test
   void cashAmountOf_severalReferencesIsEmptyWhenNoneHasOne() {
-    assertThat(savingsFundLedger.cashAmountOf(List.of(randomUUID()), REDEMPTION_REQUEST)).isEmpty();
-    assertThat(savingsFundLedger.cashAmountOf(List.of(), REDEMPTION_REQUEST)).isEmpty();
+    assertThat(ledgerCashAmounts.cashAmountOf(List.of(randomUUID()), REDEMPTION_REQUEST)).isEmpty();
+    assertThat(ledgerCashAmounts.cashAmountOf(List.of(), REDEMPTION_REQUEST)).isEmpty();
   }
 
   @Test
   void cashAmountOf_isEmptyWhenTheLedgerHasNoSuchTransaction() {
-    assertThat(savingsFundLedger.cashAmountOf(randomUUID(), REDEMPTION_REQUEST)).isEmpty();
+    assertThat(ledgerCashAmounts.cashAmountOf(randomUUID(), REDEMPTION_REQUEST)).isEmpty();
   }
 
   @Test
@@ -85,7 +86,7 @@ class SavingsFundLedgerCashAmountTest {
     savingsFundLedger.recordPaymentReceived(PARTY, new BigDecimal("150.00"), paymentId);
     savingsFundLedger.recordPaymentCancelled(PARTY, new BigDecimal("150.00"), paymentId);
 
-    assertThat(savingsFundLedger.cashAmountOf(paymentId, PAYMENT_CANCELLED))
+    assertThat(ledgerCashAmounts.cashAmountOf(paymentId, PAYMENT_CANCELLED))
         .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("150.00"));
   }
 
@@ -95,7 +96,7 @@ class SavingsFundLedgerCashAmountTest {
     savingsFundLedger.recordUnattributedPayment(new BigDecimal("75.50"), paymentId);
     savingsFundLedger.bounceBackUnattributedPayment(new BigDecimal("75.50"), paymentId);
 
-    assertThat(savingsFundLedger.cashAmountOf(paymentId, PAYMENT_BOUNCE_BACK))
+    assertThat(ledgerCashAmounts.cashAmountOf(paymentId, PAYMENT_BOUNCE_BACK))
         .hasValueSatisfying(amount -> assertThat(amount).isEqualByComparingTo("75.50"));
   }
 
@@ -107,13 +108,13 @@ class SavingsFundLedgerCashAmountTest {
     issueAt(BRIEF, "50.00");
     issueAt(BRIEF.plusSeconds(1), "7.00");
 
-    assertThat(savingsFundLedger.cashAmountBetween(FUND_SUBSCRIPTION, PREVIOUS_BRIEF, BRIEF))
+    assertThat(ledgerCashAmounts.cashAmountBetween(FUND_SUBSCRIPTION, PREVIOUS_BRIEF, BRIEF))
         .isEqualByComparingTo("400.00");
   }
 
   @Test
   void cashAmountBetween_isZeroWhenNothingWasIssued() {
-    assertThat(savingsFundLedger.cashAmountBetween(FUND_SUBSCRIPTION, PREVIOUS_BRIEF, BRIEF))
+    assertThat(ledgerCashAmounts.cashAmountBetween(FUND_SUBSCRIPTION, PREVIOUS_BRIEF, BRIEF))
         .isEqualByComparingTo("0");
   }
 

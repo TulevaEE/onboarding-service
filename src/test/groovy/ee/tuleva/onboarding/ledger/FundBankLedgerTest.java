@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
@@ -516,15 +517,14 @@ class FundBankLedgerTest {
   }
 
   @Test
-  void seedOpeningBalanceIfFirstStatement_skipsAZeroOpeningBalance() {
-    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+  void hasBankEntries_turnsTrueWithTheCashAccountsFirstEntry() {
+    assertThat(fundBankLedger.hasBankEntries(TUK75)).isFalse();
 
-    fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, ZERO, LocalDate.of(2026, 1, 31));
+    fundBankLedger.recordBankFee(
+        TUK75, new BigDecimal("-1.00"), randomUUID(), FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE);
 
-    assertThat(
-            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
-        .isEqualByComparingTo(ZERO);
-    assertThat(fundBankLedger.existsForExternalReference(randomUUID())).isFalse();
+    assertThat(fundBankLedger.hasBankEntries(TUK75)).isTrue();
+    assertThat(fundBankLedger.hasBankEntries(TUK00)).isFalse();
   }
 
   @Test

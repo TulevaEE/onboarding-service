@@ -41,6 +41,13 @@ public class PensionFundStatementProcessor {
         statement.getEntries().size());
     if (statement.getType() != INTRA_DAY_REPORT) {
       seedOpeningBalance(statement, account);
+    } else if (!fundBankLedger.hasBankEntries(account.fund())) {
+      // Only an end-of-day statement seeds the opening balance, and only on an account with no
+      // entries yet. Booking today's entries first would leave the account unseeded for good.
+      log.info(
+          "Leaving an intraday report to the account's first end-of-day statement: account={}",
+          account);
+      return;
     }
     statement.getEntries().stream()
         .filter(entry -> isFinal(entry, statement))
@@ -62,6 +69,7 @@ public class PensionFundStatementProcessor {
   private void seedOpeningBalance(BankStatement statement, BankAccount account) {
     statement.getBalances().stream()
         .filter(balance -> balance.type() == BankStatementBalance.StatementBalanceType.OPEN)
+        .filter(balance -> balance.balance().signum() != 0)
         .findFirst()
         .ifPresent(
             opening ->

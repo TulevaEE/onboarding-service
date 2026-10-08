@@ -95,7 +95,8 @@ public class PaymentEmailService {
                 "amount", payment.getAmount(),
                 "currency", payment.getCurrency(),
                 "senderPersonalCode", user.getPersonalCode(),
-                "recipientPersonalCode", payment.getRecipientPersonalCode()));
+                "recipientPersonalCode", payment.getRecipientPersonalCode(),
+                "gift", payment.isGift()));
     variables.putAll(getNameMergeVars(user));
     variables.putAll(decision.mergeVars(locale));
 

@@ -17,6 +17,7 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments
 import static ee.tuleva.onboarding.notification.email.EmailType.*
 import ee.tuleva.onboarding.nudge.NudgeKey
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewGiftPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
@@ -48,6 +49,7 @@ class PaymentEmailServiceSpec extends Specification {
         "currency"             : EUR,
         "senderPersonalCode"   : user.personalCode,
         "recipientPersonalCode": payment.recipientPersonalCode,
+        "gift"                 : false,
     ] + decision.mergeVars(Locale.ENGLISH)
     def tags = ["pillar_3.1", "mandate", "payment", decision.tag()]
     def locale = Locale.ENGLISH
@@ -74,6 +76,31 @@ class PaymentEmailServiceSpec extends Specification {
     }) >> message
     1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status, decision.tag())
+  }
+
+  def "a third pillar gift email tells the template it is a gift"() {
+    given:
+    def user = sampleUser().build()
+    def payment = aNewGiftPayment()
+    def decision = NudgeDecision.of(NudgeKey.NONE)
+    def message = new MandrillMessage()
+    def mergeVars = [
+        "fname"                : user.firstName,
+        "lname"                : user.lastName,
+        "amount"               : 10.00,
+        "currency"             : EUR,
+        "senderPersonalCode"   : user.personalCode,
+        "recipientPersonalCode": "38888888888",
+        "gift"                 : true,
+    ] + decision.mergeVars(Locale.ENGLISH)
+    emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> []
+
+    when:
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, decision, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", mergeVars, ["pillar_3.1", "mandate", "payment"], []) >> message
+    1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.empty()
   }
 
   def "a third pillar payment email with no nudge carries no nudge tag"() {

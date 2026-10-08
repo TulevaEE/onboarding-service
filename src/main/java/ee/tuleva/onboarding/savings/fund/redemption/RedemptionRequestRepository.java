@@ -80,6 +80,9 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
   @Query("UPDATE RedemptionRequest r SET r.batchId = :batchId WHERE r.id IN :ids")
   int assignBatch(@Param("ids") Collection<UUID> ids, @Param("batchId") UUID batchId);
 
+  @Query("SELECT r.id FROM RedemptionRequest r WHERE r.batchId = :batchId")
+  List<UUID> findIdsByBatchId(@Param("batchId") UUID batchId);
+
   @Query(
       """
       SELECT COALESCE(SUM(r.cashAmount), 0)

@@ -10,10 +10,12 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -530,6 +532,21 @@ public class SavingsFundLedger {
   public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, transactionType);
+  }
+
+  public Optional<BigDecimal> cashAmountOf(
+      UUID externalReference, TransactionType transactionType) {
+    return ledgerTransactionService.cashAmountOf(externalReference, transactionType);
+  }
+
+  public Optional<BigDecimal> cashAmountOf(
+      Collection<UUID> externalReferences, TransactionType transactionType) {
+    return ledgerTransactionService.cashAmountOf(externalReferences, transactionType);
+  }
+
+  public BigDecimal cashAmountBetween(
+      TransactionType transactionType, Instant after, Instant until) {
+    return ledgerTransactionService.cashAmountBetween(transactionType, after, until);
   }
 
   public boolean hasPricingEntry(UUID redemptionRequestId) {

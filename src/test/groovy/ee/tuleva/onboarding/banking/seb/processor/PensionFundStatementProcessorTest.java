@@ -419,15 +419,30 @@ class PensionFundStatementProcessorTest {
   @Test
   void intradayReport_leavesAPendingEntryForTheEndOfDayStatement() {
     var pending = pendingEntry(new BigDecimal("1000000.00"), "osakute laekumine");
+    given(fundBankLedger.hasBankEntries(TUK75)).willReturn(true);
 
     processor.process(intradayReportWith(pending), TUK75_ACCOUNT);
 
-    verifyNoInteractions(classifier, fundBankLedger);
+    verify(fundBankLedger).hasBankEntries(TUK75);
+    verifyNoMoreInteractions(fundBankLedger);
+    verifyNoInteractions(classifier);
+  }
+
+  @Test
+  void intradayReport_onAnAccountTheLedgerHasNoEntriesForYet_booksNothing() {
+    var entry = entry(new BigDecimal("2.00"), "intress");
+
+    processor.process(intradayReportWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger).hasBankEntries(TUK75);
+    verifyNoMoreInteractions(fundBankLedger);
+    verifyNoInteractions(classifier);
   }
 
   @Test
   void intradayReport_recordsABookedEntryAsItArrives() {
     var entry = entry(new BigDecimal("2.00"), "intress");
+    given(fundBankLedger.hasBankEntries(TUK75)).willReturn(true);
     given(classifier.classify(entry)).willReturn(new PensionFundEntryClassifier.InterestReceived());
 
     processor.process(intradayReportWith(entry), TUK75_ACCOUNT);
@@ -455,6 +470,7 @@ class PensionFundStatementProcessorTest {
                     new BigDecimal("123456.78"))),
             List.of(),
             STATEMENT_PERIOD);
+    given(fundBankLedger.hasBankEntries(TUK75)).willReturn(true);
 
     processor.process(report, TUK75_ACCOUNT);
 
@@ -475,6 +491,26 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void statementWithAZeroOpeningBalance_seedsNothing() {
+    var statement =
+        new BankStatement(
+            BankStatementType.HISTORIC_STATEMENT,
+            new BankStatementAccount(
+                TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
+            List.of(
+                new BankStatementBalance(
+                    BankStatementBalance.StatementBalanceType.OPEN,
+                    LocalDate.of(2026, 2, 10),
+                    BigDecimal.ZERO)),
+            List.of(),
+            STATEMENT_PERIOD);
+
+    processor.process(statement, TUK75_ACCOUNT);
+
+    verify(fundBankLedger, never()).seedOpeningBalanceIfFirstStatement(any(), any(), any());
   }
 
   @Test

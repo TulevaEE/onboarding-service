@@ -200,6 +200,11 @@ public class FundBankLedger {
     return ledgerTransactionService.existsByExternalReference(externalReference);
   }
 
+  public boolean hasBankEntries(TulevaFund fund) {
+    return ledgerTransactionService.hasEntriesForAccountName(
+        SystemAccount.FUND_INVESTMENT_CASH_CLEARING.getAccountName(fund));
+  }
+
   public long countUnresolvedUnclassifiedEntriesBefore(TulevaFund fund, Instant before) {
     var account = SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(fund);
     return ledgerTransactionService.countUnresolvedBefore(UNCLASSIFIED_BANK_ENTRY, account, before);
@@ -365,16 +370,11 @@ public class FundBankLedger {
   @Transactional
   public void seedOpeningBalanceIfFirstStatement(
       TulevaFund fund, BigDecimal openingBalance, LocalDate asOfDate) {
-    if (openingBalance.signum() == 0) {
-      return;
-    }
-    var cashAccountName = SystemAccount.FUND_INVESTMENT_CASH_CLEARING.getAccountName(fund);
-    if (ledgerTransactionService.hasEntriesForAccountName(cashAccountName)) {
+    if (hasBankEntries(fund)) {
       return;
     }
     recordOpeningBalance(fund, openingBalance, asOfDate);
-    log.info(
-        "Seeded opening balance from first bank statement: fund={}, asOfDate={}", fund, asOfDate);
+    log.info("Seeded the opening balance: fund={}, asOfDate={}", fund, asOfDate);
   }
 
   @Transactional

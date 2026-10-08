@@ -94,6 +94,25 @@ class OwnershipLimitCheckNotifierTest {
   }
 
   @Test
+  void aHoldingLeftOutByDesign_isListed_andKeepsTheMonthOk() {
+    notifier.notify(
+        run(
+            result(
+                List.of(invescoEm("3.20", OK)),
+                List.of(),
+                List.of(developedWorldLeftOut("too large for the fund to own 25% of it")))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ Ownership limit check OK: month=2026-09
+              ✅ TKF100 2026-09-30: 1 of 1 holdings checked, largest 3.20% of Invesco EM (IE00BMDBMY19) in a 150.00M EUR fund — soft 20%, hard 25%
+              ℹ️ TKF100 2026-09-30 iShares Developed World (IE00BFG1TM61): left out by design — too large for the fund to own 25% of it""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
   void aFundWhereNoHoldingCouldBeChecked_firesARedAlertInsteadOfNamingALargest() {
     notifier.notify(run(result(List.of(), List.of(developedWorld("EODHD answered HTTP 404")))));
 
@@ -183,7 +202,14 @@ class OwnershipLimitCheckNotifierTest {
   }
 
   private static Result result(List<OwnershipBreach> holdings, List<UnverifiedHolding> unverified) {
-    return new Result(TKF100, CHECK_DATE, holdings, unverified);
+    return result(holdings, unverified, List.of());
+  }
+
+  private static Result result(
+      List<OwnershipBreach> holdings,
+      List<UnverifiedHolding> unverified,
+      List<LeftOutHolding> leftOut) {
+    return new Result(TKF100, CHECK_DATE, holdings, unverified, leftOut);
   }
 
   private static OwnershipBreach invescoEm(String percent, BreachSeverity severity) {
@@ -214,6 +240,11 @@ class OwnershipLimitCheckNotifierTest {
         new BigDecimal("20"),
         new BigDecimal("25"),
         OK);
+  }
+
+  private static LeftOutHolding developedWorldLeftOut(String reason) {
+    return new LeftOutHolding(
+        "IE00BFG1TM61", "iShares Developed World", new BigDecimal("5000000"), reason);
   }
 
   private static UnverifiedHolding developedWorld(String reason) {

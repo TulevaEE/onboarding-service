@@ -16,7 +16,8 @@ record OwnershipCheckRun(YearMonth month, List<Result> results, List<NotChecked>
       TulevaFund fund,
       LocalDate checkDate,
       List<OwnershipBreach> holdings,
-      List<UnverifiedHolding> unverified) {
+      List<UnverifiedHolding> unverified,
+      List<LeftOutHolding> leftOut) {
 
     BreachSeverity worstSeverity() {
       return holdings.stream().map(OwnershipBreach::severity).max(naturalOrder()).orElse(OK);

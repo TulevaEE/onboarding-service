@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 class SriCalculator {
 
-  // PRIIPs Annex II point 52: SRI equals the MRM class only while the credit risk measure is 1.
+  // PRIIPs Annex II point 52: SRI equals the MRM class while the credit risk measure is 1 or 2.
   static final int ASSUMED_CREDIT_RISK_MEASURE = 1;
 
   static final double Z = 1.95996398454005;

@@ -64,6 +64,8 @@ final class TransactionInputPayloads {
     putIfPresent(map, "r45Net", plain(breakdown.r45Net()));
     putIfPresent(map, "pendingBuys", plain(breakdown.pendingBuys()));
     putIfPresent(map, "pendingSells", plain(breakdown.pendingSells()));
+    putIfPresent(map, "unsettledTradePayables", plain(breakdown.unsettledTradePayables()));
+    putIfPresent(map, "unsettledTradeReceivables", plain(breakdown.unsettledTradeReceivables()));
     putIfPresent(map, "unreconciledBankReceipts", plain(breakdown.unreconciledBankReceipts()));
     putIfPresent(map, "fundUnitsReservedValue", plain(breakdown.fundUnitsReservedValue()));
     putIfPresent(map, "incomingPaymentsClearing", plain(breakdown.incomingPaymentsClearing()));

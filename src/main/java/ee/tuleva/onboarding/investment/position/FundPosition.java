@@ -32,6 +32,9 @@ public class FundPosition {
   private static final List<String> TRADE_PAYABLE_ACCOUNT_NAMES =
       List.of("payables of unsettled transactions", "Trade Settlement Payable");
 
+  private static final List<String> TRADE_RECEIVABLE_ACCOUNT_NAMES =
+      List.of("receivables of unsettled transactions", "Trade Settlement Receivable");
+
   private static final String REDEMPTION_PAYABLE_ACCOUNT_NAME = "Payables of redeemed units";
 
   @Id
@@ -69,6 +72,10 @@ public class FundPosition {
 
   public boolean isTradePayable() {
     return TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
+  }
+
+  public boolean isTradeReceivable() {
+    return TRADE_RECEIVABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
   }
 
   public boolean isRedemptionPayableOf(TulevaFund redeemedFund) {

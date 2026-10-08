@@ -50,6 +50,8 @@ public class TransactionCommand {
 
   @Nullable private BigDecimal cash;
 
+  @Nullable private String cashComment;
+
   @Builder.Default
   @JdbcTypeCode(JSON)
   private Map<String, Object> manualAdjustments = Map.of();

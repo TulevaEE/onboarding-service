@@ -139,7 +139,7 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
-  void processCommand_withCommandCash_passesCashOverrideToInputService() {
+  void processCommand_withCommandCash_passesCashToInputServiceAndRecordsItsComment() {
     var command =
         TransactionCommand.builder()
             .id(20L)
@@ -148,6 +148,7 @@ class TransactionPreparationServiceTest {
             .asOfDate(LocalDate.of(2026, 1, 15))
             .manualAdjustments(Map.of())
             .cash(new BigDecimal("40000"))
+            .cashComment("Gateway balance at 10:15")
             .status(PROCESSING)
             .build();
     var input =
@@ -183,6 +184,13 @@ class TransactionPreparationServiceTest {
 
     verify(inputService)
         .gatherInput(TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000"));
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_COMPLETED".equals(event.getEventType())
+                        && "Gateway balance at 10:15".equals(event.getPayload().get("cashComment"))
+                        && !event.getPayload().containsKey("cash")));
   }
 
   @Test
@@ -896,6 +904,36 @@ class TransactionPreparationServiceTest {
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
     verify(commandRepository).save(command);
+  }
+
+  @Test
+  void processCommand_onFailureWithACashOverride_recordsTheCashAndItsComment() {
+    var command =
+        TransactionCommand.builder()
+            .id(15L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .cash(new BigDecimal("40000"))
+            .cashComment("Gateway balance at 10:15")
+            .status(PROCESSING)
+            .build();
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(any(), any(), any(), any()))
+        .willThrow(new IllegalStateException("No position data found"));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && "40000".equals(event.getPayload().get("cash"))
+                        && "Gateway balance at 10:15"
+                            .equals(event.getPayload().get("cashComment"))));
   }
 
   @Test

@@ -119,6 +119,8 @@ public class TransactionPreparationService {
     payload.put("fund", command.getFund().name());
     payload.put("asOfDate", command.getAsOfDate().toString());
     payload.put("manualAdjustments", Map.copyOf(command.getManualAdjustments()));
+    putIfPresent(payload, "cash", plain(command.getCash()));
+    putIfPresent(payload, "cashComment", command.getCashComment());
     if (input != null) {
       payload.put(
           "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
@@ -142,6 +144,7 @@ public class TransactionPreparationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put(
         "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
+    putIfPresent(payload, "cashComment", command.getCashComment());
     payload.put(
         "output",
         TransactionAuditPayloads.serializeTrades(

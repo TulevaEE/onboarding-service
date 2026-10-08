@@ -44,14 +44,15 @@ class TransactionAdminService {
       LocalDate asOfDate,
       @Nullable Map<String, Object> manualAdjustments,
       String actor,
-      @Nullable BigDecimal cash) {
+      @Nullable CashOverride cash) {
     TransactionCommand command =
         TransactionCommand.builder()
             .fund(fund)
             .mode(mode)
             .asOfDate(asOfDate)
             .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
-            .cash(cash)
+            .cash(cash == null ? null : cash.amount())
+            .cashComment(cash == null ? null : cash.comment())
             .actor(actor)
             .status(CommandStatus.PROCESSING)
             .build();
@@ -77,7 +78,7 @@ class TransactionAdminService {
       TransactionMode mode,
       LocalDate asOfDate,
       String actor,
-      Map<TulevaFund, BigDecimal> cashOverrides) {
+      Map<TulevaFund, CashOverride> cashOverrides) {
     List<TulevaFund> targetFunds =
         funds == null || funds.isEmpty() ? List.of(TulevaFund.values()) : funds;
     if (!targetFunds.containsAll(cashOverrides.keySet())) {

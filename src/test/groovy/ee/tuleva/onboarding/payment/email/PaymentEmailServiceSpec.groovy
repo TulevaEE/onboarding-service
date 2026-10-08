@@ -93,7 +93,6 @@ class PaymentEmailServiceSpec extends Specification {
         "recipientPersonalCode": "38888888888",
         "gift"                 : true,
     ] + decision.mergeVars(Locale.ENGLISH)
-    emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> []
 
     when:
     paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, decision, Locale.ENGLISH)
@@ -101,6 +100,19 @@ class PaymentEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", mergeVars, ["pillar_3.1", "mandate", "payment"], []) >> message
     1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.empty()
+  }
+
+  def "a third pillar gift keeps the giver's own payment reminder and leaves their mandate out of the email"() {
+    given:
+    def user = sampleUser().build()
+
+    when:
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, aNewGiftPayment(), NudgeDecision.of(NudgeKey.NONE), Locale.ENGLISH)
+
+    then:
+    0 * emailPersistenceService.cancel(_, _)
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", _, _, []) >> new MandrillMessage()
+    1 * emailService.send(user, _, "third_pillar_payment_success_mandate_en") >> Optional.empty()
   }
 
   def "a third pillar payment email with no nudge carries no nudge tag"() {

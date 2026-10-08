@@ -22,10 +22,10 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 @Configuration
 @EnableConfigurationProperties(WordPressProperties.class)
-@ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
 class WordPressConfiguration {
 
   @Bean
+  @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
   WordPressMediaClient wordPressMediaClient(WordPressProperties properties) {
     var missingProperties = properties.missingPropertyNames();
     if (!missingProperties.isEmpty()) {
@@ -35,29 +35,38 @@ class WordPressConfiguration {
           missingProperties);
     }
     return new WordPressMediaClient(
-        wordPressRestClient(properties), wordPressRetryTemplate(), missingProperties);
+        authenticatedRestClient(properties), wordPressRetryTemplate(), missingProperties);
   }
 
-  private static RestClient wordPressRestClient(WordPressProperties properties) {
+  @Bean
+  WordPressPageReader wordPressPageReader(WordPressProperties properties) {
+    return new WordPressPageReader(
+        wordPressRestClientBuilder(properties).build(), wordPressRetryTemplate());
+  }
+
+  private static RestClient authenticatedRestClient(WordPressProperties properties) {
     var basicAuth = basicAuth(properties);
+    return wordPressRestClientBuilder(properties)
+        .requestInterceptor(
+            (request, body, execution) -> {
+              request.getHeaders().set("Authorization", "Basic " + basicAuth);
+              return execution.execute(request, body);
+            })
+        .build();
+  }
+
+  private static RestClient.Builder wordPressRestClientBuilder(WordPressProperties properties) {
     var requestFactory =
         new JdkClientHttpRequestFactory(
             HttpClient.newBuilder().connectTimeout(ofSeconds(5)).build());
     requestFactory.setReadTimeout(ofSeconds(30));
 
-    var builder =
-        RestClient.builder()
-            .requestFactory(requestFactory)
-            .requestInterceptor(
-                (request, body, execution) -> {
-                  request.getHeaders().set("Authorization", "Basic " + basicAuth);
-                  return execution.execute(request, body);
-                });
+    var builder = RestClient.builder().requestFactory(requestFactory);
     var apiBase = properties.apiBase();
     if (apiBase != null) {
       builder.baseUrl(apiBase);
     }
-    return builder.build();
+    return builder;
   }
 
   private static String basicAuth(WordPressProperties properties) {
@@ -65,7 +74,7 @@ class WordPressConfiguration {
     return Base64.getEncoder().encodeToString(credentials.getBytes(UTF_8));
   }
 
-  private static RetryTemplate wordPressRetryTemplate() {
+  private RetryTemplate wordPressRetryTemplate() {
     var policy =
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)

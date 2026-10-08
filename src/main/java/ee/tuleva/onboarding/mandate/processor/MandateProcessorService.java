@@ -176,6 +176,12 @@ public class MandateProcessorService {
     return processes.size() == finishedProcessCount;
   }
 
+  public boolean hasSucceeded(Mandate mandate) {
+    List<MandateProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
+    return !processes.isEmpty()
+        && processes.stream().allMatch(process -> process.isSuccessful().orElse(false));
+  }
+
   public ErrorsResponse getErrors(Mandate mandate) {
     List<MandateProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
     return mandateProcessErrorResolver.getErrors(processes);

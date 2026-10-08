@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -442,6 +443,42 @@ class SecurityDataBuilderTest {
     assertThat(result).hasSize(1);
     assertThat(result.getFirst().isin()).isEqualTo("ISIN_A");
     assertThat(result.getFirst().weight()).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void beginningOfDayWeightsAreEachPositionsShareOfTheSecuritiesHeld() {
+    var positions =
+        List.of(
+            position("ISIN_A", PREVIOUS_DATE, "300000"),
+            position("ISIN_B", PREVIOUS_DATE, "200000"));
+
+    assertThat(SecurityDataBuilder.beginningOfDayWeights(positions, new BigDecimal("500000")))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(Map.of("ISIN_A", new BigDecimal("0.6"), "ISIN_B", new BigDecimal("0.4")));
+  }
+
+  @Test
+  void beginningOfDayWeightsAreUnavailableWhenAValuedPositionHasNoIsin() {
+    var positions =
+        List.of(
+            position("ISIN_A", PREVIOUS_DATE, "400000"),
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(PREVIOUS_DATE)
+                .accountType(SECURITY)
+                .accountId(null)
+                .accountName("unknown")
+                .marketValue(new BigDecimal("100000"))
+                .build());
+
+    assertThat(SecurityDataBuilder.beginningOfDayWeights(positions, new BigDecimal("500000")))
+        .isNull();
+  }
+
+  @Test
+  void beginningOfDayWeightsAreUnavailableWhenTheDayStartedWithNoSecurities() {
+    assertThat(SecurityDataBuilder.beginningOfDayWeights(List.of(), ZERO)).isNull();
   }
 
   @Test

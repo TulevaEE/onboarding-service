@@ -18,9 +18,6 @@ class SecurityAttributionSection {
   }
 
   String describe() {
-    if (result.securityAttributions().isEmpty()) {
-      return "";
-    }
     var sorted =
         result.securityAttributions().stream()
             .sorted(

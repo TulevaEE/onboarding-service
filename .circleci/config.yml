@@ -2,7 +2,7 @@ version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@10.0.0
   aws-cli: circleci/aws-cli@5.4.2
-  codecov: codecov/codecov@6.0.0
+  codecov: codecov/codecov@6.1.0
   snyk: snyk/snyk@2.3.0
 
 executors:
@@ -275,14 +275,14 @@ jobs:
 
   deploy-ecs-staging:
     docker:
-      - image: cimg/aws:2025.01
+      - image: cimg/aws:2026.10
     steps:
       - deploy-ecs-service:
           service: onboarding-service-staging
 
   deploy-ecs-production:
     docker:
-      - image: cimg/aws:2025.01
+      - image: cimg/aws:2026.10
     steps:
       - deploy-ecs-service:
           service: onboarding-service-production
@@ -464,6 +464,7 @@ workflows:
 
       - deploy-ecs-staging:
           requires: [ build_and_push_image ]
+          serial-group: << pipeline.project.slug >>/deploy-ecs-staging
           context: aws
           filters:
             branches:
@@ -471,6 +472,7 @@ workflows:
 
       - deploy-ecs-production:
           requires: [ build_and_push_image ]
+          serial-group: << pipeline.project.slug >>/deploy-ecs-production
           context: aws
           filters:
             branches:

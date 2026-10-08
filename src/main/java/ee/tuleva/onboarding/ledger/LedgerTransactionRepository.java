@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.ledger;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +27,47 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
 
   Optional<LedgerTransaction> findByExternalReferenceAndTransactionType(
       UUID externalReference, TransactionType transactionType);
+
+  @Query(
+      """
+      select sum(e.amount) from LedgerEntry e
+      where e.transaction.externalReference = :externalReference
+        and e.transaction.transactionType = :transactionType
+        and e.assetType = :assetType
+        and e.amount > 0
+      """)
+  Optional<BigDecimal> sumIncreasesOf(
+      @Param("externalReference") UUID externalReference,
+      @Param("transactionType") TransactionType transactionType,
+      @Param("assetType") AssetType assetType);
+
+  @Query(
+      """
+      select sum(e.amount) from LedgerEntry e
+      where e.transaction.externalReference in :externalReferences
+        and e.transaction.transactionType = :transactionType
+        and e.assetType = :assetType
+        and e.amount > 0
+      """)
+  Optional<BigDecimal> sumIncreasesOfAll(
+      @Param("externalReferences") Collection<UUID> externalReferences,
+      @Param("transactionType") TransactionType transactionType,
+      @Param("assetType") AssetType assetType);
+
+  @Query(
+      """
+      select coalesce(sum(e.amount), 0) from LedgerEntry e
+      where e.transaction.transactionType = :transactionType
+        and e.transaction.transactionDate > :after
+        and e.transaction.transactionDate <= :until
+        and e.assetType = :assetType
+        and e.amount > 0
+      """)
+  BigDecimal sumIncreasesBetween(
+      @Param("transactionType") TransactionType transactionType,
+      @Param("after") Instant after,
+      @Param("until") Instant until,
+      @Param("assetType") AssetType assetType);
 
   @Query(
       """

@@ -79,6 +79,12 @@ public class PaymentCheckService {
     paymentCheckEventRepository.save(event);
   }
 
+  public boolean hasRecorded(PaymentCheckType checkType, String externalKey) {
+    return paymentCheckEventRepository
+        .findByCheckTypeAndExternalKey(checkType, externalKey)
+        .isPresent();
+  }
+
   public List<PaymentCheckEvent> holdsOn(LocalDate date) {
     var dayStart = date.atStartOfDay(TALLINN);
     return paymentCheckEventRepository

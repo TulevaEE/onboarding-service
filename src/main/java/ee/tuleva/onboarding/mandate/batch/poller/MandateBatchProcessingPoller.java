@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchCompletion;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.user.User;
 import jakarta.annotation.PreDestroy;
@@ -91,9 +92,20 @@ public class MandateBatchProcessingPoller {
         return;
       }
 
+      completeAsOwner(context);
+    };
+  }
+
+  private void completeAsOwner(MandateBatchPollingContext context) {
+    try {
       securityContextRunner.runAs(
           context.user(), () -> mandateBatchCompletion.complete(context.batch, context.locale));
-    };
+    } catch (MandateProcessingException e) {
+      log.info(
+          "Mandate batch rejected by Pensionikeskus: mandateBatchId={}", context.batch.getId());
+    } catch (RuntimeException e) {
+      log.error("Mandate batch completion failed: mandateBatchId={}", context.batch.getId(), e);
+    }
   }
 
   @Scheduled(fixedRate = 1000)

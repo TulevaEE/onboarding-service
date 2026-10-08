@@ -3,16 +3,25 @@ package ee.tuleva.onboarding.mandate.batch.poller;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate;
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate;
 import static ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.MAX_POLL_COUNT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchCompletion;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.MandateBatchPollingContext;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import java.util.List;
 import java.util.Locale;
@@ -22,12 +31,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class MandateBatchProcessingPollerTest {
@@ -38,8 +49,19 @@ class MandateBatchProcessingPollerTest {
 
   @InjectMocks private MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
+  private final Logger pollerLogger =
+      (Logger) LoggerFactory.getLogger(MandateBatchProcessingPoller.class);
+  private final ListAppender<ILoggingEvent> logEvents = new ListAppender<>();
+
+  @BeforeEach
+  void capturePollerLog() {
+    logEvents.start();
+    pollerLogger.addAppender(logEvents);
+  }
+
   @AfterEach
   void tearDown() {
+    pollerLogger.detachAppender(logEvents);
     mandateBatchProcessingPoller.stop();
   }
 
@@ -228,6 +250,43 @@ class MandateBatchProcessingPollerTest {
     mandateBatchProcessingPoller.getPoller().run();
 
     verify(mandateBatchCompletion).complete(mandateBatch, Locale.ENGLISH);
+  }
+
+  @Test
+  void pollerReportsACompletionThatFailsAsAnErrorInsteadOfLosingItInTheExecutor() {
+    var mandateBatch = aFinishedBatchOnTheQueue();
+    willThrow(new IllegalStateException("Mandrill unavailable"))
+        .given(mandateBatchCompletion)
+        .complete(mandateBatch, Locale.ENGLISH);
+
+    assertDoesNotThrow(() -> mandateBatchProcessingPoller.getPoller().run());
+
+    assertThat(logEvents.list)
+        .filteredOn(event -> event.getLevel() == Level.ERROR)
+        .extracting(event -> event.getThrowableProxy().getClassName())
+        .containsExactly(IllegalStateException.class.getName());
+  }
+
+  @Test
+  void pollerDoesNotRaiseAnErrorForABatchPensionikeskusRejected() {
+    var mandateBatch = aFinishedBatchOnTheQueue();
+    willThrow(new MandateProcessingException(ErrorsResponse.ofSingleError("code", "rejected")))
+        .given(mandateBatchCompletion)
+        .complete(mandateBatch, Locale.ENGLISH);
+
+    assertDoesNotThrow(() -> mandateBatchProcessingPoller.getPoller().run());
+
+    assertThat(logEvents.list).filteredOn(event -> event.getLevel() == Level.ERROR).isEmpty();
+  }
+
+  private MandateBatch aFinishedBatchOnTheQueue() {
+    runActionsAsTheGivenPerson();
+    var mandateBatch =
+        MandateBatchFixture.aSavedMandateBatch(List.of(samplePartialWithdrawalMandate()));
+    when(getMockQueue().poll())
+        .thenReturn(new MandateBatchPollingContext(Locale.ENGLISH, mandateBatch, 1));
+    when(mandateProcessor.isFinished(any())).thenReturn(true);
+    return mandateBatch;
   }
 
   @Test

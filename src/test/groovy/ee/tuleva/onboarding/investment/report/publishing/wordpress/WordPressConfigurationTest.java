@@ -80,12 +80,12 @@ class WordPressConfigurationTest {
   }
 
   @Test
-  void contextStartsWithoutWordPressBeansWhenPublishingIsDisabled() {
+  void contextStartsWithOnlyThePageReaderWhenPublishingIsDisabled() {
     contextRunner.run(
         context -> {
           assertThat(context).hasNotFailed();
           assertThat(context).doesNotHaveBean(WordPressMediaClient.class);
-          assertThat(context).doesNotHaveBean(WordPressProperties.class);
+          assertThat(context).hasSingleBean(WordPressPageReader.class);
         });
   }
 }

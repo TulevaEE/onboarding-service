@@ -79,6 +79,31 @@ class MandateRepositorySpec extends Specification {
     details.sourceFundIsinOfTransferToCancel == "EE_TEST_ISIN"
   }
 
+  def "a mandate prints after its session closed, without loading its fund transfer exchanges"() {
+    given:
+    def savedMandate = Mandate.builder()
+      .user(savedUser)
+      .pillar(2)
+      .details(new TransferCancellationMandateDetails("EE_TEST_ISIN", SECOND))
+      .address(countryFixture().build())
+      .metadata([:])
+      .build()
+    savedMandate.fundTransferExchanges = [FundTransferExchange.builder()
+      .sourceFundIsin("AE123232331")
+      .mandate(savedMandate)
+      .build()]
+    entityManager.persistAndFlush(savedMandate)
+    entityManager.clear()
+    def detachedMandate = repository.findByIdAndUserId(savedMandate.id, savedUser.id)
+    entityManager.clear()
+
+    when:
+    detachedMandate.toString()
+
+    then:
+    noExceptionThrown()
+  }
+
   def "PaymentRateChangeMandateDetails round-trips through JSONB"() {
     given:
     def mandate = persistMandateWithDetails(aPaymentRateChangeMandateDetails)

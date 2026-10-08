@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
 @Entity
 @Table(name = "mandate")
 @NoArgsConstructor
-@ToString(exclude = {"mandateBatch"})
+@ToString(exclude = {"mandateBatch", "fundTransferExchanges"})
 public class Mandate implements Serializable {
 
   @Id

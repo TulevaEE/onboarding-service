@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.check.limit.EODHDFundSizeClient.FundSize;
 import ee.tuleva.onboarding.investment.check.limit.OwnershipCheckRun.NotChecked;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -51,6 +52,8 @@ class OwnershipLimitCheckIT {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final LocalDate MONTH_END = LocalDate.of(2026, 9, 30);
+  private static final YearMonth AUGUST = YearMonth.of(2026, 8);
+  private static final LocalDate AUGUST_END = LocalDate.of(2026, 8, 31);
   private static final String INVESCO_EM = "IE00BMDBMY19";
   private static final String INVESCO_EM_TICKER = "ESGM.XETRA";
   private static final String XTRACKERS_CANADA = "LU0476289540";
@@ -61,6 +64,7 @@ class OwnershipLimitCheckIT {
   @Autowired private OwnershipLimitCheckService service;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   @MockitoBean private EODHDFundSizeClient fundSizeClient;
   @MockitoBean private InstrumentReferenceService instrumentReferenceService;
@@ -441,6 +445,51 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
+  void aFundSizeEodhdLeftUnchangedSinceTheMonthBefore_isFlaggedStale_andTheMonthStillCompletes() {
+    givenAugustChecked(HUNDRED_MILLION);
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .singleElement()
+        .satisfies(
+            stale -> {
+              assertThat(stale.isin()).isEqualTo(INVESCO_EM);
+              assertThat(stale.name()).isEqualTo("Invesco MSCI EM Universal Screened");
+              assertThat(stale.reportedFundSize()).isEqualByComparingTo(HUNDRED_MILLION);
+              assertThat(stale.reportedCurrency()).isEqualTo("EUR");
+              assertThat(stale.unchangedSince()).isEqualTo(AUGUST_END);
+            });
+    assertThat(run.results().getFirst().holdings())
+        .extracting(OwnershipBreach::isin)
+        .containsExactly(INVESCO_EM);
+    assertThat(run.coveredEveryHolding()).isTrue();
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+  }
+
+  @Test
+  void aFundSizeThatChangedSinceTheMonthBefore_isNotStale() {
+    givenAugustChecked(new BigDecimal("90000000"));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes()).isEmpty();
+  }
+
+  @Test
+  void aFundSizeWithNoCheckTheMonthBefore_isNotStale() {
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes()).isEmpty();
+  }
+
+  @Test
   void aFundSizeOfAUsdFundWithoutAStoredEurUsdRate_isUnverified() {
     givenInvescoEmInstrument("USD");
     givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "EUR", EODHD_UPDATED));
@@ -575,6 +624,19 @@ class OwnershipLimitCheckIT {
                     .eodhdTicker(INVESCO_EM_TICKER)
                     .fundCurrency(fundCurrency)
                     .build()));
+  }
+
+  // August is checked and stored the way a run the month before is: in its own transaction, so
+  // September reads it back from the database rather than from the persistence context.
+  private void givenAugustChecked(BigDecimal augustFundSize) {
+    insertOwnershipLimit(AUGUST.atDay(1), "20", "25");
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(augustFundSize, "EUR", EODHD_UPDATED));
+    insertSecurity(TKF100.name(), AUGUST_END, INVESCO_EM, "1000000");
+    service.checkMonthEnd(AUGUST);
+    entityManager.flush();
+    entityManager.clear();
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
   }
 
   private void givenFundSize(FundSize fundSize) {

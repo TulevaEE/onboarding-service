@@ -113,6 +113,28 @@ class OwnershipLimitCheckNotifierTest {
   }
 
   @Test
+  void aFundSizeUnchangedSinceTheMonthBefore_turnsAnOkMonthYellowWithALineForIt() {
+    notifier.notify(
+        run(
+            new Result(
+                TKF100,
+                CHECK_DATE,
+                List.of(invescoEm("3.20", OK)),
+                List.of(),
+                List.of(),
+                List.of(staleInvescoEm()))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ Ownership limit check OK, but EODHD fund sizes look stale: month=2026-09
+              ✅ TKF100 2026-09-30: 1 of 1 holdings checked, largest 3.20% of Invesco EM (IE00BMDBMY19) in a 150.00M EUR fund — soft 20%, hard 25%
+              ⚠️ TKF100 2026-09-30 Invesco EM (IE00BMDBMY19): EODHD fund size 174.00M USD unchanged since 2026-08-31 — probably stale, so the share may be wrong""",
+            INVESTMENT, WARNING);
+  }
+
+  @Test
   void aFundWhereNoHoldingCouldBeChecked_firesARedAlertInsteadOfNamingALargest() {
     notifier.notify(run(result(List.of(), List.of(developedWorld("EODHD answered HTTP 404")))));
 
@@ -209,7 +231,7 @@ class OwnershipLimitCheckNotifierTest {
       List<OwnershipBreach> holdings,
       List<UnverifiedHolding> unverified,
       List<LeftOutHolding> leftOut) {
-    return new Result(TKF100, CHECK_DATE, holdings, unverified, leftOut);
+    return new Result(TKF100, CHECK_DATE, holdings, unverified, leftOut, List.of());
   }
 
   private static OwnershipBreach invescoEm(String percent, BreachSeverity severity) {
@@ -240,6 +262,15 @@ class OwnershipLimitCheckNotifierTest {
         new BigDecimal("20"),
         new BigDecimal("25"),
         OK);
+  }
+
+  private static StaleFundSize staleInvescoEm() {
+    return new StaleFundSize(
+        "IE00BMDBMY19",
+        "Invesco EM",
+        new BigDecimal("174000000"),
+        "USD",
+        LocalDate.of(2026, 8, 31));
   }
 
   private static LeftOutHolding developedWorldLeftOut(String reason) {

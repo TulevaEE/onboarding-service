@@ -16,7 +16,9 @@ record OwnershipCheckRun(YearMonth month, List<Result> results, List<NotChecked>
       TulevaFund fund,
       LocalDate checkDate,
       List<OwnershipBreach> holdings,
-      List<UnverifiedHolding> unverified) {
+      List<UnverifiedHolding> unverified,
+      List<LeftOutHolding> leftOut,
+      List<StaleFundSize> staleSizes) {
 
     BreachSeverity worstSeverity() {
       return holdings.stream().map(OwnershipBreach::severity).max(naturalOrder()).orElse(OK);
@@ -41,6 +43,10 @@ record OwnershipCheckRun(YearMonth month, List<Result> results, List<NotChecked>
     return (results.isEmpty() && fundsNotChecked.isEmpty())
         || !fundsNotChecked.isEmpty()
         || results.stream().anyMatch(result -> result.holdings().isEmpty());
+  }
+
+  boolean hasStaleFundSizes() {
+    return results.stream().anyMatch(result -> !result.staleSizes().isEmpty());
   }
 
   boolean coveredEveryHolding() {

@@ -31,6 +31,7 @@ public class InstrumentReference {
   private @Nullable String assetClass;
   private @Nullable String yahooTicker;
   private @Nullable String eodhdTicker;
+  private @Nullable String fundCurrency;
   private @Nullable String bloombergTicker;
   private @Nullable String ric;
   private @Nullable String morningstarId;

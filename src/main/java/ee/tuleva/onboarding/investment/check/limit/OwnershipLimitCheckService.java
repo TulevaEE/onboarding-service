@@ -2,15 +2,18 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.OWNERSHIP;
+import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.investment.check.limit.HeldSecurities.HeldSecurity;
 import ee.tuleva.onboarding.investment.check.limit.OwnershipCheckRun.NotChecked;
 import ee.tuleva.onboarding.investment.check.limit.OwnershipCheckRun.Result;
 import ee.tuleva.onboarding.investment.check.limit.UnderlyingFunds.SizeInEur;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +31,16 @@ class OwnershipLimitCheckService {
   private final UnderlyingFunds underlyingFunds;
   private final OwnershipLimitChecker ownershipLimitChecker;
   private static final String COVERED_EVERY_HOLDING = "coveredEveryHolding";
+  private static final String HOLDINGS = "holdings";
+
+  // Left out of the check on purpose, and listed in its message instead of being sized.
+  // IE00BFG1TM61, iShares Developed World Screened Index Fund: EODHD has no total assets for it, so
+  // it could only ever be "not verified", which made every month INCOMPLETE and re-ran the check
+  // each morning to the 14th. The fund is so large that TKF100 will never own 25% of it.
+  private static final Map<String, String> LEFT_OUT_BY_DESIGN =
+      Map.of(
+          "IE00BFG1TM61",
+          "EODHD has no total assets, and the fund is too large for TKF100 to own 25% of it");
 
   private final LimitCheckEventWriter limitCheckEventWriter;
   private final LimitCheckEventRepository limitCheckEventRepository;
@@ -96,20 +109,75 @@ class OwnershipLimitCheckService {
         heldSecurities.on(fund, checkDate).stream()
             .map(held -> assessOrLeaveUnverified(held, checkDate, limit))
             .toList();
+    var holdings =
+        assessments.stream()
+            .filter(OwnershipBreach.class::isInstance)
+            .map(OwnershipBreach.class::cast)
+            .toList();
     var result =
         new Result(
             fund,
             checkDate,
-            assessments.stream()
-                .filter(OwnershipBreach.class::isInstance)
-                .map(OwnershipBreach.class::cast)
-                .toList(),
+            holdings,
             assessments.stream()
                 .filter(UnverifiedHolding.class::isInstance)
                 .map(UnverifiedHolding.class::cast)
-                .toList());
+                .toList(),
+            assessments.stream()
+                .filter(LeftOutHolding.class::isInstance)
+                .map(LeftOutHolding.class::cast)
+                .toList(),
+            staleSizes(fund, checkDate, holdings));
     limitCheckEventWriter.replaceEvents(fund, checkDate, List.of(event(result)));
     return result;
+  }
+
+  // EODHD's total assets for some funds stay the same for months while its update date moves on
+  // (seen 08.10.2026 for three of TKF100's holdings), so the freshness check cannot catch them. A
+  // real fund's assets change every month, so a figure identical to the one stored the month
+  // before is flagged as probably stale. The holding is still checked against it.
+  private List<StaleFundSize> staleSizes(
+      TulevaFund fund, LocalDate checkDate, List<OwnershipBreach> holdings) {
+    var monthBefore = YearMonth.from(checkDate).minusMonths(1);
+    return limitCheckEventRepository
+        .findByFundAndCheckTypeAndCheckDateBetween(
+            fund, OWNERSHIP, monthBefore.atDay(1), monthBefore.atEndOfMonth())
+        .stream()
+        .max(comparing(LimitCheckEvent::getCheckDate))
+        .map(
+            previous -> {
+              var previousSizes = reportedFundSizes(previous);
+              return holdings.stream()
+                  .filter(
+                      holding ->
+                          Optional.ofNullable(previousSizes.get(holding.isin()))
+                              .filter(size -> size.compareTo(holding.reportedFundSize()) == 0)
+                              .isPresent())
+                  .map(
+                      holding ->
+                          new StaleFundSize(
+                              holding.isin(),
+                              holding.name(),
+                              holding.reportedFundSize(),
+                              holding.reportedCurrency(),
+                              previous.getCheckDate()))
+                  .toList();
+            })
+        .orElse(List.of());
+  }
+
+  private static Map<String, BigDecimal> reportedFundSizes(LimitCheckEvent event) {
+    var sizes = new HashMap<String, BigDecimal>();
+    if (event.getResult().get(HOLDINGS) instanceof List<?> holdings) {
+      for (var holding : holdings) {
+        if (holding instanceof Map<?, ?> stored
+            && stored.get("isin") instanceof String isin
+            && stored.get("reportedFundSize") instanceof Number size) {
+          sizes.put(isin, new BigDecimal(size.toString()));
+        }
+      }
+    }
+    return sizes;
   }
 
   private OwnershipAssessment assessOrLeaveUnverified(
@@ -130,6 +198,10 @@ class OwnershipLimitCheckService {
     }
     var name = underlyingFunds.name(isin, held.name());
     var holdingValue = held.value();
+    var leftOutBecause = LEFT_OUT_BY_DESIGN.get(isin);
+    if (leftOutBecause != null) {
+      return new LeftOutHolding(isin, name, holdingValue, leftOutBecause);
+    }
     if (holdingValue == null) {
       return new UnverifiedHolding(isin, name, null, "no market value");
     }
@@ -149,10 +221,14 @@ class OwnershipLimitCheckService {
         .breachesFound(result.worstSeverity() != OK)
         .result(
             Map.of(
-                "holdings",
+                HOLDINGS,
                 result.holdings(),
                 "unverified",
                 result.unverified(),
+                "leftOut",
+                result.leftOut(),
+                "staleSizes",
+                result.staleSizes(),
                 COVERED_EVERY_HOLDING,
                 result.coveredEveryHolding()))
         .build();

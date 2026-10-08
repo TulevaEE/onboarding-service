@@ -32,19 +32,27 @@ class UnderlyingFunds {
         .orElse(nameWhenUnknown);
   }
 
+  // EODHD's total assets are in the fund's currency, not the listing currency it reports
+  // (General::CurrencyCode): the XETRA listing of a USD fund trades in EUR, but its total assets
+  // come in USD. So the size is converted from the instrument's fund currency.
   SizeInEur sizeInEur(String isin, LocalDate positionDate) {
-    var ticker =
-        instrumentReferenceService.findByIsin(isin).map(InstrumentReference::getEodhdTicker);
+    var instrument = instrumentReferenceService.findByIsin(isin);
+    var ticker = instrument.map(InstrumentReference::getEodhdTicker);
     if (ticker.isEmpty()) {
       return new SizeInEur.Unknown("no EODHD ticker in instruments");
     }
+    var fundCurrency = instrument.map(InstrumentReference::getFundCurrency);
+    if (fundCurrency.isEmpty()) {
+      return new SizeInEur.Unknown("no fund currency in instruments");
+    }
     return switch (fundSizeClient.fetch(ticker.get())) {
       case FundSize.Unavailable unavailable -> new SizeInEur.Unknown(unavailable.reason());
-      case FundSize.Reported reported -> freshEnough(reported, positionDate);
+      case FundSize.Reported reported -> freshEnough(reported, fundCurrency.get(), positionDate);
     };
   }
 
-  private SizeInEur freshEnough(FundSize.Reported reported, LocalDate positionDate) {
+  private SizeInEur freshEnough(
+      FundSize.Reported reported, String fundCurrency, LocalDate positionDate) {
     var updatedAt = reported.updatedAt();
     if (updatedAt == null) {
       return new SizeInEur.Unknown("EODHD gives no update date for the fund size");
@@ -54,32 +62,39 @@ class UnderlyingFunds {
           "EODHD last updated the fund size on %s, before %s began"
               .formatted(updatedAt, YearMonth.from(positionDate)));
     }
-    return inEur(reported);
+    return inEur(reported.amount(), fundCurrency, updatedAt);
   }
 
-  private SizeInEur inEur(FundSize.Reported reported) {
-    return switch (reported.listingCurrency()) {
-      case EUR -> new SizeInEur.Known(reported.amount(), reported);
+  private SizeInEur inEur(BigDecimal amount, String currency, LocalDate updatedAt) {
+    return switch (currency) {
+      case EUR -> new SizeInEur.Known(amount, amount, currency, updatedAt);
       case USD ->
           fundValueProvider
               .getLatestValue(EODHD_EUR_USD_STORAGE_KEY, LocalDate.now(clock))
               .<SizeInEur>map(
                   rate ->
                       new SizeInEur.Known(
-                          reported.amount().divide(rate.value(), 2, RoundingMode.HALF_UP),
-                          reported))
-              .orElseGet(() -> noEurRate(reported));
-      default -> noEurRate(reported);
+                          amount.divide(rate.value(), 2, RoundingMode.HALF_UP),
+                          amount,
+                          currency,
+                          updatedAt))
+              .orElseGet(() -> noEurRate(currency));
+      default -> noEurRate(currency);
     };
   }
 
-  private static SizeInEur noEurRate(FundSize.Reported reported) {
-    return new SizeInEur.Unknown("no EUR rate for a fund size in " + reported.listingCurrency());
+  private static SizeInEur noEurRate(String currency) {
+    return new SizeInEur.Unknown("no EUR rate for a fund size in " + currency);
   }
 
   sealed interface SizeInEur {
 
-    record Known(BigDecimal amount, FundSize.Reported asReported) implements SizeInEur {}
+    record Known(
+        BigDecimal amount,
+        BigDecimal reportedAmount,
+        String reportedCurrency,
+        LocalDate reportedUpdatedAt)
+        implements SizeInEur {}
 
     record Unknown(String reason) implements SizeInEur {}
   }

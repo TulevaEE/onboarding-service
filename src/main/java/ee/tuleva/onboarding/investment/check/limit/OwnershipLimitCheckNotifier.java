@@ -30,6 +30,7 @@ class OwnershipLimitCheckNotifier {
   private static final String EUR = "EUR";
   private static final String LINE_INDENT = "  ";
   private static final String NOT_VERIFIED_ICON = "⏸";
+  private static final String LEFT_OUT_ICON = "ℹ️";
 
   private final OperationsNotificationService notificationService;
 
@@ -60,7 +61,7 @@ class OwnershipLimitCheckNotifier {
     return switch (run.worstSeverity()) {
       case HARD -> ERROR;
       case SOFT -> WARNING;
-      case OK -> INFO;
+      case OK -> run.hasStaleFundSizes() ? WARNING : INFO;
     };
   }
 
@@ -83,10 +84,13 @@ class OwnershipLimitCheckNotifier {
       case HARD -> "🛑 OWNERSHIP LIMIT BREACH: month=%s".formatted(run.month());
       case SOFT -> "⚠️ OWNERSHIP SOFT LIMIT EXCEEDED: month=%s".formatted(run.month());
       case OK ->
-          run.coveredEveryHolding()
-              ? "✅ Ownership limit check OK: month=%s".formatted(run.month())
-              : "%s Ownership limit check INCOMPLETE: month=%s"
-                  .formatted(NOT_VERIFIED_ICON, run.month());
+          !run.coveredEveryHolding()
+              ? "%s Ownership limit check INCOMPLETE: month=%s"
+                  .formatted(NOT_VERIFIED_ICON, run.month())
+              : run.hasStaleFundSizes()
+                  ? "⚠️ Ownership limit check OK, but EODHD fund sizes look stale: month=%s"
+                      .formatted(run.month())
+                  : "✅ Ownership limit check OK: month=%s".formatted(run.month());
     };
   }
 
@@ -96,7 +100,9 @@ class OwnershipLimitCheckNotifier {
             result.holdings().stream()
                 .filter(holding -> holding.severity() != OK)
                 .map(holding -> breachLine(result, holding)),
-            result.unverified().stream().map(holding -> unverifiedLine(result, holding)))
+            result.unverified().stream().map(holding -> unverifiedLine(result, holding)),
+            result.leftOut().stream().map(holding -> leftOutLine(result, holding)),
+            result.staleSizes().stream().map(stale -> staleLine(result, stale)))
         .flatMap(lines -> lines);
   }
 
@@ -156,6 +162,28 @@ class OwnershipLimitCheckNotifier {
             result.checkDate(),
             holding.name(),
             Objects.requireNonNullElse(holding.isin(), "no ISIN"),
+            holding.reason());
+  }
+
+  private static String staleLine(Result result, StaleFundSize stale) {
+    return "⚠️ %s %s %s (%s): EODHD fund size %s unchanged since %s — probably stale, so the share may be wrong"
+        .formatted(
+            result.fund().getCode(),
+            result.checkDate(),
+            stale.name(),
+            stale.isin(),
+            millions(stale.reportedFundSize(), stale.reportedCurrency()),
+            stale.unchangedSince());
+  }
+
+  private static String leftOutLine(Result result, LeftOutHolding holding) {
+    return "%s %s %s %s (%s): left out by design — %s"
+        .formatted(
+            LEFT_OUT_ICON,
+            result.fund().getCode(),
+            result.checkDate(),
+            holding.name(),
+            holding.isin(),
             holding.reason());
   }
 

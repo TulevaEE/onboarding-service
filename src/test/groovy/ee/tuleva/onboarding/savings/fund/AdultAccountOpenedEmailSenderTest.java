@@ -69,12 +69,12 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.of(response));
 
     sender.send(unpaid);
 
     verify(emailPersistenceService)
-        .save(unpaid, "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON, "sent");
+        .save(unpaid.holder(), "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON, "sent");
   }
 
   @Test
@@ -92,7 +92,7 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.of(response));
     given(emailPersistenceService.save(any(), any(), any(), any()))
         .willThrow(new RuntimeException("database is down"));
 
@@ -123,7 +123,7 @@ class AdultAccountOpenedEmailSenderTest {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid, message, TEMPLATE)).willReturn(Optional.empty());
+    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.empty());
 
     sender.send(unpaid);
 

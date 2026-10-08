@@ -188,7 +188,7 @@ class ChildAccountOpenedEmailSenderTest {
     sender.send(unpaidChild);
 
     verify(emailPersistenceService)
-        .save(unpaidChild, "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
+        .save(unpaidChild.holder(), "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
   }
 
   @Test

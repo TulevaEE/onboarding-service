@@ -309,7 +309,13 @@ class TransactionPipelineIntegrationTest {
 
   private TransactionCommand createCommand(TransactionMode mode, BigDecimal cash) {
     var command =
-        TransactionCommand.builder().fund(TKF100).mode(mode).asOfDate(TEST_DATE).cash(cash).build();
+        TransactionCommand.builder()
+            .fund(TKF100)
+            .mode(mode)
+            .asOfDate(TEST_DATE)
+            .cash(cash)
+            .cashComment("Cash line confirmed with the custodian")
+            .build();
     return commandRepository.save(command);
   }
 

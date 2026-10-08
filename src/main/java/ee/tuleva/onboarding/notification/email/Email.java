@@ -48,6 +48,10 @@ public class Email {
   @Column(name = "mandate_batch_id")
   private @Nullable Long mandateBatchId;
 
+  private @Nullable Integer attempts;
+
+  private @Nullable String lastError;
+
   @NotNull private Instant createdDate;
 
   @NotNull private Instant updatedDate;

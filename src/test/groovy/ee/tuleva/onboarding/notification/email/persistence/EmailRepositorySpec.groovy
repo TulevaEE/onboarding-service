@@ -11,9 +11,13 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.mandate.MandateFixture.emptyMandate
+import static ee.tuleva.onboarding.notification.email.EmailStatus.EXPIRED
+import static ee.tuleva.onboarding.notification.email.EmailStatus.FAILED
+import static ee.tuleva.onboarding.notification.email.EmailStatus.NO_RECIPIENT
 import static ee.tuleva.onboarding.notification.email.EmailStatus.SCHEDULED
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
+import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH
 
 @DataJpaTest
 class EmailRepositorySpec extends Specification {
@@ -39,6 +43,24 @@ class EmailRepositorySpec extends Specification {
 
     then:
     scheduledEmails == [scheduledEmail]
+  }
+
+  def "an email records a #status outcome with its attempt count and last error"() {
+    given:
+    def email = entityManager.persistAndFlush(new Email(personalCode: samplePerson().personalCode,
+        type: WITHDRAWAL_BATCH, status: status, attempts: 3, lastError: "Mandrill unavailable"))
+    entityManager.clear()
+
+    when:
+    def found = emailRepository.findById(email.id).orElseThrow()
+
+    then:
+    found.status == status
+    found.attempts == 3
+    found.lastError == "Mandrill unavailable"
+
+    where:
+    status << [FAILED, NO_RECIPIENT, EXPIRED]
   }
 
   def "can find latest email without mandate"() {

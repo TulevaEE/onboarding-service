@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder;
@@ -55,6 +56,7 @@ public class MandateService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserConversionService conversionService;
   private final MandateValidator mandateValidator;
+  private final LocaleService localeService;
 
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
@@ -88,6 +90,7 @@ public class MandateService {
 
   public Mandate save(User user, Mandate mandate) {
     log.info("Saving mandate for user {}", user.getId());
+    mandate.setLocale(Locale.of(localeService.getCurrentLanguage()));
     applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
     return mandateRepository.save(mandate);
   }

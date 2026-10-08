@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -42,7 +43,6 @@ class ChildAccountOpenedEmailSenderTest {
   private final UserService userService = mock(UserService.class);
   private final ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
   private final SavingsFundFees savingsFundFees = mock(SavingsFundFees.class);
-  private final AccountOpenedEmailClaims claims = mock(AccountOpenedEmailClaims.class);
   private final OpenedAccountRepository openedAccounts = mock(OpenedAccountRepository.class);
 
   private final ChildAccountOpenedEmailSender sender =
@@ -52,7 +52,6 @@ class ChildAccountOpenedEmailSenderTest {
           userService,
           parentChildLinkService,
           savingsFundFees,
-          claims,
           openedAccounts);
 
   private final OpenedAccount unpaidChild =
@@ -73,11 +72,10 @@ class ChildAccountOpenedEmailSenderTest {
     given(userService.findByPersonalCode(PARENT_CODE)).willReturn(Optional.of(parent));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
-    given(claims.claim(CHILD_CODE)).willReturn(true);
   }
 
   @Test
-  void releasesTheClaimWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
+  void recordsNothingWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
     startedBy(PARENT_CODE, PARENT_LINK);
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
@@ -86,7 +84,7 @@ class ChildAccountOpenedEmailSenderTest {
 
     sender.send(unpaidChild);
 
-    verify(claims).release(CHILD_CODE);
+    verifyNoInteractions(emailPersistenceService);
   }
 
   @Test
@@ -108,17 +106,7 @@ class ChildAccountOpenedEmailSenderTest {
   }
 
   @Test
-  void sendsNothingWhenTheEmailWasAlreadyClaimed() {
-    startedBy(PARENT_CODE, PARENT_LINK);
-    given(claims.claim(CHILD_CODE)).willReturn(false);
-
-    sender.send(unpaidChild);
-
-    verify(emailService, never()).send(any(), any(), any());
-  }
-
-  @Test
-  void keepsTheClaimWhenRecordingTheSentEmailFailsSoItIsNotSentAgain() {
+  void survivesAFailureToRecordTheSentEmail() {
     startedBy(PARENT_CODE, PARENT_LINK);
     var message = new MandrillMessage();
     var response = mandrillResponse("message-id", "sent");
@@ -129,7 +117,6 @@ class ChildAccountOpenedEmailSenderTest {
         .willThrow(new RuntimeException("database is down"));
 
     assertThatCode(() -> sender.send(unpaidChild)).doesNotThrowAnyException();
-    verify(claims).claim(CHILD_CODE);
   }
 
   @Test

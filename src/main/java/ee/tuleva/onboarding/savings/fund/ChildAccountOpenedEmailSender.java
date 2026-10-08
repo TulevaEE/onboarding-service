@@ -38,7 +38,6 @@ class ChildAccountOpenedEmailSender {
   private final UserService userService;
   private final ParentChildLinkService parentChildLinkService;
   private final SavingsFundFees savingsFundFees;
-  private final AccountOpenedEmailClaims claims;
   private final OpenedAccountRepository openedAccounts;
 
   void send(OpenedAccount child) {
@@ -89,16 +88,11 @@ class ChildAccountOpenedEmailSender {
       UUID accountId,
       Locale locale,
       Map<String, Object> mergeVars) {
-    if (!claims.claim(child.code())) {
-      log.info("Child account opened email already claimed, skipping: accountId={}", accountId);
-      return;
-    }
     var templateName = SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD.getTemplateName(locale);
     var message = emailService.newMandrillMessage(parent.getEmail(), templateName, mergeVars, TAGS);
     emailService
         .send(parent, message, templateName)
-        .ifPresentOrElse(
-            response -> record(child, accountId, response), () -> claims.release(child.code()));
+        .ifPresent(response -> record(child, accountId, response));
   }
 
   private void record(OpenedAccount child, UUID accountId, MandrillMessageStatus response) {

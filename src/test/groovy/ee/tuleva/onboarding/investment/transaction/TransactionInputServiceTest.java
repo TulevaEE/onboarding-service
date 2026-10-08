@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -40,6 +42,7 @@ import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeePolicyUnresolvedException;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -103,6 +106,7 @@ class TransactionInputServiceTest {
             investmentParameterRepository,
             pendingOrderImpactService,
             new PositionAssembler(fundPositionRepository),
+            new UnsettledTradeReader(fundPositionRepository),
             new TransactionParameterLoader(
                 modelPortfolioAllocationRepository, fundLimitRepository, positionLimitRepository));
   }
@@ -243,6 +247,17 @@ class TransactionInputServiceTest {
                 TUV100,
                 new R45Result(
                     new BigDecimal("1000"), new BigDecimal("5000"), new BigDecimal("-4000"))));
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                positionDate, TUV100, LIABILITY))
+        .willReturn(
+            List.of(custodianRow(LIABILITY, "Total payables of unsettled transactions", "-1100")));
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                positionDate, TUV100, RECEIVABLES))
+        .willReturn(
+            List.of(
+                custodianRow(RECEIVABLES, "Total receivables of unsettled transactions", "350")));
 
     var result =
         service.gatherInput(
@@ -262,13 +277,19 @@ class TransactionInputServiceTest {
             .add(breakdown.pevaRava())
             .add(breakdown.r16())
             .add(ZERO.max(breakdown.r45Net().negate()))
+            .add(breakdown.pendingBuys())
+            .add(breakdown.unsettledTradePayables())
             .add(breakdown.unreconciledBankReceipts())
             .add(breakdown.fundUnitsReservedValue());
     assertThat(liabilityComponents.add(new BigDecimal("700")))
         .isEqualByComparingTo(result.liabilities());
 
     BigDecimal receivableComponents =
-        breakdown.incomingPaymentsClearing().add(ZERO.max(breakdown.r45Net()));
+        breakdown
+            .incomingPaymentsClearing()
+            .add(ZERO.max(breakdown.r45Net()))
+            .add(breakdown.pendingSells())
+            .add(breakdown.unsettledTradeReceivables());
     assertThat(receivableComponents.add(new BigDecimal("250")))
         .isEqualByComparingTo(result.receivables());
   }
@@ -995,6 +1016,67 @@ class TransactionInputServiceTest {
 
     assertThat(result.liabilities()).isEqualByComparingTo(ZERO);
     org.mockito.Mockito.verifyNoInteractions(r16PhaseCalculator);
+  }
+
+  @Test
+  void gatherInput_reservesCashForATradeTheCustodianStillReportsAsAnUnsettledPayable() {
+    stubEmptyBaseline(TUV100);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, TUV100, LIABILITY))
+        .willReturn(
+            List.of(
+                custodianRow(LIABILITY, "Total payables of unsettled transactions", "-30000"),
+                custodianRow(LIABILITY, "Management Fee Payable", "-1200"),
+                custodianRow(LIABILITY, "Payables of redeemed units", "-5000")));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().unsettledTradePayables())
+        .isEqualByComparingTo(new BigDecimal("30000"));
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("30000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("-30000"));
+  }
+
+  @Test
+  void gatherInput_countsOnlyTradeReceivablesEvenWhenTheRowCarriesTheFundsOwnIsin() {
+    stubEmptyBaseline(TUV100);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, TUV100, LIABILITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.findByNavDateAndFundAndAccountType(
+                AS_OF_DATE, TUV100, RECEIVABLES))
+        .willReturn(
+            List.of(
+                fundIsinRow("Total receivables of unsettled transactions", "20000"),
+                fundIsinRow("Receivables of outstanding units", "8000"),
+                custodianRow(RECEIVABLES, "Other receivables", "500")));
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().unsettledTradeReceivables())
+        .isEqualByComparingTo(new BigDecimal("20000"));
+    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("20000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("20000"));
+  }
+
+  private static FundPosition fundIsinRow(String accountName, String marketValue) {
+    return FundPosition.builder()
+        .fund(TUV100)
+        .accountType(RECEIVABLES)
+        .accountName(accountName)
+        .accountId(TUV100.getIsin())
+        .marketValue(new BigDecimal(marketValue))
+        .build();
+  }
+
+  private static FundPosition custodianRow(
+      AccountType accountType, String accountName, String marketValue) {
+    return FundPosition.builder()
+        .fund(TUV100)
+        .accountType(accountType)
+        .accountName(accountName)
+        .marketValue(new BigDecimal(marketValue))
+        .build();
   }
 
   @Test

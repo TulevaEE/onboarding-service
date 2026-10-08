@@ -10,6 +10,8 @@ public record LiabilityBreakdown(
     BigDecimal r45Net,
     BigDecimal pendingBuys,
     BigDecimal pendingSells,
+    BigDecimal unsettledTradePayables,
+    BigDecimal unsettledTradeReceivables,
     BigDecimal unreconciledBankReceipts,
     BigDecimal fundUnitsReservedValue,
     BigDecimal incomingPaymentsClearing) {}

@@ -70,6 +70,7 @@ public class TransactionInputService {
   private final InvestmentParameterRepository investmentParameterRepository;
   private final PendingOrderImpactService pendingOrderImpactService;
   private final PositionAssembler positionAssembler;
+  private final UnsettledTradeReader unsettledTradeReader;
   private final TransactionParameterLoader transactionParameterLoader;
 
   public FundTransactionInput gatherInput(
@@ -130,8 +131,9 @@ public class TransactionInputService {
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
 
-    liabilities = liabilities.add(pendingOrders.pendingBuys());
-    receivables = receivables.add(pendingOrders.pendingSells());
+    UnsettledTrades unsettledTrades = unsettledTradeReader.read(fund, positionDate);
+    liabilities = liabilities.add(pendingOrders.pendingBuys()).add(unsettledTrades.payables());
+    receivables = receivables.add(pendingOrders.pendingSells()).add(unsettledTrades.receivables());
 
     BigDecimal freeCash =
         appliedCash.subtract(parameters.cashBuffer()).subtract(liabilities).add(receivables);
@@ -149,6 +151,8 @@ public class TransactionInputService {
             r45Net,
             pendingOrders.pendingBuys(),
             pendingOrders.pendingSells(),
+            unsettledTrades.payables(),
+            unsettledTrades.receivables(),
             registerCash.unreconciledBankReceipts(),
             registerCash.fundUnitsReservedValue(),
             registerCash.incomingPaymentsClearing());

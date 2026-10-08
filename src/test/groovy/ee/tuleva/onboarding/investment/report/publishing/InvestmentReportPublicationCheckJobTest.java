@@ -42,7 +42,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(OCTOBER_10.minusDays(1)).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(august, ONE_MISSING);
+    then(notifier).should().notify(august, ONE_MISSING, OCTOBER_10.minusDays(1));
   }
 
   @Test
@@ -60,7 +60,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(OCTOBER_10).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(SEPTEMBER, ALL_PUBLISHED);
+    then(notifier).should().notify(SEPTEMBER, ALL_PUBLISHED, OCTOBER_10);
   }
 
   @Test
@@ -69,7 +69,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(OCTOBER_10).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(SEPTEMBER, ONE_MISSING);
+    then(notifier).should().notify(SEPTEMBER, ONE_MISSING, OCTOBER_10);
   }
 
   @Test
@@ -78,7 +78,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(LocalDate.of(2026, 10, 16)).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(SEPTEMBER, ONE_MISSING);
+    then(notifier).should().notify(SEPTEMBER, ONE_MISSING, LocalDate.of(2026, 10, 16));
   }
 
   @Test
@@ -97,7 +97,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(LocalDate.of(2027, 1, 10)).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(december, ONE_MISSING);
+    then(notifier).should().notify(december, ONE_MISSING, LocalDate.of(2027, 1, 10));
   }
 
   @Test
@@ -107,7 +107,7 @@ class InvestmentReportPublicationCheckJobTest {
 
     jobOn(LocalDate.of(2027, 1, 5)).checkTheLatestDueReportsArePublished();
 
-    then(notifier).should().notify(november, ONE_MISSING);
+    then(notifier).should().notify(november, ONE_MISSING, LocalDate.of(2027, 1, 5));
   }
 
   private InvestmentReportPublicationCheckJob jobOn(LocalDate today) {

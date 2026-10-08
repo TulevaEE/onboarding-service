@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 class ReportPublicationSpec extends Specification {
 
   private static final String UPLOADS = "https://tuleva.ee/wp-content/uploads/2026/10/"
-  private static final String SEPTEMBER_UPLOADS = "https://tuleva.ee/wp-content/uploads/2026/09/"
 
   @Unroll
   def "a page linking #url has published the 2026-09 report: #published"() {
@@ -25,12 +24,11 @@ class ReportPublicationSpec extends Specification {
     UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-10.pdf" || true
     UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-08.pdf" || false
     UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2025-09.pdf" || false
-    SEPTEMBER_UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-13.pdf" || false
-    SEPTEMBER_UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-12026-09.pdf" || false
-    SEPTEMBER_UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-091.pdf" || false
-    UPLOADS + "Tuleva-Maailma-Aktsiate-Pensionifondi-investeeringute-aruanne-september-2026.pdf" || true
-    UPLOADS + "investeeringute-aruanne.pdf"                                               || true
-    SEPTEMBER_UPLOADS + "investeeringute-aruanne.pdf"                                     || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-13.pdf" || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-12026-09.pdf" || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-091.pdf" || false
+    UPLOADS + "Tuleva-Maailma-Aktsiate-Pensionifondi-investeeringute-aruanne-september-2026.pdf" || false
+    UPLOADS + "investeeringute-aruanne.pdf"                                               || false
     "https://tuleva.ee/investeeringute-aruanne.pdf"                                       || false
   }
 
@@ -41,6 +39,6 @@ class ReportPublicationSpec extends Specification {
 
     expect:
     ReportPublication.linking(TUK75, september, YearMonth.of(2026, 9)) == new ReportPublication.Published(TUK75, september)
-    ReportPublication.linking(TUK75, august, YearMonth.of(2026, 9)) == new ReportPublication.Outdated(TUK75, august)
+    ReportPublication.linking(TUK75, august, YearMonth.of(2026, 9)) == new ReportPublication.Outdated(TUK75, august, YearMonth.of(2026, 9))
   }
 }

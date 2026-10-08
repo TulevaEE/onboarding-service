@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROU
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -13,8 +12,6 @@ import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.CEILING;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
@@ -64,7 +61,7 @@ public class TransactionInputService {
   private final FeeAccrualRepository feeAccrualRepository;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final NavLedgerRepository navLedgerRepository;
-  private final FundValueQueries fundValueQueries;
+  private final UnitRegisterCashFlows unitRegisterCashFlows;
   private final PevaRavaPeriodService pevaRavaPeriodService;
   private final PevaRavaFlowService pevaRavaFlowService;
   private final R45ReportService r45ReportService;
@@ -117,22 +114,9 @@ public class TransactionInputService {
             .reduce(ZERO, BigDecimal::add);
     BigDecimal grossPortfolioValue = securityValue.add(appliedCash);
 
-    BigDecimal unreconciledBankReceipts = ZERO;
-    BigDecimal fundUnitsReservedValue = ZERO;
-    BigDecimal incomingPaymentsClearing = ZERO;
-
-    BigDecimal liabilities = managementFee.add(depotFee);
-    BigDecimal receivables = ZERO;
-
-    if (fund == TKF100) {
-      unreconciledBankReceipts =
-          navLedgerRepository.getSystemAccountBalance("UNRECONCILED_BANK_RECEIPTS");
-      fundUnitsReservedValue = getFundUnitsReservedValue();
-      liabilities = liabilities.add(unreconciledBankReceipts).add(fundUnitsReservedValue);
-      incomingPaymentsClearing =
-          navLedgerRepository.getSystemAccountBalance("INCOMING_PAYMENTS_CLEARING");
-      receivables = incomingPaymentsClearing;
-    }
+    UnitRegisterCash registerCash = unitRegisterCashFlows.read(fund);
+    BigDecimal liabilities = managementFee.add(depotFee).add(registerCash.liabilities());
+    BigDecimal receivables = registerCash.incomingPaymentsClearing();
 
     BigDecimal pevaRava = getPevaRavaLiquidity(fund, asOfDate);
     liabilities = liabilities.add(pevaRava);
@@ -165,9 +149,9 @@ public class TransactionInputService {
             r45Net,
             pendingOrders.pendingBuys(),
             pendingOrders.pendingSells(),
-            unreconciledBankReceipts,
-            fundUnitsReservedValue,
-            incomingPaymentsClearing);
+            registerCash.unreconciledBankReceipts(),
+            registerCash.fundUnitsReservedValue(),
+            registerCash.incomingPaymentsClearing());
 
     return FundTransactionInput.builder()
         .fund(fund)
@@ -278,16 +262,6 @@ public class TransactionInputService {
 
   private BigDecimal sumOf(Collection<BigDecimal> amounts) {
     return amounts.stream().reduce(ZERO, BigDecimal::add);
-  }
-
-  private BigDecimal getFundUnitsReservedValue() {
-    BigDecimal units = navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED");
-    if (units.signum() == 0) {
-      return ZERO;
-    }
-    BigDecimal nav =
-        fundValueQueries.findLastValueForFund(TKF100.getIsin()).map(FundValue::value).orElse(ZERO);
-    return units.multiply(nav);
   }
 
   private BigDecimal getPevaRavaLiquidity(TulevaFund fund, LocalDate asOfDate) {

@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_REQUEST;
 
 import ee.tuleva.onboarding.banking.payment.LedgerExpectations;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.LedgerCashAmounts;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,29 +19,29 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SavingsFundLedgerExpectations implements LedgerExpectations {
 
-  private final SavingsFundLedger savingsFundLedger;
+  private final LedgerCashAmounts ledgerCashAmounts;
   private final RedemptionRequestRepository redemptionRequestRepository;
 
   @Override
   public Optional<BigDecimal> pricedRedemption(UUID redemptionRequestId) {
-    return savingsFundLedger.cashAmountOf(redemptionRequestId, REDEMPTION_REQUEST);
+    return ledgerCashAmounts.cashAmountOf(redemptionRequestId, REDEMPTION_REQUEST);
   }
 
   @Override
   public Optional<BigDecimal> pricedRedemptionBatch(UUID batchId) {
-    return savingsFundLedger.cashAmountOf(
+    return ledgerCashAmounts.cashAmountOf(
         redemptionRequestRepository.findIdsByBatchId(batchId), REDEMPTION_REQUEST);
   }
 
   @Override
   public BigDecimal issuedSubscriptions(Instant after, Instant until) {
-    return savingsFundLedger.cashAmountBetween(FUND_SUBSCRIPTION, after, until);
+    return ledgerCashAmounts.cashAmountBetween(FUND_SUBSCRIPTION, after, until);
   }
 
   @Override
   public Optional<BigDecimal> bookedReturn(UUID paymentId) {
-    return savingsFundLedger
+    return ledgerCashAmounts
         .cashAmountOf(paymentId, PAYMENT_CANCELLED)
-        .or(() -> savingsFundLedger.cashAmountOf(paymentId, PAYMENT_BOUNCE_BACK));
+        .or(() -> ledgerCashAmounts.cashAmountOf(paymentId, PAYMENT_BOUNCE_BACK));
   }
 }

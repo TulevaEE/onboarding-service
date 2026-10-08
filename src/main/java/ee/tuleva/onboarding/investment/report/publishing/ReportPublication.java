@@ -12,7 +12,7 @@ sealed interface ReportPublication {
 
   TulevaFund fund();
 
-  String line();
+  String describe();
 
   default boolean isPublished() {
     return switch (this) {
@@ -54,32 +54,32 @@ sealed interface ReportPublication {
   record Published(TulevaFund fund, String reportUrl) implements ReportPublication {
 
     @Override
-    public String line() {
-      return "✅ %s: %s".formatted(fund.getCode(), filename(reportUrl));
+    public String describe() {
+      return "%s: %s".formatted(fund.getCode(), filename(reportUrl));
     }
   }
 
   record Outdated(TulevaFund fund, String reportUrl) implements ReportPublication {
 
     @Override
-    public String line() {
-      return "🔴 %s: the fund page still links %s".formatted(fund.getCode(), filename(reportUrl));
+    public String describe() {
+      return "%s: the fund page still links %s".formatted(fund.getCode(), filename(reportUrl));
     }
   }
 
   record NotLinked(TulevaFund fund) implements ReportPublication {
 
     @Override
-    public String line() {
-      return "🔴 %s: the fund page links no investment report".formatted(fund.getCode());
+    public String describe() {
+      return "%s: the fund page links no investment report".formatted(fund.getCode());
     }
   }
 
   record NotChecked(TulevaFund fund, String reason) implements ReportPublication {
 
     @Override
-    public String line() {
-      return "⏸ %s: could not check — %s".formatted(fund.getCode(), reason);
+    public String describe() {
+      return "%s: could not check — %s".formatted(fund.getCode(), reason);
     }
   }
 }

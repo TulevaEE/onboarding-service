@@ -148,7 +148,7 @@ class TransactionPreparationServiceTest {
             .asOfDate(LocalDate.of(2026, 1, 15))
             .manualAdjustments(Map.of())
             .cash(new BigDecimal("40000"))
-            .cashComment("Gateway balance at 10:15")
+            .cashComment("Cash line confirmed with the custodian")
             .status(PROCESSING)
             .build();
     var input =
@@ -189,7 +189,8 @@ class TransactionPreparationServiceTest {
             argThat(
                 event ->
                     "CALCULATION_COMPLETED".equals(event.getEventType())
-                        && "Gateway balance at 10:15".equals(event.getPayload().get("cashComment"))
+                        && "Cash line confirmed with the custodian"
+                            .equals(event.getPayload().get("cashComment"))
                         && !event.getPayload().containsKey("cash")));
   }
 
@@ -916,7 +917,7 @@ class TransactionPreparationServiceTest {
             .asOfDate(LocalDate.of(2026, 1, 15))
             .manualAdjustments(Map.of())
             .cash(new BigDecimal("40000"))
-            .cashComment("Gateway balance at 10:15")
+            .cashComment("Cash line confirmed with the custodian")
             .status(PROCESSING)
             .build();
 
@@ -932,8 +933,30 @@ class TransactionPreparationServiceTest {
                 event ->
                     "CALCULATION_FAILED".equals(event.getEventType())
                         && "40000".equals(event.getPayload().get("cash"))
-                        && "Gateway balance at 10:15"
+                        && "Cash line confirmed with the custodian"
                             .equals(event.getPayload().get("cashComment"))));
+  }
+
+  @Test
+  void processCommand_withACashFigureButNoComment_failsWithoutGatheringInput() {
+    var command =
+        TransactionCommand.builder()
+            .id(16L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .cash(new BigDecimal("40000"))
+            .status(PROCESSING)
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isNull();
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getErrorMessage()).contains("needs a comment");
+    verifyNoInteractions(inputService, calculationEngine);
   }
 
   @Test

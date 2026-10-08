@@ -102,11 +102,17 @@ public class TransactionPreparationService {
 
   private FundTransactionInput gatherInput(TransactionCommand command) {
     BigDecimal cash = command.getCash();
-    return cash == null
-        ? inputService.gatherInput(
-            command.getFund(), command.getAsOfDate(), command.getManualAdjustments())
-        : inputService.gatherInput(
-            command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
+    if (cash == null) {
+      return inputService.gatherInput(
+          command.getFund(), command.getAsOfDate(), command.getManualAdjustments());
+    }
+    String comment = command.getCashComment();
+    if (comment == null || comment.isBlank()) {
+      throw new IllegalStateException(
+          "A cash figure needs a comment saying where it comes from: commandId=" + command.getId());
+    }
+    return inputService.gatherInput(
+        command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
   }
 
   private static String actorOf(TransactionCommand command) {

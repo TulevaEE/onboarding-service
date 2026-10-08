@@ -40,7 +40,7 @@ class AdultAccountOpenedEmailSender {
     var message =
         emailService.newMandrillMessage(email, templateName, mergeVars(account, locale), TAGS);
     emailService
-        .send(account, message, templateName)
+        .send(account.holder(), message, templateName)
         .ifPresentOrElse(
             response -> record(account, response), () -> claims.release(account.code()));
   }
@@ -56,7 +56,7 @@ class AdultAccountOpenedEmailSender {
   private void record(OpenedAccount account, MandrillMessageStatus response) {
     try {
       emailPersistenceService.save(
-          account,
+          account.holder(),
           response.getId(),
           SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON,
           response.getStatus());

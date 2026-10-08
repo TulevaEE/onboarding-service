@@ -104,7 +104,10 @@ class ChildAccountOpenedEmailSender {
   private void record(OpenedAccount child, UUID accountId, MandrillMessageStatus response) {
     try {
       emailPersistenceService.save(
-          child, response.getId(), SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, response.getStatus());
+          child.holder(),
+          response.getId(),
+          SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD,
+          response.getStatus());
     } catch (RuntimeException e) {
       log.error(
           "Child account opened email sent but not recorded: accountId={}, mandrillMessageId={}",

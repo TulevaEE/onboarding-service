@@ -78,7 +78,17 @@ class TransactionCommandControllerTest {
 
   private static TransactionCommandResponse commandResponse() {
     return new TransactionCommandResponse(
-        1L, TUK75, REBALANCE, AS_OF_DATE, CALCULATED, null, 10L, List.of(orderResponse()), null);
+        1L,
+        TUK75,
+        REBALANCE,
+        AS_OF_DATE,
+        CALCULATED,
+        null,
+        10L,
+        null,
+        null,
+        List.of(orderResponse()),
+        null);
   }
 
   private static TransactionBatchResponse batchResponse() {
@@ -153,10 +163,11 @@ class TransactionCommandControllerTest {
   }
 
   @Test
-  void createCommand_passesCashOverrideToService() throws Exception {
+  void createCommand_passesCashOverrideAndItsCommentToService() throws Exception {
+    var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", new BigDecimal("40000")))
+                TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash))
         .willReturn(commandResponse());
 
     mockMvc
@@ -167,14 +178,95 @@ class TransactionCommandControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10", "cash": 40000}
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": 40000, "comment": "Gateway balance at 10:15"}}
                     """))
         .andExpect(status().isOk());
 
     then(adminService)
         .should()
-        .createAndProcess(
-            TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", new BigDecimal("40000"));
+        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash);
+  }
+
+  @Test
+  void createCommand_cashWithoutComment_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": 40000, "comment": "  "}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommand_cashCommentOverFiveHundredCharacters_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": 40000, "comment": "%s"}}
+                    """
+                        .formatted("x".repeat(501))))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommands_passesEachFundsCashOverrideAndCommentToService() throws Exception {
+    var cash = Map.of(TUK75, new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15"));
+    given(
+            adminService.createAndProcessAll(
+                List.of(TUK75), REBALANCE, AS_OF_DATE, "shared-admin-token", cash))
+        .willReturn(List.of(commandResponse()));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands/batch")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"funds": ["TUK75"], "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"TUK75": {"amount": 40000, "comment": "Gateway balance at 10:15"}}}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService)
+        .should()
+        .createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "shared-admin-token", cash);
+  }
+
+  @Test
+  void createCommands_cashWithoutCommentInMap_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands/batch")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"funds": ["TUK75"], "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"TUK75": {"amount": 40000}}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -187,7 +279,8 @@ class TransactionCommandControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10", "cash": -1}
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": -1, "comment": "Gateway balance at 10:15"}}
                     """))
         .andExpect(status().isBadRequest());
 
@@ -205,7 +298,7 @@ class TransactionCommandControllerTest {
                 .content(
                     """
                     {"funds": ["TUK75"], "mode": "REBALANCE", "asOfDate": "2026-06-10",
-                     "cash": {"TUK75": -1}}
+                     "cash": {"TUK75": {"amount": -1, "comment": "Gateway balance at 10:15"}}}
                     """))
         .andExpect(status().isBadRequest());
 
@@ -266,7 +359,17 @@ class TransactionCommandControllerTest {
             List.of(
                 commandResponse(),
                 new TransactionCommandResponse(
-                    2L, TUK00, REBALANCE, AS_OF_DATE, CALCULATED, null, 11L, List.of(), null)));
+                    2L,
+                    TUK00,
+                    REBALANCE,
+                    AS_OF_DATE,
+                    CALCULATED,
+                    null,
+                    11L,
+                    null,
+                    null,
+                    List.of(),
+                    null)));
 
     mockMvc
         .perform(

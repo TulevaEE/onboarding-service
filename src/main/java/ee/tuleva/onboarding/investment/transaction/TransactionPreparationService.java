@@ -102,11 +102,17 @@ public class TransactionPreparationService {
 
   private FundTransactionInput gatherInput(TransactionCommand command) {
     BigDecimal cash = command.getCash();
-    return cash == null
-        ? inputService.gatherInput(
-            command.getFund(), command.getAsOfDate(), command.getManualAdjustments())
-        : inputService.gatherInput(
-            command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
+    if (cash == null) {
+      return inputService.gatherInput(
+          command.getFund(), command.getAsOfDate(), command.getManualAdjustments());
+    }
+    String comment = command.getCashComment();
+    if (comment == null || comment.isBlank()) {
+      throw new IllegalStateException(
+          "A cash figure needs a comment saying where it comes from: commandId=" + command.getId());
+    }
+    return inputService.gatherInput(
+        command.getFund(), command.getAsOfDate(), command.getManualAdjustments(), cash);
   }
 
   private static String actorOf(TransactionCommand command) {
@@ -119,6 +125,8 @@ public class TransactionPreparationService {
     payload.put("fund", command.getFund().name());
     payload.put("asOfDate", command.getAsOfDate().toString());
     payload.put("manualAdjustments", Map.copyOf(command.getManualAdjustments()));
+    putIfPresent(payload, "cash", plain(command.getCash()));
+    putIfPresent(payload, "cashComment", command.getCashComment());
     if (input != null) {
       payload.put(
           "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
@@ -142,6 +150,7 @@ public class TransactionPreparationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put(
         "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
+    putIfPresent(payload, "cashComment", command.getCashComment());
     payload.put(
         "output",
         TransactionAuditPayloads.serializeTrades(

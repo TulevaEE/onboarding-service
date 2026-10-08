@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
@@ -15,4 +14,4 @@ public record CreateTransactionCommandRequest(
     @NotNull TransactionMode mode,
     @NotNull LocalDate asOfDate,
     @Nullable Map<String, Object> manualAdjustments,
-    @Nullable @PositiveOrZero BigDecimal cash) {}
+    @Nullable @Valid CashOverride cash) {}

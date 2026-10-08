@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
@@ -11,6 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
 import ee.tuleva.onboarding.party.ParentChildLinkStatus;
@@ -90,12 +96,33 @@ class OpenedAccountRepositoryTest {
   }
 
   @Test
-  void leavesOutAccountsWhoseWelcomeEmailWasAlreadyClaimed() {
+  void leavesOutAnAdultWhoseWelcomeEmailWasAlreadySent() {
     holder(ADULT, "Mari", "Tamm", "mari@example.com");
     opened(ADULT, IN_THE_WINDOW);
-    claimed(ADULT);
+    emailSentAbout(ADULT, SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON);
 
     assertThat(repository.fetch(OPENED_FROM, OPENED_UNTIL)).isEmpty();
+  }
+
+  @Test
+  void leavesOutAChildWhoseWelcomeEmailWasAlreadySentToAParent() {
+    holder(CHILD, "Kati", "Tamm", null);
+    opened(CHILD, IN_THE_WINDOW);
+    childOf(ADULT, CHILD, ACTIVE);
+    emailSentAbout(CHILD, SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD);
+
+    assertThat(repository.fetch(OPENED_FROM, OPENED_UNTIL)).isEmpty();
+  }
+
+  @Test
+  void keepsAnAccountWhoseHolderWasOnlySentOtherEmails() {
+    holder(ADULT, "Mari", "Tamm", "mari@example.com");
+    opened(ADULT, IN_THE_WINDOW);
+    emailSentAbout(ADULT, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+
+    assertThat(repository.fetch(OPENED_FROM, OPENED_UNTIL))
+        .extracting(OpenedAccount::code)
+        .containsExactly(ADULT);
   }
 
   @Test
@@ -219,16 +246,14 @@ class OpenedAccountRepositoryTest {
         .update();
   }
 
-  private void claimed(String code) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO savings_fund_account_opened_email_claim (code, created_at)
-            VALUES (:code, :createdAt)
-            """)
-        .param("code", code)
-        .param("createdAt", Timestamp.from(NOW))
-        .update();
+  private void emailSentAbout(String accountCode, EmailType type) {
+    entityManager.persist(
+        Email.builder()
+            .personalCode(accountCode)
+            .mandrillMessageId("message-" + accountCode)
+            .type(type)
+            .status(SENT)
+            .build());
   }
 
   private void payment(String code, String status) {

@@ -28,11 +28,10 @@ class AdultAccountOpenedEmailSender {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final SavingsFundFees savingsFundFees;
-  private final AccountOpenedEmailClaims claims;
 
   void send(OpenedAccount account) {
     var email = account.email();
-    if (email == null || !claims.claim(account.code())) {
+    if (email == null) {
       return;
     }
     var locale = account.prefersEnglish() ? ENGLISH : ESTONIAN;
@@ -41,8 +40,7 @@ class AdultAccountOpenedEmailSender {
         emailService.newMandrillMessage(email, templateName, mergeVars(account, locale), TAGS);
     emailService
         .send(account.holder(), message, templateName)
-        .ifPresentOrElse(
-            response -> record(account, response), () -> claims.release(account.code()));
+        .ifPresent(response -> record(account, response));
   }
 
   private Map<String, Object> mergeVars(OpenedAccount account, Locale locale) {

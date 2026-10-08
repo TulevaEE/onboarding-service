@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -32,11 +31,9 @@ class AdultAccountOpenedEmailSenderTest {
   private final EmailPersistenceService emailPersistenceService =
       mock(EmailPersistenceService.class);
   private final SavingsFundFees savingsFundFees = mock(SavingsFundFees.class);
-  private final AccountOpenedEmailClaims claims = mock(AccountOpenedEmailClaims.class);
 
   private final AdultAccountOpenedEmailSender sender =
-      new AdultAccountOpenedEmailSender(
-          emailService, emailPersistenceService, savingsFundFees, claims);
+      new AdultAccountOpenedEmailSender(emailService, emailPersistenceService, savingsFundFees);
 
   private final OpenedAccount unpaid = account("mari@example.com", false, false, false);
   private final OpenedAccount paid = account("mari@example.com", false, false, true);
@@ -46,7 +43,6 @@ class AdultAccountOpenedEmailSenderTest {
     given(savingsFundFees.ongoingChargesPercent(Locale.of("et"))).willReturn("0,28");
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
-    given(claims.claim(CODE)).willReturn(true);
   }
 
   @Test
@@ -78,16 +74,7 @@ class AdultAccountOpenedEmailSenderTest {
   }
 
   @Test
-  void sendsNothingWhenTheEmailWasAlreadyClaimed() {
-    given(claims.claim(CODE)).willReturn(false);
-
-    sender.send(unpaid);
-
-    verify(emailService, never()).send(any(), any(), any());
-  }
-
-  @Test
-  void keepsTheClaimWhenRecordingTheSentEmailFailsSoItIsNotSentAgain() {
+  void survivesAFailureToRecordTheSentEmail() {
     var message = new MandrillMessage();
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
@@ -97,7 +84,6 @@ class AdultAccountOpenedEmailSenderTest {
         .willThrow(new RuntimeException("database is down"));
 
     assertThatCode(() -> sender.send(unpaid)).doesNotThrowAnyException();
-    verify(claims).claim(CODE);
   }
 
   @Test
@@ -119,7 +105,7 @@ class AdultAccountOpenedEmailSenderTest {
   }
 
   @Test
-  void releasesTheClaimWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
+  void recordsNothingWhenMandrillDoesNotTakeTheEmailSoTheNextRunRetries() {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
@@ -127,15 +113,14 @@ class AdultAccountOpenedEmailSenderTest {
 
     sender.send(unpaid);
 
-    verify(claims).release(CODE);
     verifyNoInteractions(emailPersistenceService);
   }
 
   @Test
-  void neitherClaimsNorSendsWithoutAnEmailAddress() {
+  void sendsNothingWithoutAnEmailAddress() {
     sender.send(account(null, false, false, false));
 
-    verifyNoInteractions(claims, emailService);
+    verifyNoInteractions(emailService);
   }
 
   private static OpenedAccount account(

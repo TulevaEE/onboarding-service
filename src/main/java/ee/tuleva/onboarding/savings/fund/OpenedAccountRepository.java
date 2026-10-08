@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -51,8 +54,9 @@ class OpenedAccountRepository {
               AND onboarding.updated_at >= :openedFrom
               AND onboarding.updated_at < :openedUntil
               AND NOT EXISTS (SELECT 1
-                              FROM savings_fund_account_opened_email_claim claim
-                              WHERE claim.code = onboarding.code)
+                              FROM email
+                              WHERE email.personal_code = onboarding.code
+                                AND email.type IN (:welcomeEmailTypes))
               AND NOT EXISTS (SELECT 1
                               FROM company_party board_membership
                               JOIN company ON company.id = board_membership.company_id
@@ -67,6 +71,11 @@ class OpenedAccountRepository {
         .param("openedFrom", Timestamp.from(openedFrom))
         .param("openedUntil", Timestamp.from(openedUntil))
         .param("today", LocalDate.now(clock))
+        .param(
+            "welcomeEmailTypes",
+            List.of(
+                SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD.name(),
+                SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON.name()))
         .query(this::openedAccount)
         .list();
   }

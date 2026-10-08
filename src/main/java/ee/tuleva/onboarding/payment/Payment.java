@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.payment.PaymentData.*;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.GIFT;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
@@ -47,6 +48,10 @@ public class Payment implements Comparable<Payment> {
   @NotNull
   @Enumerated(STRING)
   private PaymentType paymentType;
+
+  public boolean isGift() {
+    return paymentType == GIFT;
+  }
 
   @PrePersist
   protected void onCreate() {

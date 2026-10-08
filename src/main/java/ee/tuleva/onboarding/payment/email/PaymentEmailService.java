@@ -42,7 +42,7 @@ public class PaymentEmailService {
             templateName,
             getMergeVars(user, payment, decision, locale),
             decision.emailTags("pillar_3.1", "mandate", "payment"),
-            cancelReminderEmailsAndGetMandateAttachment(user));
+            payment.isGift() ? emptyList() : cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(

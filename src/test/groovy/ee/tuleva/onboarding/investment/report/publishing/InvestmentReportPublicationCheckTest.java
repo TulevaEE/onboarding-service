@@ -4,9 +4,12 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.TEXT_HTML;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withResourceNotFound;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotChecked;
@@ -78,7 +81,7 @@ class InvestmentReportPublicationCheckTest {
     assertThat(check.check(SEPTEMBER))
         .containsExactly(
             new Published(TUK75, TUK75_SEPTEMBER),
-            new Outdated(TUK00, TUK00_AUGUST),
+            new Outdated(TUK00, TUK00_AUGUST, SEPTEMBER),
             new Published(TUV100, TUV100_SEPTEMBER));
     server.verify();
   }
@@ -113,6 +116,21 @@ class InvestmentReportPublicationCheckTest {
         .containsExactly(
             new Published(TUK00, TUK00_SEPTEMBER), new Published(TUV100, TUV100_SEPTEMBER));
     server.verify();
+  }
+
+  @Test
+  void aPageAnsweringWithALongErrorBody_isNotCheckedWithAShortReason() {
+    server
+        .expect(requestTo(pageRequest("tuleva-maailma-aktsiate-pensionifond")))
+        .andRespond(
+            withStatus(UNAUTHORIZED).contentType(TEXT_HTML).body("<html>" + "x".repeat(5000)));
+    pageLinks("tuleva-maailma-volakirjade-pensionifond", 37856, TUK00_SEPTEMBER);
+    pageLinks("tuleva-iii-samba-pensionifond", 37859, TUV100_SEPTEMBER);
+
+    assertThat(check.check(SEPTEMBER).getFirst())
+        .isInstanceOfSatisfying(
+            NotChecked.class,
+            notChecked -> assertThat(notChecked.reason()).hasSizeLessThanOrEqualTo(201));
   }
 
   private void pageLinks(String slug, int attachmentId, String reportUrl) {

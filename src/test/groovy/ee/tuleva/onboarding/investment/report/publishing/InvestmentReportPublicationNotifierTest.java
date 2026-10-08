@@ -17,20 +17,18 @@ import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotLi
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Outdated;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Published;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class InvestmentReportPublicationNotifierTest {
 
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final LocalDate OCTOBER_10 = LocalDate.of(2026, 10, 10);
   private static final LocalDate OCTOBER_15 = LocalDate.of(2026, 10, 15);
@@ -38,20 +36,26 @@ class InvestmentReportPublicationNotifierTest {
   private static final List<ReportPublication> TWO_MISSING =
       List.of(
           new Published(TUK75, UPLOADS + "2026/10/tuk75-aruanne-2026-09.pdf"),
-          new Outdated(TUK00, UPLOADS + "2026/09/tuk00-aruanne-2026-08.pdf"),
+          new Outdated(TUK00, UPLOADS + "2026/09/tuk00-aruanne-2026-08.pdf", SEPTEMBER),
           new NotLinked(TUV100));
+  private static final List<ReportPublication> ONE_UNREADABLE =
+      List.of(
+          new NotChecked(TUK75, "HttpClientErrorException: 404 Not Found"),
+          new Published(TUK00, UPLOADS + "2026/10/tuk00-aruanne-2026-09.pdf"),
+          new Published(TUV100, UPLOADS + "2026/10/tuv100-aruanne-2026-09.pdf"));
 
   @Mock private OperationsNotificationService notificationService;
+  @InjectMocks private InvestmentReportPublicationNotifier notifier;
 
   @Test
   void everyReportPublished_postsAGreenSummary() {
-    notifierOn(OCTOBER_10)
-        .notify(
-            SEPTEMBER,
-            List.of(
-                new Published(TUK75, UPLOADS + "2026/10/tuk75-aruanne-2026-09.pdf"),
-                new Published(TUK00, UPLOADS + "2026/10/tuk00-aruanne-2026-09.pdf"),
-                new Published(TUV100, UPLOADS + "2026/10/tuv100-aruanne-2026-09.pdf")));
+    notifier.notify(
+        SEPTEMBER,
+        List.of(
+            new Published(TUK75, UPLOADS + "2026/10/tuk75-aruanne-2026-09.pdf"),
+            new Published(TUK00, UPLOADS + "2026/10/tuk00-aruanne-2026-09.pdf"),
+            new Published(TUV100, UPLOADS + "2026/10/tuv100-aruanne-2026-09.pdf")),
+        OCTOBER_10);
 
     then(notificationService)
         .should()
@@ -68,7 +72,7 @@ class InvestmentReportPublicationNotifierTest {
 
   @Test
   void aReportMissingBeforeTheFifteenth_postsAWarningNamingTheDeadline() {
-    notifierOn(OCTOBER_15.minusDays(1)).notify(SEPTEMBER, TWO_MISSING);
+    notifier.notify(SEPTEMBER, TWO_MISSING, OCTOBER_15.minusDays(1));
 
     then(notificationService)
         .should()
@@ -78,7 +82,7 @@ class InvestmentReportPublicationNotifierTest {
                 "⚠️ Investment reports for 2026-09 are not all published on tuleva.ee"
                     + " — due 2026-10-15",
                 "  ✅ TUK75: tuk75-aruanne-2026-09.pdf",
-                "  ⚠️ TUK00: the fund page still links tuk00-aruanne-2026-08.pdf",
+                "  ⚠️ TUK00: the fund page links tuk00-aruanne-2026-08.pdf, not the 2026-09 report",
                 "  ⚠️ TUV100: the fund page links no investment report"),
             INVESTMENT,
             WARNING);
@@ -86,7 +90,7 @@ class InvestmentReportPublicationNotifierTest {
 
   @Test
   void aReportStillMissingOnTheFifteenth_turnsRed() {
-    notifierOn(OCTOBER_15).notify(SEPTEMBER, TWO_MISSING);
+    notifier.notify(SEPTEMBER, TWO_MISSING, OCTOBER_15);
 
     then(notificationService)
         .should()
@@ -96,7 +100,7 @@ class InvestmentReportPublicationNotifierTest {
                 "🔴 Investment reports for 2026-09 are not all published on tuleva.ee"
                     + " — due 2026-10-15",
                 "  ✅ TUK75: tuk75-aruanne-2026-09.pdf",
-                "  🔴 TUK00: the fund page still links tuk00-aruanne-2026-08.pdf",
+                "  🔴 TUK00: the fund page links tuk00-aruanne-2026-08.pdf, not the 2026-09 report",
                 "  🔴 TUV100: the fund page links no investment report"),
             INVESTMENT,
             ERROR);
@@ -104,7 +108,7 @@ class InvestmentReportPublicationNotifierTest {
 
   @Test
   void aReportStillMissingIntoTheMonthAfter_staysRed() {
-    notifierOn(LocalDate.of(2026, 11, 3)).notify(SEPTEMBER, List.of(new NotLinked(TUK75)));
+    notifier.notify(SEPTEMBER, List.of(new NotLinked(TUK75)), LocalDate.of(2026, 11, 3));
 
     then(notificationService)
         .should()
@@ -119,21 +123,15 @@ class InvestmentReportPublicationNotifierTest {
   }
 
   @Test
-  void aPageThatCouldNotBeRead_postsAWarningWhenNoReportIsConfirmedMissing() {
-    notifierOn(OCTOBER_15)
-        .notify(
-            SEPTEMBER,
-            List.of(
-                new NotChecked(TUK75, "HttpClientErrorException: 404 Not Found"),
-                new Published(TUK00, UPLOADS + "2026/10/tuk00-aruanne-2026-09.pdf"),
-                new Published(TUV100, UPLOADS + "2026/10/tuv100-aruanne-2026-09.pdf")));
+  void aPageThatCouldNotBeReadBeforeTheFifteenth_postsAWarning() {
+    notifier.notify(SEPTEMBER, ONE_UNREADABLE, OCTOBER_15.minusDays(1));
 
     then(notificationService)
         .should()
         .sendMessage(
             String.join(
                 "\n",
-                "⏸ Could not confirm the investment reports for 2026-09 on tuleva.ee"
+                "⚠️ Could not confirm the investment reports for 2026-09 on tuleva.ee"
                     + " — due 2026-10-15",
                 "  ⏸ TUK75: could not check — HttpClientErrorException: 404 Not Found",
                 "  ✅ TUK00: tuk00-aruanne-2026-09.pdf",
@@ -143,17 +141,30 @@ class InvestmentReportPublicationNotifierTest {
   }
 
   @Test
+  void aPageStillUnreadableOnTheFifteenth_turnsRed() {
+    notifier.notify(SEPTEMBER, ONE_UNREADABLE, OCTOBER_15);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            String.join(
+                "\n",
+                "🔴 Could not confirm the investment reports for 2026-09 on tuleva.ee"
+                    + " — due 2026-10-15",
+                "  ⏸ TUK75: could not check — HttpClientErrorException: 404 Not Found",
+                "  ✅ TUK00: tuk00-aruanne-2026-09.pdf",
+                "  ✅ TUV100: tuv100-aruanne-2026-09.pdf"),
+            INVESTMENT,
+            ERROR);
+  }
+
+  @Test
   void aSlackFailure_isNotThrownToTheJob() {
     willThrow(new IllegalStateException("No webhook for slack channel INVESTMENT"))
         .given(notificationService)
         .sendMessage(any(), any(), any());
 
-    assertThatCode(() -> notifierOn(OCTOBER_10).notify(SEPTEMBER, List.of(new NotLinked(TUK75))))
+    assertThatCode(() -> notifier.notify(SEPTEMBER, List.of(new NotLinked(TUK75)), OCTOBER_10))
         .doesNotThrowAnyException();
-  }
-
-  private InvestmentReportPublicationNotifier notifierOn(LocalDate today) {
-    var clock = Clock.fixed(today.atTime(9, 0).atZone(TALLINN).toInstant(), TALLINN);
-    return new InvestmentReportPublicationNotifier(notificationService, clock);
   }
 }

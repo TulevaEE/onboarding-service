@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Outda
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Published;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -31,73 +30,70 @@ class InvestmentReportPublicationNotifier {
 
   private enum Verdict {
     PUBLISHED,
-    DUE,
-    OVERDUE,
+    MISSING,
     UNCONFIRMED
   }
 
   private final OperationsNotificationService notificationService;
-  private final Clock clock;
 
-  void notify(YearMonth month, List<ReportPublication> publications) {
+  void notify(YearMonth month, List<ReportPublication> publications, LocalDate today) {
     try {
-      var verdict = verdict(month, publications);
+      var verdict = verdict(publications);
+      var overdue = !today.isBefore(deadline(month));
       notificationService.sendMessage(
-          message(month, publications, verdict), INVESTMENT, severity(verdict));
+          message(month, publications, verdict, overdue), INVESTMENT, severity(verdict, overdue));
     } catch (Exception e) {
       log.error("Failed to send investment report publication notification: month={}", month, e);
     }
   }
 
-  private Verdict verdict(YearMonth month, List<ReportPublication> publications) {
+  private static Verdict verdict(List<ReportPublication> publications) {
     if (publications.stream().anyMatch(ReportPublication::isMissing)) {
-      return LocalDate.now(clock).isBefore(deadline(month)) ? Verdict.DUE : Verdict.OVERDUE;
+      return Verdict.MISSING;
     }
-    return publications.stream().allMatch(ReportPublication::isPublished)
-        ? Verdict.PUBLISHED
-        : Verdict.UNCONFIRMED;
+    return ReportPublication.allPublished(publications) ? Verdict.PUBLISHED : Verdict.UNCONFIRMED;
   }
 
-  private static Severity severity(Verdict verdict) {
-    return switch (verdict) {
-      case PUBLISHED -> INFO;
-      case DUE, UNCONFIRMED -> WARNING;
-      case OVERDUE -> ERROR;
-    };
+  private static Severity severity(Verdict verdict, boolean overdue) {
+    if (verdict == Verdict.PUBLISHED) {
+      return INFO;
+    }
+    return overdue ? ERROR : WARNING;
   }
 
   private static String message(
-      YearMonth month, List<ReportPublication> publications, Verdict verdict) {
+      YearMonth month, List<ReportPublication> publications, Verdict verdict, boolean overdue) {
     return Stream.concat(
-            Stream.of(headline(month, verdict)),
+            Stream.of(headline(month, verdict, overdue)),
             publications.stream()
                 .map(
                     publication ->
-                        LINE_INDENT + icon(publication, verdict) + " " + publication.describe()))
+                        LINE_INDENT + icon(publication, overdue) + " " + publication.describe()))
         .collect(joining("\n"));
   }
 
-  private static String headline(YearMonth month, Verdict verdict) {
+  private static String headline(YearMonth month, Verdict verdict, boolean overdue) {
     return switch (verdict) {
       case PUBLISHED -> "✅ Investment reports for %s are published on tuleva.ee".formatted(month);
-      case DUE ->
-          "⚠️ Investment reports for %s are not all published on tuleva.ee — due %s"
-              .formatted(month, deadline(month));
-      case OVERDUE ->
-          "🔴 Investment reports for %s are not all published on tuleva.ee — due %s"
-              .formatted(month, deadline(month));
+      case MISSING ->
+          "%s Investment reports for %s are not all published on tuleva.ee — due %s"
+              .formatted(alarm(overdue), month, deadline(month));
       case UNCONFIRMED ->
-          "⏸ Could not confirm the investment reports for %s on tuleva.ee — due %s"
-              .formatted(month, deadline(month));
+          "%s Could not confirm the investment reports for %s on tuleva.ee — due %s"
+              .formatted(alarm(overdue), month, deadline(month));
     };
   }
 
-  private static String icon(ReportPublication publication, Verdict verdict) {
+  private static String icon(ReportPublication publication, boolean overdue) {
     return switch (publication) {
       case Published _ -> "✅";
       case NotChecked _ -> "⏸";
-      case Outdated _, NotLinked _ -> verdict == Verdict.OVERDUE ? "🔴" : "⚠️";
+      case Outdated _, NotLinked _ -> alarm(overdue);
     };
+  }
+
+  private static String alarm(boolean overdue) {
+    return overdue ? "🔴" : "⚠️";
   }
 
   private static LocalDate deadline(YearMonth month) {

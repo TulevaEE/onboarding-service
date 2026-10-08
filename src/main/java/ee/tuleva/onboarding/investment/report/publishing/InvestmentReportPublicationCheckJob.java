@@ -34,11 +34,11 @@ class InvestmentReportPublicationCheckJob {
     var today = LocalDate.now(clock);
     var month = monthRequiredOn(today);
     var publications = check.check(month);
-    var allPublished = publications.stream().allMatch(ReportPublication::isPublished);
+    var allPublished = ReportPublication.allPublished(publications);
     log.info(
         "Investment report publication checked: month={}, allPublished={}", month, allPublished);
     if (today.getDayOfMonth() == LAST_MONTHS_REPORTS_REQUIRED_FROM_DAY || !allPublished) {
-      notifier.notify(month, publications);
+      notifier.notify(month, publications, today);
     }
   }
 

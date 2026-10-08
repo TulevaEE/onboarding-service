@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class InvestmentReportPublicationCheck {
 
+  private static final int MAX_REASON_LENGTH_IN_SLACK = 200;
+
   private final WordPressPageReader pageReader;
 
   List<ReportPublication> check(YearMonth month) {
@@ -49,8 +51,12 @@ class InvestmentReportPublicationCheck {
 
   private static String describe(Exception e) {
     var message = e.getMessage();
-    return message == null
-        ? e.getClass().getSimpleName()
-        : e.getClass().getSimpleName() + ": " + message;
+    var description =
+        message == null
+            ? e.getClass().getSimpleName()
+            : e.getClass().getSimpleName() + ": " + message;
+    return description.length() <= MAX_REASON_LENGTH_IN_SLACK
+        ? description
+        : description.substring(0, MAX_REASON_LENGTH_IN_SLACK) + "…";
   }
 }

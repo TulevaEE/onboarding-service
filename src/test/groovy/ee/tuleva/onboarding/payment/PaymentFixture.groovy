@@ -43,6 +43,13 @@ class PaymentFixture {
         null, sampleUser, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, EUR, sampleUser.personalCode, null, PaymentType.SINGLE)
   }
 
+  static Payment aNewGiftPayment() {
+    return aNewSinglePayment().tap {
+      it.recipientPersonalCode = "38888888888"
+      it.paymentType = PaymentType.GIFT
+    }
+  }
+
   static Payment aNewMemberPayment() {
     return new Payment(
         null, sampleUserNonMember, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, EUR, sampleUser.personalCode, null, PaymentType.MEMBER_FEE)

@@ -61,6 +61,13 @@
     },
     "ilma soovituseta": {
       "FNAME": "Mari"
+    },
+    "kingitus": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     }
   }
 }

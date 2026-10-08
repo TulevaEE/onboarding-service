@@ -61,6 +61,13 @@
     },
     "no nudge": {
       "FNAME": "Mari"
+    },
+    "gift": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     }
   }
 }

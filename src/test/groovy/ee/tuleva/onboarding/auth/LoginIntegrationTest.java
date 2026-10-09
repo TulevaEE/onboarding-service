@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDigest;
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -65,6 +66,8 @@ import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -115,6 +118,7 @@ class LoginIntegrationTest {
   @MockitoBean private MidSessionStatusPoller midSessionStatusPoller;
   @MockitoBean private MidAuthenticationResponseValidator midResponseValidator;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private Clock clock;
 
   @TestConfiguration
   static class SmartIdTestConfig {
@@ -164,6 +168,7 @@ class LoginIntegrationTest {
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
         .willReturn(anAuthenticationIdentity());
+    Instant beforeGrant = clock.instant().truncatedTo(SECONDS);
 
     MvcResult granted =
         mockMvc
@@ -178,6 +183,21 @@ class LoginIntegrationTest {
     assertThat(claims.get("attributes").get("smartIdDocumentNumber").asText())
         .isEqualTo(documentNumber);
     assertThat(claims.get("attributes").get("grantType").asText()).isEqualTo("SMART_ID");
+    var authTime = claims.get("attributes").get("authTime").asText();
+    assertThat(Instant.parse(authTime)).isBetween(beforeGrant, clock.instant());
+
+    MvcResult refreshed =
+        mockMvc
+            .perform(
+                post("/oauth/refresh-token")
+                    .contentType(APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            Map.of("refresh_token", refreshToken(granted)))))
+            .andExpect(status().isOk())
+            .andReturn();
+    assertThat(claimsOf(accessToken(refreshed)).get("attributes").get("authTime").asText())
+        .isEqualTo(authTime);
   }
 
   @Test
@@ -1148,6 +1168,13 @@ class LoginIntegrationTest {
             .findFirst()
             .orElseThrow();
     return new Cookie(COOKIE_NAME, header.substring(COOKIE_NAME.length() + 1, header.indexOf(';')));
+  }
+
+  private String refreshToken(MvcResult result) throws Exception {
+    return objectMapper
+        .readTree(result.getResponse().getContentAsString())
+        .get("refresh_token")
+        .asText();
   }
 
   private String accessToken(MvcResult result) throws Exception {

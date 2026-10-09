@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.event.broadcasting;
 
+import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.AUTH_TIME;
 import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER;
 import static ee.tuleva.onboarding.event.TrackableEvent.IP_ADDRESS;
 import static ee.tuleva.onboarding.event.TrackableEvent.USER_AGENT;
@@ -41,6 +42,7 @@ public class LoginEventBroadcaster {
     AuthenticatedPerson person = event.getPerson();
     Map<String, @Nullable Object> data = new HashMap<>(person.getAttributes());
     data.remove(SMART_ID_DOCUMENT_NUMBER);
+    data.remove(AUTH_TIME);
 
     data.put("method", event.getGrantType());
     if (event.isIdCard()) {

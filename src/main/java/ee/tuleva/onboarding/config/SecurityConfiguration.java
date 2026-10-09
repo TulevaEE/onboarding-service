@@ -38,7 +38,7 @@ public class SecurityConfiguration {
   @Bean
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
+      HttpSecurity http, JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
     http.csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(
             authorize ->
@@ -117,7 +117,9 @@ public class SecurityConfiguration {
                         PathPatternRequestMatcher.withDefaults().matcher(GET, "/v1/logout"))
                     .logoutSuccessHandler(
                         (request, response, authentication) -> response.setStatus(200)))
-        .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(
+            new JwtAuthorizationFilter(jwtTokenUtil, principalService),
+            UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
@@ -132,11 +134,5 @@ public class SecurityConfiguration {
                             method ->
                                 PathPatternRequestMatcher.withDefaults().matcher(method, pattern)))
             .toList());
-  }
-
-  @Bean
-  public JwtAuthorizationFilter jwtAuthorizationFilter(
-      JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
-    return new JwtAuthorizationFilter(jwtTokenUtil, principalService);
   }
 }

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.auth.principal;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static java.time.temporal.ChronoUnit.SECONDS;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -12,19 +14,22 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
-@Builder
+@Builder(toBuilder = true)
 @Value
 public class AuthenticatedPerson implements Person, Serializable {
 
   @Serial private static final long serialVersionUID = 2461411670790444975L;
 
   public static final String SMART_ID_DOCUMENT_NUMBER = "smartIdDocumentNumber";
+  public static final String AUTH_TIME = "authTime";
 
   @ValidPersonalCode String personalCode;
 
@@ -78,6 +83,17 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public Long getUserIdOrThrow() {
     return requireNonNull(userId, "User id missing for authenticated person");
+  }
+
+  public AuthenticatedPerson withAuthTime(Instant authTime) {
+    var attributesWithAuthTime = new HashMap<>(attributes);
+    attributesWithAuthTime.put(AUTH_TIME, authTime.truncatedTo(SECONDS).toString());
+    return toBuilder().attributes(unmodifiableMap(attributesWithAuthTime)).build();
+  }
+
+  @JsonIgnore
+  public Optional<Instant> getAuthTime() {
+    return Optional.ofNullable(attributes.get(AUTH_TIME)).map(Instant::parse);
   }
 
   public @Nullable String getAttribute(String attribute) {

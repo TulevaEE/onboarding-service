@@ -28,6 +28,10 @@ spring:
   modulith:
     moments:
       enabled: false
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: http://localhost:9000
   datasource:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
@@ -534,6 +538,10 @@ spring:
     activate:
       on-profile:
         - staging
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: https://onboarding-service-staging.tuleva.ee
 
 frontend:
   url: https://staging.tuleva.ee
@@ -577,6 +585,10 @@ spring:
     activate:
       on-profile:
         - production
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: https://onboarding-service.tuleva.ee
 
 sentry:
   environment: production

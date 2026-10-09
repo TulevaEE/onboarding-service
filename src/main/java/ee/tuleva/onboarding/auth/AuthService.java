@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
+import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class AuthService {
   private final JwtTokenUtil jwtTokenUtil;
   private final TokenService tokenService;
   private final PrincipalService principalService;
+  private final Clock clock;
 
   public @Nullable AuthenticationTokens authenticate(
       GrantType grantType, @Nullable String authenticationHash) {
@@ -31,6 +33,7 @@ public class AuthService {
             .map(it -> it.authenticate(authenticationHash))
             .filter(Objects::nonNull)
             .findFirst()
+            .map(person -> person.withAuthTime(clock.instant()))
             .orElse(null);
 
     if (authenticatedPerson == null) {

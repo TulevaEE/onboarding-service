@@ -54,13 +54,6 @@ public class PrincipalService {
   }
 
   public AuthenticatedPerson withRole(AuthenticatedPerson person, Role role) {
-    return AuthenticatedPerson.builder()
-        .personalCode(person.getPersonalCode())
-        .firstName(person.getFirstName())
-        .lastName(person.getLastName())
-        .userId(person.getUserId())
-        .attributes(person.getAttributes())
-        .role(role)
-        .build();
+    return person.toBuilder().role(role).build();
   }
 }

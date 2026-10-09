@@ -29,7 +29,7 @@ class WorldMarketBenchmarkControllerTest {
 
   @MockitoBean private WorldMarketBenchmarkService worldMarketBenchmarkService;
 
-  // Needed by the imported SecurityConfiguration's JwtAuthorizationFilter bean.
+  // Needed by the imported SecurityConfiguration's JwtAuthorizationFilter.
   @MockitoBean private JwtTokenUtil jwtTokenUtil;
   @MockitoBean private PrincipalService principalService;
 

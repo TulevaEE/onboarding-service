@@ -55,4 +55,17 @@ class IDCardAuthProviderSpec extends Specification {
     then:
     result == person
   }
+
+  def "a completed ID-card login is redeemed for tokens only once"() {
+    given:
+    IdCardSession session = IdCardSession.builder()
+        .documentType(DIGITAL_ID_CARD)
+        .build()
+    genericSessionStore.get(IdCardSession) >> Optional.of(session)
+    principalService.getFrom(session, _ as Map) >> sampleAuthenticatedPersonAndMember().build()
+    when:
+    idCardAuthProvider.authenticate("dummy")
+    then:
+    1 * genericSessionStore.remove(IdCardSession)
+  }
 }

@@ -34,6 +34,7 @@ public class IDCardAuthProvider implements AuthProvider {
       throw new IdCardSessionNotFoundException();
     }
     IdCardSession idCardSession = session.get();
+    sessionStore.remove(IdCardSession.class);
     return principalService.getFrom(
         idCardSession,
         Map.of(ID_DOCUMENT_TYPE, idCardSession.documentType.name(), GRANT_TYPE, ID_CARD.name()));

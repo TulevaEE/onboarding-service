@@ -4,6 +4,9 @@
 scheduling:
   enabled: false
 
+oauth:
+  signing-key: "classpath:oauth/test-signing-key.pem"
+
 spring:
   main:
     banner-mode: off

@@ -32,9 +32,6 @@ class UnderlyingFunds {
         .orElse(nameWhenUnknown);
   }
 
-  // EODHD's total assets are in the fund's currency, not the listing currency it reports
-  // (General::CurrencyCode): the XETRA listing of a USD fund trades in EUR, but its total assets
-  // come in USD. So the size is converted from the instrument's fund currency.
   SizeInEur sizeInEur(String isin, LocalDate positionDate) {
     var instrument = instrumentReferenceService.findByIsin(isin);
     var ticker = instrument.map(InstrumentReference::getEodhdTicker);

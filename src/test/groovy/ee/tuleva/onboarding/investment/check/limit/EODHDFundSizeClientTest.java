@@ -38,15 +38,15 @@ class EODHDFundSizeClientTest {
   }
 
   @Test
-  void anEtfsTotalAssets_isReportedInItsListingCurrency() {
+  void anEtfsTotalAssets_areReportedWithTheirUpdateDate() {
     respondFor(
         "ESGM.XETRA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"150000000.00","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"150000000.00","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("ESGM.XETRA"))
-        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000.00"), "EUR", UPDATED));
+        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000.00"), UPDATED));
   }
 
   @Test
@@ -54,11 +54,11 @@ class EODHDFundSizeClientTest {
     respondFor(
         "USAS.PA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"1200000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"1200000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("USAS.PA.EODHD"))
-        .isEqualTo(new FundSize.Reported(new BigDecimal("1200000000"), "EUR", UPDATED));
+        .isEqualTo(new FundSize.Reported(new BigDecimal("1200000000"), UPDATED));
   }
 
   @Test
@@ -66,11 +66,11 @@ class EODHDFundSizeClientTest {
     respondFor(
         "IE00BFG1TM61.EUFUND",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"NA","MutualFund_Data::Portfolio_Net_Assets":"4500000000"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"NA","MutualFund_Data::Portfolio_Net_Assets":"4500000000"}
         """);
 
     assertThat(client.fetch("IE00BFG1TM61.EUFUND"))
-        .isEqualTo(new FundSize.Reported(new BigDecimal("4500000000"), "EUR", UPDATED));
+        .isEqualTo(new FundSize.Reported(new BigDecimal("4500000000"), UPDATED));
   }
 
   @Test
@@ -78,7 +78,7 @@ class EODHDFundSizeClientTest {
     respondFor(
         "IE00BFG1TM61.EUFUND",
         """
-        {"General::CurrencyCode":"NA","General::UpdatedAt":"NA","ETF_Data::TotalAssets":"NA","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"NA","ETF_Data::TotalAssets":"NA","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("IE00BFG1TM61.EUFUND"))
@@ -98,11 +98,11 @@ class EODHDFundSizeClientTest {
     respondFor(
         "ESGM.XETRA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"NA","ETF_Data::TotalAssets":"150000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"NA","ETF_Data::TotalAssets":"150000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("ESGM.XETRA"))
-        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000"), "EUR", null));
+        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000"), null));
   }
 
   @Test
@@ -110,7 +110,7 @@ class EODHDFundSizeClientTest {
     respondFor(
         "ESGM.XETRA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":{"value":"1"},"MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":{"value":"1"},"MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("ESGM.XETRA"))
@@ -122,23 +122,11 @@ class EODHDFundSizeClientTest {
     respondFor(
         "ESGM.XETRA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"0.00","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"0.00","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("ESGM.XETRA"))
         .isEqualTo(new FundSize.Unavailable("EODHD has no total assets"));
-  }
-
-  @Test
-  void totalAssetsWithoutAListingCurrency_isUnavailable() {
-    respondFor(
-        "ESGM.XETRA",
-        """
-        {"General::CurrencyCode":"NA","ETF_Data::TotalAssets":"150000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
-        """);
-
-    assertThat(client.fetch("ESGM.XETRA"))
-        .isEqualTo(new FundSize.Unavailable("EODHD has no listing currency"));
   }
 
   @Test
@@ -157,11 +145,11 @@ class EODHDFundSizeClientTest {
     respondFor(
         "ESGM.XETRA",
         """
-        {"General::CurrencyCode":"EUR","General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"150000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
+        {"General::UpdatedAt":"2026-10-03","ETF_Data::TotalAssets":"150000000","MutualFund_Data::Portfolio_Net_Assets":"NA"}
         """);
 
     assertThat(client.fetch("ESGM.XETRA"))
-        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000"), "EUR", UPDATED));
+        .isEqualTo(new FundSize.Reported(new BigDecimal("150000000"), UPDATED));
   }
 
   @Test
@@ -184,7 +172,6 @@ class EODHDFundSizeClientTest {
     return "https://eodhd.com/api/fundamentals/"
         + apiTicker
         + "?api_token=test-token&fmt=json"
-        + "&filter=General::CurrencyCode,General::UpdatedAt,ETF_Data::TotalAssets,"
-        + "MutualFund_Data::Portfolio_Net_Assets";
+        + "&filter=General::UpdatedAt,ETF_Data::TotalAssets,MutualFund_Data::Portfolio_Net_Assets";
   }
 }

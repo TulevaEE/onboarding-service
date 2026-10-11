@@ -26,6 +26,15 @@ class ConsecutiveBreachTrackerTest {
   private static final LocalDate THURSDAY = LocalDate.of(2026, 4, 9);
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 4, 8);
   private static final LocalDate TUESDAY = LocalDate.of(2026, 4, 7);
+  private static final LocalDate MONDAY = LocalDate.of(2026, 4, 6);
+  private static final LocalDate NEXT_MONDAY = LocalDate.of(2026, 4, 13);
+
+  private static final LocalDate OCTOBER_12 = LocalDate.of(2026, 10, 12);
+  private static final LocalDate OCTOBER_13 = LocalDate.of(2026, 10, 13);
+  private static final LocalDate OCTOBER_14 = LocalDate.of(2026, 10, 14);
+  private static final LocalDate OCTOBER_15 = LocalDate.of(2026, 10, 15);
+  private static final LocalDate OCTOBER_29 = LocalDate.of(2026, 10, 29);
+  private static final LocalDate OCTOBER_30 = LocalDate.of(2026, 10, 30);
 
   @Mock private TrackingDifferenceEventRepository eventRepository;
   @Mock private TrackingDifferenceCalculator calculator;
@@ -38,19 +47,155 @@ class ConsecutiveBreachTrackerTest {
   }
 
   @Test
-  void streakStopsAtAWorkingDayThatWasNeverChecked() {
+  void anUncheckedWorkingDayBetweenTwoBreachDaysIsAssumedToHaveBreachedAndCountsInTheStreak() {
     given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent(THURSDAY), breachEvent(TUESDAY)));
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
 
-    // Wednesday was a working day with no check, so nothing says the breach persisted through it.
-    // Counting two here would join two separate breaches across the hole and escalate on a streak
-    // that was never observed.
-    assertThat(info.count()).isEqualTo(1);
+    assertThat(info.count()).isEqualTo(3);
+    assertThat(info.uncheckedDays()).isEqualTo(1);
+    assertThat(info.uncheckedDaysSince()).isZero();
     assertThat(info.truncated()).isFalse();
     assertThat(info.unavailable()).isFalse();
+  }
+
+  @Test
+  void anUncheckedWorkingDayBeforeACleanDayIsTheStreaksEdgeAndIsNotCounted() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(breachEvent(THURSDAY), nonBreachEvent(TUESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isEqualTo(1);
+    assertThat(info.uncheckedDays()).isZero();
+  }
+
+  @Test
+  void uncheckedWorkingDaysBeforeTheCheckDateAreReportedApartFromTheStreak() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(breachEvent(WEDNESDAY), breachEvent(TUESDAY), nonBreachEvent(MONDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.uncheckedDays()).isZero();
+    assertThat(info.uncheckedDaysSince()).isEqualTo(1);
+  }
+
+  @Test
+  void uncheckedWorkingDaysBeforeTheCheckDateAreNotReportedWhenNoStreakPrecedesThem() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(nonBreachEvent(WEDNESDAY), breachEvent(TUESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isZero();
+    assertThat(info.uncheckedDaysSince()).isZero();
+  }
+
+  @Test
+  void aWeekendIsNotADayWithNoCheck() {
+    given(calculator.escalationLookbackDays(NEXT_MONDAY)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, NEXT_MONDAY, 10))
+        .willReturn(List.of(breachEvent(CHECK_DATE), breachEvent(THURSDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, NEXT_MONDAY);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.uncheckedDays()).isZero();
+    assertThat(info.uncheckedDaysSince()).isZero();
+  }
+
+  @Test
+  void aPublicHolidayInsideAStreakIsNotADayWithNoCheck() {
+    var dayAfterMidsummer = LocalDate.of(2026, 6, 26);
+    given(calculator.escalationLookbackDays(dayAfterMidsummer)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, dayAfterMidsummer, 10))
+        .willReturn(
+            List.of(
+                breachEvent(LocalDate.of(2026, 6, 25)), breachEvent(LocalDate.of(2026, 6, 22))));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, dayAfterMidsummer);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.uncheckedDays()).isZero();
+    assertThat(info.uncheckedDaysSince()).isZero();
+  }
+
+  @Test
+  void aStreakBridgesTenUncheckedWorkingDaysBeforeTheCheckDate() {
+    given(calculator.escalationLookbackDays(OCTOBER_30)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, OCTOBER_30, 10))
+        .willReturn(List.of(breachEvent(OCTOBER_15), breachEvent(OCTOBER_14)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, OCTOBER_30);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.uncheckedDaysSince()).isEqualTo(10);
+  }
+
+  @Test
+  void elevenUncheckedWorkingDaysBeforeTheCheckDateEndTheStreakSoNoNoticeIsOwedForIt() {
+    given(calculator.escalationLookbackDays(OCTOBER_30)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, OCTOBER_30, 10))
+        .willReturn(
+            List.of(breachEvent(OCTOBER_14), breachEvent(OCTOBER_13), breachEvent(OCTOBER_12)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, OCTOBER_30);
+
+    assertThat(info.count()).isZero();
+    assertThat(info.uncheckedDays()).isZero();
+    assertThat(info.uncheckedDaysSince()).isZero();
+    assertThat(info.truncated()).isFalse();
+  }
+
+  @Test
+  void elevenUncheckedWorkingDaysInsideAStreakEndItAtTheBreachDayAfterThem() {
+    given(calculator.escalationLookbackDays(OCTOBER_30)).willReturn(10);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, OCTOBER_30, 10))
+        .willReturn(List.of(breachEvent(OCTOBER_29), breachEvent(OCTOBER_13)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, OCTOBER_30);
+
+    assertThat(info.count()).isEqualTo(1);
+    assertThat(info.uncheckedDays()).isZero();
+  }
+
+  @Test
+  void aStreakThatUsesEveryFetchedRowAcrossAnUncheckedDayIsStillALowerBound() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(2);
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 2))
+        .willReturn(List.of(breachEvent(THURSDAY), breachEvent(TUESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isEqualTo(3);
+    assertThat(info.truncated()).isTrue();
+  }
+
+  @Test
+  void aBreachOnTheCheckDateJoinsTheUncheckedDaysBeforeItToTheStreak() {
+    var result = tracker.updateConsecutiveCount(breachingResult(), streakOf(2, 1, 1));
+
+    assertThat(result.consecutiveBreachDays()).isEqualTo(4);
+    assertThat(result.escalationUncheckedDays()).isEqualTo(2);
+  }
+
+  @Test
+  void
+      aCleanCheckDateKeepsNoStreakOfItsOwnAndCarriesTheUncheckedDaysBeforeItWithTheStreakItEnded() {
+    var endedStreak = streakOf(3, 0, 1);
+
+    var result = tracker.updateConsecutiveCount(nonBreachingResult(), endedStreak);
+
+    assertThat(result.consecutiveBreachDays()).isZero();
+    assertThat(result.escalationUncheckedDays()).isZero();
+    assertThat(result.streakBefore()).isEqualTo(endedStreak);
   }
 
   @Test
@@ -73,8 +218,6 @@ class ConsecutiveBreachTrackerTest {
 
     var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
 
-    // The window bounds the query, not the breach: every row fetched was a breach, so the streak
-    // may run further back than the window can see.
     assertThat(info.count()).isEqualTo(2);
     assertThat(info.truncated()).isTrue();
   }
@@ -186,10 +329,47 @@ class ConsecutiveBreachTrackerTest {
                 BigDecimal.ZERO,
                 false,
                 false,
-                true));
+                true,
+                0,
+                0));
 
     assertThat(result.escalationCountUnavailable()).isTrue();
     assertThat(result.consecutiveBreachDays()).isZero();
+  }
+
+  @Test
+  void aCleanDayCarriesTheStreakItEndedWhileItsOwnStreakStaysAtZero() {
+    var endedStreak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.006012"),
+            new BigDecimal("0.006012"),
+            BigDecimal.ZERO,
+            java.util.Map.of("IE00BFG1TM61", new BigDecimal("0.004")),
+            new BigDecimal("-0.0003"),
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            false,
+            false,
+            false,
+            0,
+            0);
+
+    var result = tracker.updateConsecutiveCount(nonBreachingResult(), endedStreak);
+
+    assertThat(result.streakBefore()).isEqualTo(endedStreak);
+    assertThat(result.consecutiveBreachDays()).isZero();
+    assertThat(result.consecutiveNetTd()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aBreachDayCarriesTheStreakBeforeItSoTheRuleCanJudgeTheDaysThatMadeTheNotificationDue() {
+    var streakBefore = streakOf(3, 0, 0);
+
+    var result = tracker.updateConsecutiveCount(breachingResult(), streakBefore);
+
+    assertThat(result.streakBefore()).isEqualTo(streakBefore);
+    assertThat(result.consecutiveBreachDays()).isEqualTo(4);
   }
 
   @Test
@@ -220,7 +400,9 @@ class ConsecutiveBreachTrackerTest {
                 new BigDecimal("0.00002"),
                 false,
                 false,
-                false));
+                false,
+                0,
+                0));
 
     // A BENCHMARK result carries no cash, fee or residual breakdown at all. Adding null to the
     // running streak totals would take the whole escalation message down with it.
@@ -228,6 +410,37 @@ class ConsecutiveBreachTrackerTest {
     assertThat(result.escalationCashDrag()).isEqualByComparingTo("-0.0001");
     assertThat(result.escalationFeeDrag()).isEqualByComparingTo("-0.00005");
     assertThat(result.escalationResidual()).isEqualByComparingTo("0.00002");
+  }
+
+  private TrackingDifferenceResult breachingResult() {
+    return TrackingDifferenceResult.builder()
+        .fund(TUK75)
+        .checkType(MODEL_PORTFOLIO)
+        .checkDate(CHECK_DATE)
+        .fundReturn(new BigDecimal("0.01"))
+        .benchmarkReturn(new BigDecimal("0.008"))
+        .trackingDifference(new BigDecimal("0.002"))
+        .breach(true)
+        .securityAttributions(List.of())
+        .build();
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
+      int count, int uncheckedDays, int uncheckedDaysSince) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        count,
+        new BigDecimal("0.006"),
+        new BigDecimal("0.006"),
+        BigDecimal.ZERO,
+        java.util.Map.of(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        false,
+        false,
+        false,
+        uncheckedDays,
+        uncheckedDaysSince);
   }
 
   private TrackingDifferenceResult nonBreachingResult() {

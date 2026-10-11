@@ -32,6 +32,8 @@ public class Email {
 
   private @Nullable String mailchimpCampaign;
 
+  private @Nullable String nudge;
+
   @NotNull
   @Enumerated(STRING)
   private EmailType type;
@@ -45,6 +47,10 @@ public class Email {
 
   @Column(name = "mandate_batch_id")
   private @Nullable Long mandateBatchId;
+
+  private @Nullable Integer attempts;
+
+  private @Nullable String lastError;
 
   @NotNull private Instant createdDate;
 

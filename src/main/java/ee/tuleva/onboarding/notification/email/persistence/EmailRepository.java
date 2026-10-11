@@ -36,6 +36,9 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
 
   boolean existsByType(EmailType type);
 
+  boolean existsByPersonalCodeAndTypeAndStatusIn(
+      String personalCode, EmailType type, Collection<EmailStatus> statuses);
+
   Optional<Email> findByMandrillMessageId(String mandrillMessageId);
 
   boolean existsByMailchimpCampaign(String mailchimpCampaign);

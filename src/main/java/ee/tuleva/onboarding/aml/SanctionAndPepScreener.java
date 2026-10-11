@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.*;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -76,19 +77,31 @@ public class SanctionAndPepScreener {
     return Set.of();
   }
 
-  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
+  public ScreeningOutcome screeningOutcome(Person person, Set<Country> countries) {
     if (screenForSanctionAndPep(person, countries).failed()) {
-      return false;
+      return UNAVAILABLE;
     }
-    return latestCheckPassed(person, SANCTION)
-        && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+    Optional<Boolean> sanctionClear = latestCheckResult(person, SANCTION);
+    if (sanctionClear.isEmpty()) {
+      return UNAVAILABLE;
+    }
+    if (!sanctionClear.get()) {
+      return SANCTION_HIT;
+    }
+    Optional<Boolean> pepClear = latestCheckResult(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+    if (pepClear.isEmpty()) {
+      return UNAVAILABLE;
+    }
+    if (!pepClear.get()) {
+      return PEP_HIT;
+    }
+    return CLEAR;
   }
 
-  private boolean latestCheckPassed(Person person, AmlCheckType type) {
+  private Optional<Boolean> latestCheckResult(Person person, AmlCheckType type) {
     return amlCheckRepository
         .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(person.getPersonalCode(), type)
-        .map(AmlCheck::isSuccess)
-        .orElse(false);
+        .map(AmlCheck::isSuccess);
   }
 
   ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {

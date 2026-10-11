@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.investment.check.limit;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.investment.check.limit.LimitCheckRun.UnfilledGap;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -19,12 +21,15 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -46,6 +51,54 @@ class LimitCheckService {
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
   private final TransactionOrderRepository transactionOrderRepository;
+  private final LimitCheckEventRepository limitCheckEventRepository;
+
+  Map<TulevaFund, List<LocalDate>> gapDates(int lookbackDays) {
+    var today = LocalDate.now(clock);
+    var from = today.minusDays(lookbackDays);
+    var gaps = new LinkedHashMap<TulevaFund, List<LocalDate>>();
+
+    for (var fund : TulevaFund.values()) {
+      var alreadyChecked =
+          Set.copyOf(limitCheckEventRepository.findDistinctCheckDates(fund, from, today));
+      var missing =
+          fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, today).stream()
+              .filter(navDate -> !alreadyChecked.contains(navDate))
+              .sorted()
+              .toList();
+      if (!missing.isEmpty()) {
+        gaps.put(fund, missing);
+      }
+    }
+
+    return gaps;
+  }
+
+  LimitCheckRun fillGaps(Map<TulevaFund, List<LocalDate>> gaps, int lookbackDays) {
+    var today = LocalDate.now(clock);
+    var results = new ArrayList<LimitCheckResult>();
+    var unfilledGaps = new ArrayList<UnfilledGap>();
+
+    gaps.forEach(
+        (fund, dates) ->
+            dates.forEach(
+                checkDate -> {
+                  try {
+                    results.add(checkFund(fund, checkDate));
+                  } catch (Exception e) {
+                    log.error(
+                        "Limit check gap fill failed: fund={}, checkDate={}", fund, checkDate, e);
+                    unfilledGaps.add(
+                        new UnfilledGap(
+                            fund,
+                            checkDate,
+                            DAYS.between(checkDate, today),
+                            checkDate.plusDays(lookbackDays)));
+                  }
+                }));
+
+    return new LimitCheckRun(List.copyOf(results), List.of(), List.copyOf(unfilledGaps));
+  }
 
   LimitCheckRun runChecks() {
     return runChecksForFunds(List.of(TulevaFund.values()));
@@ -243,10 +296,7 @@ class LimitCheckService {
   }
 
   private LimitCheckEvent event(
-      TulevaFund fund,
-      LocalDate checkDate,
-      CheckType checkType,
-      @org.jspecify.annotations.Nullable ReserveBreach breach) {
+      TulevaFund fund, LocalDate checkDate, CheckType checkType, @Nullable ReserveBreach breach) {
     return event(
         fund,
         checkDate,
@@ -256,10 +306,7 @@ class LimitCheckService {
   }
 
   private LimitCheckEvent event(
-      TulevaFund fund,
-      LocalDate checkDate,
-      CheckType checkType,
-      @org.jspecify.annotations.Nullable FreeCashBreach breach) {
+      TulevaFund fund, LocalDate checkDate, CheckType checkType, @Nullable FreeCashBreach breach) {
     return event(
         fund,
         checkDate,

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { matchesLive } from './live-template.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
@@ -58,7 +59,7 @@ for (const [name, meta] of Object.entries(manifest.templates)) {
   }
 
   const liveCode = live.publish_code ?? live.code ?? '';
-  if (liveCode === code && live.publish_subject === meta.subject) {
+  if (matchesLive(liveCode, code) && live.publish_subject === meta.subject) {
     console.log(`unchanged: ${name}`);
     continue;
   }

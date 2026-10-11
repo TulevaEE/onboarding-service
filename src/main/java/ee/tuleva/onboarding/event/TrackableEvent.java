@@ -12,6 +12,9 @@ import org.springframework.boot.actuate.audit.listener.AuditApplicationEvent;
 @EqualsAndHashCode(callSuper = false)
 public class TrackableEvent extends AuditApplicationEvent {
 
+  public static final String IP_ADDRESS = "ipAddress";
+  public static final String USER_AGENT = "userAgent";
+
   private final Person person;
   private final TrackableEventType type;
   private final Map<String, @Nullable Object> data;

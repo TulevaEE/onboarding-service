@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.fund
 
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.LOW_RISK
 import static ee.tuleva.onboarding.fund.FundFixture.exitRestricted3rdPillarFund
 import static ee.tuleva.onboarding.fund.FundFixture.lhv3rdPillarFund
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
@@ -39,6 +41,16 @@ class FundSpec extends Specification {
 
     then:
     isExitRestricted
+  }
+
+  def "is low risk only at the low risk level"() {
+    expect:
+    Fund.builder().riskLevel(riskLevel).build().isLowRisk() == lowRisk
+
+    where:
+    riskLevel || lowRisk
+    LOW_RISK  || true
+    HIGH_RISK || false
   }
 
   def "own fund follows the fund manager"() {

@@ -78,9 +78,9 @@ public class PipelineNotifier {
     }
 
     var failed = pipeline.firstFailure().orElseThrow();
-    message.append(
-        "\n\nChain stopped. Fix and re-trigger:\nINSERT INTO investment_job_trigger (job_name) VALUES ('%s');"
-            .formatted(jobNameForStep(failed.getName())));
+    message
+        .append("\n\nChain stopped. ")
+        .append(RetriggerHint.forFailedStep(pipeline, failed.getName()));
 
     notificationService.sendMessage(message.toString(), INVESTMENT);
   }
@@ -145,21 +145,5 @@ public class PipelineNotifier {
     long minutes = totalSeconds / 60;
     long seconds = totalSeconds % 60;
     return "%dm %ds".formatted(minutes, seconds);
-  }
-
-  private String jobNameForStep(String stepName) {
-    return switch (stepName) {
-      case PipelineStep.REPORT_IMPORT -> "ReportImportJob";
-      case PipelineStep.POSITION_IMPORT -> "FundPositionImportJob";
-      case PipelineStep.FEE_ACCRUAL_SYNC -> "FeeAccrualPositionSyncJob";
-      case PipelineStep.NAV_CALCULATION, PipelineStep.REPORT_PERSIST, PipelineStep.REPORT_EMAIL ->
-          "NavCalculationJob";
-      case PipelineStep.LIMIT_CHECK -> "LimitCheckJob";
-      case PipelineStep.FEE_CHECK -> "FeeCheckJob";
-      case PipelineStep.HEALTH_CHECK -> "FundPositionImportJob";
-      case PipelineStep.EXECUTION_MATCHING -> "SebPendingTransactionReconciliationJob";
-      case PipelineStep.TRACKING_DIFFERENCE -> "TrackingDifferenceJob";
-      default -> stepName;
-    };
   }
 }

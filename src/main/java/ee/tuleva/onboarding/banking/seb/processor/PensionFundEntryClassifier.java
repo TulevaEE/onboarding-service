@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
@@ -13,6 +15,10 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public class PensionFundEntryClassifier {
 
+  private static final List<String>
+      REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE =
+          List.of("rebate", "kickback", "br tasud");
+
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
 
@@ -21,6 +27,7 @@ public class PensionFundEntryClassifier {
           BankFee,
           BankAdjustment,
           ManagementFeeRebate,
+          UnrecognisedManagementCompanyCredit,
           ManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
@@ -35,6 +42,8 @@ public class PensionFundEntryClassifier {
   public record BankAdjustment() implements Classification {}
 
   public record ManagementFeeRebate() implements Classification {}
+
+  public record UnrecognisedManagementCompanyCredit() implements Classification {}
 
   public record ManagementFeePayment() implements Classification {}
 
@@ -89,7 +98,9 @@ public class PensionFundEntryClassifier {
     }
     var name = details.getName();
     if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
-      return entry.amount().signum() < 0 ? new ManagementFeePayment() : new ManagementFeeRebate();
+      return entry.amount().signum() < 0
+          ? new ManagementFeePayment()
+          : managementCompanyCredit(entry.remittanceInformation());
     }
     if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
       return entry.amount().signum() > 0 ? new RegistrarContribution() : new RegistrarPayout();
@@ -101,6 +112,17 @@ public class PensionFundEntryClassifier {
       return new BankFee();
     }
     return new Unclassified("unknown counterparty");
+  }
+
+  private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {
+    if (remittanceInformation == null) {
+      return new UnrecognisedManagementCompanyCredit();
+    }
+    var text = comparableWording(remittanceInformation);
+    return REMITTANCE_PHRASES_THAT_MAKE_A_MANAGEMENT_COMPANY_CREDIT_A_REBATE.stream()
+            .anyMatch(text::contains)
+        ? new ManagementFeeRebate()
+        : new UnrecognisedManagementCompanyCredit();
   }
 
   private Classification classifyTradeSettlement(BankStatementEntry entry) {
@@ -122,6 +144,10 @@ public class PensionFundEntryClassifier {
 
   private static boolean isKickback(@Nullable String remittanceInformation) {
     return remittanceInformation != null
-        && remittanceInformation.toLowerCase().contains("kickback");
+        && comparableWording(remittanceInformation).contains("kickback");
+  }
+
+  private static String comparableWording(String remittanceInformation) {
+    return remittanceInformation.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
   }
 }

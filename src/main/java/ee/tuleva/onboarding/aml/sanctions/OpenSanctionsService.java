@@ -13,10 +13,15 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -31,17 +36,29 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
   private final RestTemplate restTemplate;
   private final JsonMapper objectMapper;
   private final String baseUrl;
+  private final RetryTemplate retryTemplate;
 
   public OpenSanctionsService(
       RestTemplateBuilder restTemplateBuilder,
       JsonMapper objectMapper,
       @Value("${opensanctions.url}") String baseUrl,
       @Value("${opensanctions.connect-timeout:5s}") Duration connectTimeout,
-      @Value("${opensanctions.read-timeout:15s}") Duration readTimeout) {
+      @Value("${opensanctions.read-timeout:30s}") Duration readTimeout,
+      @Value("${opensanctions.retry-delay:500ms}") Duration retryDelay) {
     this.restTemplate =
         restTemplateBuilder.connectTimeout(connectTimeout).readTimeout(readTimeout).build();
     this.objectMapper = objectMapper;
     this.baseUrl = baseUrl;
+    this.retryTemplate = new RetryTemplate(retryPolicy(retryDelay));
+  }
+
+  private static RetryPolicy retryPolicy(Duration retryDelay) {
+    return RetryPolicy.builder()
+        .includes(HttpServerErrorException.class, ResourceAccessException.class)
+        .excludes(HttpClientErrorException.class)
+        .maxRetries(2)
+        .delay(retryDelay)
+        .build();
   }
 
   @Override
@@ -75,8 +92,10 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
     var matchRequest = Map.of("queries", Map.of(queryKey, query));
 
     String json =
-        restTemplate.postForObject(
-            baseUrl + MATCH_URL, new HttpEntity<>(matchRequest, headers()), String.class);
+        retryTemplate.invoke(
+            () ->
+                restTemplate.postForObject(
+                    baseUrl + MATCH_URL, new HttpEntity<>(matchRequest, headers()), String.class));
 
     JsonNode rootNode = objectMapper.readTree(json);
     JsonNode response = rootNode.path("responses").path(queryKey);
@@ -119,7 +138,7 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
     }
   }
 
-  private HttpHeaders headers() {
+  private static HttpHeaders headers() {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     headers.setAccept(List.of(MediaType.APPLICATION_JSON));

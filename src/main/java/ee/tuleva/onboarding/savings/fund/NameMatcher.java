@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.joining;
 
 import java.text.Normalizer;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,7 +15,7 @@ public class NameMatcher {
   private static final String OSAUHING = "OSAUHING";
   private static final String OSAUHING_ABBREVIATION = "OU";
 
-  public boolean isSameName(String name1, String name2) {
+  public boolean isSameName(@Nullable String name1, @Nullable String name2) {
     if (name1 == null || name2 == null) return false;
     var normalized1 = normalize(name1);
     var normalized2 = normalize(name2);

@@ -81,6 +81,28 @@ class SuspenseReclassificationServiceTest {
   }
 
   @Test
+  void reclassify_leavesAManagerCreditNotStatedAsARebateInSuspense() {
+    parkManagerCredit("100.00", "muu ülekanne");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE_REBATE)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("-100.00"));
+  }
+
+  private void parkManagerCredit(String amount, String remittanceInformation) {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal(amount),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(
+            "Tuleva Fondid AS", "EE001234567890123488", remittanceInformation, "RCDT"));
+  }
+
+  @Test
   void reclassify_movesRegistrarEntriesOutOfSuspenseAndLeavesUnknownOnes() {
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,

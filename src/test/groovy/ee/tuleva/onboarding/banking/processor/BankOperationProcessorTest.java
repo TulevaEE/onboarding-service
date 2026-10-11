@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
@@ -37,6 +38,8 @@ class BankOperationProcessorTest {
 
   @Mock FundBankLedger fundBankLedger;
   @Mock TradeSettlementParser tradeSettlementParser;
+
+  @Mock PaymentCheckService paymentCheckService;
 
   @InjectMocks BankOperationProcessor processor;
 
@@ -296,7 +299,7 @@ class BankOperationProcessorTest {
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
             "IE00BFG1TM61",
-            "0P000152G5",
+            "BDWTEIA",
             "iShares Developed World Screened Index Fund",
             new BigDecimal("31426.66"));
 
@@ -312,7 +315,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }
@@ -355,7 +358,7 @@ class BankOperationProcessorTest {
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
             "IE00BFG1TM61",
-            "0P000152G5",
+            "BDWTEIA",
             "iShares Developed World Screened Index Fund",
             new BigDecimal("1450.25"));
 
@@ -371,7 +374,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq("IE00BFG1TM61"),
-            eq("0P000152G5"),
+            eq("BDWTEIA"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
   }

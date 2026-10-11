@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
@@ -13,9 +14,9 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,17 +30,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
-@Import({
-  LedgerService.class,
-  LedgerAccountService.class,
-  LedgerPartyService.class,
-  LedgerTransactionService.class,
-  SavingsFundLedgerAccounts.class,
-  RedemptionLedgerRecorder.class,
-  UnattributedPaymentLedgerRecorder.class,
-  SavingsFundLedger.class,
-  ClockConfig.class
-})
+@Import(SavingsFundLedgerStackConfiguration.class)
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;
@@ -179,10 +170,15 @@ class SavingsFundLedgerTest {
     var navPerUnit = new BigDecimal("10.00");
     var redemptionRequestId = randomUUID();
     var bookingDate = LocalDate.of(2026, 6, 12);
-    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, randomUUID());
+    setupUserWithFundUnits(cashAmount, fundUnits, navPerUnit, randomUUID());
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
 
     var transfer =
         savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId, bookingDate);
@@ -385,7 +381,7 @@ class SavingsFundLedgerTest {
         savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     var subscriptionTx =
         savingsFundLedger.issueFundUnitsFromReserved(
-            testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+            testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     var transferTx = savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     verifyDoubleEntry(paymentTx);
@@ -429,7 +425,12 @@ class SavingsFundLedgerTest {
             testParty, redeemUnits, redemptionRequestId);
     var redemptionTx =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testParty, redeemUnits, redeemAmount, navPerUnit, redemptionRequestId);
+            testParty,
+            redeemUnits,
+            redeemAmount,
+            navPerUnit,
+            LocalDate.parse("2025-03-10"),
+            redemptionRequestId);
     var cashTransferTx =
         savingsFundLedger.transferFromFundAccount(redeemAmount, redemptionRequestId);
     var payoutTx =
@@ -488,7 +489,7 @@ class SavingsFundLedgerTest {
     savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount()))
@@ -501,7 +502,12 @@ class SavingsFundLedgerTest {
     var redemptionRequestId = randomUUID();
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
     savingsFundLedger.recordRedemptionPayout(
         testParty, cashAmount, customerIban, redemptionRequestId);
@@ -575,6 +581,281 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  void holderAccounts_canNeverBeLeftInDebit_reservingMoreUnitsThanHeldIsRefused() {
+    setupUserWithFundUnits(
+        new BigDecimal("100.00"),
+        new BigDecimal("100.00000"),
+        new BigDecimal("1.00000"),
+        randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reserveFundUnitsForRedemption(
+                    testParty, new BigDecimal("150.00000"), randomUUID()))
+        .isInstanceOf(UnitBalanceViolationException.class);
+    assertThat(getUserUnitsAccount().getBalance())
+        .isEqualByComparingTo(new BigDecimal("-100.00000"));
+  }
+
+  @Test
+  void holderAccounts_canNeverBeLeftInDebit_adjustingAwayMoreUnitsThanHeldIsRefused() {
+    setupUserWithFundUnits(
+        new BigDecimal("100.00"),
+        new BigDecimal("100.00000"),
+        new BigDecimal("1.00000"),
+        randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordAdjustment(
+                    "FUND_UNITS",
+                    testParty,
+                    "FUND_UNITS_OUTSTANDING",
+                    null,
+                    new BigDecimal("150.00000"),
+                    null,
+                    "Unit adjustment"))
+        .isExactlyInstanceOf(IllegalStateException.class);
+    assertThat(getUserUnitsAccount().getBalance())
+        .isEqualByComparingTo(new BigDecimal("-100.00000"));
+  }
+
+  @Test
+  void holderAccounts_canNeverBeLeftInDebit_cancellingWhatWasNeverCreditedIsRefused() {
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("1.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reservePaymentForCancellation(
+                    testParty, new BigDecimal("2100.00"), randomUUID()))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(new BigDecimal("-1.00"));
+  }
+
+  @Test
+  void holderAccounts_canNeverBeLeftInDebit_payingOutToAPartyWithoutAPricedRedemptionIsRefused() {
+    var representative = new PartyRef(PERSON, "38888888888");
+    savingsFundLedger.recordPaymentReceived(representative, new BigDecimal("1.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordRedemptionPayout(
+                    representative,
+                    new BigDecimal("2991.94"),
+                    "EE442200221092874625",
+                    randomUUID()))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(getUserAccount(representative, CASH_REDEMPTION).getBalance())
+        .isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void recordRedemptionPayout_refusesAPartyOtherThanTheOneWhoseRedemptionWasPriced() {
+    var holder = new PartyRef(LEGAL_ENTITY, "12345678");
+    var representative = testParty;
+    var holderRedemptionId = randomUUID();
+    var amount = new BigDecimal("50.00");
+    setupPartyWithFundUnits(holder, amount, new BigDecimal("5.00000"), new BigDecimal("10.00"));
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        holder, new BigDecimal("5.00000"), holderRedemptionId);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        holder,
+        new BigDecimal("5.00000"),
+        amount,
+        new BigDecimal("10.00"),
+        LocalDate.parse("2025-03-10"),
+        holderRedemptionId);
+    priceRedemption(amount, new BigDecimal("5.00000"), new BigDecimal("10.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordRedemptionPayout(
+                    representative, amount, "EE442200221092874625", holderRedemptionId))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(getUserAccount(holder, CASH_REDEMPTION).getBalance())
+        .isEqualByComparingTo(amount.negate());
+    assertThat(getUserAccount(representative, CASH_REDEMPTION).getBalance())
+        .isEqualByComparingTo(amount.negate());
+  }
+
+  @Test
+  void integrityQueries_findNothingWhenEveryFlowRanToCompletion() {
+    var redemptionId = randomUUID();
+    priceRedemption(
+        new BigDecimal("100.00"),
+        new BigDecimal("10.00000"),
+        new BigDecimal("10.00"),
+        redemptionId);
+    savingsFundLedger.recordRedemptionPayout(
+        testParty, new BigDecimal("100.00"), "EE442200221092874625", redemptionId);
+
+    assertThat(savingsFundLedger.findHolderAccountIdsInDebit()).isEmpty();
+    assertThat(savingsFundLedger.findPayoutIdsBookedToAnotherPartyThanPriced()).isEmpty();
+  }
+
+  @Test
+  void reclassifyBetweenParties_movesAMisattributedReceiptToTheRightHolder() {
+    var wrongHolder = testParty;
+    var rightHolder = new PartyRef(LEGAL_ENTITY, "12345678");
+    var amount = new BigDecimal("2991.94");
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(rightHolder, new BigDecimal("1.00"), randomUUID());
+    var misattributed = savingsFundLedger.recordPaymentReceived(wrongHolder, amount, paymentId);
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+
+    var transaction =
+        savingsFundLedger
+            .reclassifyBetweenParties(
+                List.of(
+                    new PartyReclassification(
+                        CASH,
+                        wrongHolder,
+                        rightHolder,
+                        amount,
+                        paymentId,
+                        misattributed.getId(),
+                        "Receipt attributed to the wrong person")))
+            .getFirst();
+
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.ADJUSTMENT);
+    assertThat(transaction.getExternalReference()).isEqualTo(paymentId);
+    assertThat(transaction.getMetadata())
+        .containsEntry("operationType", "PARTY_RECLASSIFICATION")
+        .containsEntry("account", "CASH")
+        .containsEntry("correctedTransactionId", misattributed.getId().toString())
+        .containsEntry("description", "Receipt attributed to the wrong person");
+    assertThat(getUserAccount(wrongHolder, CASH).getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserAccount(rightHolder, CASH).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-2992.94"));
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(clearingBefore);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void reclassifyBetweenParties_refusesToLeaveAHolderAccountInDebit() {
+    var innocentHolder = testParty;
+    var otherHolder = new PartyRef(PERSON, "38888888888");
+    savingsFundLedger.recordPaymentReceived(innocentHolder, new BigDecimal("5.00"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(otherHolder, new BigDecimal("100.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reclassifyBetweenParties(
+                    List.of(
+                        new PartyReclassification(
+                            CASH,
+                            innocentHolder,
+                            otherHolder,
+                            new BigDecimal("100.00"),
+                            null,
+                            null,
+                            "oops"))))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(getUserAccount(innocentHolder, CASH).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-5.00"));
+    assertThat(getUserAccount(otherHolder, CASH).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-100.00"));
+  }
+
+  @Test
+  void reclassifyBetweenParties_requiresTwoDifferentParties() {
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("1.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reclassifyBetweenParties(
+                    List.of(
+                        new PartyReclassification(
+                            CASH,
+                            testParty,
+                            testParty,
+                            new BigDecimal("1.00"),
+                            null,
+                            null,
+                            "same party"))))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void reclassifyBetweenParties_repairsTwoReceiptsMisattributedToTheSameHolderInOneBatch() {
+    var wrongHolder = testParty;
+    var rightHolder = new PartyRef(LEGAL_ENTITY, "12345678");
+    var first = new BigDecimal("2013.96");
+    var second = new BigDecimal("977.98");
+    savingsFundLedger.recordPaymentReceived(rightHolder, new BigDecimal("1.00"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(wrongHolder, first, randomUUID());
+    savingsFundLedger.recordPaymentReceived(wrongHolder, second, randomUUID());
+
+    var transactions =
+        savingsFundLedger.reclassifyBetweenParties(
+            List.of(
+                new PartyReclassification(
+                    CASH, wrongHolder, rightHolder, first, null, null, "first"),
+                new PartyReclassification(
+                    CASH, wrongHolder, rightHolder, second, null, null, "second")));
+
+    assertThat(transactions).hasSize(2);
+    assertThat(getUserAccount(wrongHolder, CASH).getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserAccount(rightHolder, CASH).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-2992.94"));
+  }
+
+  @Test
+  void reclassifyBetweenParties_recordsNothingWhenTheBatchWouldLeaveAnAccountInDebit() {
+    var wrongHolder = testParty;
+    var rightHolder = new PartyRef(LEGAL_ENTITY, "12345678");
+    savingsFundLedger.recordPaymentReceived(rightHolder, new BigDecimal("1.00"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(wrongHolder, new BigDecimal("50.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reclassifyBetweenParties(
+                    List.of(
+                        new PartyReclassification(
+                            CASH,
+                            wrongHolder,
+                            rightHolder,
+                            new BigDecimal("50.00"),
+                            null,
+                            null,
+                            "ok"),
+                        new PartyReclassification(
+                            CASH,
+                            wrongHolder,
+                            rightHolder,
+                            new BigDecimal("1.00"),
+                            null,
+                            null,
+                            "one too many"))))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(getUserAccount(wrongHolder, CASH).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-50.00"));
+  }
+
+  @Test
+  void reclassifyBetweenParties_refusesIncomeAndExpenseAccounts() {
+    var otherHolder = new PartyRef(PERSON, "38888888888");
+    savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("1.00"), randomUUID());
+    savingsFundLedger.recordPaymentReceived(otherHolder, new BigDecimal("1.00"), randomUUID());
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.reclassifyBetweenParties(
+                    List.of(
+                        new PartyReclassification(
+                            REDEMPTIONS,
+                            testParty,
+                            otherHolder,
+                            new BigDecimal("1.00"),
+                            null,
+                            null,
+                            "expense"))))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void recordAdjustment_differentParties_throwsException() {
     var paymentId = randomUUID();
     savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), paymentId);
@@ -636,17 +917,48 @@ class SavingsFundLedgerTest {
     verifyDoubleEntry(transaction);
   }
 
+  private void setupPartyWithFundUnits(
+      PartyRef party, BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
+    var paymentId = randomUUID();
+    savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        party, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
+    savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
+  }
+
+  private void priceRedemption(
+      BigDecimal cashAmount,
+      BigDecimal fundUnits,
+      BigDecimal navPerUnit,
+      UUID redemptionRequestId) {
+    setupUserWithFundUnits(cashAmount, fundUnits, navPerUnit, randomUUID());
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        testParty, fundUnits, redemptionRequestId == null ? randomUUID() : redemptionRequestId);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
+  }
+
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit, UUID paymentId) {
     savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
   private LedgerAccount getUserAccount(UserAccount userAccount) {
-    return ledgerService.getPartyAccount(testParty.code(), PERSON, userAccount);
+    return getUserAccount(testParty, userAccount);
+  }
+
+  private LedgerAccount getUserAccount(PartyRef party, UserAccount userAccount) {
+    return ledgerService.getPartyAccount(party.code(), party.type(), userAccount);
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
@@ -801,6 +1113,7 @@ class SavingsFundLedgerTest {
   void recordRedemptionPayout_withoutRedemptionRequestId_omitsMetadataKey() {
     var amount = new BigDecimal("500.00");
     var customerIban = "EE471000001020145685";
+    priceRedemption(amount, new BigDecimal("50.00000"), new BigDecimal("10.00"), null);
 
     var transaction =
         savingsFundLedger.recordRedemptionPayout(testParty, amount, customerIban, null);
@@ -814,11 +1127,17 @@ class SavingsFundLedgerTest {
   @Test
   void redeemFundUnitsFromReserved_withoutRedemptionRequestId_omitsMetadataKey() {
     var units = new BigDecimal("2.00000");
+    setupUserWithFundUnits(new BigDecimal("200.00"), units, new BigDecimal("100.00"), randomUUID());
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, units, randomUUID());
 
     var transaction =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testParty, units, new BigDecimal("200.00"), new BigDecimal("100.00"), null);
+            testParty,
+            units,
+            new BigDecimal("200.00"),
+            new BigDecimal("100.00"),
+            LocalDate.parse("2025-03-10"),
+            null);
 
     assertThat(transaction.getExternalReference()).isNull();
     assertThat(transaction.getMetadata()).doesNotContainKey("redemptionRequestId");
@@ -830,12 +1149,20 @@ class SavingsFundLedgerTest {
     var redemptionRequestId = randomUUID();
 
     assertThat(savingsFundLedger.hasPricingEntry(redemptionRequestId)).isFalse();
+    setupUserWithFundUnits(
+        new BigDecimal("100.00"),
+        new BigDecimal("1.00000"),
+        new BigDecimal("100.00"),
+        randomUUID());
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        testParty, new BigDecimal("1.00000"), redemptionRequestId);
 
     savingsFundLedger.redeemFundUnitsFromReserved(
         testParty,
         new BigDecimal("1.00000"),
         new BigDecimal("100.00"),
         new BigDecimal("100.00"),
+        LocalDate.parse("2025-03-10"),
         redemptionRequestId);
 
     assertThat(savingsFundLedger.hasPricingEntry(redemptionRequestId)).isTrue();
@@ -847,6 +1174,11 @@ class SavingsFundLedgerTest {
     var customerIban = "EE471000001020145685";
 
     assertThat(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).isFalse();
+    priceRedemption(
+        new BigDecimal("100.00"),
+        new BigDecimal("1.00000"),
+        new BigDecimal("100.00"),
+        redemptionRequestId);
 
     savingsFundLedger.recordRedemptionPayout(
         testParty, new BigDecimal("100.00"), customerIban, redemptionRequestId);
@@ -858,6 +1190,7 @@ class SavingsFundLedgerTest {
   void cancelRedemptionReservation_returnsTheCancellationTransaction() {
     var fundUnits = new BigDecimal("2.00000");
     var externalReference = randomUUID();
+    setupUserWithFundUnits(new BigDecimal("2.00"), fundUnits, new BigDecimal("1.00"), randomUUID());
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, randomUUID());
 
     var transaction =

@@ -94,9 +94,8 @@ class SebPendingTransactionReconciliationJob {
     return Optional.ofNullable(firstError);
   }
 
-  @EventListener
-  void onSebPendingTransactionReconciliationRequested(
-      RunSebPendingTransactionReconciliationRequested event) {
+  @EventListener(RunSebPendingTransactionReconciliationRequested.class)
+  void onSebPendingTransactionReconciliationRequested() {
     run();
   }
 }

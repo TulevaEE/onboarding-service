@@ -75,7 +75,7 @@ class SebPendingTransactionComplexMatchIT {
                 .reportType(PENDING_TRANSACTIONS)
                 .reportDate(LocalDate.of(2026, 5, 13))
                 .rawData(List.of(rawRowWithoutClientRef()))
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-05-12"))
                 .createdAt(Instant.now())
                 .build());
   }
@@ -115,7 +115,7 @@ class SebPendingTransactionComplexMatchIT {
                 .reportType(PENDING_TRANSACTIONS)
                 .reportDate(LocalDate.of(2026, 5, 14))
                 .rawData(List.of(rawRowWithoutClientRef("DLA0002222", "3288")))
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-05-13"))
                 .createdAt(Instant.now())
                 .build());
 

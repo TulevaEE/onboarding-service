@@ -7,10 +7,13 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sissemakse on tehtud. Sellega oled 30% tublimate Eesti inimeste seas, kes
-          III&nbsp;sambas koguvad. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva
-          lõpuks. Kui kandsid raha üle nädalavahetusel, näed uusi osakuid oma pensionikontol
-          teisipäeva õhtuks.
+          Sissemakse on tehtud. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva lõpuks.
+          Kui kandsid raha üle nädalavahetusel, näed uusi osakuid oma pensionikontol teisipäeva
+          õhtuks.
+        </mj-text>
+        <mj-text>
+          III&nbsp;sambas kogub vaid 30% Eesti inimestest. Sina kuulud nende hulka ja panustad
+          teadlikult oma tuleviku heaks.
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />

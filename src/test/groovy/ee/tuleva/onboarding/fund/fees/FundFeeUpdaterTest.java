@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.fund.fees;
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK;
 import static ee.tuleva.onboarding.fund.fees.FundFeeUpdater.FeeField.MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.fund.fees.FundFeeUpdater.FeeField.ONGOING_CHARGES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -207,7 +208,7 @@ class FundFeeUpdaterTest {
         .nameEnglish(nameEstonian)
         .shortName(isin)
         .pillar(pillar)
-        .equityShare(BigDecimal.ZERO)
+        .riskLevel(HIGH_RISK)
         .managementFeeRate(new BigDecimal(managementFeeRate))
         .ongoingChargesFigure(new BigDecimal(ongoingChargesFigure))
         .status(ACTIVE)

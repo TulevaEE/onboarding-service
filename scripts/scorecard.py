@@ -15,7 +15,12 @@ Inputs (produced by ./gradlew test pmdMain, plus optional pitest):
 
 Ratchets: LOWER_IS_BETTER must never increase, HIGHER_IS_BETTER must never
 decrease (coverage gets a small tolerance so deleting well-covered dead code
-is not blocked). Everything else is informational trend data.
+is not blocked). Everything else is informational trend data, including
+disconnectedClasses, whose ratchet CohesionMetricsTest owns in
+metrics/baseline.json.
+
+CI's scorecard job runs this against the build job's reports, so a regression
+fails on the branch that introduces it rather than on the next one to run it.
 """
 
 import json
@@ -35,7 +40,6 @@ LOWER_IS_BETTER = [
     "deepNestingViolations",
     "compilerWarnings",
     "disabledTests",
-    "disconnectedClasses",
     "longClasses",
     "godClasses",
     "modulithViolations",
@@ -169,7 +173,7 @@ def convention_metrics():
             continue
         clock_violations += len(clock_pattern.findall(f.read_text(encoding="utf-8")))
     disabled = subprocess.run(
-        ["grep", "-rlE", "@Disabled|@Ignore\b", str(ROOT / "src" / "test" / "groovy")],
+        ["grep", "-rlE", r"@Disabled|@Ignore\b", str(ROOT / "src" / "test" / "groovy")],
         capture_output=True,
         text=True,
     ).stdout.splitlines()
@@ -315,9 +319,6 @@ def main():
 
     if previous and "compilerWarnings" not in current and "compilerWarnings" in previous:
         current["compilerWarnings"] = previous["compilerWarnings"]
-
-    if previous and "disconnectedClasses" not in current and "disconnectedClasses" in previous:
-        current["disconnectedClasses"] = previous["disconnectedClasses"]
 
     if previous and "--init" not in sys.argv:
         for key in sorted(set(previous) | set(current)):

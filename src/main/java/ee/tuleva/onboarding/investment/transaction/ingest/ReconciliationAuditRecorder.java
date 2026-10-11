@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -30,6 +31,7 @@ class ReconciliationAuditRecorder {
   static final String REASON_MISSING_ISIN = "MISSING_ISIN";
   static final String REASON_ISIN_SIDE_MISMATCH = "ISIN_SIDE_MISMATCH";
   static final String REASON_FUND_MISMATCH = "FUND_MISMATCH";
+  static final String REASON_SEB_REPORTED_PRECISION = "SEB_REPORTED_PRECISION";
 
   private static final String SYSTEM_ACTOR = "system";
 
@@ -37,8 +39,11 @@ class ReconciliationAuditRecorder {
   private final Clock clock;
 
   void recordExecutionMatched(
-      TransactionOrder order, SebPendingTransactionRow row, LocalDate reportDate) {
-    save(EXECUTION_MATCHED, order, rowPayload(row, reportDate));
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      LocalDate reportDate,
+      @Nullable BigDecimal sebReportedQuantity) {
+    save(EXECUTION_MATCHED, order, rowPayload(row, reportDate, sebReportedQuantity));
   }
 
   void recordExecutionUpdated(
@@ -46,8 +51,9 @@ class ReconciliationAuditRecorder {
       SebPendingTransactionRow row,
       LocalDate reportDate,
       Map<String, Object> before,
-      Map<String, Object> after) {
-    Map<String, Object> payload = rowPayload(row, reportDate);
+      Map<String, Object> after,
+      @Nullable BigDecimal sebReportedQuantity) {
+    Map<String, Object> payload = rowPayload(row, reportDate, sebReportedQuantity);
     payload.put("before", before);
     payload.put("after", after);
     save(EXECUTION_UPDATED, order, payload);
@@ -188,6 +194,18 @@ class ReconciliationAuditRecorder {
     putIfNotNull(payload, "clientName", row.clientName());
     putIfNotNull(payload, "account", row.account());
     putIfNotNull(payload, "instrumentName", row.instrumentName());
+    return payload;
+  }
+
+  private static Map<String, Object> rowPayload(
+      SebPendingTransactionRow row,
+      LocalDate reportDate,
+      @Nullable BigDecimal sebReportedQuantity) {
+    Map<String, Object> payload = rowPayload(row, reportDate);
+    if (sebReportedQuantity != null) {
+      payload.put("sebReportedQuantity", sebReportedQuantity);
+      payload.put("quantitySubstitutionReason", REASON_SEB_REPORTED_PRECISION);
+    }
     return payload;
   }
 

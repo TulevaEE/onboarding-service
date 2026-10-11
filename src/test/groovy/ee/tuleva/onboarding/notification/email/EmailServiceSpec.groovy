@@ -296,31 +296,4 @@ class EmailServiceSpec extends Specification {
     0 * mandrillMessagesApi._
   }
 
-  def "scrubs self promotion merge variables based on the template name"() {
-    when:
-    MandrillMessage msg = service.newMandrillMessage(
-        user.email, template,
-        [suggestThirdPillar: true, suggestSecondPillar: true, suggestPaymentRate: true,
-         suggestThirdPillarRaise: true, suggestSavingsFund: true],
-        ["test"], null)
-    def vars = msg.mergeVars.first().vars.collectEntries { [it.name, it.content] }
-
-    then:
-    vars.suggestThirdPillar == suggestThirdPillar
-    vars.suggestSecondPillar == suggestSecondPillar
-    vars.suggestPaymentRate == suggestPaymentRate
-    vars.suggestThirdPillarRaise == suggestThirdPillarRaise
-    vars.suggestSavingsFund == suggestSavingsFund
-
-    where:
-    template                             | suggestThirdPillar | suggestSecondPillar | suggestPaymentRate | suggestThirdPillarRaise | suggestSavingsFund
-    "third_pillar_payment_arrived_et"    | false              | true                | true                | true                    | true
-    "second_pillar_mandate_en"           | true               | false               | true                | true                    | true
-    "second_pillar_payment_rate_et"      | true               | true                | false               | true                    | true
-    "payment_rate_abandonment_et"        | true               | false               | false               | true                    | true
-    "withdrawal_batch_et"                | false              | false               | false               | false                   | true
-    "savings_fund_payment_success_et"    | true               | true                | true                 | true                   | false
-    "membership_et"                      | true               | true                | true                | true                    | true
-  }
-
 }

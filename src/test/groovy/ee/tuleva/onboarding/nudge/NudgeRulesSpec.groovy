@@ -1,0 +1,377 @@
+package ee.tuleva.onboarding.nudge
+
+import spock.lang.Specification
+
+import static ee.tuleva.onboarding.nudge.Known.NO
+import static ee.tuleva.onboarding.nudge.Known.UNKNOWN
+import static ee.tuleva.onboarding.nudge.Known.YES
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.everythingSorted
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleFeeComparison
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleSeason
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.CLOSED
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.LAST_DAYS
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.OFF_SEASON
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.SEASON
+import static ee.tuleva.onboarding.nudge.NudgeKey.*
+
+class NudgeRulesSpec extends Specification {
+
+  def "a saver with everything in place gets no nudge"() {
+    expect:
+    NudgeRules.decide(everythingSorted().build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+  }
+
+  def "after a savings fund payment its standing order comes before the third pillar standing order"() {
+    given:
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
+  }
+
+  def "a pillar choice still comes before the savings fund standing order after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+  }
+
+  def "a third pillar start still comes before the savings fund standing order after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().thirdPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_START)
+  }
+
+  def "after a savings fund payment its standing order comes before raising the third pillar one"() {
+    given:
+    def inputs = everythingSorted().taxHeadroom(YES).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RAISE)
+  }
+
+  def "a savings fund payment into an account that already has a standing order goes on to the third pillar standing order"() {
+    given:
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(YES).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
+  }
+
+  def "an unknown standing order does not jump ahead after a savings fund payment"() {
+    given:
+    def inputs = everythingSorted().thirdPillarRecurring(NO).savingsFundRecurring(UNKNOWN).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
+  }
+
+  def "a company payer goes through the same chain as everyone else"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+  }
+
+  def "second pillar start: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarActive(false)
+        .secondPillarPartiallyConverted(false)
+        .secondPillarFullyConverted(false)
+        .secondPillarFee(null)
+        .adult(adult)
+        .reachedRetirementAge(retired)
+        .leftSecondPillar(leftSecondPillar)
+        .pendingSecondPillarWithdrawal(pendingWithdrawal)
+        .savesInSavingsFund(NO)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                         | adult | retired | leftSecondPillar | pendingWithdrawal | context                              || expected
+    "a never-joiner is invited to open a second pillar" | true  | false   | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(SECOND_PILLAR_START)
+    "also on the account page"                          | true  | false   | NO               | false             | NudgeContext.ACCOUNT                 || NudgeDecision.of(SECOND_PILLAR_START)
+    "not right after signing a second pillar mandate"   | true  | false   | NO               | false             | NudgeContext.SECOND_PILLAR_MANDATE   || NudgeDecision.savingsFund(0.28)
+    "not at retirement age"                             | true  | true    | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+    "not a minor"                                       | false | false   | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(NONE)
+    "never a leaver"                                    | true  | false   | YES              | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+    "nothing while the leaver status is unknown"        | true  | false   | UNKNOWN          | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(NONE)
+    "not with a pending withdrawal"                     | true  | false   | NO               | true              | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+  }
+
+  def "second pillar transfer: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarActive(secondPillarActive)
+        .secondPillarPartiallyConverted(partially)
+        .secondPillarFullyConverted(fully)
+        .secondPillarFee(fee)
+        .feeComparison(sampleFeeComparison())
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == expected
+
+    where:
+    description                              | secondPillarActive | partially | fully | fee    || expected
+    "no second pillar at all"                | false              | false     | false | null   || NudgeDecision.of(SECOND_PILLAR_START)
+    "nothing at Tuleva yet, fee already low" | true               | false     | false | 0.0029 || NudgeDecision.of(NONE)
+    "nothing at Tuleva yet, high fee"        | true               | false     | false | 0.0065 || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
+    "nothing at Tuleva yet, fee unknown"     | true               | false     | false | null   || NudgeDecision.secondPillarTransfer(null)
+    "partially at Tuleva, high fee"          | true               | true      | false | 0.0065 || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
+    "partially at Tuleva, low fee"           | true               | true      | false | 0.0029 || NudgeDecision.of(NONE)
+    "fully at Tuleva"                        | true               | true      | true  | 0.0065 || NudgeDecision.of(NONE)
+  }
+
+  def "a pending second pillar transfer only suppresses the transfer nudge and falls through"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarFullyConverted(false)
+        .secondPillarFee(0.0065)
+        .canIncreasePaymentRate(true)
+
+    expect:
+    NudgeRules.decide(inputs.pendingSecondPillarTransfer(true).build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    NudgeRules.decide(inputs.pendingSecondPillarWithdrawal(true).build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+  }
+
+  def "retirement age and minority stop the second pillar nudges"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).canIncreasePaymentRate(true)
+
+    expect:
+    NudgeRules.decide(inputs.reachedRetirementAge(true).build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs.adult(false).build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+  }
+
+  def "leaver status: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarActive(false)
+        .canIncreasePaymentRate(true)
+        .savesInSavingsFund(NO)
+        .member(member)
+        .leftSecondPillar(leftSecondPillar)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == expected
+
+    where:
+    description                                   | leftSecondPillar | member || expected
+    "a leaver gets no second pillar nudges"       | YES              | true   || NudgeDecision.savingsFund(0.28)
+    "unknown skips second pillar and savings"     | UNKNOWN          | true   || NudgeDecision.of(NONE)
+    "unknown still allows the membership nudge"   | UNKNOWN          | false  || NudgeDecision.of(MEMBERSHIP)
+    "known non-leaver gets the start nudge"       | NO               | true   || NudgeDecision.of(SECOND_PILLAR_START)
+  }
+
+  def "payment rate: #description"() {
+    given:
+    def inputs = everythingSorted().canIncreasePaymentRate(true).build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                  | context                    || expected
+    "raise the rate when below the maximum"      | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    "not right after a rate change"              | NudgeContext.SECOND_PILLAR_PAYMENT_RATE || NudgeDecision.of(NONE)
+    "allowed right after a second pillar mandate"| NudgeContext.SECOND_PILLAR_MANDATE      || NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+  }
+
+  def "the second pillar fee review is allowed after a rate change but not after a second pillar mandate"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarFullyConverted(false)
+        .secondPillarFee(0.0065)
+        .feeComparison(sampleFeeComparison())
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SECOND_PILLAR_PAYMENT_RATE) == NudgeDecision.secondPillarTransfer(sampleFeeComparison())
+    NudgeRules.decide(inputs, NudgeContext.SECOND_PILLAR_MANDATE) == NudgeDecision.of(NONE)
+  }
+
+  def "third pillar: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .thirdPillarActive(active)
+        .thirdPillarPartiallyConverted(partially)
+        .thirdPillarFullyConverted(fully)
+        .thirdPillarFee(fee)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                          | active | partially | fully | fee    | context              || expected
+    "start a third pillar"               | false  | false     | false | null   | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_START)
+    "not after a third pillar payment"   | false  | false     | false | null   | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
+    "nothing at Tuleva, fee already low" | true   | false     | false | 0.0029 | NudgeContext.MEMBERSHIP           || NudgeDecision.of(NONE)
+    "nothing at Tuleva, high fee"        | true   | false     | false | 0.006  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
+    "nothing at Tuleva, fee unknown"     | true   | false     | false | null   | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
+    "partially at Tuleva, high fee"      | true   | true      | false | 0.006  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
+    "partially at Tuleva, low fee"       | true   | true      | false | 0.0029 | NudgeContext.MEMBERSHIP           || NudgeDecision.of(NONE)
+    "partially at Tuleva, fee at 0.3 %"  | true   | true      | false | 0.003  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
+  }
+
+  def "a third pillar kept only at another manager gets no Tuleva standing order nudge"() {
+    given:
+    def inputs = everythingSorted()
+        .thirdPillarPartiallyConverted(false)
+        .thirdPillarFullyConverted(false)
+        .thirdPillarRecurring(NO)
+        .savesInSavingsFund(NO)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.savingsFund(0.28)
+  }
+
+  def "a minor is not offered a third pillar"() {
+    given:
+    def inputs = everythingSorted().adult(false).thirdPillarActive(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
+  def "changing the second pillar rate never invites to open a second pillar"() {
+    given:
+    def inputs = everythingSorted().secondPillarActive(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SECOND_PILLAR_PAYMENT_RATE) == NudgeDecision.of(NONE)
+  }
+
+  def "a minor is not asked to move a third pillar kept at a high fee"() {
+    given:
+    def inputs = everythingSorted()
+        .adult(false)
+        .thirdPillarPartiallyConverted(false)
+        .thirdPillarFullyConverted(false)
+        .thirdPillarFee(0.006)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
+  def "third pillar recurring and raise: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .thirdPillarRecurring(recurring)
+        .taxHeadroom(headroom)
+        .savesInSavingsFund(NO)
+        .member(member)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                        | recurring | headroom | member | context                             || expected
+    "no standing order yet"                            | NO        | NO       | true   | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.of(THIRD_PILLAR_RECURRING)
+    "just confirmed a standing order"                  | NO        | NO       | true   | NudgeContext.THIRD_PILLAR_RECURRING_CONFIRMATION || NudgeDecision.savingsFund(0.28)
+    "recurring with tax headroom"                      | YES       | YES      | true   | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.of(THIRD_PILLAR_RAISE)
+    "recurring without headroom moves on"              | YES       | NO       | true   | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.savingsFund(0.28)
+    "unknown recurring skips recurring, raise, savings"| UNKNOWN   | NO       | true   | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.of(NONE)
+    "unknown recurring still allows membership"        | UNKNOWN   | NO       | false  | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.of(MEMBERSHIP)
+    "unknown headroom skips raise and savings"         | YES       | UNKNOWN  | true   | NudgeContext.THIRD_PILLAR_PAYMENT                || NudgeDecision.of(NONE)
+  }
+
+  def "savings fund: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .savesInSavingsFund(saves)
+        .savingsFundSaver(saver)
+        .savingsFundRecurring(recurring)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                       | saves   | saver    | recurring    | context              || expected
+    "not a saver anywhere"                            | NO      | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.savingsFund(0.28)
+    "not after a savings fund payment"                | NO      | NO       | NO           | NudgeContext.SAVINGS_FUND_PAYMENT || NudgeDecision.of(NONE)
+    "unknown saver status skips the savings nudges"   | UNKNOWN | UNKNOWN  | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
+    "the account in question has no standing order"   | YES     | YES      | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    "saves only through another account, no nudge here"| YES    | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
+  }
+
+  def "an unknown savings fund fee skips the savings fund nudge"() {
+    given:
+    def inputs = everythingSorted()
+        .savesInSavingsFund(NO)
+        .savingsFundSaver(NO)
+        .savingsFundRecurring(NO)
+        .savingsFundFeePercent(null)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+  }
+
+  def "membership comes last and not right after joining"() {
+    given:
+    def inputs = everythingSorted().member(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(MEMBERSHIP)
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
+  def "once the payment rate deadline has passed for the year the rate nudge yields nothing anywhere"() {
+    given:
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(sampleSeason(CLOSED))
+
+    expect:
+    NudgeRules.decide(inputs.build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs.build(), NudgeContext.ACCOUNT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs.build(), NudgeContext.SECOND_PILLAR_MANDATE) == NudgeDecision.of(NONE)
+  }
+
+  def "the account context carries the running season whatever the chosen nudge is: #mode"() {
+    given:
+    def season = sampleSeason(mode)
+    def rateRaiser = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(season).build()
+    def sortedSaver = everythingSorted().paymentRateSeason(season).build()
+
+    expect:
+    NudgeRules.decide(rateRaiser, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE).withPaymentRateSeason(season)
+    NudgeRules.decide(sortedSaver, NudgeContext.ACCOUNT) == NudgeDecision.of(NONE).withPaymentRateSeason(season)
+
+    where:
+    mode << [SEASON, LAST_DAYS]
+  }
+
+  def "only the account context carries the season object"() {
+    given:
+    def season = sampleSeason(SEASON)
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(season).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+  }
+
+  def "outside the season the account context carries no season object"() {
+    given:
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(sampleSeason(OFF_SEASON)).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+  }
+}

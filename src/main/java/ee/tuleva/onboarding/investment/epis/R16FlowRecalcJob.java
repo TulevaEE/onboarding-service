@@ -50,7 +50,7 @@ class R16FlowRecalcJob {
     notificationService.sendMessage(summaryMessage(today, statusesWithData), INVESTMENT);
   }
 
-  @EventListener(classes = RunR16FlowRecalcRequested.class)
+  @EventListener(RunR16FlowRecalcRequested.class)
   void onR16FlowRecalcRequested() {
     run();
   }

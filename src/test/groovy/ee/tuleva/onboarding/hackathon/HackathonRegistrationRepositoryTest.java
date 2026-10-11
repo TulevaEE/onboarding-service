@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.hackathon.HackathonParticipation.LOOKING_FOR_
 import static ee.tuleva.onboarding.hackathon.HackathonRole.PARTICIPANT;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DATA_AND_AI;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.NAVY;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.L;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -39,10 +41,14 @@ class HackathonRegistrationRepositoryTest {
         .phoneNumber("+37255555555")
         .role(PARTICIPANT)
         .skills(List.of(SOFTWARE_DEVELOPMENT, DATA_AND_AI))
+        .otherSkills("Projektijuhtimine")
         .challenges(List.of(FAIR_LENDING, COLLECTIVE_BUYING_POWER))
         .participation(LOOKING_FOR_TEAM)
         .idea("Fondiosaku tagatisel krediidiliin")
         .linkedinUrl("https://linkedin.com/in/example")
+        .tshirtColor(NAVY)
+        .tshirtSize(L)
+        .termsAcceptedTime(NOW)
         .createdTime(NOW)
         .updatedTime(NOW);
   }
@@ -56,11 +62,25 @@ class HackathonRegistrationRepositoryTest {
 
     var found = repository.findByUserId(user.getId()).orElseThrow();
     assertThat(found.getSkills()).containsExactly(SOFTWARE_DEVELOPMENT, DATA_AND_AI);
+    assertThat(found.getOtherSkills()).isEqualTo("Projektijuhtimine");
     assertThat(found.getChallenges()).containsExactly(FAIR_LENDING, COLLECTIVE_BUYING_POWER);
     assertThat(found.getRole()).isEqualTo(PARTICIPANT);
     assertThat(found.getParticipation()).isEqualTo(LOOKING_FOR_TEAM);
     assertThat(found.getCreatedTime()).isNotNull();
     assertThat(found.getUpdatedTime()).isNotNull();
+  }
+
+  @Test
+  void savesAndReadsBackTheTshirtAndTheTermsAcceptance() {
+    var user = persistedUser();
+
+    repository.saveAndFlush(registration(user.getId()).build());
+    entityManager.clear();
+
+    var found = repository.findByUserId(user.getId()).orElseThrow();
+    assertThat(found.getTshirtColor()).isEqualTo(NAVY);
+    assertThat(found.getTshirtSize()).isEqualTo(L);
+    assertThat(found.getTermsAcceptedTime()).isEqualTo(NOW);
   }
 
   @Test
@@ -81,13 +101,25 @@ class HackathonRegistrationRepositoryTest {
     var user = persistedUser();
 
     repository.saveAndFlush(
-        registration(user.getId()).phoneNumber(null).idea(null).linkedinUrl(null).build());
+        registration(user.getId())
+            .phoneNumber(null)
+            .otherSkills(null)
+            .idea(null)
+            .linkedinUrl(null)
+            .tshirtColor(null)
+            .tshirtSize(null)
+            .termsAcceptedTime(null)
+            .build());
     entityManager.clear();
 
     var found = repository.findByUserId(user.getId()).orElseThrow();
     assertThat(found.getPhoneNumber()).isNull();
+    assertThat(found.getOtherSkills()).isNull();
     assertThat(found.getIdea()).isNull();
     assertThat(found.getLinkedinUrl()).isNull();
+    assertThat(found.getTshirtColor()).isNull();
+    assertThat(found.getTshirtSize()).isNull();
+    assertThat(found.getTermsAcceptedTime()).isNull();
   }
 
   @Test
@@ -104,5 +136,15 @@ class HackathonRegistrationRepositoryTest {
     var user = persistedUser();
 
     assertThat(repository.findByUserId(user.getId())).isEmpty();
+  }
+
+  @Test
+  void existsByUserId_tellsWhetherTheUserHasRegistered() {
+    var user = persistedUser();
+    assertThat(repository.existsByUserId(user.getId())).isFalse();
+
+    repository.saveAndFlush(registration(user.getId()).build());
+
+    assertThat(repository.existsByUserId(user.getId())).isTrue();
   }
 }

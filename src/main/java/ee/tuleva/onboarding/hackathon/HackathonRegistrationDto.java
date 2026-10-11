@@ -13,10 +13,14 @@ public record HackathonRegistrationDto(
     @Nullable String phoneNumber,
     @Nullable HackathonRole role,
     List<HackathonSkill> skills,
+    @Nullable String otherSkills,
     List<HackathonChallenge> challenges,
     @Nullable HackathonParticipation participation,
     @Nullable String idea,
-    @Nullable String linkedinUrl) {
+    @Nullable String linkedinUrl,
+    @Nullable HackathonTshirtColor tshirtColor,
+    @Nullable HackathonTshirtSize tshirtSize,
+    boolean termsAccepted) {
 
   public static HackathonRegistrationDto from(
       HackathonRegistration registration, boolean open, Instant deadline) {
@@ -28,10 +32,14 @@ public record HackathonRegistrationDto(
         registration.getPhoneNumber(),
         registration.getRole(),
         registration.getSkills(),
+        registration.getOtherSkills(),
         registration.getChallenges(),
         registration.getParticipation(),
         registration.getIdea(),
-        registration.getLinkedinUrl());
+        registration.getLinkedinUrl(),
+        registration.getTshirtColor(),
+        registration.getTshirtSize(),
+        registration.getTermsAcceptedTime() != null);
   }
 
   public static HackathonRegistrationDto prefilledFrom(User user, boolean open, Instant deadline) {
@@ -43,9 +51,13 @@ public record HackathonRegistrationDto(
         user.getPhoneNumber(),
         null,
         List.of(),
+        null,
         List.of(),
         null,
         null,
-        null);
+        null,
+        null,
+        null,
+        false);
   }
 }

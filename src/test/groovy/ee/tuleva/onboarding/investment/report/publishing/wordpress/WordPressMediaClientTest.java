@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -31,7 +32,7 @@ class WordPressMediaClientTest {
   void setUp() {
     var builder = RestClient.builder().baseUrl("https://tuleva.ee/wp-json/wp/v2");
     server = MockRestServiceServer.bindTo(builder).build();
-    client = new WordPressMediaClient(builder.build(), retryTemplate());
+    client = new WordPressMediaClient(builder.build(), retryTemplate(), List.of());
   }
 
   private static RetryTemplate retryTemplate() {
@@ -59,7 +60,7 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
-        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andExpect(method(POST))
         .andExpect(content().contentType(MediaType.APPLICATION_PDF))
         .andExpect(header("Content-Disposition", "attachment; filename=\"test.pdf\""))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
@@ -143,11 +144,11 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
-        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andExpect(method(POST))
         .andRespond(withServerError());
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
-        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andExpect(method(POST))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
     var result = client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46});
@@ -158,21 +159,89 @@ class WordPressMediaClientTest {
 
   @Test
   void updateAcfReportFieldFindsPageAndUpdates() throws Exception {
-    var pagesResponse =
-        objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
-    var updateResponse = objectMapper.writeValueAsString(Map.of("id", 123));
-
-    server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
-        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
-
-    server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
-        .andExpect(method(org.springframework.http.HttpMethod.POST))
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andRespond(withSuccess(updateResponse, MediaType.APPLICATION_JSON));
+    expectPageLookupAndUpdate(pageWithStoredReportFile(42));
 
     client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldAcceptsAttachmentIdReturnedAsString() throws Exception {
+    expectPageLookupAndUpdate(pageWithStoredReportFile("42"));
+
+    client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldAcceptsAttachmentIdReturnedAsDecimalNumber() throws Exception {
+    expectPageLookupAndUpdate(pageWithStoredReportFile(42.0));
+
+    client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldAcceptsAttachmentIdNestedInAttachmentObject() throws Exception {
+    expectPageLookupAndUpdate(
+        pageWithStoredReportFile(
+            Map.of("ID", 42, "url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
+
+    client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldAcceptsAttachmentIdNestedInAttachmentArray() throws Exception {
+    expectPageLookupAndUpdate(pageWithStoredReportFile(List.of(Map.of("id", 42))));
+
+    client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAcfSilentlyDroppedTheWrite() throws Exception {
+    expectPageLookupAndUpdate(Map.of("id", 123));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAcfReportFieldIsEmpty() throws Exception {
+    expectPageLookupAndUpdate(pageWithStoredReportFile(""));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAcfHoldsADifferentAttachment() throws Exception {
+    expectPageLookupAndUpdate(pageWithStoredReportFile(41));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAttachmentObjectCarriesNoAttachmentId() throws Exception {
+    expectPageLookupAndUpdate(
+        pageWithStoredReportFile(
+            Map.of("url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
 
     server.verify();
   }
@@ -189,8 +258,7 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Ambiguous WordPress slug");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -202,7 +270,27 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess(emptyResponse, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.updateAcfReportField("nonexistent", 42))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("No WordPress page found");
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  private static Map<String, Object> pageWithStoredReportFile(Object storedReportFile) {
+    return Map.of("id", 123, "acf", Map.of("investment_report_file", storedReportFile));
+  }
+
+  private void expectPageLookupAndUpdate(Map<String, Object> updateResponse) throws Exception {
+    var pagesResponse =
+        objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(POST))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(updateResponse), MediaType.APPLICATION_JSON));
   }
 }

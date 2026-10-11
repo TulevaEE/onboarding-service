@@ -2,9 +2,15 @@ package ee.tuleva.onboarding.personalcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 class PersonalCodeValidatorTest {
 
@@ -38,5 +44,25 @@ class PersonalCodeValidatorTest {
   @ValueSource(strings = {" "})
   void rejectsMissingCodes(String personalCode) {
     assertThat(validator.isValid(personalCode)).isFalse();
+  }
+
+  @Test
+  void neverLogsTheCodeItRejects() {
+    var logger = (Logger) LoggerFactory.getLogger(PersonalCodeValidator.class);
+    var previousLevel = logger.getLevel();
+    var appender = new ListAppender<ILoggingEvent>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      validator.isValid("39013010009");
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    assertThat(appender.list)
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .noneMatch(message -> message.contains("39013010009"));
   }
 }

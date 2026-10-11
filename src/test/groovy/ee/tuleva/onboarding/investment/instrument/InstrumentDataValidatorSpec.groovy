@@ -25,6 +25,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.FAIL
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.WARNING
 
 class InstrumentDataValidatorSpec extends Specification {
@@ -379,9 +381,62 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.isEmpty()
   }
 
+  def "FAIL when a fund allocation has no domicile, before a wrong settlement date is ever calculated"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [fundAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: country))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.any { it.severity() == FAIL && it.message().contains(isin1) && it.message().contains("domicile") }
+
+    where:
+    country << [null, "", "GB"]
+  }
+
+  def "no domicile finding for a fund allocation whose country is a supported domicile"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [fundAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: "lu"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("domicile") }
+  }
+
+  def "no domicile finding for an ETF allocation, which settles on TARGET2 wherever it is domiciled"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [etfAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: null))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("domicile") }
+  }
+
   private ModelPortfolioAllocation allocation(String isin, BigDecimal weight, Provider provider = null) {
     ModelPortfolioAllocation.builder()
         .effectiveDate(effectiveDate).fund(TUK75).isin(isin).weight(weight).provider(provider).build()
+  }
+
+  private ModelPortfolioAllocation fundAllocation(String isin) {
+    allocation(isin, 1.0).tap { instrumentType = FUND }
+  }
+
+  private ModelPortfolioAllocation etfAllocation(String isin) {
+    allocation(isin, 1.0).tap { instrumentType = ETF }
   }
 
   private PositionLimit positionLimit(String isin) {
@@ -394,6 +449,7 @@ class InstrumentDataValidatorSpec extends Specification {
     def fixture = anInstrument()
         .active(props.containsKey("active") ? props.active : true)
         .eodhdListed(props.containsKey("eodhdListed") ? props.eodhdListed : true)
+    if (props.containsKey("country")) fixture.country(props.country)
     if (props.benchmarkCategory) fixture.benchmarkCategory(props.benchmarkCategory)
     if (props.eodhdTicker) fixture.eodhdTicker(props.eodhdTicker)
     if (props.yahooTicker) fixture.yahooTicker(props.yahooTicker)

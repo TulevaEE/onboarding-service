@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.fund.PublishedManagementFee;
 import ee.tuleva.onboarding.locale.LocaleService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
@@ -24,6 +25,7 @@ public class AccountStatementController {
   private final AccountStatementService accountStatementService;
   private final SavingsFundStatementService savingsFundStatementService;
   private final LocaleService localeService;
+  private final PublishedManagementFee publishedManagementFee;
 
   @Operation(summary = "Get pension register account statement")
   @GetMapping("/pension-account-statement")
@@ -45,17 +47,18 @@ public class AccountStatementController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return savingsFundStatementService
         .getAccountStatement(authenticatedPerson)
-        .map(
-            fundBalance ->
-                ResponseEntity.ok(
-                    ApiFundBalanceResponse.from(fundBalance, localeService.getCurrentLocale())))
+        .map(fundBalance -> ResponseEntity.ok(toDto(fundBalance, localeService.getCurrentLocale())))
         .orElseGet(() -> ResponseEntity.noContent().build());
   }
 
   private List<ApiFundBalanceResponse> convertToDtos(
       List<FundBalance> fundBalances, Locale locale) {
-    return fundBalances.stream()
-        .map(fundBalance -> ApiFundBalanceResponse.from(fundBalance, locale))
-        .collect(toList());
+    return fundBalances.stream().map(fundBalance -> toDto(fundBalance, locale)).collect(toList());
+  }
+
+  private ApiFundBalanceResponse toDto(FundBalance fundBalance, Locale locale) {
+    var dto = ApiFundBalanceResponse.from(fundBalance, locale);
+    publishedManagementFee.applyTo(dto.getFund());
+    return dto;
   }
 }

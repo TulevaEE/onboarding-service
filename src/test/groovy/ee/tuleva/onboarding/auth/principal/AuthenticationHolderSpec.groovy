@@ -9,6 +9,10 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 
 class AuthenticationHolderSpec extends Specification {
 
+  def cleanup() {
+    SecurityContextHolder.clearContext()
+  }
+
   def "getAuthenticatedPerson should return AuthenticatedPerson when authentication is valid"() {
     given:
         AuthenticationHolder authenticationHolder = new AuthenticationHolder()

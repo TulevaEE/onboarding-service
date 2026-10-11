@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -440,13 +441,88 @@ class NavFeeAccrualLedgerTest {
   }
 
   @Test
-  void deleteFeeAccrualsFromDate_returnsTransactionDeleteCount() {
-    setupJdbcClientMocks();
-    when(statementSpec.update()).thenReturn(3, 8);
+  void reviseFeeAccrual_appendsTheDeltaBetweenNavEquityAndTheFeeAccount() {
+    LocalDate accrualDate = LocalDate.of(2026, 9, 1);
+    Instant expectedTimestamp = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    setupAccountMocks();
+    Map<String, Object> metadata = Map.of("operationType", "FEE_ACCRUAL_REVISION");
 
-    int result = navFeeAccrualLedger.deleteFeeAccrualsFromDate(TKF100, LocalDate.of(2026, 2, 1));
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-33.30"), 1, metadata);
 
-    assertThat(result).isEqualTo(8);
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            eq(expectedTimestamp),
+            any(UUID.class),
+            eq(metadata),
+            entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries).hasSize(2);
+    assertThat(entries[0].account()).isEqualTo(navEquityAccount);
+    assertThat(entries[0].amount()).isEqualByComparingTo("-33.30");
+    assertThat(entries[1].account()).isEqualTo(managementFeeAccount);
+    assertThat(entries[1].amount()).isEqualByComparingTo("33.30");
+  }
+
+  @Test
+  void
+      reviseFeeAccrual_keysTheReferenceOnTheRevisionNumberSoADuplicateIsSkippedAndTheNextOneKept() {
+    LocalDate accrualDate = LocalDate.of(2026, 9, 1);
+    setupAccountMocks();
+    UUID firstRevision = revisionReference(accrualDate, 1);
+    UUID secondRevision = revisionReference(accrualDate, 2);
+    given(
+            ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+                firstRevision, FEE_ACCRUAL))
+        .willReturn(false, true);
+    given(
+            ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+                secondRevision, FEE_ACCRUAL))
+        .willReturn(false);
+
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-33.30"), 1, Map.of());
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-33.30"), 1, Map.of());
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("33.30"), 2, Map.of());
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            any(Instant.class),
+            eq(firstRevision),
+            any(),
+            any(LedgerEntryDto[].class));
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            any(Instant.class),
+            eq(secondRevision),
+            any(),
+            any(LedgerEntryDto[].class));
+    verify(ledgerTransactionService, times(2))
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  private static UUID revisionReference(LocalDate accrualDate, int revision) {
+    return UUID.nameUUIDFromBytes(
+        ("TKF100:" + accrualDate + ":MANAGEMENT_FEE_ACCRUAL:REVISION:" + revision).getBytes(UTF_8));
+  }
+
+  @Test
+  void reviseFeeAccrual_skipsAZeroDelta() {
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, LocalDate.of(2026, 9, 1), MANAGEMENT_FEE_ACCRUAL, ZERO, 1, Map.of());
+
+    verify(ledgerTransactionService, never())
+        .createTransaction(any(), any(), any(), any(), any(LedgerEntryDto[].class));
   }
 
   @Test

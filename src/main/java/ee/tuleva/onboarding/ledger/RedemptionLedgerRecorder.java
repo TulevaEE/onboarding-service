@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.CUSTOMER_IBAN;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.NAV_DATE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.NAV_PER_UNIT;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.REDEMPTION_REQUEST_ID;
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -67,6 +69,7 @@ class RedemptionLedgerRecorder {
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID redemptionRequestId) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userUnitsReservedAccount = accounts.getUserUnitsReservedAccount(ledgerParty);
@@ -76,6 +79,7 @@ class RedemptionLedgerRecorder {
 
     var metadataBuilder = new HashMap<>(accounts.partyMetadata(party, REDEMPTION_REQUEST));
     metadataBuilder.put(NAV_PER_UNIT.getKey(), navPerUnit);
+    metadataBuilder.put(NAV_DATE.getKey(), navDate.toString());
     if (redemptionRequestId != null) {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.getKey(), redemptionRequestId);
     }
@@ -130,6 +134,7 @@ class RedemptionLedgerRecorder {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashRedemptionAccount = accounts.getUserCashRedemptionAccount(ledgerParty);
     LedgerAccount payoutsCashAccount = accounts.getPayoutsCashClearingAccount();
+    rejectIfPricedForAnotherParty(redemptionRequestId, userCashRedemptionAccount);
 
     var metadataBuilder = new HashMap<>(accounts.partyMetadata(party, REDEMPTION_PAYOUT));
     metadataBuilder.put(CUSTOMER_IBAN.getKey(), customerIban);
@@ -144,5 +149,27 @@ class RedemptionLedgerRecorder {
         metadataBuilder,
         accounts.entry(payoutsCashAccount, amount.negate()),
         accounts.entry(userCashRedemptionAccount, amount));
+  }
+
+  private void rejectIfPricedForAnotherParty(
+      @Nullable UUID redemptionRequestId, LedgerAccount userCashRedemptionAccount) {
+    if (redemptionRequestId == null) {
+      return;
+    }
+    ledgerTransactionService
+        .findByExternalReferenceAndTransactionType(redemptionRequestId, REDEMPTION_REQUEST)
+        .ifPresent(
+            pricing -> {
+              boolean pricedForThisParty =
+                  pricing.getEntries().stream()
+                      .anyMatch(entry -> entry.getAccount().equals(userCashRedemptionAccount));
+              if (!pricedForThisParty) {
+                throw new IllegalStateException(
+                    "Redemption payout party differs from the priced redemption's party: redemptionRequestId="
+                        + redemptionRequestId
+                        + ", pricingTransactionId="
+                        + pricing.getId());
+              }
+            });
   }
 }

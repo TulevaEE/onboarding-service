@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -199,14 +200,16 @@ class NavNotifierTest {
                     new BigDecimal("13288.00000"),
                     new BigDecimal("43.380"),
                     new BigDecimal("576433.44"),
-                    LocalDate.of(2026, 2, 17)),
+                    LocalDate.of(2026, 2, 17),
+                    EODHD),
                 new SecurityDetail(
                     "IE00BJZ2DC62",
                     "XRSM.XETRA",
                     new BigDecimal("21180.00000"),
                     new BigDecimal("49.550"),
                     new BigDecimal("1049469.00"),
-                    LocalDate.of(2026, 2, 12))))
+                    LocalDate.of(2026, 2, 12),
+                    EODHD)))
         .build();
   }
 }

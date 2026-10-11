@@ -35,10 +35,19 @@ class FundReturnProviderSpec extends Specification {
     def endTime = Instant.now()
     def pillar = 2
     def earliestTransactionDate = LocalDate.parse("2020-09-10")
-    def overview = new AccountOverview(
-        [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
-         new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
-        0.0, 0.0, startTime, endTime, pillar)
+    def overview = AccountOverview.builder()
+        .transactions([
+            new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
+            new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))
+        ])
+        .beginningBalance(0.0)
+        .endingBalance(0.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime)
+        .endingBalanceTime(endTime)
+        .pillar(pillar)
+        .build()
     def expectedReturn = 0.00123
     def returnAsAmount = 123.12
     def payments = 234.12
@@ -74,10 +83,19 @@ class FundReturnProviderSpec extends Specification {
         def endTime = Instant.now()
         def pillar = 2
         def earliestTransactionDate = LocalDate.parse("2020-09-10")
-        def overview = new AccountOverview(
-            [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
-             new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
-            0.0, 0.0, startTime, endTime, pillar)
+        def overview = AccountOverview.builder()
+            .transactions([
+                new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
+                new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))
+            ])
+            .beginningBalance(0.0)
+            .endingBalance(0.0)
+            .startTime(startTime)
+            .endTime(endTime)
+            .beginningBalanceTime(startTime)
+            .endingBalanceTime(endTime)
+            .pillar(pillar)
+            .build()
         def expectedReturn = 0.00123
         def returnAsAmount = 123.12
         def payments = 234.12

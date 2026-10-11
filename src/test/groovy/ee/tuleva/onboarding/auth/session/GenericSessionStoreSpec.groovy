@@ -30,6 +30,57 @@ class GenericSessionStoreSpec extends Specification {
     RequestContextHolder.resetRequestAttributes()
   }
 
+  def "renewing the id keeps the attributes under a new session id"() {
+    given:
+    MockHttpServletRequest request = new MockHttpServletRequest()
+    request.setSession(new MockHttpSession())
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request))
+    sessionStore.save("TestAttribute")
+    String idBefore = request.getSession(false).id
+
+    when:
+    sessionStore.renewId()
+
+    then:
+    request.getSession(false).id != idBefore
+    sessionStore.get(String.class) == Optional.of("TestAttribute")
+
+    cleanup:
+    RequestContextHolder.resetRequestAttributes()
+  }
+
+  def "renewing the id without a session leaves the request without one"() {
+    given:
+    MockHttpServletRequest request = new MockHttpServletRequest()
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request))
+
+    when:
+    sessionStore.renewId()
+
+    then:
+    request.getSession(false) == null
+
+    cleanup:
+    RequestContextHolder.resetRequestAttributes()
+  }
+
+  def "removing an attribute leaves nothing to get"() {
+    given:
+    MockHttpServletRequest request = new MockHttpServletRequest()
+    request.setSession(new MockHttpSession())
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request))
+    sessionStore.save("TestAttribute")
+
+    when:
+    sessionStore.remove(String.class)
+
+    then:
+    sessionStore.get(String.class) == Optional.empty()
+
+    cleanup:
+    RequestContextHolder.resetRequestAttributes()
+  }
+
   def "saveBySessionId stores the attribute on the looked-up session"() {
     given:
     Session session = new MapSession("session-42")

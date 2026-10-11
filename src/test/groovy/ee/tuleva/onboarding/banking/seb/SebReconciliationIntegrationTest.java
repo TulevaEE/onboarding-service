@@ -161,8 +161,8 @@ class SebReconciliationIntegrationTest {
               <Id>test-stmt-deposit</Id>
               <CreDtTm>2025-10-02T01:00:00</CreDtTm>
               <FrToDt>
-                <FrDtTm>%2$s</FrDtTm>
-                <ToDtTm>%2$s</ToDtTm>
+                <FrDtTm>%2$sT00:00:00</FrDtTm>
+                <ToDtTm>%2$sT23:59:59</ToDtTm>
               </FrToDt>
               <Acct>
                 <Id>
@@ -225,8 +225,8 @@ class SebReconciliationIntegrationTest {
               <Id>test-stmt-timing</Id>
               <CreDtTm>2025-10-02T12:00:00</CreDtTm>
               <FrToDt>
-                <FrDtTm>%2$s</FrDtTm>
-                <ToDtTm>%2$s</ToDtTm>
+                <FrDtTm>%2$sT00:00:00</FrDtTm>
+                <ToDtTm>%2$sT23:59:59</ToDtTm>
               </FrToDt>
               <Acct>
                 <Id>

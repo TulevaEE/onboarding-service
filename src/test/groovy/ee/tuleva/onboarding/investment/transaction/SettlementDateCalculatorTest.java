@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.AMUNDI;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.CCF;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
@@ -9,7 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.SettlementTerms;
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
@@ -23,6 +26,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,6 +40,7 @@ class SettlementDateCalculatorTest {
   private static final String LUXEMBOURG_FUND_ISIN = "LU1437018838";
   private static final String UNKNOWN_ISIN = "XX0000000000";
   private static final String CCF_ISIN = "IE0009FT4LX4";
+  private static final String LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN = "LU0826455353";
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final SettlementTerms CCF_TERMS =
       new SettlementTerms(LocalTime.of(9, 30), TALLINN, 3);
@@ -87,14 +92,14 @@ class SettlementDateCalculatorTest {
   }
 
   @Test
-  void ccf_dayCountSkipsIrishHoliday() {
+  void ccf_dayCountRunsThroughAnIrishHolidayBecauseCashSettlesOnTarget2() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
     givenProvider(CCF_ISIN, CCF);
     Instant thursdayBeforeStPatricks =
         tallinnInstant(LocalDate.of(2026, 3, 12), LocalTime.of(9, 15));
 
     assertThat(calculator().calculateSettlementDate(thursdayBeforeStPatricks, FUND, CCF_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 18));
+        .isEqualTo(LocalDate.of(2026, 3, 17));
   }
 
   @Test
@@ -124,14 +129,16 @@ class SettlementDateCalculatorTest {
     Instant monday = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
 
     assertThat(calculator().calculateSettlementDate(monday, FUND, CCF_ISIN))
-        .isEqualTo(LocalDate.of(2026, 1, 19));
+        .isEqualTo(LocalDate.of(2026, 1, 16));
   }
 
   @Test
   void etf_settlesInTwoTarget2BusinessDays() {
     LocalDate tradeDate = LocalDate.of(2026, 1, 12);
 
-    assertThat(calculator().calculateSettlementDate(tradeDate, ETF, ETF_ISIN))
+    assertThat(
+            calculator()
+                .calculateSettlementDate(tallinnInstant(tradeDate, LocalTime.NOON), ETF, ETF_ISIN))
         .isEqualTo(LocalDate.of(2026, 1, 14));
   }
 
@@ -139,7 +146,9 @@ class SettlementDateCalculatorTest {
   void etf_skipsWeekends() {
     LocalDate friday = LocalDate.of(2026, 1, 9);
 
-    assertThat(calculator().calculateSettlementDate(friday, ETF, ETF_ISIN))
+    assertThat(
+            calculator()
+                .calculateSettlementDate(tallinnInstant(friday, LocalTime.NOON), ETF, ETF_ISIN))
         .isEqualTo(LocalDate.of(2026, 1, 13));
   }
 
@@ -147,7 +156,10 @@ class SettlementDateCalculatorTest {
   void etf_skipsGoodFridayAndEasterMonday() {
     LocalDate beforeEaster2026 = LocalDate.of(2026, 4, 1);
 
-    assertThat(calculator().calculateSettlementDate(beforeEaster2026, ETF, ETF_ISIN))
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(beforeEaster2026, LocalTime.NOON), ETF, ETF_ISIN))
         .isEqualTo(LocalDate.of(2026, 4, 7));
   }
 
@@ -155,27 +167,47 @@ class SettlementDateCalculatorTest {
   void etf_skipsEasterBreak2025() {
     LocalDate maundyThursday2025 = LocalDate.of(2025, 4, 17);
 
-    assertThat(calculator().calculateSettlementDate(maundyThursday2025, ETF, ETF_ISIN))
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(maundyThursday2025, LocalTime.NOON), ETF, ETF_ISIN))
         .isEqualTo(LocalDate.of(2025, 4, 23));
   }
 
   @Test
-  void fund_irishProviderSkipsStPatricksDay() {
+  void fund_orderPlacedOnAnIrishHolidayIsDealtOnTheNextDealingDay() {
     givenProvider(IRISH_FUND_ISIN, ISHARES);
-    LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
+    LocalDate stPatricksDay = LocalDate.of(2026, 3, 17);
 
-    assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 20));
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(stPatricksDay, LocalTime.NOON), FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 24));
   }
 
   @Test
-  void fund_luxembourgProviderSkipsAscensionDay() {
-    givenProvider(LUXEMBOURG_FUND_ISIN, AMUNDI);
-    LocalDate beforeAscension2026 = LocalDate.of(2026, 5, 7);
+  void fund_settlementDaysAreCountedOnTarget2NotTheFundsCalendar() {
+    givenProvider(IRISH_FUND_ISIN, ISHARES);
+    LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
 
     assertThat(
-            calculator().calculateSettlementDate(beforeAscension2026, FUND, LUXEMBOURG_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 5, 15));
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(beforeStPatricksDay, LocalTime.NOON), FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 18));
+  }
+
+  @Test
+  void fund_orderPlacedOnAscensionDayIsDealtOnTheNextDealingDay() {
+    givenProvider(LUXEMBOURG_FUND_ISIN, AMUNDI);
+    LocalDate ascensionDay2026 = LocalDate.of(2026, 5, 14);
+
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(ascensionDay2026, LocalTime.NOON), FUND, LUXEMBOURG_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 5, 21));
   }
 
   @Test
@@ -187,8 +219,11 @@ class SettlementDateCalculatorTest {
                     UNKNOWN_ISIN, beforeStPatricksDay))
         .willReturn(Optional.empty());
 
-    assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, UNKNOWN_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 19));
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(beforeStPatricksDay, LocalTime.NOON), FUND, UNKNOWN_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 18));
   }
 
   @Test
@@ -200,8 +235,57 @@ class SettlementDateCalculatorTest {
                     IRISH_FUND_ISIN, tradeDate))
         .willReturn(Optional.empty());
 
-    assertThat(calculator().calculateSettlementDate(tradeDate, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 19));
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(tradeDate, LocalTime.NOON), FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 18));
+  }
+
+  @Test
+  void fund_domicileComesFromTheInstrumentsCountryNotItsManagers() {
+    givenCountry(LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN, "LU");
+    LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
+
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(beforeStPatricksDay, LocalTime.NOON),
+                    FUND,
+                    LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 18));
+    verifyNoInteractions(allocationRepository);
+  }
+
+  @Test
+  void fund_withoutACountryFallsBackToItsProvidersDomicile() {
+    givenCountry(IRISH_FUND_ISIN, null);
+    givenProvider(IRISH_FUND_ISIN, ISHARES);
+    LocalDate stPatricksDay = LocalDate.of(2026, 3, 17);
+
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(stPatricksDay, LocalTime.NOON), FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 24));
+  }
+
+  @Test
+  void fund_withAnUnsupportedCountryFallsBackToItsProvidersDomicile() {
+    givenCountry(IRISH_FUND_ISIN, "GB");
+    givenProvider(IRISH_FUND_ISIN, ISHARES);
+    LocalDate stPatricksDay = LocalDate.of(2026, 3, 17);
+
+    assertThat(
+            calculator()
+                .calculateSettlementDate(
+                    tallinnInstant(stPatricksDay, LocalTime.NOON), FUND, IRISH_FUND_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 24));
+  }
+
+  private void givenCountry(String isin, @Nullable String country) {
+    InstrumentReference reference = instrument(isin).country(country).build();
+    given(instrumentReferenceService.findByIsin(isin)).willReturn(Optional.of(reference));
   }
 
   private void givenProvider(String isin, Provider provider) {

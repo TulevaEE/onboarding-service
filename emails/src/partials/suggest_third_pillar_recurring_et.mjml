@@ -1,8 +1,8 @@
 <mj-text>
-  Nutikas on III&nbsp;sambasse kogumine teha automaatseks. Seadista püsimakse ja sa ei jää
-  ka kiires elurütmis maksuvõidust ilma.
+  Püsimaksega toimub kogumine sinu III&nbsp;sambasse automaatselt ka siis, kui sul pole mahti
+  sellele iga kuu mõelda.
 </mj-text>
-<mj-text><strong>Arvuta oma maksuvõit ja seadista püsimakse:</strong></mj-text>
-<mj-button href="https://tuleva.ee/iii-sammas/?utm_content=nudge_third_pillar_recurring">
-  Vaata kalkulaatorist järele
+<mj-text><strong>Vali püsimakse summa, mis sobib sinu võimalustega:</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/3rd-pillar-payment?utm_content=nudge_third_pillar_recurring">
+  Seadistan püsimakse
 </mj-button>

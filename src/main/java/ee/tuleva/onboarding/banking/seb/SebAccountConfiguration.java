@@ -18,7 +18,7 @@ public class SebAccountConfiguration {
   private final @Nullable List<String> ownAccountIbans;
   private final @Nullable List<String> bankFeeIbans;
 
-  public boolean isManagementCompany(String name) {
+  public boolean isManagementCompany(@Nullable String name) {
     return managementCompanyName.equalsIgnoreCase(name);
   }
 

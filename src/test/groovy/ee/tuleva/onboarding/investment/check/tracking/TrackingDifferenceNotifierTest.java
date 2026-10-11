@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -14,12 +16,15 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,12 +40,12 @@ class TrackingDifferenceNotifierTest {
 
   @Mock OperationsNotificationService notificationService;
   @Mock TrackingDifferenceCalculator calculator;
+  @Mock RedemptionCycleLookup redemptionCycleLookup;
 
   @InjectMocks TrackingDifferenceNotifier notifier;
 
   @BeforeEach
   void setUp() {
-    given(calculator.breachThreshold(any(LocalDate.class))).willReturn(new BigDecimal("0.002"));
     given(calculator.escalationThresholdDays(any(LocalDate.class))).willReturn(3);
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
         .willReturn(new BigDecimal("0.005"));
@@ -352,6 +357,30 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void notifyCheckFailedNamesTheErrorRatherThanMissingData() {
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "connection reset");
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ TD CHECK FAILED: fund=TUK75, date=2026-06-25 — the check errored (connection"
+                + " reset); NAV report published WITHOUT tracking-difference validation",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenCheckFailedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "boom"))
+        .doesNotThrowAnyException();
+
+    then(notificationService).should().sendMessage(any(String.class), eq(INVESTMENT));
+  }
+
+  @Test
   void swallowsExceptionWhenCheckCouldNotRunNotificationFails() {
     org.mockito.BDDMockito.willThrow(new RuntimeException("Slack down"))
         .given(notificationService)
@@ -603,10 +632,8 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue()).contains("TD ESCALATION");
   }
 
-  // Sisekord nr 4 p 11.7 escalates only once the breach "püsib enam kui kolm (3) tööpäeva", so a
-  // three-day streak is still just a breach - the fallback must not escalate one day early either.
   @Test
-  void escalationFallbackStreakLengthMatchesTheInternalRule() {
+  void escalationFallbackKeepsTheThirdBreachDayABreachSinceSisekord4P11_8NotifiesOnTheFourth() {
     given(calculator.escalationThresholdDays(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
@@ -647,6 +674,314 @@ class TrackingDifferenceNotifierTest {
     notifier.notify(List.of(result));
 
     then(notificationService).should().sendMessage(contains("TD BREACH DETECTED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aCleanDayEndingAThreeDayStreakSaysItIsWithinLimitsAndThatTheNotificationIsDueToday() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var streak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.0060"),
+            new BigDecimal("0.0060"),
+            ZERO,
+            Map.of("IE00BFG1TM61", new BigDecimal("0.0040")),
+            new BigDecimal("-0.0010"),
+            ZERO,
+            ZERO,
+            false,
+            false,
+            false,
+            0,
+            0);
+
+    notifier.notify(List.of(cleanDayEnding(streak)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
+              [3 consecutive days, compounded TD=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%
+              Multi-day attribution (arithmetic sum of daily contributions):
+                IE00BFG1TM61: +0.40%
+                Cash drag: -0.10%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void aCleanDayAfterUncheckedDaysEndingAThreeDayStreakSaysTheNotificationIsLate() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var streak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            3,
+            new BigDecimal("0.0060"),
+            new BigDecimal("0.0060"),
+            ZERO,
+            Map.of(),
+            ZERO,
+            ZERO,
+            ZERO,
+            false,
+            false,
+            false,
+            1,
+            1);
+
+    notifier.notify(List.of(cleanDayEnding(streak)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%). The last check \
+            before it, 2 working days earlier, closed a 3-day breach streak, and no check ran in \
+            between. Sisekord 4 p 11.8 made the notification due on working day 4, which had no \
+            check, so it is sent now, late: identify the cause and act on it.
+              [4 consecutive days, 2 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void anUncheckedThirdDayIsAssumedToHaveBreachedSoTheCleanDayAfterItIsNotifiedAsTheFourth() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(2, 0, 1))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
+              [3 consecutive days, 1 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void twoBreachDaysAndTwoUncheckedDaysBeforeACleanDayAreNotifiedLateForTheFourthWorkingDay() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(2, 0, 2))));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%). The last check \
+            before it, 3 working days earlier, closed a 2-day breach streak, and no check ran in \
+            between. Sisekord 4 p 11.8 made the notification due on working day 4, which had no \
+            check, so it is sent now, late: identify the cause and act on it.
+              [4 consecutive days, 2 of them with no check, compounded TD over the checked \
+            days=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void aBreachDayAndAnUncheckedDayBeforeACleanDayAreNotNotified() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(streakOf(1, 0, 1))));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("✅ TUK75 TD check completed: within limits")
+        .doesNotContain("TD ESCALATION");
+  }
+
+  @Test
+  void aBreachStreakRunningAcrossUncheckedDaysSaysHowManyAndThatItsTdCoversOnlyTheCheckedOnes() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0060")).toBuilder().escalationUncheckedDays(1).build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD ESCALATION")
+        .contains(
+            "[4 consecutive days, 1 of them with no check, compounded TD over the checked days=");
+  }
+
+  @Test
+  void aCleanDayEndingAStreakOfThreeNavResidualBreachesIsNotifiedEvenWhenTheirTdNetsOut() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(threeDayStreak("0.0002", true))));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD ESCALATION")
+        .contains("The streak includes a NAV residual breach, which escalates whatever its TD.");
+  }
+
+  @Test
+  void aCleanDayEndingAThreeDayStreakWhoseTdNetsOutIsReportedWithinLimits() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+
+    notifier.notify(List.of(cleanDayEnding(threeDayStreak("0.0005", false))));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("✅ TUK75 TD check completed: within limits")
+        .doesNotContain("TD ESCALATION");
+  }
+
+  @Test
+  void aCleanDayEndingAStreakThatAlreadyReachedTheNotificationDayIsNotNotifiedAgain() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var fourDayStreak =
+        new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+            4,
+            new BigDecimal("0.0080"),
+            new BigDecimal("0.0080"),
+            ZERO,
+            Map.of(),
+            ZERO,
+            ZERO,
+            ZERO,
+            false,
+            false,
+            false,
+            0,
+            0);
+
+    notifier.notify(List.of(cleanDayEnding(fourDayStreak)));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("✅ TUK75 TD check completed: within limits")
+        .doesNotContain("TD ESCALATION");
+  }
+
+  @Test
+  void aBreachOfAnotherFundKeepsItsBreachHeaderBesideACleanDayThatIsNotified() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var otherFundBreach =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().fund(TUV100).build();
+
+    notifier.notify(List.of(cleanDayEnding(threeDayStreak("0.0060", false)), otherFundBreach));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .startsWith("🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n🛑 TD BREACH DETECTED\n")
+        .contains("[TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=")
+        .contains("[TUV100] MODEL_PORTFOLIO 2026-04-03: TD=+0.15%");
+  }
+
+  @Test
+  void aFourthBreachDayThatNetsTheStreakBelowTheThresholdEscalatesForTheThreeDaysBeforeIt() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0008")).toBuilder()
+            .streakBefore(threeDayStreak("0.0028", false))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFourthBreachDayWhoseStreakBeforeNetsOutBelowTheThresholdIsJudgedOnItsOwnStreak() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var result =
+        result(true, 4, new BigDecimal("0.0008")).toBuilder()
+            .streakBefore(threeDayStreak("0.0005", false))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD BREACH DETECTED").doesNotContain("TD ESCALATION");
+  }
+
+  @Test
+  void escalationFallbackNotifiesACleanDayEndingAThreeDayStreak() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    notifier.notify(List.of(cleanDayEnding(threeDayStreak("0.0015", false))));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD ESCALATION")
+        .contains("decided on built-in fallback constants");
+  }
+
+  private void givenTheNotificationFallsDueOnWorkingDay(int workingDay) {
+    given(calculator.escalationThresholdDays(any(LocalDate.class))).willReturn(workingDay);
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willReturn(new BigDecimal("0.001"));
+  }
+
+  private TrackingDifferenceResult cleanDayEnding(
+      ConsecutiveBreachTracker.ConsecutiveBreachInfo streak) {
+    return withinLimitsResult(TUK75).toBuilder().streakBefore(streak).build();
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
+      int checkedThroughDays, int uncheckedDaysInside, int uncheckedDaysSince) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        checkedThroughDays,
+        new BigDecimal("0.0060"),
+        new BigDecimal("0.0060"),
+        ZERO,
+        Map.of(),
+        ZERO,
+        ZERO,
+        ZERO,
+        false,
+        false,
+        false,
+        uncheckedDaysInside,
+        uncheckedDaysSince);
+  }
+
+  private static ConsecutiveBreachTracker.ConsecutiveBreachInfo threeDayStreak(
+      String compoundedTd, boolean hadNavResidualBreach) {
+    return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+        3,
+        new BigDecimal(compoundedTd),
+        new BigDecimal(compoundedTd),
+        ZERO,
+        Map.of(),
+        ZERO,
+        ZERO,
+        ZERO,
+        hadNavResidualBreach,
+        false,
+        false,
+        0,
+        0);
   }
 
   @Test
@@ -948,6 +1283,475 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue())
         .contains("TUK75 MODEL_PORTFOLIO: the breach streak could not be counted");
+  }
+
+  @Test
+  void aBackfillThatRewroteNothingSaysTheStoredEventsKeptTheirOldDefinition() {
+    notifier.notifyBackfillSummary(7, List.of());
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD BACKFILL produced no results: daysBack=7")
+        .contains("still carries the definition it was");
+  }
+
+  @Test
+  void aBackfillReportsOneLinePerSubjectRatherThanOnePerRewrittenDay() {
+    var results =
+        List.of(
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 1)).build(),
+            result(true, 1, new BigDecimal("0.0015")).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 3))
+                .build(),
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 2))
+                .checkType(BENCHMARK_MODEL)
+                .build());
+
+    notifier.notifyBackfillSummary(30, results);
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD BACKFILL COMPLETE: daysBack=30")
+        .contains("TUK75 BENCHMARK_MODEL: 1 check dates 2026-04-02 to 2026-04-02, 0 breaches")
+        .contains("TUK75 MODEL_PORTFOLIO: 2 check dates 2026-04-01 to 2026-04-03, 1 breaches");
+  }
+
+  @Test
+  void aBackfillThatCouldNotRerunEveryDateIsHeadedIncompleteRatherThanComplete() {
+    var results =
+        List.of(
+            result(true, 1, new BigDecimal("0.0015")).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 3))
+                .trackingDifference(new BigDecimal("0.0150"))
+                .build());
+
+    notifier.notifyIncompleteBackfillSummary(30, results);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD BACKFILL INCOMPLETE: daysBack=30
+              The check dates named in the message above were not re-run and keep their old \
+            events, and the breach streaks counted after them still run through those events. \
+            Rerun the backfill once their prices are in.
+
+              TUK75 MODEL_PORTFOLIO: 1 check dates 2026-04-03 to 2026-04-03, 1 breaches, \
+            largest TD +1.50%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theLargestBackfilledTdIsTheOneFurthestFromZeroInEitherDirection() {
+    var results =
+        List.of(
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 1))
+                .trackingDifference(new BigDecimal("-0.0240"))
+                .build(),
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 2))
+                .trackingDifference(new BigDecimal("0.0080"))
+                .build());
+
+    notifier.notifyBackfillSummary(7, results);
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("largest TD -2.40%");
+  }
+
+  @Test
+  void aBackfillSummaryThatCannotBeSentLeavesTheRewrittenDaysInPlace() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyBackfillSummary(7, List.of(result(false, 0, ZERO))))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void aFundCheckedOnTwoBasesListsThemInAStableOrder() {
+    var modelPortfolio = result(false, 0, ZERO);
+    var benchmarkModel = result(false, 0, ZERO).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(modelPortfolio, benchmarkModel));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue().indexOf("BENCHMARK_MODEL"))
+        .isLessThan(captor.getValue().indexOf("MODEL_PORTFOLIO"));
+  }
+
+  // Only the @Mock field was added when the lookup was wired in, so resolve() returned null in
+  // every test and the PEVA/RAVA section was never proved to reach a message.
+  @Test
+  void namesThePevaRavaCycleOnAModelPortfolioBreach() {
+    var result = result(true, 1, new BigDecimal("0.0015"));
+    given(redemptionCycleLookup.resolve(TUK75, result.checkDate()))
+        .willReturn(new RedemptionCycleHint(true, new BigDecimal("5928109.00"), null));
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("PEVA/RAVA"), eq(INVESTMENT));
+  }
+
+  @Test
+  void doesNotLookUpARedemptionCycleForABenchmarkCheck() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("0.0015"))
+            .securityAttributions(List.of())
+            .cashDrag(ZERO)
+            .feeDrag(ZERO)
+            .residual(ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(redemptionCycleLookup).shouldHaveNoInteractions();
+  }
+
+  // A gap fill covering weeks of dates would otherwise send every historical breach through the
+  // daily formatter, so a three-week-old breach arrives in the words of today's alert. The summary
+  // has to date each breach and say up front that these are earlier days.
+  @Test
+  void theGapFillSummaryDatesEveryBreachItReplaysAndSaysTheyArePastDays() {
+    var older =
+        result(true, 2, new BigDecimal("0.004")).toBuilder()
+            .checkDate(LocalDate.of(2026, 3, 20))
+            .build();
+    var newer =
+        result(true, 3, new BigDecimal("0.006")).toBuilder()
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .build();
+
+    notifier.notifyGapFillSummary(gapFill(newer, older));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains("TD GAP FILL: 2 past check dates rewritten, 2026-03-20 to 2026-04-03"),
+            eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("2026-03-20 TUK75"), eq(INVESTMENT));
+    then(notificationService)
+        .should(never())
+        .sendMessage(contains("🛑 TD BREACH DETECTED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummarySaysSoWhenNoneOfTheFilledDaysBreached() {
+    notifier.notifyGapFillSummary(
+        gapFill(
+            result(false, 0, ZERO),
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 2)).build()));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("No breach on any of them."), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryCarriesTheNotificationARewrittenCleanDayNowOwes() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var thirdBreachDay =
+        result(true, 3, new BigDecimal("0.0060")).toBuilder()
+            .checkDate(LocalDate.of(2026, 4, 2))
+            .build();
+    var fourthDayWithinLimits = cleanDayEnding(threeDayStreak("0.0060", false));
+
+    notifier.notifyGapFillSummary(gapFill(thirdBreachDay, fourthDayWithinLimits));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-02 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 3 consecutive days
+
+            🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS
+
+            🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03: within limits (TD=+0.05%), but the 3 working \
+            days before it breached. Sisekord 4 p 11.8 makes the notification due on this day, \
+            working day 4: identify the cause and act on it.
+              [3 consecutive days, compounded TD=+0.60%]
+              Compounded: fund=+0.60%, benchmark=0.00%""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryOrdersBreachesOnOneDateByFundThenCheckType() {
+    var sameDate = LocalDate.of(2026, 4, 3);
+    var tuk75 = result(true, 2, new BigDecimal("0.004")).toBuilder().checkDate(sameDate).build();
+    var tuv100 =
+        result(true, 2, new BigDecimal("0.004")).toBuilder()
+            .checkDate(sameDate)
+            .fund(TUV100)
+            .build();
+
+    notifier.notifyGapFillSummary(gapFill(tuv100, tuk75));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUK75 MODEL_PORTFOLIO"), eq(INVESTMENT));
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUV100 MODEL_PORTFOLIO"), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryOrdersBreachesOfOneFundOnOneDateByCheckType() {
+    var modelPortfolio = result(true, 2, new BigDecimal("0.004"));
+    var benchmarkModel = modelPortfolio.toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notifyGapFillSummary(gapFill(modelPortfolio, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 2 consecutive days
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryNamesEveryDateRecheckedBecauseItsNavWasCorrectedAfterTheCheckRan() {
+    var earlier = LocalDate.of(2026, 4, 2);
+    var later = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(later).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).fund(TUV100).build()),
+            List.of(),
+            Map.of(TUK75, List.of(earlier, later), TUV100, List.of(earlier)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-02, \
+            2026-04-03; TUV100 2026-04-02
+              No breach on any of them.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryDoesNotCountAStaleDateItCouldNotRecheckAsRechecked() {
+    var notRechecked = LocalDate.of(2026, 4, 2);
+    var rechecked = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(true, 2, new BigDecimal("0.004")).toBuilder().checkDate(rechecked).build()),
+            List.of(),
+            Map.of(TUK75, List.of(notRechecked, rechecked)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-03
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryCountsOnlyAModelPortfolioResultOfTheSameFundAsARecheck() {
+    var earlier = LocalDate.of(2026, 4, 2);
+    var later = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(later).build(),
+                result(false, 0, ZERO).toBuilder()
+                    .checkDate(earlier)
+                    .fund(TUV100)
+                    .checkType(BENCHMARK_MODEL)
+                    .build()),
+            List.of(),
+            Map.of(TUK75, List.of(later), TUV100, List.of(earlier)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-03
+              No breach on any of them.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryListsNoRecheckWhenNoNavWasCorrected() {
+    notifier.notifyGapFillSummary(
+        gapFill(
+            result(true, 1, new BigDecimal("0.0015")),
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 2)).build()));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 1 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummarySaysNothingWhenOnlyTheSuppressedBenchmarkWasRewritten() {
+    notifier.notifyGapFillSummary(
+        gapFill(result(false, 0, ZERO).toBuilder().checkType(BENCHMARK).build()));
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void anAttributionLeftUnwrittenBecauseOfStaleDatesNamesTheFundPeriodAndDates() {
+    notifier.notifyAttributionNotWritten(
+        TUK75,
+        LocalDate.of(2026, 4, 1),
+        LocalDate.of(2026, 4, 30),
+        List.of(LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 13)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION NOT WRITTEN: fund=TUK75, period=2026-04-01 to 2026-04-30
+              The NAV of 2026-04-10, 2026-04-13 changed after the check ran and the recheck did not
+              complete, so the stored fund return of those dates is stale. Any attribution already
+              stored for this period is left as it was. Rerun it once those dates recheck; the
+              reason per date is in the logs.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void anAttributionThatErroredNamesTheFundPeriodAndReason() {
+    notifier.notifyAttributionFailed(
+        TUK75,
+        LocalDate.of(2026, 6, 1),
+        LocalDate.of(2026, 6, 30),
+        "DataIntegrityViolationException");
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION FAILED: fund=TUK75, period=2026-06-01 to 2026-06-30
+              The attribution errored (DataIntegrityViolationException), so nothing was written for
+              this period. Any attribution already stored for it is left as it was. Rerun it once
+              the cause is fixed; the stack trace is in the logs.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void anAttributionRefusedForUnresolvedInstrumentRatesNamesEveryFundOnceAndHowToResolveThem() {
+    notifier.notifyAttributionRefusedForUnresolvedRates(
+        List.of(TUK75, TUK00),
+        LocalDate.of(2026, 9, 1),
+        LocalDate.of(2026, 9, 30),
+        YearMonth.of(2026, 9));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION NOT COMPUTED: funds=TUK75, TUK00, period=2026-09-01 to 2026-09-30
+              The instrument rates of 2026-09 are not resolved yet, so nothing was written for
+              this period. Any attribution already stored for it is left as it was. Resolve them
+              with INSERT INTO investment_job_trigger (job_name) VALUES ('InstrumentFeeRateJob'),
+              then rerun the attribution.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionRefusedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionRefusedForUnresolvedRates(
+                    List.of(TUK75),
+                    LocalDate.of(2026, 9, 1),
+                    LocalDate.of(2026, 9, 30),
+                    YearMonth.of(2026, 9)))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionFailedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionFailed(
+                    TUK75, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), "boom"))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionNotWrittenNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionNotWritten(
+                    TUK75,
+                    LocalDate.of(2026, 4, 1),
+                    LocalDate.of(2026, 4, 30),
+                    List.of(LocalDate.of(2026, 4, 10))))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void swallowsExceptionWhenGapFillSummaryFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyGapFillSummary(gapFill(result(false, 0, ZERO))))
+        .doesNotThrowAnyException();
+  }
+
+  private static GapFillRun gapFill(TrackingDifferenceResult... results) {
+    return new GapFillRun(List.of(results), List.of(), Map.of());
   }
 
   private TrackingDifferenceResult result(

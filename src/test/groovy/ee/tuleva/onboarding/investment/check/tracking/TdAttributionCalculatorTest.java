@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.ANNUAL;
+import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.CUSTOM;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
@@ -485,6 +487,58 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void aWholeLeapYearScalesTheToleranceToExactlyTheAnnualRate() {
+    var annual = new BigDecimal("0.00175");
+    var leapYear =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2028, 1, 1))
+            .periodEnd(LocalDate.of(2028, 12, 31))
+            .periodType(ANNUAL)
+            .calendarDays(366)
+            .residualTolerance(annual)
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(leapYear))
+        .isEqualByComparingTo(annual);
+  }
+
+  @Test
+  void aRangeAcrossNewYearWeighsEachDayByTheLengthOfItsOwnYear() {
+    var annual = new BigDecimal("0.00175");
+    var acrossNewYear =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2027, 12, 31))
+            .periodEnd(LocalDate.of(2028, 1, 2))
+            .periodType(CUSTOM)
+            .calendarDays(3)
+            .residualTolerance(annual)
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(acrossNewYear))
+        .isCloseTo(new BigDecimal("0.0001585099"), within(new BigDecimal("0.0000000001")));
+  }
+
+  @Test
+  void aPeriodEndingBeforeItStartsHasNoToleranceBand() {
+    var emptyPeriod =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2026, 4, 2))
+            .periodEnd(LocalDate.of(2026, 4, 1))
+            .periodType(CUSTOM)
+            .calendarDays(0)
+            .residualTolerance(new BigDecimal("0.00175"))
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(emptyPeriod)).isNull();
+  }
+
+  @Test
   void aResidualInsideTheScaledBandPasses() {
     var input =
         toleranceInput(buildConstantDays(30, "0.0005", "0.0005"), new BigDecimal("0.00175"));
@@ -503,6 +557,16 @@ class TdAttributionCalculatorTest {
     var result = calculator.calculate(input);
 
     assertThat(result.checks()).containsEntry("residualWithinTolerance", false);
+  }
+
+  @Test
+  void theComponentsSumIsNotStoredBecauseTheResidualMakesItZeroByConstruction() {
+    var input =
+        toleranceInput(buildConstantDays(30, "0.0015", "0.0005"), new BigDecimal("0.00175"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.checks()).doesNotContainKey("sumCheck");
   }
 
   @Test
@@ -533,12 +597,36 @@ class TdAttributionCalculatorTest {
     return TdAttributionInput.builder()
         .fund(TUK75)
         .periodStart(PERIOD_START)
-        .periodEnd(PERIOD_END)
+        .periodEnd(PERIOD_START.plusDays(calendarDays - 1))
         .periodType(MONTHLY)
         .calendarDays(calendarDays)
         .residualTolerance(annual)
         .dailyRecords(days)
         .build();
+  }
+
+  @Test
+  void anExtremePeriodLinkMultiplierStillScalesTheFeeDrag() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "1.0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "1.0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(2), "1.0", "0", "1000000", "0", "0", List.of()));
+    var input =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(PERIOD_START)
+            .periodEnd(PERIOD_END)
+            .periodType(MONTHLY)
+            .calendarDays(30)
+            .mgmtFeeDragPeriod(new BigDecimal("-0.001"))
+            .depotFeeDragPeriod(ZERO)
+            .dailyRecords(days)
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.mgmtFeeDrag()).isLessThan(new BigDecimal("-0.002"));
   }
 
   @Test
@@ -697,6 +785,140 @@ class TdAttributionCalculatorTest {
         .nonSecurityValue(new BigDecimal(nonSec))
         .securities(securities)
         .build();
+  }
+
+  @Test
+  void averageWeightsUseThePeriodDayCountSoAnInstrumentPresentHalfTheMonthIsDilutedNotInflated() {
+    var held =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Held all month")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+    var enteredLate =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .instrumentName("Entered on the second day")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of(held)),
+            dailyRecord(
+                PERIOD_START.plusDays(1),
+                "0",
+                "0",
+                "1000000",
+                "0",
+                "0",
+                List.of(held, enteredLate)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var lateComer =
+        result.instrumentDetails().stream()
+            .filter(detail -> detail.isin().equals("IE002"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(lateComer.avgActualWeight()).isEqualByComparingTo(new BigDecimal("0.25"));
+    assertThat(lateComer.modelWeight()).isEqualByComparingTo(new BigDecimal("0.25"));
+  }
+
+  @Test
+  void averageActualWeightsSumToOneAcrossAPeriodWithAnEntryAndAnExit() {
+    var exiting =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .modelWeight(new BigDecimal("1.00"))
+            .actualWeight(BigDecimal.ONE)
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+    var entering =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .modelWeight(new BigDecimal("1.00"))
+            .actualWeight(BigDecimal.ONE)
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of(exiting)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0", "0", "1000000", "0", "0", List.of(entering)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var summedActualWeight =
+        result.instrumentDetails().stream()
+            .map(TdAttributionResult.InstrumentAttribution::avgActualWeight)
+            .reduce(ZERO, BigDecimal::add);
+    assertThat(summedActualWeight).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void securityReturnStaysCompoundedOverTheDaysTheInstrumentWasHeld() {
+    var present =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.10"))
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "0", "0", "1000000", "0", "0", List.of(present)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var detail =
+        result.instrumentDetails().stream()
+            .filter(d -> d.isin().equals("IE002"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(detail.securityReturn()).isEqualByComparingTo(new BigDecimal("0.10"));
+  }
+
+  @Test
+  void reportsHowManyDaysCouldNotBeAttributedSoAnInflatedResidualIsNotReadAsAQuietPeriod() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "0.001", "0.001", "0", "0", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(2), "0.001", "0.001", "1000000", "0", "0", List.of()));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    assertThat(result.checks()).containsEntry("attributedDays", 2);
+    assertThat(result.checks()).containsEntry("unattributedDays", 1);
+    assertThat(result.navEventCount()).isEqualTo(3);
+  }
+
+  @Test
+  void reportsNoUnattributedDaysForACleanPeriod() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "0", "0", List.of()));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    assertThat(result.checks()).containsEntry("attributedDays", 2);
+    assertThat(result.checks()).containsEntry("unattributedDays", 0);
   }
 
   @Test

@@ -15,8 +15,8 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.fees.InstrumentFee;
-import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -36,8 +36,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -53,14 +51,15 @@ public class PeriodicTdAttributionService {
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final TdAttributionInputAssembler inputAssembler;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  private final PeriodicTdAttributionRepository attributionRepository;
+  private final PeriodicTdAttributionWriter attributionWriter;
   private final TransactionExecutionRepository transactionExecutionRepository;
-  private final InstrumentFeeRepository instrumentFeeRepository;
-  private final PlatformTransactionManager transactionManager;
+  private final InstrumentOcfService instrumentOcfService;
   private final PublicHolidays publicHolidays;
   private final BenchmarkLegResolver benchmarkLegResolver;
   private final InvestmentParameterRepository parameterRepository;
   private final TrackingDifferenceNotifier notifier;
+  private final TdAttributionPeriodReconciler periodReconciler;
+  private final ResolvedInstrumentRatesGate rateGate;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -80,12 +79,18 @@ public class PeriodicTdAttributionService {
 
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+    rateGate.requireResolvedFor(fund, periodEnd);
+    return computeWithResolvedRates(fund, periodStart, periodEnd, periodType);
+  }
 
+  private TdAttributionResult computeWithResolvedRates(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+    periodReconciler.reconcile(fund, periodStart, periodEnd);
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
     var entity = toEntity(result);
 
-    replaceAttributionRowInSingleTransaction(fund, periodStart, periodEnd, periodType, entity);
+    attributionWriter.replace(entity);
 
     if (Boolean.FALSE.equals(result.checks().get("residualWithinTolerance"))) {
       notifier.notifyResidualOutsideTolerance(
@@ -107,26 +112,21 @@ public class PeriodicTdAttributionService {
     return result;
   }
 
-  private void replaceAttributionRowInSingleTransaction(
-      TulevaFund fund,
-      LocalDate periodStart,
-      LocalDate periodEnd,
-      PeriodType periodType,
-      PeriodicTdAttribution entity) {
-    new TransactionTemplate(transactionManager)
-        .executeWithoutResult(
-            status -> {
-              attributionRepository.deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-                  fund, periodStart, periodEnd, periodType);
-              attributionRepository.save(entity);
-            });
-  }
-
   public void computeForAllFunds(
       LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
+    if (!rateGate.admitsEveryFund(periodStart, periodEnd)) {
+      return;
+    }
     for (var fund : TulevaFund.values()) {
       try {
-        computeAttribution(fund, periodStart, periodEnd, periodType);
+        computeWithResolvedRates(fund, periodStart, periodEnd, periodType);
+      } catch (AttributionPeriodStillStaleException e) {
+        log.error(
+            "TD attribution not written, already reported: fund={}, period={}-{}",
+            fund,
+            periodStart,
+            periodEnd,
+            e);
       } catch (Exception e) {
         log.error(
             "Failed to compute TD attribution: fund={}, period={}-{}",
@@ -134,6 +134,8 @@ public class PeriodicTdAttributionService {
             periodStart,
             periodEnd,
             e);
+        notifier.notifyAttributionFailed(
+            fund, periodStart, periodEnd, e.getClass().getSimpleName());
       }
     }
   }
@@ -172,7 +174,7 @@ public class PeriodicTdAttributionService {
           seriesGapDays);
     }
 
-    var dailyRecords = inputAssembler.buildDailyRecords(fund, tdEvents, modelAllocations);
+    var dailyRecords = inputAssembler.buildDailyRecords(fund, tdEvents);
 
     var mgmtFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.MANAGEMENT);
     var depotFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.DEPOT);
@@ -225,10 +227,8 @@ public class PeriodicTdAttributionService {
         .build();
   }
 
-  public void computeQuarterly(TulevaFund fund, int year, int quarter) {
-    var start = LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
-    var end = start.plusMonths(3).minusDays(1);
-    computeAttribution(fund, start, end, PeriodType.QUARTERLY);
+  void computeQuarterly(TulevaFund fund, Quarter quarter) {
+    computeAttribution(fund, quarter.start(), quarter.end(), PeriodType.QUARTERLY);
   }
 
   public void computeAnnual(TulevaFund fund, int year) {
@@ -263,8 +263,8 @@ public class PeriodicTdAttributionService {
     var allocations = latestAllocations(modelAllocations, periodEnd);
     var measuredIsins = measuredIsins(fund, periodStart, periodEnd, bmModelEvents);
     var rateByIsin =
-        instrumentFeeRepository.findAllValidRates(periodEnd).stream()
-            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
+        instrumentOcfService.ratesFor(YearMonth.from(periodEnd)).values().stream()
+            .collect(Collectors.toMap(InstrumentRate::isin, InstrumentRate::netOcf));
 
     var accumulator =
         new EtfLayerAccumulator(benchmarkLegResolver, fund, measuredIsins, rateByIsin);
@@ -273,14 +273,30 @@ public class PeriodicTdAttributionService {
     }
     accumulator.logWarnings(periodEnd);
 
-    return accumulator.toEtfLayer(measuredSum, coveredDays);
+    return accumulator.toEtfLayer(
+        measuredSum, coveredDays, etfLayerCoveredYearFraction(bmModelEvents));
+  }
+
+  private BigDecimal etfLayerCoveredYearFraction(List<TrackingDifferenceEvent> bmModelEvents) {
+    return bmModelEvents.stream()
+        .map(TrackingDifferenceEvent::getCheckDate)
+        .map(
+            checkDate ->
+                YearFraction.eachDayWeighedByItsOwnYear(firstDayMeasuredBy(checkDate), checkDate))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private int etfLayerCoveredDays(List<TrackingDifferenceEvent> bmModelEvents) {
     return bmModelEvents.stream()
         .map(TrackingDifferenceEvent::getCheckDate)
-        .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
+        .mapToInt(
+            checkDate ->
+                (int) ChronoUnit.DAYS.between(firstDayMeasuredBy(checkDate), checkDate) + 1)
         .sum();
+  }
+
+  private LocalDate firstDayMeasuredBy(LocalDate checkDate) {
+    return publicHolidays.previousWorkingDay(checkDate).plusDays(1);
   }
 
   private void warnIfEtfLayerDoesNotTilePeriod(

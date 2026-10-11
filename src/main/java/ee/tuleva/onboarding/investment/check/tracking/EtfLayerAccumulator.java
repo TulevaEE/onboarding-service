@@ -107,20 +107,17 @@ final class EtfLayerAccumulator {
     }
   }
 
-  EtfLayer toEtfLayer(BigDecimal measuredSum, int coveredDays) {
+  EtfLayer toEtfLayer(BigDecimal measuredSum, int coveredDays, BigDecimal coveredYearFraction) {
     return new EtfLayer(
         measuredSum,
-        annualisedDrag(heldOcf, coveredDays),
-        annualisedDrag(proxyOcf, coveredDays),
+        annualisedDrag(heldOcf, coveredYearFraction),
+        annualisedDrag(proxyOcf, coveredYearFraction),
         coveredDays,
         unbenchmarkedWeight,
         unrestoredProxyWeight);
   }
 
-  private static BigDecimal annualisedDrag(BigDecimal weightedRate, int days) {
-    return weightedRate
-        .negate()
-        .multiply(BigDecimal.valueOf(days))
-        .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+  private static BigDecimal annualisedDrag(BigDecimal weightedRate, BigDecimal yearFraction) {
+    return weightedRate.negate().multiply(yearFraction).setScale(SCALE, HALF_UP);
   }
 }

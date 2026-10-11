@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -160,7 +161,12 @@ class CustodianPositionComparatorTest {
 
   private void givenNav(List<NavAccountLine> lines) {
     given(fundNavQueryService.findLatestCalculation("TUK75", NAV_DATE))
-        .willReturn(Optional.of(new NavCalculation(CALCULATED_AT, lines)));
+        .willReturn(
+            Optional.of(
+                new NavCalculation(
+                    UUID.fromString("00000000-0000-4000-8000-00000000000c"),
+                    CALCULATED_AT,
+                    lines)));
   }
 
   private void givenPositions(List<FundPosition> positions) {

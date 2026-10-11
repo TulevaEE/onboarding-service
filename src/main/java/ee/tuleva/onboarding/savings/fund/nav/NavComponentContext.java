@@ -21,5 +21,5 @@ public class NavComponentContext {
   private final Instant priceCutoff;
 
   @Setter private BigDecimal unitsOutstanding;
-  @Setter private Map<String, ResolvedPrice> securityPrices;
+  @Setter @Builder.Default private Map<String, ResolvedPrice> securityPrices = Map.of();
 }

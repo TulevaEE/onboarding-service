@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.report;
 
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -67,13 +67,13 @@ class ReportImportJobTest {
   void importForDate_importsAllReportTypesFromAllSources() {
     setupReportRepositoryMocks();
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(source.fetch(eq(POSITIONS), eq(date)))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
-    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/2026-01-15.csv");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/2026-01-15_positions.csv");
     when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
     job.importForDate(date);
@@ -84,9 +84,9 @@ class ReportImportJobTest {
   @Test
   void importForDate_skipsExistingReports() {
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
-    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SEB, POSITIONS, date))
         .thenReturn(Optional.of(InvestmentReport.builder().build()));
 
     job.importForDate(date);
@@ -106,16 +106,16 @@ class ReportImportJobTest {
     metadata.put("s3LastModified", oldModified.toString());
     InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
 
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
-    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SEB, POSITIONS, date))
         .thenReturn(Optional.of(existing));
     when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(newModified));
     when(source.fetch(eq(POSITIONS), eq(date)))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
-    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/" + date + ".csv");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/" + date + "_positions.csv");
     when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
     job.importForDate(date);
@@ -133,9 +133,9 @@ class ReportImportJobTest {
     metadata.put("s3LastModified", lastModified.toString());
     InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
 
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
-    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SEB, POSITIONS, date))
         .thenReturn(Optional.of(existing));
     when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(lastModified));
 
@@ -148,7 +148,7 @@ class ReportImportJobTest {
   @Test
   void importForDate_handlesNoFilesFound() {
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(reportRepository.findByProviderAndReportTypeAndReportDate(any(), any(), any()))
         .thenReturn(Optional.empty());
@@ -163,16 +163,16 @@ class ReportImportJobTest {
   void importForProviderAndDate_importsOnlyMatchingProvider() {
     setupReportRepositoryMocks();
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(source.fetch(eq(POSITIONS), eq(date)))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
-    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/2026-01-15.csv");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/2026-01-15_positions.csv");
     when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(reportRepository).save(any(InvestmentReport.class));
   }
@@ -180,7 +180,7 @@ class ReportImportJobTest {
   @Test
   void importForProviderAndDate_skipsNonMatchingProvider() {
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
 
     job.importForProviderAndDate(ReportProvider.SEB, date);
 
@@ -190,7 +190,7 @@ class ReportImportJobTest {
 
   @Test
   void runImport_processesMultipleDays() {
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(source.getLastModified(any(), any())).thenReturn(Optional.empty());
     when(reportRepository.findByProviderAndReportTypeAndReportDate(any(), any(), any()))
@@ -204,7 +204,7 @@ class ReportImportJobTest {
 
   @Test
   void runImport_continuesOnError() {
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(reportRepository.findByProviderAndReportTypeAndReportDate(any(), any(), any()))
         .thenThrow(new RuntimeException("DB error"));
@@ -219,16 +219,16 @@ class ReportImportJobTest {
   void forceImportForProviderAndDate_alwaysRefetches_regardlessOfAge() {
     setupReportRepositoryMocks();
     LocalDate oldDate = LocalDate.now(FIXED_CLOCK).minusDays(5);
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
     when(source.fetch(eq(POSITIONS), eq(oldDate)))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
-    when(source.getKey(POSITIONS, oldDate)).thenReturn("portfolio/" + oldDate + ".csv");
+    when(source.getKey(POSITIONS, oldDate)).thenReturn("seb/" + oldDate + "_positions.csv");
     when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
-    job.forceImportForProviderAndDate(SWEDBANK, oldDate);
+    job.forceImportForProviderAndDate(SEB, oldDate);
 
     verify(source).fetch(POSITIONS, oldDate);
     verify(reportRepository).save(any(InvestmentReport.class));
@@ -245,16 +245,16 @@ class ReportImportJobTest {
     metadata.put("s3LastModified", oldModified.toString());
     InvestmentReport existing = InvestmentReport.builder().metadata(metadata).build();
 
-    when(source.getProvider()).thenReturn(SWEDBANK);
+    when(source.getProvider()).thenReturn(SEB);
     when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
-    when(reportRepository.findByProviderAndReportTypeAndReportDate(SWEDBANK, POSITIONS, date))
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SEB, POSITIONS, date))
         .thenReturn(Optional.of(existing));
     when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(newModified));
     when(source.fetch(eq(POSITIONS), eq(date)))
         .thenReturn(
             Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
     when(source.getBucket()).thenReturn("tuleva-investment-reports");
-    when(source.getKey(POSITIONS, date)).thenReturn("portfolio/" + date + ".csv");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/" + date + "_positions.csv");
     when(source.extractCsvMetadata(any())).thenReturn(Map.of());
 
     job.importForDate(date);

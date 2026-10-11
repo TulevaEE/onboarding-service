@@ -7,6 +7,8 @@ import static org.bouncycastle.asn1.x509.Extension.keyUsage;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection;
 import static org.bouncycastle.asn1.x509.KeyUsage.digitalSignature;
+import static org.bouncycastle.asn1.x509.KeyUsage.keyAgreement;
+import static org.bouncycastle.asn1.x509.KeyUsage.nonRepudiation;
 
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import java.math.BigInteger;
@@ -134,15 +136,70 @@ public class WebEidCertificateFixture {
     return Extension.create(keyUsage, true, new KeyUsage(digitalSignature));
   }
 
+  public record CertificateWithKey(X509Certificate certificate, PrivateKey privateKey) {}
+
+  public static CertificateWithKey signingCertificate(
+      String personalCode, String keyAlgorithm, int keySize) {
+    return certificateWithKey(
+        subjectDn("TEST", "USER", personalCode), keyAlgorithm, keySize, qualifiedSignature());
+  }
+
+  public static CertificateWithKey signingCertificateWithSubjectDn(String subjectDn) {
+    return certificateWithKey(new X500Name(subjectDn), "RSA", 2048, qualifiedSignature());
+  }
+
   @SneakyThrows
-  private static X509Certificate buildCertificate(
-      X500Name subjectDN, String issuerDn, Extension... extensions) {
+  public static CertificateWithKey authenticationCertificate(String personalCode) {
+    return certificateWithKey(
+        subjectDn("TEST", "USER", personalCode),
+        "RSA",
+        2048,
+        Extension.create(keyUsage, true, new KeyUsage(digitalSignature | keyAgreement)),
+        clientAuthentication());
+  }
+
+  @SneakyThrows
+  private static CertificateWithKey certificateWithKey(
+      X500Name subjectDn, String keyAlgorithm, int keySize, Extension... extensions) {
+    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyAlgorithm);
+    keyPairGenerator.initialize(keySize);
+    KeyPair subjectKeyPair = keyPairGenerator.generateKeyPair();
+    X509Certificate certificate =
+        buildCertificate(
+            subjectDn,
+            VALID_ISSUER,
+            subjectKeyPair.getPublic(),
+            rsaKeyPair().getPrivate(),
+            extensions);
+    return new CertificateWithKey(certificate, subjectKeyPair.getPrivate());
+  }
+
+  @SneakyThrows
+  private static Extension qualifiedSignature() {
+    return Extension.create(keyUsage, true, new KeyUsage(nonRepudiation));
+  }
+
+  @SneakyThrows
+  private static KeyPair rsaKeyPair() {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
     keyPairGenerator.initialize(2048);
-    KeyPair keyPair = keyPairGenerator.generateKeyPair();
-    PublicKey publicKey = keyPair.getPublic();
-    PrivateKey privateKey = keyPair.getPrivate();
+    return keyPairGenerator.generateKeyPair();
+  }
 
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN, String issuerDn, Extension... extensions) {
+    KeyPair keyPair = rsaKeyPair();
+    return buildCertificate(
+        subjectDN, issuerDn, keyPair.getPublic(), keyPair.getPrivate(), extensions);
+  }
+
+  @SneakyThrows
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN,
+      String issuerDn,
+      PublicKey publicKey,
+      PrivateKey issuerPrivateKey,
+      Extension... extensions) {
     BigInteger serialNumber = new BigInteger(64, new SecureRandom());
 
     X500Name issuer = new X500Name(issuerDn);
@@ -155,7 +212,7 @@ public class WebEidCertificateFixture {
         new DefaultSignatureAlgorithmIdentifierFinder().find("SHA256WITHRSA");
     AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
     AsymmetricKeyParameter privateKeyAsymKeyParam =
-        PrivateKeyFactory.createKey(privateKey.getEncoded());
+        PrivateKeyFactory.createKey(issuerPrivateKey.getEncoded());
     ContentSigner sigGen =
         new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);
 

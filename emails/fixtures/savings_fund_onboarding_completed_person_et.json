@@ -1,6 +1,11 @@
 {
   "variants": {
-    "vaikimisi": {
+    "makset pole": {
+      "FNAME": "Mari",
+      "savingsFundFee": "0,28",
+      "awaitingFirstPayment": true
+    },
+    "makse juba tehtud": {
       "FNAME": "Mari",
       "savingsFundFee": "0,28"
     }

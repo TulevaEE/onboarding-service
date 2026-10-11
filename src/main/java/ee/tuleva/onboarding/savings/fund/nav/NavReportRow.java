@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.currency.Currency;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,6 +21,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -52,6 +54,11 @@ public class NavReportRow {
   private Currency currency = EUR;
 
   private BigDecimal marketValue;
+
+  private @Nullable LocalDate priceDate;
+
+  @Enumerated(STRING)
+  private @Nullable PriceSource priceSource;
 
   @NotNull private UUID calculationId;
 

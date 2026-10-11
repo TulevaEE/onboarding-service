@@ -154,4 +154,9 @@ class SebBankAccountsTest {
     assertThatThrownBy(() -> new SebBankAccounts(configuration, testFundAccounts()))
         .isInstanceOf(IllegalStateException.class);
   }
+
+  @Test
+  void find_returnsNothingForAPaymentWithoutIban() {
+    assertThat(bankAccounts.find(null)).isEmpty();
+  }
 }

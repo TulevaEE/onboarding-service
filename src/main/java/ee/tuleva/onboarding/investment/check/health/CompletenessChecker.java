@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
@@ -47,7 +48,7 @@ class CompletenessChecker {
                     new HealthCheckFinding(
                         fund,
                         COMPLETENESS,
-                        WARNING,
+                        FAIL,
                         "%s: negative SECURITY quantity %s for %s"
                             .formatted(
                                 fund,

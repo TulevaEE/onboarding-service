@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.WRONG_NAV_ISSUANCE;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -23,13 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class IssuingJob {
-
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
   private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
   private final Clock clock;
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final FundNavProvider navProvider;
+  private final PaymentCheckService paymentCheckService;
   private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(fixedRateString = "1m")
@@ -52,15 +55,21 @@ public class IssuingJob {
                 payment.getId(),
                 payment.getReceivedBefore(),
                 previousCutoff);
+            paymentCheckService.record(
+                WRONG_NAV_ISSUANCE,
+                HOLD,
+                String.valueOf(payment.getId()),
+                "received before the previous cutoff, so it is due an earlier NAV than the one about to be applied");
           }
         });
     log.info("Running issuing job for {} payments", payments.size());
-    var nav = navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate(cutoff));
+    var navDate = dealingDate(cutoff);
+    var nav = navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, navDate);
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
     var totalAmount = ZERO;
     var totalFundUnits = ZERO;
     for (SavingFundPayment payment : payments) {
-      var result = issuerService.processPayment(payment, nav);
+      var result = issuerService.processPayment(payment, nav, navDate);
       totalAmount = totalAmount.add(result.cashAmount());
       totalFundUnits = totalFundUnits.add(result.fundUnits());
     }

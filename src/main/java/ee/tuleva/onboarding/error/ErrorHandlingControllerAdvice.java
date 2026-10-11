@@ -15,6 +15,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.Errors;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -31,14 +34,27 @@ public class ErrorHandlingControllerAdvice {
 
   @ExceptionHandler(ValidationErrorsException.class)
   public ResponseEntity<ErrorsResponse> handleErrors(ValidationErrorsException exception) {
-    log.info("ValidationErrorsException {}", exception.toString());
+    logInvalidRequest(exception.getErrors());
     return errorResponseEntityFactory.fromErrors(exception.getErrors());
   }
 
   @ExceptionHandler(BindException.class)
   public ResponseEntity<ErrorsResponse> handleBindException(BindException exception) {
-    log.info("BindException: {}", exception.toString());
+    logInvalidRequest(exception);
     return errorResponseEntityFactory.fromErrors(exception);
+  }
+
+  private static void logInvalidRequest(Errors errors) {
+    log.info(
+        "Request validation failed: object={}, errors={}",
+        errors.getObjectName(),
+        errors.getAllErrors().stream().map(ErrorHandlingControllerAdvice::describe).toList());
+  }
+
+  private static String describe(ObjectError error) {
+    return error instanceof FieldError fieldError
+        ? "field=" + fieldError.getField() + " code=" + fieldError.getCode()
+        : "code=" + error.getCode();
   }
 
   @ExceptionHandler({

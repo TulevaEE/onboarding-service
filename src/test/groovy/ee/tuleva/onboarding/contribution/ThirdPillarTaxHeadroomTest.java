@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.contribution;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -202,10 +203,11 @@ class ThirdPillarTaxHeadroomTest {
   }
 
   @Test
-  void contributionLookupFailureMeansNoNudgeInsteadOfABrokenEmail() {
+  void contributionLookupFailurePropagatesSoTheCallerCanTreatHeadroomAsUnknown() {
     given(episService.getContributions(person)).willThrow(new IllegalStateException("EPIS down"));
 
-    assertThat(headroom.hasHeadroom(person)).isFalse();
+    assertThatThrownBy(() -> headroom.hasHeadroom(person))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

@@ -1,6 +1,11 @@
 package ee.tuleva.onboarding.banking.statement;
 
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSING_AVAILABLE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_AVAILABLE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -200,6 +205,104 @@ class BankStatementTest {
 
     assertThatThrownBy(() -> BankStatement.from(report, ZoneId.of("Europe/Tallinn")))
         .isInstanceOf(BankStatementParseException.class);
+  }
+
+  @Test
+  void from_accountStatement_exposesTheStatementPeriodAsLocalDates() {
+    var account = Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var statement =
+        Camt053Fixtures.accountStatement(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            ZonedDateTime.parse("2025-12-12T00:00:00+02:00"),
+            ZonedDateTime.parse("2026-01-12T23:59:59.999+02:00"));
+
+    var result = BankStatement.from(statement, ZoneId.of("Europe/Tallinn"));
+
+    assertThat(result.getPeriod())
+        .isEqualTo(new StatementPeriod(LocalDate.of(2025, 12, 12), LocalDate.of(2026, 1, 12)));
+  }
+
+  @Test
+  void from_accountStatement_throwsWhenThePeriodStartIsMissing() {
+    var account = Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var statement =
+        Camt053Fixtures.accountStatement(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            null,
+            ZonedDateTime.parse("2026-01-12T23:59:59.999+02:00"));
+
+    assertThatThrownBy(() -> BankStatement.from(statement, ZoneId.of("Europe/Tallinn")))
+        .isInstanceOf(BankStatementParseException.class);
+  }
+
+  @Test
+  void from_accountReport_usesTheReportDayAsItsPeriod() {
+    var account = Camt052Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var report =
+        Camt052Fixtures.accountReport(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            ZonedDateTime.parse("2026-01-13T21:28:09.153+02:00"));
+
+    var result = BankStatement.from(report, ZoneId.of("Europe/Tallinn"));
+
+    assertThat(result.getPeriod())
+        .isEqualTo(new StatementPeriod(LocalDate.of(2026, 1, 13), LocalDate.of(2026, 1, 13)));
+  }
+
+  @Test
+  void
+      bookedBalance_ofAnIntraDayReportIsTheInterimBookedOneNotTheAvailableOneThatCountsTheOverdraft() {
+    var report =
+        statement(
+            INTRA_DAY_REPORT,
+            balance(OPEN, "175345.82"),
+            balance(INTERIM_AVAILABLE, "29386.49"),
+            balance(INTERIM_BOOKED, "24386.49"));
+
+    assertThat(report.bookedBalance()).contains(new BigDecimal("24386.49"));
+  }
+
+  @Test
+  void bookedBalance_ofAHistoricStatementIsItsClosingBookedOne() {
+    var statement =
+        statement(
+            HISTORIC_STATEMENT,
+            balance(OPEN, "175345.82"),
+            balance(CLOSING_AVAILABLE, "29386.49"),
+            balance(CLOSE, "24386.49"));
+
+    assertThat(statement.bookedBalance()).contains(new BigDecimal("24386.49"));
+  }
+
+  @Test
+  void bookedBalance_isAbsentWhenTheBankReportedNoneOfTheRightType() {
+    var report = statement(INTRA_DAY_REPORT, balance(OPEN, "175345.82"), balance(CLOSE, "1.00"));
+
+    assertThat(report.bookedBalance()).isEmpty();
+  }
+
+  private static BankStatement statement(
+      BankStatement.BankStatementType type, BankStatementBalance... balances) {
+    return new BankStatement(
+        type,
+        new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
+        List.of(balances),
+        List.of(),
+        new StatementPeriod(DATE, DATE));
+  }
+
+  private static BankStatementBalance balance(
+      BankStatementBalance.StatementBalanceType type, String amount) {
+    return new BankStatementBalance(type, DATE, new BigDecimal(amount));
   }
 
   @Nested

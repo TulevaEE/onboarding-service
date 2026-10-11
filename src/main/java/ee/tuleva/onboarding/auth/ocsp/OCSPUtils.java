@@ -10,8 +10,6 @@ import java.security.cert.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import lombok.SneakyThrows;
-import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -100,12 +98,6 @@ public class OCSPUtils {
   public X509Certificate getX509Certificate(String certificate) {
     byte[] certificateBytes = certificate.getBytes(UTF_8);
     return generateX09Certificate(certificateBytes);
-  }
-
-  @SneakyThrows
-  public X509Certificate decodeX09Certificate(String hexCertificate) {
-    byte[] decodedCertificate = Hex.decodeHex(hexCertificate);
-    return generateX09Certificate(decodedCertificate);
   }
 
   private X509Certificate generateX09Certificate(byte[] certificate) {

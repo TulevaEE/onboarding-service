@@ -10,10 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 
 interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
 
-  // Deliberately not scoped by check_date: the daily legs write one row per day, so a same-day
-  // lookup would never find a predecessor and every persisting deviation would alert again daily.
-  // Ordered by id as well as createdAt, so two rows written close enough together to share a
-  // timestamp can never come back in an arbitrary order.
   @Query(
       """
       SELECT event FROM FeeCheckEvent event
@@ -27,8 +23,6 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
   List<FeeCheckEvent> findLatestDelivered(
       TulevaFund fund, FeeCheckType checkType, FeeCheckScope feeScope, Limit limit);
 
-  // The monthly legs get their own method rather than sharing one with a nullable argument: a null
-  // parameter renders as "= ?" and would match nothing.
   @Query(
       """
       SELECT event FROM FeeCheckEvent event
@@ -46,15 +40,14 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
       LocalDate feeMonth,
       Limit limit);
 
-  // A deviating row counts as outstanding while no later run of its own check type and scope came
-  // back clean, so a check that has deviated since its very first run is included rather than
-  // skipped for having no clean run to measure from.
   @Query(
       """
       SELECT MIN(event.checkDate) FROM FeeCheckEvent event
       WHERE event.fund = :fund
         AND event.feeMonth IS NULL
         AND event.deviationFound = true
+        AND event.checkType <>
+            ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE
         AND NOT EXISTS (
           SELECT clean.id FROM FeeCheckEvent clean
           WHERE clean.fund = event.fund
@@ -62,6 +55,8 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
             AND clean.checkType = event.checkType
             AND clean.feeScope = event.feeScope
             AND clean.deviationFound = false
+            AND clean.severity <>
+                ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
             AND clean.checkDate >= event.checkDate)
       """)
   Optional<LocalDate> findOldestUnresolvedDailyDeviationDate(TulevaFund fund);

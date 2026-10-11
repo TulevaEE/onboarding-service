@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.MORNINGSTAR;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -8,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -66,14 +69,16 @@ class NavReportMapperTest {
                         new BigDecimal("15543.00"),
                         new BigDecimal("41.8050"),
                         new BigDecimal("649775.12"),
-                        navDate),
+                        navDate,
+                        EODHD),
                     new SecurityDetail(
                         "IE00BFG1TM61",
                         "DWSF",
                         new BigDecimal("38755.69"),
                         new BigDecimal("33.6226"),
                         new BigDecimal("1303067.06"),
-                        navDate)))
+                        navDate,
+                        EODHD)))
             .cashPosition(new BigDecimal("370794.18"))
             .receivables(ZERO)
             .payables(new BigDecimal("158773.00"))
@@ -176,7 +181,8 @@ class NavReportMapperTest {
             .calculatedAt(Instant.parse("2026-05-08T09:00:00Z"))
             .securitiesDetail(
                 List.of(
-                    new SecurityDetail("IE0031080751", "EGBI", units, price, marketValue, navDate)))
+                    new SecurityDetail(
+                        "IE0031080751", "EGBI", units, price, marketValue, navDate, EODHD)))
             .cashPosition(new BigDecimal("1000.00"))
             .receivables(ZERO)
             .payables(ZERO)
@@ -201,6 +207,52 @@ class NavReportMapperTest {
   }
 
   @Test
+  void aSecurityRowKeepsTheDateAndSourceOfThePriceItWasValuedAt() {
+    var navDate = LocalDate.of(2026, 5, 7);
+    var priceDate = LocalDate.of(2026, 5, 6);
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TUK00)
+            .calculationDate(LocalDate.of(2026, 5, 8))
+            .positionReportDate(navDate)
+            .priceDate(navDate)
+            .calculatedAt(Instant.parse("2026-05-08T09:00:00Z"))
+            .securitiesDetail(
+                List.of(
+                    new SecurityDetail(
+                        "IE0031080751",
+                        "EGBI",
+                        new BigDecimal("100.00"),
+                        new BigDecimal("22.70196"),
+                        new BigDecimal("2270.20"),
+                        priceDate,
+                        MORNINGSTAR)))
+            .cashPosition(new BigDecimal("1000.00"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("100.000"))
+            .navPerUnit(new BigDecimal("32.70"))
+            .aum(new BigDecimal("3270.20"))
+            .build();
+
+    var rows = navReportMapper.map(result);
+
+    assertThat(rows.getFirst())
+        .extracting(
+            NavReportRow::getAccountType, NavReportRow::getPriceDate, NavReportRow::getPriceSource)
+        .containsExactly("SECURITY", priceDate, MORNINGSTAR);
+    assertThat(rows.subList(1, rows.size()))
+        .extracting(NavReportRow::getPriceDate, NavReportRow::getPriceSource)
+        .containsOnly(tuple(null, null));
+  }
+
+  @Test
   void mapsPillarFundWithOtherReceivables() {
     var navDate = LocalDate.of(2026, 3, 13);
 
@@ -219,7 +271,8 @@ class NavReportMapperTest {
                         new BigDecimal("8042414.77"),
                         new BigDecimal("33.6651"),
                         new BigDecimal("270748858.32"),
-                        navDate)))
+                        navDate,
+                        EODHD)))
             .cashPosition(new BigDecimal("590345.14"))
             .receivables(ZERO)
             .payables(ZERO)
@@ -298,11 +351,24 @@ class NavReportMapperTest {
                         new BigDecimal("15543.00"),
                         new BigDecimal("41.8050"),
                         new BigDecimal("649775.12"),
-                        navDate),
+                        navDate,
+                        EODHD),
                     new SecurityDetail(
-                        "IE00BFNM3G45", "SGAS", ZERO, new BigDecimal("13.466"), ZERO, navDate),
+                        "IE00BFNM3G45",
+                        "SGAS",
+                        ZERO,
+                        new BigDecimal("13.466"),
+                        ZERO,
+                        navDate,
+                        EODHD),
                     new SecurityDetail(
-                        "IE00BFNM3D14", "SLMC", ZERO, new BigDecimal("10.930"), ZERO, navDate)))
+                        "IE00BFNM3D14",
+                        "SLMC",
+                        ZERO,
+                        new BigDecimal("10.930"),
+                        ZERO,
+                        navDate,
+                        EODHD)))
             .cashPosition(new BigDecimal("370794.18"))
             .receivables(ZERO)
             .payables(ZERO)
@@ -346,7 +412,8 @@ class NavReportMapperTest {
                         ZERO,
                         new BigDecimal("41.8050"),
                         new BigDecimal("123.45"),
-                        navDate)))
+                        navDate,
+                        EODHD)))
             .cashPosition(new BigDecimal("1000.00"))
             .receivables(ZERO)
             .payables(ZERO)
@@ -389,7 +456,8 @@ class NavReportMapperTest {
                         new BigDecimal("10.00"),
                         new BigDecimal("2.0000"),
                         new BigDecimal("20.00"),
-                        navDate)))
+                        navDate,
+                        EODHD)))
             .cashPosition(new BigDecimal("1000.00"))
             .receivables(ZERO)
             .payables(ZERO)

@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ParentChildLinkRegistrationServiceTest {
@@ -42,7 +41,6 @@ class ParentChildLinkRegistrationServiceTest {
 
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
 
@@ -50,9 +48,7 @@ class ParentChildLinkRegistrationServiceTest {
 
   @BeforeEach
   void setUp() {
-    service =
-        new ParentChildLinkRegistrationService(
-            parentChildLinkRepository, userService, applicationEventPublisher, clock);
+    service = new ParentChildLinkRegistrationService(parentChildLinkRepository, userService, clock);
   }
 
   @Test
@@ -81,8 +77,6 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Maasikas")
                 .active(true)
                 .build());
-    verify(applicationEventPublisher)
-        .publishEvent(new ParentChildLinkCreatedEvent(PARENT, CHILD, LEGAL_REPRESENTATIVE));
   }
 
   @Test
@@ -122,7 +116,6 @@ class ParentChildLinkRegistrationServiceTest {
                 .active(true)
                 .build());
     verify(parentChildLinkRepository, never()).save(any());
-    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test
@@ -144,7 +137,7 @@ class ParentChildLinkRegistrationServiceTest {
   }
 
   @Test
-  void registerPending_savesPendingLinkWithoutPublishingAnEvent() {
+  void registerPending_savesPendingLink() {
     given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
     given(
             parentChildLinkRepository
@@ -168,7 +161,6 @@ class ParentChildLinkRegistrationServiceTest {
     assertThat(saved.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
     assertThat(saved.getValidUntil()).isEqualTo(CHILD_EIGHTEENTH_BIRTHDAY);
     assertThat(saved.isPending()).isTrue();
-    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test
@@ -193,7 +185,6 @@ class ParentChildLinkRegistrationServiceTest {
     assertThat(result).isSameAs(existingActive);
     assertThat(result.getStatus()).isEqualTo(ACTIVE);
     verify(parentChildLinkRepository, never()).save(any());
-    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test
@@ -201,12 +192,12 @@ class ParentChildLinkRegistrationServiceTest {
     assertThatThrownBy(() -> service.registerPending(CO_PARENT, "38812121215", "Ad", "Ult"))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
-    verifyNoInteractions(userService, applicationEventPublisher);
+    verifyNoInteractions(userService);
     verify(parentChildLinkRepository, never()).save(any());
   }
 
   @Test
-  void register_activatesAnExistingPendingLinkAndPublishesEvent() {
+  void register_activatesAnExistingPendingLink() {
     given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
     ParentChildLink pending =
         ParentChildLink.builder()
@@ -228,8 +219,6 @@ class ParentChildLinkRegistrationServiceTest {
     assertThat(result).isSameAs(pending);
     assertThat(result.getStatus()).isEqualTo(ACTIVE);
     verify(parentChildLinkRepository).save(pending);
-    verify(applicationEventPublisher)
-        .publishEvent(new ParentChildLinkCreatedEvent(PARENT, CHILD, LEGAL_REPRESENTATIVE));
   }
 
   @Test
@@ -259,7 +248,5 @@ class ParentChildLinkRegistrationServiceTest {
                 .lastName("Haldja")
                 .active(true)
                 .build());
-    verify(applicationEventPublisher)
-        .publishEvent(new ParentChildLinkCreatedEvent(GUARDIAN_CODE, ADULT_WARD, GUARDIAN));
   }
 }

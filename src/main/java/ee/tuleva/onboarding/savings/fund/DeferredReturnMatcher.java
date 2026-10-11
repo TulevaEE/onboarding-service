@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -44,9 +45,9 @@ public class DeferredReturnMatcher {
   private final BankAccounts bankAccounts;
   private final Clock clock;
 
-  @EventListener
+  @EventListener(BankMessagesProcessingCompleted.class)
   @Transactional
-  public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
+  public void onBankMessagesProcessed() {
     var depositIban = bankAccounts.getIban(TKF100, DEPOSIT_EUR);
     var now = clock.instant();
     var unmatchedReturns =
@@ -130,8 +131,11 @@ public class DeferredReturnMatcher {
             .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
             .or(
                 () ->
-                    savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
-                        returnPayment.getBeneficiaryIban(), returnPayment.getAmount()));
+                    Optional.ofNullable(returnPayment.getBeneficiaryIban())
+                        .flatMap(
+                            iban ->
+                                savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
+                                    iban, returnPayment.getAmount())));
 
     if (original.isPresent()) {
       completePaymentReturn(original.get());

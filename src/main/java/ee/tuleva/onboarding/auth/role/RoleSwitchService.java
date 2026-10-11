@@ -38,19 +38,25 @@ class RoleSwitchService {
     };
   }
 
-  public List<Role> getRoles(AuthenticatedPerson person) {
-    var roles = new ArrayList<Role>();
-    roles.add(new Role(PERSON, person.getPersonalCode(), person.getFullName()));
+  public List<RoleResponse> getRoles(AuthenticatedPerson person) {
+    var roles = new ArrayList<RoleResponse>();
+    roles.add(new RoleResponse(PERSON, person.getPersonalCode(), person.getFullName(), null));
 
     companyRoles.boardMemberCompanies(person.getPersonalCode()).stream()
-        .map(company -> new Role(LEGAL_ENTITY, company.registryCode(), company.name()))
+        .map(
+            company ->
+                new RoleResponse(
+                    LEGAL_ENTITY, company.registryCode(), company.name(), company.id()))
         .forEach(roles::add);
 
-    childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()).stream()
-        .flatMap(
-            code ->
-                principalUsers.fullName(code).map(name -> new Role(PERSON, code, name)).stream())
-        .forEach(roles::add);
+    childRepresentations
+        .findActivelyRepresentedChildren(person.getPersonalCode())
+        .forEach(
+            (childCode, linkId) ->
+                principalUsers
+                    .fullName(childCode)
+                    .map(name -> new RoleResponse(PERSON, childCode, name, linkId))
+                    .ifPresent(roles::add));
 
     return unmodifiableList(roles);
   }

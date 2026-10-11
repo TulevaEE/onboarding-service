@@ -25,10 +25,10 @@ public class MobileIdConfiguration {
   @Value("${truststore.path}")
   private String trustStorePath;
 
-  @Value("${smartid.relyingPartyUUID}")
+  @Value("${mobile-id.relyingPartyUUID}")
   private String relyingPartyUUID;
 
-  @Value("${smartid.relyingPartyName}")
+  @Value("${mobile-id.relyingPartyName}")
   private String relyingPartyName;
 
   @Value("${mobile-id.hostUrl}")

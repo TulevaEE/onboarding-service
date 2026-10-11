@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.RETURN_BLOCKED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
-import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.notification.PaymentsReturnedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +19,8 @@ public class PaymentReturningJob {
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final PaymentReturningService paymentReturningService;
-  private final ApplicationEventPublisher eventPublisher;
+  private final PaymentReturnValidator paymentReturnValidator;
+  private final PaymentCheckService paymentCheckService;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "PaymentReturningJob_runJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
@@ -29,20 +29,27 @@ public class PaymentReturningJob {
     List<SavingFundPayment> paymentsToBeReturned =
         savingFundPaymentRepository.findPaymentsWithStatus(TO_BE_RETURNED);
     var successCount = 0;
-    var totalAmount = ZERO;
     for (var payment : paymentsToBeReturned) {
+      var blockingReason = paymentReturnValidator.findBlockingReason(payment);
+      if (blockingReason.isPresent()) {
+        block(payment, blockingReason.get());
+        continue;
+      }
       try {
         paymentReturningService.createReturn(payment);
         successCount++;
-        totalAmount = totalAmount.add(payment.getAmount());
       } catch (Exception e) {
         log.error("Payment return failed: paymentId={}", payment.getId(), e);
       }
     }
     log.info("Payment returning job completed: payments={}", successCount);
+  }
 
-    if (successCount > 0) {
-      eventPublisher.publishEvent(new PaymentsReturnedEvent(successCount, totalAmount));
-    }
+  private void block(SavingFundPayment payment, String reason) {
+    log.error(
+        "Payment return blocked, leaving it to be returned: paymentId={}, reason={}",
+        payment.getId(),
+        reason);
+    paymentCheckService.recordStoppedPayment(RETURN_BLOCKED, payment.getId().toString(), reason);
   }
 }

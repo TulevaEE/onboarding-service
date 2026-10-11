@@ -15,8 +15,10 @@ import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,9 @@ import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SebStatementRouterTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private static final String DEPOSIT_IBAN = "EE001234567890123456";
   private static final String UNKNOWN_IBAN = "EE112233445566778899";
@@ -97,7 +102,8 @@ class SebStatementRouterTest {
         HISTORIC_STATEMENT,
         new BankStatementAccount(iban, "Tuleva Fondid AS", "14118923"),
         List.of(),
-        List.of(entries));
+        List.of(entries),
+        STATEMENT_PERIOD);
   }
 
   private BankStatementEntry bankStatementEntry(

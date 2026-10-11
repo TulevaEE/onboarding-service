@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
@@ -55,7 +54,7 @@ class PortfolioCostBasisJobTest {
 
   @Test
   void onPortfolioCostBasisRequested_triggersRun() {
-    job.onPortfolioCostBasisRequested(new RunPortfolioCostBasisRequested());
+    job.onPortfolioCostBasisRequested();
 
     for (TulevaFund fund : new TulevaFund[] {TUK75, TUK00, TUV100, TKF100}) {
       verify(service).runForFundAndDate(fund, TODAY);

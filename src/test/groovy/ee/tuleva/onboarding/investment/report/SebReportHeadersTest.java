@@ -104,6 +104,31 @@ class SebReportHeadersTest {
         .isEqualTo(AS_OF);
   }
 
+  @Test
+  void unreadableAsOfValue_returnsTheMetadataStringWhenItIsNotADate() {
+    assertThat(SebReportHeaders.unreadableAsOfValue(Map.of("asOfDate", "25.01.2026"), List.of()))
+        .isEqualTo("25.01.2026");
+  }
+
+  @Test
+  void unreadableAsOfValue_isNullWhenTheMetadataDateIsReadable() {
+    assertThat(SebReportHeaders.unreadableAsOfValue(Map.of("asOfDate", "2026-01-25"), List.of()))
+        .isNull();
+  }
+
+  @Test
+  void unreadableAsOfValue_isNullWhenNothingCarriesTheHeader() {
+    assertThat(SebReportHeaders.unreadableAsOfValue(Map.of(), List.of(dataRow()))).isNull();
+  }
+
+  @Test
+  void unreadableAsOfValue_returnsTheRawDataStringWhenItIsNotADate() {
+    assertThat(
+            SebReportHeaders.unreadableAsOfValue(
+                Map.of(), List.of(headerRow("As of:", "25.01.2026"))))
+        .isEqualTo("25.01.2026");
+  }
+
   private static Map<String, Object> headerRow(String label, String value) {
     Map<String, Object> row = new HashMap<>();
     row.put("Fund Management Company:", label);

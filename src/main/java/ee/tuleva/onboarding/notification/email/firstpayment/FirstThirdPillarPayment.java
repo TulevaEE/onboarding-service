@@ -13,17 +13,8 @@ public record FirstThirdPillarPayment(
     String languagePreference,
     BigDecimal amount,
     LocalDate firstPaymentDate,
-    boolean hasTulevaUser,
-    boolean suggestSecondPillar,
-    boolean suggestPaymentRate,
-    boolean suggestMembership,
-    boolean leftSecondPillar,
-    boolean savesInSavingsFund)
+    boolean hasTulevaUser)
     implements Person, Emailable {
-
-  public boolean suggestSavingsFund() {
-    return !suggestSecondPillar && !suggestPaymentRate && !savesInSavingsFund;
-  }
 
   @Override
   public String getPersonalCode() {

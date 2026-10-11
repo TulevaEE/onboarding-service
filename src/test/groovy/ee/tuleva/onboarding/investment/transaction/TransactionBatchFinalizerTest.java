@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -48,6 +51,7 @@ class TransactionBatchFinalizerTest {
   @Mock private TransactionExportUploader exportUploader;
   @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
   @Mock private PositionPriceResolver positionPriceResolver;
+  @Mock private PlatformTransactionManager transactionManager;
   @Mock private Clock clock;
 
   private TransactionBatchFinalizer finalizer;
@@ -68,6 +72,7 @@ class TransactionBatchFinalizerTest {
             exportUploader,
             custodianOrderEmailSender,
             orderFactory,
+            transactionManager,
             clock);
   }
 
@@ -459,11 +464,53 @@ class TransactionBatchFinalizerTest {
     when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
     when(exportUploader.uploadExports(any(), any(), any(), any()))
         .thenReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    var committedBatch = committedCopyOf(batch);
+    given(batchRepository.findById(1L)).willReturn(Optional.of(committedBatch));
 
     finalizer.finalizeConfirmedBatch(batch);
 
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    assertThat(committedBatch.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "commandId",
+                1L,
+                "driveFileUrls",
+                Map.of("sebFundXlsx", "https://drive.google.com/file1")));
+    verify(batchRepository).save(committedBatch);
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
+  }
+
+  @Test
+  void finalizeConfirmedBatch_driveLinksThatCannotBeStored_stillSendOrdersToCustodian() {
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+
+    var batch =
+        TransactionBatch.builder()
+            .id(1L)
+            .fund(TUV100)
+            .status(CONFIRMED)
+            .createdBy("system")
+            .metadata(new HashMap<>(Map.of("commandId", 1L)))
+            .build();
+
+    given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of());
+    given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
+    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
+    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
+    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
+    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
+    given(driveProperties.enabled()).willReturn(true);
+    given(driveProperties.rootFolderId()).willReturn("root-folder-id");
+    var driveFileUrls = Map.of("sebFundXlsx", "https://drive.google.com/file1");
+    given(exportUploader.uploadExports(any(), any(), any(), any())).willReturn(driveFileUrls);
+    given(batchRepository.findById(1L))
+        .willThrow(new DataAccessResourceFailureException("database unavailable"));
+
+    finalizer.finalizeConfirmedBatch(batch);
+
+    verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
+    verify(eventPublisher)
+        .publishEvent(new BatchFinalizedEvent(1L, 0, "2026-01-15", driveFileUrls));
   }
 
   @Test
@@ -508,6 +555,8 @@ class TransactionBatchFinalizerTest {
     given(driveProperties.rootFolderId()).willReturn("root-folder-id");
     given(exportUploader.uploadExports(any(), any(), any(), any()))
         .willReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
+    var committedBatch = committedCopyOf(batch);
+    given(batchRepository.findById(1L)).willReturn(Optional.of(committedBatch));
 
     TransactionSynchronizationManager.initSynchronization();
 
@@ -522,8 +571,25 @@ class TransactionBatchFinalizerTest {
     synchronizations.forEach(TransactionSynchronization::afterCommit);
 
     verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
+    assertThat(committedBatch.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "commandId",
+                1L,
+                "driveFileUrls",
+                Map.of("sebFundXlsx", "https://drive.google.com/file1")));
+    verify(batchRepository).save(committedBatch);
     verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
+  }
+
+  private static TransactionBatch committedCopyOf(TransactionBatch batch) {
+    return TransactionBatch.builder()
+        .id(batch.getId())
+        .fund(batch.getFund())
+        .status(SENT)
+        .createdBy(batch.getCreatedBy())
+        .metadata(Map.of("commandId", 1L))
+        .build();
   }
 }

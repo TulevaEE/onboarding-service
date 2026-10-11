@@ -4,6 +4,7 @@ import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.payment.PaymentRepository
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.authentication.BadCredentialsException
@@ -24,7 +25,8 @@ class MontonioNotificationBodyServiceSpec extends Specification {
         userService,
         paymentRepository,
         JsonMapper.builder().build(),
-        eventPublisher
+        eventPublisher,
+        new MontonioTokenParser(JsonMapper.builder().build(), aPaymentProviderConfiguration())
     )
   }
 

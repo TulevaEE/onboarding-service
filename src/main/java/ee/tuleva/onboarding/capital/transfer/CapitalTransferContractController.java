@@ -96,15 +96,19 @@ public class CapitalTransferContractController implements SignatureController<Lo
   }
 
   @Override
-  @Operation(
-      summary =
-          "Persist ID Card signed hash and get signing status for a capital transfer contract")
-  public IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
+  @Operation(summary = "Persist the ID card signature of a capital transfer contract")
+  public IdCardSignatureStatusResponse persistIdCardSignature(
       @PathVariable Long id,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return signatureService.persistIdCardSignedHashAndGetProcessingStatus(
-        id, signCommand, authenticatedPerson);
+    return signatureService.persistIdCardSignature(id, signCommand, authenticatedPerson);
+  }
+
+  @Override
+  @Operation(summary = "Get the ID card signing status of the capital transfer contract")
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    return signatureService.getIdCardSignatureStatus(id, authenticatedPerson);
   }
 
   @Override

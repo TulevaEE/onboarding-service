@@ -189,16 +189,10 @@ public class FundPositionLedgerService {
 
   private BigDecimal calculateTradePayables(TulevaFund fund, LocalDate date) {
     return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, LIABILITY).stream()
-        .filter(p -> isTradePayable(p.getAccountName()))
+        .filter(FundPosition::isTradePayable)
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
-  }
-
-  private boolean isTradePayable(String accountName) {
-    return accountName != null
-        && (accountName.contains("payables of unsettled transactions")
-            || accountName.contains("Trade Settlement Payable"));
   }
 
   private BigDecimal calculatePositionValue(TulevaFund fund, LocalDate date, AccountType type) {

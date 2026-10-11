@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.banking.admin;
 
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -12,6 +11,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTran
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,15 +48,15 @@ public class BankingAdminController {
 
     tokenValidator.validate(token);
 
-    var fund = fundCode != null ? parseFundCode(fundCode) : TKF100;
     var accounts =
-        bankAccounts.findAll(fund).stream()
+        fundAccounts(fundCode).stream()
             .filter(bankAccount -> account == null || bankAccount.type() == account)
             .toList();
 
     if (accounts.isEmpty()) {
       throw new ResponseStatusException(
-          BAD_REQUEST, "No bank accounts match: fund=%s, account=%s".formatted(fund, account));
+          BAD_REQUEST,
+          "No bank accounts match: fundCode=%s, account=%s".formatted(fundCode, account));
     }
 
     log.info("Admin triggered SEB history fetch: from={}, to={}, accounts={}", from, to, accounts);
@@ -84,6 +84,12 @@ public class BankingAdminController {
         "fund", fund.name(),
         "reclassified", result.reclassified(),
         "remaining", result.remaining());
+  }
+
+  private List<BankAccount> fundAccounts(@Nullable String fundCode) {
+    return fundCode == null
+        ? bankAccounts.findAll()
+        : bankAccounts.findAll(parseFundCode(fundCode));
   }
 
   private static TulevaFund parseFundCode(String fundCode) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.DEUTSCHE_BOERSE;
 import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EURONEXT;
 import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.YAHOO;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -320,7 +321,7 @@ class PriorityPriceProviderTest {
   }
 
   @Test
-  void resolve_eodhdSameDateAsEuronext_prefersEodhd() {
+  void resolve_eodhdSameDateAsEuronext_prefersTheEuronextOfficialClose() {
     InstrumentReference instrument = givenKnown(EURONEXT_ETF);
     String euronextKey = instrument.getEuronextParisStorageKey().orElseThrow();
     String eodhdTicker = instrument.getEodhdTicker();
@@ -328,15 +329,37 @@ class PriorityPriceProviderTest {
     when(fundValueProvider.getLatestValue(euronextKey, DATE))
         .thenReturn(
             Optional.of(
-                new FundValue(euronextKey, DATE, new BigDecimal("50.25"), "EURONEXT", null)));
+                new FundValue(euronextKey, DATE, new BigDecimal("47.93"), "EURONEXT", null)));
     when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
         .thenReturn(
-            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("50.24"), "EODHD", null)));
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("48.02"), "EODHD", null)));
+
+    Optional<FundValue> result = provider.resolve(GAGH_ISIN, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("EURONEXT");
+    assertThat(result.get().value()).isEqualByComparingTo("47.93");
+  }
+
+  @Test
+  void resolve_euronextOnlyHasAnOlderClose_fallsBackToEodhdForTheDate() {
+    InstrumentReference instrument = givenKnown(EURONEXT_ETF);
+    String euronextKey = instrument.getEuronextParisStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(euronextKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(euronextKey, OLDER_DATE, new BigDecimal("48.00"), "EURONEXT", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("47.93"), "EODHD", null)));
 
     Optional<FundValue> result = provider.resolve(GAGH_ISIN, DATE);
 
     assertThat(result).isPresent();
     assertThat(result.get().provider()).isEqualTo("EODHD");
+    assertThat(result.get().date()).isEqualTo(DATE);
   }
 
   @Test
@@ -366,6 +389,11 @@ class PriorityPriceProviderTest {
   @Test
   void priceFeeds_forEodhdListedInstrument_yieldEodhdKeyAheadOfTheExchange() {
     assertThat(sourcesWithStorageKey(XETRA_ETF)).containsExactly(EODHD, DEUTSCHE_BOERSE, YAHOO);
+  }
+
+  @Test
+  void priceFeeds_forEuronextParisInstrument_yieldTheEuronextKeyAheadOfEodhd() {
+    assertThat(sourcesWithStorageKey(EURONEXT_ETF)).containsExactly(EURONEXT, EODHD, YAHOO);
   }
 
   @Test

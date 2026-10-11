@@ -15,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.investment.check.limit.LimitCheckRun.UnfilledGap;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -53,10 +54,84 @@ class LimitCheckServiceTest {
   @Mock FundValueProvider fundValueProvider;
   @Mock NavReportPositionProvider navReportPositionProvider;
   @Mock TransactionOrderRepository transactionOrderRepository;
+  @Mock LimitCheckEventRepository limitCheckEventRepository;
 
   Clock clock = Clock.fixed(Instant.parse("2026-03-04T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
   @InjectMocks LimitCheckService service;
+
+  // A position date with no event is a day the check never ran. The retired yearly backfill
+  // re-ran a fixed window instead, so it both recomputed days that were fine and could leave a
+  // genuinely missed day outside its window.
+  @Test
+  void gapDatesAreThePositionDatesThatHaveNoCheckEvent() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var from = today.minusDays(30);
+    var alreadyChecked = LocalDate.of(2026, 3, 2);
+    var gap = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, today))
+        .thenReturn(List.of(alreadyChecked, gap));
+    lenient()
+        .when(limitCheckEventRepository.findDistinctCheckDates(TUK75, from, today))
+        .thenReturn(List.of(alreadyChecked));
+
+    var gaps = service.gapDates(30);
+
+    assertThat(gaps).containsOnlyKeys(TUK75);
+    assertThat(gaps.get(TUK75)).containsExactly(gap);
+  }
+
+  @Test
+  void aFundWithNoMissingDatesIsNotInTheGapMapAtAll() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var from = today.minusDays(30);
+    var checked = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, today))
+        .thenReturn(List.of(checked));
+    lenient()
+        .when(limitCheckEventRepository.findDistinctCheckDates(TUK75, from, today))
+        .thenReturn(List.of(checked));
+
+    assertThat(service.gapDates(30)).isEmpty();
+  }
+
+  // This is the signal the daily job alerts on: the gap was attempted and is still a gap.
+  @Test
+  void aGapThatCannotBeCheckedComesBackAsAnUnfilledGap() {
+    service = createService();
+    var gap = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findByNavDateAndFundAndAccountType(gap, TUK75, SECURITY))
+        .thenThrow(new RuntimeException("DB down"));
+
+    var run = service.fillGaps(Map.of(TUK75, List.of(gap)), 30);
+
+    assertThat(run.results()).isEmpty();
+    assertThat(run.unfilledGaps())
+        .containsExactly(new UnfilledGap(TUK75, gap, 1, LocalDate.of(2026, 4, 2)));
+  }
+
+  // Nothing fills these on its own and nothing else reports them, so a gap weeks old still comes
+  // back every evening - carrying how long it has stood and the last evening it will be attempted,
+  // because after that it leaves the lookback window and is never tried again.
+  @Test
+  void aGapThatHasBeenFailingForWeeksIsStillReportedAndCarriesItsAge() {
+    service = createService();
+    var staleGap = LocalDate.of(2026, 2, 10);
+    lenient()
+        .when(fundPositionRepository.findByNavDateAndFundAndAccountType(staleGap, TUK75, SECURITY))
+        .thenThrow(new RuntimeException("DB down"));
+
+    var run = service.fillGaps(Map.of(TUK75, List.of(staleGap)), 30);
+
+    assertThat(run.results()).isEmpty();
+    assertThat(run.unfilledGaps())
+        .containsExactly(new UnfilledGap(TUK75, staleGap, 22, LocalDate.of(2026, 3, 12)));
+  }
 
   @Test
   void delegatesToAllThreeCheckers() {
@@ -738,6 +813,7 @@ class LimitCheckServiceTest {
         providerLimitChecker,
         reserveLimitChecker,
         freeCashLimitChecker,
-        transactionOrderRepository);
+        transactionOrderRepository,
+        limitCheckEventRepository);
   }
 }

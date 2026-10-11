@@ -15,9 +15,10 @@ let failed = false;
 for (const file of templates) {
   const name = basename(file, '.mjml');
   const source = readFileSync(join(srcDir, file), 'utf8');
-  const { html, errors } = mjml2html(source, {
+  const { html, errors } = await mjml2html(source, {
     filePath: join(srcDir, file),
     validationLevel: 'strict',
+    ignoreIncludes: false,
   });
   if (errors.length > 0) {
     console.error(`${file}: ${errors.map((e) => e.formattedMessage).join('; ')}`);

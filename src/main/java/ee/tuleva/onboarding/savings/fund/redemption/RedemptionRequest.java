@@ -3,11 +3,15 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static jakarta.persistence.EnumType.STRING;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -71,11 +75,40 @@ public class RedemptionRequest {
 
   @Nullable private String errorReason;
 
-  @Nullable private String reviewedBy;
+  @Nullable private Instant verificationAttemptedAt;
 
-  @Nullable private String reviewReason;
+  @JsonIgnore @Nullable private String reviewedBy;
 
-  @Nullable private Instant reviewedAt;
+  @JsonIgnore @Nullable private String reviewReason;
+
+  @JsonIgnore @Nullable private Instant reviewedAt;
+
+  @JsonIgnore
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+      name = "redemption_hold_reason",
+      joinColumns =
+          @JoinColumn(
+              name = "redemption_request_id",
+              foreignKey = @ForeignKey(name = "fk_redemption_hold_reason_request")))
+  @Column(name = "reason", nullable = false)
+  @Enumerated(STRING)
+  @Builder.Default
+  private Set<RedemptionHoldReason> holdReasons = EnumSet.noneOf(RedemptionHoldReason.class);
+
+  @JsonIgnore @Nullable private String holdComment;
+
+  @JsonIgnore @Nullable private Instant holdAt;
+
+  @JsonIgnore @Nullable private String heldBy;
+
+  @JsonIgnore @Nullable private Instant holdNotifiedAt;
+
+  @JsonIgnore @Nullable private Instant holdReleasedAt;
+
+  @JsonIgnore @Nullable private Instant requeuedAt;
+
+  @JsonIgnore @Nullable private UUID batchId;
 
   @Column(nullable = false)
   private Instant updatedAt;
@@ -96,15 +129,40 @@ public class RedemptionRequest {
 
   public enum Status {
     RESERVED,
-    IN_REVIEW,
-    CANCELLED,
+    FROZEN,
     VERIFIED,
+    PAYOUT_HELD,
     REDEEMED,
     PROCESSED,
+    CANCELLED,
     FAILED
   }
 
   public PartyId getPartyId() {
     return new PartyId(partyType, partyCode);
+  }
+
+  public Set<RedemptionHoldReason> getHoldReasons() {
+    return holdReasons.isEmpty() ? Set.of() : EnumSet.copyOf(holdReasons);
+  }
+
+  public void setHoldReasons(Set<RedemptionHoldReason> reasons) {
+    holdReasons =
+        reasons.isEmpty() ? EnumSet.noneOf(RedemptionHoldReason.class) : EnumSet.copyOf(reasons);
+  }
+
+  public boolean hasActiveHold() {
+    return !holdReasons.isEmpty() && holdReleasedAt == null;
+  }
+
+  public boolean amountReconciles() {
+    if (fundUnits == null || navPerUnit == null || cashAmount == null) {
+      return false;
+    }
+    return expectedAmount().compareTo(cashAmount) == 0;
+  }
+
+  public BigDecimal expectedAmount() {
+    return fundUnits.multiply(navPerUnit).setScale(2, RoundingMode.HALF_UP);
   }
 }

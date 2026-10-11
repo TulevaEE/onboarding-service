@@ -3,19 +3,26 @@ package ee.tuleva.onboarding.investment.check.fee;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.INFO;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Limit;
 
 @DataJpaTest
@@ -26,6 +33,7 @@ class FeeCheckEventRepositoryTest {
   private static final Instant BASE_TIME = Instant.parse("2026-06-03T07:00:00Z");
 
   @Autowired FeeCheckEventRepository repository;
+  @Autowired TestEntityManager entityManager;
 
   private int saved = 0;
 
@@ -127,6 +135,32 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findAll().getFirst().getResult()).isEqualTo(detail);
   }
 
+  // The notifier reads the fingerprint back out of the jsonb column on every run. If the round trip
+  // returned anything that is not a list, it would fall back to comparing severity alone and go
+  // silent on a standing failure again, with every unit test still green.
+  @Test
+  void theFingerprintSurvivesTheJsonRoundTrip() {
+    var fingerprint = List.of("FAIL 2026-05-04 divergence", "FAIL settlementTransactionCount=1/2");
+    var event = event(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
+    event.setResult(Map.of(FeeCheckEvent.FINGERPRINT, fingerprint));
+
+    repository.saveAndFlush(event);
+    entityManager.clear();
+
+    assertThat(repository.findAll().getFirst().fingerprint())
+        .containsExactlyElementsOf(fingerprint);
+  }
+
+  // Rows written before the fingerprint existed have to stay distinguishable from rows that
+  // reported nothing, or the first run after the deploy announces every standing check at once.
+  @Test
+  void aRowWrittenWithoutAFingerprintHasNoneRatherThanAnEmptyOne() {
+    save(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
+    entityManager.clear();
+
+    assertThat(repository.findAll().getFirst().fingerprint()).isNull();
+  }
+
   @Test
   void aFundWithNothingOutstandingHasNoUnresolvedDeviationDate() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, PASS);
@@ -168,6 +202,46 @@ class FeeCheckEventRepositoryTest {
     event.setCheckDate(LocalDate.of(2026, 6, 1));
     event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
     repository.saveAndFlush(event);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aPensionikeskusFeeMismatchDoesNotWidenTheDailyWindowBecauseItHasNoHistoryToRescan() {
+    saveOn(LocalDate.of(2026, 6, 1), PENSIONIKESKUS_MANAGEMENT_FEE, MANAGEMENT, FAIL);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aRunThatCouldNotCheckDoesNotResolveAnOpenDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .contains(LocalDate.of(2026, 6, 1));
+  }
+
+  @Test
+  void aCleanRunAfterADayTheCheckCouldNotRunStillResolvesTheDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
+    saveOn(LocalDate.of(2026, 6, 3), FEE_BASE_COMPLETENESS, ALL, PASS);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aDeviationExplainedAsNeedingNoActionIsNoLongerOutstanding() {
+    saveOn(LocalDate.of(2026, 6, 1), CUSTODIAN_POSITION_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), CUSTODIAN_POSITION_COMPLETENESS, ALL, INFO);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aRunThatCouldNotCheckIsNotItselfAnOpenDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
 
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
   }
@@ -218,7 +292,7 @@ class FeeCheckEventRepositoryTest {
         .checkType(checkType)
         .feeScope(scope)
         .severity(severity)
-        .deviationFound(severity == FAIL)
+        .deviationFound(severity == WARNING || severity == FAIL)
         .result(Map.of())
         .build();
   }

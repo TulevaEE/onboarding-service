@@ -15,6 +15,20 @@ final class TrackingDifferenceEventMapper {
 
   private TrackingDifferenceEventMapper() {}
 
+  static TrackingDifferenceEvent toEvent(TrackingDifferenceResult result) {
+    return TrackingDifferenceEvent.builder()
+        .fund(result.fund())
+        .checkDate(result.checkDate())
+        .checkType(result.checkType())
+        .trackingDifference(result.trackingDifference())
+        .fundReturn(result.fundReturn())
+        .benchmarkReturn(result.benchmarkReturn())
+        .breach(result.breach())
+        .consecutiveBreachDays(result.consecutiveBreachDays())
+        .result(buildResultMap(result))
+        .build();
+  }
+
   static Map<String, Object> buildResultMap(TrackingDifferenceResult result) {
     var attributions =
         result.securityAttributions().stream()

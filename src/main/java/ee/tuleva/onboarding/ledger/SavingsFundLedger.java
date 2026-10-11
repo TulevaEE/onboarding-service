@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 
@@ -10,6 +11,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -61,6 +64,14 @@ import org.springframework.stereotype.Service;
  * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
  * </pre>
+ *
+ * <h2>Unit Transfer Flow (units change owner, and what the giver paid on average for the units they
+ * still hold travels along)</h2>
+ *
+ * <pre>
+ * 1. recordUnitTransfer            Giver:FUND_UNITS → Receiver:FUND_UNITS
+ *                                  Giver:SUBSCRIPTIONS → Receiver:SUBSCRIPTIONS
+ * </pre>
  */
 @Slf4j
 @Service
@@ -72,6 +83,7 @@ public class SavingsFundLedger {
   private final Clock clock;
   private final RedemptionLedgerRecorder redemptionRecorder;
   private final UnattributedPaymentLedgerRecorder unattributedRecorder;
+  private final UnitTransferLedgerRecorder unitTransferRecorder;
 
   @Getter
   @AllArgsConstructor
@@ -83,6 +95,7 @@ public class SavingsFundLedger {
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
     NAV_PER_UNIT("navPerUnit"),
+    NAV_DATE("navDate"),
     REDEMPTION_REQUEST_ID("redemptionRequestId"),
     DESCRIPTION("description"),
     INSTRUMENT("instrument"),
@@ -90,7 +103,10 @@ public class SavingsFundLedger {
     DISPLAY_NAME("displayName"),
     COUNTERPARTY_NAME("counterpartyName"),
     COUNTERPARTY_IBAN("counterpartyIban"),
-    SUB_FAMILY_CODE("subFamilyCode");
+    SUB_FAMILY_CODE("subFamilyCode"),
+    RECIPIENT_CODE("recipientCode"),
+    RECIPIENT_TYPE("recipientType"),
+    RECIPIENT_ACQUISITION_COST_EUR("recipientAcquisitionCostEur");
 
     private final String key;
   }
@@ -234,6 +250,7 @@ public class SavingsFundLedger {
       BigDecimal cashAmount,
       BigDecimal fundUnits,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashReservedAccount = accounts.getUserCashReservedAccount(ledgerParty);
@@ -243,6 +260,7 @@ public class SavingsFundLedger {
 
     var metadata = new HashMap<>(accounts.partyMetadata(party, FUND_SUBSCRIPTION));
     metadata.put(NAV_PER_UNIT.getKey(), navPerUnit);
+    metadata.put(NAV_DATE.getKey(), navDate.toString());
 
     return ledgerTransactionService.createTransaction(
         FUND_SUBSCRIPTION,
@@ -337,14 +355,24 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordUnitTransfer(UnitTransferInstruction instruction) {
+    return unitTransferRecorder.recordUnitTransfer(instruction);
+  }
+
+  public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {
+    return unitTransferRecorder.quote(from, to, fundUnits);
+  }
+
+  @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
       PartyRef party,
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID redemptionRequestId) {
     return redemptionRecorder.redeemFundUnitsFromReserved(
-        party, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        party, fundUnits, cashAmount, navPerUnit, navDate, redemptionRequestId);
   }
 
   @Transactional
@@ -413,6 +441,90 @@ public class SavingsFundLedger {
         metadataBuilder,
         accounts.entry(debitAccount, amount),
         accounts.entry(creditAccount, amount.negate()));
+  }
+
+  @Transactional
+  public List<LedgerTransaction> reclassifyBetweenParties(List<PartyReclassification> moves) {
+    moves.forEach(SavingsFundLedger::validate);
+    var resolved = moves.stream().map(this::resolve).toList();
+    rejectIfAnyAccountWouldBeLeftInDebit(resolved);
+    return resolved.stream().map(this::record).toList();
+  }
+
+  private record ResolvedReclassification(
+      PartyReclassification move, LedgerAccount debitAccount, LedgerAccount creditAccount) {}
+
+  private ResolvedReclassification resolve(PartyReclassification move) {
+    return new ResolvedReclassification(
+        move,
+        accounts.resolvePartyAccount(move.debitParty(), move.account()),
+        accounts.resolvePartyAccount(move.creditParty(), move.account()));
+  }
+
+  private static void rejectIfAnyAccountWouldBeLeftInDebit(List<ResolvedReclassification> moves) {
+    var resultingBalances = new LinkedHashMap<UUID, BigDecimal>();
+    var accountsById = new HashMap<UUID, LedgerAccount>();
+    for (var move : moves) {
+      for (var side : List.of(move.debitAccount(), move.creditAccount())) {
+        accountsById.putIfAbsent(side.getId(), side);
+        resultingBalances.putIfAbsent(side.getId(), side.getBalance());
+      }
+      resultingBalances.merge(move.debitAccount().getId(), move.move().amount(), BigDecimal::add);
+      resultingBalances.merge(
+          move.creditAccount().getId(), move.move().amount().negate(), BigDecimal::add);
+    }
+    resultingBalances.forEach(
+        (accountId, balance) -> {
+          if (balance.signum() > 0) {
+            throw new IllegalStateException(
+                "Reclassification would leave a holder account in debit: accountId="
+                    + accountId
+                    + ", resultingBalance="
+                    + balance);
+          }
+        });
+  }
+
+  private static void validate(PartyReclassification move) {
+    if (move.account().getAccountType() != LIABILITY) {
+      throw new IllegalArgumentException(
+          "Only holder liability accounts can be reclassified: account=" + move.account());
+    }
+    if (move.debitParty().equals(move.creditParty())) {
+      throw new IllegalArgumentException(
+          "Reclassification needs two different parties: account=" + move.account());
+    }
+    if (move.amount().signum() <= 0) {
+      throw new IllegalArgumentException(
+          "Reclassification amount must be positive: amount=" + move.amount());
+    }
+  }
+
+  private LedgerTransaction record(ResolvedReclassification resolved) {
+    var move = resolved.move();
+    var metadata = new HashMap<String, Object>();
+    metadata.put(OPERATION_TYPE.getKey(), "PARTY_RECLASSIFICATION");
+    metadata.put("account", move.account().name());
+    metadata.put(DESCRIPTION.getKey(), move.description());
+    if (move.correctedTransactionId() != null) {
+      metadata.put("correctedTransactionId", move.correctedTransactionId().toString());
+    }
+
+    return ledgerTransactionService.createTransaction(
+        ADJUSTMENT,
+        Instant.now(clock),
+        move.externalReference(),
+        metadata,
+        accounts.entry(resolved.debitAccount(), move.amount()),
+        accounts.entry(resolved.creditAccount(), move.amount().negate()));
+  }
+
+  public List<UUID> findHolderAccountIdsInDebit() {
+    return ledgerTransactionService.findHolderAccountIdsInDebit();
+  }
+
+  public List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced() {
+    return ledgerTransactionService.findPayoutIdsBookedToAnotherPartyThanPriced();
   }
 
   public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {

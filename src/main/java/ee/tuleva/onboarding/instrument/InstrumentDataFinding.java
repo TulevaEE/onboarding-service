@@ -22,6 +22,22 @@ public sealed interface InstrumentDataFinding {
     }
   }
 
+  record InactiveBenchmarkProxy(String benchmarkCategory, String role, String isin)
+      implements InstrumentDataFinding {
+
+    @Override
+    public List<String> isins() {
+      return List.of(isin);
+    }
+
+    @Override
+    public String describe() {
+      return ("Benchmark proxy is active = false, so its price series is no longer updated and the"
+              + " benchmark is frozen: benchmarkCategory=%s, role=%s, proxyIsin=%s")
+          .formatted(benchmarkCategory, role, isin);
+    }
+  }
+
   record EodhdListedWithoutTicker(String isin) implements InstrumentDataFinding {
 
     @Override

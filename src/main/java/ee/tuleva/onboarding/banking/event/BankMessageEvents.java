@@ -16,7 +16,7 @@ public final class BankMessageEvents {
 
   public record FetchSebCurrentDayTransactionsRequested(BankAccount account) {}
 
-  public record FetchSebEodTransactionsRequested(BankAccount account) {}
+  public record FetchSebEodTransactionsRequested(BankAccount account, LocalDate statementDate) {}
 
   public record FetchSebHistoricTransactionsRequested(
       BankAccount account, LocalDate dateFrom, LocalDate dateTo) {}

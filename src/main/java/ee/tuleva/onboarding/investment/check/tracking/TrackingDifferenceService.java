@@ -1,8 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.CHECK_FAILED;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Arrays.stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -11,6 +16,9 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.Checked;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NeverCheckable;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NotCheckable;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
@@ -20,6 +28,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -31,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -55,6 +65,8 @@ class TrackingDifferenceService {
   private final SecurityDataBuilder securityDataBuilder;
   private final ConsecutiveBreachTracker consecutiveBreachTracker;
   private final BenchmarkCheckBuilder benchmarkCheckBuilder;
+  private final StaleFundReturnDetector staleFundReturnDetector;
+  private final MissingNavClassifier missingNavClassifier;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -99,16 +111,132 @@ class TrackingDifferenceService {
   List<TrackingDifferenceResult> backfillChecks(int daysBack) {
     var today = LocalDate.now(clock);
     var allResults = new ArrayList<TrackingDifferenceResult>();
+    var incompleteDays = new ArrayList<String>();
 
     for (int i = daysBack; i >= 0; i--) {
       var asOfDate = today.minusDays(i);
-      allResults.addAll(runChecksAsOf(asOfDate));
+      try {
+        allResults.addAll(runChecksAsOf(asOfDate));
+      } catch (IncompletePriceDataException e) {
+        allResults.addAll(e.completedResults());
+        incompleteDays.add("asOfDate=%s: %s".formatted(asOfDate, e.getMessage()));
+      }
+    }
+
+    if (!incompleteDays.isEmpty()) {
+      throw new IncompletePriceDataException(String.join("\n", incompleteDays), allResults);
     }
 
     return allResults;
   }
 
+  GapFillRun fillGaps(int lookbackDays) {
+    var window = new GapWindow(LocalDate.now(clock), lookbackDays);
+    return stream(TulevaFund.values())
+        .map(fund -> fillGaps(fund, window))
+        .reduce(GapFillRun.NOTHING_TO_FILL, GapFillRun::and);
+  }
+
+  GapFillRun reconcileSince(TulevaFund fund, LocalDate since) {
+    var today = LocalDate.now(clock);
+    return fillGaps(fund, new GapWindow(today, (int) DAYS.between(since, today)));
+  }
+
+  private GapFillRun fillGaps(TulevaFund fund, GapWindow window) {
+    var results = new ArrayList<TrackingDifferenceResult>();
+    var failures = new ArrayList<GapFailure>();
+    var staleCheckDates =
+        staleFundReturnDetector.staleCheckDates(fund, window.from(), window.today());
+    var datesNeedingACheck = datesNeedingACheck(fund, window, staleCheckDates);
+    var firstChecked = fillUntilOneSucceeds(fund, datesNeedingACheck, window, results, failures);
+    if (firstChecked != null) {
+      for (var checkDate :
+          datesAfterTheFirstFilledGap(fund, datesNeedingACheck, firstChecked, window.today())) {
+        results.addAll(checkOrRecordFailure(fund, checkDate, window, failures));
+      }
+    }
+    return GapFillRun.forFund(fund, results, failures, staleCheckDates);
+  }
+
+  private @Nullable LocalDate fillUntilOneSucceeds(
+      TulevaFund fund,
+      List<LocalDate> datesNeedingACheck,
+      GapWindow window,
+      List<TrackingDifferenceResult> results,
+      List<GapFailure> failures) {
+    for (var checkDate : datesNeedingACheck) {
+      var checked = checkOrRecordFailure(fund, checkDate, window, failures);
+      results.addAll(checked);
+      if (!checked.isEmpty()) {
+        return checkDate;
+      }
+    }
+    return null;
+  }
+
+  private List<LocalDate> datesAfterTheFirstFilledGap(
+      TulevaFund fund, List<LocalDate> datesNeedingACheck, LocalDate firstFilled, LocalDate to) {
+    return Stream.concat(
+            datesNeedingACheck.stream(),
+            eventRepository.findDistinctCheckDates(fund, firstFilled, to).stream())
+        .filter(firstFilled::isBefore)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private List<TrackingDifferenceResult> checkOrRecordFailure(
+      TulevaFund fund, LocalDate checkDate, GapWindow window, List<GapFailure> failures) {
+    try {
+      var check = checkFundOrSayWhyNot(fund, checkDate);
+      if (check instanceof NotCheckable notCheckable) {
+        failures.add(
+            GapFailure.inWindow(
+                fund, checkDate, window, notCheckable.reason(), MISSING_NAV, publicHolidays));
+      }
+      return check.results();
+    } catch (IncompletePriceDataException e) {
+      log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
+      failures.add(
+          GapFailure.inWindow(
+              fund, checkDate, window, FailureReason.of(e), MISSING_PRICE, publicHolidays));
+      return List.of();
+    } catch (Exception e) {
+      log.error("Skipping fund due to a failed check: fund={}, checkDate={}", fund, checkDate, e);
+      var reason = "the check errored (%s)".formatted(FailureReason.of(e));
+      failures.add(
+          GapFailure.inWindow(fund, checkDate, window, reason, CHECK_FAILED, publicHolidays));
+      return List.of();
+    }
+  }
+
+  private List<LocalDate> datesNeedingACheck(
+      TulevaFund fund, GapWindow window, List<LocalDate> staleCheckDates) {
+    var datesWithAnyCheckEvent =
+        Set.copyOf(eventRepository.findDistinctCheckDates(fund, window.from(), window.today()));
+    var uncheckedNavDates =
+        fundPositionRepository
+            .findDistinctNavDatesByFundBetween(fund, window.from(), window.today())
+            .stream()
+            .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate));
+    return Stream.concat(uncheckedNavDates, staleCheckDates.stream()).distinct().sorted().toList();
+  }
+
+  private static boolean carriesAModelWeightToPrice(SecurityData security) {
+    return security.modelWeight().signum() > 0;
+  }
+
+  private static boolean hasNoUsablePricePair(SecurityData security) {
+    return security.today().price() == null
+        || security.previous().price() == null
+        || security.previous().price().signum() == 0;
+  }
+
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
+    return checkFundOrSayWhyNot(fund, checkDate).results();
+  }
+
+  private FundCheck checkFundOrSayWhyNot(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var previousDate = publicHolidays.previousWorkingDay(checkDate);
@@ -123,7 +251,7 @@ class TrackingDifferenceService {
           previousDate,
           todayValue.isPresent(),
           yesterdayValue.isPresent());
-      return results;
+      return missingNavClassifier.classify(fund, checkDate, previousDate, todayValue.isEmpty());
     }
 
     var todayNav =
@@ -135,7 +263,7 @@ class TrackingDifferenceService {
     var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate);
     if (allocations.isEmpty()) {
       log.warn("No model portfolio for fund: fund={}", fund);
-      return results;
+      return new NeverCheckable();
     }
     var previousAllocations =
         modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate);
@@ -167,26 +295,14 @@ class TrackingDifferenceService {
             checkDate,
             previousDate);
 
-    // Gate on the blended weights, not the raw model. An instrument being switched into carries
-    // its actual weight of zero until the fund buys it, so it needs no price of ours; an
-    // instrument being switched out of still carries its full holding, so it does. Either way a
-    // weight we cannot price means the model return for the day is unknowable - the check has to
-    // say so rather than quietly leave that weight out of the benchmark.
-    //
-    // A zero anchor price is not a price either: nothing can be divided by it, so the calculator
-    // drops the instrument and its model weight silently leaves the benchmark return.
     var blendedSecurities =
         securityDataBuilder.blendTransitionWeights(
             securities, allocations, previousAllocations, positions, fund);
 
     var missingPrices =
         blendedSecurities.stream()
-            .filter(s -> s.modelWeight().signum() > 0)
-            .filter(
-                s ->
-                    s.today().price() == null
-                        || s.previous().price() == null
-                        || s.previous().price().signum() == 0)
+            .filter(TrackingDifferenceService::carriesAModelWeightToPrice)
+            .filter(TrackingDifferenceService::hasNoUsablePricePair)
             .map(SecurityData::isin)
             .toList();
     if (!missingPrices.isEmpty()) {
@@ -268,6 +384,12 @@ class TrackingDifferenceService {
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
             .bodSecuritiesFraction(bodSecuritiesFraction)
+            .openingNetAssets(previousTotalNav)
+            .closingNetAssets(totalNav)
+            .previousUnits(unitsOutstanding(fund, previousDate))
+            .todayUnits(unitsOutstanding(fund, checkDate))
+            .tradeFlow(TradeFlow.between(blendedSecurities, bodPositions, positions))
+            .securityQuantitiesChanged(SecurityQuantities.changedBetween(bodPositions, positions))
             .build();
 
     calculator
@@ -296,7 +418,7 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    return results;
+    return new Checked(results);
   }
 
   private BigDecimal accruedFeeFraction(
@@ -312,25 +434,25 @@ class TrackingDifferenceService {
     var accruals =
         feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
     var chargedResolvers =
-        accruals.stream()
-            .map(FeeAccrual::feeType)
-            .distinct()
+        stream(FeeType.values())
             .collect(
                 toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
     var chargedAccruals =
-        accruals.stream()
-            .filter(
-                a ->
-                    Objects.requireNonNull(
-                            chargedResolvers.get(a.feeType()),
-                            "No charged-to-fund resolver: feeType=" + a.feeType())
-                        .chargedOn(a.accrualDate()))
+        chargedResolvers.values().stream()
+            .flatMap(resolver -> chargedAccruals(accruals, resolver))
             .toList();
     warnOnIncompleteAccrualCoverage(
         fund, previousDate, checkDate, chargedResolvers, chargedAccruals);
     var accrued =
         chargedAccruals.stream().map(FeeAccrual::dailyAmountGross).reduce(ZERO, BigDecimal::add);
     return accrued.divide(base, SCALE, RoundingMode.HALF_UP);
+  }
+
+  private Stream<FeeAccrual> chargedAccruals(
+      List<FeeAccrual> accruals, FeeChargedToFundPolicy.Resolver resolver) {
+    return accruals.stream()
+        .filter(accrual -> accrual.feeType() == resolver.feeType())
+        .filter(accrual -> resolver.chargedOn(accrual.accrualDate()));
   }
 
   private BigDecimal feeFractionBase(
@@ -356,15 +478,6 @@ class TrackingDifferenceService {
       LocalDate checkDate,
       Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedResolvers,
       List<FeeAccrual> chargedAccruals) {
-    if (chargedResolvers.isEmpty()) {
-      log.warn(
-          "No fee accruals for the check window, the uncovered fee will surface as tracking residual: fund={}, previousDate={}, checkDate={}, windowDays={}",
-          fund,
-          previousDate,
-          checkDate,
-          windowDates(previousDate, checkDate).size());
-      return;
-    }
     var coveredDatesByFeeType =
         chargedAccruals.stream()
             .collect(groupingBy(FeeAccrual::feeType, mapping(FeeAccrual::accrualDate, toSet())));
@@ -416,25 +529,20 @@ class TrackingDifferenceService {
     }
   }
 
+  private @Nullable BigDecimal unitsOutstanding(TulevaFund fund, LocalDate navDate) {
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, fund, UNITS).stream()
+        .map(FundPosition::getQuantity)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
+  }
+
   private List<LocalDate> windowDates(LocalDate previousDate, LocalDate checkDate) {
     return previousDate.plusDays(1).datesUntil(checkDate.plusDays(1)).toList();
   }
 
   private void saveEvent(TrackingDifferenceResult result) {
-    var event =
-        TrackingDifferenceEvent.builder()
-            .fund(result.fund())
-            .checkDate(result.checkDate())
-            .checkType(result.checkType())
-            .trackingDifference(result.trackingDifference())
-            .fundReturn(result.fundReturn())
-            .benchmarkReturn(result.benchmarkReturn())
-            .breach(result.breach())
-            .consecutiveBreachDays(result.consecutiveBreachDays())
-            .result(TrackingDifferenceEventMapper.buildResultMap(result))
-            .build();
-
-    eventRepository.save(event);
+    eventRepository.save(TrackingDifferenceEventMapper.toEvent(result));
   }
 
   static class IncompletePriceDataException extends RuntimeException {

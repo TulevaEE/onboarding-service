@@ -48,17 +48,23 @@ public class DigiDocFacade {
     return files.getFirst().isContainer();
   }
 
-  public DataToSign dataToSign(Container container, X509Certificate certificate) {
+  public DataToSign dataToSign(
+      Container container, X509Certificate certificate, DigestAlgorithm digestAlgorithm) {
     return SignatureBuilder.aSignature(container)
         .withSigningCertificate(certificate)
-        .withSignatureDigestAlgorithm(DigestAlgorithm.SHA256)
+        .withSignatureDigestAlgorithm(digestAlgorithm)
+        .withSignatureProfile(SignatureProfile.LT)
         .buildDataToSign();
   }
 
   @SneakyThrows
   public byte[] digestToSign(DataToSign dataToSign) {
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    MessageDigest digest = MessageDigest.getInstance(hashFunction(dataToSign));
     return digest.digest(dataToSign.getDataToSign());
+  }
+
+  public String hashFunction(DataToSign dataToSign) {
+    return dataToSign.getDigestAlgorithm().getDssDigestAlgorithm().getJavaName();
   }
 
   @SneakyThrows

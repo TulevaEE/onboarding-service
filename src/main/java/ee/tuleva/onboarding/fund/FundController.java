@@ -21,12 +21,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class FundController {
 
   private final FundService fundService;
+  private final PublishedManagementFee publishedManagementFee;
+  private final FundManagerUnits fundManagerUnits;
 
   @Operation(summary = "Get info about available funds")
   @GetMapping("/funds")
   public List<ExtendedApiFundResponse> get(
       @RequestParam("fundManager.name") Optional<String> fundManagerName) {
-    return fundService.getFunds(fundManagerName);
+    return fundManagerUnits.applyTo(
+        fundService.getFunds(fundManagerName).stream()
+            .map(publishedManagementFee::applyTo)
+            .toList());
   }
 
   @Operation(summary = "Get NAV history for all active funds of a pillar")

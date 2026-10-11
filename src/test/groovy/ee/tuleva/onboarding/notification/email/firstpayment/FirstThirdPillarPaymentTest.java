@@ -19,12 +19,7 @@ class FirstThirdPillarPaymentTest {
         "EST",
         new BigDecimal("100.00"),
         LocalDate.parse("2026-08-16"),
-        true,
-        true,
-        true,
-        true,
-        false,
-        false);
+        true);
   }
 
   @Test

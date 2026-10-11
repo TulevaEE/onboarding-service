@@ -6,14 +6,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SavingFundPaymentExtractorTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private final SavingFundPaymentExtractor extractor = new SavingFundPaymentExtractor();
 
@@ -109,7 +114,8 @@ class SavingFundPaymentExtractorTest {
             BankStatement.BankStatementType.INTRA_DAY_REPORT,
             account,
             List.of(),
-            List.of(creditEntry));
+            List.of(creditEntry),
+            STATEMENT_PERIOD);
 
     // when
     List<SavingFundPayment> payments = extractor.extractPayments(statement);
@@ -260,7 +266,11 @@ class SavingFundPaymentExtractorTest {
   private BankStatement createBankStatement(
       BankStatementAccount account, List<BankStatementEntry> entries) {
     return new BankStatement(
-        BankStatement.BankStatementType.INTRA_DAY_REPORT, account, List.of(), entries);
+        BankStatement.BankStatementType.INTRA_DAY_REPORT,
+        account,
+        List.of(),
+        entries,
+        STATEMENT_PERIOD);
   }
 
   private BankStatementAccount createBankStatementAccount(String iban, String name, String idCode) {

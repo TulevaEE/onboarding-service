@@ -29,7 +29,8 @@ class OpenSanctionsServiceTimeoutTest {
               JsonMapper.builder().build(),
               "http://127.0.0.1:" + unresponsiveServer.getLocalPort(),
               Duration.ofMillis(500),
-              Duration.ofMillis(250));
+              Duration.ofMillis(250),
+              Duration.ofMillis(1));
       var person = new PersonImpl("30303039816", "Peeter", "Meeter");
 
       Throwable thrown = catchThrowable(() -> service.match(person, Countries.of("ee")));

@@ -1,0 +1,87 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          The Tuleva Additional Investment Fund account for your child*|IF:RECIPIENTNAME|*,
+          *|RECIPIENTNAME|*,*|END:IF|* is now open.
+        </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-text>
+          As a next step, you can make the first contribution and get your child's saving under
+          way.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          You can make contributions in your Tuleva account, in your child's view. There you can
+          also set up a recurring payment if you like, so that saving continues automatically. The
+          fund units you buy reach your child's account within two working days.
+        </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?language=en&utm_content=onboarding_completed_child_first_payment">
+          Make the first contribution
+        </mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?type=RECURRING&language=en&utm_content=onboarding_completed_child_recurring">
+          Set up recurring payment
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:hasCoParent|*</mj-raw>
+        <mj-text><strong>Both parents can manage the account</strong></mj-text>
+        <mj-text>
+          So that the other parent can also see and manage your child's account, share this link
+          with them:<br />
+          <a href="https://pension.tuleva.ee/savings-fund/onboarding/child?language=en">pension.tuleva.ee/savings-fund/onboarding/child?language=en</a>
+        </mj-text>
+        <mj-text>
+          After logging in, they can confirm that they are the child's parent. They will then see
+          the child's account in their own Tuleva account too.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text><strong>Where is your child's money invested?</strong></mj-text>
+        <mj-text>
+          Tuleva Additional Investment Fund is a broadly diversified index fund that invests in
+          world equity markets. The ongoing fees are *|savingsFundFee|*%&nbsp;per year, with no
+          entry, exit or performance fees.
+        </mj-text>
+        <mj-text>
+          If you would like to know more about saving for your child, here are answers to common
+          questions:
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/child-savings/">Saving for your child</a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/additional-investment-fund/why-use-an-investment-account-for-the-additional-investment-fund/">
+            Why use an investment account for the Additional Investment Fund?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/additional-investment-fund/where-does-the-tuleva-additional-investment-fund-invest/">
+            Where does the Tuleva Additional Investment Fund invest?
+          </a>
+        </mj-text>
+        <mj-text>
+          If you have any questions, feel free to get in touch at
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

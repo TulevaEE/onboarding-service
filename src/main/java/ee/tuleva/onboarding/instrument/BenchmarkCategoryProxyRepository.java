@@ -14,7 +14,8 @@ class BenchmarkCategoryProxyRepository {
   List<BenchmarkCategoryProxy> findAll() {
     return jdbcClient
         .sql(
-            "SELECT id, benchmark_category, etf_proxy_isin, index_proxy_isin, index_series_key FROM benchmark_category_proxy")
+            "SELECT id, benchmark_category, etf_proxy_isin, index_proxy_isin, index_series_key"
+                + " FROM benchmark_category_proxy ORDER BY id")
         .query(
             (rs, rowNum) ->
                 new BenchmarkCategoryProxy(

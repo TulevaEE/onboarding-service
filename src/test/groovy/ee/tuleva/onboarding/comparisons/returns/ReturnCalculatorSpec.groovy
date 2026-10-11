@@ -14,6 +14,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static java.time.temporal.ChronoUnit.DAYS
 
 class ReturnCalculatorSpec extends Specification {
 
@@ -30,10 +31,19 @@ class ReturnCalculatorSpec extends Specification {
     Instant startTime = parseInstant("2018-06-17")
     Instant endTime = parseInstant("2018-06-18")
     fakeNoReturnFundValues()
-    def overview = new AccountOverview([
-        new Transaction(100.0, startTime),
-        new Transaction(100.0, startTime),
-    ], 0.0, 200.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([
+            new Transaction(100.0, startTime),
+            new Transaction(100.0, startTime),
+        ])
+        .beginningBalance(0.0)
+        .endingBalance(200.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
@@ -65,9 +75,18 @@ class ReturnCalculatorSpec extends Specification {
     given:
     Instant startTime = parseInstant("2018-06-17")
     Instant endTime = parseInstant("2018-06-18")
-    def overview = new AccountOverview([
-        new Transaction(100.0, startTime),
-    ], 0.0, 1000000.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([
+            new Transaction(100.0, startTime),
+        ])
+        .beginningBalance(0.0)
+        .endingBalance(1000000.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     when:
     def personalReturn = returnCalculator.getReturn(overview)
@@ -82,10 +101,19 @@ class ReturnCalculatorSpec extends Specification {
     Instant startTime = parseInstant("2018-06-17")
     Instant endTime = parseInstant("2018-06-18")
     fakeNoReturnFundValues()
-    def overview = new AccountOverview([
-        new Transaction(firstTransaction, startTime),
-        new Transaction(secondTransaction, startTime),
-    ], beginningBalance, endingBalance, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([
+            new Transaction(firstTransaction, startTime),
+            new Transaction(secondTransaction, startTime),
+        ])
+        .beginningBalance(beginningBalance)
+        .endingBalance(endingBalance)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
@@ -126,7 +154,16 @@ class ReturnCalculatorSpec extends Specification {
 
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-18")
-    def overview = new AccountOverview(exampleTransactions, 30.0, 620.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions(exampleTransactions)
+        .beginningBalance(30.0)
+        .endingBalance(620.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
@@ -162,7 +199,16 @@ class ReturnCalculatorSpec extends Specification {
     fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _ as LocalDate) >> {
       String givenFund, LocalDate date -> Optional.of(aFundValue(givenFund, date, 123.0))
     }
-    def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions(exampleTransactions)
+        .beginningBalance(30.0)
+        .endingBalance(123123.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
     when:
     def estonianAverageReturn =
         returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
@@ -188,7 +234,16 @@ class ReturnCalculatorSpec extends Specification {
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-16")
     fundValueProvider.getLatestValue(_, _) >> Optional.empty()
-    def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions(exampleTransactions)
+        .beginningBalance(30.0)
+        .endingBalance(123123.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
     when:
     def estonianAverageReturn =
         returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
@@ -253,7 +308,16 @@ class ReturnCalculatorSpec extends Specification {
     given: "start dates where the synthetic transaction (startTime - 1 day) lands on a weekend"
     Instant startTime = parseInstant(startDate)
     Instant endTime = parseInstant(endDate)
-    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12000.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     and: "index prices that reflect a crash: Thu=400, Fri=380 (5% drop), end=480"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -286,7 +350,16 @@ class ReturnCalculatorSpec extends Specification {
     given: "a Wednesday start where synthetic date (Tuesday) is a working day"
     Instant startTime = parseInstant("2025-04-09") // Wednesday
     Instant endTime = parseInstant("2026-04-09")
-    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12000.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     and: "index prices where Tuesday and Monday differ"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -311,7 +384,16 @@ class ReturnCalculatorSpec extends Specification {
     given: "a Sunday start with a beginning balance, comparing against EPI (European-close pricing)"
     Instant startTime = parseInstant("2025-04-06") // Sunday
     Instant endTime = parseInstant("2026-04-06")
-    def overview = new AccountOverview([], 10000.0, 12000.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12000.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     and: "EPI prices where Friday (standard lookup) differs from Thursday (shifted lookup)"
     def epiKey = EpiIndex.EPI.key
@@ -337,9 +419,16 @@ class ReturnCalculatorSpec extends Specification {
     given: "a Sunday start with no beginning balance"
     Instant startTime = parseInstant("2025-04-06") // Sunday
     Instant endTime = parseInstant("2026-04-06")
-    def overview = new AccountOverview(
-        [new Transaction(1000.0, parseInstant("2025-05-01"))],
-        0.0, 1200.0, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions([new Transaction(1000.0, parseInstant("2025-05-01"))])
+        .beginningBalance(0.0)
+        .endingBalance(1200.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     and: "index prices for the contribution and end date"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -379,8 +468,16 @@ class ReturnCalculatorSpec extends Specification {
         new Transaction(707.01, parseInstant("2026-02-13")),
         new Transaction(707.01, parseInstant("2026-03-13")),
     ]
-    def overview = new AccountOverview(
-        transactions, beginningBalance, endingBalance, startTime, endTime, 2)
+    def overview = AccountOverview.builder()
+        .transactions(transactions)
+        .beginningBalance(beginningBalance)
+        .endingBalance(endingBalance)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
 
     and: "real UNION_STOCK_INDEX values from prod DB"
     def indexKey = UnionStockIndexRetriever.KEY
@@ -418,6 +515,87 @@ class ReturnCalculatorSpec extends Specification {
     and: "index return is close to personal (within ~1pp tracking difference), not 5pp inflated"
     simulatedReturn.rate() == 0.1998
     (simulatedReturn.rate() - personalReturn.rate()) < 0.02 // less than 2pp gap
+  }
+
+  def "annualizes the personal return over the days between the prices that valued the balances"() {
+    given:
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12110.0)
+        .startTime(parseInstant("2025-10-01"))
+        .endTime(parseInstant("2026-10-01"))
+        .beginningBalanceTime(parseInstant("2025-09-30"))
+        .endingBalanceTime(parseInstant("2026-09-30"))
+        .pillar(2)
+        .build()
+
+    when:
+    def personalReturn = returnCalculator.getReturn(overview)
+
+    then:
+    personalReturn.rate() == 0.2110
+    personalReturn.from() == LocalDate.parse("2025-10-01")
+    personalReturn.to() == LocalDate.parse("2026-10-01")
+  }
+
+  def "buys the comparison's opening units at the price before the start whenever the balance was priced"() {
+    given:
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12000.0)
+        .startTime(parseInstant("2025-04-09"))
+        .endTime(parseInstant("2026-04-09"))
+        .beginningBalanceTime(parseInstant("2025-04-07"))
+        .endingBalanceTime(parseInstant("2026-04-09"))
+        .pillar(2)
+        .build()
+    fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-04-07": 370.0,
+          "2025-04-08": 390.0,
+          "2026-04-09": 480.0,
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
+
+    then:
+    simulatedReturn.amount() == 2307.69
+  }
+
+  def "values the comparison on the day the closing balance was priced"() {
+    given:
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(10000.0)
+        .endingBalance(12000.0)
+        .startTime(parseInstant("2025-10-01"))
+        .endTime(parseInstant("2026-10-01"))
+        .beginningBalanceTime(parseInstant("2025-09-30"))
+        .endingBalanceTime(parseInstant("2026-09-29"))
+        .pillar(3)
+        .build()
+    fundValueProvider.getLatestValue(EpiIndex.EPI.key, _ as LocalDate) >> { String fund, LocalDate date ->
+      def values = [
+          "2025-09-30": 400.0,
+          "2026-09-29": 480.0,
+          "2026-09-30": 500.0,
+          "2026-10-01": 500.0,
+      ]
+      def value = values[date.toString()]
+      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
+    }
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
+
+    then:
+    simulatedReturn.amount() == 2000.00
   }
 
   List<Transaction> exampleTransactions = [

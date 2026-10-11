@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
 @Entity
 @Table(name = "mandate")
 @NoArgsConstructor
-@ToString(exclude = {"mandateBatch"})
+@ToString(exclude = {"mandateBatch", "fundTransferExchanges"})
 public class Mandate implements Serializable {
 
   @Id
@@ -90,6 +90,8 @@ public class Mandate implements Serializable {
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
   private @Nullable BigDecimal paymentRate;
+
+  private @Nullable Locale locale;
 
   @Builder
   Mandate(

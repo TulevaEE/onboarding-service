@@ -1,15 +1,25 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -17,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -37,6 +48,11 @@ class NavCalculationJobTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
   @Mock private PipelineNotifier pipelineNotifier;
+
+  @AfterEach
+  void resetClock() {
+    ClockHolder.setDefaultClock();
+  }
 
   @Test
   void onNavCalculationRequested_refreshesPricesBeforeCalculating() {
@@ -265,6 +281,71 @@ class NavCalculationJobTest {
     job.onNavCalculationRequested(new RunNavCalculationRequested(List.of(TUK75, TUK00)));
 
     verify(eventPublisher).publishEvent(new NavCalculationCompleted(List.of(TUK00)));
+  }
+
+  @Test
+  void aRunInWhichOneFundFailsReportsThatFundAsFailedAndStillPublishesTheOthers() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:00:00Z");
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    NavCalculationResult tuk00Result = buildTestResult(TUK00, today);
+    given(navCalculationService.calculate(TUK75, today))
+        .willThrow(new RuntimeException("Price missing"));
+    given(navCalculationService.calculate(TUK00, today)).willReturn(tuk00Result);
+
+    job.recoverPipeline(TUK75, List.of(TUK75, TUK00));
+
+    then(navPublisher).should().publish(tuk00Result);
+    then(eventPublisher).should().publishEvent(new NavCalculationCompleted(List.of(TUK00)));
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains("❌ NAV Calculation FAILED (0s)\n     NAV calculation failed: funds=TUK75"),
+            eq(INVESTMENT));
+    then(notificationService).should(never()).sendMessage(startsWith("✅"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aRunThatFailsBeforeReachingAnyFundIsReportedAsFailed() {
+    var notificationService = mock(OperationsNotificationService.class);
+    var job = jobReportingTo(notificationService, "2025-01-15T09:00:00Z");
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(any(), any()))
+        .willThrow(new IllegalStateException("connection lost"));
+
+    assertThatThrownBy(() -> job.recoverPipeline(TUK75, List.of(TUK75)))
+        .isInstanceOf(IllegalStateException.class);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("❌ NAV Calculation FAILED (0s)"), eq(INVESTMENT));
+    then(notificationService).should(never()).sendMessage(startsWith("✅"), eq(INVESTMENT));
+  }
+
+  private NavCalculationJob jobReportingTo(
+      OperationsNotificationService notificationService, String instant) {
+    var clock = Clock.fixed(Instant.parse(instant), TALLINN);
+    ClockHolder.setClock(clock);
+    var job =
+        new NavCalculationJob(
+            navCalculationService,
+            navPublisher,
+            navReportRepository,
+            publicHolidays,
+            fundValueIndexingJob,
+            clock,
+            eventPublisher,
+            new PipelineTracker(),
+            new PipelineNotifier(notificationService));
+    willAnswer(
+            invocation -> {
+              if (invocation.getArgument(0) instanceof RunNavCalculationRequested request) {
+                job.onNavCalculationRequested(request);
+              }
+              return null;
+            })
+        .given(eventPublisher)
+        .publishEvent(any(Object.class));
+    return job;
   }
 
   @Test

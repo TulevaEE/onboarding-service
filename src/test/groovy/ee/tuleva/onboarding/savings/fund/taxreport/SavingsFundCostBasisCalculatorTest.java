@@ -3,10 +3,13 @@ package ee.tuleva.onboarding.savings.fund.taxreport;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.WEIGHTED_AVERAGE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.epis.CashFlow;
@@ -58,6 +61,114 @@ class SavingsFundCostBasisCalculatorTest {
 
   private static Transaction sellReceiving(String time, String units, String nav, String amount) {
     return transaction(time, units, nav, new BigDecimal(amount), SUBTRACTION);
+  }
+
+  private static Transaction givenAway(String time, String units, String nav, String paidInShare) {
+    return transaction(time, units, nav, new BigDecimal(paidInShare).negate(), TRANSFER_OUT);
+  }
+
+  private static Transaction received(
+      String time, String units, String nav, String paidInShare, BigDecimal acquisitionCost) {
+    return Transaction.builder()
+        .id(UUID.nameUUIDFromBytes((time + TRANSFER_IN).getBytes()))
+        .amount(new BigDecimal(paidInShare))
+        .currency(EUR)
+        .time(Instant.parse(time))
+        .isin(TKF)
+        .type(TRANSFER_IN)
+        .units(new BigDecimal(units))
+        .nav(new BigDecimal(nav))
+        .acquisitionCost(acquisitionCost)
+        .build();
+  }
+
+  @Test
+  void pricesUnitsSomeoneWasGivenAtWhatTheGiftWasRecordedAsCostingThem() {
+    List<Transaction> history =
+        List.of(
+            received("2025-01-10T10:00:00Z", "100", "10", "900.00", new BigDecimal("500.00")),
+            sell("2025-06-10T10:00:00Z", "100", "12"));
+
+    RealisedGain gain =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO).getFirst();
+
+    assertThat(gain.proceeds()).isEqualByComparingTo("1200.00");
+    assertThat(gain.acquisitionCost()).isEqualByComparingTo("500.00");
+    assertThat(gain.gain()).isEqualByComparingTo("700.00");
+  }
+
+  @Test
+  void taxesEveryEuroAnHeirRedeemsWhenTheInheritedUnitsCostThemNothing() {
+    List<Transaction> history =
+        List.of(
+            received("2025-01-10T10:00:00Z", "100", "10", "900.00", new BigDecimal("0.00")),
+            sell("2025-06-10T10:00:00Z", "100", "12"));
+
+    RealisedGain gain =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO).getFirst();
+
+    assertThat(gain.acquisitionCost()).isEqualByComparingTo("0.00");
+    assertThat(gain.gain()).isEqualByComparingTo("1200.00");
+  }
+
+  @Test
+  void refusesToPriceUnitsReceivedWithoutARecordedAcquisitionCost() {
+    List<Transaction> history =
+        List.of(
+            received("2025-01-10T10:00:00Z", "100", "10", "900.00", null),
+            sell("2025-06-10T10:00:00Z", "100", "12"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void takesTheGiversOldestLotsAwayWithoutRealisingAGainOnTheTransferUnderFifo() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-01T10:00:00Z", "100", "10"),
+            buy("2025-02-01T10:00:00Z", "100", "20"),
+            givenAway("2025-03-01T10:00:00Z", "100", "25", "1000.00"),
+            sell("2025-04-01T10:00:00Z", "100", "30"));
+
+    List<RealisedGain> gains =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO);
+
+    assertThat(gains)
+        .extracting(RealisedGain::proceeds, RealisedGain::acquisitionCost, RealisedGain::gain)
+        .containsExactly(
+            tuple(new BigDecimal("3000.00"), new BigDecimal("2000.00"), new BigDecimal("1000.00")));
+  }
+
+  @Test
+  void leavesTheGiverTheAverageCostOfWhatIsStillTheirsUnderTheWeightedAverageMethod() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-01T10:00:00Z", "100", "10"),
+            buy("2025-02-01T10:00:00Z", "100", "20"),
+            givenAway("2025-03-01T10:00:00Z", "100", "25", "1000.00"),
+            sell("2025-04-01T10:00:00Z", "100", "30"));
+
+    List<RealisedGain> gains =
+        calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, WEIGHTED_AVERAGE);
+
+    assertThat(gains)
+        .extracting(RealisedGain::proceeds, RealisedGain::acquisitionCost, RealisedGain::gain)
+        .containsExactly(
+            tuple(new BigDecimal("3000.00"), new BigDecimal("1500.00"), new BigDecimal("1500.00")));
+  }
+
+  @Test
+  void refusesToGiveAwayMoreUnitsThanAreHeld() {
+    List<Transaction> history =
+        List.of(
+            buy("2025-01-01T10:00:00Z", "10", "10"),
+            givenAway("2025-03-01T10:00:00Z", "20", "12", "240.00"));
+
+    assertThatThrownBy(
+            () -> calculator.realisedGainsBetween(history, START_OF_2025, END_OF_2025, FIFO))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   private static final List<Transaction> HISTORY =

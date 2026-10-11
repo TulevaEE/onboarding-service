@@ -13,7 +13,7 @@ class NavPositionInputsRelay {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  @EventListener(classes = FundPositionsImported.class)
+  @EventListener(FundPositionsImported.class)
   void onFundPositionsImported() {
     eventPublisher.publishEvent(new NavPositionInputsImported());
   }

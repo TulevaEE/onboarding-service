@@ -26,8 +26,40 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   List<FundPosition> findByNavDateAndFundAndAccountType(
       LocalDate navDate, TulevaFund fund, AccountType accountType);
 
+  List<FundPosition> findByNavDateAndFund(LocalDate navDate, TulevaFund fund);
+
   @Query("SELECT MAX(fp.navDate) FROM FundPosition fp WHERE fp.fund = :fund")
   Optional<LocalDate> findLatestNavDateByFund(TulevaFund fund);
+
+  @Query(
+      """
+      SELECT MAX(fp.navDate) FROM FundPosition fp
+      WHERE fp.accountId = :accountId AND fp.accountType = :accountType
+        AND (fp.quantity IS NULL OR fp.quantity <> 0)
+      """)
+  Optional<LocalDate> findLatestNavDateHeld(String accountId, AccountType accountType);
+
+  @Query(
+      """
+      SELECT MAX(fp.navDate) FROM FundPosition fp
+      WHERE fp.fund = :fund AND fp.accountType = :accountType
+      """)
+  Optional<LocalDate> findLatestNavDateReporting(TulevaFund fund, AccountType accountType);
+
+  @Query(
+      """
+      SELECT DISTINCT fp.fund FROM FundPosition fp
+      WHERE fp.accountId = :accountId AND fp.accountType = :accountType
+        AND (fp.quantity IS NULL OR fp.quantity <> 0)
+      """)
+  List<TulevaFund> findFundsThatHeld(String accountId, AccountType accountType);
+
+  @Query(
+      """
+      SELECT COUNT(DISTINCT fp.navDate) FROM FundPosition fp
+      WHERE fp.fund = :fund AND fp.accountType = :accountType AND fp.navDate > :since
+      """)
+  long countNavDatesReportingAfter(TulevaFund fund, AccountType accountType, LocalDate since);
 
   @Query(
       """

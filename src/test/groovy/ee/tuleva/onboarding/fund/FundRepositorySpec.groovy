@@ -8,6 +8,7 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.LIQUIDATED
 import static java.util.stream.Collectors.toList
@@ -34,7 +35,7 @@ class FundRepositorySpec extends Specification {
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .shortName("TUK75")
             .pillar(2)
-            .equityShare(0.0)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -80,7 +81,7 @@ class FundRepositorySpec extends Specification {
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .shortName("TUK75")
             .pillar(3)
-            .equityShare(0.0)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -135,7 +136,7 @@ class FundRepositorySpec extends Specification {
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .shortName("TUK75")
             .pillar(2)
-            .equityShare(0.0)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -148,7 +149,7 @@ class FundRepositorySpec extends Specification {
             .nameEnglish("Some Old Fund")
             .shortName("OLD123")
             .pillar(2)
-            .equityShare(0.0)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0123"))
             .ongoingChargesFigure(new BigDecimal("0.0123"))
             .status(LIQUIDATED)
@@ -181,7 +182,7 @@ class FundRepositorySpec extends Specification {
             .nameEnglish("Some Old Fund")
             .shortName("AE123")
             .pillar(2)
-            .equityShare(0.0)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0123"))
             .ongoingChargesFigure(new BigDecimal("0.0123"))
             .status(LIQUIDATED)

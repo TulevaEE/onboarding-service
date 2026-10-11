@@ -29,7 +29,8 @@ public record FundTransactionInput(
     @Nullable BigDecimal appliedCash,
     @Nullable BigDecimal ledgerCash,
     @Nullable LocalDate positionDate,
-    @Nullable LocalDate modelEffectiveDate) {
+    @Nullable LocalDate modelEffectiveDate,
+    List<CalculationWarning> inputWarnings) {
 
   public static FundTransactionInputBuilder builder() {
     return new FundTransactionInputBuilder();
@@ -55,6 +56,7 @@ public record FundTransactionInput(
     private @Nullable BigDecimal ledgerCash;
     private @Nullable LocalDate positionDate;
     private @Nullable LocalDate modelEffectiveDate;
+    private List<CalculationWarning> inputWarnings = List.of();
 
     public FundTransactionInputBuilder fund(TulevaFund fund) {
       this.fund = fund;
@@ -154,6 +156,11 @@ public record FundTransactionInput(
       return this;
     }
 
+    public FundTransactionInputBuilder inputWarnings(List<CalculationWarning> inputWarnings) {
+      this.inputWarnings = inputWarnings;
+      return this;
+    }
+
     public FundTransactionInput build() {
       return new FundTransactionInput(
           requireField(fund, "fund"),
@@ -174,7 +181,8 @@ public record FundTransactionInput(
           appliedCash,
           ledgerCash,
           positionDate,
-          modelEffectiveDate);
+          modelEffectiveDate,
+          inputWarnings);
     }
 
     private static <T> T requireField(@Nullable T value, String fieldName) {

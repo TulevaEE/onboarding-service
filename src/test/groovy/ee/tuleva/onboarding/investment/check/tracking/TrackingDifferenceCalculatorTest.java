@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
@@ -18,6 +21,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +37,7 @@ class TrackingDifferenceCalculatorTest {
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 3);
   private static final BigDecimal BREACH_THRESHOLD = new BigDecimal("0.005");
+  private static final BigDecimal BENCHMARK_MODEL_OWN_BREACH_THRESHOLD = new BigDecimal("0.0015");
   private static final BigDecimal MAX_DAILY_RETURN = new BigDecimal("0.5");
 
   @Mock private InvestmentParameterRepository parameterRepository;
@@ -45,6 +50,41 @@ class TrackingDifferenceCalculatorTest {
         .willReturn(BREACH_THRESHOLD);
     given(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
         .willReturn(MAX_DAILY_RETURN);
+  }
+
+  @Test
+  void benchmarkModelReadsItsOwnBreachThresholdOnceOneIsInEffect() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.of(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD));
+
+    assertThat(calculator.breachThreshold(BENCHMARK_MODEL, CHECK_DATE))
+        .isEqualByComparingTo(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD);
+  }
+
+  @Test
+  void benchmarkModelReadsTheTrackingBreachThresholdOnDatesBeforeItHadItsOwn() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.empty());
+
+    assertThat(calculator.breachThreshold(BENCHMARK_MODEL, CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
+  }
+
+  @Test
+  void modelPortfolioAndBenchmarkReadTheTrackingBreachThresholdEvenWhenBenchmarkModelHasItsOwn() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.of(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD));
+
+    assertThat(calculator.breachThreshold(MODEL_PORTFOLIO, CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
+    assertThat(calculator.breachThreshold(BENCHMARK, CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
   }
 
   @Test
@@ -598,13 +638,6 @@ class TrackingDifferenceCalculatorTest {
         .hasMessageContaining("parameter=TRACKING_BREACH_THRESHOLD");
   }
 
-  @Test
-  void breachThreshold_delegatesToRepository() {
-    BigDecimal value = calculator.breachThreshold(CHECK_DATE);
-
-    assertThat(value).isEqualByComparingTo(BREACH_THRESHOLD);
-  }
-
   private TrackingInput inputWithNav(BigDecimal todayNav, BigDecimal yesterdayNav) {
     var securities =
         List.of(security("IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100"));
@@ -697,6 +730,164 @@ class TrackingDifferenceCalculatorTest {
     org.assertj.core.api.Assertions.assertThatThrownBy(
             () -> calculator.escalationNetTdThreshold(CHECK_DATE))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void navFlowIsNotEvaluatedWithoutNetAssetsAndUnits() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.20"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .tradeFlow(TradeFlow.none())
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().navFlow()).isNull();
+  }
+
+  @Test
+  void navFlowLeavesNothingUnexplainedWhenPricesAndUnitFlowAccountForEverything() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.02"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1122000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1100000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("20000"));
+    assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("102000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void navFlowUnexplainedIsTheRedemptionPayoutLeftBehindInTheFund() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.25"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1000000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("800000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(flow.unitsChange()).isEqualByComparingTo(new BigDecimal("-200000"));
+    assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("-250000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(new BigDecimal("250000"));
+  }
+
+  @Test
+  void navFlowUnexplainedOverOpeningNetAssetsEqualsNavResidual() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.25"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1000000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("800000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.unexplainedFraction()).isEqualByComparingTo(result.get().navResidual());
+  }
+
+  @Test
+  void navFlowIgnoresAHoldingWhosePriceIsStaleOnBothLegs() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.01"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("0.50"), "102", "100"),
+                bodHolding("IE00B", new BigDecimal("0.50"), "50", "50"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1010000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1000000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void navFlowReconcilesWhenSecuritiesAreWorthMoreThanTheFund() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.0108"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "101", "100"))
+            .bodSecuritiesFraction(new BigDecimal("1.08"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1010800"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1000000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10800"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
+  private TrackingInput.TrackingInputBuilder navFlowInput(
+      BigDecimal todayNav,
+      BigDecimal yesterdayNav,
+      TrackingDifferenceCalculator.BodHolding... bodHoldings) {
+    return TrackingInput.builder()
+        .fund(TUK75)
+        .checkDate(CHECK_DATE)
+        .checkType(MODEL_PORTFOLIO)
+        .todayNav(todayNav)
+        .yesterdayNav(yesterdayNav)
+        .securities(List.of())
+        .cashWeight(BigDecimal.ZERO)
+        .accruedFeeFraction(BigDecimal.ZERO)
+        .bodHoldings(List.of(bodHoldings))
+        .bodSecuritiesFraction(BigDecimal.ONE);
   }
 
   private SecurityData security(

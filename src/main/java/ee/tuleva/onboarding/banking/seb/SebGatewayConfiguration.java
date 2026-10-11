@@ -5,6 +5,7 @@ import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
+import ee.tuleva.onboarding.banking.seb.fetcher.StatementCoverage;
 import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier;
@@ -64,7 +65,8 @@ import org.springframework.web.client.RestClient;
   SuspenseReclassificationService.class,
   SebStatementRouter.class,
   SebReconciliator.class,
-  SebStatementFetcher.class
+  SebStatementFetcher.class,
+  StatementCoverage.class
 })
 public class SebGatewayConfiguration {
 
@@ -172,14 +174,15 @@ public class SebGatewayConfiguration {
 
   @Bean
   RetryTemplate sebGatewayRetryTemplate() {
+    var retry = properties.retry();
     var policy =
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)
             .excludes(HttpClientErrorException.class)
             .maxRetries(7)
-            .delay(Duration.ofMillis(200))
-            .multiplier(3)
-            .maxDelay(Duration.ofSeconds(10))
+            .delay(retry.delay())
+            .multiplier(retry.multiplier())
+            .maxDelay(retry.maxDelay())
             .build();
     return new RetryTemplate(policy);
   }
@@ -187,8 +190,12 @@ public class SebGatewayConfiguration {
   @Bean
   @Profile("!staging")
   SebStatementFetchingScheduler sebStatementFetchingScheduler(
-      ApplicationEventPublisher eventPublisher, SebBankAccounts sebBankAccounts) {
-    return new SebStatementFetchingScheduler(eventPublisher, sebBankAccounts);
+      ApplicationEventPublisher eventPublisher,
+      SebBankAccounts sebBankAccounts,
+      StatementCoverage statementCoverage,
+      Clock clock) {
+    return new SebStatementFetchingScheduler(
+        eventPublisher, sebBankAccounts, statementCoverage, clock);
   }
 
   @Bean
@@ -201,8 +208,10 @@ public class SebGatewayConfiguration {
 
 @ConfigurationProperties(prefix = "seb-gateway")
 record SebGatewayProperties(
-    boolean enabled, String url, Keystore keystore, Duration reconciliationDelay) {
+    boolean enabled, String url, Keystore keystore, Duration reconciliationDelay, Retry retry) {
   record Keystore(String path, String password) {}
+
+  record Retry(Duration delay, double multiplier, Duration maxDelay) {}
 }
 
 @FunctionalInterface

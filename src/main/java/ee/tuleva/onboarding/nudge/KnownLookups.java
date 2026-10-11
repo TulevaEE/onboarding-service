@@ -1,0 +1,90 @@
+package ee.tuleva.onboarding.nudge;
+
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Component;
+
+@Component
+@Slf4j
+@RequiredArgsConstructor
+class KnownLookups {
+
+  private final SecondPillarLeaverStatus leaverStatus;
+  private final SecondPillarEarlyWithdrawals earlyWithdrawals;
+  private final RecurringContributionStatus recurringStatus;
+  private final SavingsFundSaverStatus saverStatus;
+  private final TaxHeadroom taxHeadroom;
+  private final ActingParties actingParties;
+  private final SavingsFundFeeRate savingsFundFeeRate;
+
+  Known leftSecondPillar(String personalCode) {
+    return known("leftSecondPillar", () -> leaverStatus.hasLeft(personalCode));
+  }
+
+  Known completedEarlyWithdrawal(Person person) {
+    return known("completedEarlyWithdrawal", () -> earlyWithdrawals.hasCompleted(person));
+  }
+
+  Known thirdPillarRecurring(String personalCode) {
+    return known("thirdPillarRecurring", () -> recurringStatus.thirdPillar(personalCode));
+  }
+
+  Known savingsFundRecurring(NudgeAccount account) {
+    return known("savingsFundRecurring", () -> recurringStatus.savingsFund(account));
+  }
+
+  Known savesFor(NudgeAccount account) {
+    return known("savesFor", () -> saverStatus.savesFor(account));
+  }
+
+  Known savesForAnyRepresentedParty(String personalCode, Known ownSaver) {
+    if (ownSaver.isYes()) {
+      return Known.YES;
+    }
+    List<NudgeAccount> parties;
+    try {
+      parties = actingParties.representedBy(personalCode);
+    } catch (RuntimeException e) {
+      log.warn(
+          "Nudge input unavailable, skipping the nudges that need it: input=representedParties", e);
+      return Known.UNKNOWN;
+    }
+    List<Known> others = parties.stream().map(this::savesFor).toList();
+    if (others.stream().anyMatch(Known::isYes)) {
+      return Known.YES;
+    }
+    if (!ownSaver.isKnown() || others.stream().anyMatch(known -> !known.isKnown())) {
+      return Known.UNKNOWN;
+    }
+    return Known.NO;
+  }
+
+  Known taxHeadroom(User user) {
+    return known("taxHeadroom", () -> taxHeadroom.hasHeadroom(user));
+  }
+
+  @Nullable BigDecimal savingsFundFeePercent() {
+    try {
+      return savingsFundFeeRate.ongoingChargesPercent();
+    } catch (RuntimeException e) {
+      log.warn(
+          "Nudge input unavailable, skipping the nudges that need it: input=savingsFundFee", e);
+      return null;
+    }
+  }
+
+  private static Known known(String input, BooleanSupplier lookup) {
+    try {
+      return Known.of(lookup.getAsBoolean());
+    } catch (RuntimeException e) {
+      log.warn("Nudge input unavailable, skipping the nudges that need it: input={}", input, e);
+      return Known.UNKNOWN;
+    }
+  }
+}

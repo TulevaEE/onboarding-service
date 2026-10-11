@@ -1,3 +1,3 @@
 package ee.tuleva.onboarding.investment.event;
 
-public record RunTrackingDifferenceBackfillRequested() {}
+public record RunTrackingDifferenceBackfillRequested(int daysBack) {}

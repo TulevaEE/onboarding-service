@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceive
 import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class SebBankStatementListenerTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   @Mock private SebStatementRouter router;
 
@@ -50,6 +55,7 @@ class SebBankStatementListenerTest {
         INTRA_DAY_REPORT,
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678"),
         List.of(),
-        List.of());
+        List.of(),
+        STATEMENT_PERIOD);
   }
 }

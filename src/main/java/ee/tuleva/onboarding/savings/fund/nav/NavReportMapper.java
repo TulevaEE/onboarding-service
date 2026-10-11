@@ -108,6 +108,8 @@ class NavReportMapper {
         .quantity(detail.units().setScale(3, HALF_UP))
         .marketPrice(detail.price())
         .marketValue(detail.marketValue().setScale(2, HALF_UP))
+        .priceDate(detail.priceDate())
+        .priceSource(detail.priceSource())
         .build();
   }
 

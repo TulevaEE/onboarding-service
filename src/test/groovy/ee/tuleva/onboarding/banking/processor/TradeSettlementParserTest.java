@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
@@ -107,20 +106,26 @@ class TradeSettlementParserTest {
         .contains(
             new TradeSettlementInfo(
                 "IE00BFG1TM61",
-                "0P000152G5",
+                "BDWTEIA",
                 "iShares Developed World Screened Index Fund",
                 new BigDecimal("24.4021")));
   }
 
   @Test
-  void parse_failsWhenTheResolvedInstrumentHasNoYahooTicker() {
+  void parse_settlesAnInstrumentWithNoYahooTickerUnderTheTickerSebWrote() {
     given(instrumentReferenceService.findByTicker("NOYAHOO")).willReturn(Optional.empty());
     given(instrumentReferenceService.findByBloombergTicker("NOYAHOO"))
         .willReturn(Optional.of(WITHOUT_YAHOO_TICKER));
 
-    assertThatThrownBy(
-            () -> parser.parse("DLA0553698/NOYAHOO ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX"))
-        .isInstanceOf(IllegalStateException.class);
+    var result = parser.parse("DLA0553698/NOYAHOO ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX");
+
+    assertThat(result)
+        .contains(
+            new TradeSettlementInfo(
+                "IE00NOTICKER0",
+                "NOYAHOO",
+                "Instrument without a yahoo ticker",
+                new BigDecimal("24.4021")));
   }
 
   @Test

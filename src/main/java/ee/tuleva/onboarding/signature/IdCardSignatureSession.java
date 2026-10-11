@@ -16,7 +16,15 @@ public class IdCardSignatureSession implements Serializable {
 
   private static final long serialVersionUID = 8149193185518071327L;
 
-  private final String hashToSignInHex;
+  private final SignableEntity signableEntity;
+  private final String hashToSign;
+  private final String hashFunction;
   private final DataToSign dataToSign;
   private final Container container;
+
+  public void requireStartedFor(SignableEntity entity) {
+    if (!entity.equals(signableEntity)) {
+      throw SignatureStateException.startedForAnotherEntity(entity);
+    }
+  }
 }

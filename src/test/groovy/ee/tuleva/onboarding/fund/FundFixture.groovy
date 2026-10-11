@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.fund.manager.FundManager
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.LOW_RISK
 
 class FundFixture {
 
@@ -19,6 +21,7 @@ class FundFixture {
         .id(123)
         .pillar(2)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .ongoingChargesFigure(0.005)
         .managementFeeRate(0.0034)
         .inceptionDate(LocalDate.parse("2019-01-01"))
@@ -40,6 +43,7 @@ class FundFixture {
         .id(124)
         .pillar(2)
         .status(ACTIVE)
+        .riskLevel(LOW_RISK)
         .ongoingChargesFigure(0.005)
         .managementFeeRate(0.0034)
         .fundManager(
@@ -60,6 +64,7 @@ class FundFixture {
         .id(123)
         .pillar(3)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .ongoingChargesFigure(0.005)
         .managementFeeRate(0.0034)
         .fundManager(
@@ -80,6 +85,7 @@ class FundFixture {
         .id(123)
         .pillar(2)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .ongoingChargesFigure(0.01)
         .managementFeeRate(0.008)
         .fundManager(
@@ -99,6 +105,7 @@ class FundFixture {
         .id(323)
         .pillar(3)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .ongoingChargesFigure(0.006)
         .managementFeeRate(0.004)
         .fundManager(
@@ -119,6 +126,7 @@ class FundFixture {
         .pillar(3)
         .id(123)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .ongoingChargesFigure(0.01)
         .managementFeeRate(0.008)
         .fundManager(
@@ -139,9 +147,9 @@ class FundFixture {
         .nameEnglish("Tuleva Additional Investment Fund")
         .nameEstonian("Tuleva Täiendav Kogumisfond")
         .managementFeeRate(0.0016)
-        .equityShare(1.0)
         .ongoingChargesFigure(0.0029)
         .status(ACTIVE)
+        .riskLevel(HIGH_RISK)
         .build()
   }
 }

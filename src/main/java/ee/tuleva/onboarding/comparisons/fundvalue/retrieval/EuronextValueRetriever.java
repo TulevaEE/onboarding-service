@@ -6,8 +6,6 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
-import java.io.BufferedReader;
-import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,9 +14,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +33,6 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "EURONEXT_VALUE";
   public static final String PROVIDER = "EURONEXT";
   private static final String EURONEXT_PARIS_MARKET_IDENTIFIER_CODE = "XPAR";
-  private static final int HEADER_LINES_TO_SKIP = 4;
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
   private static final ZoneId EURONEXT_TIMEZONE = ZoneId.of("Europe/Paris");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
@@ -93,7 +92,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
 
     var storageKey = isin + "." + EURONEXT_PARIS_MARKET_IDENTIFIER_CODE;
     var now = clock.instant();
-    List<FundValue> allValues = parseCsvResponse(csvResponse, storageKey, now);
+    List<FundValue> allValues = parseCsvResponse(isin, csvResponse, storageKey, now);
 
     logLatestValue(storageKey, allValues);
 
@@ -127,36 +126,66 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
         .toUriString();
   }
 
-  private List<FundValue> parseCsvResponse(String csvResponse, String storageKey, Instant now) {
-    List<FundValue> values = new ArrayList<>();
+  private List<FundValue> parseCsvResponse(
+      String isin, String csvResponse, String storageKey, Instant now) {
+    List<List<String>> lines = csvResponse.lines().map(EuronextValueRetriever::columns).toList();
+    OptionalInt headerLine = headerLine(lines);
+    if (headerLine.isEmpty()) {
+      log.error("Euronext CSV has no header row: storageKey={}", storageKey);
+      return List.of();
+    }
+    int headerIndex = headerLine.getAsInt();
 
-    try (var reader = new BufferedReader(new StringReader(csvResponse))) {
-      for (int i = 0; i < HEADER_LINES_TO_SKIP; i++) {
-        reader.readLine();
-      }
-
-      String line;
-      while ((line = reader.readLine()) != null) {
-        if (line.isBlank()) {
-          continue;
-        }
-
-        String[] parts = line.split(";");
-        if (parts.length < 6) {
-          continue;
-        }
-
-        var date = LocalDate.parse(parts[0], DATE_FORMATTER);
-        var closePrice = new BigDecimal(parts[5]);
-
-        values.add(new FundValue(storageKey, date, closePrice, PROVIDER, now));
-      }
-    } catch (Exception e) {
-      log.error("Failed to parse CSV response for key: {}", storageKey, e);
+    List<String> preamble = lines.subList(0, headerIndex).stream().map(List::getFirst).toList();
+    if (!preamble.contains(isin)) {
+      log.error(
+          "Euronext CSV is not for the requested instrument: storageKey={}, preamble={}",
+          storageKey,
+          preamble);
       return List.of();
     }
 
-    return values;
+    List<String> header = lines.get(headerIndex);
+    int closeColumn = header.indexOf("Close");
+    if (closeColumn < 0) {
+      log.error(
+          "Euronext CSV has no official closing price column: storageKey={}, header={}",
+          storageKey,
+          header);
+      return List.of();
+    }
+
+    return parseRows(lines.subList(headerIndex + 1, lines.size()), closeColumn, storageKey, now);
+  }
+
+  private OptionalInt headerLine(List<List<String>> lines) {
+    return IntStream.range(0, lines.size())
+        .filter(index -> lines.get(index).getFirst().equals("Date"))
+        .findFirst();
+  }
+
+  private List<FundValue> parseRows(
+      List<List<String>> rows, int closeColumn, String storageKey, Instant now) {
+    try {
+      return rows.stream()
+          .filter(row -> row.size() > closeColumn && !row.get(closeColumn).isEmpty())
+          .map(
+              row ->
+                  new FundValue(
+                      storageKey,
+                      LocalDate.parse(row.getFirst(), DATE_FORMATTER),
+                      new BigDecimal(row.get(closeColumn)),
+                      PROVIDER,
+                      now))
+          .toList();
+    } catch (Exception e) {
+      log.error("Failed to parse Euronext CSV rows: storageKey={}", storageKey, e);
+      return List.of();
+    }
+  }
+
+  private static List<String> columns(String line) {
+    return Stream.of(line.split(";", -1)).map(column -> column.replace("\"", "").strip()).toList();
   }
 
   private void logLatestValue(String identifier, List<FundValue> values) {

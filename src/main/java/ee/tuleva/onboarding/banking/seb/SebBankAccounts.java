@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
 public class SebBankAccounts implements BankAccounts {
@@ -56,7 +57,7 @@ public class SebBankAccounts implements BankAccounts {
   }
 
   @Override
-  public Optional<BankAccount> find(String iban) {
+  public Optional<BankAccount> find(@Nullable String iban) {
     return Optional.ofNullable(accountsByIban.get(iban));
   }
 

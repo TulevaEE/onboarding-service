@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.mandate.MandateRepository
-import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.PillarSuggestion
+import ee.tuleva.onboarding.nudge.NudgeDecision
 import ee.tuleva.onboarding.notification.email.Email
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
@@ -17,20 +16,21 @@ import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments
 import static ee.tuleva.onboarding.notification.email.EmailType.*
+import ee.tuleva.onboarding.nudge.NudgeKey
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
 class PaymentEmailServiceSpec extends Specification {
 
+  static final UUID CHILD_LINK_ID = UUID.fromString("33333333-3333-3333-3333-333333333333")
+  static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444")
+
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
 
-  SavingsFundCharges savingsFundFees = Mock() {
-    ongoingChargesPercent(_) >> "0.28"
-  }
   MandateRepository mandateRepository = Mock()
   PaymentEmailService paymentEmailService = new PaymentEmailService(mandateRepository, emailService,
-      emailPersistenceService, savingsFundFees)
+      emailPersistenceService)
 
   def "send third pillar payment success email"() {
     given:
@@ -38,8 +38,7 @@ class PaymentEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
 
-    def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def decision = NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
     def payment = aNewSinglePayment()
     def message = new MandrillMessage()
     var mergeVars = [
@@ -49,19 +48,8 @@ class PaymentEmailServiceSpec extends Specification {
         "currency"             : EUR,
         "senderPersonalCode"   : user.personalCode,
         "recipientPersonalCode": payment.recipientPersonalCode,
-        "suggestPaymentRate"   : pillarSuggestion.suggestPaymentRate,
-        "suggestMembership"    : pillarSuggestion.suggestMembership,
-        "suggestSecondPillar"  : pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar"   : pillarSuggestion.suggestThirdPillar,
-        "thirdPillarActive" : pillarSuggestion.thirdPillarActive,
-        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
-        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
-        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
-        "savingsFundFee"                     : "0.28",
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
-    ]
-    def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
+    ] + decision.mergeVars(Locale.ENGLISH)
+    def tags = ["pillar_3.1", "mandate", "payment", decision.tag()]
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandate = new Mandate(mandate: new byte[0])
@@ -78,41 +66,69 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, pillarSuggestion, locale)
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, decision, locale)
 
     then:
     1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", mergeVars, tags, {
       it.size() == 1 && it.first.getName() == mandateAttachments.first.getName() && it.first.getContent() == mandateAttachments.first.getContent()
     }) >> message
     1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status, decision.tag())
+  }
+
+  def "a third pillar payment email with no nudge carries no nudge tag"() {
+    given:
+    def user = sampleUser().build()
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+    emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> []
+
+    when:
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, aNewSinglePayment(), NudgeDecision.of(NudgeKey.NONE), Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", _, ["pillar_3.1", "mandate", "payment"], []) >> message
+    1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status, null)
+  }
+
+  def "a savings fund payment email with no nudge carries no nudge tag"() {
+    given:
+    def user = sampleUser().build()
+    def email = SavingsFundPaymentEmail.personSuccess()
+    def decision = NudgeDecision.of(NudgeKey.NONE)
+    def mergeVars = [
+        "fname": user.firstName,
+        "lname": user.lastName,
+    ] + decision.mergeVars(Locale.ENGLISH) + email.mergeVars()
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, decision, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_person_en", mergeVars, ["savings_fund"]) >> message
+    1 * emailService.send(user, message, "savings_fund_payment_success_person_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status, null)
   }
 
   def "send savings fund payment emails"() {
     given:
     def user = sampleUser().build()
-    def conversion = notConverted()
-    def contactDetails = contactDetailsFixture()
-    def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def decision = NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,
         "lname"              : user.lastName,
-        "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
-        "suggestMembership"  : pillarSuggestion.suggestMembership,
-        "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
-        "thirdPillarActive" : pillarSuggestion.thirdPillarActive,
-        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
-        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
-        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
-        "savingsFundFee"                     : "0.28",
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
-        "suggestAccountRecurringPayment" : false
-    ]
-    def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
+    ] + decision.mergeVars(Locale.ENGLISH)
+    def tags = ["savings_fund", decision.tag()]
     def locale = Locale.ENGLISH
 
     def mandrillResponse = new MandrillMessageStatus().tap {
@@ -121,18 +137,18 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, false, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, decision, locale)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
     1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags) >> message
-    1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status, decision.tag())
 
     where:
     email                                               | templateName
     SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_person_en"
-    SavingsFundPaymentEmail.childSuccess("Kid Tester")  | "savings_fund_payment_success_child_en"
-    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_company_en"
+    SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)  | "savings_fund_payment_success_child_en"
+    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ", COMPANY_ID) | "savings_fund_payment_success_company_en"
     SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
     SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
   }
@@ -159,35 +175,22 @@ class PaymentEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "savings_fund_payment_failed_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status, null)
   }
 
   def "savings fund payment email includes the recipient name when present"() {
     given:
     def user = sampleUser().build()
-    def conversion = notConverted()
-    def contactDetails = contactDetailsFixture()
-    def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def decision = NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,
         "lname"              : user.lastName,
         "recipientName"      : "Kid Tester",
-        "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
-        "suggestMembership"  : pillarSuggestion.suggestMembership,
-        "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
-        "thirdPillarActive" : pillarSuggestion.thirdPillarActive,
-        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
-        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
-        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
-        "savingsFundFee"                     : "0.28",
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
-        "suggestAccountRecurringPayment" : false
-    ]
-    def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
+        "recipientIsChild"   : true,
+        "recipientAccountId" : CHILD_LINK_ID.toString(),
+    ] + decision.mergeVars(Locale.ENGLISH)
+    def tags = ["savings_fund", decision.tag()]
     def locale = Locale.ENGLISH
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
@@ -195,11 +198,11 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID), decision, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)
     1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags) >> message
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status, decision.tag())
   }
 }

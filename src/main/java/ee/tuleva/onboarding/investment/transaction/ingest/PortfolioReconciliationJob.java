@@ -33,8 +33,8 @@ public class PortfolioReconciliationJob {
     reconcileFunds(event.funds(), navDate);
   }
 
-  @EventListener
-  void onPortfolioReconciliationRequested(RunPortfolioReconciliationRequested event) {
+  @EventListener(RunPortfolioReconciliationRequested.class)
+  void onPortfolioReconciliationRequested() {
     LocalDate navDate = publicHolidays.previousWorkingDay(LocalDate.now(clock));
     reconcileFunds(Arrays.asList(TulevaFund.values()), navDate);
   }

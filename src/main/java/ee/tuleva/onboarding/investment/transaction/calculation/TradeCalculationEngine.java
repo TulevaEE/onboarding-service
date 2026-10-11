@@ -91,10 +91,11 @@ public class TradeCalculationEngine {
       List<TradeCalculation> trades,
       BigDecimal netInvestable,
       Map<String, BigDecimal> weightMap) {
-    if (mode != TransactionMode.REBALANCE || input.positions().isEmpty()) {
-      return List.of();
+    List<CalculationWarning> warnings = new ArrayList<>(input.inputWarnings());
+    if (mode == TransactionMode.REBALANCE && !input.positions().isEmpty()) {
+      warnings.addAll(rebalanceWarnings(input, trades, netInvestable, weightMap));
     }
-    return rebalanceWarnings(input, trades, netInvestable, weightMap);
+    return List.copyOf(warnings);
   }
 
   private List<CalculationWarning> rebalanceWarnings(

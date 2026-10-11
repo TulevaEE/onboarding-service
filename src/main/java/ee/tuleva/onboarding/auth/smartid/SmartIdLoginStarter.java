@@ -1,0 +1,109 @@
+package ee.tuleva.onboarding.auth.smartid;
+
+import static ee.sk.smartid.AuthenticationCertificateLevel.QUALIFIED;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
+import static org.springframework.resilience.annotation.ConcurrencyLimit.ThrottlePolicy.REJECT;
+
+import ee.sk.smartid.RpChallenge;
+import ee.sk.smartid.RpChallengeGenerator;
+import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.VerificationCodeCalculator;
+import ee.sk.smartid.common.devicelink.CallbackUrl;
+import ee.sk.smartid.common.devicelink.interactions.DeviceLinkInteraction;
+import ee.sk.smartid.common.notification.interactions.NotificationInteraction;
+import ee.sk.smartid.util.CallbackUrlUtil;
+import ee.tuleva.onboarding.auth.SmartIdProperties;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.function.Supplier;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.resilience.annotation.ConcurrencyLimit;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SmartIdLoginStarter {
+
+  static final int ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD = 20;
+
+  private static final String LOGIN_PROMPT = "Log in to Tuleva?";
+
+  private final SmartIdClient smartIdClient;
+  private final SmartIdProperties properties;
+  private final Clock clock;
+
+  @ConcurrencyLimit(
+      value = ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD,
+      policy = REJECT)
+  public SmartIdSession startDeviceLinkLogin(@Nullable String language, boolean rememberMe) {
+    String deviceLinkLanguage = DeviceLinkLanguage.of(language);
+    CallbackUrl callbackUrl = CallbackUrlUtil.createCallbackUrl(properties.callbackUrl());
+    var builder =
+        smartIdClient
+            .createDeviceLinkAuthentication()
+            .withRpChallenge(RpChallengeGenerator.generate().toBase64EncodedValue())
+            .withCertificateLevel(QUALIFIED)
+            .withInteractions(List.of(DeviceLinkInteraction.displayTextAndPin(LOGIN_PROMPT)))
+            .withInitialCallbackUrl(callbackUrl.initialCallbackUri().toString());
+    var response = initiate(builder::initAuthenticationSession);
+    log.info("Started Smart-ID device link login: sessionId={}", response.sessionID());
+    return new SmartIdSession(
+        Instant.now(clock),
+        new DeviceLinkLogin(
+            response.sessionID(),
+            response.sessionToken(),
+            response.sessionSecret(),
+            response.deviceLinkBase(),
+            builder.getAuthenticationSessionRequest(),
+            callbackUrl.urlToken(),
+            callbackUrl.initialCallbackUri().toString(),
+            deviceLinkLanguage),
+        rememberMe);
+  }
+
+  public SmartIdSession startNotificationLogin(RememberedSmartIdAccount account) {
+    final boolean ALREADY_REMEMBERED_BROWSER_KEEPS_REMEMBERING = true;
+    RpChallenge rpChallenge = RpChallengeGenerator.generate();
+    var builder =
+        smartIdClient
+            .createNotificationAuthentication()
+            .withDocumentNumber(account.documentNumber())
+            .withRpChallenge(rpChallenge.toBase64EncodedValue())
+            .withCertificateLevel(QUALIFIED)
+            .withInteractions(
+                List.of(
+                    NotificationInteraction.confirmationMessageAndVerificationCodeChoice(
+                        LOGIN_PROMPT),
+                    NotificationInteraction.displayTextAndPin(LOGIN_PROMPT)));
+    var response = initiate(builder::initAuthenticationSession);
+    log.info("Started Smart-ID notification login: sessionId={}", response.sessionID());
+    return new SmartIdSession(
+        Instant.now(clock),
+        new NotificationLogin(
+            response.sessionID(),
+            builder.getAuthenticationSessionRequest(),
+            VerificationCodeCalculator.calculate(rpChallenge.value())),
+        ALREADY_REMEMBERED_BROWSER_KEEPS_REMEMBERING);
+  }
+
+  private static <T> T initiate(Supplier<T> initiation) {
+    try {
+      return initiation.get();
+    } catch (ee.sk.smartid.exception.SmartIdException e) {
+      SmartIdLoginError error = SmartIdLoginError.of(e);
+      if (error == TECHNICAL_ERROR) {
+        log.error("Smart-ID login could not be started", e);
+      } else {
+        log.info(
+            "Smart-ID login could not be started: error={}, reason={}",
+            error,
+            e.getClass().getSimpleName());
+      }
+      throw new SmartIdException(error);
+    }
+  }
+}

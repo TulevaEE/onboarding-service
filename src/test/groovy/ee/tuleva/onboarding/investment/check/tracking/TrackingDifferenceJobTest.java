@@ -1,5 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceJob.GAP_LOOKBACK_DAYS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -7,8 +15,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
-import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,17 +27,31 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TrackingDifferenceJobTest {
 
+  private static final LocalDate NAV_DATE = LocalDate.of(2026, 9, 11);
+
   @Mock TrackingDifferenceService service;
   @Mock TrackingDifferenceNotifier notifier;
 
   @InjectMocks TrackingDifferenceJob job;
+
+  private static TrackingDifferenceResult result(LocalDate checkDate) {
+    return TrackingDifferenceResult.builder()
+        .fund(TUK75)
+        .checkDate(checkDate)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(ZERO)
+        .fundReturn(ZERO)
+        .benchmarkReturn(ZERO)
+        .breach(false)
+        .build();
+  }
 
   @Test
   void adHocEventDelegatesToServiceAndNotifier() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.runChecksForFunds(anyList())).willReturn(results);
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(service).should().runChecksForFunds(anyList());
     then(notifier).should().notify(results);
@@ -40,7 +63,7 @@ class TrackingDifferenceJobTest {
   void adHocFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier).should().notifyRunFailed("TD check", "boom");
     then(notifier).should(never()).notify(anyList());
@@ -56,7 +79,7 @@ class TrackingDifferenceJobTest {
         .when(service)
         .runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier)
         .should()
@@ -72,34 +95,229 @@ class TrackingDifferenceJobTest {
         .when(service)
         .runChecksForFunds(anyList());
 
-    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+    job.onTrackingDifferenceCheckRequested();
 
     then(notifier).should().notify(partialResults);
   }
 
+  // The NAV publication writes the check events on an ordinary day, so most evenings there is no
+  // gap at all. The per-day notifier reads an empty list as "nothing actionable was checked" and
+  // posts it to INVESTMENT, which would put a warning on the channel every weekday for the case
+  // that means everything worked.
   @Test
-  void backfillEventDelegatesToServiceAndNotifier() {
+  void anEveningWithNoGapToFillSaysNothing() {
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(service).should().fillGaps(GAP_LOOKBACK_DAYS);
+    then(notifier).should(never()).notify(anyList());
+    then(notifier).should(never()).notifyGapFillSummary(any());
+  }
+
+  // One missed day is the case the daily run exists for, and its breach is current enough to read
+  // as the daily alert it would have been.
+  @Test
+  void aSingleMissedDayIsReportedAsTheDayItself() {
+    var results = List.of(result(NAV_DATE));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(results, List.of(), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notify(results);
+    then(notifier).should(never()).notifyGapFillSummary(any());
+  }
+
+  // The first run after a deploy or an outage can carry weeks of dates. Sent through the per-day
+  // formatter, every historical breach arrives today as a fresh "TD BREACH DETECTED".
+  @Test
+  void aFillCoveringSeveralDaysIsSummarisedRatherThanReplayedDayByDay() {
+    var run =
+        new GapFillRun(
+            List.of(result(NAV_DATE.minusDays(1)), result(NAV_DATE)), List.of(), Map.of());
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(run);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyGapFillSummary(run);
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void aSingleDayRecheckedBecauseItsNavWasCorrectedIsSummarisedSoTheMessageSaysWhyItRan() {
+    var run =
+        new GapFillRun(List.of(result(NAV_DATE)), List.of(), Map.of(TUK75, List.of(NAV_DATE)));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(run);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyGapFillSummary(run);
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void aCorrectedNavDateThatCouldNotBeRecheckedIsReportedOnlyAsTheDateThatCouldNotRun() {
+    var gap =
+        new GapFailure(
+            NAV_DATE,
+            "fund=TUK75, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            0,
+            NAV_DATE.plusDays(30));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(gap), Map.of(TUK75, List.of(NAV_DATE))));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            "Dates the TD gap fill could not check:\n"
+                + "checkDate=2026-09-11, fund=TUK75, missingIsins=[IE00MISSING1]");
+    then(notifier).should(never()).notifyGapFillSummary(any());
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void aFailedDailyRunIsReportedRatherThanOnlyLogged() {
+    doThrow(new RuntimeException("boom")).when(service).fillGaps(GAP_LOOKBACK_DAYS);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyRunFailed("TD daily gap fill", "boom");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void anIncompleteDailyRunNamesEveryDateItCouldNotCheckAndMarksTheStandingOnes() {
+    var freshGap =
+        new GapFailure(
+            NAV_DATE,
+            "fund=TUK75, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            1,
+            NAV_DATE.plusDays(30));
+    var standingGap =
+        new GapFailure(
+            NAV_DATE.minusDays(10),
+            "fund=TUK00, missingIsins=[IE00MISSING2]",
+            MISSING_PRICE,
+            11,
+            NAV_DATE.plusDays(20));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(freshGap, standingGap), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            """
+            Dates the TD gap fill could not check:
+            checkDate=2026-09-11, fund=TUK75, missingIsins=[IE00MISSING1]
+            checkDate=2026-09-01, fund=TUK00, missingIsins=[IE00MISSING2] [standing gap: \
+            unfilled for 11 days, last attempt 2026-10-01 — the missing price has to be inserted \
+            by hand, nothing backfills it]""");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void aStandingNavGapSaysTheNavHasToBePublishedRatherThanThatAPriceIsMissing() {
+    var standingNavGap =
+        new GapFailure(
+            NAV_DATE.minusDays(10),
+            "fund=TUK75, no NAV for the check date",
+            MISSING_NAV,
+            11,
+            NAV_DATE.plusDays(20));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(standingNavGap), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            "Dates the TD gap fill could not check:\n"
+                + "checkDate=2026-09-01, fund=TUK75, no NAV for the check date [standing gap:"
+                + " unfilled for 11 days, last attempt 2026-10-01 — that day's NAV has to be"
+                + " calculated and published; the next gap fill then checks it]");
+  }
+
+  @Test
+  void anIncompleteDailyRunStillReportsTheDatesItDidFill() {
+    var filled = List.of(result(NAV_DATE));
+    var gap =
+        new GapFailure(
+            NAV_DATE.minusDays(1),
+            "fund=TUK00, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            2,
+            NAV_DATE);
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(filled, List.of(gap), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            "Dates the TD gap fill could not check:\n"
+                + "checkDate=2026-09-10, fund=TUK00, missingIsins=[IE00MISSING1]");
+    then(notifier).should().notify(filled);
+  }
+
+  @Test
+  void backfillEventDelegatesToServiceAndSummarises() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.backfillChecks(7)).willReturn(results);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(service).should().backfillChecks(7);
-    then(notifier).should().notify(results);
+    then(notifier).should().notifyBackfillSummary(7, results);
+  }
+
+  @Test
+  void backfillReachesAsFarBackAsTheEventAsksFor() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(service).should().backfillChecks(40);
+    then(service).should(never()).backfillChecks(7);
+  }
+
+  @Test
+  void backfillSummarisesRatherThanPostingEveryDay() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(notifier).should().notifyBackfillSummary(40, results);
+    then(notifier).should(never()).notify(anyList());
   }
 
   @Test
   void backfillFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(notifier).should().notifyRunFailed("TD backfill", "boom");
     then(notifier).should(never()).notify(anyList());
   }
 
   @Test
-  void backfillNotifiesPartialResultsOnIncompletePriceData() {
+  void aBackfillThatCouldNotPriceEveryDateIsSummarisedAsIncompleteNeverAsComplete() {
     var partialResults = List.<TrackingDifferenceResult>of();
     doThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
@@ -107,8 +325,19 @@ class TrackingDifferenceJobTest {
         .when(service)
         .backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
-    then(notifier).should().notify(partialResults);
+    then(notifier).should().notifyRunIncomplete("TD backfill", "missing prices");
+    then(notifier).should().notifyIncompleteBackfillSummary(7, partialResults);
+    then(notifier).should(never()).notifyBackfillSummary(anyInt(), anyList());
+  }
+
+  @Test
+  void aBackfillFailureCarryingNoMessageIsNamedByItsTypeInsteadOfNull() {
+    doThrow(new NullPointerException()).when(service).backfillChecks(7);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
+
+    then(notifier).should().notifyRunFailed("TD backfill", "NullPointerException");
   }
 }

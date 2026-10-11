@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.instrument;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.instrument.ReferenceDataChange;
 import java.time.Instant;
@@ -118,7 +117,7 @@ class ReferenceDataChangeDescriberTest {
   }
 
   @Test
-  void failsInsteadOfDescribingAnUpdateWhoseOldValuesCannotBeParsed() {
+  void mailsTheRawValuesOfAnUpdateWhoseOldValuesCannotBeParsed() {
     var change =
         new ReferenceDataChange(
             1L,
@@ -130,12 +129,15 @@ class ReferenceDataChangeDescriberTest {
             "{\"benchmark_category\":",
             "{\"benchmark_category\": \"EQUITY_EM\"}");
 
-    assertThatThrownBy(() -> describer.describe(List.of(change)))
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(describer.describe(List.of(change)))
+        .contains("UPDATE instrument_reference IE00B4L5Y983 by ops-console")
+        .contains("could not be described:")
+        .contains("old_values: {\"benchmark_category\":")
+        .contains("new_values: {\"benchmark_category\": \"EQUITY_EM\"}");
   }
 
   @Test
-  void failsInsteadOfDescribingAnUpdateWhoseNewValuesCannotBeParsed() {
+  void mailsTheRawValuesOfAnUpdateWhoseNewValuesCannotBeParsed() {
     var change =
         new ReferenceDataChange(
             1L,
@@ -147,12 +149,13 @@ class ReferenceDataChangeDescriberTest {
             "{\"benchmark_category\": \"EQUITY_DM\"}",
             "{\"benchmark_category\":");
 
-    assertThatThrownBy(() -> describer.describe(List.of(change)))
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(describer.describe(List.of(change)))
+        .contains("could not be described:")
+        .contains("new_values: {\"benchmark_category\":");
   }
 
   @Test
-  void failsOnAHistoryRowThatHasNeitherOldNorNewValues() {
+  void mailsAHistoryRowThatHasNeitherOldNorNewValues() {
     var change =
         new ReferenceDataChange(
             1L,
@@ -164,8 +167,40 @@ class ReferenceDataChangeDescriberTest {
             null,
             null);
 
-    assertThatThrownBy(() -> describer.describe(List.of(change)))
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(describer.describe(List.of(change)))
+        .contains("UPDATE instrument_reference IE00B4L5Y983 by ops-console")
+        .contains("could not be described:");
+  }
+
+  // The point of not throwing: one undescribable row must not stop the rest of the change set
+  // being mailed, because the whole batch is only marked notified once the mail goes out.
+  @Test
+  void oneUndescribableRowDoesNotStopTheRestOfTheChangeSet() {
+    var broken =
+        new ReferenceDataChange(
+            1L,
+            INSTRUMENT_REFERENCE,
+            "IE00BROKEN01",
+            "UPDATE",
+            "ops-console",
+            CHANGED_AT,
+            "{",
+            "{");
+    var readable =
+        new ReferenceDataChange(
+            2L,
+            INSTRUMENT_REFERENCE,
+            "IE00AAA00000",
+            "UPDATE",
+            "ops-console",
+            CHANGED_AT,
+            "{\"a\": 1}",
+            "{\"a\": 2}");
+
+    assertThat(describer.describe(List.of(broken, readable)))
+        .contains("could not be described:")
+        .contains("UPDATE instrument_reference IE00AAA00000 by ops-console")
+        .contains("a: 1 -> 2");
   }
 
   @Test

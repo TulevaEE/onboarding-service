@@ -8,6 +8,7 @@ import static org.hibernate.generator.EventType.INSERT;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey;
 import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
 import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import jakarta.persistence.*;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -70,7 +72,10 @@ public class LedgerTransaction {
     REGISTRAR_PAYOUT,
     UNCLASSIFIED_BANK_ENTRY,
     OPENING_BALANCE,
-    OWN_ACCOUNT_TRANSFER
+    OWN_ACCOUNT_TRANSFER,
+    UNIT_TRANSFER,
+    JOURNAL_ENTRY,
+    JOURNAL_ENTRY_REVERSAL
   }
 
   @Id
@@ -141,9 +146,42 @@ public class LedgerTransaction {
         .map(entry -> entry.getAmount().abs());
   }
 
+  Optional<BigDecimal> findFundUnitsChangeOf(@Nullable LedgerParty party) {
+    return entries.stream()
+        .filter(LedgerEntry::isUserFundUnit)
+        .filter(entry -> entry.getAccount().isOwnedBy(party))
+        .findFirst()
+        .map(entry -> entry.getAmount().negate());
+  }
+
   public Optional<BigDecimal> findNavPerUnit() {
-    Object navValue = metadata.get("navPerUnit");
-    return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
+    return findMetadataAmount(MetadataKey.NAV_PER_UNIT);
+  }
+
+  Optional<TransactionType> findOperationType() {
+    return Optional.ofNullable(metadata.get(MetadataKey.OPERATION_TYPE.getKey()))
+        .map(Object::toString)
+        .flatMap(LedgerTransaction::parseTransactionType);
+  }
+
+  private static Optional<TransactionType> parseTransactionType(String name) {
+    return Arrays.stream(TransactionType.values())
+        .filter(transactionType -> transactionType.name().equals(name))
+        .findFirst();
+  }
+
+  public Optional<BigDecimal> findRecipientAcquisitionCost() {
+    return findMetadataAmount(MetadataKey.RECIPIENT_ACQUISITION_COST_EUR);
+  }
+
+  private Optional<BigDecimal> findMetadataAmount(MetadataKey key) {
+    Object value = metadata.get(key.getKey());
+    return Optional.ofNullable(value).map(amount -> new BigDecimal(amount.toString()));
+  }
+
+  public Optional<LocalDate> findNavDate() {
+    Object navDate = metadata.get("navDate");
+    return Optional.ofNullable(navDate).map(value -> LocalDate.parse(value.toString()));
   }
 
   private static BigDecimal normalizeScale(BigDecimal amount, AssetType assetType) {

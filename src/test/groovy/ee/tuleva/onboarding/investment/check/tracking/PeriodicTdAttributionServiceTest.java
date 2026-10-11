@@ -8,7 +8,9 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -16,6 +18,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,7 +38,10 @@ import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRateSource;
 import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
+import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
+import ee.tuleva.onboarding.investment.fees.rate.RateBasis;
+import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -46,6 +53,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +65,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -66,9 +74,9 @@ class PeriodicTdAttributionServiceTest {
   private static final LocalDate PERIOD_START = LocalDate.of(2026, 4, 1);
   private static final LocalDate PERIOD_END = LocalDate.of(2026, 4, 30);
   private static final String FUND_CODE = "TUK75";
-  private static final String ISIN_DW = "IE00BFG1TM61";
-  private static final String EUNL_ISIN = "IE00B4L5Y983";
-  private static final String ISIN_EUROPE_ETF = "IE00BFNM3D14";
+  private static final String ISIN_DW = "ZZ0000000001";
+  private static final String EUNL_ISIN = "ZZ0000000002";
+  private static final String ISIN_EUROPE_ETF = "ZZ0000000003";
   private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
 
   @Mock TrackingDifferenceEventRepository tdEventRepository;
@@ -78,15 +86,15 @@ class PeriodicTdAttributionServiceTest {
   @Mock FundPositionRepository fundPositionRepository;
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  @Mock PeriodicTdAttributionRepository attributionRepository;
+  @Mock PeriodicTdAttributionWriter attributionWriter;
   @Mock TransactionExecutionRepository transactionExecutionRepository;
-  @Mock InstrumentFeeRepository instrumentFeeRepository;
-  @Mock PlatformTransactionManager transactionManager;
+  @Mock InstrumentOcfService instrumentOcfService;
 
   private PeriodicTdAttributionService service;
 
   @Mock private InvestmentParameterRepository parameterRepository;
   @Mock private TrackingDifferenceNotifier notifier;
+  @Mock private TdAttributionPeriodReconciler periodReconciler;
 
   @BeforeEach
   void setUp() {
@@ -98,14 +106,15 @@ class PeriodicTdAttributionServiceTest {
             feeChargedToFundPolicy,
             new TdAttributionInputAssembler(fundPositionRepository, fundNavQueryService),
             modelPortfolioAllocationRepository,
-            attributionRepository,
+            attributionWriter,
             transactionExecutionRepository,
-            instrumentFeeRepository,
-            transactionManager,
+            instrumentOcfService,
             new PublicHolidays(),
             new BenchmarkLegResolver(trackedInstruments()),
             parameterRepository,
-            notifier);
+            notifier,
+            periodReconciler,
+            new ResolvedInstrumentRatesGate(instrumentOcfService, notifier));
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -114,7 +123,8 @@ class PeriodicTdAttributionServiceTest {
             tdEventRepository.findDeduplicatedEventsForPeriod(
                 any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
         .willReturn(List.of());
-    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    given(instrumentOcfService.ratesFor(any())).willReturn(Map.of());
+    given(instrumentOcfService.hasRatesResolvedAfterItClosed(any())).willReturn(true);
     given(feeChargedToFundPolicy.resolverFor(any(), any()))
         .willAnswer(call -> alwaysCharged(call.getArgument(1), true));
   }
@@ -122,9 +132,9 @@ class PeriodicTdAttributionServiceTest {
   private static InstrumentReferenceService trackedInstruments() {
     return instrumentReferenceService(
         List.of(
-            tracked(ISIN_DW, "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
-            tracked(ISIN_EUROPE_ETF, "SLMC.XETRA", "EQUITY_DM"),
-            tracked(EUNL_ISIN, "EUNL.XETRA", null)),
+            tracked(ISIN_DW, "ZZ0000000001.EUFUND", "EQUITY_DM"),
+            tracked(ISIN_EUROPE_ETF, "ZZ0000000003.XETRA", "EQUITY_DM"),
+            tracked(EUNL_ISIN, "ZZ0000000002.XETRA", null)),
         List.of(new BenchmarkCategoryProxy(1L, "EQUITY_DM", EUNL_ISIN, null, "MSCI_WORLD")));
   }
 
@@ -171,11 +181,85 @@ class PeriodicTdAttributionServiceTest {
             .add(result.residual());
     assertThat(componentSum).isCloseTo(result.tdGeometric(), within(new BigDecimal("0.00000001")));
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-    verify(attributionRepository).save(any(PeriodicTdAttribution.class));
-    verify(attributionRepository).save(argThat(e -> e.getDetails().size() == 2));
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getFund() == TUK75
+                        && e.getPeriodStart().equals(PERIOD_START)
+                        && e.getPeriodEnd().equals(PERIOD_END)
+                        && e.getPeriodType() == MONTHLY
+                        && e.getDetails().size() == 2));
+  }
+
+  @Test
+  void theAttributionReconcilesItsPeriodBeforeReadingTheEventsItIsBuiltFrom() {
+    setupStandardMocks();
+
+    service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    var inOrder = inOrder(periodReconciler, tdEventRepository, attributionWriter);
+    inOrder.verify(periodReconciler).reconcile(TUK75, PERIOD_START, PERIOD_END);
+    inOrder
+        .verify(tdEventRepository)
+        .findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END);
+    inOrder.verify(attributionWriter).replace(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void anAttributionWhosePeriodStillHoldsStaleEventsIsNotWritten() {
+    setupStandardMocks();
+    willThrow(new AttributionPeriodStillStaleException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK75, PERIOD_START, PERIOD_END);
+
+    assertThatThrownBy(() -> service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY))
+        .isInstanceOf(AttributionPeriodStillStaleException.class);
+
+    then(attributionWriter).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void oneFundWhosePeriodCannotBeReconciledDoesNotStopTheOthers() {
+    setupStandardMocks();
+    willThrow(new AttributionPeriodStillStaleException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK00, PERIOD_START, PERIOD_END);
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    verify(attributionWriter, times(TulevaFund.values().length - 1))
+        .replace(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, never()).replace(argThat(e -> e.getFund() == TUK00));
+  }
+
+  @Test
+  void aStalePeriodAlreadyReportedByTheReconcilerIsNotReportedAgainAsFailed() {
+    setupStandardMocks();
+    willThrow(new AttributionPeriodStillStaleException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK00, PERIOD_START, PERIOD_END);
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    then(notifier).should(never()).notifyAttributionFailed(any(), any(), any(), any());
+  }
+
+  @Test
+  void aFundWhoseAttributionErrorsIsReportedAndTheOtherFundsAreStillWritten() {
+    setupStandardMocks();
+    willThrow(new DataIntegrityViolationException("uq_td_attribution"))
+        .given(attributionWriter)
+        .replace(argThat(e -> e.getFund() == TUK00));
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    then(notifier)
+        .should()
+        .notifyAttributionFailed(
+            TUK00, PERIOD_START, PERIOD_END, "DataIntegrityViolationException");
+    verify(attributionWriter, times(TulevaFund.values().length))
+        .replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -244,16 +328,13 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void rerunDeletesBeforeInserting() {
+  void aRerunReplacesTheStoredAttributionAgain() {
     setupStandardMocks();
 
     service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
     service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    verify(attributionRepository, times(2))
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-    verify(attributionRepository, times(2)).save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(2)).replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -312,7 +393,7 @@ class PeriodicTdAttributionServiceTest {
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(result.navEventCount()).isEqualTo(2);
-    verify(attributionRepository).save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter).replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -341,8 +422,8 @@ class PeriodicTdAttributionServiceTest {
     service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
 
     // TUK00 failed but TUK75 (and others) still saved
-    verify(attributionRepository, times(TulevaFund.values().length - 1))
-        .save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(TulevaFund.values().length - 1))
+        .replace(any(PeriodicTdAttribution.class));
   }
 
   @Test
@@ -628,8 +709,39 @@ class PeriodicTdAttributionServiceTest {
     service.backfillMonths(3, clock);
 
     // 3 months * 4 funds = 12 attribution saves
-    verify(attributionRepository, times(3 * TulevaFund.values().length))
-        .save(any(PeriodicTdAttribution.class));
+    verify(attributionWriter, times(3 * TulevaFund.values().length))
+        .replace(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void
+      aPeriodWhoseMonthTheRateJobHasNotResolvedIsNotComputedRatherThanLeavingItsOcfInTheResidual() {
+    given(instrumentOcfService.hasRatesResolvedAfterItClosed(YearMonth.of(2026, 9)))
+        .willReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                service.computeAttribution(
+                    TUK75, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), PeriodType.MONTHLY))
+        .isInstanceOf(InstrumentRatesNotResolvedException.class);
+    then(periodReconciler).shouldHaveNoInteractions();
+    then(attributionWriter).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aRunForAllFundsInAMonthTheRateJobHasNotResolvedIsRefusedInOneMessageNamingEveryFund() {
+    given(instrumentOcfService.hasRatesResolvedAfterItClosed(YearMonth.from(PERIOD_END)))
+        .willReturn(false);
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    then(notifier)
+        .should()
+        .notifyAttributionRefusedForUnresolvedRates(
+            List.of(TulevaFund.values()), PERIOD_START, PERIOD_END, YearMonth.from(PERIOD_END));
+    then(notifier).should(never()).notifyAttributionFailed(any(), any(), any(), any());
+    then(periodReconciler).shouldHaveNoInteractions();
+    then(attributionWriter).shouldHaveNoInteractions();
   }
 
   @Test
@@ -646,11 +758,15 @@ class PeriodicTdAttributionServiceTest {
           .willReturn(List.of());
     }
 
-    service.computeQuarterly(TUK75, 2026, 2);
+    service.computeQuarterly(TUK75, new Quarter(2026, 2));
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), PeriodType.QUARTERLY);
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getPeriodStart().equals(LocalDate.of(2026, 4, 1))
+                        && e.getPeriodEnd().equals(LocalDate.of(2026, 6, 30))
+                        && e.getPeriodType() == PeriodType.QUARTERLY));
   }
 
   @Test
@@ -669,17 +785,21 @@ class PeriodicTdAttributionServiceTest {
 
     service.computeAnnual(TUK75, 2026);
 
-    verify(attributionRepository)
-        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
-            TUK75, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), PeriodType.ANNUAL);
+    verify(attributionWriter)
+        .replace(
+            argThat(
+                e ->
+                    e.getPeriodStart().equals(LocalDate.of(2026, 1, 1))
+                        && e.getPeriodEnd().equals(LocalDate.of(2026, 12, 31))
+                        && e.getPeriodType() == PeriodType.ANNUAL));
   }
 
   @Test
   void computeWeightedOcfUsesInstrumentFeeRates() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
+        .willReturn(rates(instrumentFee(ISIN_DW, "0.0012")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -687,10 +807,51 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
+  void aLeapYearAnnualisesTheEtfLayerOcfOverItsOwnThreeHundredSixtySixDays() {
+    var ordinaryYear = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2026, 3, 4));
+    var leapYear = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2028, 3, 1));
+
+    assertThat(ordinaryYear).isNegative();
+    assertThat(leapYear)
+        .isCloseTo(
+            ordinaryYear.multiply(new BigDecimal("365")).divide(new BigDecimal("366"), 20, HALF_UP),
+            within(new BigDecimal("0.00000002")));
+  }
+
+  @Test
+  void aJanuaryCheckReachingBackIntoDecemberWeighsEachDayByTheLengthOfItsOwnYear() {
+    var twoOrdinaryDays = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2026, 3, 4));
+    var twoLeapDaysAndThreeOrdinaryDays =
+        etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2029, 1, 2));
+
+    var twoLeapDaysInOrdinaryDays =
+        new BigDecimal("2")
+            .multiply(new BigDecimal("365"))
+            .divide(new BigDecimal("366"), 20, HALF_UP);
+    var ordinaryDaysCovered = twoLeapDaysInOrdinaryDays.add(new BigDecimal("3"));
+    assertThat(twoLeapDaysAndThreeOrdinaryDays)
+        .isCloseTo(
+            twoOrdinaryDays.multiply(ordinaryDaysCovered).divide(new BigDecimal("2"), 20, HALF_UP),
+            within(new BigDecimal("0.00000002")));
+  }
+
+  private BigDecimal etfOcfDragOverTwoWorkingDaysFrom(LocalDate firstCheckDate) {
+    var periodStart = firstCheckDate.withDayOfMonth(1);
+    var periodEnd = firstCheckDate.withDayOfMonth(firstCheckDate.lengthOfMonth());
+    setupStandardMocks(periodStart, periodEnd, firstCheckDate);
+    givenBenchmarkModelEvents(
+        periodStart, periodEnd, firstCheckDate, List.of(ISIN_DW, ISIN_EUROPE_ETF));
+    given(instrumentOcfService.ratesFor(YearMonth.from(periodEnd)))
+        .willReturn(rates(instrumentFee(ISIN_DW, "0.0400")));
+
+    return service.computeAttribution(TUK75, periodStart, periodEnd, MONTHLY).etfOcfDrag();
+  }
+
+  @Test
   void anEtfLayerWithNoMeasuredDayIsReportedAsZeroRatherThanAsOutperformance() {
     setupStandardMocks();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
+        .willReturn(rates(instrumentFee(ISIN_DW, "0.0012")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -704,14 +865,14 @@ class PeriodicTdAttributionServiceTest {
   void aProxyBenchmarkedHoldingHasTheProxyOwnOcfRestoredIntoTdVsBenchmark() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
     var withoutProxyRate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(
+            rates(
                 instrumentFee(ISIN_DW, "0.0012"),
                 instrumentFee(ISIN_EUROPE_ETF, "0.0020"),
                 instrumentFee(EUNL_ISIN, "0.0020")));
@@ -729,9 +890,9 @@ class PeriodicTdAttributionServiceTest {
   void aProxyWithNoInstrumentFeeRowRecordsTheWeightItCouldNotRestore() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -743,9 +904,9 @@ class PeriodicTdAttributionServiceTest {
   void aProxyWithAnInstrumentFeeRowLeavesNoUnrestoredWeight() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(
+            rates(
                 instrumentFee(ISIN_DW, "0.0012"),
                 instrumentFee(ISIN_EUROPE_ETF, "0.0020"),
                 instrumentFee(EUNL_ISIN, "0.0020")));
@@ -786,14 +947,14 @@ class PeriodicTdAttributionServiceTest {
                 modelAllocation(ISIN_DW, "0.70", PERIOD_START),
                 modelAllocation("IE00NOTATRACKER", "0.30", PERIOD_START)));
 
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
+        .willReturn(rates(instrumentFee(ISIN_DW, "0.0012")));
     var withoutRateForTheUnbenchmarkedHolding =
         service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee("IE00NOTATRACKER", "0.0090")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee("IE00NOTATRACKER", "0.0090")));
     var withRateForTheUnbenchmarkedHolding =
         service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -808,14 +969,14 @@ class PeriodicTdAttributionServiceTest {
     setupStandardMocks();
     givenBenchmarkModelEventsMeasuring(List.of(ISIN_DW));
 
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
+        .willReturn(rates(instrumentFee(ISIN_DW, "0.0012")));
     var withoutRateForTheDroppedHolding =
         service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
     var withRateForTheDroppedHolding =
         service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -829,9 +990,9 @@ class PeriodicTdAttributionServiceTest {
   void aBenchmarkModelEventWithoutSecurityAttributionsLeavesTheEtfOcfUncomputed() {
     setupStandardMocks();
     givenBenchmarkModelEventsMeasuring(List.of());
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -845,13 +1006,18 @@ class PeriodicTdAttributionServiceTest {
   }
 
   private void givenBenchmarkModelEventsMeasuring(List<String> measuredIsins) {
+    givenBenchmarkModelEvents(PERIOD_START, PERIOD_END, LocalDate.of(2026, 4, 1), measuredIsins);
+  }
+
+  private void givenBenchmarkModelEvents(
+      LocalDate periodStart, LocalDate periodEnd, LocalDate date1, List<String> measuredIsins) {
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, TrackingCheckType.BENCHMARK_MODEL, PERIOD_START, PERIOD_END))
+                TUK75, TrackingCheckType.BENCHMARK_MODEL, periodStart, periodEnd))
         .willReturn(
             List.of(
-                benchmarkModelEvent(LocalDate.of(2026, 4, 1), "-0.00010", measuredIsins),
-                benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015", measuredIsins)));
+                benchmarkModelEvent(date1, "-0.00010", measuredIsins),
+                benchmarkModelEvent(date1.plusDays(1), "-0.00015", measuredIsins)));
   }
 
   private TrackingDifferenceEvent benchmarkModelEvent(
@@ -871,36 +1037,44 @@ class PeriodicTdAttributionServiceTest {
         .build();
   }
 
-  private ee.tuleva.onboarding.investment.fees.InstrumentFee instrumentFee(
-      String isin, String netOcf) {
-    return ee.tuleva.onboarding.investment.fees.InstrumentFee.builder()
-        .isin(isin)
-        .instrumentName(isin)
-        .netOcf(new BigDecimal(netOcf))
-        .publishedOcf(new BigDecimal(netOcf))
-        .rebateRate(ZERO)
-        .validFrom(LocalDate.of(2025, 1, 1))
-        .build();
+  private static InstrumentRate instrumentFee(String isin, String netOcf) {
+    return new InstrumentRate(
+        1L,
+        isin,
+        YearMonth.from(PERIOD_END),
+        new BigDecimal(netOcf),
+        new BigDecimal(netOcf),
+        RateBasis.AGREEMENT,
+        null,
+        RebateKind.NONE);
+  }
+
+  private static Map<String, InstrumentRate> rates(InstrumentRate... rates) {
+    return java.util.Arrays.stream(rates)
+        .collect(java.util.stream.Collectors.toMap(InstrumentRate::isin, rate -> rate));
   }
 
   // --- shared setup ---
 
   private void setupStandardMocks() {
-    var date1 = LocalDate.of(2026, 4, 1);
-    var date2 = LocalDate.of(2026, 4, 2);
+    setupStandardMocks(PERIOD_START, PERIOD_END, LocalDate.of(2026, 4, 1));
+  }
+
+  private void setupStandardMocks(LocalDate periodStart, LocalDate periodEnd, LocalDate date1) {
+    var date2 = date1.plusDays(1);
 
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+                TUK75, MODEL_PORTFOLIO, periodStart, periodEnd))
         .willReturn(List.of(tdEvent(date1, "0.0008", "0.001"), tdEvent(date2, "0.0005", "0.0007")));
 
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, periodStart, periodEnd))
         .willReturn(
             List.of(
                 feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
                 feeAccrual(date2, FeeType.MANAGEMENT, "27.40")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, periodEnd))
         .willReturn(
             Optional.of(
                 new FeeRate(
@@ -909,12 +1083,12 @@ class PeriodicTdAttributionServiceTest {
                     FeeType.MANAGEMENT,
                     new BigDecimal("0.0027"),
                     FeeRateSource.FIXED,
-                    PERIOD_START,
+                    periodStart,
                     null)));
 
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
+                TUK75, periodStart, periodEnd))
         .willReturn(
             List.of(
                 modelAllocation(ISIN_DW, "0.70", date1),
@@ -1401,32 +1575,12 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void usesFirstInstrumentFeeRateWhenDuplicateIsinRowsExist() {
-    setupStandardMocks();
-    givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
-    var baseline = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(
-            List.of(
-                instrumentFee(ISIN_DW, "0.0012"),
-                instrumentFee(ISIN_DW, "0.0090"),
-                instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
-    var withDuplicate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-
-    assertThat(withDuplicate.etfOcfDrag()).isEqualByComparingTo(baseline.etfOcfDrag());
-  }
-
-  @Test
   void etfLayerIgnoresFutureDatedModelAllocationsWhenSelectingTheLatestVersion() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
     var baseline = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     given(
@@ -1453,9 +1607,9 @@ class PeriodicTdAttributionServiceTest {
                 benchmarkModelEvent(
                     LocalDate.of(2026, 4, 1), "-0.00010", List.of(ISIN_DW, ISIN_EUROPE_ETF)),
                 benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015", List.of())));
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+    given(instrumentOcfService.ratesFor(YearMonth.from(PERIOD_END)))
         .willReturn(
-            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+            rates(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 

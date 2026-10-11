@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.fund;
 import ee.tuleva.onboarding.ledger.SavingsFundUnits;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -25,5 +26,10 @@ class SavingsFundUnitStatsAdapter implements SavingsFundUnitStats {
   @Override
   public int unitHolderCount() {
     return savingsFundUnits.unitHolderCount();
+  }
+
+  @Override
+  public Optional<BigDecimal> unitsHeldAt(String registryCode, Instant cutoff) {
+    return savingsFundUnits.unitsHeldAt(registryCode, cutoff);
   }
 }

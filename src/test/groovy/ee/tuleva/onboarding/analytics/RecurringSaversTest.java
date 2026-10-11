@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.analytics;
 
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
-import ee.tuleva.onboarding.mandate.RecurringPayments;
+import ee.tuleva.onboarding.nudge.NudgeAccount;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,7 +23,7 @@ class RecurringSaversTest {
       Clock.fixed(Instant.parse("2026-03-15T00:00:00Z"), ZoneOffset.UTC);
   private static final LocalDate EXPECTED_FROM = LocalDate.of(2025, 12, 1);
   private static final String PERSONAL_CODE = "38888888888";
-  private static final SaverId SAVER = SaverId.person(PERSONAL_CODE);
+  private static final String CHILD_CODE = "51111111111";
 
   @Mock private AnalyticsThirdPillarTransactionRepository thirdPillarTransactions;
   @Mock private SavingsFundContributions savingsFundContributions;
@@ -35,51 +36,39 @@ class RecurringSaversTest {
   }
 
   @Test
-  void hasRecurringSavingsFundPaymentsIsTrueAtTheThreeMonthThreshold() {
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
-        .willReturn(3);
-
-    assertThat(recurringSavers.hasRecurringSavingsFundPayments(SAVER)).isTrue();
-  }
-
-  @Test
-  void hasRecurringSavingsFundPaymentsIsFalseJustBelowTheThreeMonthThreshold() {
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
-        .willReturn(2);
-
-    assertThat(recurringSavers.hasRecurringSavingsFundPayments(SAVER)).isFalse();
-  }
-
-  @Test
-  void recurringPaymentsOfIsTrueForBothPillarsAtTheThreshold() {
+  void thirdPillarIsRecurringFromThreeContributionMonthsInTheLastFour() {
     given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(3);
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
-        .willReturn(3);
 
-    assertThat(recurringSavers.recurringPaymentsOf(PERSONAL_CODE))
-        .isEqualTo(new RecurringPayments(true, true));
+    assertThat(recurringSavers.thirdPillar(PERSONAL_CODE)).isTrue();
   }
 
   @Test
-  void recurringPaymentsOfIsFalseForThirdPillarJustBelowTheThreshold() {
+  void thirdPillarIsNotRecurringJustBelowTheThreshold() {
     given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(2);
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
-        .willReturn(3);
 
-    assertThat(recurringSavers.recurringPaymentsOf(PERSONAL_CODE))
-        .isEqualTo(new RecurringPayments(false, true));
+    assertThat(recurringSavers.thirdPillar(PERSONAL_CODE)).isFalse();
   }
 
   @Test
-  void recurringPaymentsOfIsFalseForSavingsFundJustBelowTheThreshold() {
-    given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
+  void savingsFundCadenceIsScopedToTheGivenPersonalAccount() {
+    given(
+            savingsFundContributions.countStandingOrderMonthsSince(
+                SaverId.person(CHILD_CODE), EXPECTED_FROM))
         .willReturn(3);
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
+
+    assertThat(recurringSavers.savingsFund(NudgeAccount.person(CHILD_CODE))).isTrue();
+    assertThat(recurringSavers.savingsFund(NudgeAccount.person(PERSONAL_CODE))).isFalse();
+  }
+
+  @Test
+  void savingsFundCadenceIsScopedToTheGivenCompanyAccount() {
+    given(
+            savingsFundContributions.countStandingOrderMonthsSince(
+                new SaverId(SaverId.Type.LEGAL_ENTITY, "12345678"), EXPECTED_FROM))
         .willReturn(2);
 
-    assertThat(recurringSavers.recurringPaymentsOf(PERSONAL_CODE))
-        .isEqualTo(new RecurringPayments(true, false));
+    assertThat(recurringSavers.savingsFund(new NudgeAccount(LEGAL_ENTITY, "12345678"))).isFalse();
   }
 }

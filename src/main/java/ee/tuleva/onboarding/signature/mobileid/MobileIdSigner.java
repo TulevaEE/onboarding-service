@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
+import org.digidoc4j.DigestAlgorithm;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,7 +45,8 @@ public class MobileIdSigner {
     X509Certificate certificate = getCertificate(phoneNumber, personalCode);
     Container container = digiDocFacade.buildContainer(files);
 
-    DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
+    DataToSign dataToSign =
+        digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256);
     byte[] dataToHash = dataToSign.getDataToSign();
 
     MidHashToSign hashToSign = hashToSign(dataToHash);

@@ -36,6 +36,6 @@ public class TrackingDifferenceQueryService {
         .map(
             event ->
                 new TrackingDifferenceSummary(
-                    event.getTrackingDifference(), calculator.breachThreshold(navDate)));
+                    event.getTrackingDifference(), calculator.breachThreshold(checkType, navDate)));
   }
 }

@@ -117,6 +117,53 @@ public class NavFeeAccrualLedger {
   }
 
   @Transactional
+  public void reviseFeeAccrual(
+      TulevaFund fund,
+      LocalDate accrualDate,
+      SystemAccount feeAccount,
+      BigDecimal delta,
+      int revision,
+      Map<String, Object> metadata) {
+    if (delta.signum() == 0) {
+      log.info(
+          "Skipping zero fee accrual revision: fund={}, date={}, feeAccount={}",
+          fund,
+          accrualDate,
+          feeAccount.name());
+      return;
+    }
+
+    UUID externalReference = generateRevisionReference(fund, accrualDate, feeAccount, revision);
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, FEE_ACCRUAL)) {
+      log.warn(
+          "Fee accrual revision already recorded, skipping: fund={}, date={}, feeAccount={}, revision={}, requestedDelta={}",
+          fund,
+          accrualDate,
+          feeAccount.name(),
+          revision,
+          delta);
+      return;
+    }
+
+    log.info(
+        "Creating fee accrual revision ledger entry: fund={}, date={}, feeAccount={}, revision={}, delta={}",
+        fund,
+        accrualDate,
+        feeAccount.name(),
+        revision,
+        delta);
+    Instant transactionDate = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    ledgerTransactionService.createTransaction(
+        FEE_ACCRUAL,
+        transactionDate,
+        externalReference,
+        metadata,
+        entry(getSystemAccount(NAV_EQUITY, fund), delta),
+        entry(getSystemAccount(feeAccount, fund), delta.negate()));
+  }
+
+  @Transactional
   public BlackrockAdjustmentResult recordBlackrockAdjustment(
       TulevaFund fund, LocalDate date, BigDecimal targetBalance) {
     Instant cutoff = date.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
@@ -162,48 +209,6 @@ public class NavFeeAccrualLedger {
   }
 
   @Transactional
-  public int deleteFeeAccrualsFromDate(TulevaFund fund, LocalDate fromDate) {
-    String fundName = fund.name();
-    Instant cutoff = fromDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
-    int entriesDeleted =
-        jdbcClient
-            .sql(
-                """
-                DELETE FROM ledger.entry
-                WHERE transaction_id IN (
-                  SELECT id FROM ledger.transaction
-                  WHERE transaction_type = 'FEE_ACCRUAL'
-                    AND CAST(metadata AS VARCHAR) LIKE :fundPattern
-                    AND transaction_date >= :cutoff
-                )
-                """)
-            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
-            .param("cutoff", java.sql.Timestamp.from(cutoff))
-            .update();
-
-    int txDeleted =
-        jdbcClient
-            .sql(
-                """
-                DELETE FROM ledger.transaction
-                WHERE transaction_type = 'FEE_ACCRUAL'
-                  AND CAST(metadata AS VARCHAR) LIKE :fundPattern
-                  AND transaction_date >= :cutoff
-                """)
-            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
-            .param("cutoff", java.sql.Timestamp.from(cutoff))
-            .update();
-
-    log.info(
-        "Deleted fee accruals from date: fund={}, fromDate={}, transactions={}, entries={}",
-        fund,
-        fromDate,
-        txDeleted,
-        entriesDeleted);
-    return txDeleted;
-  }
-
-  @Transactional
   public int deleteFeeTransactionsByFund(TulevaFund fund) {
     String fundName = fund.name();
     int entriesDeleted =
@@ -242,6 +247,13 @@ public class NavFeeAccrualLedger {
   private UUID generateAccrualReference(
       TulevaFund fund, LocalDate accrualDate, SystemAccount feeAccount) {
     String key = fund.name() + ":" + accrualDate + ":" + feeAccount.name();
+    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
+  }
+
+  private UUID generateRevisionReference(
+      TulevaFund fund, LocalDate accrualDate, SystemAccount feeAccount, int revision) {
+    String key =
+        fund.name() + ":" + accrualDate + ":" + feeAccount.name() + ":REVISION:" + revision;
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 

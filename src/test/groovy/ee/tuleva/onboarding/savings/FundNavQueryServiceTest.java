@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,22 @@ class FundNavQueryServiceTest {
   @InjectMocks FundNavQueryService service;
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 5, 7);
+
+  @Test
+  void hasPublishedNav_isTrueOnceTheDatesCalculationIsPublished() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(true);
+
+    assertThat(service.hasPublishedNav("TUK00", NAV_DATE)).isTrue();
+  }
+
+  @Test
+  void hasPublishedNav_isFalseWhileNothingIsPublishedForTheDate() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(false);
+
+    assertThat(service.hasPublishedNav("TUK00", NAV_DATE)).isFalse();
+  }
 
   @Test
   void findPublishedNavPerUnit_returnsTheOfficialNavPerUnit() {
@@ -51,6 +68,35 @@ class FundNavQueryServiceTest {
   }
 
   @Test
+  void findFeeBaseComponentTotal_isEmptyWhenTheDateHasNoPublishedCalculation() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(false);
+
+    assertThat(service.findFeeBaseComponentTotal("TUK00", NAV_DATE)).isEmpty();
+  }
+
+  @Test
+  void findFeeBaseComponentTotal_sumsThePublishedCalculationsComponents() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(true);
+    given(
+            navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
+                "TUK00", NAV_DATE, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY")))
+        .willReturn(new BigDecimal("11383812.71"));
+
+    assertThat(service.findFeeBaseComponentTotal("TUK00", NAV_DATE))
+        .hasValue(new BigDecimal("11383812.71"));
+  }
+
+  @Test
+  void findAssetTotal_isEmptyWhenTheDateHasNoPublishedCalculation() {
+    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
+        .willReturn(false);
+
+    assertThat(service.findAssetTotal("TUK00", NAV_DATE)).isEmpty();
+  }
+
+  @Test
   void findLatestNavDateOnOrBefore_delegatesToRepositoryWithNavAccountType() {
     given(
             navReportRepository.findLatestNavDateByFundAndAccountTypeOnOrBefore(
@@ -60,5 +106,15 @@ class FundNavQueryServiceTest {
     var result = service.findLatestNavDateOnOrBefore("TUK00", NAV_DATE);
 
     assertThat(result).hasValue(NAV_DATE.minusDays(1));
+  }
+
+  @Test
+  void findLatestPublishedNavDateOnOrBefore_delegatesToTheRepositorysPublishedLookup() {
+    given(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TUK00", NAV_DATE))
+        .willReturn(Optional.of(NAV_DATE.minusDays(3)));
+
+    var result = service.findLatestPublishedNavDateOnOrBefore("TUK00", NAV_DATE);
+
+    assertThat(result).hasValue(NAV_DATE.minusDays(3));
   }
 }

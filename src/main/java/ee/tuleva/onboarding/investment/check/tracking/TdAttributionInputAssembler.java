@@ -6,7 +6,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.DailyRecord;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.SecurityDailyData;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -33,10 +32,7 @@ class TdAttributionInputAssembler {
   private final FundPositionRepository fundPositionRepository;
   private final FundNavQueryService fundNavQueryService;
 
-  List<DailyRecord> buildDailyRecords(
-      TulevaFund fund,
-      List<TrackingDifferenceEvent> tdEvents,
-      List<ModelPortfolioAllocation> modelAllocations) {
+  List<DailyRecord> buildDailyRecords(TulevaFund fund, List<TrackingDifferenceEvent> tdEvents) {
 
     var records = new ArrayList<DailyRecord>();
 
@@ -59,8 +55,7 @@ class TdAttributionInputAssembler {
         continue;
       }
 
-      var securityDailyData =
-          buildSecurityDailyData(fund, event, modelAllocations, date, navComponents);
+      var securityDailyData = buildSecurityDailyData(fund, event, date, navComponents);
 
       records.add(
           DailyRecord.builder()
@@ -95,11 +90,7 @@ class TdAttributionInputAssembler {
 
   @SuppressWarnings("unchecked")
   private List<SecurityDailyData> buildSecurityDailyData(
-      TulevaFund fund,
-      TrackingDifferenceEvent event,
-      List<ModelPortfolioAllocation> modelAllocations,
-      LocalDate date,
-      NavComponents navComponents) {
+      TulevaFund fund, TrackingDifferenceEvent event, LocalDate date, NavComponents navComponents) {
 
     var result = event.getResult();
     var attributions =

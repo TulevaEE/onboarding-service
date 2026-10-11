@@ -18,6 +18,8 @@ public enum TrackableEventType {
   PAGE_VIEW(true),
   PAYMENT_LINK(false),
   CLICK(true),
+  NUDGE_VIEW(true),
+  NUDGE_CLICK(true),
   CAPITAL_TRANSFER_STATE_CHANGE(false),
   SAVINGS_FUND_ONBOARDING_STATUS_CHANGE(false),
   SUBSCRIPTION_BATCH_CREATED(false),

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,7 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
+import ee.tuleva.onboarding.investment.fees.ocf.IncompleteOcfSnapshotException;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -26,7 +28,6 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
-import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -44,12 +45,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(InvestmentAdminController.class)
 @Import(AdminTokenValidator.class)
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
+@RecordApplicationEvents
 class InvestmentAdminControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -58,8 +62,6 @@ class InvestmentAdminControllerTest {
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
-  @MockitoBean private FeeAccrualRepository feeAccrualRepository;
-  @MockitoBean private NavFeeAccrualLedger navFeeAccrualLedger;
   @MockitoBean private NavFeeBackfill navFeeBackfill;
   @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
   @MockitoBean private InvestmentReportDataService investmentReportDataService;
@@ -73,6 +75,8 @@ class InvestmentAdminControllerTest {
   private ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService ocfCalculationService;
 
   @MockitoBean private Clock clock;
+
+  @Autowired private ApplicationEvents events;
 
   @Test
   void backfillFees_callsServiceWithFundAndDateRange() throws Exception {
@@ -90,6 +94,60 @@ class InvestmentAdminControllerTest {
 
     verify(navFeeBackfill)
         .backfillFees(TulevaFund.TKF100, LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
+  }
+
+  @Test
+  void backfillTrackingDifference_publishesTheReachTheCallerAskedFor() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("daysBack", "40"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("40")));
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class))
+        .containsExactly(new RunTrackingDifferenceBackfillRequested(40));
+  }
+
+  @Test
+  void backfillTrackingDifference_defaultsToAWeekWhenNoReachIsGiven() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class))
+        .containsExactly(new RunTrackingDifferenceBackfillRequested(7));
+  }
+
+  @Test
+  void backfillTrackingDifference_rejectsANegativeReachWithoutPublishing() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("daysBack", "-1"))
+        .andExpect(status().isBadRequest());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class)).isEmpty();
+  }
+
+  @Test
+  void backfillTrackingDifference_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("daysBack", "40"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class)).isEmpty();
   }
 
   @Test
@@ -136,6 +194,29 @@ class InvestmentAdminControllerTest {
                 .param("fundCode", "TUK75")
                 .param("fromDate", "2026-03-01"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void rerecordPositionsFromDate_rerecordsPositionsAndReconcilesFeesInPlace() throws Exception {
+    when(fundPositionRepository.findLatestNavDateByFund(TulevaFund.TUK75))
+        .thenReturn(java.util.Optional.of(LocalDate.of(2026, 9, 8)));
+
+    mockMvc
+        .perform(
+            post("/admin/rerecord-positions-from-date")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("fromDate", "2026-09-01"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")))
+        .andExpect(content().string(containsString("2026-09-01")));
+
+    verify(fundPositionLedgerService)
+        .rerecordPositionsFromDate(TulevaFund.TUK75, LocalDate.of(2026, 9, 1));
+    verify(navFeeBackfill)
+        .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 8));
+    verifyNoMoreInteractions(fundPositionLedgerService, navFeeBackfill);
   }
 
   @Test
@@ -351,15 +432,20 @@ class InvestmentAdminControllerTest {
   @Test
   void calculateOcf_forSingleFund_returnsOk() throws Exception {
     var snapshot =
-        new ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot(
-            1L,
+        ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot.computed(
             "TUK75",
             LocalDate.of(2026, 4, 1),
             new BigDecimal("0.00340000"),
             new BigDecimal("0.00100000"),
             new BigDecimal("0.00070000"),
+            new BigDecimal("0.00070000"),
+            ee.tuleva.onboarding.investment.fees.ocf.RebateBasis.NET,
             new BigDecimal("0.00020000"),
-            new BigDecimal("0.00530000"));
+            new BigDecimal("0.00530000"),
+            false,
+            null,
+            new ee.tuleva.onboarding.investment.fees.ocf.OcfAudit(
+                null, null, null, null, null, null, null, null, null, null, null, null));
     given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
         .willReturn(snapshot);
 
@@ -372,6 +458,82 @@ class InvestmentAdminControllerTest {
                 .param("month", "2026-04"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void publishOcf_marksTheSnapshotPublished() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(true);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("KID 2026")));
+  }
+
+  @Test
+  void publishOcf_failsWhenTheSnapshotIsIncomplete() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willThrow(IncompleteOcfSnapshotException.class);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void publishOcf_publishesAnIncompleteSnapshotOnlyWhenTheOverrideIsAsked() throws Exception {
+    given(
+            ocfCalculationService.publishDespiteGaps(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(true);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026")
+                .param("despiteGaps", "true"))
+        .andExpect(status().isOk());
+
+    verify(ocfCalculationService, never()).publish(any(), any(), any());
+  }
+
+  @Test
+  void publishOcf_failsWhenThereIsNothingUnpublishedToPublish() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(false);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test

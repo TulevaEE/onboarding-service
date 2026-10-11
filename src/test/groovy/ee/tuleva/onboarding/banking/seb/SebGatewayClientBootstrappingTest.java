@@ -96,15 +96,6 @@ class SebGatewayClientBootstrappingTest {
   }
 
   @Test
-  @DisplayName("Capture balances response")
-  void captureBalances() throws IOException {
-    String xml = sebGatewayClient.getBalances(TEST_IBAN_EUR, testOrgId());
-
-    assertThat(xml).isNotNull().contains("camt.052").contains("<Bal>");
-    writeFixture("balances-response.xml", xml);
-  }
-
-  @Test
   @DisplayName("Capture payment import response")
   void capturePaymentImport() throws IOException {
     String paymentXml = createTestPaymentXml();

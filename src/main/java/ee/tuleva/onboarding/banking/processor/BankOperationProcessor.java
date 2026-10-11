@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -21,7 +24,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class BankOperationProcessor {
-
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final String FEES = "FEES";
   private static final String COMM = "COMM";
@@ -33,6 +35,7 @@ public class BankOperationProcessor {
   private static final String BOOK = "BOOK";
 
   private final FundBankLedger fundBankLedger;
+  private final PaymentCheckService paymentCheckService;
   private final TradeSettlementParser tradeSettlementParser;
 
   public void processBankOperation(BankStatementEntry entry, BankAccount account) {
@@ -186,6 +189,12 @@ public class BankOperationProcessor {
         entry.amount(),
         entry.subFamilyCode(),
         reason);
+    paymentCheckService.record(
+        UNCLASSIFIED_BANK_OPERATION,
+        WARNING,
+        externalReference.toString(),
+        "cash parked in suspense, subFamilyCode=%s, reason=%s"
+            .formatted(entry.subFamilyCode(), reason));
     fundBankLedger.recordUnclassifiedBankEntry(
         account.fund(),
         amount,

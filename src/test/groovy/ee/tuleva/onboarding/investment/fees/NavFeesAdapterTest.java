@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeBases;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeResult;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +31,6 @@ class NavFeesAdapterTest {
   @Test
   void calculateFeesForNav_delegatesAndMapsFieldByField() {
     LocalDate positionReportDate = LocalDate.of(2025, 1, 15);
-    Instant feeCutoff = Instant.parse("2025-01-16T00:00:00Z");
     NavFeeBases bases = new NavFeeBases(new BigDecimal("100000.00"), new BigDecimal("120000.00"));
     Map<String, ResolvedPrice> securityPrices = Map.of();
     FeeResult delegateResult = new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85"));
@@ -42,12 +40,11 @@ class NavFeesAdapterTest {
                 TKF100,
                 positionReportDate,
                 new FeeBases(new BigDecimal("100000.00"), new BigDecimal("120000.00")),
-                feeCutoff,
                 securityPrices))
         .willReturn(delegateResult);
 
     NavFeeResult result =
-        adapter.calculateFeesForNav(TKF100, positionReportDate, bases, feeCutoff, securityPrices);
+        adapter.calculateFeesForNav(TKF100, positionReportDate, bases, securityPrices);
 
     assertThat(result).isEqualTo(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
   }

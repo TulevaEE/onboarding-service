@@ -60,7 +60,9 @@ class TransactionModuleBoundaryTest {
             TRANSACTION_PACKAGE + ".TransactionOrderRepository",
             TRANSACTION_PACKAGE + ".TransactionExecution",
             TRANSACTION_PACKAGE + ".TransactionExecutionRepository",
-            TRANSACTION_PACKAGE + ".PortfolioCostBasisService");
+            TRANSACTION_PACKAGE + ".PortfolioCostBasisService",
+            TRANSACTION_PACKAGE + ".ExecutedPriceSource",
+            TRANSACTION_PACKAGE + ".ExecutedPrice");
   }
 
   @Test

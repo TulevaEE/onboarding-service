@@ -1,19 +1,36 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
+import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,9 +57,12 @@ class LimitCheckIntegrationTest {
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-03T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
+  @Autowired private TransactionBatchRepository transactionBatchRepository;
+  @Autowired private TransactionOrderRepository transactionOrderRepository;
   @Autowired private LimitCheckService limitCheckService;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -128,9 +148,84 @@ class LimitCheckIntegrationTest {
 
     // -- Free cash check (AppScript: cash + liabilities - reserve_soft) --
     // 25_000 + (-3_000) - 5_000 = 17_000. 17_000 > max 10_000 → HARD
-    assertThat(tuk75.freeCashBreach()).isNotNull();
-    assertThat(tuk75.freeCashBreach().severity()).isEqualTo(HARD);
-    assertThat(tuk75.freeCashBreach().freeCash()).isEqualByComparingTo(new BigDecimal("17000"));
+    assertThat(tuk75.freeCashBreach())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new FreeCashBreach(
+                TUK75,
+                new BigDecimal("17000"),
+                new BigDecimal("10000"),
+                HARD,
+                new BigDecimal("25000"),
+                new BigDecimal("-3000"),
+                BigDecimal.ZERO,
+                new BigDecimal("5000")));
+  }
+
+  @Test
+  void storesEveryFreeCashComponentInTheEventResult() {
+    insertTuk75Data();
+
+    limitCheckService.runChecks();
+    entityManager.flush();
+    entityManager.clear();
+
+    var breach = storedFreeCashBreach(TUK75);
+    assertThat(breach)
+        .containsOnlyKeys(
+            "fund",
+            "freeCash",
+            "maxFreeCash",
+            "severity",
+            "cash",
+            "liabilities",
+            "pendingNetBuys",
+            "reserveSoft")
+        .containsEntry("fund", "TUK75")
+        .containsEntry("severity", "HARD");
+    assertThat(amounts(breach))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            Map.of(
+                "freeCash", new BigDecimal("17000"),
+                "maxFreeCash", new BigDecimal("10000"),
+                "cash", new BigDecimal("25000"),
+                "liabilities", new BigDecimal("-3000"),
+                "pendingNetBuys", BigDecimal.ZERO,
+                "reserveSoft", new BigDecimal("5000")));
+  }
+
+  @Test
+  void freeCashFoldsAccruedFeesIntoLiabilitiesAndSubtractsPendingBuysNetOfSells() {
+    insertTuk75Data();
+    insertFundPosition("TUK75", NAV_DATE, "FEE", "FEE_ACCOUNT", -1_000);
+    var batch =
+        transactionBatchRepository.save(
+            TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
+    persistPendingOrder(batch, BUY, SENT, NAV_DATE.plusDays(2), 8_000);
+    persistPendingOrder(batch, SELL, EXECUTED, NAV_DATE, 2_000);
+
+    var tuk75 =
+        limitCheckService.runChecks().results().stream()
+            .filter(result -> result.fund() == TUK75)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(tuk75.freeCashBreach())
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new FreeCashBreach(
+                TUK75,
+                new BigDecimal("10000"),
+                new BigDecimal("10000"),
+                OK,
+                new BigDecimal("25000"),
+                new BigDecimal("-4000"),
+                new BigDecimal("6000"),
+                new BigDecimal("5000")));
   }
 
   @Test
@@ -347,6 +442,46 @@ class LimitCheckIntegrationTest {
   }
 
   // -- Helper methods --
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> storedFreeCashBreach(TulevaFund fund) {
+    return (Map<String, Object>)
+        limitCheckEventRepository.findByFundAndCheckDate(fund, NAV_DATE).stream()
+            .filter(event -> event.getCheckType() == CheckType.FREE_CASH)
+            .findFirst()
+            .orElseThrow()
+            .getResult()
+            .get("breach");
+  }
+
+  private Map<String, BigDecimal> amounts(Map<String, Object> breach) {
+    return breach.entrySet().stream()
+        .filter(entry -> !entry.getKey().equals("fund") && !entry.getKey().equals("severity"))
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey, entry -> new BigDecimal(entry.getValue().toString())));
+  }
+
+  private void persistPendingOrder(
+      TransactionBatch batch,
+      TransactionType transactionType,
+      OrderStatus orderStatus,
+      LocalDate expectedSettlementDate,
+      long orderAmount) {
+    transactionOrderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TUK75)
+            .instrumentIsin("IE00BFG1TM61")
+            .transactionType(transactionType)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderStatus(orderStatus)
+            .orderAmount(BigDecimal.valueOf(orderAmount))
+            .expectedSettlementDate(expectedSettlementDate)
+            .createdAt(NAV_DATE.atTime(12, 0).toInstant(ZoneOffset.UTC))
+            .build());
+  }
 
   private void insertFundPosition(
       String fund, LocalDate navDate, String accountType, String accountId, long marketValue) {

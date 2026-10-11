@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
@@ -190,8 +189,7 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(i == 0 ? Optional.of(today) : Optional.empty());
     }
 
-    job.onSebPendingTransactionReconciliationRequested(
-        new RunSebPendingTransactionReconciliationRequested());
+    job.onSebPendingTransactionReconciliationRequested();
 
     verify(reconciliationService).reconcile(today);
   }

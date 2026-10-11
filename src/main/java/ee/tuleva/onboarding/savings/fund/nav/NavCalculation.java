@@ -5,8 +5,9 @@ import static java.math.BigDecimal.ZERO;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
-public record NavCalculation(Instant calculatedAt, List<NavAccountLine> lines) {
+public record NavCalculation(UUID id, Instant calculatedAt, List<NavAccountLine> lines) {
 
   private static final List<String> CUSTODIAN_SOURCED_ACCOUNT_TYPES =
       List.of("CASH", "RECEIVABLES", "LIABILITY");

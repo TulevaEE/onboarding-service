@@ -39,4 +39,9 @@ class SebAccountConfigurationTest {
 
     assertThat(withoutRegistrar.getRegistrarIbans()).isEmpty();
   }
+
+  @Test
+  void isManagementCompany_returnsFalseForAPaymentWithoutName() {
+    assertThat(configuration.isManagementCompany(null)).isFalse();
+  }
 }

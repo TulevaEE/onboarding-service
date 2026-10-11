@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
+import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.BOARD_MEMBER_ROLES;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
 import static java.util.stream.Collectors.joining;
@@ -30,8 +31,6 @@ class KybSurveyService {
   private final KybSurveyRepository kybSurveyRepository;
   private final OnboardingGate onboardingGate;
   private final ApplicationEventPublisher eventPublisher;
-
-  private static final String BOARD_MEMBER_ROLE = "JUHL";
 
   LegalEntityData initialValidation(String registryCode, String personalCode) {
     log.info(
@@ -100,7 +99,7 @@ class KybSurveyService {
         relationships.stream()
             .anyMatch(
                 r ->
-                    BOARD_MEMBER_ROLE.equals(r.roleCode())
+                    BOARD_MEMBER_ROLES.contains(r.roleCode())
                         && personalCode.equals(r.personalCode()));
     if (!isBoardMember) {
       throw new NotBoardMemberException(registryCode, personalCode);

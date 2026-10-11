@@ -49,6 +49,10 @@ public class PaymentService {
     };
   }
 
+  public AnonymousPayment getAnonymousSavingsPaymentLink(PaymentData paymentData) {
+    return savingsPaymentLinkGenerator.getAnonymousPaymentLink(paymentData);
+  }
+
   Optional<Payment> processToken(String serializedToken) {
     Optional<Payment> paymentOptional = montonioCallbackService.processToken(serializedToken);
     paymentOptional.ifPresent(
@@ -74,7 +78,7 @@ public class PaymentService {
     userService.registerAsMember(user.getIdOrThrow());
   }
 
-  boolean processSavingsPaymentToken(String serializedToken) {
+  SavingsPaymentOutcome processSavingsPaymentToken(String serializedToken) {
     return savingsCallbackService.processToken(serializedToken);
   }
 }

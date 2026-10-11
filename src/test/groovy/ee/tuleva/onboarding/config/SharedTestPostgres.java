@@ -111,7 +111,7 @@ final class SharedTestPostgres {
 
     @SuppressWarnings("resource")
     static final PostgreSQLContainer INSTANCE =
-        new PostgreSQLContainer(DockerImageName.parse("postgres:17-alpine"))
+        new PostgreSQLContainer(DockerImageName.parse("postgres:18-alpine"))
             .withCommand(
                 "postgres", "-c", "timezone=UTC", "-c", "fsync=off", "-c", "max_connections=300");
 

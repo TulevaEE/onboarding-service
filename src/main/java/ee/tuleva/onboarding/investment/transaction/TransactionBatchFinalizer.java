@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.util.stream.Collectors.toMap;
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -24,9 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -46,6 +49,7 @@ public class TransactionBatchFinalizer {
   @Nullable private final TransactionExportUploader exportUploader;
   private final CustodianOrderEmailSender custodianOrderEmailSender;
   private final TransactionOrderFactory orderFactory;
+  private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
   @Transactional
@@ -142,18 +146,38 @@ public class TransactionBatchFinalizer {
             "uuidWorkbookXlsx", uuidWorkbookXlsx);
     Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
-      persistDriveFileUrls(batch, driveFileUrls);
+      persistDriveFileUrls(batch.getId(), driveFileUrls);
     }
     custodianOrderEmailSender.send(batch.getFund(), timestamp, exports);
     eventPublisher.publishEvent(
         new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
   }
 
-  void persistDriveFileUrls(TransactionBatch batch, Map<String, String> driveFileUrls) {
-    Map<String, Object> updatedMetadata = new HashMap<>(batch.getMetadata());
+  private void persistDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {
+    try {
+      transactionOfItsOwn()
+          .executeWithoutResult(status -> storeDriveFileUrls(batchId, driveFileUrls));
+    } catch (RuntimeException e) {
+      log.error("Drive file links not stored on batch: batchId={}", batchId, e);
+    }
+  }
+
+  private void storeDriveFileUrls(Long batchId, Map<String, String> driveFileUrls) {
+    TransactionBatch committedBatch =
+        batchRepository
+            .findById(batchId)
+            .orElseThrow(
+                () -> new IllegalStateException("Finalized batch not found: batchId=" + batchId));
+    Map<String, Object> updatedMetadata = new HashMap<>(committedBatch.getMetadata());
     updatedMetadata.put("driveFileUrls", driveFileUrls);
-    batch.setMetadata(updatedMetadata);
-    batchRepository.save(batch);
+    committedBatch.setMetadata(updatedMetadata);
+    batchRepository.save(committedBatch);
+  }
+
+  private TransactionTemplate transactionOfItsOwn() {
+    var transactionOfItsOwn = new TransactionTemplate(transactionManager);
+    transactionOfItsOwn.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+    return transactionOfItsOwn;
   }
 
   private void runAfterCommit(Runnable action) {

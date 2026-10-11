@@ -29,9 +29,9 @@ public class PriorityPriceProvider {
       List.of(
           new PriceFeed(BLACKROCK, InstrumentReference::getBlackrockStorageKey),
           new PriceFeed(MORNINGSTAR, InstrumentReference::getMorningstarStorageKey),
+          new PriceFeed(EURONEXT, InstrumentReference::getEuronextParisStorageKey),
           new PriceFeed(EODHD, InstrumentReference::getEodhdStorageKey),
           new PriceFeed(DEUTSCHE_BOERSE, InstrumentReference::getXetraStorageKey),
-          new PriceFeed(EURONEXT, InstrumentReference::getEuronextParisStorageKey),
           new PriceFeed(YAHOO, instrument -> Optional.ofNullable(instrument.getYahooTicker())));
 
   public static List<PriceFeed> priceFeeds() {

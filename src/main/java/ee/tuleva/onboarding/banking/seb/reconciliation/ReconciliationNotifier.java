@@ -20,11 +20,12 @@ public class ReconciliationNotifier {
     try {
       var message =
           event.matched()
-              ? "✅ Bank reconciliation OK: bankAccount=%s, balance=%s"
-                  .formatted(event.bankAccount(), event.bankBalance())
-              : "🔴 Bank reconciliation FAILED: bankAccount=%s, bankBalance=%s, ledgerBalance=%s, diff=%s <!channel>"
+              ? "✅ Bank reconciliation OK: bankAccount=%s, statementDate=%s, balance=%s"
+                  .formatted(event.bankAccount(), event.statementDate(), event.bankBalance())
+              : "🔴 Bank reconciliation FAILED: bankAccount=%s, statementDate=%s, bankBalance=%s, ledgerBalance=%s, diff=%s <!channel>"
                   .formatted(
                       event.bankAccount(),
+                      event.statementDate(),
                       event.bankBalance(),
                       event.ledgerBalance(),
                       event.bankBalance().subtract(event.ledgerBalance()).abs());

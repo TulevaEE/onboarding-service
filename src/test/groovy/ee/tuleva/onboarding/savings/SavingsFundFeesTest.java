@@ -29,6 +29,11 @@ class SavingsFundFeesTest {
   }
 
   @Test
+  void exposesThePercentAsANumberForTheNudgeDecision() {
+    assertThat(fees.ongoingChargesPercent()).isEqualByComparingTo(new BigDecimal("0.29"));
+  }
+
+  @Test
   void formatsThePercentWithADecimalCommaInEstonian() {
     assertThat(fees.ongoingChargesPercent(Locale.of("et"))).isEqualTo("0,29");
   }

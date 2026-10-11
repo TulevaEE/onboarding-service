@@ -13,11 +13,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 public class PersonalCode {
+
+  private static final String ESTONIAN_SUBJECT_ID_CODE_PREFIX = "PNOEE-";
 
   private static final NavigableMap<Integer, Period> ESTABLISHED_RETIREMENT_AGE_BY_YEAR =
       new TreeMap<>(
@@ -26,6 +29,13 @@ public class PersonalCode {
               2028, Period.of(65, 3, 0)));
 
   private static final Period BASE_RETIREMENT_AGE = Period.ofYears(65);
+
+  public static Optional<String> fromEstonianSubjectIdCode(String subjectIdCode) {
+    if (!subjectIdCode.startsWith(ESTONIAN_SUBJECT_ID_CODE_PREFIX)) {
+      return Optional.empty();
+    }
+    return Optional.of(subjectIdCode.substring(ESTONIAN_SUBJECT_ID_CODE_PREFIX.length()));
+  }
 
   public static int getAge(String personalCode) {
     LocalDate today = clock().instant().atZone(ZoneId.systemDefault()).toLocalDate();

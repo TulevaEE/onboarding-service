@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
+import static ee.tuleva.onboarding.investment.check.limit.CheckType.OWNERSHIP;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.POSITION;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.PROVIDER;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -45,6 +46,24 @@ class LimitCheckEventRepositoryTest {
     assertThat(repository.findByFundAndCheckDate(TUK75, checkDate))
         .singleElement()
         .satisfies(e -> assertThat(e.getId()).isEqualTo(retained.getId()));
+  }
+
+  @Test
+  void aDailyCheckEvent_marksItsDateChecked_butAMonthlyOwnershipEventDoesNot() {
+    var dailyDate = LocalDate.of(2026, 3, 4);
+    var ownershipOnlyDate = LocalDate.of(2026, 3, 31);
+    repository.save(event(POSITION));
+    repository.save(
+        LimitCheckEvent.builder()
+            .fund(TUK75)
+            .checkDate(ownershipOnlyDate)
+            .checkType(OWNERSHIP)
+            .breachesFound(false)
+            .result(Map.of())
+            .build());
+
+    assertThat(repository.findDistinctCheckDates(TUK75, dailyDate, ownershipOnlyDate))
+        .containsExactly(dailyDate);
   }
 
   private LimitCheckEvent event(CheckType checkType) {

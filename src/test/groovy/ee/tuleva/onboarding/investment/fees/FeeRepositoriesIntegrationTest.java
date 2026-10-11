@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -25,7 +24,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
   FeeRateRepository.class,
   DepotFeeTierRepository.class,
   FeeAccrualRepository.class,
-  FeeChargedToFundPolicy.class
+  FeeChargedToFundPolicy.class,
+  ManagementFeeRateTable.class
 })
 class FeeRepositoriesIntegrationTest {
 
@@ -222,60 +222,6 @@ class FeeRepositoriesIntegrationTest {
       assertThat(dailyAmountGross).isEqualByComparingTo(BigDecimal.TEN);
     }
 
-    @Test
-    void save_writesTheSameAmountToTheColumnTheOlderImageStillReads() {
-      FeeAccrual accrual =
-          FeeAccrual.builder()
-              .fund(TUK75)
-              .feeType(FeeType.MANAGEMENT)
-              .accrualDate(LocalDate.of(2025, 1, 15))
-              .feeMonth(LocalDate.of(2025, 1, 1))
-              .baseValue(BigDecimal.valueOf(1000000))
-              .annualRate(new BigDecimal("0.02"))
-              .dailyAmountGross(new BigDecimal("5.894"))
-              .daysInYear(365)
-              .build();
-
-      feeAccrualRepository.save(accrual);
-
-      assertThat(legacyNetAmountOn(LocalDate.of(2025, 1, 15)))
-          .isEqualByComparingTo(new BigDecimal("5.894"));
-    }
-
-    @Test
-    void save_keepsTheLegacyColumnInStepWhenItUpdatesAnExistingDay() {
-      LocalDate accrualDate = LocalDate.of(2025, 1, 15);
-      insertAccrual(TUK75, FeeType.MANAGEMENT, accrualDate, new BigDecimal("5.894"));
-
-      feeAccrualRepository.save(
-          FeeAccrual.builder()
-              .fund(TUK75)
-              .feeType(FeeType.MANAGEMENT)
-              .accrualDate(accrualDate)
-              .feeMonth(LocalDate.of(2025, 1, 1))
-              .baseValue(BigDecimal.valueOf(2000000))
-              .annualRate(new BigDecimal("0.02"))
-              .dailyAmountGross(new BigDecimal("11.788"))
-              .daysInYear(365)
-              .build());
-
-      assertThat(legacyNetAmountOn(accrualDate)).isEqualByComparingTo(new BigDecimal("11.788"));
-    }
-
-    private BigDecimal legacyNetAmountOn(LocalDate accrualDate) {
-      return jdbcClient
-          .sql(
-              """
-              SELECT daily_amount_net FROM investment_fee_accrual
-              WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
-              """)
-          .param("fundCode", TUK75.name())
-          .param("feeType", FeeType.MANAGEMENT.name())
-          .param("accrualDate", accrualDate)
-          .query(BigDecimal.class)
-          .single();
-    }
-
     // Left unrounded per day on purpose: the caller drops the days the policy does not charge and
     // rounds what is left, so rounding here would round days that never reach the total.
     @Test
@@ -430,27 +376,6 @@ class FeeRepositoriesIntegrationTest {
               tuple(LocalDate.of(2025, 1, 12), FeeType.MANAGEMENT),
               tuple(LocalDate.of(2025, 1, 13), FeeType.DEPOT),
               tuple(LocalDate.of(2025, 1, 13), FeeType.MANAGEMENT));
-    }
-
-    @Test
-    void deleteByFundFromDate_removesFromThatDayOnAndLeavesEarlierDaysAndOtherFunds() {
-      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 12), new BigDecimal("5.891"));
-      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.892"));
-      insertAccrual(TUK75, FeeType.DEPOT, LocalDate.of(2025, 1, 14), new BigDecimal("1.111"));
-      insertAccrual(TUK00, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("2.222"));
-
-      int deleted = feeAccrualRepository.deleteByFundFromDate(TUK75, LocalDate.of(2025, 1, 13));
-
-      assertThat(deleted).isEqualTo(2);
-      assertThat(
-              feeAccrualRepository.findByFundAndDateRange(
-                  TUK75, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31)))
-          .extracting(FeeAccrual::accrualDate)
-          .containsExactly(LocalDate.of(2025, 1, 12));
-      assertThat(
-              feeAccrualRepository.findByFundAndDateRange(
-                  TUK00, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31)))
-          .hasSize(1);
     }
 
     private void insertAccrual(

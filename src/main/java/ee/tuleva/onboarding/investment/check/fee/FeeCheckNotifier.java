@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Component;
 class FeeCheckNotifier {
 
   private static final Limit PREVIOUS_AND_CURRENT = Limit.of(2);
+
+  private static final int MAX_GAINED_IN_MESSAGE = 5;
 
   private static final Map<FeeCheckSeverity, String> EMOJI =
       Map.of(FAIL, "🛑", WARNING, "⚠️", NOT_RUN, "⏸", INFO, "ℹ️", PASS, "✅");
@@ -51,51 +54,144 @@ class FeeCheckNotifier {
     for (var result : results) {
       for (var checkType : FeeCheckType.values()) {
         for (var scope : FeeCheckScope.values()) {
-          var current = currentSeverity(result, checkType, scope);
-          if (current == null) {
+          var findings = findingsOf(result, checkType, scope);
+          if (findings.isEmpty()) {
             continue;
           }
-          var previous = previousSeverity(result, checkType, scope);
-          if (current == previous) {
+          var current = state(findings);
+          var previous = previousState(result, checkType, scope);
+          if (!hasSomethingNewToSay(current, previous, result)) {
             continue;
           }
+          var gained =
+              sameSeverity(current, previous) ? gainedSince(current, previous) : List.<String>of();
           transitions.add(
-              new Transition(result, checkType, scope, current, message(result, checkType, scope)));
+              new Transition(
+                  result, checkType, scope, current.severity(), message(findings, gained)));
         }
       }
     }
     return transitions;
   }
 
-  private @Nullable FeeCheckSeverity currentSeverity(
+  private boolean hasSomethingNewToSay(
+      CheckState current, CheckState previous, FeeCheckResult result) {
+    if (!sameSeverity(current, previous)) {
+      return true;
+    }
+    if (predatesTheFingerprint(previous)) {
+      return movedEnoughToSpeak(current, previous, result);
+    }
+    return !gainedSince(current, previous).isEmpty()
+        || movedEnoughToSpeak(current, previous, result);
+  }
+
+  private boolean movedEnoughToSpeak(
+      CheckState current, CheckState previous, FeeCheckResult result) {
+    return keyedToAFixedFeeMonth(result)
+        ? totalMovedEitherWay(current, previous)
+        : totalGrew(current, previous);
+  }
+
+  private static boolean keyedToAFixedFeeMonth(FeeCheckResult result) {
+    return result.feeMonth() != null;
+  }
+
+  private static boolean sameSeverity(CheckState current, CheckState previous) {
+    return current.severity() == previous.severity();
+  }
+
+  private static boolean predatesTheFingerprint(CheckState state) {
+    return state.fingerprint() == null;
+  }
+
+  private static List<String> gainedSince(CheckState current, CheckState previous) {
+    var alreadyReported = previous.fingerprint();
+    var reporting = current.fingerprint();
+    if (alreadyReported == null || reporting == null) {
+      return List.of();
+    }
+    return reporting.stream().filter(entry -> !alreadyReported.contains(entry)).toList();
+  }
+
+  private static boolean totalGrew(CheckState current, CheckState previous) {
+    return current.totalDeviation().compareTo(previous.totalDeviation()) > 0;
+  }
+
+  private static boolean totalMovedEitherWay(CheckState current, CheckState previous) {
+    return current.totalDeviation().compareTo(previous.totalDeviation()) != 0;
+  }
+
+  private List<FeeCheckFinding> findingsOf(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     return result.findings().stream()
         .filter(f -> f.checkType() == checkType && f.scope() == scope)
-        .map(FeeCheckFinding::severity)
-        .max(Enum::compareTo)
-        .orElse(null);
+        .toList();
   }
 
-  // Diffs within the fee_month bucket, so a fresh month's failure is never masked by the previous
-  // month having failed too, while a daily deviation that persists stays silent after the first.
-  private FeeCheckSeverity previousSeverity(
+  private CheckState state(List<FeeCheckFinding> findings) {
+    return new CheckState(
+        findings.stream().map(FeeCheckFinding::severity).max(Enum::compareTo).orElseThrow(),
+        FeeCheckFinding.fingerprint(findings),
+        FeeCheckFinding.totalDeviation(findings));
+  }
+
+  private CheckState previousState(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
+    var feeMonth = result.feeMonth();
     var rows =
-        result.feeMonth() == null
+        feeMonth == null
             ? eventRepository.findLatestDelivered(
                 result.fund(), checkType, scope, PREVIOUS_AND_CURRENT)
             : eventRepository.findLatestDeliveredForFeeMonth(
-                result.fund(), checkType, scope, result.feeMonth(), PREVIOUS_AND_CURRENT);
+                result.fund(), checkType, scope, feeMonth, PREVIOUS_AND_CURRENT);
     if (rows.size() < 2) {
-      return PASS;
+      return new CheckState(PASS, List.of(), BigDecimal.ZERO);
     }
-    var severity = rows.get(1).getSeverity();
-    return severity != null ? severity : PASS;
+    var previous = rows.get(1);
+    var severity = previous.getSeverity();
+    var deviation = previous.getDeviationAmount();
+    return new CheckState(
+        severity != null ? severity : PASS,
+        previous.fingerprint(),
+        deviation != null ? deviation : BigDecimal.ZERO);
   }
 
-  private String message(FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
-    return result.findings().stream()
-        .filter(f -> f.checkType() == checkType && f.scope() == scope)
+  private record CheckState(
+      FeeCheckSeverity severity, @Nullable List<String> fingerprint, BigDecimal totalDeviation) {}
+
+  private String message(List<FeeCheckFinding> findings, List<String> gained) {
+    if (gained.isEmpty()) {
+      return firstMessage(findings);
+    }
+    var carried = firstMessage(findingsCarrying(findings, gained));
+    return newlyFound(gained) + (carried.isBlank() ? "" : " · " + carried);
+  }
+
+  private String newlyFound(List<String> gained) {
+    var shown =
+        gained.stream()
+            .limit(MAX_GAINED_IN_MESSAGE)
+            .map(FeeCheckNotifier::withoutSeverityTag)
+            .toList();
+    var suffix =
+        gained.size() > MAX_GAINED_IN_MESSAGE
+            ? " ... (" + (gained.size() - MAX_GAINED_IN_MESSAGE) + " more)"
+            : "";
+    return "New since the last alert: " + String.join(" · ", shown) + suffix;
+  }
+
+  private static String withoutSeverityTag(String taggedIdentifier) {
+    return taggedIdentifier.substring(taggedIdentifier.indexOf(' ') + 1);
+  }
+
+  private List<FeeCheckFinding> findingsCarrying(
+      List<FeeCheckFinding> findings, List<String> gained) {
+    return findings.stream().filter(finding -> finding.carriesAnyOf(gained)).toList();
+  }
+
+  private String firstMessage(List<FeeCheckFinding> findings) {
+    return findings.stream()
         .map(FeeCheckFinding::message)
         .filter(m -> !m.isBlank())
         .findFirst()

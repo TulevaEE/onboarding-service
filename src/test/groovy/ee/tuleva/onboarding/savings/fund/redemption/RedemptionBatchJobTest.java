@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -11,10 +15,13 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -33,6 +40,7 @@ import java.time.*;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,16 +65,34 @@ class RedemptionBatchJobTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private CompanyRepository companyRepository;
   @Mock private UserRepository userRepository;
+  @Mock private RedemptionHoldNotifier holdNotifier;
+  @Mock private RedemptionPayoutValidator payoutValidator;
+  @Mock private PaymentCheckService paymentCheckService;
 
   @BeforeEach
   void setUp() {
     lenient()
         .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
+    lenient().when(payoutValidator.findBlockingReason(any())).thenReturn(Optional.empty());
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {
     var clock = Clock.fixed(now, UTC);
+    var payoutService =
+        new RedemptionPayoutService(
+            clock,
+            redemptionRequestRepository,
+            redemptionStatusService,
+            eventPublisher,
+            bankAccounts,
+            savingFundPaymentRepository,
+            new EndToEndIdConverter(),
+            companyRepository,
+            userRepository,
+            payoutValidator,
+            paymentCheckService,
+            transactionTemplate);
     return new RedemptionBatchJob(
         clock,
         new PublicHolidays(),
@@ -77,10 +103,11 @@ class RedemptionBatchJobTest {
         bankAccounts,
         transactionTemplate,
         navProvider,
-        savingFundPaymentRepository,
         new EndToEndIdConverter(),
-        companyRepository,
-        userRepository);
+        payoutValidator,
+        paymentCheckService,
+        payoutService,
+        holdNotifier);
   }
 
   @Test
@@ -120,7 +147,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
     doAnswer(
             invocation -> {
@@ -154,6 +181,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -176,6 +204,7 @@ class RedemptionBatchJobTest {
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
+            any(LocalDate.class),
             eq(requestId));
     verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
@@ -184,6 +213,146 @@ class RedemptionBatchJobTest {
     verify(redemptionRequestRepository, atLeast(2)).save(savedRequestCaptor.capture());
     var lastSaved = savedRequestCaptor.getAllValues().getLast();
     assertThat(lastSaved.getProcessedAt()).isNotNull();
+  }
+
+  @Test
+  void runJob_anUnpayableRequestIsFailedBeforeItsUnitsAreRedeemed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(payoutValidator.findBlockingReason(request))
+        .thenReturn(Optional.of("Beneficiary IBAN no longer belongs to the party"));
+
+    createBatchJob(now).runJob();
+
+    // The whole point of validating first: nothing is priced, no units leave the party's account,
+    // and no cash is moved to the withdrawal account for a payout that cannot happen.
+    verify(savingsFundLedger, never())
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService).changeStatus(requestId, FAILED);
+  }
+
+  // A payout stopped here never gets an outgoing_payment row either, so the check event is the only
+  // record that it was ever attempted. Without it the brief shows one fewer payout than expected,
+  // which is indistinguishable from someone having cancelled it.
+  @Test
+  void runJob_anUnpayableRequestIsHeldSoTheApprovalBriefCanNameIt() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(payoutValidator.findBlockingReason(request))
+        .thenReturn(Optional.of("Beneficiary IBAN no longer belongs to the party"));
+
+    createBatchJob(now).runJob();
+
+    verify(paymentCheckService)
+        .recordStoppedPayment(
+            PAYOUT_BLOCKED,
+            requestId.toString(),
+            "Beneficiary IBAN no longer belongs to the party");
+  }
+
+  // The hold reaches Slack, so it names the check and nothing else. The thrown message carries the
+  // request's own amounts, which is exactly what the brief is not allowed to publish.
+  @Test
+  void runJob_aRequestThatCannotBePricedIsHeldWithoutPublishingItsAmounts() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(transactionTemplate.execute(any()))
+        .thenThrow(new IllegalStateException("Priced amount does not reconcile: expected=9.99"));
+
+    createBatchJob(now).runJob();
+
+    verify(paymentCheckService)
+        .recordStoppedPayment(
+            PAYOUT_BLOCKED, requestId.toString(), "Pricing failed, so nothing was paid");
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  void runJob_transfersOnlyWhatThePricedPayoutsNeed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var payable = redemptionRequestFixture().id(UUID.randomUUID()).status(VERIFIED).build();
+    var blocked = redemptionRequestFixture().id(UUID.randomUUID()).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(payable, blocked));
+    when(redemptionRequestRepository.findById(payable.getId())).thenReturn(Optional.of(payable));
+    when(redemptionRequestRepository.findByIdForUpdate(payable.getId()))
+        .thenReturn(Optional.of(payable));
+    when(redemptionRequestRepository.findById(blocked.getId())).thenReturn(Optional.of(blocked));
+    when(payoutValidator.findBlockingReason(payable)).thenReturn(Optional.empty());
+    when(payoutValidator.findBlockingReason(blocked))
+        .thenReturn(Optional.of("Redemption already has a payout entry in the ledger"));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+    var transfer =
+        eventCaptor.getAllValues().stream()
+            .filter(e -> e.paymentType() == REDEMPTION_TRANSFER)
+            .findFirst()
+            .orElseThrow();
+    // 10 units at a NAV of 1 -> 10.00, the payable one only. The blocked one never contributed.
+    assertThat(transfer.paymentRequest().amount()).isEqualByComparingTo(new BigDecimal("10.00"));
+  }
+
+  @Test
+  void runJob_aTransferAndThePayoutsItFundsShareABatchId() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+    var batchIds = eventCaptor.getAllValues().stream().map(RequestPaymentEvent::batchId).toList();
+    // Without this the fund-to-withdrawal transfer cannot be tied to the payouts it funds, and
+    // "transfer == sum of payouts" is not computable from the outgoing payment log.
+    assertThat(batchIds).doesNotContainNull().containsOnly(batchIds.getFirst());
   }
 
   @Test
@@ -291,6 +460,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -335,9 +505,7 @@ class RedemptionBatchJobTest {
 
     batchJob.runJob();
 
-    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
-    verify(redemptionRequestRepository).save(captor.capture());
-    assertThat(captor.getValue().getErrorReason()).contains("Test error");
+    verify(redemptionRequestRepository).markErrorReason(eq(requestId), contains("Test error"));
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
 
@@ -363,6 +531,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -403,6 +572,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -424,7 +594,7 @@ class RedemptionBatchJobTest {
 
     var capturedEvents = eventCaptor.getAllValues();
     // Second payment (individual payout) should use the request ID
-    assertThat(capturedEvents.get(1).requestId()).isEqualTo(requestId);
+    assertThat(capturedEvents.get(1).sourceId()).isEqualTo(requestId);
   }
 
   @Test
@@ -448,6 +618,7 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of(request))
         .thenReturn(List.of()); // Second run finds no VERIFIED requests
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -489,7 +660,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
 
     doAnswer(
@@ -503,7 +674,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -526,6 +697,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -547,8 +719,146 @@ class RedemptionBatchJobTest {
     var event = captor.getValue();
     assertThat(event.requestCount()).isEqualTo(1);
     assertThat(event.payoutCount()).isEqualTo(1);
+    assertThat(event.heldCount()).isZero();
     assertThat(event.totalCashAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
     assertThat(event.nav()).isEqualTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void runJob_redeemsUnitsButHoldsPayoutOfFlaggedRequest() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .holdReasons(Set.of(PEP))
+            .holdAt(now.minus(1, DAYS))
+            .heldBy("SYSTEM")
+            .requestedAt(now.minus(1, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    verify(savingsFundLedger)
+        .redeemFundUnitsFromReserved(
+            any(),
+            eq(new BigDecimal("10.00000")),
+            eq(new BigDecimal("10.00")),
+            eq(BigDecimal.ONE),
+            any(),
+            eq(requestId));
+    verify(eventPublisher, times(1)).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+    verify(redemptionStatusService, never()).changeStatus(requestId, REDEEMED);
+    verify(holdNotifier).notifyPayoutHeldAtPricing(request);
+    verify(eventPublisher)
+        .publishEvent(
+            new RedemptionBatchCompletedEvent(1, 0, 1, new BigDecimal("10.00"), BigDecimal.ONE));
+  }
+
+  @Test
+  void runJob_paysOutFlaggedRequestOnceAPersonHasReleasedIt() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var batchJob = createBatchJob(now);
+
+    var user = sampleUser().build();
+    var requestId = UUID.randomUUID();
+    var customerIban = "EE123456789012345678";
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .userId(user.getId())
+            .status(VERIFIED)
+            .customerIban(customerIban)
+            .holdReasons(Set.of(PEP))
+            .holdAt(now.minus(2, DAYS))
+            .heldBy("SYSTEM")
+            .reviewedBy("AML Specialist")
+            .reviewReason("Source of funds confirmed")
+            .reviewedAt(now.minus(1, DAYS))
+            .holdReleasedAt(now.minus(1, DAYS))
+            .requestedAt(now.minus(2, DAYS))
+            .build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(
+            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
+        .thenReturn(Optional.of("John Smith"));
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    batchJob.runJob();
+
+    verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+    verify(redemptionStatusService, never()).changeStatus(requestId, PAYOUT_HELD);
+    verifyNoInteractions(holdNotifier);
+  }
+
+  @Test
+  void runJob_stampsThePricedRequestsWithTheirBatchBeforeTheTransferGoesOut() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var batchId = BatchId.of("redemption", List.of(requestId));
+    var inOrder = inOrder(redemptionRequestRepository, eventPublisher);
+    inOrder.verify(redemptionRequestRepository).assignBatch(List.of(requestId), batchId);
+    inOrder
+        .verify(eventPublisher)
+        .publishEvent(
+            argThat(
+                (Object event) ->
+                    event instanceof RequestPaymentEvent payment
+                        && payment.paymentType() == REDEMPTION_TRANSFER));
   }
 
   @Test
@@ -572,6 +882,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("withdrawal-IBAN");
     when(savingFundPaymentRepository.findRemitterNameByIban(
             eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
@@ -587,9 +898,65 @@ class RedemptionBatchJobTest {
             .amount(cashAmount)
             .description("Fondi tagasivõtmine")
             .build();
-    verify(eventPublisher).publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
+    verify(eventPublisher)
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     assertThat(request.getErrorReason()).isNull();
+  }
+
+  @Test
+  void retryFailedPayout_sendsThePayoutUnderTheBatchThatFundedIt() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+    var fundingBatch = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(FAILED)
+            .cashAmount(new BigDecimal("25.00"))
+            .batchId(fundingBatch)
+            .build();
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("withdrawal-IBAN");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+
+    batchJob.retryFailedPayout(requestId);
+
+    var expectedPayment =
+        PaymentRequest.tulevaPaymentBuilder("2db696b500ee493787b48192c675e4b5")
+            .remitterIban("withdrawal-IBAN")
+            .beneficiaryName("Mari Maasikas")
+            .beneficiaryIban(request.getCustomerIban())
+            .amount(new BigDecimal("25.00"))
+            .description("Fondi tagasivõtmine")
+            .build();
+    verify(eventPublisher)
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT, fundingBatch));
+  }
+
+  @Test
+  void retryFailedPayout_refusesARequestThatIsStillOnAmlHold() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(FAILED)
+            .cashAmount(new BigDecimal("10.00"))
+            .holdReasons(Set.of(PEP))
+            .build();
+
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("AML hold");
+
+    verify(eventPublisher, never()).publishEvent(any());
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
   }
 
   @Test
@@ -664,6 +1031,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))
@@ -686,7 +1054,7 @@ class RedemptionBatchJobTest {
     verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
     var payoutEvent =
         eventCaptor.getAllValues().stream()
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow();
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
@@ -717,6 +1085,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(personParty), eq(customerIban)))
@@ -737,7 +1106,7 @@ class RedemptionBatchJobTest {
     verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
     var payoutEvent =
         eventCaptor.getAllValues().stream()
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow();
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo("Mari Maasikas");
@@ -767,6 +1136,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(personParty), eq(customerIban)))
@@ -808,6 +1178,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))

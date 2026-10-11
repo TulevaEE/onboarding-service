@@ -29,6 +29,14 @@ class FreeCashLimitChecker {
             .subtract(pendingCashImpact)
             .subtract(fundLimit.getReserveSoft());
     var severity = freeCash.compareTo(fundLimit.getMaxFreeCash()) > 0 ? HARD : OK;
-    return new FreeCashBreach(fund, freeCash, fundLimit.getMaxFreeCash(), severity);
+    return new FreeCashBreach(
+        fund,
+        freeCash,
+        fundLimit.getMaxFreeCash(),
+        severity,
+        cashTotal,
+        liabilityTotal,
+        pendingCashImpact,
+        fundLimit.getReserveSoft());
   }
 }

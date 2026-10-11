@@ -21,8 +21,8 @@ public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink
   List<ParentChildLink> findByStatusAndSuspendedAtIsNullAndValidUntilAfter(
       ParentChildLinkStatus status, LocalDate date);
 
-  boolean
-      existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+  List<ParentChildLink>
+      findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
           String parentPersonalCode,
           String childPersonalCode,
           Collection<ParentChildLinkStatus> statuses,
@@ -30,4 +30,7 @@ public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink
 
   Optional<ParentChildLink> findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
       String parentPersonalCode, String childPersonalCode, RepresentationType relationshipType);
+
+  boolean existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+      String childPersonalCode, RepresentationType relationshipType, LocalDate date);
 }

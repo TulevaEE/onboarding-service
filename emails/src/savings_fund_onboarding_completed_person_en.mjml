@@ -1,0 +1,65 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Your Tuleva Additional Investment Fund account is now open.</mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-text>
+          As a next step, you can make your first contribution and get your saving under way.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          You can make a contribution in your Tuleva account. There you can also set up a recurring
+          payment if you like, so that your saving continues automatically. The fund units you buy
+          reach your account within two working days.
+        </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en&utm_content=onboarding_completed_person_first_payment">
+          Make my first contribution
+        </mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&language=en&utm_content=onboarding_completed_person_recurring">
+          Set up recurring payment
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text><strong>Where is your money invested?</strong></mj-text>
+        <mj-text>
+          Tuleva Additional Investment Fund is a broadly diversified index fund that invests in
+          world equity markets. The ongoing fees are *|savingsFundFee|*%&nbsp;per year, with no
+          entry, exit or performance fees.
+        </mj-text>
+        <mj-text>If you would like to know more about the fund:</mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/additional-investment-fund/where-does-the-tuleva-additional-investment-fund-invest/">
+            Where does the Tuleva Additional Investment Fund invest?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/en/additional-investment-fund/why-use-an-investment-account-for-the-additional-investment-fund/">
+            Why use an investment account for the Additional Investment Fund?
+          </a>
+        </mj-text>
+        <mj-text>
+          If you have any questions, feel free to get in touch at
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

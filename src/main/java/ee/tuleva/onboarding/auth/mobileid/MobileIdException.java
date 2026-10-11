@@ -11,6 +11,12 @@ public class MobileIdException extends ErrorsResponseException {
     super(errorsResponse);
   }
 
+  public static MobileIdException phoneNumberRequired() {
+    return new MobileIdException(
+        ErrorsResponse.ofSingleError(
+            "mobile.id.phone.number.required", "A phone number is needed for this login."));
+  }
+
   public static MobileIdException ofErrors(List<String> errors) {
     ErrorsResponse errorsResponse = new ErrorsResponse();
     for (int i = 0; i < errors.size(); i++) {

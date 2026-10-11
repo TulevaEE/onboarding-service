@@ -7,11 +7,13 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -28,7 +30,8 @@ class SebExecutionUpserter {
       SebPendingTransactionRow row,
       TransactionOrder order,
       LocalDate reportDate,
-      LocalDate asOfDate) {
+      LocalDate asOfDate,
+      @Nullable BigDecimal sebReportedQuantity) {
     if (wouldOrphanExistingExecution(row, order)) {
       return false;
     }
@@ -42,11 +45,12 @@ class SebExecutionUpserter {
       executionRepository.save(execution);
       Map<String, Object> after = executionMapper.mutableFieldsForDeltaAudit(execution);
       if (!before.equals(after)) {
-        auditRecorder.recordExecutionUpdated(order, row, reportDate, before, after);
+        auditRecorder.recordExecutionUpdated(
+            order, row, reportDate, before, after, sebReportedQuantity);
       }
     } else {
       executionRepository.save(executionMapper.toExecution(row, order, asOfDate));
-      auditRecorder.recordExecutionMatched(order, row, reportDate);
+      auditRecorder.recordExecutionMatched(order, row, reportDate, sebReportedQuantity);
     }
 
     order.setOrderStatus(OrderStatus.EXECUTED);

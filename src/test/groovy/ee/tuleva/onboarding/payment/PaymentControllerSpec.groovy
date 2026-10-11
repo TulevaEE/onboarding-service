@@ -218,7 +218,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> true
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(true, null)
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))
@@ -229,11 +229,33 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> false
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(false, null)
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))
         .andExpect(redirectedUrl(frontendUrl + "/savings-fund/payment"))
+  }
+
+  def "GET /savings/callback sends a paid gift to the thank you page of the link it was given through"() {
+    given:
+    def mvc = mockMvc(paymentController)
+
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(true, "9TY0PX9J")
+    expect:
+    mvc.perform(get("/v1/payments/savings/callback")
+        .param("order-token", aSerializedSavingsPaymentToken))
+        .andExpect(redirectedUrl(frontendUrl + "/kingitus/9TY0PX9J/tehtud"))
+  }
+
+  def "GET /savings/callback sends a gift that was not paid back to the gift page"() {
+    given:
+    def mvc = mockMvc(paymentController)
+
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(false, "9TY0PX9J")
+    expect:
+    mvc.perform(get("/v1/payments/savings/callback")
+        .param("order-token", aSerializedSavingsPaymentToken))
+        .andExpect(redirectedUrl(frontendUrl + "/kingitus/9TY0PX9J"))
   }
 
   def "POST /savings/notifications"() {

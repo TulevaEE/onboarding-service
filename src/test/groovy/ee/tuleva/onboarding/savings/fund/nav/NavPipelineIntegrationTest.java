@@ -22,18 +22,22 @@ import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportSource;
 import ee.tuleva.onboarding.ledger.*;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import ee.tuleva.onboarding.user.User;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
@@ -64,6 +68,7 @@ class NavPipelineIntegrationTest {
 
   @Autowired InvestmentReportService investmentReportService;
   @Autowired SebFundPositionParser sebFundPositionParser;
+  @Autowired SebReportSource sebReportSource;
   @Autowired FundPositionImportService fundPositionImportService;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired NavPositionLedger navPositionLedger;
@@ -74,6 +79,9 @@ class NavPipelineIntegrationTest {
   @Autowired FeeCalculationService feeCalculationService;
   @Autowired JdbcClient jdbcClient;
   @Autowired EntityManager entityManager;
+  @Autowired FundPositionImportJob fundPositionImportJob;
+  @Autowired FundNavQueryService fundNavQueryService;
+  @Autowired NavReportRepository navReportRepository;
 
   User testUser = sampleUser().personalCode("38001010001").build();
 
@@ -109,9 +117,151 @@ class NavPipelineIntegrationTest {
       assertThat(result.pendingRedemptions()).isEqualByComparingTo(ZERO);
       assertThat(result.blackrockAdjustment()).isEqualByComparingTo(ZERO);
       assertThat(result.navPerUnit()).isPositive();
+      assertThat(storedSecurityPricing(navData.navDate))
+          .isNotEmpty()
+          .containsExactlyInAnyOrderElementsOf(eodhdPricingOfTheHeldSecurities(result));
     } finally {
       ClockHolder.setDefaultClock();
     }
+  }
+
+  private record SecurityPricing(String isin, LocalDate priceDate, String priceSource) {}
+
+  private List<SecurityPricing> storedSecurityPricing(LocalDate navDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT account_id, price_date, price_source FROM nav_report
+            WHERE nav_date = :navDate AND fund_code = :fundCode AND account_type = 'SECURITY'
+            """)
+        .param("navDate", navDate)
+        .param("fundCode", TKF100.getCode())
+        .query(
+            (rs, rowNum) ->
+                new SecurityPricing(
+                    rs.getString("account_id"),
+                    rs.getObject("price_date", LocalDate.class),
+                    rs.getString("price_source")))
+        .list();
+  }
+
+  private static List<SecurityPricing> eodhdPricingOfTheHeldSecurities(
+      NavCalculationResult result) {
+    return result.securitiesDetail().stream()
+        .filter(detail -> detail.units().signum() != 0 || detail.marketValue().signum() != 0)
+        .map(detail -> new SecurityPricing(detail.isin(), detail.priceDate(), "EODHD"))
+        .toList();
+  }
+
+  @Test
+  @SneakyThrows
+  void reissuedPositionReportAfterPublish_revisesNavFromCorrectedPositions() {
+    NavTestPair pair = testPairs().findFirst().orElseThrow();
+    var navData = parseNavCsv(pair.navCsvFile);
+    BigDecimal cashCorrection = new BigDecimal("10000.00");
+
+    Instant ledgerTime = navData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      importPositionReport(pair.positionReportFile, navData.navDate);
+      recordPositionsToLedger(navData);
+      insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), navData.navDate);
+      insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), navData.navDate.withDayOfMonth(1));
+      insertPrices(pair.calculationDate);
+      issueFundUnits(navData.unitsOutstanding, navData.navDate);
+      entityManager.flush();
+      entityManager.clear();
+
+      var published = navCalculationService.calculate(TKF100, pair.calculationDate);
+      navPublisher.publish(published);
+      jdbcClient
+          .sql("UPDATE nav_report SET published_at = CURRENT_TIMESTAMP WHERE nav_date = :navDate")
+          .param("navDate", navData.navDate)
+          .update();
+      entityManager.flush();
+      entityManager.clear();
+      var originalCalculationId =
+          navReportRepository
+              .findLatestByNavDateAndFundCode(navData.navDate, "TKF100")
+              .getFirst()
+              .getCalculationId();
+
+      saveReissuedReportWithCashReducedBy(pair, cashCorrection);
+      seedModelPortfolioFromImportedSecurities(navData.navDate);
+      fundPositionImportJob.importForProviderAndDate(SEB, navData.navDate);
+      entityManager.flush();
+      entityManager.clear();
+
+      var expectedRevisedNav =
+          published
+              .aum()
+              .subtract(cashCorrection)
+              .divide(published.unitsOutstanding(), published.navPerUnit().scale(), HALF_UP);
+      var revisionRows =
+          navReportRepository.findAll().stream()
+              .filter(row -> row.getNavDate().equals(navData.navDate))
+              .filter(row -> !row.getCalculationId().equals(originalCalculationId))
+              .toList();
+      var revisionNavRow =
+          revisionRows.stream().filter(row -> row.getAccountType().equals("NAV")).findFirst();
+
+      assertThat(revisionRows).isNotEmpty();
+      assertThat(revisionNavRow.orElseThrow().getMarketPrice())
+          .isEqualByComparingTo(expectedRevisedNav);
+
+      navReportRepository.markAsPublished(revisionRows.getFirst().getCalculationId());
+
+      assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))
+          .contains(expectedRevisedNav.setScale(8, HALF_UP));
+    } finally {
+      ClockHolder.setDefaultClock();
+    }
+  }
+
+  @SneakyThrows
+  private void saveReissuedReportWithCashReducedBy(NavTestPair pair, BigDecimal reduction) {
+    String original = Files.readString(pair.positionReportFile);
+    String cashRow =
+        original
+            .lines()
+            .filter(line -> line.contains("Cash account in SEB Pank"))
+            .findFirst()
+            .orElseThrow();
+    String[] cells = cashRow.split(";");
+    BigDecimal cash = new BigDecimal(cells[4].replace(",", "."));
+    BigDecimal reduced = cash.subtract(reduction);
+    String reissuedRow =
+        cashRow
+            .replace(cells[4], reduced.toPlainString().replace(".", ","))
+            .replace(cells[7], reduced.setScale(2, HALF_UP).toPlainString().replace(".", ","));
+    byte[] csvBytes = original.replace(cashRow, reissuedRow).getBytes(StandardCharsets.UTF_8);
+    investmentReportService.saveReport(
+        SEB,
+        POSITIONS,
+        pair.navDate,
+        new ByteArrayInputStream(csvBytes),
+        ';',
+        5,
+        sebReportSource.extractCsvMetadata(csvBytes));
+  }
+
+  private void seedModelPortfolioFromImportedSecurities(LocalDate effectiveDate) {
+    var securities =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(effectiveDate, TKF100, SECURITY);
+    BigDecimal weight = BigDecimal.ONE.divide(BigDecimal.valueOf(securities.size()), 8, HALF_UP);
+    securities.forEach(
+        position ->
+            jdbcClient
+                .sql(
+                    """
+                    INSERT INTO investment_model_portfolio_allocation
+                      (effective_date, fund_code, isin, weight, provider)
+                    VALUES (:effectiveDate, 'TKF100', :isin, :weight, 'ISHARES')
+                    """)
+                .param("effectiveDate", effectiveDate)
+                .param("isin", position.getAccountId())
+                .param("weight", weight)
+                .update());
   }
 
   @Test
@@ -173,31 +323,26 @@ class NavPipelineIntegrationTest {
   @Test
   void monthEndFeeSettlement_settlesFeesWhenMonthChanges() {
     BigDecimal aum = new BigDecimal("50000000");
-    ZoneId eet = ZoneId.of("Europe/Tallinn");
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
     insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), LocalDate.of(2026, 1, 1));
     chargeFeeToFund(TKF100, "DEPOT");
 
     // Establish first accrual at Feb 25
-    Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), feb26Cutoff, null);
+        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), null);
 
-    // Monday: fees for Feb 26-27 added, feeCutoff=Feb 28 00:00 EET
+    // Monday: fees for Feb 26-27 added
     // Accumulated balance visible: Feb 25, 26, 27 = 3 days
-    Instant mondayCutoff = LocalDate.of(2026, 2, 28).atStartOfDay(eet).toInstant();
     FeeResult mondayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), mondayCutoff, null);
+            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), null);
 
     // Tuesday: fees for Feb 28, Mar 1, 2 added
     // Feb settlement triggered when recording Mar 1
-    // feeCutoff=Mar 3 00:00 → Feb fees settled, only Mar 1-2 visible
-    Instant tuesdayCutoff = LocalDate.of(2026, 3, 3).atStartOfDay(eet).toInstant();
     FeeResult tuesdayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), tuesdayCutoff, null);
+            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), null);
 
     // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
     // Daily depot:      50,000,000 × 0.01   / 365 → ledger 1369.86/day
@@ -430,12 +575,9 @@ class NavPipelineIntegrationTest {
 
     insertFeePolicy(TKF100, "DEPOT", true, LocalDate.of(2025, 1, 1), LocalDate.of(2026, 2, 1));
 
-    Instant feeCutoff =
-        date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), feeCutoff, null);
-    feeCalculationService.calculateFeesForNav(
-        TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), feeCutoff, null);
+        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), null);
+    feeCalculationService.calculateFeesForNav(TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), null);
 
     BigDecimal tkf100MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TKF100);
     BigDecimal tuk75MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TUK75);
@@ -653,7 +795,13 @@ class NavPipelineIntegrationTest {
     byte[] csvBytes = Files.readAllBytes(positionReportFile);
     var report =
         investmentReportService.saveReport(
-            SEB, POSITIONS, reportDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
+            SEB,
+            POSITIONS,
+            reportDate,
+            new ByteArrayInputStream(csvBytes),
+            ';',
+            5,
+            sebReportSource.extractCsvMetadata(csvBytes));
     var positions =
         sebFundPositionParser.parse(report.getRawData(), reportDate, report.getMetadata());
     fundPositionImportService.importNewPositions(positions);

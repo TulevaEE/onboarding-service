@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DUPLICATE_PAYOUT;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_WITHOUT_REQUEST;
+
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
-import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,12 +19,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class RedemptionPayoutRecorder {
-
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
+  private final PaymentCheckService paymentCheckService;
 
   public void recordOutgoingPayout(SavingFundPayment payment) {
     Optional<RedemptionRequest> request =
@@ -32,6 +34,11 @@ public class RedemptionPayoutRecorder {
           payment.getEndToEndId(),
           payment.getBeneficiaryIban(),
           payment.getAmount());
+      paymentCheckService.record(
+          PAYOUT_WITHOUT_REQUEST,
+          HOLD,
+          payment.getId().toString(),
+          "a debit from the payout account matches no redemption request");
       return;
     }
     processRedemptionPayout(request.get(), payment);
@@ -41,9 +48,13 @@ public class RedemptionPayoutRecorder {
     if (savingsFundLedger.hasPayoutEntry(request.getId())) {
       log.error(
           "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
+      paymentCheckService.record(
+          DUPLICATE_PAYOUT,
+          HOLD,
+          request.getId().toString(),
+          "a payout entry already exists for this redemption, so it looks paid twice");
     } else {
-      var user = userService.getByIdOrThrow(request.getUserId());
-      var party = new PartyRef(PartyType.PERSON, user.getPersonalCode());
+      var party = LedgerRefs.from(request.getPartyId());
       var amount = payment.getAmount().negate();
       log.info(
           "Creating ledger entry for redemption payout: redemptionId={}, amount={}",

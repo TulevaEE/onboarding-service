@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.dailyReturn;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.safeDailyReturn;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -17,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -40,6 +44,13 @@ class BenchmarkCheckBuilder {
                       new BenchmarkComponent("LU0839970364", new BigDecimal("0.50")))),
           TulevaFund.TUV100, new BenchmarkConfig(MSCI_ACWI_KEY),
           TulevaFund.TKF100, new BenchmarkConfig(MSCI_ACWI_KEY));
+
+  static Set<String> benchmarkIsins() {
+    return BENCHMARK_CONFIGS.values().stream()
+        .flatMap(config -> config.components().stream())
+        .map(BenchmarkComponent::key)
+        .collect(Collectors.toSet());
+  }
 
   private final TrackingDifferenceCalculator calculator;
   private final FundValueProvider fundValueProvider;
@@ -77,17 +88,13 @@ class BenchmarkCheckBuilder {
       return Optional.empty();
     }
 
-    var fundReturn =
-        todayNav
-            .value()
-            .subtract(yesterdayNav.value())
-            .divide(yesterdayNav.value(), 6, RoundingMode.HALF_UP);
+    var fundReturn = dailyReturn(todayNav.value(), yesterdayNav.value());
     var td = fundReturn.subtract(benchmarkReturn.get());
-    var breach = td.abs().compareTo(calculator.breachThreshold(checkDate)) >= 0;
+    var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK, checkDate)) >= 0;
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK, checkDate);
-    int days = breach ? priorBreaches.count() + 1 : 0;
+    int days = breach ? priorBreaches.streakDaysIfTheCheckDateBreaches() : 0;
     BigDecimal compFund = ZERO;
     BigDecimal compBenchmark = ZERO;
     BigDecimal compTd = ZERO;
@@ -115,6 +122,8 @@ class BenchmarkCheckBuilder {
             .benchmarkReturn(benchmarkReturn.get())
             .breach(breach)
             .consecutiveBreachDays(days)
+            .escalationUncheckedDays(
+                breach ? priorBreaches.uncheckedStreakDaysBeforeTheCheckDate() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)
@@ -141,7 +150,7 @@ class BenchmarkCheckBuilder {
               .get()
               .value()
               .subtract(yesterday.get().value())
-              .divide(yesterday.get().value(), 6, RoundingMode.HALF_UP));
+              .divide(yesterday.get().value(), SCALE, RoundingMode.HALF_UP));
     }
 
     var totalReturn = ZERO;
@@ -156,7 +165,7 @@ class BenchmarkCheckBuilder {
               .get()
               .value()
               .subtract(yesterday.get().value())
-              .divide(yesterday.get().value(), 6, RoundingMode.HALF_UP);
+              .divide(yesterday.get().value(), SCALE, RoundingMode.HALF_UP);
       totalReturn = totalReturn.add(component.weight().multiply(componentReturn));
     }
     return Optional.of(totalReturn.setScale(6, RoundingMode.HALF_UP));
@@ -185,19 +194,13 @@ class BenchmarkCheckBuilder {
     var totalWeightedBenchmarkReturn = ZERO;
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
-
-    // Every holding is supposed to have a proxy with data behind it. One that does not is a data
-    // error, so the weight it takes out of this check is carried on the result rather than being
-    // dropped - a check covering part of the sleeve must not read as a clean all-clear.
-    var gapIsins = new ArrayList<String>();
-    var gapWeight = ZERO;
+    var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
 
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
       if (benchmarkKey == null) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
-        gapIsins.add(s.isin());
-        gapWeight = gapWeight.add(s.actualWeight());
+        holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
       var bmReturn =
@@ -212,12 +215,11 @@ class BenchmarkCheckBuilder {
             fund,
             s.isin(),
             benchmarkKey);
-        gapIsins.add(s.isin());
-        gapWeight = gapWeight.add(s.actualWeight());
+        holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
       var secReturn =
-          calculator.safeDailyReturn(
+          safeDailyReturn(
               s.today().requirePrice(s.isin()),
               s.previous().requirePrice(s.isin()),
               maxDailyReturn);
@@ -241,11 +243,11 @@ class BenchmarkCheckBuilder {
         totalWeightedBenchmarkReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var instrumentReturn = totalWeightedReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var td = instrumentReturn.subtract(benchmarkReturn).setScale(SCALE, RoundingMode.HALF_UP);
-    var breach = td.abs().compareTo(calculator.breachThreshold(checkDate)) >= 0;
+    var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK_MODEL, checkDate)) >= 0;
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK_MODEL, checkDate);
-    int days = breach ? priorBreaches.count() + 1 : 0;
+    int days = breach ? priorBreaches.streakDaysIfTheCheckDateBreaches() : 0;
     BigDecimal compFund = ZERO;
     BigDecimal compBenchmark = ZERO;
     BigDecimal compTd = ZERO;
@@ -277,6 +279,8 @@ class BenchmarkCheckBuilder {
             .benchmarkReturn(benchmarkReturn)
             .breach(breach)
             .consecutiveBreachDays(days)
+            .escalationUncheckedDays(
+                breach ? priorBreaches.uncheckedStreakDaysBeforeTheCheckDate() : 0)
             .consecutiveNetTd(compTd)
             .compoundedFundReturn(compFund)
             .compoundedBenchmarkReturn(compBenchmark)
@@ -285,9 +289,17 @@ class BenchmarkCheckBuilder {
             .cashDrag(ZERO)
             .feeDrag(ZERO)
             .residual(ZERO)
-            .benchmarkGapIsins(List.copyOf(gapIsins))
-            .benchmarkGapWeight(gapWeight)
+            .benchmarkGapIsins(isins(holdingsReportedAsBenchmarkGap))
+            .benchmarkGapWeight(totalActualWeight(holdingsReportedAsBenchmarkGap))
             .build());
+  }
+
+  private static List<String> isins(List<SecurityData> holdings) {
+    return holdings.stream().map(SecurityData::isin).toList();
+  }
+
+  private static BigDecimal totalActualWeight(List<SecurityData> holdings) {
+    return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
   }
 
   private @Nullable String resolveBenchmarkKey(String isin) {
@@ -302,6 +314,6 @@ class BenchmarkCheckBuilder {
       return Optional.empty();
     }
     return Optional.of(
-        calculator.safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
+        safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
   }
 }

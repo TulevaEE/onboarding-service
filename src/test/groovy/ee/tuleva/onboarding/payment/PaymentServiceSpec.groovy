@@ -169,10 +169,11 @@ class PaymentServiceSpec extends Specification {
 
   def "can process savings payment"() {
     given:
-    savingsCallbackService.processToken(_ as String) >> false
+    def outcome = new SavingsPaymentOutcome(false, null)
+    savingsCallbackService.processToken(_ as String) >> outcome
     when:
-    def recorded = paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken)
+    def processed = paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken)
     then:
-    !recorded
+    processed == outcome
   }
 }

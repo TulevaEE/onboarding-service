@@ -20,10 +20,11 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 class JobTriggerPoller {
 
-  private static final Map<String, Supplier<Object>> EVENTS =
+  static final Map<String, Supplier<Object>> EVENTS =
       Map.ofEntries(
           Map.entry("TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new),
-          Map.entry("TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new),
+          Map.entry(
+              "TrackingDifferenceBackfillJob", () -> new RunTrackingDifferenceBackfillRequested(7)),
           Map.entry("LimitCheckJob", RunLimitCheckRequested::new),
           Map.entry("FeeCheckJob", RunFeeCheckRequested::new),
           Map.entry("FeeSettlementCheckJob", RunFeeSettlementCheckRequested::new),
@@ -50,6 +51,8 @@ class JobTriggerPoller {
           Map.entry("TdAttributionJob", RunTdAttributionMonthlyRequested::new),
           Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)),
           Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new),
+          Map.entry("OwnershipLimitCheckJob", RunOwnershipLimitCheckRequested::new),
+          Map.entry("InstrumentFeeRateJob", RunInstrumentFeeRateResolveRequested::new),
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 

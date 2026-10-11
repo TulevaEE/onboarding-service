@@ -24,31 +24,8 @@ class BankStatementAccountTest {
 
   @Test
   void from_accountStatement_filtersBlankHolderIdCodes() {
-    var accountId =
-        new ee.tuleva.onboarding.banking.iso20022.camt053.AccountIdentification4Choice();
-    accountId.setIBAN("EE001234567890123456");
-
-    var blank =
-        new ee.tuleva.onboarding.banking.iso20022.camt053.GenericOrganisationIdentification1();
-    blank.setId("");
-    var real =
-        new ee.tuleva.onboarding.banking.iso20022.camt053.GenericOrganisationIdentification1();
-    real.setId("10060701");
-    var organisationId =
-        new ee.tuleva.onboarding.banking.iso20022.camt053.OrganisationIdentification4();
-    organisationId.getOthr().add(blank);
-    organisationId.getOthr().add(real);
-    var partyId = new ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice();
-    partyId.setOrgId(organisationId);
-
-    var owner = new ee.tuleva.onboarding.banking.iso20022.camt053.PartyIdentification32();
-    owner.setNm("Acme OÜ");
-    owner.setId(partyId);
-
-    var account = new ee.tuleva.onboarding.banking.iso20022.camt053.CashAccount20();
-    account.setId(accountId);
-    account.setOwnr(owner);
-
+    var account =
+        Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("", "10060701"));
     var statement = new ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2();
     statement.setAcct(account);
 

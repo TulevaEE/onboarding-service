@@ -7,7 +7,11 @@ import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -15,6 +19,8 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,6 +28,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief;
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalBriefService;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.company.Company;
@@ -29,8 +38,10 @@ import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
+import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -44,7 +55,10 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +89,10 @@ class RedemptionIntegrationTest {
   @Autowired RedemptionVerificationService redemptionVerificationService;
   @Autowired RedemptionRequestRepository redemptionRequestRepository;
   @Autowired RedemptionBatchJob redemptionBatchJob;
+  @Autowired RedemptionHoldService redemptionHoldService;
+  @Autowired PaymentApprovalBriefService paymentApprovalBriefService;
+  @Autowired RedemptionPayoutRecorder redemptionPayoutRecorder;
+  @Autowired EndToEndIdConverter endToEndIdConverter;
   @Autowired SavingsFundLedger savingsFundLedger;
   @Autowired SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired LedgerService ledgerService;
@@ -86,6 +104,7 @@ class RedemptionIntegrationTest {
   @Autowired ApplicationEvents applicationEvents;
 
   @MockitoBean SebGatewayClient sebGatewayClient;
+  @MockitoBean OperationsNotificationService operationsNotificationService;
   @MockitoBean FundNavProvider navProvider;
 
   User testUser;
@@ -252,7 +271,12 @@ class RedemptionIntegrationTest {
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testPartyRef, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testPartyRef,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
@@ -364,7 +388,7 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -544,12 +568,54 @@ class RedemptionIntegrationTest {
 
     var payoutEvent =
         applicationEvents.stream(RequestPaymentEvent.class)
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("No RequestPaymentEvent for redemption request"));
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
     assertThat(payoutEvent.paymentRequest().beneficiaryIban()).isEqualTo(companyIban);
     assertThat(payoutEvent.paymentRequest().amount()).isEqualByComparingTo(redemptionAmount);
+  }
+
+  @Test
+  void bankPayout_ofLegalEntityRedemption_settlesTheCompanyAccountNotTheBoardMembers() {
+    var registryCode = "16001234";
+    var companyName = "Acme Holding OÜ";
+    var companyIban = "EE442200221092874625";
+    var redemptionAmount = new BigDecimal("25.00");
+    setUpLegalEntity(registryCode, companyName, companyIban);
+    var leAuthenticatedPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-09-26T14:00:00Z"), UTC));
+    var requestId =
+        redemptionService
+            .createRedemptionRequest(leAuthenticatedPerson, redemptionAmount, EUR, companyIban)
+            .getId();
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-09-30T15:00:00Z"), UTC));
+    redemptionBatchJob.runJob();
+    var companyCashRedemption =
+        ledgerService.getPartyAccount(
+            registryCode, LedgerParty.PartyType.LEGAL_ENTITY, CASH_REDEMPTION);
+    assertThat(companyCashRedemption.getBalance()).isEqualByComparingTo(redemptionAmount.negate());
+
+    redemptionPayoutRecorder.recordOutgoingPayout(
+        aPayment()
+            .amount(redemptionAmount.negate())
+            .beneficiaryIban(companyIban)
+            .endToEndId(endToEndIdConverter.toEndToEndId(requestId))
+            .receivedBefore(Instant.parse("2025-09-30T15:30:00Z"))
+            .build());
+
+    assertThat(companyCashRedemption.getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(
+            ledgerService
+                .getPartyAccount(testUser.getPersonalCode(), PERSON, CASH_REDEMPTION)
+                .getBalance())
+        .isEqualByComparingTo(ZERO);
+    assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
+        .isEqualTo(PROCESSED);
   }
 
   @Test
@@ -739,8 +805,133 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(partyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(partyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        partyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        partyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
+  }
+
+  @Test
+  void amlSuspicion_redeemsTheUnitsButHoldsTheCashUntilAPersonReleasesIt() {
+    var redemptionAmount = new BigDecimal("25.00");
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var tuesday = Instant.parse("2025-09-30T15:00:00Z");
+
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
+    var request =
+        redemptionService.createRedemptionRequest(
+            testAuthenticatedPerson, redemptionAmount, EUR, VALID_IBAN);
+    var requestId = request.getId();
+
+    redemptionHoldService.holdPayout(requestId, Set.of(PEP));
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
+    redemptionBatchJob.runJob();
+
+    var held = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(held.getStatus()).isEqualTo(PAYOUT_HELD);
+    assertThat(held.getCashAmount()).isEqualByComparingTo(redemptionAmount);
+    verify(operationsNotificationService)
+        .sendMessage(
+            contains("payout held for review: id=%s, cashAmount=25.00 EUR".formatted(requestId)),
+            eq(AML));
+    assertThat(held.getProcessedAt()).isNull();
+    assertThat(savingsFundLedger.hasPricingEntry(requestId)).isTrue();
+    assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashRedemptionAccount().getBalance())
+        .isEqualByComparingTo(redemptionAmount.negate());
+    assertThat(
+            applicationEvents.stream(RequestPaymentEvent.class)
+                .filter(e -> requestId.equals(e.sourceId())))
+        .isEmpty();
+    verify(sebGatewayClient, times(1)).submitPaymentFile(any(), any(), any());
+    var fundingBatch = held.getBatchId();
+    assertThat(fundingBatch).isNotNull();
+    assertThat(briefVerdictsOn(tuesday))
+        .contains(
+            batchTie(
+                "payouts + held == transfer to withdrawal account",
+                fundingBatch,
+                "0.00 + 25.00 held = 25.00"));
+
+    redemptionHoldService.release(requestId, "AML Specialist", "Source of funds confirmed");
+
+    var released = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(released.getStatus()).isEqualTo(REDEEMED);
+    assertThat(released.getReviewedBy()).isEqualTo("AML Specialist");
+    assertThat(released.getReviewReason()).isEqualTo("Source of funds confirmed");
+    assertThat(released.getProcessedAt()).isNotNull();
+    var payoutEvent =
+        applicationEvents.stream(RequestPaymentEvent.class)
+            .filter(e -> requestId.equals(e.sourceId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No payout event after release"));
+    assertThat(payoutEvent.paymentRequest().amount()).isEqualByComparingTo(redemptionAmount);
+    assertThat(payoutEvent.paymentRequest().beneficiaryIban()).isEqualTo(VALID_IBAN);
+    verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any(), any());
+    assertThat(payoutEvent.batchId()).isEqualTo(fundingBatch);
+    assertThat(briefVerdictsOn(tuesday))
+        .contains(
+            batchTie("payouts == transfer to withdrawal account", fundingBatch, "25.00 = 25.00"));
+  }
+
+  private List<PaymentApprovalBrief.Verdict> briefVerdictsOn(Instant instant) {
+    return paymentApprovalBriefService
+        .build(LocalDate.ofInstant(instant, ZoneId.of("Europe/Tallinn")), List.of())
+        .verdicts();
+  }
+
+  private static PaymentApprovalBrief.Verdict batchTie(String label, UUID batchId, String detail) {
+    return new PaymentApprovalBrief.Verdict(
+        "%s (batch %s)".formatted(label, batchId.toString().substring(0, 8)), true, detail);
+  }
+
+  @Test
+  void sanctionsHit_freezesTheOrderUntilAPersonReleasesIt() {
+    var redemptionAmount = new BigDecimal("25.00");
+    var expectedFundUnits = new BigDecimal("25.00000");
+    var friday = Instant.parse("2025-09-26T14:00:00Z");
+    var tuesday = Instant.parse("2025-09-30T15:00:00Z");
+    var thursday = Instant.parse("2025-10-02T15:00:00Z");
+
+    ClockHolder.setClock(Clock.fixed(friday, UTC));
+    var request =
+        redemptionService.createRedemptionRequest(
+            testAuthenticatedPerson, redemptionAmount, EUR, VALID_IBAN);
+    var requestId = request.getId();
+
+    redemptionHoldService.freeze(requestId);
+
+    var frozen = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(frozen.getStatus()).isEqualTo(FROZEN);
+    assertThat(frozen.getHoldReasons()).containsExactly(SANCTION);
+
+    redemptionService.cancelRedemption(requestId, testAuthenticatedPerson);
+    assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
+        .isEqualTo(FROZEN);
+    assertThat(getUserFundUnitsReservedAccount().getBalance())
+        .isEqualByComparingTo(expectedFundUnits.negate());
+
+    ClockHolder.setClock(Clock.fixed(tuesday, UTC));
+    redemptionBatchJob.runJob();
+    assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
+        .isEqualTo(FROZEN);
+    assertThat(savingsFundLedger.hasPricingEntry(requestId)).isFalse();
+    verify(sebGatewayClient, never()).submitPaymentFile(any(), any(), any());
+
+    redemptionHoldService.release(requestId, "Contact person", "False positive, namesake");
+
+    var released = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(released.getStatus()).isEqualTo(VERIFIED);
+    assertThat(released.getReviewedBy()).isEqualTo("Contact person");
+    assertThat(released.hasActiveHold()).isFalse();
+
+    ClockHolder.setClock(Clock.fixed(thursday, UTC));
+    redemptionBatchJob.runJob();
+
+    var paidOut = redemptionRequestRepository.findById(requestId).orElseThrow();
+    assertThat(paidOut.getStatus()).isEqualTo(REDEEMED);
+    assertThat(paidOut.getCashAmount()).isEqualByComparingTo(redemptionAmount);
+    verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any(), any());
   }
 
   @Test

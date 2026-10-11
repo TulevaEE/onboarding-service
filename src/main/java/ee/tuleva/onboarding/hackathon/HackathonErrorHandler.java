@@ -15,12 +15,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class HackathonErrorHandler {
 
-  @ExceptionHandler(HackathonRegistrationClosedException.class)
-  public ResponseEntity<Object> handleErrors(HackathonRegistrationClosedException exception) {
-    log.info("HackathonRegistrationClosedException: {}", exception.getMessage());
+  @ExceptionHandler(HackathonException.class)
+  public ResponseEntity<Object> handleErrors(HackathonException exception) {
+    log.info("{}: {}", exception.getClass().getSimpleName(), exception.getMessage());
     return new ResponseEntity<>(
-        Map.of(
-            "error", "HACKATHON_REGISTRATION_CLOSED", "error_description", exception.getMessage()),
+        Map.of("error", exception.getErrorCode(), "error_description", exception.getMessage()),
         BAD_REQUEST);
   }
 }

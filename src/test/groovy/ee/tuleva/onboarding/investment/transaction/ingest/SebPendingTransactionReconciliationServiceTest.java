@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
@@ -85,6 +86,7 @@ class SebPendingTransactionReconciliationServiceTest {
             validator,
             new ExecutionPriceConsistencyChecker(),
             executionUpserter,
+            new ReportedQuantityNormalizer(),
             executionRepository,
             eventPublisher,
             auditRecorder,
@@ -93,7 +95,11 @@ class SebPendingTransactionReconciliationServiceTest {
         new SebPendingRowReconciler(
             new SebPendingTransactionMatcher(orderRepository),
             new SebPendingTransactionComplexMatcher(
-                orderRepository, executionRepository, resolver, validator),
+                orderRepository,
+                executionRepository,
+                resolver,
+                validator,
+                new ReportedQuantityNormalizer()),
             executionRepository,
             orderRepository,
             eventPublisher,
@@ -106,6 +112,7 @@ class SebPendingTransactionReconciliationServiceTest {
         executionRepository,
         orderRepository,
         eventPublisher,
+        new SebReportAsOfDate(),
         auditRecorder,
         settlementRepository,
         new TransactionSettlementService(settlementRepository, orderRepository, clock),
@@ -508,6 +515,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .provider(SEB)
             .reportType(PENDING_TRANSACTIONS)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
             .rawData(List.of(malformed, validRow))
             .build();
 
@@ -730,6 +738,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .provider(SEB)
             .reportType(PENDING_TRANSACTIONS)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
             .rawData(List.of(validRawRow(clientRefA), rowB))
             .build();
 
@@ -877,6 +886,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .provider(SEB)
             .reportType(PENDING_TRANSACTIONS)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
             .rawData(List.of())
             .build();
 
@@ -1000,6 +1010,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .provider(SEB)
             .reportType(PENDING_TRANSACTIONS)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
             .rawData(List.of(validRawRow(clientRef), secondRow))
             .build();
 
@@ -1118,6 +1129,7 @@ class SebPendingTransactionReconciliationServiceTest {
                     .provider(SEB)
                     .reportType(PENDING_TRANSACTIONS)
                     .reportDate(LocalDate.of(2026, 5, 14))
+                    .metadata(Map.of("asOfDate", "2026-05-13"))
                     .rawData(List.of())
                     .build()));
 
@@ -1147,6 +1159,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .provider(SEB)
             .reportType(PENDING_TRANSACTIONS)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
             .rawData(List.of(validRawRow(clientRef), malformed))
             .build();
 
@@ -1530,6 +1543,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .provider(SEB)
         .reportType(PENDING_TRANSACTIONS)
         .reportDate(LocalDate.of(2026, 5, 13))
+        .metadata(Map.of("asOfDate", "2026-05-12"))
         .rawData(List.of(rowA, rowB))
         .build();
   }
@@ -1569,6 +1583,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .provider(SEB)
         .reportType(PENDING_TRANSACTIONS)
         .reportDate(LocalDate.of(2026, 5, 13))
+        .metadata(Map.of("asOfDate", "2026-05-12"))
         .rawData(List.of(raw))
         .build();
   }
@@ -1591,7 +1606,7 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_fallsBackToTheReportDateWhenTheReportCarriesNoAsOfDate() {
+  void reconcile_fallsBackToTheReportDateWhenThereIsNoAsOfDate() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = sampleOrder(clientRef);
@@ -1697,6 +1712,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .provider(SEB)
         .reportType(PENDING_TRANSACTIONS)
         .reportDate(reportDate)
+        .metadata(Map.of("asOfDate", reportDate.minusDays(1).toString()))
         .rawData(rows)
         .build();
   }

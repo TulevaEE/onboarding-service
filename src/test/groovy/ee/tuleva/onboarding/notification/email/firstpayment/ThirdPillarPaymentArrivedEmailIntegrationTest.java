@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixt
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -24,6 +25,10 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailStatus;
 import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.nudge.NudgeContext;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
+import ee.tuleva.onboarding.nudge.NudgeDecisionService;
+import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -55,12 +60,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String LONG_TIME_SAVER = TestPersonalCodes.withValidChecksum("3881212121");
   private static final String EMPLOYER_PAID = TestPersonalCodes.withValidChecksum("3900101000");
   private static final String REGISTRY_ONLY = TestPersonalCodes.withValidChecksum("3870101000");
-  private static final String PENSIONER = TestPersonalCodes.withValidChecksum("3550101000");
   private static final String UNDERAGE = TestPersonalCodes.withValidChecksum("5160101000");
   private static final String DECEASED = TestPersonalCodes.withValidChecksum("3840101000");
-  private static final String SECOND_PILLAR_LEAVER =
-      TestPersonalCodes.withValidChecksum("3830101000");
-  private static final String MAXED_OUT = TestPersonalCodes.withValidChecksum("3820101000");
 
   @Autowired private ThirdPillarPaymentArrivedJob job;
   @Autowired private AnalyticsThirdPillarTransactionRepository transactionRepository;
@@ -73,15 +74,22 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   @Autowired private ThirdPillarPaymentArrivedEmailService paymentArrivedEmailService;
 
   @MockitoBean private EmailService emailService;
+  @MockitoBean private NudgeDecisionService nudgeDecisionService;
 
   @BeforeEach
   void stubMandrill() {
+    given(nudgeDecisionService.decideOffline(any(User.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
     given(emailService.send(any(Person.class), any(), any())).willReturn(Optional.of(response));
+    given(emailService.send(any(Person.class), any(), any(), any(Instant.class)))
+        .willReturn(Optional.of(response));
   }
 
   @AfterEach
@@ -122,21 +130,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_et"));
     assertThat(sentEmailCount()).isEqualTo(1);
     assertThat(claimCount()).isEqualTo(1);
-  }
-
-  @Test
-  void neverSuggestsTheSecondPillarToSomeoneAtRetirementAge() {
-    saveUser(PENSIONER, "pensioner@example.com");
-    saveOwnPayment(PENSIONER, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("pensioner@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))),
-            any());
   }
 
   @Test
@@ -202,7 +195,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_en"),
             argThat(
                 mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
+                    !mergeVars.containsKey("suggestSecondPillar")
                         && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
             any());
     verify(emailService, times(1))
@@ -210,6 +203,70 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
             any(),
             eq("third_pillar_payment_arrived_en"));
+  }
+
+  @Test
+  void schedulesTheSecondPillarLetterForARegistryOnlyPayerWhoseSecondPillarIsElsewhere() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("registry.only@example.com"), eq("third_pillar_suggest_second_et"), any(), any());
+    verify(emailService, times(1))
+        .send(
+            argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
+            any(),
+            eq("third_pillar_suggest_second_et"),
+            any(Instant.class));
+    assertThat(letterNudges()).containsExactly("nudge_second_pillar");
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterForARegistryOnlyPayerWithNoSecondPillar() {
+    saveUnitOwner(REGISTRY_ONLY, builder -> builder.email("no.second.pillar@example.com"));
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("no.second.pillar@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            any(),
+            any());
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
+    assertThat(letterNudges()).isEmpty();
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterAgainForSomeoneWhoAlreadyHasOne() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    emailPersistenceService.save(
+        registryPerson(REGISTRY_ONLY), THIRD_PILLAR_SUGGEST_SECOND, EmailStatus.SCHEDULED);
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
+  }
+
+  @Test
+  void leavesTheSecondPillarLetterToTheMandateFlowForAnAccountHolder() {
+    saveUser(ACCOUNT_HOLDER, "account.holder@example.com");
+    saveOwnPayment(ACCOUNT_HOLDER, LocalDate.now().minusDays(1), new BigDecimal("300.00"));
+
+    job.run();
+
+    verify(nudgeDecisionService, never()).decideForRegistryOnly(any(), any());
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
   }
 
   @Test
@@ -294,11 +351,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 "EST",
                 new BigDecimal("100.00"),
                 LocalDate.now().minusDays(1),
-                false,
-                true,
-                true,
-                true,
-                false,
                 false));
 
     assertThat(sent).isFalse();
@@ -317,45 +369,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     verify(emailService, times(1)).send(any(Person.class), any(), any());
     assertThat(claimCount()).isEqualTo(1);
     assertThat(sentEmailCount()).isZero();
-  }
-
-  @Test
-  void suggestsTheSavingsFundOnlyToMaxedOutNonSavers() {
-    saveUnitOwner(
-        MAXED_OUT,
-        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
-    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("maxed.out@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(
-                mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any());
-  }
-
-  @Test
-  void doesNotSuggestTheSavingsFundToAnExistingSaver() {
-    saveUnitOwner(
-        MAXED_OUT,
-        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
-    saveIssuedSavingsFundPayment(MAXED_OUT);
-    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("maxed.out@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
-            any());
   }
 
   @Test
@@ -380,41 +393,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     verifyNoInteractions(emailService);
     assertThat(claimCount()).isZero();
-  }
-
-  @Test
-  void marksASecondPillarLeaverAndSuppressesSecondPillarNudges() {
-    saveUnitOwner(
-        SECOND_PILLAR_LEAVER,
-        builder -> builder.email("leaver@example.com").p2ravaStatus("R").p2choice("LXK00"));
-    saveOwnPayment(SECOND_PILLAR_LEAVER, LocalDate.now().minusDays(1), new BigDecimal("200.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("leaver@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(
-                mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("leftSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any());
-  }
-
-  private void saveIssuedSavingsFundPayment(String personalCode) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO saving_fund_payment
-              (id, party_type, party_code, amount, currency, status, created_at, status_changed_at)
-            VALUES
-              (:id, 'PERSON', :code, 100.00, 'EUR', 'ISSUED', now(), now())
-            """)
-        .param("id", java.util.UUID.randomUUID())
-        .param("code", personalCode)
-        .update();
   }
 
   private void saveOwnPayment(String personalCode, LocalDate date, BigDecimal amount) {
@@ -458,6 +436,22 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     .firstName("Registry")
                     .lastName("Person"))
             .build());
+  }
+
+  private static Person registryPerson(String personalCode) {
+    return ee.tuleva.onboarding.auth.principal.PersonImpl.builder()
+        .personalCode(personalCode)
+        .firstName("Registry")
+        .lastName("Person")
+        .build();
+  }
+
+  private java.util.List<String> letterNudges() {
+    return jdbcClient
+        .sql("SELECT nudge FROM email WHERE type = :type")
+        .param("type", THIRD_PILLAR_SUGGEST_SECOND.name())
+        .query(String.class)
+        .list();
   }
 
   private int sentEmailCount() {

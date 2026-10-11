@@ -40,8 +40,8 @@ public class PortfolioCostBasisSelfHealJob {
     runForRange(from, today);
   }
 
-  @EventListener
-  void onPortfolioCostBasisSelfHealRequested(RunPortfolioCostBasisSelfHealRequested event) {
+  @EventListener(RunPortfolioCostBasisSelfHealRequested.class)
+  void onPortfolioCostBasisSelfHealRequested() {
     run();
   }
 

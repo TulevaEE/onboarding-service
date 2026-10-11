@@ -19,6 +19,8 @@ public class AccountOverview {
   BigDecimal endingBalance;
   Instant startTime;
   Instant endTime;
+  Instant beginningBalanceTime;
+  Instant endingBalanceTime;
   Integer pillar;
 
   public AccountOverview sort() {
@@ -43,5 +45,9 @@ public class AccountOverview {
 
   public LocalDate getEndDate() {
     return endTime.atOffset(UTC).toLocalDate();
+  }
+
+  public LocalDate getEndingBalanceDate() {
+    return endingBalanceTime.atOffset(UTC).toLocalDate();
   }
 }

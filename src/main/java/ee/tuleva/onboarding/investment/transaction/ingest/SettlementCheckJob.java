@@ -125,7 +125,7 @@ class SettlementCheckJob {
         fresh);
   }
 
-  @EventListener(classes = RunOverdueSettlementRequested.class)
+  @EventListener(RunOverdueSettlementRequested.class)
   void onOverdueSettlementRequested() {
     run();
   }

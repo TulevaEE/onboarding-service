@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static java.util.Objects.requireNonNullElse;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -7,7 +8,8 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
+import ee.tuleva.onboarding.investment.fees.ocf.IncompleteOcfSnapshotException;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
@@ -19,7 +21,6 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
-import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.transaction.Transactional;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -58,14 +60,13 @@ public class InvestmentAdminController {
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
-  private final FeeAccrualRepository feeAccrualRepository;
-  private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavFeeBackfill navFeeBackfill;
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
   private final InvestmentReportDataService investmentReportDataService;
   private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
   private final PeriodicTdAttributionService tdAttributionService;
   private final OcfCalculationService ocfCalculationService;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   @PostMapping("/reimport-positions")
@@ -116,8 +117,6 @@ public class InvestmentAdminController {
     log.info(
         "Admin triggered date-scoped position re-record: fund={}, fromDate={}", fund, fromDate);
     fundPositionLedgerService.rerecordPositionsFromDate(fund, fromDate);
-    navFeeAccrualLedger.deleteFeeAccrualsFromDate(fund, fromDate);
-    feeAccrualRepository.deleteByFundFromDate(fund, fromDate);
     LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
     navFeeBackfill.backfillFees(fund, fromDate, latestNavDate);
 
@@ -229,6 +228,21 @@ public class InvestmentAdminController {
     return "TD attribution computed for all funds: %s to %s".formatted(from, to);
   }
 
+  @PostMapping("/tracking-difference-backfill")
+  public String backfillTrackingDifference(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "7") int daysBack) {
+
+    tokenValidator.validate(token);
+    if (daysBack < 0) {
+      throw new ResponseStatusException(BAD_REQUEST, "daysBack must not be negative: " + daysBack);
+    }
+
+    log.info("Admin triggered tracking difference backfill: daysBack={}", daysBack);
+    eventPublisher.publishEvent(new RunTrackingDifferenceBackfillRequested(daysBack));
+    return "Tracking difference backfill requested for last %d days".formatted(daysBack);
+  }
+
   @PostMapping("/td-attribution-backfill")
   public String backfillTdAttribution(
       @RequestHeader("X-Admin-Token") String token,
@@ -258,6 +272,37 @@ public class InvestmentAdminController {
 
     ocfCalculationService.calculateForAllFunds(yearMonth);
     return "OCF calculated for all funds: %s".formatted(yearMonth);
+  }
+
+  @PostMapping("/ocf-publish")
+  public String publishOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam String month,
+      @RequestParam String publishedIn,
+      @RequestParam(defaultValue = "false") boolean despiteGaps) {
+
+    tokenValidator.validate(token);
+
+    var fund = TulevaFund.valueOf(fundCode);
+    var yearMonth = YearMonth.parse(month);
+    if (!publishOcfSnapshot(fund, yearMonth, publishedIn, despiteGaps)) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "No unpublished OCF snapshot for %s %s".formatted(fundCode, yearMonth));
+    }
+    return "OCF published: %s %s -> %s".formatted(fundCode, yearMonth, publishedIn);
+  }
+
+  private boolean publishOcfSnapshot(
+      TulevaFund fund, YearMonth month, String publishedIn, boolean despiteGaps) {
+    try {
+      return despiteGaps
+          ? ocfCalculationService.publishDespiteGaps(fund, month, publishedIn)
+          : ocfCalculationService.publish(fund, month, publishedIn);
+    } catch (IncompleteOcfSnapshotException refusal) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, requireNonNullElse(refusal.getMessage(), refusal.toString()), refusal);
+    }
   }
 
   @PostMapping("/ocf-backfill")

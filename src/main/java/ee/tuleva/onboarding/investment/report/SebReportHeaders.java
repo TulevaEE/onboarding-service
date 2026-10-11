@@ -3,14 +3,17 @@ package ee.tuleva.onboarding.investment.report;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public final class SebReportHeaders {
 
-  private static final String AS_OF_LABEL = "As of:";
-  private static final String SENT_LABEL = "Sent:";
+  static final String AS_OF_LABEL = "As of:";
+  static final String SENT_LABEL = "Sent:";
+  static final String AS_OF_METADATA_KEY = "asOfDate";
+  static final String SENT_METADATA_KEY = "sentDate";
   private static final String LABEL_COLUMN = "Fund Management Company:";
   private static final String VALUE_COLUMN = "Tuleva Fondid AS";
 
@@ -22,12 +25,29 @@ public final class SebReportHeaders {
 
   public static @Nullable LocalDate asOfDate(
       Map<String, Object> metadata, List<Map<String, Object>> rawData) {
-    return headerDate(metadata, "asOfDate", rawData, AS_OF_LABEL);
+    return headerDate(metadata, AS_OF_METADATA_KEY, rawData, AS_OF_LABEL);
   }
 
   public static @Nullable LocalDate sentDate(
       Map<String, Object> metadata, List<Map<String, Object>> rawData) {
-    return headerDate(metadata, "sentDate", rawData, SENT_LABEL);
+    return headerDate(metadata, SENT_METADATA_KEY, rawData, SENT_LABEL);
+  }
+
+  public static @Nullable String unreadableAsOfValue(
+      Map<String, Object> metadata, List<Map<String, Object>> rawData) {
+    if (asOfDate(metadata, rawData) != null) {
+      return null;
+    }
+    String fromMetadata = string(metadata.get(AS_OF_METADATA_KEY));
+    if (fromMetadata != null) {
+      return fromMetadata;
+    }
+    return rawData.stream()
+        .filter(row -> AS_OF_LABEL.equals(string(row.get(LABEL_COLUMN))))
+        .map(row -> string(row.get(VALUE_COLUMN)))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
   }
 
   private static @Nullable LocalDate headerDate(

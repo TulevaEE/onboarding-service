@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.type.filter.AssignableTypeFilter;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -33,8 +36,8 @@ class ReportSourceTest {
   @Mock private S3Client s3Client;
 
   @Test
-  void swedbankSource_fetch_returnsInputStream() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+  void sebSource_fetch_returnsInputStream() {
+    SebReportSource source = new SebReportSource(s3Client);
     LocalDate date = LocalDate.of(2026, 1, 15);
     String content = "test,data";
     var response =
@@ -51,8 +54,8 @@ class ReportSourceTest {
   }
 
   @Test
-  void swedbankSource_fetch_returnsEmptyWhenNotFound() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+  void sebSource_fetch_returnsEmptyWhenNotFound() {
+    SebReportSource source = new SebReportSource(s3Client);
     LocalDate date = LocalDate.of(2026, 1, 15);
 
     when(s3Client.getObject(any(GetObjectRequest.class)))
@@ -64,34 +67,14 @@ class ReportSourceTest {
   }
 
   @Test
-  void swedbankSource_fetch_throwsRuntimeExceptionOnS3Error() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+  void sebSource_fetch_throwsRuntimeExceptionOnS3Error() {
+    SebReportSource source = new SebReportSource(s3Client);
     LocalDate date = LocalDate.of(2026, 1, 15);
     S3Exception exception =
         (S3Exception) S3Exception.builder().statusCode(500).message("Server error").build();
     when(s3Client.getObject(any(GetObjectRequest.class))).thenThrow(exception);
 
     assertThatThrownBy(() -> source.fetch(POSITIONS, date)).isInstanceOf(RuntimeException.class);
-  }
-
-  @Test
-  void swedbankSource_getProvider_returnsSwedbank() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
-    assertThat(source.getProvider()).isEqualTo(SWEDBANK);
-  }
-
-  @Test
-  void swedbankSource_getSupportedReportTypes_returnsPositionsOnly() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
-    assertThat(source.getSupportedReportTypes()).containsExactly(POSITIONS);
-  }
-
-  @Test
-  void swedbankSource_getKey_returnsCorrectPath() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
-    LocalDate date = LocalDate.of(2026, 1, 15);
-
-    assertThat(source.getKey(POSITIONS, date)).isEqualTo("portfolio/2026-01-15.csv");
   }
 
   @Test
@@ -125,7 +108,7 @@ class ReportSourceTest {
 
   @Test
   void abstractSource_getBucket_returnsBucketName() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+    SebReportSource source = new SebReportSource(s3Client);
     assertThat(source.getBucket()).isEqualTo("tuleva-investment-reports");
   }
 
@@ -157,12 +140,30 @@ class ReportSourceTest {
   }
 
   @Test
-  void swedbankSource_extractCsvMetadata_returnsEmptyMap() {
-    SwedbankReportSource source = new SwedbankReportSource(s3Client);
+  void reportSourceComponents_requestOnlySebKeys() {
+    var scanner = new ClassPathScanningCandidateComponentProvider(false);
+    scanner.addIncludeFilter(new AssignableTypeFilter(ReportSource.class));
 
-    Map<String, Object> metadata =
-        source.extractCsvMetadata("some;csv;data".getBytes(StandardCharsets.UTF_8));
+    var keys =
+        scanner.findCandidateComponents("ee.tuleva.onboarding").stream()
+            .map(this::instantiate)
+            .flatMap(
+                source ->
+                    source.getSupportedReportTypes().stream()
+                        .map(reportType -> source.getKey(reportType, LocalDate.of(2026, 1, 15))))
+            .toList();
 
-    assertThat(metadata).isEmpty();
+    assertThat(keys)
+        .containsExactlyInAnyOrder(
+            "seb/2026-01-15_positions.csv", "seb/2026-01-15_pending_transactions.csv");
+  }
+
+  private ReportSource instantiate(BeanDefinition beanDefinition) {
+    try {
+      Class<?> type = Class.forName(requireNonNull(beanDefinition.getBeanClassName()));
+      return (ReportSource) type.getConstructor(S3Client.class).newInstance(s3Client);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Cannot instantiate report source: " + beanDefinition, e);
+    }
   }
 }

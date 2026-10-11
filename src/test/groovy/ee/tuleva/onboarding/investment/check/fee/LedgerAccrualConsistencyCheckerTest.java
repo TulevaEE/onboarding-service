@@ -111,11 +111,21 @@ class LedgerAccrualConsistencyCheckerTest {
   }
 
   @Test
-  void twoLedgerEntriesForOneAccrualDayFail() {
-    givenAccruals(accrual(DAY_ONE, "5.89"));
-    givenLedger(ledger(DAY_ONE, "-5.89"), ledger(DAY_ONE, "-5.89"));
+  void aRevisedDayWhoseLedgerEntriesSumToTheAccrualPasses() {
+    givenAccruals(accrual(DAY_ONE, "5.56"));
+    givenLedger(ledger(DAY_ONE, "-5.89"), ledger(DAY_ONE, "0.33"));
 
-    assertThat(check().getFirst().severity()).isEqualTo(FAIL);
+    assertThat(check()).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
+  @Test
+  void aRevisedDayWhoseLedgerEntriesDoNotSumToTheAccrualFails() {
+    givenAccruals(accrual(DAY_ONE, "5.89"));
+    givenLedger(ledger(DAY_ONE, "-5.89"), ledger(DAY_ONE, "0.33"));
+
+    FeeCheckFinding finding = check().getFirst();
+    assertThat(finding.severity()).isEqualTo(FAIL);
+    assertThat(finding.deviationAmount()).isEqualByComparingTo("0.33");
   }
 
   @Test

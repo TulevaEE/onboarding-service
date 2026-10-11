@@ -14,7 +14,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -96,6 +95,22 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public List<SavingFundPayment> findUnconfirmedPayments(
+      Instant createdAfter, Instant createdBefore) {
+    return jdbcTemplate.query(
+        """
+        select * from saving_fund_payment
+        where status = 'CREATED'
+          and created_at >= :created_after and created_at < :created_before
+          and cancelled_at is null
+        order by created_at asc
+        """,
+        Map.of(
+            "created_after", Timestamp.from(createdAfter),
+            "created_before", Timestamp.from(createdBefore)),
+        this::rowMapper);
+  }
+
   public List<SavingFundPayment> findRecentPayments(String description) {
     return jdbcTemplate.query(
         "select * from saving_fund_payment where description=:description"
@@ -103,23 +118,6 @@ public class SavingFundPaymentRepository {
         Map.of(
             "description", description, "recent", Timestamp.from(clock.instant().minus(30, DAYS))),
         this::rowMapper);
-  }
-
-  public int countIssuedPaymentMonthsSince(PartyId partyId, LocalDate fromDate) {
-    Integer count =
-        jdbcTemplate.queryForObject(
-            """
-            select count(distinct to_char(created_at, 'YYYY-MM')) from saving_fund_payment
-            where party_type = :party_type and party_code = :party_code
-              and status in ('ISSUED', 'PROCESSED')
-              and created_at >= :from_date
-            """,
-            Map.of(
-                "party_type", partyId.type().name(),
-                "party_code", partyId.code(),
-                "from_date", Timestamp.valueOf(fromDate.atStartOfDay())),
-            Integer.class);
-    return count == null ? 0 : count;
   }
 
   public boolean existsIssuedPaymentFor(PartyId partyId) {
@@ -320,7 +318,13 @@ public class SavingFundPaymentRepository {
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
         .returnReason(rs.getString("return_reason"))
+        .thirdPartyDeposit(nullableBoolean(rs, "third_party_deposit"))
         .build();
+  }
+
+  private @Nullable Boolean nullableBoolean(ResultSet rs, String column) throws SQLException {
+    var value = rs.getBoolean(column);
+    return rs.wasNull() ? null : value;
   }
 
   private @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
@@ -377,25 +381,31 @@ public class SavingFundPaymentRepository {
   }
 
   public void attachParty(UUID paymentId, PartyId partyId) {
+    attachParty(paymentId, partyId, null);
+  }
+
+  public void attachParty(UUID paymentId, PartyId partyId, @Nullable Boolean thirdPartyDeposit) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
           "Attaching party is not allowed when payment is " + currentStatus);
+    var parameters =
+        new MapSqlParameterSource()
+            .addValue("id", paymentId)
+            .addValue("party_type", partyId.type().name())
+            .addValue("party_code", partyId.code())
+            .addValue("third_party_deposit", thirdPartyDeposit);
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
-        Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code,"
+            + " third_party_deposit=:third_party_deposit WHERE id=:id",
+        parameters);
   }
 
-  public void attributeManually(UUID paymentId, PartyId partyId, boolean returnCancelled) {
+  public void attributeManually(UUID paymentId, PartyId partyId) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(TO_BE_RETURNED, RETURNED).contains(currentStatus))
       throw new IllegalStateException(
           "Manual attribution is not allowed when payment is " + currentStatus);
-    if (currentStatus == RETURNED && !returnCancelled)
-      throw new IllegalStateException(
-          "Outbound return may still be in flight for RETURNED payment; cancel the pending bank"
-              + " return first, then retry with returnCancelled=true: paymentId="
-              + paymentId);
     log.info(
         "SavingFundPayment {} manually attributed to party {} {}: {} -> VERIFIED",
         paymentId,

@@ -1,5 +1,13 @@
 {
   "variants": {
+    "II samba avamise soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "suggestSecondPillarStart": true,
+      "anyPillarSuggestion": true
+    },
     "ainult valikuavaldus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
@@ -54,7 +62,8 @@
       "suggestSecondPillar": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
@@ -62,7 +71,8 @@
       "suggestPaymentRate": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
@@ -70,7 +80,8 @@
       "suggestThirdPillar": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "III samba tasude soovitus": {
       "FNAME": "Mari",
@@ -79,7 +90,8 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "selectedTulevaFund": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "anyPillarSuggestion": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
@@ -87,7 +99,8 @@
       "suggestThirdPillarRecurringPayment": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
@@ -95,7 +108,8 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "suggestThirdPillarRaise": true,
-      "selectedTulevaFund": true
+      "selectedTulevaFund": true,
+      "anyPillarSuggestion": true
     },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",

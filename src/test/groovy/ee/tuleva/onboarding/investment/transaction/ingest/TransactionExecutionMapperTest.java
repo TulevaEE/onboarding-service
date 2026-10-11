@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -84,7 +85,94 @@ class TransactionExecutionMapperTest {
     assertThat(existing.getModifiedBy()).isEqualTo("system:seb-reconciliation");
   }
 
+  @Test
+  void applyTo_keepsTheSettlementDateSebReportedFirstWhenTheRestatementArrivesLater() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+    TransactionExecution existing =
+        TransactionExecution.builder()
+            .id(7L)
+            .orderId(123L)
+            .source("SEB_OOTEL")
+            .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
+            .build();
+
+    mapper.applyTo(existing, rowSettlingOn(clientRef, "2026-05-15"), order);
+
+    assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+  }
+
+  @Test
+  void applyTo_takesTheSettlementDateWhenNoneWasStoredYet() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+    TransactionExecution existing =
+        TransactionExecution.builder().id(7L).orderId(123L).source("SEB_OOTEL").build();
+
+    mapper.applyTo(existing, rowSettlingOn(clientRef, "2026-05-15"), order);
+
+    assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 15));
+  }
+
+  @Test
+  void applyTo_takesTheOldestReportsSettlementDateWhenReportsAreReplayedNewestFirst() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+
+    TransactionExecution execution =
+        mapper.toExecution(
+            rowSettlingOn(clientRef, "2026-05-15"), order, LocalDate.of(2026, 5, 14));
+    mapper.applyTo(execution, rowSettlingOn(clientRef, "2026-05-13"), order);
+
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+  }
+
+  @Test
+  void applyTo_keepsTheStoredSettlementDateWhenTheReportCarriesNone() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+    TransactionExecution existing =
+        TransactionExecution.builder()
+            .id(7L)
+            .orderId(123L)
+            .source("SEB_OOTEL")
+            .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
+            .build();
+
+    mapper.applyTo(existing, rowWithoutSettlementDate(clientRef), order);
+
+    assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+  }
+
+  private static TransactionOrder fundOrder(UUID clientRef) {
+    return TransactionOrder.builder()
+        .id(123L)
+        .fund(TKF100)
+        .instrumentIsin("IE0009FT4LX4")
+        .transactionType(BUY)
+        .instrumentType(FUND)
+        .orderVenue(SEB)
+        .orderUuid(clientRef)
+        .build();
+  }
+
+  private static SebPendingTransactionRow rowSettlingOn(UUID clientRef, String settlementDate) {
+    Map<String, Object> raw = new HashMap<>(rawSample(clientRef));
+    raw.put("Settlement date", settlementDate);
+    return SebPendingTransactionRow.fromRawData(raw);
+  }
+
+  private static SebPendingTransactionRow rowWithoutSettlementDate(UUID clientRef) {
+    Map<String, Object> raw = new HashMap<>(rawSample(clientRef));
+    raw.remove("Settlement date");
+    return SebPendingTransactionRow.fromRawData(raw);
+  }
+
   private static SebPendingTransactionRow sampleRow(UUID clientRef) {
+    return SebPendingTransactionRow.fromRawData(rawSample(clientRef));
+  }
+
+  private static Map<String, Object> rawSample(UUID clientRef) {
     Map<String, Object> raw = new HashMap<>();
     raw.put("ISIN", "IE000F60HVH9");
     raw.put("Price", new BigDecimal("4.7255"));
@@ -100,6 +188,6 @@ class TransactionExecutionMapperTest {
     raw.put("Settlement amount", new BigDecimal("70915.58"));
     raw.put("Client name", "Tuleva Täiendav Kogumisfond");
     raw.put("Instrument name", "ICAV Amundi MSCI USA Screened UCITS ETF");
-    return SebPendingTransactionRow.fromRawData(raw);
+    return raw;
   }
 }

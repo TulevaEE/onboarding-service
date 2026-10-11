@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -34,7 +35,8 @@ public record NavCalculationResult(
       BigDecimal units,
       BigDecimal price,
       BigDecimal marketValue,
-      LocalDate priceDate) {}
+      LocalDate priceDate,
+      PriceSource priceSource) {}
 
   public BigDecimal totalAssets() {
     return securitiesValue

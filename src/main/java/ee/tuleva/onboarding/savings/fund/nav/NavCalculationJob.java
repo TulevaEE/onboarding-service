@@ -1,7 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.pipeline.PipelineStep.NAV_CALCULATION;
+import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.FAILED;
+import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.PUBLISHED;
+import static ee.tuleva.onboarding.savings.fund.nav.NavCalculationJob.FundOutcome.SKIPPED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -13,6 +18,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -82,19 +88,40 @@ public class NavCalculationJob {
   @EventListener
   public void onNavCalculationRequested(RunNavCalculationRequested event) {
     pipelineTracker.stepStarted(NAV_CALCULATION);
-    List<TulevaFund> calculatedFunds = calculateForFunds(event.funds());
-    pipelineTracker.stepCompleted(NAV_CALCULATION);
-    if (!calculatedFunds.isEmpty()) {
-      eventPublisher.publishEvent(new NavCalculationCompleted(calculatedFunds));
+    Map<FundOutcome, List<TulevaFund>> outcomes = calculateForFundsTrackingFailure(event.funds());
+    recordCalculationStep(outcomes.getOrDefault(FAILED, List.of()));
+    List<TulevaFund> publishedFunds = outcomes.getOrDefault(PUBLISHED, List.of());
+    if (!publishedFunds.isEmpty()) {
+      eventPublisher.publishEvent(new NavCalculationCompleted(publishedFunds));
     }
   }
 
-  private List<TulevaFund> calculateForFunds(List<TulevaFund> funds) {
+  private Map<FundOutcome, List<TulevaFund>> calculateForFundsTrackingFailure(
+      List<TulevaFund> funds) {
+    try {
+      return calculateForFunds(funds);
+    } catch (RuntimeException e) {
+      pipelineTracker.stepFailed(NAV_CALCULATION, e.getMessage());
+      throw e;
+    }
+  }
+
+  private void recordCalculationStep(List<TulevaFund> failedFunds) {
+    if (failedFunds.isEmpty()) {
+      pipelineTracker.stepCompleted(NAV_CALCULATION);
+      return;
+    }
+    String failedFundCodes = failedFunds.stream().map(TulevaFund::getCode).collect(joining(","));
+    pipelineTracker.stepFailed(
+        NAV_CALCULATION, "NAV calculation failed: funds=%s".formatted(failedFundCodes));
+  }
+
+  private Map<FundOutcome, List<TulevaFund>> calculateForFunds(List<TulevaFund> funds) {
     LocalDate today = LocalDate.now(clock);
 
     if (!publicHolidays.isWorkingDay(today)) {
       log.info("Skipping NAV calculation on non-working day: date={}", today);
-      return List.of();
+      return Map.of();
     }
 
     List<TulevaFund> fundsToCalculate =
@@ -104,7 +131,7 @@ public class NavCalculationJob {
             .toList();
     if (fundsToCalculate.isEmpty()) {
       log.info("NAV already published for all funds, skipping: funds={}, date={}", funds, today);
-      return List.of();
+      return Map.of();
     }
 
     try {
@@ -113,22 +140,29 @@ public class NavCalculationJob {
       log.error("Failed to refresh fund values, continuing with NAV calculation", e);
     }
 
-    return fundsToCalculate.stream().filter(fund -> tryCalculateAndPublish(fund, today)).toList();
+    return fundsToCalculate.stream()
+        .collect(groupingBy(fund -> tryCalculateAndPublish(fund, today)));
   }
 
-  private boolean tryCalculateAndPublish(TulevaFund fund, LocalDate today) {
+  private FundOutcome tryCalculateAndPublish(TulevaFund fund, LocalDate today) {
     if (isNavAlreadyPublishedToday(fund, today)) {
       log.info("NAV published by concurrent run, skipping: fund={}, date={}", fund, today);
-      return false;
+      return SKIPPED;
     }
     try {
       calculateAndPublish(fund, today);
-      return true;
+      return PUBLISHED;
     } catch (Exception e) {
       log.error(
           "Failed NAV calculation, continuing with next fund: fund={}, date={}", fund, today, e);
-      return false;
+      return FAILED;
     }
+  }
+
+  enum FundOutcome {
+    PUBLISHED,
+    SKIPPED,
+    FAILED
   }
 
   private boolean isNavAlreadyPublishedToday(TulevaFund fund, LocalDate today) {

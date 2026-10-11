@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
 import ee.tuleva.onboarding.notification.email.firstpayment.FirstThirdPillarPayment;
-import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -62,24 +61,10 @@ public class FirstThirdPillarPaymentRepository {
                COALESCE(uo.language_preference, 'EST') AS language_preference,
                fa.amount,
                fa.first_payment_date,
-               (u.id IS NOT NULL) AS has_tuleva_user,
-               (COALESCE(uo.p2_rava_status, '') <> 'R'
-                 AND (uo.personal_id IS NULL
-                   OR uo.p2_choice IS NULL
-                   OR uo.p2_choice NOT IN ('TUK75', 'TUK00'))) AS suggest_second_pillar,
-               (COALESCE(uo.p2_rava_status, '') <> 'R'
-                 AND COALESCE(uo.p2_next_rate, uo.p2_rate, 2) < 6) AS suggest_payment_rate,
-               (m.id IS NULL) AS suggest_membership,
-               (COALESCE(uo.p2_rava_status, '') = 'R') AS left_second_pillar,
-               EXISTS (
-                 SELECT 1 FROM saving_fund_payment sfp
-                 WHERE sfp.party_type = 'PERSON'
-                   AND sfp.party_code = fa.personal_id
-                   AND sfp.status IN ('ISSUED', 'PROCESSED')) AS saves_in_savings_fund
+               (u.id IS NOT NULL) AS has_tuleva_user
         FROM first_amounts fa
         LEFT JOIN users u ON u.personal_code = fa.personal_id
         LEFT JOIN latest_unit_owner uo ON uo.personal_id = fa.personal_id
-        LEFT JOIN member m ON m.user_id = u.id
         WHERE COALESCE(NULLIF(u.email, ''), NULLIF(uo.email, '')) IS NOT NULL
           AND COALESCE(NULLIF(u.first_name, ''), NULLIF(uo.first_name, '')) IS NOT NULL
           AND COALESCE(NULLIF(u.last_name, ''), NULLIF(uo.last_name, '')) IS NOT NULL
@@ -118,17 +103,7 @@ public class FirstThirdPillarPaymentRepository {
                     rs.getString("language_preference"),
                     rs.getBigDecimal("amount"),
                     rs.getObject("first_payment_date", LocalDate.class),
-                    rs.getBoolean("has_tuleva_user"),
-                    rs.getBoolean("suggest_second_pillar")
-                        && !hasReachedRetirementAge(rs.getString("personal_id")),
-                    rs.getBoolean("suggest_payment_rate"),
-                    rs.getBoolean("suggest_membership"),
-                    rs.getBoolean("left_second_pillar"),
-                    rs.getBoolean("saves_in_savings_fund")))
+                    rs.getBoolean("has_tuleva_user")))
         .list();
-  }
-
-  private static boolean hasReachedRetirementAge(String personalCode) {
-    return PersonalCode.getAge(personalCode) >= PersonalCode.getRetirementAge(personalCode);
   }
 }

@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.banking.message;
 import ee.tuleva.onboarding.banking.BankType;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "banking_message")
@@ -34,6 +36,16 @@ public class BankingMessage {
   public ZoneId getTimezoneId() {
     return ZoneId.of(timezone);
   }
+
+  @Enumerated(EnumType.STRING)
+  @Nullable
+  private BankMessageType messageType;
+
+  @Nullable private String accountIban;
+
+  @Nullable private LocalDate statementFrom;
+
+  @Nullable private LocalDate statementTo;
 
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant failedAt;

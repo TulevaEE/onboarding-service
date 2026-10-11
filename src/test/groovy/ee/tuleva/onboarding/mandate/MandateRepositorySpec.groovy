@@ -104,6 +104,26 @@ class MandateRepositorySpec extends Specification {
     noExceptionThrown()
   }
 
+  def "a mandate keeps the language it was created in"() {
+    given:
+    def savedMandate = Mandate.builder()
+      .user(savedUser)
+      .pillar(2)
+      .details(new TransferCancellationMandateDetails("EE_TEST_ISIN", SECOND))
+      .address(countryFixture().build())
+      .metadata([:])
+      .build()
+    savedMandate.locale = Locale.ENGLISH
+    entityManager.persistAndFlush(savedMandate)
+    entityManager.clear()
+
+    when:
+    def mandate = repository.findByIdAndUserId(savedMandate.id, savedUser.id)
+
+    then:
+    mandate.locale == Locale.ENGLISH
+  }
+
   def "PaymentRateChangeMandateDetails round-trips through JSONB"() {
     given:
     def mandate = persistMandateWithDetails(aPaymentRateChangeMandateDetails)

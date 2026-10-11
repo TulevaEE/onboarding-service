@@ -91,6 +91,8 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private @Nullable BigDecimal paymentRate;
 
+  private @Nullable Locale locale;
+
   @Builder
   Mandate(
       User user,

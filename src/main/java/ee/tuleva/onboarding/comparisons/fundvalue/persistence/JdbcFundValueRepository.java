@@ -90,7 +90,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       ) v ORDER BY v.date ASC
       """;
 
-  private static final String FIND_LATEST_DATE_BY_KEYS_QUERY =
+  static final String FIND_LATEST_DATE_BY_KEYS_QUERY =
       """
       SELECT key, MAX(date) AS latest_date
       FROM index_values
@@ -157,7 +157,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         });
   }
 
-  private static class FundValueRowMapper implements RowMapper<FundValue> {
+  static class FundValueRowMapper implements RowMapper<FundValue> {
 
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -302,54 +302,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             "key", fundKey,
             "startDate", startDate,
             "endDate", endDate);
-
-    return jdbcTemplate.query(query, params, new FundValueRowMapper());
-  }
-
-  @Override
-  public List<FundValue> findLatestValuesByKeys(List<String> keys) {
-    if (keys.isEmpty()) {
-      return List.of();
-    }
-    String query =
-        """
-        SELECT iv.*
-        FROM index_values iv
-        INNER JOIN (
-            SELECT key, MAX(date) AS max_date
-            FROM index_values
-            WHERE key IN (:keys)
-            GROUP BY key
-        ) latest ON iv.key = latest.key AND iv.date = latest.max_date
-        WHERE iv.key IN (:keys)
-        ORDER BY iv.key
-        """;
-
-    return jdbcTemplate.query(query, Map.of("keys", keys), new FundValueRowMapper());
-  }
-
-  @Override
-  public List<FundValue> findValuesBetweenDatesForKeys(
-      List<String> keys, LocalDate startDate, LocalDate endDate, int maxRows) {
-    if (keys.isEmpty()) {
-      return List.of();
-    }
-    String query =
-        """
-        SELECT *
-        FROM index_values
-        WHERE key IN (:keys)
-        AND date BETWEEN :startDate AND :endDate
-        ORDER BY key, date
-        LIMIT :maxRows
-        """;
-
-    Map<String, Object> params =
-        Map.of(
-            "keys", keys,
-            "startDate", startDate,
-            "endDate", endDate,
-            "maxRows", maxRows);
 
     return jdbcTemplate.query(query, params, new FundValueRowMapper());
   }

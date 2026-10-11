@@ -79,6 +79,11 @@ class AdminTokenValidatorTest {
   }
 
   @Test
+  void validateReadAccessPassesWhenTokenMatchesTheOpsToken() {
+    assertThatCode(() -> validator.validateReadAccess(OPS_TOKEN)).doesNotThrowAnyException();
+  }
+
+  @Test
   void validateReadAccessThrowsUnauthorizedWhenTokenMatchesNeither() {
     assertThatThrownBy(() -> validator.validateReadAccess("wrong-token"))
         .isInstanceOf(ResponseStatusException.class)
@@ -101,7 +106,7 @@ class AdminTokenValidatorTest {
 
   @Test
   void validateReadAccessThrowsServiceUnavailableWhenNoReadCredentialIsConfigured() {
-    AdminTokenValidator validator = new AdminTokenValidator("", OPS_TOKEN, "");
+    AdminTokenValidator validator = new AdminTokenValidator("", "", "");
 
     assertThatThrownBy(() -> validator.validateReadAccess("any-token"))
         .isInstanceOf(ResponseStatusException.class)

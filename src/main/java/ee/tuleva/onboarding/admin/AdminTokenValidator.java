@@ -37,18 +37,22 @@ public class AdminTokenValidator {
   }
 
   public void validateWithOpsAccess(String token) {
-    if (!matches(adminApiToken, token) && !matches(opsToken, token)) {
+    if (!opensOps(token)) {
       throw unauthorized();
     }
   }
 
   public void validateReadAccess(String token) {
-    if (readToken.isBlank() && adminApiToken.isBlank()) {
+    if (readToken.isBlank() && opsToken.isBlank() && adminApiToken.isBlank()) {
       throw notConfigured();
     }
-    if (!matches(readToken, token) && !matches(adminApiToken, token)) {
+    if (!matches(readToken, token) && !opensOps(token)) {
       throw unauthorized();
     }
+  }
+
+  private boolean opensOps(String token) {
+    return matches(adminApiToken, token) || matches(opsToken, token);
   }
 
   private static boolean matches(String configured, String presented) {

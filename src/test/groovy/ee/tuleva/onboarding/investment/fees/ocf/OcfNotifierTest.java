@@ -91,7 +91,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 2 funds has gaps
-              A component resolved to zero instead of failing, so that total is understated and
+              Not every component was computed from complete inputs, so that total is provisional and
               must not be published until it is complete.
               ✅ TUK75 2026-04: 0.34%
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
@@ -115,7 +115,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 1 funds has gaps
-              A component resolved to zero instead of failing, so that total is understated and
+              Not every component was computed from complete inputs, so that total is provisional and
               must not be published until it is complete.
               ⚠️ TUK75 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION, \
             TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM""",
@@ -136,7 +136,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 2 of 2 funds have gaps
-              A component resolved to zero instead of failing, so those totals are understated and
+              Not every component was computed from complete inputs, so those totals are provisional and
               must not be published until they are complete.
               ⚠️ TUK75 2026-04: 0.34%, incomplete — NO_PUBLISHED_NAV_CALCULATION
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
@@ -171,8 +171,8 @@ class OcfNotifierTest {
             """
             ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed
               Nothing here says what their OCF is this period. The rest were written.
-            ⚠️ 1 of the written ones has gaps: a component resolved to zero instead of failing,
-              so that total is understated and must not be published until it is complete.
+            ⚠️ 1 of the written ones has gaps: not every component was computed from complete inputs,
+              so that total is provisional and must not be published until it is complete.
               🛑 TUK75 2026-04: no rate for XX0000000001
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
@@ -194,8 +194,8 @@ class OcfNotifierTest {
             """
             ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 3 funds failed
               Nothing here says what their OCF is this period. The rest were written.
-            ⚠️ 2 of the written ones have gaps: a component resolved to zero instead of failing,
-              so those totals are understated and must not be published until they are complete.
+            ⚠️ 2 of the written ones have gaps: not every component was computed from complete inputs,
+              so those totals are provisional and must not be published until they are complete.
               🛑 TUK75 2026-04: no rate for XX0000000001
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION
               ⚠️ TUV100 2026-04: 0.40%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",

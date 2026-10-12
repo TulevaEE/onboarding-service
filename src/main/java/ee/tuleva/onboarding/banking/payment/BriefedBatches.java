@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBriefJob.BRIEF_CRON;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class BriefedBatches {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final Comparator<OutgoingPayment> IN_THE_ORDER_SENT =
+      comparing(OutgoingPayment::getAttemptedAt).thenComparing(OutgoingPayment::getEndToEndId);
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final PublicHolidays publicHolidays;
@@ -25,10 +29,12 @@ class BriefedBatches {
     var payments =
         outgoingPaymentRepository.findByAttemptedAtBetween(after, until).stream()
             .filter(payment -> payment.getAttemptedAt().isAfter(after))
+            .sorted(IN_THE_ORDER_SENT)
             .toList();
     var carriedOver =
         outgoingPaymentRepository.findAwaitingApproval().stream()
             .filter(payment -> !payment.getAttemptedAt().isAfter(after))
+            .sorted(IN_THE_ORDER_SENT)
             .toList();
     return new BriefedBatch(after, until, payments, carriedOver);
   }

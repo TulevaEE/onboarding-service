@@ -640,6 +640,76 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
+  void
+      anIndexFundBuyFirstReportedOnThePositionDateStillReservesItsCashBecauseTheReportMayBookItADayLater() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE0009FT4LX4",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.EXECUTED,
+                    null,
+                    new BigDecimal("2716594"),
+                    POSITION_DATE.minusDays(3))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("2716594"));
+  }
+
+  @Test
+  void anIndexFundSaleFirstReportedOnThePositionDateIsNotCountedAsIncomingCash() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE0009FT4LX4",
+                    TransactionType.SELL,
+                    InstrumentType.FUND,
+                    OrderStatus.EXECUTED,
+                    null,
+                    new BigDecimal("2716594"),
+                    POSITION_DATE.minusDays(3))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void anIndexFundFillReportedBeforeThePositionDateIsLeftToTheReport() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE0009FT4LX4",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.EXECUTED,
+                    null,
+                    new BigDecimal("2716594"),
+                    POSITION_DATE.minusDays(3))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "171871.062", "2716594", POSITION_DATE.minusDays(1))));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void aFillWithNoReportedDateIsNotSynthesizedButStillReservesItsCash() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(

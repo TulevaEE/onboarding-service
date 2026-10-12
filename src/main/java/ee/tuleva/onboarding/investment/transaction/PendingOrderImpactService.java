@@ -73,7 +73,7 @@ class PendingOrderImpactService {
       List<TransactionExecution> executions =
           executionsByOrder.getOrDefault(order.getId(), List.of());
       ExecutedTotals executed = ExecutedTotals.of(executions);
-      List<ClassifiedFill> fills = classifyAgainstPositionReport(executions, positionDate);
+      List<ClassifiedFill> fills = classifyAgainstPositionReport(order, executions, positionDate);
       BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
       addUnreportedPositions(
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
@@ -102,9 +102,11 @@ class PendingOrderImpactService {
   }
 
   private static List<ClassifiedFill> classifyAgainstPositionReport(
-      List<TransactionExecution> executions, LocalDate positionDate) {
+      TransactionOrder order, List<TransactionExecution> executions, LocalDate positionDate) {
     return executions.stream()
-        .map(execution -> new ClassifiedFill(execution, inPositionReport(execution, positionDate)))
+        .map(
+            execution ->
+                new ClassifiedFill(execution, inPositionReport(order, execution, positionDate)))
         .toList();
   }
 
@@ -189,7 +191,7 @@ class PendingOrderImpactService {
   }
 
   private static InPositionReport inPositionReport(
-      TransactionExecution execution, LocalDate positionDate) {
+      TransactionOrder order, TransactionExecution execution, LocalDate positionDate) {
     if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
       return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
     }
@@ -198,9 +200,17 @@ class PendingOrderImpactService {
       warnUndated(execution, positionDate);
       return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
     }
-    return reportedDate.isAfter(positionDate)
-        ? InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH
-        : InPositionReport.SHOWN_SO_THE_REPORT_CARRIES_ITS_CASH;
+    if (reportedDate.isAfter(positionDate)) {
+      return InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
+    }
+    if (reportedDate.isEqual(positionDate) && order.getInstrumentType() != ETF) {
+      return fundFillTheReportMayBookOnlyTheNextDay();
+    }
+    return InPositionReport.SHOWN_SO_THE_REPORT_CARRIES_ITS_CASH;
+  }
+
+  private static InPositionReport fundFillTheReportMayBookOnlyTheNextDay() {
+    return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
   }
 
   private static InPositionReport unfilledRemainderInPositionReport(

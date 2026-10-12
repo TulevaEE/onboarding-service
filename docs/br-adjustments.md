@@ -62,6 +62,17 @@ curl -X POST 'https://onboarding-service.tuleva.ee/admin/blackrock-adjustment?fu
 
 If `delta` is 0 and `transactionCreated` is false, the balance was already correct.
 
+## When a rebate lands
+
+Once a rebate is credited to the fund's bank account, the cash is in the NAV, so a receivable that included it has
+to come down. After the rebate is booked, record the new target balance with a `date` on or after the rebate's booking
+date, within one working day (`REBATE_ADJUSTMENT_DEADLINE_WORKING_DAYS` in `investment_parameter`). Otherwise the daily
+fee check warns with `BLACKROCK_ADJUSTMENT_AFTER_REBATE`, naming the rebate's booking date and amount. An adjustment
+recorded before the rebate was booked does not count, even when it is dated the same day.
+
+If the receivable was already right, the call records nothing, which does not count as moving it; the warning then
+clears by itself 5 working days after the deadline (`investment.fee-check.unadjusted-rebate-reported-working-days`).
+
 ## Verifying NAV after adjustments
 
 After recording adjustments, verify the NAV matches the spreadsheet:

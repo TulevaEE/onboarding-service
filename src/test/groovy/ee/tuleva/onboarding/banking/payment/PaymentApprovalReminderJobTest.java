@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_BATCH_SETTLED;
-import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.EVERY_HALF_HOUR_FROM_TWENTY_PAST_FOUR_CRON;
-import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.FROM_TWENTY_PAST_FOUR_CRON;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.EVERY_FIVE_MINUTES_UNTIL_QUARTER_TO_FIVE_CRON;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.EVERY_QUARTER_HOUR_AFTER_QUARTER_TO_FIVE_CRON;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.FROM_QUARTER_PAST_FOUR_CRON;
 import static ee.tuleva.onboarding.banking.payment.PaymentApprovalReminderJob.UNTIL_SIX_CRON;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static java.time.ZoneOffset.UTC;
@@ -35,8 +36,8 @@ class PaymentApprovalReminderJobTest {
   private static final LocalDate WEDNESDAY = LocalDate.parse("2026-09-23");
   private static final Instant WEDNESDAY_AT_16_20_IN_TALLINN =
       Instant.parse("2026-09-23T13:20:00.040Z");
-  private static final Instant WEDNESDAY_AT_16_25_IN_TALLINN =
-      Instant.parse("2026-09-23T13:25:00.040Z");
+  private static final Instant WEDNESDAY_AT_17_05_IN_TALLINN =
+      Instant.parse("2026-09-23T14:05:00.040Z");
   private static final Instant WEDNESDAY_AT_17_55_IN_TALLINN =
       Instant.parse("2026-09-23T14:55:00.040Z");
   private static final Instant CHRISTMAS_EVE_AT_16_20_IN_TALLINN =
@@ -58,7 +59,7 @@ class PaymentApprovalReminderJobTest {
   @Mock private OperationsNotificationService notificationService;
 
   @Test
-  void remind_postsTheReminderOnTheHalfHourRunsWhileBriefedPaymentsAreUnexecuted() {
+  void remind_postsTheReminderOnAReminderRunWhileBriefedPaymentsAreUnexecuted() {
     given(briefedBatches.on(WEDNESDAY)).willReturn(BATCH);
     given(reminder.forPaymentsStillUnexecuted(BATCH, WEDNESDAY))
         .willReturn(Optional.of("payments still unexecuted"));
@@ -71,11 +72,11 @@ class PaymentApprovalReminderJobTest {
   }
 
   @Test
-  void remind_leavesOutTheReminderOnTheRunsBetweenTheHalfHours() {
+  void remind_leavesOutTheReminderOnTheRunsBetweenTheQuarterHoursAfterQuarterToFive() {
     given(briefedBatches.on(WEDNESDAY)).willReturn(BATCH);
     given(settlementCheck.closingFor(BATCH, WEDNESDAY)).willReturn(Optional.empty());
 
-    jobAt(WEDNESDAY_AT_16_25_IN_TALLINN).remind();
+    jobAt(WEDNESDAY_AT_17_05_IN_TALLINN).remind();
 
     verifyNoInteractions(reminder, notificationService);
   }
@@ -85,7 +86,7 @@ class PaymentApprovalReminderJobTest {
     given(briefedBatches.on(WEDNESDAY)).willReturn(BATCH);
     given(settlementCheck.closingFor(BATCH, WEDNESDAY)).willReturn(Optional.of(CLOSING));
 
-    jobAt(WEDNESDAY_AT_16_25_IN_TALLINN).remind();
+    jobAt(WEDNESDAY_AT_17_05_IN_TALLINN).remind();
 
     then(notificationService).should().sendMessage("all fine", SAVINGS);
     then(settlementCheck).should().markPosted(CLOSING);
@@ -123,11 +124,11 @@ class PaymentApprovalReminderJobTest {
   }
 
   @Test
-  void runs_fireEveryFiveMinutesFromTwentyPastFourUntilFiveToSix() {
-    var fires = firesOn("2026-09-23", FROM_TWENTY_PAST_FOUR_CRON, UNTIL_SIX_CRON);
+  void runs_fireEveryFiveMinutesFromQuarterPastFourUntilFiveToSix() {
+    var fires = firesOn("2026-09-23", FROM_QUARTER_PAST_FOUR_CRON, UNTIL_SIX_CRON);
 
-    assertThat(fires).hasSize(20);
-    assertThat(fires.getFirst().toLocalTime()).hasToString("16:20");
+    assertThat(fires).hasSize(21);
+    assertThat(fires.getFirst().toLocalTime()).hasToString("16:15");
     assertThat(fires.getLast().toLocalTime()).hasToString("17:55");
     for (int i = 1; i < fires.size(); i++) {
       assertThat(Duration.between(fires.get(i - 1), fires.get(i))).isEqualTo(Duration.ofMinutes(5));
@@ -135,18 +136,24 @@ class PaymentApprovalReminderJobTest {
   }
 
   @Test
-  void reminders_comeAtMostEveryHalfHourOnRunsOfTheJob() {
-    var reminders = firesOn("2026-09-23", EVERY_HALF_HOUR_FROM_TWENTY_PAST_FOUR_CRON);
+  void reminders_comeEveryFiveMinutesUntilQuarterToFiveThenEveryQuarterHourOnRunsOfTheJob() {
+    var reminders =
+        firesOn(
+            "2026-09-23",
+            EVERY_FIVE_MINUTES_UNTIL_QUARTER_TO_FIVE_CRON,
+            EVERY_QUARTER_HOUR_AFTER_QUARTER_TO_FIVE_CRON);
 
     assertThat(reminders.stream().map(fire -> fire.toLocalTime().toString()))
-        .containsExactly("16:20", "16:50", "17:20", "17:50");
-    assertThat(firesOn("2026-09-23", FROM_TWENTY_PAST_FOUR_CRON, UNTIL_SIX_CRON))
+        .containsExactly(
+            "16:15", "16:20", "16:25", "16:30", "16:35", "16:40", "16:45", "17:00", "17:15",
+            "17:30", "17:45");
+    assertThat(firesOn("2026-09-23", FROM_QUARTER_PAST_FOUR_CRON, UNTIL_SIX_CRON))
         .containsAll(reminders);
   }
 
   @Test
   void runs_doNotFireAtTheWeekend() {
-    assertThat(firesOn("2026-09-26", FROM_TWENTY_PAST_FOUR_CRON, UNTIL_SIX_CRON)).isEmpty();
+    assertThat(firesOn("2026-09-26", FROM_QUARTER_PAST_FOUR_CRON, UNTIL_SIX_CRON)).isEmpty();
   }
 
   private PaymentApprovalReminderJob jobAt(Instant now) {

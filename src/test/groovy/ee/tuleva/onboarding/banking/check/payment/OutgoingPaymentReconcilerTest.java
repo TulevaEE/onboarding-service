@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -31,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class OutgoingPaymentReconcilerTest {
 
   private static final Instant NOW = Instant.parse("2026-04-10T12:00:00Z");
-  private static final Duration EXECUTION_DEADLINE = Duration.ofHours(24);
+  private static final Instant WEDNESDAYS_BRIEF = Instant.parse("2026-04-08T13:10:00Z");
   private static final Duration IN_FLIGHT_GRACE = Duration.ofMinutes(15);
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
@@ -41,7 +42,11 @@ class OutgoingPaymentReconcilerTest {
 
   private OutgoingPaymentReconciler reconciler() {
     return new OutgoingPaymentReconciler(
-        outgoingPaymentRepository, paymentCheckService, clock, EXECUTION_DEADLINE, IN_FLIGHT_GRACE);
+        outgoingPaymentRepository,
+        paymentCheckService,
+        new PublicHolidays(),
+        clock,
+        IN_FLIGHT_GRACE);
   }
 
   // A payment we submitted that the bank never executed is usually nobody having approved it.
@@ -69,15 +74,15 @@ class OutgoingPaymentReconcilerTest {
         .record(eq(PAYMENT_INDETERMINATE), eq(WARNING), eq("E2E-IN-FLIGHT"), anyString());
   }
 
-  // The two statuses get different windows on purpose: a submitted payment has all day to execute,
-  // an in-flight one is alarming within minutes.
+  // The two statuses get different windows on purpose: a submitted payment has a working day after
+  // its brief to execute, an in-flight one is alarming within minutes.
   @Test
   void eachStatusIsMeasuredAgainstItsOwnWindow() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)
         .should()
-        .findByStatusAndAttemptedAtBefore(SUBMITTED, NOW.minus(EXECUTION_DEADLINE));
+        .findByStatusAndAttemptedAtBefore(SUBMITTED, WEDNESDAYS_BRIEF);
     then(outgoingPaymentRepository)
         .should()
         .findByStatusAndAttemptedAtBefore(ATTEMPTED, NOW.minus(IN_FLIGHT_GRACE));
@@ -92,9 +97,7 @@ class OutgoingPaymentReconcilerTest {
 
   /** Both queries are stubbed every time: reconcile() always makes both, whatever is overdue. */
   private void givenOverdue(OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
-    given(
-            outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(
-                SUBMITTED, NOW.minus(EXECUTION_DEADLINE)))
+    given(outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(SUBMITTED, WEDNESDAYS_BRIEF))
         .willReturn(overdueStatus == SUBMITTED ? overdue : List.of());
     given(
             outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(

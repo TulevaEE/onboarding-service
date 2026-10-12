@@ -26,6 +26,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -686,6 +688,38 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
+  void
+      aSizeStoredInTheShapeOfTheFirstProductionRun_isComparedWith_soAnUnchangedOneIsFlaggedStale() {
+    var sizeEodhdReported = new BigDecimal("47729608.00");
+    insertOwnershipLimit(AUGUST.atDay(1), "20", "25");
+    storeEventInTheShapeOfTheFirstProductionRun(AUGUST_END, sizeEodhdReported);
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(sizeEodhdReported, EODHD_UPDATED));
+    given(fundValueProvider.getLatestValue(EODHD_EUR_USD_STORAGE_KEY, LocalDate.of(2026, 10, 6)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    EODHD_EUR_USD_STORAGE_KEY,
+                    MONTH_END,
+                    new BigDecimal("1.12"),
+                    "EODHD",
+                    Instant.parse("2026-10-01T05:00:00Z"))));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "2000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .singleElement()
+        .satisfies(
+            stale -> {
+              assertThat(stale.isin()).isEqualTo(INVESCO_EM);
+              assertThat(stale.reportedCurrency()).isEqualTo("USD");
+              assertThat(stale.unchangedSince()).isEqualTo(AUGUST_END);
+            });
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+  }
+
+  @Test
   void aMonthBeforeWhoseEventCannotBeRead_leavesTheFundsResultIntact_saysSo_andIsRetried() {
     insertUnreadableOwnershipEvent(AUGUST_END);
     givenInvescoEmInstrument();
@@ -719,6 +753,44 @@ class OwnershipLimitCheckIT {
                     .eodhdTicker("IE00BFG1TM61.EUFUND")
                     .fundCurrency("EUR")
                     .build()));
+  }
+
+  private void storeEventInTheShapeOfTheFirstProductionRun(
+      LocalDate checkDate, BigDecimal reportedFundSize) {
+    limitCheckEventRepository.save(
+        LimitCheckEvent.builder()
+            .fund(TKF100)
+            .checkDate(checkDate)
+            .checkType(OWNERSHIP)
+            .breachesFound(false)
+            .result(
+                Map.of(
+                    "holdings",
+                    List.of(
+                        new OwnershipBreach(
+                            INVESCO_EM,
+                            "Invesco MSCI EM Universal Screened",
+                            new BigDecimal("2022014.20000000"),
+                            reportedFundSize,
+                            reportedFundSize,
+                            "EUR",
+                            LocalDate.of(2026, 10, 10),
+                            new BigDecimal("4.2364"),
+                            new BigDecimal("20.00000000"),
+                            new BigDecimal("25.00000000"),
+                            OK)),
+                    "unverified",
+                    List.of(
+                        new UnverifiedHolding(
+                            ISHARES_DEVELOPED_WORLD,
+                            "iShares Developed World Screened Index Fund",
+                            new BigDecimal("3440000.00"),
+                            "EODHD has no total assets")),
+                    "coveredEveryHolding",
+                    false))
+            .build());
+    entityManager.flush();
+    entityManager.clear();
   }
 
   private void insertUnreadableOwnershipEvent(LocalDate checkDate) {

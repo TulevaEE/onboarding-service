@@ -6,7 +6,9 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,9 +29,9 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
-import ee.tuleva.onboarding.mandate.email.MandateBatchEmailService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
@@ -66,7 +68,7 @@ class MandateBatchIntegrationTest {
   @MockitoBean private AmlAutoChecker amlAutoChecker;
   @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
   @MockitoBean private OperationsNotificationService notificationService;
-  @MockitoSpyBean private MandateBatchEmailService mandateBatchEmailService;
+  @MockitoSpyBean private EmailService emailService;
 
   // The JWT authenticates samplePerson, and the auth filter creates that user on the server
   // thread, which no test-side transaction can roll back. It outlives the test in the shared
@@ -389,6 +391,9 @@ class MandateBatchIntegrationTest {
         .expectStatus()
         .isOk();
     var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
+    batch.setFile(new byte[] {1, 2, 3});
+    batch.setStatus(SIGNED);
+    mandateBatchRepository.save(batch);
 
     mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
     mandateBatchProcessingPoller.processQueue();
@@ -398,12 +403,18 @@ class MandateBatchIntegrationTest {
         .atMost(Duration.ofSeconds(10))
         .untilAsserted(
             () ->
-                then(mandateBatchEmailService)
+                then(emailService)
                     .should()
-                    .sendMandateBatch(
-                        argThat(user -> user.getPersonalCode().equals(ownerPersonalCode)),
-                        argThat(sentBatch -> sentBatch.getId().equals(batch.getId())),
-                        eq(Locale.ENGLISH)));
+                    .send(
+                        argThat(person -> person.getPersonalCode().equals(ownerPersonalCode)),
+                        argThat(
+                            message ->
+                                message
+                                    .getAttachments()
+                                    .getFirst()
+                                    .getName()
+                                    .endsWith("_avaldused_" + batch.getId() + ".bdoc")),
+                        eq(WITHDRAWAL_BATCH.getTemplateName(Locale.ENGLISH))));
     assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
   }
 

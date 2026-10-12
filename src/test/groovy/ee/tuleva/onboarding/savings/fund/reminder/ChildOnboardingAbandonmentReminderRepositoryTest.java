@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.kyc.survey.KycSurvey;
@@ -236,15 +237,17 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     childOf(PARENT, CHILD);
     childAccountStarted(SECOND_CHILD, NOW.minus(10, DAYS));
     childOf(OTHER_PARENT, SECOND_CHILD);
-    languagePreference(PARENT, "ENG", LATEST_SNAPSHOT.minusDays(1));
-    languagePreference(PARENT, "EST", LATEST_SNAPSHOT);
+    languagePreference(PARENT, "EST", LATEST_SNAPSHOT.minusDays(1));
+    languagePreference(PARENT, "ENG", LATEST_SNAPSHOT);
     languagePreference(OTHER_PARENT, "ENG", LATEST_SNAPSHOT.minusDays(1));
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
     assertThat(reminders)
-        .extracting(ChildOnboardingAbandonmentReminder::locale)
-        .containsExactly(ESTONIAN, ESTONIAN);
+        .extracting(
+            reminder -> reminder.parent().getPersonalCode(),
+            ChildOnboardingAbandonmentReminder::locale)
+        .containsExactly(tuple(PARENT, ENGLISH), tuple(OTHER_PARENT, ESTONIAN));
   }
 
   @Test

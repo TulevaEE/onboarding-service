@@ -38,12 +38,11 @@ public enum EmailType {
   SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON("savings_fund_first_payment_reminder_person"),
   SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD("savings_fund_first_payment_reminder_child"),
   SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD("savings_fund_onboarding_abandonment_child"),
+  SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON("savings_fund_onboarding_completed_person"),
+  SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD("savings_fund_onboarding_completed_child"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
   SAVINGS_FUND_COMPANY_ONBOARDED("savings_fund_company_onboarded"),
-
-  PARENT_CHILD_LINK_CONFIRMATION("parent_child_link_confirmation"),
-  PARENT_CHILD_LINK_ADDED("parent_child_link_added"),
 
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
 

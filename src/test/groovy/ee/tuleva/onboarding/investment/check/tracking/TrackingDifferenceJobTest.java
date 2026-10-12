@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceJob.GAP_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
@@ -159,7 +161,11 @@ class TrackingDifferenceJobTest {
   void aCorrectedNavDateThatCouldNotBeRecheckedIsReportedOnlyAsTheDateThatCouldNotRun() {
     var gap =
         new GapFailure(
-            NAV_DATE, "fund=TUK75, missingIsins=[IE00MISSING1]", 0, NAV_DATE.plusDays(30));
+            NAV_DATE,
+            "fund=TUK75, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            0,
+            NAV_DATE.plusDays(30));
     given(service.fillGaps(GAP_LOOKBACK_DAYS))
         .willReturn(new GapFillRun(List.of(), List.of(gap), Map.of(TUK75, List.of(NAV_DATE))));
 
@@ -169,7 +175,7 @@ class TrackingDifferenceJobTest {
         .should()
         .notifyRunIncomplete(
             "TD daily gap fill",
-            "Incomplete security price data:\n"
+            "Dates the TD gap fill could not check:\n"
                 + "checkDate=2026-09-11, fund=TUK75, missingIsins=[IE00MISSING1]");
     then(notifier).should(never()).notifyGapFillSummary(any());
     then(notifier).should(never()).notify(anyList());
@@ -189,11 +195,16 @@ class TrackingDifferenceJobTest {
   void anIncompleteDailyRunNamesEveryDateItCouldNotCheckAndMarksTheStandingOnes() {
     var freshGap =
         new GapFailure(
-            NAV_DATE, "fund=TUK75, missingIsins=[IE00MISSING1]", 1, NAV_DATE.plusDays(30));
+            NAV_DATE,
+            "fund=TUK75, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            1,
+            NAV_DATE.plusDays(30));
     var standingGap =
         new GapFailure(
             NAV_DATE.minusDays(10),
             "fund=TUK00, missingIsins=[IE00MISSING2]",
+            MISSING_PRICE,
             11,
             NAV_DATE.plusDays(20));
     given(service.fillGaps(GAP_LOOKBACK_DAYS))
@@ -206,7 +217,7 @@ class TrackingDifferenceJobTest {
         .notifyRunIncomplete(
             "TD daily gap fill",
             """
-            Incomplete security price data:
+            Dates the TD gap fill could not check:
             checkDate=2026-09-11, fund=TUK75, missingIsins=[IE00MISSING1]
             checkDate=2026-09-01, fund=TUK00, missingIsins=[IE00MISSING2] [standing gap: \
             unfilled for 11 days, last attempt 2026-10-01 — the missing price has to be inserted \
@@ -215,11 +226,39 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
+  void aStandingNavGapSaysTheNavHasToBePublishedRatherThanThatAPriceIsMissing() {
+    var standingNavGap =
+        new GapFailure(
+            NAV_DATE.minusDays(10),
+            "fund=TUK75, no NAV for the check date",
+            MISSING_NAV,
+            11,
+            NAV_DATE.plusDays(20));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(standingNavGap), Map.of()));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            "Dates the TD gap fill could not check:\n"
+                + "checkDate=2026-09-01, fund=TUK75, no NAV for the check date [standing gap:"
+                + " unfilled for 11 days, last attempt 2026-10-01 — that day's NAV has to be"
+                + " calculated and published; the next gap fill then checks it]");
+  }
+
+  @Test
   void anIncompleteDailyRunStillReportsTheDatesItDidFill() {
     var filled = List.of(result(NAV_DATE));
     var gap =
         new GapFailure(
-            NAV_DATE.minusDays(1), "fund=TUK00, missingIsins=[IE00MISSING1]", 2, NAV_DATE);
+            NAV_DATE.minusDays(1),
+            "fund=TUK00, missingIsins=[IE00MISSING1]",
+            MISSING_PRICE,
+            2,
+            NAV_DATE);
     given(service.fillGaps(GAP_LOOKBACK_DAYS))
         .willReturn(new GapFillRun(filled, List.of(gap), Map.of()));
 
@@ -229,7 +268,7 @@ class TrackingDifferenceJobTest {
         .should()
         .notifyRunIncomplete(
             "TD daily gap fill",
-            "Incomplete security price data:\n"
+            "Dates the TD gap fill could not check:\n"
                 + "checkDate=2026-09-10, fund=TUK00, missingIsins=[IE00MISSING1]");
     then(notifier).should().notify(filled);
   }

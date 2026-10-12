@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.fundbalance;
 
 import ee.tuleva.onboarding.analytics.FundUnitCounts;
+import ee.tuleva.onboarding.fund.FundManagerUnitsInRegister;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class FundBalanceUnitCounts implements FundUnitCounts {
+class FundBalanceUnitCounts implements FundUnitCounts, FundManagerUnitsInRegister {
 
   private final FundBalanceRepository fundBalanceRepository;
 
@@ -18,5 +19,13 @@ class FundBalanceUnitCounts implements FundUnitCounts {
     return fundBalanceRepository
         .findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(isin, date)
         .map(balance -> balance.getCountUnits().add(balance.getCountUnitsFm()));
+  }
+
+  @Override
+  public Optional<BigDecimal> fundManagerUnitsOn(String isin, LocalDate date) {
+    return fundBalanceRepository
+        .findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(isin, date)
+        .filter(balance -> date.equals(balance.getRequestDate()))
+        .map(FundBalance::getCountUnitsFm);
   }
 }

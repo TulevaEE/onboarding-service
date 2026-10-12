@@ -578,6 +578,8 @@ tasks.withType<Test> {
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
     systemProperty("user.timezone", "UTC")
+    // Spring keeps 32 contexts per fork by default; 32 full application contexts no longer fit in 2 GB
+    systemProperty("spring.test.context.cache.maxSize", "16")
     // CircleCI Large (Docker): 8GB RAM, 2 forks × 2GB = 4GB, leaves 4GB for OS/Gradle/PostgreSQL
     // Local dev: 16GB RAM, 3 forks × 2GB = 6GB, leaves 10GB for OS/IDE
     maxHeapSize = "2g"

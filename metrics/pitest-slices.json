@@ -11,6 +11,12 @@
     "score": 87.79,
     "recordedAt": "2026-08-30"
   },
+  "accounting": {
+    "mutations": 133,
+    "detected": 127,
+    "score": 95.49,
+    "recordedAt": "2026-10-01"
+  },
   "admin": {
     "mutations": 8,
     "detected": 8,
@@ -192,10 +198,10 @@
     "recordedAt": "2026-08-30"
   },
   "ledger": {
-    "mutations": 338,
-    "detected": 337,
-    "score": 99.7,
-    "recordedAt": "2026-08-30"
+    "mutations": 554,
+    "detected": 514,
+    "score": 92.78,
+    "recordedAt": "2026-10-01"
   },
   "listing": {
     "mutations": 53,

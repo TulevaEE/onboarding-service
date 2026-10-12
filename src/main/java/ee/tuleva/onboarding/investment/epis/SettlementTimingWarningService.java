@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.epis;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.PEVA_DEADLINE_MISS;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.REBALANCE_GAP;
@@ -12,7 +13,9 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SettlementTimingWarningService {
 
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
   private static final List<TulevaFund> PEVA_RAVA_FUNDS =
       List.of(TulevaFund.TUK75, TulevaFund.TUK00);
 
@@ -33,43 +37,44 @@ public class SettlementTimingWarningService {
   private final Clock clock;
 
   public List<SettlementTimingWarning> activeWarnings() {
-    LocalDate today = LocalDate.now(clock);
+    var placedNow = clock.instant();
     return periodService
-        .getCurrentPeriod(today)
+        .getCurrentPeriod(dateOf(placedNow))
         .map(
             period ->
                 PEVA_RAVA_FUNDS.stream()
-                    .flatMap(fund -> warningsForFund(period, fund, today).stream())
+                    .flatMap(fund -> warningsForFund(period, fund, placedNow).stream())
                     .toList())
         .orElse(List.of());
   }
 
-  public List<SettlementTimingWarning> activeWarnings(TulevaFund fund, LocalDate asOfDate) {
+  public List<SettlementTimingWarning> activeWarnings(TulevaFund fund) {
     if (!PEVA_RAVA_FUNDS.contains(fund)) {
       return List.of();
     }
+    var placedNow = clock.instant();
     return periodService
-        .getCurrentPeriod(asOfDate)
-        .map(period -> warningsForFund(period, fund, asOfDate))
+        .getCurrentPeriod(dateOf(placedNow))
+        .map(period -> warningsForFund(period, fund, placedNow))
         .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> warningsForFund(
-      PevaRavaPeriod period, TulevaFund fund, LocalDate today) {
+      PevaRavaPeriod period, TulevaFund fund, Instant placedNow) {
     LocalDate execDate = period.cycle().execDate();
-    if (period.phase() == DONE || today.isAfter(execDate)) {
+    if (period.phase() == DONE || dateOf(placedNow).isAfter(execDate)) {
       return List.of();
     }
     if (!period.timelineFor(fund).dActive()) {
       return List.of();
     }
-    return worstFundSellSettlementDate(fund, today)
-        .map(sellSettlementDate -> fundWarnings(fund, today, sellSettlementDate, execDate))
+    return worstFundSellSettlementDate(fund, placedNow)
+        .map(sellSettlementDate -> fundWarnings(fund, placedNow, sellSettlementDate, execDate))
         .orElse(List.of());
   }
 
   private List<SettlementTimingWarning> fundWarnings(
-      TulevaFund fund, LocalDate today, LocalDate sellSettlementDate, LocalDate execDate) {
+      TulevaFund fund, Instant placedNow, LocalDate sellSettlementDate, LocalDate execDate) {
     List<SettlementTimingWarning> warnings = new ArrayList<>();
     if (sellSettlementDate.isAfter(execDate)) {
       warnings.add(
@@ -86,7 +91,7 @@ public class SettlementTimingWarningService {
                   + execDate));
     }
     LocalDate etfBuySettlementDate =
-        settlementDateCalculator.calculateSettlementDate(today, ETF, fund.getIsin());
+        settlementDateCalculator.calculateSettlementDate(placedNow, ETF, fund.getIsin());
     if (sellSettlementDate.isAfter(etfBuySettlementDate)) {
       warnings.add(
           new SettlementTimingWarning(
@@ -104,12 +109,16 @@ public class SettlementTimingWarningService {
     return warnings;
   }
 
-  private Optional<LocalDate> worstFundSellSettlementDate(TulevaFund fund, LocalDate today) {
-    return allocationRepository.findLatestByFundAsOf(fund, today).stream()
+  private Optional<LocalDate> worstFundSellSettlementDate(TulevaFund fund, Instant placedNow) {
+    return allocationRepository.findLatestByFundAsOf(fund, dateOf(placedNow)).stream()
         .filter(allocation -> allocation.getInstrumentType() == FUND)
         .map(ModelPortfolioAllocation::getIsin)
         .filter(Objects::nonNull)
-        .map(isin -> settlementDateCalculator.calculateSettlementDate(today, FUND, isin))
+        .map(isin -> settlementDateCalculator.calculateSettlementDate(placedNow, FUND, isin))
         .max(naturalOrder());
+  }
+
+  private LocalDate dateOf(Instant instant) {
+    return LocalDate.ofInstant(instant, TALLINN);
   }
 }

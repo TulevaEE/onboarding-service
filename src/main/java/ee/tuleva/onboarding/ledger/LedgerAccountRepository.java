@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -24,6 +25,18 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
       AccountPurpose purpose,
       AssetType assetType,
       AccountType accountType);
+
+  Optional<LedgerAccount> findByNameAndPurposeAndOwnerIsNull(String name, AccountPurpose purpose);
+
+  @Query(
+      """
+      select a.name from LedgerAccount a
+      where a.purpose = :purpose and a.owner is null
+        and a.name like :accountNamePattern escape '\\'
+      """)
+  List<String> findNamesByPurposeWithoutOwner(
+      @Param("purpose") AccountPurpose purpose,
+      @Param("accountNamePattern") String accountNamePattern);
 
   List<LedgerAccount> findAllByOwner(LedgerParty owner);
 

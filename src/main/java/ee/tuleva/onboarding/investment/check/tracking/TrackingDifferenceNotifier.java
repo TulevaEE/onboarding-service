@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
 
@@ -27,7 +28,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final String PUBLISHED_WITHOUT_VALIDATION =
       "NAV report published WITHOUT tracking-difference validation";
   private static final String BACKFILL_COMPLETE_HEADER = "✅ TD BACKFILL COMPLETE: daysBack=%d\n";
@@ -205,39 +205,10 @@ class TrackingDifferenceNotifier {
         return;
       }
 
-      var message = new StringBuilder(header);
-      results.stream()
-          .collect(
-              Collectors.groupingBy(
-                  r -> "%s %s".formatted(r.fund().getCode(), r.checkType()),
-                  TreeMap::new,
-                  Collectors.toList()))
-          .forEach(
-              (fundAndCheckType, group) ->
-                  message.append(formatBackfillGroup(fundAndCheckType, group)));
-      notificationService.sendMessage(message.toString(), INVESTMENT);
+      notificationService.sendMessage(BackfillSummaryFormatter.format(header, results), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference backfill summary", e);
     }
-  }
-
-  private static String formatBackfillGroup(
-      String fundAndCheckType, List<TrackingDifferenceResult> group) {
-    var dates = group.stream().map(TrackingDifferenceResult::checkDate).sorted().toList();
-    var breaches = group.stream().filter(TrackingDifferenceResult::hasAnyBreach).count();
-    var worst =
-        group.stream()
-            .map(TrackingDifferenceResult::trackingDifference)
-            .max(Comparator.comparing(BigDecimal::abs))
-            .orElse(BigDecimal.ZERO);
-    return "\n  %s: %d check dates %s to %s, %d breaches, largest TD %s%%"
-        .formatted(
-            fundAndCheckType,
-            dates.size(),
-            dates.getFirst(),
-            dates.getLast(),
-            breaches,
-            formatPercent(worst));
   }
 
   private static List<TrackingDifferenceResult> alertableResults(
@@ -416,10 +387,5 @@ class TrackingDifferenceNotifier {
               + " it.");
     }
     return sb.toString();
-  }
-
-  private static String formatPercent(BigDecimal value) {
-    var percent = value.multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
-    return (percent.signum() > 0 ? "+" : "") + percent.toPlainString();
   }
 }

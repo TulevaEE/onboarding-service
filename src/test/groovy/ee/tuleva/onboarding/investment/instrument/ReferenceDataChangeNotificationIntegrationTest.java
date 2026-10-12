@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -46,6 +47,15 @@ class ReferenceDataChangeNotificationIntegrationTest {
   @Autowired private DataSource dataSource;
 
   @MockitoBean private EmailService emailService;
+
+  @BeforeEach
+  void theChangesTheMigrationsMadeAreAlreadyNotified() throws SQLException {
+    if (isPostgres()) {
+      jdbcClient
+          .sql("UPDATE reference_data_history SET notified_at = now() WHERE notified_at IS NULL")
+          .update();
+    }
+  }
 
   @Test
   void changingAnInstrumentLeavesAnAttributedHistoryRowAndProducesExactlyOneMail()

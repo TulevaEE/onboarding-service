@@ -46,17 +46,6 @@ public class SettlementDateCalculator {
                     submittedAt.atZone(DEFAULT_TRADE_ZONE).toLocalDate(), instrumentType, isin));
   }
 
-  public LocalDate calculateSettlementDate(
-      LocalDate acceptanceDate, InstrumentType instrumentType, String isin) {
-    return instrumentReferenceService
-        .settlementTerms(isin)
-        .map(
-            terms ->
-                settleFrom(
-                    dealingDay(acceptanceDate, instrumentType, isin), terms.daysFromAcceptance()))
-        .orElseGet(() -> flatSettlementDate(acceptanceDate, instrumentType, isin));
-  }
-
   public LocalDate addBusinessDays(
       LocalDate tradeDate, InstrumentType instrumentType, String isin, int businessDays) {
     return settleFrom(dealingDay(tradeDate, instrumentType, isin), businessDays);

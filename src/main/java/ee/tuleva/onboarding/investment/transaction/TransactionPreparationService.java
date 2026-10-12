@@ -152,8 +152,7 @@ public class TransactionPreparationService {
     payload.put(
         "settlementWarnings",
         TransactionAuditPayloads.serializeSettlementWarnings(
-            settlementTimingWarningService.activeWarnings(
-                command.getFund(), command.getAsOfDate())));
+            settlementTimingWarningService.activeWarnings(command.getFund())));
     payload.put(
         "calculationWarnings",
         TransactionAuditPayloads.serializeCalculationWarnings(result.warnings()));

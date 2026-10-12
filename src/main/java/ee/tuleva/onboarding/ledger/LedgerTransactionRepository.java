@@ -24,6 +24,26 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
   Optional<LedgerTransaction> findByExternalReferenceAndTransactionType(
       UUID externalReference, TransactionType transactionType);
 
+  List<LedgerTransaction> findAllByExternalReferenceAndTransactionType(
+      UUID externalReference, TransactionType transactionType);
+
+  @Query(
+      """
+      select new ee.tuleva.onboarding.ledger.LiveJournalEntry(t.id, t.externalReference, t.metadata)
+      from LedgerTransaction t
+      where t.transactionType = :journalEntry
+        and exists (
+          select 1 from LedgerEntry e
+          where e.transaction = t and e.account.name like :accountNamePattern escape '\\')
+        and not exists (
+          select 1 from LedgerTransaction r
+          where r.transactionType = :reversal and r.externalReference = t.id)
+      """)
+  List<LiveJournalEntry> findLiveJournalEntries(
+      @Param("accountNamePattern") String accountNamePattern,
+      @Param("journalEntry") TransactionType journalEntry,
+      @Param("reversal") TransactionType reversal);
+
   @Query(
       """
       select count(distinct t.id) from LedgerTransaction t join t.entries e

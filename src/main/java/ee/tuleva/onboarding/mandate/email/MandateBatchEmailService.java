@@ -94,8 +94,7 @@ public class MandateBatchEmailService {
   }
 
   private Long mandateBatchIdOf(MandateBatch mandateBatch) {
-    return requireNonNull(
-        mandateBatch.getId(), "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
+    return requireNonNull(mandateBatch.getId(), "Mandate batch is not yet persisted");
   }
 
   private Map<String, Object> getMergeVars(User user, MandateBatch batch) {

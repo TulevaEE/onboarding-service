@@ -53,6 +53,7 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.investment.check.limit.LimitCheckJob.class,
           ee.tuleva.onboarding.investment.risk.RiskIndicatorJob.class,
           ee.tuleva.onboarding.fund.fees.FundFeeSyncJob.class,
+          ee.tuleva.onboarding.accounting.GeneralLedgerSyncJob.class,
         };
 
     var missingLockAnnotations = new StringBuilder();
@@ -86,6 +87,7 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.aml.ScheduledAmlCheckJob.class,
           ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.class,
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
+          ee.tuleva.onboarding.accounting.GeneralLedgerSyncJob.class,
         };
 
     for (Class<?> jobClass : scheduledJobs) {

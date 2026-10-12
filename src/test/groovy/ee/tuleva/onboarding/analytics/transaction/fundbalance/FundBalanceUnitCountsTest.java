@@ -50,4 +50,44 @@ class FundBalanceUnitCountsTest {
 
     assertThat(result).isEmpty();
   }
+
+  @Test
+  void fundManagerUnitsAreTheCountUnitsFmOnExactlyThatDate() {
+    given(
+            fundBalanceRepository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
+                "EE3600109435", DATE))
+        .willReturn(Optional.of(fundBalanceOn(DATE)));
+
+    assertThat(fundUnitCounts.fundManagerUnitsOn("EE3600109435", DATE))
+        .contains(new BigDecimal("5747351"));
+  }
+
+  @Test
+  void noFundManagerUnitsWhenThatDateHasNoFundBalanceYet() {
+    given(
+            fundBalanceRepository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
+                "EE3600109435", DATE))
+        .willReturn(Optional.empty());
+
+    assertThat(fundUnitCounts.fundManagerUnitsOn("EE3600109435", DATE)).isEmpty();
+  }
+
+  @Test
+  void anEarlierDaysFundBalanceIsNotTheFundManagerUnitsOnThatDate() {
+    given(
+            fundBalanceRepository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
+                "EE3600109435", DATE))
+        .willReturn(Optional.of(fundBalanceOn(DATE.minusDays(1))));
+
+    assertThat(fundUnitCounts.fundManagerUnitsOn("EE3600109435", DATE)).isEmpty();
+  }
+
+  private static FundBalance fundBalanceOn(LocalDate requestDate) {
+    return FundBalance.builder()
+        .isin("EE3600109435")
+        .requestDate(requestDate)
+        .countUnits(new BigDecimal("9000000"))
+        .countUnitsFm(new BigDecimal("5747351"))
+        .build();
+  }
 }

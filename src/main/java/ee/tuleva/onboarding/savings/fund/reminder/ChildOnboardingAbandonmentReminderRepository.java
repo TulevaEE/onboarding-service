@@ -20,9 +20,6 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 class ChildOnboardingAbandonmentReminderRepository {
 
-  private static final Locale ESTONIAN = Locale.of("et");
-  private static final String ENGLISH_PREFERENCE = "ENG";
-
   private final JdbcClient jdbcClient;
   private final Clock clock;
 
@@ -82,6 +79,7 @@ class ChildOnboardingAbandonmentReminderRepository {
   }
 
   private Locale localeOf(@Nullable String languagePreference) {
-    return ENGLISH_PREFERENCE.equals(languagePreference) ? Locale.ENGLISH : ESTONIAN;
+    final String ENGLISH_PREFERENCE = "ENG";
+    return ENGLISH_PREFERENCE.equals(languagePreference) ? Locale.ENGLISH : Locale.of("et");
   }
 }

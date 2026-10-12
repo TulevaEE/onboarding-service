@@ -6,21 +6,33 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Sinu konto Tuleva Täiendavas Kogumisfondis on nüüd avatud.</mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
         <mj-text>
-          Sinu konto Tuleva Täiendavas Kogumisfondis on avatud. Nüüd saad teha esimese sissemakse:
+          Järgmise sammuna saad teha esimese sissemakse ja panna oma kogumise käima.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          Sissemakse saad teha oma Tuleva kontol. Seal saad soovi korral seadistada ka püsimakse,
+          et edaspidi toimuks kogumine automaatselt. Ostetud fondiosakud jõuavad sinu kontole kahe
+          tööpäeva jooksul.
+        </mj-text>
+        <mj-raw>*|IF:awaitingFirstPayment|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?utm_content=onboarding_completed_person_first_payment">
           Teen esimese sissemakse
         </mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&utm_content=onboarding_completed_person_recurring">
+          Seadistan püsimakse
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text><strong>Kuhu sinu raha investeeritakse?</strong></mj-text>
         <mj-text>
-          Sissemakse teed oma pangas Tuleva kontolt leitava juhise järgi. Osakud jõuavad sinu
-          kontole kahe tööpäeva jooksul.
+          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailma
+          aktsiaturgudele. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ning sisenemis-,
+          väljumis- ega edukustasu ei lisandu.
         </mj-text>
-        <mj-text>
-          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
-          aktsiatesse. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ning lisatasud puuduvad.
-        </mj-text>
-        <mj-text>Kui sul on tekkinud küsimusi, on sulle abiks veel need materjalid:</mj-text>
+        <mj-text>Kui soovid kogumisfondi kohta rohkem teada:</mj-text>
         <mj-text>
           <a href="https://tuleva.ee/analuusid/kuhu-tuleva-taiendav-kogumisfond-investeerib/">
             Kuhu investeerib Tuleva Täiendav Kogumisfond?
@@ -28,12 +40,12 @@
         </mj-text>
         <mj-text>
           <a href="https://tuleva.ee/soovitused/miks-kasutada-kogumisfondi-puhul-investeerimiskontot/">
-            Miks kasutada kogumisfondi puhul investeerimiskontot?
+            Kas ja millal kasutada kogumisfondi puhul investeerimiskontot?
           </a>
         </mj-text>
         <mj-text>
-          Kui sul tekib küsimusi, kirjuta
-          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          Küsimuste korral anna meile julgesti märku
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
           <a href="tel:+3726445100">644&nbsp;5100</a>.
         </mj-text>
       </mj-column>

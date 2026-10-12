@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
+import ee.tuleva.onboarding.locale.LocaleService
+import org.springframework.context.i18n.LocaleContextHolder
 import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
@@ -61,7 +63,7 @@ class MandateServiceSpec extends Specification {
   CancellationMandateBuilder cancellationMandateBuilder = Mock()
 
   MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor, cancellationMandateBuilder,
-      mandateFileService, userService, mandateContacts, eventPublisher, conversionService, mandateValidator)
+      mandateFileService, userService, mandateContacts, eventPublisher, conversionService, mandateValidator, new LocaleService())
 
   Long sampleMandateId = 1L
   User sampleUser = sampleUser()
@@ -69,6 +71,23 @@ class MandateServiceSpec extends Specification {
   def setup() {
     secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
     userService.getById(sampleUser.id) >> Optional.of(sampleUser)
+  }
+
+  def cleanup() {
+    LocaleContextHolder.resetLocaleContext()
+  }
+
+  def "save: records only the language of the request the mandate was created in"() {
+    given:
+    LocaleContextHolder.setLocale(Locale.forLanguageTag("en-GB"))
+    def mandate = sampleMandate()
+    mandateRepository.save(mandate) >> mandate
+
+    when:
+    def saved = service.save(sampleUser, mandate)
+
+    then:
+    saved.locale == ENGLISH
   }
 
   def "save: Converting create mandate command and persisting a mandate"() {

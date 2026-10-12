@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -61,7 +62,9 @@ class TdAttributionPeriodReconcilerTest {
 
   @Test
   void aStaleDateInThePeriodThatCouldNotBeRecheckedStopsTheAttributionAndNamesTheDates() {
-    var gap = new GapFailure(FRIDAY, "fund=TUK75, missingIsins=[IE00MISSING1]", 20, MONDAY);
+    var gap =
+        new GapFailure(
+            FRIDAY, "fund=TUK75, missingIsins=[IE00MISSING1]", MISSING_PRICE, 20, MONDAY);
     given(trackingDifferenceService.reconcileSince(TUK75, PERIOD_START))
         .willReturn(
             new GapFillRun(List.of(), List.of(gap), Map.of(TUK75, List.of(FRIDAY, MONDAY))));

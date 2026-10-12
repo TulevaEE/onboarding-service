@@ -6,5 +6,8 @@ public enum EmailStatus {
   SCHEDULED,
   REJECTED,
   CANCELLED,
-  INVALID
+  INVALID,
+  FAILED,
+  NO_RECIPIENT,
+  EXPIRED
 }

@@ -14,6 +14,8 @@ public final class JobRunSchedule {
   public static final String LIMIT_CHECK_GAP_FILL = "0 15 19 * * MON-FRI";
   public static final String INSTRUMENT_RETIREMENT = "0 30 19 * * MON-FRI";
 
+  public static final String OWNERSHIP_LIMIT_CHECK = "0 45 7 1-14 * *";
+
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 7 12 3 *";
 
   public static final String PEVA_RAVA_PHASE_UPDATE = "0 0 7 * * MON-FRI";
@@ -21,6 +23,8 @@ public final class JobRunSchedule {
   public static final String R16_FLOW_RECALC = "0 30 17 * * MON-FRI";
 
   public static final String RISK_INDICATOR_DAILY = "0 30 9 * * MON-FRI";
+
+  public static final String CASH_BUFFER_REVIEW_BEFORE_THE_MORNING_IMPORTS = "0 30 7 1-14 * *";
 
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
 }

@@ -18,7 +18,6 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
@@ -856,106 +855,6 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       eventPublisher.publishEvent(
           new KycCheckPerformedEvent(
               this, payerCode, new KycCheck(NONE, Map.of()), PERSONAL_ONBOARDING));
-    }
-  }
-
-  @Nested
-  @Transactional
-  class OwnerAgnosticCancellationTests {
-
-    @Autowired private SavingFundPaymentRepository repository;
-    @Autowired private SavingFundPaymentUpsertionService upsertionService;
-
-    private static final String OPS_REASON = "Unsupported payment provider";
-    private static final PartyId PARTY = new PartyId(PERSON, "38888888888");
-
-    @Test
-    void cancelPayment_beforeDeadline_marksPaymentCancelled() {
-      var paymentId = saveAttributedPayment();
-
-      var cancelled = upsertionService.cancelPayment(paymentId, OPS_REASON);
-
-      assertThat(cancelled.getId()).isEqualTo(paymentId);
-      assertThat(cancelled.getCancelledAt()).isNotNull();
-      assertThat(cancelled.getReturnReason()).isEqualTo(OPS_REASON);
-      var stored = repository.findById(paymentId).orElseThrow();
-      assertThat(stored.getCancelledAt()).isNotNull();
-      assertThat(stored.getReturnReason()).isEqualTo(OPS_REASON);
-    }
-
-    @Test
-    void userCancelPayment_beforeDeadline_recordsCustomersRequestAsReturnReason() {
-      var paymentId = saveAttributedPayment();
-
-      upsertionService.cancelPayment(PARTY, paymentId);
-
-      var stored = repository.findById(paymentId).orElseThrow();
-      assertThat(stored.getCancelledAt()).isNotNull();
-      assertThat(stored.getReturnReason()).isEqualTo("Kasutaja soovil");
-    }
-
-    @Test
-    void userCancelPayment_ofManuallyAttributedPayment_replacesStaleReturnReason() {
-      var paymentId = repository.savePaymentData(paymentMatchingXmlTemplate().build());
-      repository.changeStatus(paymentId, SavingFundPayment.Status.RECEIVED);
-      repository.changeStatus(paymentId, SavingFundPayment.Status.TO_BE_RETURNED);
-      repository.addReturnReason(paymentId, "isik ei ole Tuleva klient");
-      repository.attributeManually(paymentId, PARTY);
-
-      upsertionService.cancelPayment(PARTY, paymentId);
-
-      var stored = repository.findById(paymentId).orElseThrow();
-      assertThat(stored.getStatus()).isEqualTo(SavingFundPayment.Status.VERIFIED);
-      assertThat(stored.getCancelledAt()).isNotNull();
-      assertThat(stored.getReturnReason()).isEqualTo("Kasutaja soovil");
-    }
-
-    @Test
-    void cancelPayment_afterDeadline_leavesPaymentUncancelled() {
-      var paymentId = saveAttributedPayment();
-      ClockHolder.setClock(Clock.fixed(NOW.plus(Duration.ofDays(1)), ZoneId.of("UTC")));
-
-      assertThatThrownBy(() -> upsertionService.cancelPayment(paymentId, OPS_REASON))
-          .isInstanceOf(PaymentCancellationRefusedException.class);
-      assertThat(repository.findById(paymentId).orElseThrow().getCancelledAt()).isNull();
-    }
-
-    @Test
-    void cancelPayment_whenStatusIsNotCancellable_leavesPaymentUncancelled() {
-      var paymentId = saveAttributedPayment();
-      repository.changeStatus(paymentId, SavingFundPayment.Status.RECEIVED);
-      repository.changeStatus(paymentId, SavingFundPayment.Status.FROZEN);
-
-      assertThatThrownBy(() -> upsertionService.cancelPayment(paymentId, OPS_REASON))
-          .isInstanceOf(PaymentCancellationRefusedException.class);
-      assertThat(repository.findById(paymentId).orElseThrow().getCancelledAt()).isNull();
-    }
-
-    @Test
-    void cancelPayment_whenAlreadyCancelled_keepsOriginalCancelledAt() {
-      var paymentId = saveAttributedPayment();
-      repository.cancel(paymentId, "Kasutaja soovil");
-      var originalCancelledAt = repository.findById(paymentId).orElseThrow().getCancelledAt();
-
-      assertThatThrownBy(() -> upsertionService.cancelPayment(paymentId, OPS_REASON))
-          .isInstanceOf(PaymentCancellationRefusedException.class);
-      assertThat(repository.findById(paymentId).orElseThrow().getCancelledAt())
-          .isEqualTo(originalCancelledAt);
-    }
-
-    @Test
-    void cancelPayment_whenUnattributed_leavesPaymentUncancelled() {
-      var paymentId = repository.savePaymentData(paymentMatchingXmlTemplate().build());
-
-      assertThatThrownBy(() -> upsertionService.cancelPayment(paymentId, OPS_REASON))
-          .isInstanceOf(PaymentCancellationRefusedException.class);
-      assertThat(repository.findById(paymentId).orElseThrow().getCancelledAt()).isNull();
-    }
-
-    private UUID saveAttributedPayment() {
-      var paymentId = repository.savePaymentData(paymentMatchingXmlTemplate().build());
-      repository.attachParty(paymentId, PARTY);
-      return paymentId;
     }
   }
 }

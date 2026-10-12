@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.investment.check.fee;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -46,6 +48,7 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
       WHERE event.fund = :fund
         AND event.feeMonth IS NULL
         AND event.deviationFound = true
+        AND event.checkType IN :checkTypes
         AND event.checkType <>
             ee.tuleva.onboarding.investment.check.fee.FeeCheckType.PENSIONIKESKUS_MANAGEMENT_FEE
         AND NOT EXISTS (
@@ -59,5 +62,10 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
                 ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
             AND clean.checkDate >= event.checkDate)
       """)
-  Optional<LocalDate> findOldestUnresolvedDailyDeviationDate(TulevaFund fund);
+  Optional<LocalDate> findOldestUnresolvedDailyDeviationDateOfTypes(
+      TulevaFund fund, Set<FeeCheckType> checkTypes);
+
+  default Optional<LocalDate> findOldestUnresolvedDailyDeviationDate(TulevaFund fund) {
+    return findOldestUnresolvedDailyDeviationDateOfTypes(fund, EnumSet.allOf(FeeCheckType.class));
+  }
 }

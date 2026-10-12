@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Limit;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
 class FeeCheckEventRepositoryTest {
@@ -31,9 +32,11 @@ class FeeCheckEventRepositoryTest {
   private static final LocalDate MAY = LocalDate.of(2026, 5, 1);
   private static final LocalDate JUNE = LocalDate.of(2026, 6, 1);
   private static final Instant BASE_TIME = Instant.parse("2026-06-03T07:00:00Z");
+  private static final String RETIRED_CHECK_TYPE = "BLACKROCK_ADJUSTMENT_FRESHNESS";
 
   @Autowired FeeCheckEventRepository repository;
   @Autowired TestEntityManager entityManager;
+  @Autowired JdbcClient jdbcClient;
 
   private int saved = 0;
 
@@ -214,6 +217,22 @@ class FeeCheckEventRepositoryTest {
   }
 
   @Test
+  void aDeviationStoredByARetiredCheckCanNeverClearSoItDoesNotHoldTheDailyWindowOpen() {
+    saveRetiredCheckDeviationOn(LocalDate.of(2026, 6, 1));
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aRetiredChecksDeviationDoesNotHideAnOpenDeviationOfACheckStillRunning() {
+    saveRetiredCheckDeviationOn(LocalDate.of(2026, 5, 1));
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .contains(LocalDate.of(2026, 6, 1));
+  }
+
+  @Test
   void aRunThatCouldNotCheckDoesNotResolveAnOpenDeviation() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
@@ -244,6 +263,19 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
 
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  private void saveRetiredCheckDeviationOn(LocalDate checkDate) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_check_event
+            (fund_code, check_date, check_type, fee_scope, severity, deviation_found)
+            VALUES ('TUK75', :checkDate, :checkType, 'ALL', 'WARNING', true)
+            """)
+        .param("checkDate", checkDate)
+        .param("checkType", RETIRED_CHECK_TYPE)
+        .update();
   }
 
   private void saveOn(

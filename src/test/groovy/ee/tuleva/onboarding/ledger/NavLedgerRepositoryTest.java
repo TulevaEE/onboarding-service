@@ -16,6 +16,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -151,31 +152,42 @@ class NavLedgerRepositoryTest {
   }
 
   @Test
-  void findLatestTransactionDateByType_returnsTheMostRecentMatchingTransaction() {
-    var account = feeAccrualAccount();
-    var counter = navEquityAccount();
-    createSystemAccountEntry(
-        account, counter, new BigDecimal("-1.00"), instantAt("2026-06-02"), ADJUSTMENT);
-    createSystemAccountEntry(
-        account, counter, new BigDecimal("-2.00"), instantAt("2026-06-05"), ADJUSTMENT);
-    createSystemAccountEntry(
-        account, counter, new BigDecimal("-3.00"), instantAt("2026-06-09"), FEE_ACCRUAL);
-    entityManager.flush();
+  void existsTransactionRecordedAfter_findsOneRecordedLaterAndDatedOnTheGivenDay() {
+    var earlier = recordedAt(otherTransaction(), "2026-06-01T15:00");
+    recordedAt(adjustmentDated("2026-06-01"), "2026-06-01T16:00");
 
-    var latest =
-        navLedgerRepository.findLatestTransactionDateByType(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), ADJUSTMENT);
-
-    assertThat(latest).contains(instantAt("2026-06-05"));
+    assertThat(adjustmentRecordedAfter(earlier, "2026-06-01")).isTrue();
   }
 
   @Test
-  void findLatestTransactionDateByType_isEmptyWhenNothingWasEverPosted() {
-    var latest =
-        navLedgerRepository.findLatestTransactionDateByType(
-            MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), ADJUSTMENT);
+  void existsTransactionRecordedAfter_skipsOneDatedTheSameDayButRecordedBefore() {
+    var earlier = recordedAt(otherTransaction(), "2026-06-01T15:00");
+    recordedAt(adjustmentDated("2026-06-01"), "2026-06-01T07:00");
 
-    assertThat(latest).isEmpty();
+    assertThat(adjustmentRecordedAfter(earlier, "2026-06-01")).isFalse();
+  }
+
+  @Test
+  void existsTransactionRecordedAfter_skipsOneRecordedLaterButDatedBeforeTheGivenDay() {
+    var earlier = recordedAt(otherTransaction(), "2026-06-01T15:00");
+    recordedAt(adjustmentDated("2026-05-29"), "2026-06-01T16:00");
+
+    assertThat(adjustmentRecordedAfter(earlier, "2026-06-01")).isFalse();
+  }
+
+  @Test
+  void existsTransactionRecordedAfter_skipsOtherTransactionTypes() {
+    var earlier = recordedAt(otherTransaction(), "2026-06-01T15:00");
+    recordedAt(
+        createSystemAccountEntry(
+            feeAccrualAccount(),
+            navEquityAccount(),
+            new BigDecimal("-1.00"),
+            instantAt("2026-06-02"),
+            FEE_ACCRUAL),
+        "2026-06-02T16:00");
+
+    assertThat(adjustmentRecordedAfter(earlier, "2026-06-01")).isFalse();
   }
 
   @Test
@@ -275,7 +287,43 @@ class NavLedgerRepositoryTest {
     return LocalDate.parse(date).atTime(9, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
   }
 
-  private void createSystemAccountEntry(
+  private boolean adjustmentRecordedAfter(LedgerTransaction earlier, String datedFrom) {
+    return navLedgerRepository.existsTransactionRecordedAfter(
+        MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100),
+        ADJUSTMENT,
+        earlier.getId(),
+        LocalDate.parse(datedFrom).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant());
+  }
+
+  private LedgerTransaction otherTransaction() {
+    return createSystemAccountEntry(
+        navEquityAccount(),
+        systemAccount("COUNTERPARTY:TKF100"),
+        new BigDecimal("1.00"),
+        instantAt("2026-06-01"),
+        FEE_ACCRUAL);
+  }
+
+  private LedgerTransaction adjustmentDated(String date) {
+    return createSystemAccountEntry(
+        feeAccrualAccount(),
+        navEquityAccount(),
+        new BigDecimal("-1.00"),
+        LocalDate.parse(date).atTime(8, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant(),
+        ADJUSTMENT);
+  }
+
+  private LedgerTransaction recordedAt(LedgerTransaction transaction, String localDateTime) {
+    entityManager.flush();
+    entityManager
+        .createNativeQuery("UPDATE ledger.transaction SET created_at = :recordedAt WHERE id = :id")
+        .setParameter("recordedAt", LocalDateTime.parse(localDateTime))
+        .setParameter("id", transaction.getId())
+        .executeUpdate();
+    return transaction;
+  }
+
+  private LedgerTransaction createSystemAccountEntry(
       LedgerAccount account,
       LedgerAccount counterAccount,
       BigDecimal amount,
@@ -305,6 +353,7 @@ class NavLedgerRepositoryTest {
     transaction.getEntries().add(entry);
     transaction.getEntries().add(counterEntry);
     entityManager.persist(transaction);
+    return transaction;
   }
 
   private void createSystemAccountEntry(

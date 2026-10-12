@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
+import static java.math.RoundingMode.HALF_UP;
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.check.limit.EODHDFundSizeClient.FundSize;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -71,10 +72,7 @@ class UnderlyingFunds {
               .<SizeInEur>map(
                   rate ->
                       new SizeInEur.Known(
-                          amount.divide(rate.value(), 2, RoundingMode.HALF_UP),
-                          amount,
-                          currency,
-                          updatedAt))
+                          amount.divide(rate.value(), 2, HALF_UP), amount, currency, updatedAt))
               .orElseGet(() -> noEurRate(currency));
       default -> noEurRate(currency);
     };

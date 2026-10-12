@@ -5,10 +5,11 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PublishedManagementFee {
@@ -20,13 +21,21 @@ public class PublishedManagementFee {
 
   public <T extends ApiFundResponse> T applyTo(T response) {
     TulevaFund.findByIsin(response.getIsin())
-        .flatMap(this::rateInForceToday)
-        .map(BigDecimal::stripTrailingZeros)
-        .ifPresent(response::setManagementFeeRate);
+        .ifPresent(fund -> applyRateInForceToday(fund, response));
     return response;
   }
 
-  private Optional<BigDecimal> rateInForceToday(TulevaFund fund) {
-    return managementFeeRates.rateInForceOn(fund, LocalDate.now(clock.withZone(ESTONIAN_ZONE)));
+  private void applyRateInForceToday(TulevaFund fund, ApiFundResponse response) {
+    var today = LocalDate.now(clock.withZone(ESTONIAN_ZONE));
+    managementFeeRates
+        .rateInForceOn(fund, today)
+        .map(BigDecimal::stripTrailingZeros)
+        .ifPresentOrElse(
+            response::setManagementFeeRate,
+            () ->
+                log.error(
+                    "No management fee rate in force, showing the fund table rate: fund={}, date={}",
+                    fund,
+                    today));
   }
 }

@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNullElse;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
@@ -54,6 +55,7 @@ public class OcfCalculationService {
   private final FundNavQueryService fundNavQueryService;
   private final OcfJson ocfJson;
   private final OcfNotifier ocfNotifier;
+  private final MonthEndNavCheck monthEndNavCheck;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
     return compute(fund, month).snapshot();
@@ -126,13 +128,9 @@ public class OcfCalculationService {
       return compute(fund, month);
     } catch (Exception e) {
       log.error("OCF calculation failed: fund={}, month={}", fund.getCode(), month, e);
-      return new Failed(fund, month, reasonOf(e));
+      return new Failed(
+          fund, month, requireNonNullElse(e.getMessage(), e.getClass().getSimpleName()));
     }
-  }
-
-  private static String reasonOf(Exception e) {
-    var message = e.getMessage();
-    return message == null ? e.getClass().getSimpleName() : message;
   }
 
   public boolean publish(TulevaFund fund, YearMonth month, String publishedIn) {
@@ -224,7 +222,7 @@ public class OcfCalculationService {
         navDate == null
             ? null
             : fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate).orElse(null);
-    if (calculation == null) {
+    if (navDate == null || calculation == null) {
       log.warn(
           "No published NAV calculation, underlying fund cost resolves to zero: fund={}, asOf={}",
           fund.getCode(),
@@ -255,7 +253,7 @@ public class OcfCalculationService {
         navDate,
         calculation.id(),
         aum,
-        List.of(),
+        monthEndNavCheck.gapsOf(fund, asOf, navDate),
         holdings);
   }
 

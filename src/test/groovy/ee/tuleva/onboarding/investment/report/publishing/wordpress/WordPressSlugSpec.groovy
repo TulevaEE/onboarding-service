@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping
+import java.time.YearMonth
+
 class WordPressSlugSpec extends Specification {
 
   @Unroll
@@ -58,5 +61,17 @@ class WordPressSlugSpec extends Specification {
 
     where:
     filename << ["", ".", "-", "   ", "....", "???.pdf", "---.pdf", "\u202e.pdf"]
+  }
+
+  @Unroll
+  def "the name #mapping's report is uploaded under is the name the publication check recognises"() {
+    given:
+    def september = YearMonth.of(2026, 9)
+
+    expect:
+    mapping.reportPeriodNamedBy(WordPressSlug.of(mapping.buildPdfFilename(september))) == Optional.of(september)
+
+    where:
+    mapping << FundReportMapping.all()
   }
 }

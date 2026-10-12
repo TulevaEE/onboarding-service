@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.net.URLDecoder;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Optional;
-import java.util.regex.Pattern;
 
 sealed interface ReportPublication {
-
-  Pattern PERIOD_IN_FILENAME = Pattern.compile("(?<!\\d)(\\d{4})-(0[1-9]|1[0-2])(?!\\d)");
 
   TulevaFund fund();
 
@@ -17,13 +16,13 @@ sealed interface ReportPublication {
   default boolean isPublished() {
     return switch (this) {
       case Published _ -> true;
-      case Outdated _, NotLinked _, NotChecked _ -> false;
+      case Outdated _, ForeignFile _, NotLinked _, NotChecked _ -> false;
     };
   }
 
   default boolean isMissing() {
     return switch (this) {
-      case Outdated _, NotLinked _ -> true;
+      case Outdated _, ForeignFile _, NotLinked _ -> true;
       case Published _, NotChecked _ -> false;
     };
   }
@@ -33,21 +32,18 @@ sealed interface ReportPublication {
   }
 
   static ReportPublication linking(TulevaFund fund, String reportUrl, YearMonth month) {
-    return periodNamedBy(filename(reportUrl)).filter(period -> !period.isBefore(month)).isPresent()
-        ? new Published(fund, reportUrl)
-        : new Outdated(fund, reportUrl, month);
-  }
-
-  private static Optional<YearMonth> periodNamedBy(String filename) {
-    var matcher = PERIOD_IN_FILENAME.matcher(filename);
-    return matcher.find()
-        ? Optional.of(
-            YearMonth.of(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))))
-        : Optional.empty();
+    return FundReportMapping.forFund(fund)
+        .reportPeriodNamedBy(filename(reportUrl))
+        .<ReportPublication>map(
+            period ->
+                period.isBefore(month)
+                    ? new Outdated(fund, reportUrl, month)
+                    : new Published(fund, reportUrl))
+        .orElseGet(() -> new ForeignFile(fund, reportUrl));
   }
 
   private static String filename(String url) {
-    return url.substring(url.lastIndexOf('/') + 1);
+    return URLDecoder.decode(url.substring(url.lastIndexOf('/') + 1), UTF_8);
   }
 
   record Published(TulevaFund fund, String reportUrl) implements ReportPublication {
@@ -65,6 +61,15 @@ sealed interface ReportPublication {
     public String describe() {
       return "%s: the fund page links %s, not the %s report"
           .formatted(fund.getCode(), filename(reportUrl), required);
+    }
+  }
+
+  record ForeignFile(TulevaFund fund, String reportUrl) implements ReportPublication {
+
+    @Override
+    public String describe() {
+      return "%s: the fund page links %s, which is not this fund's investment report"
+          .formatted(fund.getCode(), filename(reportUrl));
     }
   }
 

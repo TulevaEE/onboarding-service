@@ -5,6 +5,7 @@ import spock.lang.Unroll
 
 import java.time.YearMonth
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 
 class ReportPublicationSpec extends Specification {
@@ -29,6 +30,12 @@ class ReportPublicationSpec extends Specification {
     UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-091.pdf" || false
     UPLOADS + "Tuleva-Maailma-Aktsiate-Pensionifondi-investeeringute-aruanne-september-2026.pdf" || false
     UPLOADS + "investeeringute-aruanne.pdf"                                               || false
+    UPLOADS + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-09.pdf" || false
+    UPLOADS + "tuleva-iii-samba-pensionifondi-investeeringute-aruanne-2026-09.pdf"        || false
+    UPLOADS + "kuukokkuvote-2026-09.pdf"                                                  || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-draft-2026-09.pdf" || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-lisa-2026-09.pdf" || false
+    UPLOADS + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-09.docx" || false
     "https://tuleva.ee/investeeringute-aruanne.pdf"                                       || false
   }
 
@@ -40,5 +47,25 @@ class ReportPublicationSpec extends Specification {
     expect:
     ReportPublication.linking(TUK75, september, YearMonth.of(2026, 9)) == new ReportPublication.Published(TUK75, september)
     ReportPublication.linking(TUK75, august, YearMonth.of(2026, 9)) == new ReportPublication.Outdated(TUK75, august, YearMonth.of(2026, 9))
+  }
+
+  def "a report uploaded under its accented title is read through its URL encoding"() {
+    expect:
+    ReportPublication.linking(
+        TUK00,
+        UPLOADS + "Tuleva-Maailma-V%C3%B5lakirjade-Pensionifondi-investeeringute-aruanne-2026-09.pdf",
+        YearMonth.of(2026, 9)).isPublished()
+  }
+
+  def "another fund's report on the page is told apart from an outdated one, and counts as missing"() {
+    given:
+    def bondFundsSeptember = UPLOADS + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-09.pdf"
+
+    when:
+    def publication = ReportPublication.linking(TUK75, bondFundsSeptember, YearMonth.of(2026, 9))
+
+    then:
+    publication == new ReportPublication.ForeignFile(TUK75, bondFundsSeptember)
+    publication.isMissing()
   }
 }

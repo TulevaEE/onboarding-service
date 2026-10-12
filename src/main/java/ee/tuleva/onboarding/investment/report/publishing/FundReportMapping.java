@@ -1,11 +1,17 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static java.lang.Integer.parseInt;
+
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.text.Normalizer;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public enum FundReportMapping {
@@ -37,6 +43,8 @@ public enum FundReportMapping {
   private static final Map<TulevaFund, FundReportMapping> BY_FUND =
       Arrays.stream(values())
           .collect(Collectors.toMap(FundReportMapping::fund, Function.identity()));
+
+  private static final String REPORT_TITLE = " investeeringute aruanne ";
 
   private static final String[] ESTONIAN_MONTHS = {
     "jaanuar", "veebruar", "märts", "aprill", "mai", "juuni",
@@ -101,9 +109,29 @@ public enum FundReportMapping {
     return ESTONIAN_MONTHS[month - 1];
   }
 
+  public Optional<YearMonth> reportPeriodNamedBy(String filename) {
+    var matcher = reportFilename().matcher(asciiWords(filename));
+    return matcher.matches()
+        ? Optional.of(YearMonth.of(parseInt(matcher.group(1)), parseInt(matcher.group(2))))
+        : Optional.empty();
+  }
+
+  private Pattern reportFilename() {
+    return Pattern.compile(
+        Pattern.quote(asciiWords(titleGenitive + REPORT_TITLE))
+            + "(\\d{4})-(0[1-9]|1[0-2])(?:-\\d+)?-pdf");
+  }
+
+  private static String asciiWords(String text) {
+    return Normalizer.normalize(text, Normalizer.Form.NFD)
+        .replaceAll("\\p{M}+", "")
+        .toLowerCase(Locale.ROOT)
+        .replaceAll("[^a-z0-9]+", "-");
+  }
+
   public String buildPdfFilename(YearMonth month) {
     return titleGenitive
-        + " investeeringute aruanne "
+        + REPORT_TITLE
         + month.getYear()
         + "-"
         + String.format("%02d", month.getMonthValue())

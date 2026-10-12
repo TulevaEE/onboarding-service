@@ -34,7 +34,7 @@ public class PaymentService {
 
   public List<Payment> getThirdPillarPayments(Person person) {
     return paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(
-        person.getPersonalCode(), MEMBER_FEE);
+        person.getRepresentedPersonalCode(), MEMBER_FEE);
   }
 
   @Trackable(PAYMENT_LINK)

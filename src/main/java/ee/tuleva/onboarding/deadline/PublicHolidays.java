@@ -4,6 +4,7 @@ import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,10 @@ public class PublicHolidays {
       date = date.minusDays(1);
     }
     return date;
+  }
+
+  public LocalDate lastWorkingDayOf(YearMonth month) {
+    return previousWorkingDay(month.plusMonths(1).atDay(1));
   }
 
   public long countWorkingDaysBehind(LocalDate from, LocalDate to) {

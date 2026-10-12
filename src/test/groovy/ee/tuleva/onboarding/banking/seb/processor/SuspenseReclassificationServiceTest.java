@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.UNCLASSIFIED_BANK_ENTRY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
@@ -10,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -29,10 +33,12 @@ class SuspenseReclassificationServiceTest {
   private static final String OWN_ACCOUNT_IBAN = "EE001234567890123490";
   private static final String BANK_FEE_IBAN = "EE001234567890123491";
   private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 2, 10);
+  private static final String SUBFUND_ISIN = "IE00BFG1TM61";
 
   @Autowired private SuspenseReclassificationService service;
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private LedgerService ledgerService;
+  @Autowired private NavLedgerRepository navLedgerRepository;
 
   @DynamicPropertySource
   static void counterpartyIbans(DynamicPropertyRegistry registry) {
@@ -149,6 +155,67 @@ class SuspenseReclassificationServiceTest {
     assertThat(replay).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
     assertThat(balance(REGISTRAR_CASH_SETTLEMENT))
         .isEqualByComparingTo(new BigDecimal("-750000.00"));
+  }
+
+  @Test
+  void
+      reclassify_movesAParkedTradeSettlementIntoTheInstrumentAccounts_andLeavesAnUnknownTickerParked() {
+    parkBankOperation(
+        "-34448.28",
+        "DLA0000001/BDWTEIA/1000/34.44828/Buy/ BlackRock Asset Management Ireland Ltd",
+        "SUBS");
+    parkBankOperation("10.00", "DLA0000002/NOTLISTED/5/2.00/Sell/", "TRAD");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 1));
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("-10.00"));
+    assertThat(instrumentBalance(SECURITIES_CUSTODY)).isEqualByComparingTo(new BigDecimal("1000"));
+    assertThat(instrumentBalance(TRADE_CASH_SETTLEMENT))
+        .isEqualByComparingTo(new BigDecimal("34448.28"));
+    assertThat(balance(FUND_INVESTMENT_CASH_CLEARING))
+        .isEqualByComparingTo(new BigDecimal("-34438.28"));
+
+    var replay = service.reclassify(TUK75);
+
+    assertThat(replay).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(instrumentBalance(SECURITIES_CUSTODY)).isEqualByComparingTo(new BigDecimal("1000"));
+  }
+
+  @Test
+  void reclassify_movesParkedInterestAndBankAdjustmentsOutOfSuspense() {
+    parkBankOperation("2.00", "Intress", "INTR");
+    parkBankOperation("-3.00", "Korrigeerimine", "ADJT");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(2, 0));
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(INTEREST_INCOME)).isEqualByComparingTo(new BigDecimal("-2.00"));
+    assertThat(balance(SystemAccount.BANK_ADJUSTMENT)).isEqualByComparingTo(new BigDecimal("3.00"));
+    assertThat(balance(FUND_INVESTMENT_CASH_CLEARING))
+        .isEqualByComparingTo(new BigDecimal("-1.00"));
+  }
+
+  private void parkBankOperation(
+      String amount, String remittanceInformation, String subFamilyCode) {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal(amount),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(
+            null, null, remittanceInformation, subFamilyCode));
+  }
+
+  private BigDecimal instrumentBalance(SystemAccount systemAccount) {
+    return navLedgerRepository.getSystemAccountBalance(
+        systemAccount.getAccountName(TUK75, SUBFUND_ISIN));
   }
 
   private BigDecimal balance(SystemAccount systemAccount) {

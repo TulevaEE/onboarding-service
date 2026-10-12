@@ -8,9 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +26,6 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class PendingOrderImpactService {
 
-  private static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
-
-  private enum InPositionReport {
-    SHOWN_SO_THE_REPORT_CARRIES_ITS_CASH,
-    NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH,
-    MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED
-  }
-
   private record ClassifiedFill(TransactionExecution execution, InPositionReport inPositionReport) {
 
     BigDecimal unreportedConsideration() {
@@ -48,7 +37,7 @@ class PendingOrderImpactService {
     }
 
     BigDecimal cashTheOrderCarries(TransactionOrder order) {
-      return cashToCount(order, inPositionReport, absOrZero(execution.getTotalConsideration()));
+      return inPositionReport.cashToCount(order, absOrZero(execution.getTotalConsideration()));
     }
 
     private boolean notYetShown() {
@@ -83,7 +72,10 @@ class PendingOrderImpactService {
           order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
       BigDecimal cash =
           cashTheOrderStillCarries(
-              order, fills, unfilledValue, unfilledRemainderInPositionReport(order, positionDate));
+              order,
+              fills,
+              unfilledValue,
+              InPositionReport.ofUnfilledRemainder(order, positionDate));
       if (order.getTransactionType() == BUY) {
         pendingBuys = pendingBuys.add(cash);
       } else {
@@ -110,7 +102,8 @@ class PendingOrderImpactService {
     return executions.stream()
         .map(
             execution ->
-                new ClassifiedFill(execution, inPositionReport(order, execution, positionDate)))
+                new ClassifiedFill(
+                    execution, InPositionReport.ofFill(order, execution, positionDate)))
         .toList();
   }
 
@@ -142,15 +135,6 @@ class PendingOrderImpactService {
     }
   }
 
-  private static void warnUndated(TransactionExecution execution, LocalDate positionDate) {
-    log.warn(
-        "Execution carries no reported date, leaving its position to the custodian report:"
-            + " executionId={}, orderId={}, positionDate={}",
-        execution.getId(),
-        execution.getOrderId(),
-        positionDate);
-  }
-
   private static BigDecimal cashTheOrderStillCarries(
       TransactionOrder order,
       List<ClassifiedFill> fills,
@@ -158,17 +142,7 @@ class PendingOrderImpactService {
       InPositionReport unfilledRemainderInPositionReport) {
     BigDecimal fillsCash =
         fills.stream().map(fill -> fill.cashTheOrderCarries(order)).reduce(ZERO, BigDecimal::add);
-    return fillsCash.add(cashToCount(order, unfilledRemainderInPositionReport, unfilledValue));
-  }
-
-  private static BigDecimal cashToCount(
-      TransactionOrder order, InPositionReport inPositionReport, BigDecimal value) {
-    return switch (inPositionReport) {
-      case SHOWN_SO_THE_REPORT_CARRIES_ITS_CASH -> ZERO;
-      case NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH -> value;
-      case MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED ->
-          order.getTransactionType() == BUY ? value : ZERO;
-    };
+    return fillsCash.add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
   }
 
   private static void addUnfilledQuantity(
@@ -187,45 +161,6 @@ class PendingOrderImpactService {
     return orderQuantity == null
         ? ZERO
         : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
-  }
-
-  private static InPositionReport inPositionReport(
-      TransactionOrder order, TransactionExecution execution, LocalDate positionDate) {
-    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
-      return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
-    }
-    LocalDate reportedDate = execution.getReportedDate();
-    if (reportedDate == null) {
-      warnUndated(execution, positionDate);
-      return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
-    }
-    if (reportedDate.isAfter(positionDate)) {
-      return InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
-    }
-    if (reportedDate.isEqual(positionDate) && order.getInstrumentType() != ETF) {
-      return fundFillTheReportMayBookOnlyTheNextDay();
-    }
-    return InPositionReport.SHOWN_SO_THE_REPORT_CARRIES_ITS_CASH;
-  }
-
-  private static InPositionReport fundFillTheReportMayBookOnlyTheNextDay() {
-    return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
-  }
-
-  private static InPositionReport unfilledRemainderInPositionReport(
-      TransactionOrder order, LocalDate positionDate) {
-    return placedAfterTheReportDate(order, positionDate)
-        ? InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH
-        : mayBeFilledUnseenOrStillAwaitingALaterFundNav();
-  }
-
-  private static boolean placedAfterTheReportDate(TransactionOrder order, LocalDate positionDate) {
-    Instant placedAt = order.getOrderTimestamp();
-    return placedAt != null && placedAt.atZone(TALLINN).toLocalDate().isAfter(positionDate);
-  }
-
-  private static InPositionReport mayBeFilledUnseenOrStillAwaitingALaterFundNav() {
-    return InPositionReport.MAYBE_SHOWN_SO_A_PURCHASE_IS_RESERVED_AND_A_SALE_NOT_COUNTED;
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {

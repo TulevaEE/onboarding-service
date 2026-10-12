@@ -26,7 +26,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -42,9 +41,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OcfCalculationService {
 
-  private static final int SCALE = 8;
+  static final int SCALE = 8;
   private static final RebateBasis REBATE_BASIS = RebateBasis.NET;
-  private static final BigDecimal DAYS_IN_YEAR = BigDecimal.valueOf(365);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FeeRateRepository feeRateRepository;
@@ -298,19 +296,7 @@ public class OcfCalculationService {
           txnCosts);
       return window.at(ZERO, List.of(TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM));
     }
-    var rate =
-        periodStart.equals(trailingYearStart)
-            ? txnCosts.divide(avgAum, SCALE, HALF_UP)
-            : annualisedOverTheFundsLife(txnCosts, avgAum, periodStart, monthEnd);
-    return window.at(rate, List.of());
-  }
-
-  private static BigDecimal annualisedOverTheFundsLife(
-      BigDecimal txnCosts, BigDecimal avgAum, LocalDate inception, LocalDate monthEnd) {
-    var daysOfFundLife = ChronoUnit.DAYS.between(inception, monthEnd) + 1;
-    return txnCosts
-        .multiply(DAYS_IN_YEAR)
-        .divide(avgAum.multiply(BigDecimal.valueOf(daysOfFundLife)), SCALE, HALF_UP);
+    return window.annualised(trailingYearStart);
   }
 
   private static LocalDate laterOf(LocalDate one, LocalDate other) {
@@ -367,16 +353,4 @@ public class OcfCalculationService {
       BigDecimal averageAum,
       List<LocalDate> navDates,
       List<OcfGap> gaps) {}
-
-  private record TransactionCostWindow(
-      LocalDate start,
-      LocalDate end,
-      BigDecimal commissions,
-      BigDecimal averageAum,
-      List<LocalDate> navDates) {
-
-    TransactionCost at(BigDecimal rate, List<OcfGap> gaps) {
-      return new TransactionCost(rate, start, end, commissions, averageAum, navDates, gaps);
-    }
-  }
 }

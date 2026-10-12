@@ -49,10 +49,9 @@ class OutgoingPaymentReconcilerTest {
         IN_FLIGHT_GRACE);
   }
 
-  // A payment we submitted that the bank never executed is usually nobody having approved it.
   @Test
   void aSubmittedPaymentPastItsDeadlineIsReportedAsNotExecuted() {
-    givenOverdue(SUBMITTED, List.of(payment("E2E-NOT-EXECUTED", SUBMITTED)));
+    givenBothQueriesFindOnlyThe(SUBMITTED, List.of(payment("E2E-NOT-EXECUTED", SUBMITTED)));
 
     reconciler().reconcile();
 
@@ -61,11 +60,9 @@ class OutgoingPaymentReconcilerTest {
         .record(eq(PAYMENT_NOT_EXECUTED), eq(WARNING), eq("E2E-NOT-EXECUTED"), anyString());
   }
 
-  // Worse than unexecuted: the call never returned a verdict, so the payment may or may not have
-  // reached the bank, and nobody may resend it without checking.
   @Test
   void anAttemptedPaymentPastTheGraceIsReportedAsIndeterminate() {
-    givenOverdue(ATTEMPTED, List.of(payment("E2E-IN-FLIGHT", ATTEMPTED)));
+    givenBothQueriesFindOnlyThe(ATTEMPTED, List.of(payment("E2E-IN-FLIGHT", ATTEMPTED)));
 
     reconciler().reconcile();
 
@@ -75,7 +72,8 @@ class OutgoingPaymentReconcilerTest {
   }
 
   @Test
-  void aSubmittedPaymentIsOverdueTheWorkingMorningAfterItsBriefButAnAttemptedOneWithinMinutes() {
+  void
+      onAWorkingDayASubmittedPaymentIsDueByThePreviousWorkingDaysBriefAndAnAttemptedOneByTheGrace() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)
@@ -93,8 +91,8 @@ class OutgoingPaymentReconcilerTest {
     then(paymentCheckService).should(never()).record(any(), any(), anyString(), anyString());
   }
 
-  /** Both queries are stubbed every time: reconcile() always makes both, whatever is overdue. */
-  private void givenOverdue(OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
+  private void givenBothQueriesFindOnlyThe(
+      OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
     given(outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(SUBMITTED, THURSDAYS_BRIEF))
         .willReturn(overdueStatus == SUBMITTED ? overdue : List.of());
     given(

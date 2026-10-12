@@ -31,9 +31,11 @@ sealed interface ReportPublication {
     return publications.stream().allMatch(ReportPublication::isPublished);
   }
 
-  static ReportPublication linking(TulevaFund fund, String reportUrl, YearMonth month) {
+  static ReportPublication linking(
+      TulevaFund fund, String reportUrl, YearMonth month, YearMonth lastMonth) {
     return FundReportMapping.forFund(fund)
         .reportPeriodNamedBy(filename(reportUrl))
+        .filter(period -> !period.isAfter(lastMonth))
         .<ReportPublication>map(
             period ->
                 period.isBefore(month)

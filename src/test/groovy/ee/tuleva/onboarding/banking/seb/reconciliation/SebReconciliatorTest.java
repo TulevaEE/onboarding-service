@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithEntries;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -197,7 +196,7 @@ class SebReconciliatorTest {
 
   @Test
   void
-      reconcile_shouldThrowException_whenUnresolvedUnclassifiedEntriesExistByTheEndOfTheStatementDay() {
+      reconcile_publishesBlockedWithTheCountInsteadOfOk_whileUnclassifiedEntriesAreUnresolvedByTheEndOfTheStatementDay() {
     BigDecimal matchingBalance = new BigDecimal("1000.00");
     BankStatementBalance closingBalance =
         new BankStatementBalance(CLOSE, LocalDate.of(2024, 1, 15), matchingBalance);
@@ -220,11 +219,52 @@ class SebReconciliatorTest {
                 TKF100, Instant.parse("2024-01-15T22:00:00Z")))
         .willReturn(2L);
 
-    var exception =
-        assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+    assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
 
-    assertThat(exception.getMessage()).contains("Unresolved unclassified bank entries");
-    verifyNoInteractions(eventPublisher);
+    verify(eventPublisher)
+        .publishEvent(
+            new ReconciliationBlockedEvent(
+                new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
+                2));
+    verifyNoMoreInteractions(eventPublisher);
+  }
+
+  @Test
+  void reconcile_publishesOkAgainAndNoBlocked_onceEverySuspenseEntryIsResolved() {
+    BigDecimal matchingBalance = new BigDecimal("1000.00");
+    BankStatementBalance closingBalance =
+        new BankStatementBalance(CLOSE, LocalDate.of(2024, 1, 15), matchingBalance);
+    BankStatementAccount account =
+        new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
+
+    LedgerAccount ledgerAccount =
+        systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
+
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
+    given(
+            fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                TKF100, Instant.parse("2024-01-15T22:00:00Z")))
+        .willReturn(0L);
+
+    reconciliator.reconcile(bankStatement);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new ReconciliationCompletedEvent(
+                new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
+                matchingBalance,
+                matchingBalance,
+                true));
+    verifyNoMoreInteractions(eventPublisher);
   }
 
   @Test

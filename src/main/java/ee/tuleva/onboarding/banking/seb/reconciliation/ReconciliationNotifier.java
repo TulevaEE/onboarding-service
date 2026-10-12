@@ -34,4 +34,19 @@ public class ReconciliationNotifier {
       log.error("Failed to send reconciliation notification", e);
     }
   }
+
+  @EventListener
+  public void onReconciliationBlocked(ReconciliationBlockedEvent event) {
+    try {
+      notificationService.sendMessage(
+          "🟠 Bank reconciliation BLOCKED by unclassified entries in suspense: bankAccount=%s, statementDate=%s, unclassifiedEntries=%d"
+              .formatted(event.bankAccount(), event.statementDate(), event.unclassifiedEntries()),
+          SAVINGS);
+    } catch (Exception e) {
+      log.error(
+          "Failed to send reconciliation blocked notification: bankAccount={}",
+          event.bankAccount(),
+          e);
+    }
+  }
 }

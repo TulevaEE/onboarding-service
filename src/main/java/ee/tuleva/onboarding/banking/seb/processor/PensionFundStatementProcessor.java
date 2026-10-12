@@ -39,31 +39,38 @@ public class PensionFundStatementProcessor {
         account,
         statement.getType(),
         statement.getEntries().size());
-    if (statement.getType() != INTRA_DAY_REPORT) {
-      seedOpeningBalance(statement, account);
-    } else if (!fundBankLedger.hasBankEntries(account.fund())) {
-      // Only an end-of-day statement seeds the opening balance, and only on an account with no
-      // entries yet. Booking today's entries first would leave the account unseeded for good.
+    if (statement.getType() == INTRA_DAY_REPORT) {
+      processIntradayReport(statement, account);
+      return;
+    }
+    seedOpeningBalance(statement, account);
+    statement.getEntries().forEach(entry -> processEntry(entry, account));
+  }
+
+  private void processIntradayReport(BankStatement report, BankAccount account) {
+    if (bookingWouldPreemptTheFirstStatementsOpeningBalance(account)) {
       log.info(
           "Leaving an intraday report to the account's first end-of-day statement: account={}",
           account);
       return;
     }
-    statement.getEntries().stream()
-        .filter(entry -> isFinal(entry, statement))
-        .forEach(entry -> processEntry(entry, account));
+    report.getEntries().forEach(entry -> processIntradayEntry(entry, account));
   }
 
-  private static boolean isFinal(BankStatementEntry entry, BankStatement statement) {
-    if (statement.getType() != INTRA_DAY_REPORT || entry.booked()) {
-      return true;
+  private boolean bookingWouldPreemptTheFirstStatementsOpeningBalance(BankAccount account) {
+    return !fundBankLedger.hasBankEntries(account.fund());
+  }
+
+  private void processIntradayEntry(BankStatementEntry entry, BankAccount account) {
+    if (!entry.booked()) {
+      log.info(
+          "Leaving an entry the intraday report does not show as booked to the end-of-day"
+              + " statement: externalId={}, amount={}",
+          entry.externalId(),
+          entry.amount());
+      return;
     }
-    log.info(
-        "Leaving an entry the intraday report does not show as booked to the end-of-day statement:"
-            + " externalId={}, amount={}",
-        entry.externalId(),
-        entry.amount());
-    return false;
+    processEntry(entry, account);
   }
 
   private void seedOpeningBalance(BankStatement statement, BankAccount account) {

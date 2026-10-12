@@ -82,7 +82,7 @@ class SebStatementFetchingScheduleTest {
     var fetches = firesOn("2026-07-24", CURRENT_DAY_FETCH_WHILE_PAYMENTS_AWAIT_APPROVAL_CRON);
     var reminders =
         Stream.of(
-                PaymentApprovalReminderJob.FROM_TWENTY_PAST_FOUR_CRON,
+                PaymentApprovalReminderJob.FROM_QUARTER_PAST_FOUR_CRON,
                 PaymentApprovalReminderJob.UNTIL_SIX_CRON)
             .flatMap(cron -> firesOn("2026-07-24", cron).stream())
             .toList();

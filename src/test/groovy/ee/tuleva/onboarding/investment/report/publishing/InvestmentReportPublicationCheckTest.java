@@ -12,13 +12,17 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.ForeignFile;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotChecked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Outdated;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Published;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.retry.RetryPolicy;
@@ -32,6 +36,8 @@ import org.springframework.web.client.RestClient;
 class InvestmentReportPublicationCheckTest {
 
   private static final String API_BASE = "https://tuleva.ee/wp-json/wp/v2";
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final YearMonth AUGUST = YearMonth.of(2026, 8);
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final String TUK75_SEPTEMBER =
       "https://tuleva.ee/wp-content/uploads/2026/10/"
@@ -42,20 +48,25 @@ class InvestmentReportPublicationCheckTest {
   private static final String TUK00_AUGUST =
       "https://tuleva.ee/wp-content/uploads/2026/09/"
           + "Tuleva-Maailma-Volakirjade-Pensionifondi-investeeringute-aruanne-2026-08.pdf";
+  private static final String TUK00_OCTOBER =
+      "https://tuleva.ee/wp-content/uploads/2026/10/"
+          + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-10.pdf";
+  private static final String TUV100_AUGUST =
+      "https://tuleva.ee/wp-content/uploads/2026/09/"
+          + "tuleva-iii-samba-pensionifondi-investeeringute-aruanne-2026-08.pdf";
   private static final String TUV100_SEPTEMBER =
       "https://tuleva.ee/wp-content/uploads/2026/10/"
           + "tuleva-iii-samba-pensionifondi-investeeringute-aruanne-2026-09.pdf";
 
+  private RestClient.Builder builder;
   private MockRestServiceServer server;
   private InvestmentReportPublicationCheck check;
 
   @BeforeEach
   void setUp() {
-    var builder = RestClient.builder().baseUrl(API_BASE);
+    builder = RestClient.builder().baseUrl(API_BASE);
     server = MockRestServiceServer.bindTo(builder).build();
-    check =
-        new InvestmentReportPublicationCheck(
-            new WordPressPageReader(builder.build(), retryTemplate()));
+    check = checkOn(LocalDate.of(2026, 10, 12));
   }
 
   @Test
@@ -131,6 +142,26 @@ class InvestmentReportPublicationCheckTest {
         .isInstanceOfSatisfying(
             NotChecked.class,
             notChecked -> assertThat(notChecked.reason()).hasSizeLessThanOrEqualTo(201));
+  }
+
+  @Test
+  void beforeTheTenth_lastMonthsReportIsPublished_butAReportNamingThisMonthIsNotThisFundsReport() {
+    pageLinks("tuleva-maailma-aktsiate-pensionifond", 37853, TUK75_SEPTEMBER);
+    pageLinks("tuleva-maailma-volakirjade-pensionifond", 37862, TUK00_OCTOBER);
+    pageLinks("tuleva-iii-samba-pensionifond", 36993, TUV100_AUGUST);
+
+    assertThat(checkOn(LocalDate.of(2026, 10, 5)).check(AUGUST))
+        .containsExactly(
+            new Published(TUK75, TUK75_SEPTEMBER),
+            new ForeignFile(TUK00, TUK00_OCTOBER),
+            new Published(TUV100, TUV100_AUGUST));
+    server.verify();
+  }
+
+  private InvestmentReportPublicationCheck checkOn(LocalDate today) {
+    var clock = Clock.fixed(today.atTime(9, 0).atZone(TALLINN).toInstant(), TALLINN);
+    return new InvestmentReportPublicationCheck(
+        new WordPressPageReader(builder.build(), retryTemplate()), clock);
   }
 
   private void pageLinks(String slug, int attachmentId, String reportUrl) {

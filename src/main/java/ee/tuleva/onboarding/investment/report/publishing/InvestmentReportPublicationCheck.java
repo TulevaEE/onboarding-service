@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotCh
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Stream;
@@ -19,9 +21,13 @@ class InvestmentReportPublicationCheck {
   private static final int MAX_REASON_LENGTH_IN_SLACK = 200;
 
   private final WordPressPageReader pageReader;
+  private final Clock clock;
 
   List<ReportPublication> check(YearMonth month) {
-    return pensionFundReports().stream().map(report -> publicationOf(report, month)).toList();
+    var lastMonth = YearMonth.from(LocalDate.now(clock)).minusMonths(1);
+    return pensionFundReports().stream()
+        .map(report -> publicationOf(report, month, lastMonth))
+        .toList();
   }
 
   private static List<FundReportMapping> pensionFundReports() {
@@ -31,12 +37,13 @@ class InvestmentReportPublicationCheck {
         .toList();
   }
 
-  private ReportPublication publicationOf(FundReportMapping report, YearMonth month) {
+  private ReportPublication publicationOf(
+      FundReportMapping report, YearMonth month, YearMonth lastMonth) {
     var fund = report.fund();
     try {
       return pageReader
           .investmentReportUrl(report.pageSlug())
-          .map(reportUrl -> ReportPublication.linking(fund, reportUrl, month))
+          .map(reportUrl -> ReportPublication.linking(fund, reportUrl, month, lastMonth))
           .orElseGet(() -> new NotLinked(fund));
     } catch (Exception e) {
       log.error(

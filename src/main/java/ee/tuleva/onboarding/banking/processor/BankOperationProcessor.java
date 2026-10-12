@@ -193,8 +193,8 @@ public class BankOperationProcessor {
         UNCLASSIFIED_BANK_OPERATION,
         WARNING,
         externalReference.toString(),
-        "cash parked in suspense, subFamilyCode=%s, reason=%s"
-            .formatted(entry.subFamilyCode(), reason));
+        "cash parked in suspense, fund=%s, subFamilyCode=%s, reason=%s"
+            .formatted(account.fund().getCode(), entry.subFamilyCode(), reason));
     fundBankLedger.recordUnclassifiedBankEntry(
         account.fund(),
         amount,

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -142,7 +143,7 @@ class PensionFundStatementProcessorTest {
   }
 
   @Test
-  void unclassifiedEntry_landsInSuspenseWithClassifierMetadata() {
+  void unclassifiedEntry_landsInSuspenseAndRaisesTheUnclassifiedBankOperationFindingForTheFund() {
     var entry =
         entryWithCounterparty(
             new BigDecimal("99.99"), "selgituseta", "Mystery OU", "EE001234567890123499", "OTHR");
@@ -161,6 +162,26 @@ class PensionFundStatementProcessorTest {
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(
                     "Mystery OU", "EE001234567890123499", "selgituseta", "OTHR")));
+    var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
+    verify(paymentCheckService)
+        .record(
+            UNCLASSIFIED_BANK_OPERATION,
+            WARNING,
+            externalReference.toString(),
+            "cash parked in suspense, fund=TUK75, subFamilyCode=OTHR, reason=unknown counterparty");
+  }
+
+  @Test
+  void alreadyParkedUnclassifiedEntry_raisesNoFindingAgainOnReplay() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("99.99"), "selgituseta", "Mystery OU", "EE001234567890123499", "OTHR");
+    when(fundBankLedger.existsForExternalReference(any(UUID.class))).thenReturn(true);
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
     verifyNoInteractions(paymentCheckService);
   }
 

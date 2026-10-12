@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -54,7 +55,13 @@ public class PensionFundEntryClassifier {
   public record OwnAccountTransfer() implements Classification {}
 
   public record TradeSettlement(String isin, String ticker, String displayName, BigDecimal units)
-      implements Classification {}
+      implements Classification {
+
+    public BigDecimal signedUnits(BigDecimal cashAmount) {
+      var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
+      return cashAmount.signum() > 0 ? scaled.negate() : scaled;
+    }
+  }
 
   public record Unclassified(String reason) implements Classification {}
 

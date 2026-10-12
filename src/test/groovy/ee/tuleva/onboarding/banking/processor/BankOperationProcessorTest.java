@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
@@ -125,6 +127,13 @@ class BankOperationProcessorTest {
             eq(LocalDate.of(2025, 10, 1)),
             eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
     verify(fundBankLedger, never()).recordBankAdjustment(any(), any(), any(), any(), any());
+    verify(paymentCheckService)
+        .record(
+            eq(UNCLASSIFIED_BANK_OPERATION),
+            eq(WARNING),
+            any(String.class),
+            eq(
+                "cash parked in suspense, fund=TKF100, subFamilyCode=UNKN, reason=unknown subFamilyCode"));
   }
 
   @Test

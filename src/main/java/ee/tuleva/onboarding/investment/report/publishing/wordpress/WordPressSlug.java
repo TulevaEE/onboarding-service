@@ -3,14 +3,14 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 import java.text.Normalizer;
 import java.util.Locale;
 
-final class WordPressSlug {
+public final class WordPressSlug {
 
   private static final String DEFAULT_EXTENSION = "pdf";
   private static final int MAX_BASE_SLUG_LENGTH = 100;
 
   private WordPressSlug() {}
 
-  static String of(String filename) {
+  public static String of(String filename) {
     var dotIndex = filename.lastIndexOf('.');
     var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
     var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : DEFAULT_EXTENSION;

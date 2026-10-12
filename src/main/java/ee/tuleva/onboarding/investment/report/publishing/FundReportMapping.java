@@ -2,12 +2,11 @@ package ee.tuleva.onboarding.investment.report.publishing;
 
 import static java.lang.Integer.parseInt;
 
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.text.Normalizer;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -45,6 +44,8 @@ public enum FundReportMapping {
           .collect(Collectors.toMap(FundReportMapping::fund, Function.identity()));
 
   private static final String REPORT_TITLE = " investeeringute aruanne ";
+  private static final Pattern REPORT_PERIOD_AT_THE_END_OF_AN_UPLOADED_NAME =
+      Pattern.compile("-(\\d{4})-(0[1-9]|1[0-2])(?:-\\d+)?\\.pdf$");
 
   private static final String[] ESTONIAN_MONTHS = {
     "jaanuar", "veebruar", "märts", "aprill", "mai", "juuni",
@@ -110,23 +111,17 @@ public enum FundReportMapping {
   }
 
   public Optional<YearMonth> reportPeriodNamedBy(String filename) {
-    var matcher = reportFilename().matcher(asciiWords(filename));
-    return matcher.matches()
-        ? Optional.of(YearMonth.of(parseInt(matcher.group(1)), parseInt(matcher.group(2))))
+    var uploadedName = WordPressSlug.of(filename);
+    var period = REPORT_PERIOD_AT_THE_END_OF_AN_UPLOADED_NAME.matcher(uploadedName);
+    if (!period.find()) {
+      return Optional.empty();
+    }
+    var month = YearMonth.of(parseInt(period.group(1)), parseInt(period.group(2)));
+    var nameWithoutWordPressDuplicateSuffix =
+        uploadedName.substring(0, period.start()) + "-%s.pdf".formatted(month);
+    return nameWithoutWordPressDuplicateSuffix.equals(WordPressSlug.of(buildPdfFilename(month)))
+        ? Optional.of(month)
         : Optional.empty();
-  }
-
-  private Pattern reportFilename() {
-    return Pattern.compile(
-        Pattern.quote(asciiWords(titleGenitive + REPORT_TITLE))
-            + "(\\d{4})-(0[1-9]|1[0-2])(?:-\\d+)?-pdf");
-  }
-
-  private static String asciiWords(String text) {
-    return Normalizer.normalize(text, Normalizer.Form.NFD)
-        .replaceAll("\\p{M}+", "")
-        .toLowerCase(Locale.ROOT)
-        .replaceAll("[^a-z0-9]+", "-");
   }
 
   public String buildPdfFilename(YearMonth month) {

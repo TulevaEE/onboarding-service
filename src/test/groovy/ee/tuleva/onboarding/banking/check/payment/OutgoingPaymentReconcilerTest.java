@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class OutgoingPaymentReconcilerTest {
 
   private static final Instant NOW = Instant.parse("2026-04-10T12:00:00Z");
-  private static final Instant WEDNESDAYS_BRIEF = Instant.parse("2026-04-08T13:10:00Z");
+  private static final Instant THURSDAYS_BRIEF = Instant.parse("2026-04-09T13:10:00Z");
   private static final Duration IN_FLIGHT_GRACE = Duration.ofMinutes(15);
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
@@ -75,12 +75,12 @@ class OutgoingPaymentReconcilerTest {
   }
 
   @Test
-  void aSubmittedPaymentHasAWorkingDayAfterItsBriefButAnAttemptedOneOnlyMinutes() {
+  void aSubmittedPaymentIsOverdueOnceItsBriefsDayHasEndedButAnAttemptedOneWithinMinutes() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)
         .should()
-        .findByStatusAndAttemptedAtBefore(SUBMITTED, WEDNESDAYS_BRIEF);
+        .findByStatusAndAttemptedAtBefore(SUBMITTED, THURSDAYS_BRIEF);
     then(outgoingPaymentRepository)
         .should()
         .findByStatusAndAttemptedAtBefore(ATTEMPTED, NOW.minus(IN_FLIGHT_GRACE));
@@ -95,7 +95,7 @@ class OutgoingPaymentReconcilerTest {
 
   /** Both queries are stubbed every time: reconcile() always makes both, whatever is overdue. */
   private void givenOverdue(OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
-    given(outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(SUBMITTED, WEDNESDAYS_BRIEF))
+    given(outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(SUBMITTED, THURSDAYS_BRIEF))
         .willReturn(overdueStatus == SUBMITTED ? overdue : List.of());
     given(
             outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.INFO;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_LEFT_UNEXECUTED;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
@@ -15,7 +17,10 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.time.ClockConfig;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -37,6 +42,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   PaymentApprovalReminder.class,
   BriefedBatches.class,
   PaymentAccounts.class,
+  PaymentCheckService.class,
+  ClockConfig.class,
   PublicHolidays.class
 })
 class PaymentApprovalReminderIT {
@@ -58,7 +65,9 @@ class PaymentApprovalReminderIT {
   @Autowired BriefedBatches briefedBatches;
   @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
   @Autowired JdbcClient jdbcClient;
+  @Autowired PaymentCheckService paymentCheckService;
   @MockitoBean BankAccounts bankAccounts;
+  @MockitoBean OperationsNotificationService notificationService;
 
   @BeforeEach
   void theAccountsAreOurs() {
@@ -122,8 +131,24 @@ class PaymentApprovalReminderIT {
   }
 
   @Test
-  void leavesAPaymentAnEarlierDaysRemindersCoveredToTheNotExecutedCheckSoItCannotRepeatForever() {
+  void remindsOfAPaymentFromAnEarlierBriefStillAwaitingApprovalBecauseTodaysBriefListedItToo() {
     storePayment(PAYOUT, WITHDRAWAL_IBAN, "250.00", SUBMITTED, YESTERDAY_BEFORE_ITS_BRIEF);
+    storeIntraDayReport(WITHDRAWAL_IBAN, FETCHED_AT_16_23, FETCHED_AT_16_23);
+
+    assertThat(reminder.forPaymentsStillUnexecuted(briefedBatches.on(TODAY), TODAY))
+        .contains(
+            """
+            🟠 TKF100 — 1 payment not yet executed by the bank
+
+              WITHDRAWAL_EUR  1 payment  250.00 EUR  (statement 16:23)""");
+  }
+
+  @Test
+  void stopsRemindingOfAPaymentOnceAClosingReportedItLeftUnexecuted() {
+    var leftUnexecuted =
+        storePayment(PAYOUT, WITHDRAWAL_IBAN, "250.00", SUBMITTED, YESTERDAY_BEFORE_ITS_BRIEF);
+    paymentCheckService.record(
+        PAYMENT_LEFT_UNEXECUTED, INFO, leftUnexecuted.submissionKey(), "reported");
 
     assertThat(reminder.forPaymentsStillUnexecuted(briefedBatches.on(TODAY), TODAY)).isEmpty();
   }
@@ -142,13 +167,13 @@ class PaymentApprovalReminderIT {
               WITHDRAWAL_EUR  1 payment  250.00 EUR  (statement 16:23)""");
   }
 
-  private void storePayment(
+  private OutgoingPayment storePayment(
       OutgoingPaymentType type,
       String remitterIban,
       String amount,
       OutgoingPaymentStatus status,
       Instant attemptedAt) {
-    outgoingPaymentRepository.save(
+    return outgoingPaymentRepository.save(
         OutgoingPayment.builder()
             .endToEndId(UUID.randomUUID().toString().replace("-", ""))
             .paymentType(type)

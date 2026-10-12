@@ -65,4 +65,12 @@ public class OutgoingPayment {
   public boolean isPending() {
     return status == OutgoingPaymentStatus.ATTEMPTED;
   }
+
+  boolean isAwaitingApproval() {
+    return status == OutgoingPaymentStatus.ATTEMPTED || status == OutgoingPaymentStatus.SUBMITTED;
+  }
+
+  String submissionKey() {
+    return endToEndId + "@" + attemptedAt;
+  }
 }

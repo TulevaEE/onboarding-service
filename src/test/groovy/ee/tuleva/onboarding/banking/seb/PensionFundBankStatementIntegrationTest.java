@@ -2,18 +2,23 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.seb.reconciliation.ReconciliationBlockedEvent;
 import ee.tuleva.onboarding.banking.seb.reconciliation.ReconciliationCompletedEvent;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -23,6 +28,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +55,7 @@ class PensionFundBankStatementIntegrationTest {
   @Autowired private NavLedgerRepository navLedgerRepository;
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private BankAccounts bankAccounts;
+  @Autowired private PaymentCheckService paymentCheckService;
 
   @DynamicPropertySource
   static void registrarIbans(DynamicPropertyRegistry registry) {
@@ -116,6 +123,150 @@ class PensionFundBankStatementIntegrationTest {
 
     assertThat(balance(FUND_INVESTMENT_CASH_CLEARING, TUV100))
         .isEqualByComparingTo(new BigDecimal("250002.00"));
+  }
+
+  @Test
+  void
+      unclassifiedEntryRaisesAFindingAndPostsBlockedInsteadOfOk_untilItIsReclassifiedOutOfSuspense() {
+    var account = bankAccounts.find(bankAccounts.getIban(TUK75, FUND_INVESTMENT_EUR)).orElseThrow();
+    var externalReference =
+        UUID.nameUUIDFromBytes((account.iban() + ":PENSION-UNKNOWN-1").getBytes(UTF_8));
+    persistMessage(statementWithAnUnknownCounterpartyCredit());
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(
+            paymentCheckService.hasRecorded(
+                UNCLASSIFIED_BANK_OPERATION, externalReference.toString()))
+        .isTrue();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
+    assertThat(applicationEvents.stream(ReconciliationBlockedEvent.class))
+        .containsExactly(new ReconciliationBlockedEvent(account, LocalDate.of(2026, 2, 10), 1));
+    assertThat(matchedReconciliations(TUK75)).isZero();
+
+    fundBankLedger.reclassifySuspenseEntry(
+        TUK75,
+        new BigDecimal("99.99"),
+        externalReference,
+        REGISTRAR_CONTRIBUTION,
+        LocalDate.of(2026, 2, 10));
+    persistMessage(statementWithAnUnknownCounterpartyCredit());
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(applicationEvents.stream(ReconciliationBlockedEvent.class)).hasSize(1);
+    assertThat(matchedReconciliations(TUK75)).isEqualTo(1);
+  }
+
+  private long matchedReconciliations(TulevaFund fund) {
+    return applicationEvents.stream(ReconciliationCompletedEvent.class)
+        .filter(event -> event.bankAccount().fund() == fund)
+        .filter(ReconciliationCompletedEvent::matched)
+        .count();
+  }
+
+  private String statementWithAnUnknownCounterpartyCredit() {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>test-pension-unclassified</MsgId>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>test-stmt-pension-unclassified</Id>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>2026-02-10T00:00:00</FrDtTm>
+                <ToDtTm>2026-02-10T23:59:59</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>%1$s</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA MAAILMA AKTSIATE PENSIONIFOND</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>OPBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">0.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2026-02-10</Dt>
+                </Dt>
+              </Bal>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>CLBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">99.99</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2026-02-10</Dt>
+                </Dt>
+              </Bal>
+              <Ntry>
+                <NtryRef>PENSION-UNKNOWN-1</NtryRef>
+                <Amt Ccy="EUR">99.99</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>BOOK</Sts>
+                <BookgDt>
+                  <Dt>2026-02-10</Dt>
+                </BookgDt>
+                <ValDt>
+                  <Dt>2026-02-10</Dt>
+                </ValDt>
+                <BkTxCd>
+                  <Domn>
+                    <Cd>PMNT</Cd>
+                    <Fmly>
+                      <Cd>RCDT</Cd>
+                      <SubFmlyCd>ESCT</SubFmlyCd>
+                    </Fmly>
+                  </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                  <TxDtls>
+                    <Refs>
+                      <AcctSvcrRef>PENSION-UNKNOWN-1</AcctSvcrRef>
+                    </Refs>
+                    <RltdPties>
+                      <Dbtr>
+                        <Nm>Mystery Counterparty OU</Nm>
+                      </Dbtr>
+                      <DbtrAcct>
+                        <Id>
+                          <IBAN>EE001234567890123499</IBAN>
+                        </Id>
+                      </DbtrAcct>
+                    </RltdPties>
+                    <RmtInf>
+                      <Ustrd>selgituseta</Ustrd>
+                    </RmtInf>
+                  </TxDtls>
+                </NtryDtls>
+              </Ntry>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(bankAccounts.getIban(TUK75, FUND_INVESTMENT_EUR));
   }
 
   private BigDecimal balance(SystemAccount systemAccount, TulevaFund fund) {

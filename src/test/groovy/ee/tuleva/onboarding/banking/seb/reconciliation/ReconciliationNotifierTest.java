@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.banking.seb.reconciliation;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -59,5 +63,27 @@ class ReconciliationNotifierTest {
         .sendMessage(
             "🔴 Bank reconciliation FAILED: bankAccount=TKF100:DEPOSIT_EUR, statementDate=2026-09-13, bankBalance=1000.00, ledgerBalance=999.99, diff=0.01 <!channel>",
             SAVINGS);
+  }
+
+  @Test
+  void onReconciliationBlocked_sendsBlockedNotificationWithTheCount_whileEntriesWaitInSuspense() {
+    var event = new ReconciliationBlockedEvent(DEPOSIT_ACCOUNT, LocalDate.of(2026, 9, 13), 2);
+
+    notifier.onReconciliationBlocked(event);
+
+    verify(notificationService)
+        .sendMessage(
+            "🟠 Bank reconciliation BLOCKED by unclassified entries in suspense: bankAccount=TKF100:DEPOSIT_EUR, statementDate=2026-09-13, unclassifiedEntries=2",
+            SAVINGS);
+  }
+
+  @Test
+  void onReconciliationBlocked_keepsGoing_whenTheNotificationCannotBeSent() {
+    var event = new ReconciliationBlockedEvent(DEPOSIT_ACCOUNT, LocalDate.of(2026, 9, 13), 2);
+    willThrow(new IllegalStateException("Slack unavailable"))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(SAVINGS));
+
+    assertThatNoException().isThrownBy(() -> notifier.onReconciliationBlocked(event));
   }
 }

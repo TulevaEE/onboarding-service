@@ -39,16 +39,20 @@ class PendingOrderImpactService {
 
   private record ClassifiedFill(TransactionExecution execution, InPositionReport inPositionReport) {
 
-    boolean notYetShown() {
+    BigDecimal unreportedConsideration() {
+      return notYetShown() ? absOrZero(execution.getTotalConsideration()) : ZERO;
+    }
+
+    BigDecimal unreportedQuantity() {
+      return notYetShown() ? absOrZero(execution.getExecutedQuantity()) : ZERO;
+    }
+
+    BigDecimal cashTheOrderCarries(TransactionOrder order) {
+      return cashToCount(order, inPositionReport, absOrZero(execution.getTotalConsideration()));
+    }
+
+    private boolean notYetShown() {
       return inPositionReport == InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
-    }
-
-    BigDecimal consideration() {
-      return absOrZero(execution.getTotalConsideration());
-    }
-
-    BigDecimal quantity() {
-      return absOrZero(execution.getExecutedQuantity());
     }
   }
 
@@ -119,14 +123,11 @@ class PendingOrderImpactService {
       Map<String, BigDecimal> unreportedQuantities) {
     String isin = order.getInstrumentIsin();
     for (ClassifiedFill fill : fills) {
-      if (!fill.notYetShown()) {
-        continue;
-      }
-      BigDecimal consideration = fill.consideration();
+      BigDecimal consideration = fill.unreportedConsideration();
       if (consideration.signum() != 0) {
         unreportedValues.merge(isin, signed(order, consideration), BigDecimal::add);
       }
-      BigDecimal quantity = fill.quantity();
+      BigDecimal quantity = fill.unreportedQuantity();
       if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
         unreportedQuantities.merge(isin, signed(order, quantity), BigDecimal::add);
       }
@@ -156,9 +157,7 @@ class PendingOrderImpactService {
       BigDecimal unfilledValue,
       InPositionReport unfilledRemainderInPositionReport) {
     BigDecimal fillsCash =
-        fills.stream()
-            .map(fill -> cashToCount(order, fill.inPositionReport(), fill.consideration()))
-            .reduce(ZERO, BigDecimal::add);
+        fills.stream().map(fill -> fill.cashTheOrderCarries(order)).reduce(ZERO, BigDecimal::add);
     return fillsCash.add(cashToCount(order, unfilledRemainderInPositionReport, unfilledValue));
   }
 

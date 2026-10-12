@@ -104,16 +104,17 @@ class OutgoingPaymentReconcilerIT {
   }
 
   @Test
-  void aPaymentInTheBriefBeforeAHolidayIsOverdueOnTheHolidayMorning() {
+  void aPaymentInTheBriefBeforeAHolidayIsOverdueOnTheNextWorkingMorning() {
     var payment = submittedAt(DAY_BEFORE_CHRISTMAS_EVE_15_00);
 
     reconcileAt(DAY_BEFORE_CHRISTMAS_EVE_17_30);
+    reconcileAt(CHRISTMAS_EVE_09_00);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(CHRISTMAS_EVE_09_00);
+    reconcileAt(MONDAY_AFTER_CHRISTMAS_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, CHRISTMAS_EVE_09_00));
+        .containsExactly(notExecuted(payment, MONDAY_AFTER_CHRISTMAS_09_00));
   }
 
   @Test

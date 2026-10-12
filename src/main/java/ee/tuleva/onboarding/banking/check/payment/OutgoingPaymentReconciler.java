@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -53,18 +54,21 @@ public class OutgoingPaymentReconciler {
   @SchedulerLock(name = "OutgoingPaymentReconciler", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void reconcile() {
     var now = Instant.now(clock);
+    var today = now.atZone(TALLINN).toLocalDate();
 
-    outgoingPaymentRepository
-        .findByStatusAndAttemptedAtBefore(SUBMITTED, briefOnThePreviousWorkingDay(now))
-        .forEach(this::reportNotExecuted);
+    if (publicHolidays.isWorkingDay(today)) {
+      outgoingPaymentRepository
+          .findByStatusAndAttemptedAtBefore(SUBMITTED, briefOnTheWorkingDayBefore(today))
+          .forEach(this::reportNotExecuted);
+    }
 
     outgoingPaymentRepository
         .findByStatusAndAttemptedAtBefore(ATTEMPTED, now.minus(inFlightGrace))
         .forEach(this::reportIndeterminate);
   }
 
-  private Instant briefOnThePreviousWorkingDay(Instant now) {
-    var previousWorkingDay = publicHolidays.previousWorkingDay(now.atZone(TALLINN).toLocalDate());
+  private Instant briefOnTheWorkingDayBefore(LocalDate today) {
+    var previousWorkingDay = publicHolidays.previousWorkingDay(today);
     return requireNonNull(BRIEF.next(previousWorkingDay.atStartOfDay(TALLINN))).toInstant();
   }
 

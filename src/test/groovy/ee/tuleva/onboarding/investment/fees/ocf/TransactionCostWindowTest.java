@@ -21,7 +21,7 @@ class TransactionCostWindowTest {
         new TransactionCostWindow(
             TRAILING_YEAR_START, LEAP_MONTH_END, COMMISSIONS, AVERAGE_AUM, List.of());
 
-    assertThat(window.annualised(TRAILING_YEAR_START))
+    assertThat(window.annualised())
         .isEqualTo(
             new TransactionCost(
                 new BigDecimal("0.00001000"),
@@ -41,7 +41,7 @@ class TransactionCostWindowTest {
         new TransactionCostWindow(
             dayAfterTheTrailingYearStart, monthEnd, COMMISSIONS, AVERAGE_AUM, List.of());
 
-    assertThat(window.annualised(LocalDate.of(2026, 2, 1)))
+    assertThat(window.annualised())
         .isEqualTo(
             new TransactionCost(
                 new BigDecimal("0.00001003"),
@@ -59,6 +59,15 @@ class TransactionCostWindowTest {
     var window =
         new TransactionCostWindow(inception, LEAP_MONTH_END, COMMISSIONS, AVERAGE_AUM, List.of());
 
-    assertThat(window.annualised(TRAILING_YEAR_START).rate()).isEqualByComparingTo("0.00011774");
+    assertThat(window.annualised())
+        .isEqualTo(
+            new TransactionCost(
+                new BigDecimal("0.00011774"),
+                inception,
+                LEAP_MONTH_END,
+                COMMISSIONS,
+                AVERAGE_AUM,
+                List.of(),
+                List.of()));
   }
 }

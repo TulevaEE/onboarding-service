@@ -268,8 +268,8 @@ public class OcfCalculationService {
   }
 
   TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {
-    var trailingYearStart = monthEnd.minusYears(1).plusDays(1);
-    var periodStart = laterOf(fund.getInceptionDate(), trailingYearStart);
+    var periodStart =
+        laterOf(fund.getInceptionDate(), TransactionCostWindow.trailingYearStart(monthEnd));
     if (periodStart.isAfter(monthEnd)) {
       return new TransactionCostWindow(periodStart, monthEnd, ZERO, ZERO, List.of())
           .at(ZERO, List.of());
@@ -296,7 +296,7 @@ public class OcfCalculationService {
           txnCosts);
       return window.at(ZERO, List.of(TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM));
     }
-    return window.annualised(trailingYearStart);
+    return window.annualised();
   }
 
   private static LocalDate laterOf(LocalDate one, LocalDate other) {

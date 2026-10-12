@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService.TransactionCost;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
@@ -579,9 +580,16 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
         .willReturn(new BigDecimal("100000000"));
 
-    var cost = service.getTransactionCost(TUK75, leapMonthEnd).rate();
-
-    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+    assertThat(service.getTransactionCost(TUK75, leapMonthEnd))
+        .isEqualTo(
+            new TransactionCost(
+                new BigDecimal("0.00001000"),
+                periodStart,
+                leapMonthEnd,
+                new BigDecimal("1000"),
+                new BigDecimal("100000000.00000000"),
+                List.of(periodStart, leapMonthEnd),
+                List.of()));
   }
 
   @Test

@@ -74,10 +74,8 @@ class OutgoingPaymentReconcilerTest {
         .record(eq(PAYMENT_INDETERMINATE), eq(WARNING), eq("E2E-IN-FLIGHT"), anyString());
   }
 
-  // The two statuses get different windows on purpose: a submitted payment has a working day after
-  // its brief to execute, an in-flight one is alarming within minutes.
   @Test
-  void eachStatusIsMeasuredAgainstItsOwnWindow() {
+  void aSubmittedPaymentHasAWorkingDayAfterItsBriefButAnAttemptedOneOnlyMinutes() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)

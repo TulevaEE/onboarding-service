@@ -11,6 +11,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -89,10 +90,14 @@ class TrackingDifferenceNotifierTest {
 
     notifier.notify(List.of(result));
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue())
-        .contains("Cash drag: -0.10%", "Fee drag: -0.05%", "Residual: -0.50%");
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .contains("Cash drag: -0.10%", "Fee drag: -0.05%", "Residual: -0.50%")),
+            eq(INVESTMENT));
   }
 
   @Test

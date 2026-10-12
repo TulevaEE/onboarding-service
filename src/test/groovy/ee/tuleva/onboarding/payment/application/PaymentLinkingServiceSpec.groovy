@@ -20,7 +20,8 @@ import java.time.Duration
 import java.time.Instant
 
 import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
-import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.CashFlow.Type.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
@@ -54,7 +55,7 @@ class PaymentLinkingServiceSpec extends Specification {
 
   def "can get payment applications"() {
     given:
-    def person = samplePerson()
+    def person = sampleAuthenticatedPersonAndMember().build()
     paymentService.getThirdPillarPayments(person) >> payments
     cashFlowService.getCashFlowStatement(person) >> CashFlowStatement.builder()
         .transactions(transactions)
@@ -88,6 +89,19 @@ class PaymentLinkingServiceSpec extends Specification {
     []                                                                                                                               | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
     and: 'Balanced cash without a Tuleva contribution, but payment older than 3 working days, still fails'
     [transaction(oldTransactionTime), negativeTransaction(oldNegativeTransactionTime)]                                              | [aPayment(789L, oldPaymentTime)]                    | [aFailedPaymentApplication(789L, oldPaymentTime)]
+  }
+
+  def "a company has no third pillar payment applications"() {
+    given:
+    def personActingForCompany = sampleAuthenticatedPersonLegalEntity().build()
+
+    when:
+    def paymentApplications = paymentApplicationService.getPaymentApplications(personActingForCompany)
+
+    then:
+    paymentApplications.isEmpty()
+    0 * paymentService.getThirdPillarPayments(_)
+    0 * cashFlowService.getCashFlowStatement(_)
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {

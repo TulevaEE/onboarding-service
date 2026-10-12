@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -136,6 +137,29 @@ class OutgoingPaymentReconcilerIT {
   }
 
   @Test
+  void aPaymentExecutedBeforeItsDeadlineIsNeverReported() {
+    var payment = submittedAt(FRIDAY_15_00);
+    executedAt(payment, FRIDAY_17_30);
+
+    reconcileAt(MONDAY_09_00);
+
+    assertThat(paymentCheckEventRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void anOverduePaymentIsNoLongerSeenOnceItExecutes() {
+    var payment = submittedAt(FRIDAY_15_00);
+    reconcileAt(MONDAY_09_00);
+
+    executedAt(payment, MONDAY_17_00);
+    reconcileAt(TUESDAY_09_00);
+
+    assertThat(paymentCheckEventRepository.findAll())
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
+        .containsExactly(notExecuted(payment, MONDAY_09_00));
+  }
+
+  @Test
   void aCallThatNeverReturnedAVerdictIsStillReportedOnAHoliday() {
     var payment = savedAt(ATTEMPTED, DAY_BEFORE_CHRISTMAS_EVE_17_00);
 
@@ -183,6 +207,11 @@ class OutgoingPaymentReconcilerIT {
         .createdAt(foundAt)
         .lastSeenAt(foundAt)
         .build();
+  }
+
+  private void executedAt(OutgoingPayment payment, Instant matchedAt) {
+    new OutgoingPaymentService(outgoingPaymentRepository, Clock.fixed(matchedAt, UTC))
+        .recordExecuted(payment.getEndToEndId());
   }
 
   private OutgoingPayment submittedAt(Instant attemptedAt) {

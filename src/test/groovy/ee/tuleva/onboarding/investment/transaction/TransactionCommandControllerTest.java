@@ -207,6 +207,77 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void createCommand_cashAsABareNumber_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10", "cash": 40000}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommand_cashAmountWithMoreThanCentPrecision_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": 40000.125, "comment": "Gateway balance at 10:15"}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommand_cashAmountWiderThanTheCashColumn_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"amount": 100000000000000000, "comment": "Gateway balance at 10:15"}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommands_nullCashForAFund_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands/batch")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"funds": ["TUK75"], "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "cash": {"TUK75": null}}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
   void createCommand_cashCommentOverFiveHundredCharacters_returnsBadRequest() throws Exception {
     mockMvc
         .perform(

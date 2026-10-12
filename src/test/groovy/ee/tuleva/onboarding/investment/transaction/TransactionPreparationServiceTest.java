@@ -955,8 +955,15 @@ class TransactionPreparationServiceTest {
 
     assertThat(result).isNull();
     assertThat(command.getStatus()).isEqualTo(FAILED);
-    assertThat(command.getErrorMessage()).contains("needs a comment");
     verifyNoInteractions(inputService, calculationEngine);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && "40000".equals(event.getPayload().get("cash"))
+                        && !event.getPayload().containsKey("cashComment")
+                        && !event.getPayload().containsKey("input")));
   }
 
   @Test

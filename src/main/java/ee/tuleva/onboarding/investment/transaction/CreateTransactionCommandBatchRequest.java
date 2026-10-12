@@ -14,4 +14,4 @@ public record CreateTransactionCommandBatchRequest(
     @Nullable List<TulevaFund> funds,
     @NotNull TransactionMode mode,
     @NotNull LocalDate asOfDate,
-    @Nullable Map<TulevaFund, @Valid CashOverride> cash) {}
+    @Nullable Map<TulevaFund, @NotNull @Valid CashOverride> cash) {}

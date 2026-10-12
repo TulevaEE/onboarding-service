@@ -16,6 +16,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -40,6 +41,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,6 +135,53 @@ class TransactionPipelineIntegrationTest {
     assertThat(result).isNotNull();
     List<TransactionOrder> orders = result.orders();
     assertThat(orders).isEmpty();
+  }
+
+  @Test
+  void processCommand_withACashOverride_storesItsCommentOnTheCommandAndInTheCompletedAuditEvent() {
+    var command = createCommand(BUY, new BigDecimal("120000.00"));
+
+    var result = preparationService.processCommand(command);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(result).isNotNull();
+    assertThat(commandRepository.findById(command.getId()))
+        .get()
+        .extracting(TransactionCommand::getCashComment)
+        .isEqualTo("Cash line confirmed with the custodian");
+    assertThat(auditEventRepository.findByBatchIdOrderByCreatedAt(result.batch().getId()))
+        .filteredOn(event -> "CALCULATION_COMPLETED".equals(event.getEventType()))
+        .extracting(event -> event.getPayload().get("cashComment"))
+        .containsExactly("Cash line confirmed with the custodian");
+  }
+
+  @Test
+  void savingACashFigureWithoutAComment_isRejectedByTheDatabase() {
+    var command =
+        TransactionCommand.builder()
+            .fund(TKF100)
+            .mode(BUY)
+            .asOfDate(TEST_DATE)
+            .cash(new BigDecimal("120000.00"))
+            .build();
+
+    assertThatThrownBy(() -> commandRepository.saveAndFlush(command))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void savingACashCommentWithoutACashFigure_isRejectedByTheDatabase() {
+    var command =
+        TransactionCommand.builder()
+            .fund(TKF100)
+            .mode(BUY)
+            .asOfDate(TEST_DATE)
+            .cashComment("Cash line confirmed with the custodian")
+            .build();
+
+    assertThatThrownBy(() -> commandRepository.saveAndFlush(command))
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test

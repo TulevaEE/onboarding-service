@@ -62,7 +62,7 @@ class MonthVolumeReader {
 
   private void requireTheLastNavOfEachFundThatPublishedInTheMonth(
       Map<TulevaFund, List<LocalDate>> publishedNavDates, YearMonth month) {
-    var lastNavDate = publicHolidays.previousWorkingDay(month.plusMonths(1).atDay(1));
+    var lastNavDate = publicHolidays.lastWorkingDayOf(month);
     publishedNavDates.forEach(
         (fund, navDates) -> {
           if (!navDates.isEmpty() && !navDates.contains(lastNavDate)) {

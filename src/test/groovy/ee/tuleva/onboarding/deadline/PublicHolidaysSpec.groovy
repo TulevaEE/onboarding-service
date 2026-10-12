@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.deadline
 
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.time.LocalDate
 import java.time.Month
+import java.time.YearMonth
 
 class PublicHolidaysSpec extends Specification {
 
@@ -61,6 +63,20 @@ class PublicHolidaysSpec extends Specification {
     PublicHolidays publicHolidays = new PublicHolidays()
     then:
     publicHolidays.previousWorkingDay(LocalDate.parse("2017-05-02")) == LocalDate.parse("2017-04-28")
+  }
+
+  @Unroll
+  def "a month ending on #monthEnd has its last working day on #lastWorkingDay"() {
+    expect:
+    new PublicHolidays().lastWorkingDayOf(month) == lastWorkingDay
+
+    where:
+    month                      | monthEnd                       | lastWorkingDay
+    YearMonth.parse("2026-09") | "a working day"                | LocalDate.parse("2026-09-30")
+    YearMonth.parse("2026-05") | "a Sunday"                     | LocalDate.parse("2026-05-29")
+    YearMonth.parse("2026-10") | "a Saturday"                   | LocalDate.parse("2026-10-30")
+    YearMonth.parse("2051-03") | "Good Friday"                  | LocalDate.parse("2051-03-30")
+    YearMonth.parse("2029-03") | "a Saturday after Good Friday" | LocalDate.parse("2029-03-29")
   }
 
 }

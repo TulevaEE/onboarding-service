@@ -37,9 +37,12 @@ class OutgoingPaymentReconcilerIT {
   private static final Instant WEDNESDAY_16_00 = Instant.parse("2026-10-14T13:00:00Z");
   private static final Instant WEDNESDAY_16_30 = Instant.parse("2026-10-14T13:30:00Z");
 
+  private static final Instant DAY_BEFORE_CHRISTMAS_EVE_15_00 =
+      Instant.parse("2026-12-23T13:00:00Z");
   private static final Instant DAY_BEFORE_CHRISTMAS_EVE_17_00 =
       Instant.parse("2026-12-23T15:00:00Z");
   private static final Instant CHRISTMAS_EVE_17_00 = Instant.parse("2026-12-24T15:00:00Z");
+  private static final Instant MONDAY_AFTER_CHRISTMAS_16_00 = Instant.parse("2026-12-28T14:00:00Z");
   private static final Instant MONDAY_AFTER_CHRISTMAS_16_30 = Instant.parse("2026-12-28T14:30:00Z");
   private static final Instant TUESDAY_AFTER_CHRISTMAS_16_00 =
       Instant.parse("2026-12-29T14:00:00Z");
@@ -104,6 +107,20 @@ class OutgoingPaymentReconcilerIT {
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
         .containsExactly(notExecuted(payment, WEDNESDAY_16_30));
+  }
+
+  @Test
+  void aPaymentInTheBriefBeforeAHolidayIsOverdueOnlyOnceTheBriefAfterTheHolidayHasGoneOut() {
+    var payment = submittedAt(DAY_BEFORE_CHRISTMAS_EVE_15_00);
+
+    reconcileAt(CHRISTMAS_EVE_17_00);
+    reconcileAt(MONDAY_AFTER_CHRISTMAS_16_00);
+    assertThat(paymentCheckEventRepository.findAll()).isEmpty();
+
+    reconcileAt(MONDAY_AFTER_CHRISTMAS_16_30);
+    assertThat(paymentCheckEventRepository.findAll())
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
+        .containsExactly(notExecuted(payment, MONDAY_AFTER_CHRISTMAS_16_30));
   }
 
   @Test

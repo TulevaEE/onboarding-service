@@ -63,7 +63,16 @@ class WordPressPageReaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"\"37853\"", "{\"ID\": 37853, \"url\": \"ignored\"}", "{\"id\": 37853}"})
+  @ValueSource(
+      strings = {
+        "\"37853\"",
+        "\"37853.0\"",
+        "37853.0",
+        "{\"ID\": 37853, \"url\": \"ignored\"}",
+        "{\"id\": 37853}",
+        "[37853]",
+        "[{\"id\": 37853}]"
+      })
   void readsTheAttachmentIdFromEveryShapeTheFieldCanTake(String fieldValue) {
     server
         .expect(requestTo(PAGE_REQUEST))
@@ -92,7 +101,7 @@ class WordPressPageReaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"null", "\"\"", "false"})
+  @ValueSource(strings = {"null", "\"\"", "false", "[]"})
   void returnsNothingWhileThePagesReportFieldIsEmpty(String emptyFieldValue) {
     server
         .expect(requestTo(PAGE_REQUEST))

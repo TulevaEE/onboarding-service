@@ -6,14 +6,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 record AcfReportField(@Nullable Object storedValue) {
 
   private static final String NAME = "investment_report_file";
   private static final List<String> ATTACHMENT_ID_KEYS = List.of("ID", "id");
-  private static final Pattern WHOLE_NUMBER = Pattern.compile("\\s*\\d+\\s*");
 
   static Map<String, Object> pageUpdate(int attachmentId) {
     return Map.of("acf", Map.of(NAME, attachmentId));
@@ -38,22 +37,19 @@ record AcfReportField(@Nullable Object storedValue) {
   }
 
   boolean holds(int attachmentId) {
-    return isAttachmentId(storedValue, attachmentId);
+    return attachmentIdsIn(storedValue).anyMatch(id -> id == attachmentId);
   }
 
   Optional<Integer> attachmentId() {
-    if (isEmpty(storedValue)) {
+    var attachmentIds = attachmentIdsIn(storedValue).distinct().toList();
+    if (attachmentIds.size() == 1) {
+      return Optional.of(attachmentIds.getFirst());
+    }
+    if (attachmentIds.isEmpty() && isEmpty(storedValue)) {
       return Optional.empty();
     }
-    return Optional.of(
-        attachmentIdIn(storedValue)
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Report field holds no attachment id: field="
-                            + NAME
-                            + ", value="
-                            + storedValue)));
+    throw new IllegalStateException(
+        "Report field holds no single attachment id: field=" + NAME + ", value=" + storedValue);
   }
 
   private static boolean isEmpty(@Nullable Object stored) {
@@ -61,49 +57,28 @@ record AcfReportField(@Nullable Object storedValue) {
       case null -> true;
       case Boolean set -> !set;
       case CharSequence text -> text.toString().isBlank();
+      case Iterable<?> attachments -> !attachments.iterator().hasNext();
       default -> false;
     };
   }
 
-  private static Optional<Integer> attachmentIdIn(@Nullable Object stored) {
+  private static Stream<Integer> attachmentIdsIn(@Nullable Object stored) {
     return switch (stored) {
-      case Number number -> Optional.of(number.intValue());
-      case CharSequence text when WHOLE_NUMBER.matcher(text).matches() ->
-          Optional.of(Integer.valueOf(text.toString().trim()));
+      case Number number -> wholeNumber(number.toString());
+      case CharSequence text -> wholeNumber(text.toString());
       case Map<?, ?> attachment ->
-          ATTACHMENT_ID_KEYS.stream()
-              .flatMap(key -> attachmentIdIn(attachment.get(key)).stream())
-              .findFirst();
-      case null, default -> Optional.empty();
+          ATTACHMENT_ID_KEYS.stream().flatMap(key -> attachmentIdsIn(attachment.get(key)));
+      case Iterable<?> attachments ->
+          stream(attachments.spliterator(), false).flatMap(AcfReportField::attachmentIdsIn);
+      case null, default -> Stream.empty();
     };
   }
 
-  private static boolean isAttachmentId(@Nullable Object stored, int attachmentId) {
-    return switch (stored) {
-      case null -> false;
-      case Number number -> isSameNumber(number.toString(), attachmentId);
-      case CharSequence text -> isSameNumber(text.toString(), attachmentId);
-      case Map<?, ?> attachment -> holdsAttachmentId(attachment, attachmentId);
-      case Iterable<?> attachments -> holdsAttachmentId(attachments, attachmentId);
-      default -> false;
-    };
-  }
-
-  private static boolean holdsAttachmentId(Map<?, ?> attachment, int attachmentId) {
-    return ATTACHMENT_ID_KEYS.stream()
-        .anyMatch(key -> isAttachmentId(attachment.get(key), attachmentId));
-  }
-
-  private static boolean holdsAttachmentId(Iterable<?> attachments, int attachmentId) {
-    return stream(attachments.spliterator(), false)
-        .anyMatch(attachment -> isAttachmentId(attachment, attachmentId));
-  }
-
-  private static boolean isSameNumber(String value, int attachmentId) {
+  private static Stream<Integer> wholeNumber(String value) {
     try {
-      return new BigDecimal(value.trim()).compareTo(BigDecimal.valueOf(attachmentId)) == 0;
-    } catch (NumberFormatException notANumber) {
-      return false;
+      return Stream.of(new BigDecimal(value.trim()).intValueExact());
+    } catch (NumberFormatException | ArithmeticException notAWholeNumber) {
+      return Stream.empty();
     }
   }
 }

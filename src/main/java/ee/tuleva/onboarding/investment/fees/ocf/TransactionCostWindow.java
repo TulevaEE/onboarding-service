@@ -18,13 +18,17 @@ record TransactionCostWindow(
 
   private static final BigDecimal DAYS_IN_YEAR = BigDecimal.valueOf(365);
 
+  static LocalDate trailingYearStart(LocalDate end) {
+    return end.minusYears(1).plusDays(1);
+  }
+
   TransactionCost at(BigDecimal rate, List<OcfGap> gaps) {
     return new TransactionCost(rate, start, end, commissions, averageAum, navDates, gaps);
   }
 
-  TransactionCost annualised(LocalDate trailingYearStart) {
+  TransactionCost annualised() {
     var rate =
-        start.equals(trailingYearStart)
+        start.equals(trailingYearStart(end))
             ? commissions.divide(averageAum, SCALE, HALF_UP)
             : annualisedOverTheFundsLife();
     return at(rate, List.of());

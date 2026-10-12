@@ -44,7 +44,7 @@ class SavingFundPaymentControllerTest {
   @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
   @MockitoBean private IbanWhitelistService ibanWhitelistService;
-  @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  @MockitoBean private SavingFundPaymentCancellationService savingFundPaymentCancellationService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
 
   @MockitoBean
@@ -66,7 +66,7 @@ class SavingFundPaymentControllerTest {
     when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
-        .when(savingFundPaymentUpsertionService)
+        .when(savingFundPaymentCancellationService)
         .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
@@ -86,7 +86,7 @@ class SavingFundPaymentControllerTest {
     when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
-        .when(savingFundPaymentUpsertionService)
+        .when(savingFundPaymentCancellationService)
         .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
@@ -104,7 +104,7 @@ class SavingFundPaymentControllerTest {
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
     willThrow(new PaymentCancellationRefusedException("Payment cancellation deadline has passed"))
-        .given(savingFundPaymentUpsertionService)
+        .given(savingFundPaymentCancellationService)
         .cancelPayment(PartyId.from(person.getRole()), paymentId);
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))

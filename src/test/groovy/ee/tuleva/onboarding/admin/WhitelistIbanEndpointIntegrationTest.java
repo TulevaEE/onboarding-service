@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.admin.SavingsFundAdminController;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -44,7 +43,6 @@ class WhitelistIbanEndpointIntegrationTest {
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
   @MockitoBean private RedemptionHoldService redemptionHoldService;
   @MockitoBean private UnattributedPaymentAttributionService unattributedPaymentAttributionService;
-  @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   @MockitoBean private Clock clock;
 
   @Test

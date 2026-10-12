@@ -1,13 +1,19 @@
 package ee.tuleva.onboarding.savings.fund.admin;
 
+import static java.util.Objects.requireNonNull;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.iban.IbanValidator;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
+import ee.tuleva.onboarding.savings.fund.PaymentCancellationRefusedException;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.UnattributedPaymentAttributionService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
@@ -15,20 +21,24 @@ import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +59,7 @@ public class SavingsFundAdminController {
   private final RedemptionHoldService redemptionHoldService;
   private final IbanWhitelistService ibanWhitelistService;
   private final UnattributedPaymentAttributionService unattributedPaymentAttributionService;
+  private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   private final Clock clock;
 
   @PostMapping("/calculate-nav")
@@ -213,5 +224,50 @@ public class SavingsFundAdminController {
         "status", payment.getStatus().name(),
         "partyType", partyType.name(),
         "partyCode", partyCode);
+  }
+
+  @PostMapping("/savings-fund/payments/{paymentId}/cancel")
+  public Map<String, String> cancelSavingsFundPayment(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID paymentId,
+      @Valid @RequestBody CancelSavingsFundPaymentRequest request) {
+
+    tokenValidator.validateWithOpsAccess(token);
+
+    var payment = cancelPayment(paymentId, request.reason());
+    log.info(
+        "Admin cancelled savings fund payment: paymentId={}, status={}",
+        paymentId,
+        payment.getStatus());
+
+    return Map.of(
+        "paymentId", payment.getId().toString(),
+        "status", payment.getStatus().name(),
+        "cancelledAt",
+            requireNonNull(
+                    payment.getCancelledAt(),
+                    "Cancelled payment has no cancelledAt: paymentId=" + paymentId)
+                .toString());
+  }
+
+  private SavingFundPayment cancelPayment(UUID paymentId, String reason) {
+    try {
+      return savingFundPaymentUpsertionService.cancelPayment(paymentId, reason);
+    } catch (NoSuchElementException e) {
+      throw refusedCancellation(NOT_FOUND, paymentId, e);
+    } catch (PaymentCancellationRefusedException e) {
+      throw refusedCancellation(CONFLICT, paymentId, e);
+    } catch (IllegalArgumentException e) {
+      throw refusedCancellation(BAD_REQUEST, paymentId, e);
+    }
+  }
+
+  private ResponseStatusException refusedCancellation(
+      HttpStatus status, UUID paymentId, RuntimeException e) {
+    log.info(
+        "Admin savings fund payment cancellation refused: paymentId={}, error={}",
+        paymentId,
+        e.getMessage());
+    return new ResponseStatusException(status, e.getMessage(), e);
   }
 }

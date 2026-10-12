@@ -25,74 +25,69 @@ class OutgoingPaymentReconcilerIT {
 
   private static final Instant FRIDAY_15_00 = Instant.parse("2026-10-09T12:00:00Z");
   private static final Instant FRIDAY_16_30 = Instant.parse("2026-10-09T13:30:00Z");
+  private static final Instant FRIDAY_17_30 = Instant.parse("2026-10-09T14:30:00Z");
   private static final Instant SUNDAY_04_02 = Instant.parse("2026-10-11T01:02:35Z");
   private static final Instant MONDAY_09_00 = Instant.parse("2026-10-12T06:00:00Z");
-  private static final Instant MONDAY_16_00 = Instant.parse("2026-10-12T13:00:00Z");
-  private static final Instant MONDAY_16_30 = Instant.parse("2026-10-12T13:30:00Z");
   private static final Instant MONDAY_17_00 = Instant.parse("2026-10-12T14:00:00Z");
+  private static final Instant MONDAY_17_30 = Instant.parse("2026-10-12T14:30:00Z");
   private static final Instant TUESDAY_09_00 = Instant.parse("2026-10-13T06:00:00Z");
-  private static final Instant TUESDAY_16_00 = Instant.parse("2026-10-13T13:00:00Z");
-  private static final Instant TUESDAY_16_30 = Instant.parse("2026-10-13T13:30:00Z");
   private static final Instant TUESDAY_17_30 = Instant.parse("2026-10-13T14:30:00Z");
-  private static final Instant WEDNESDAY_16_00 = Instant.parse("2026-10-14T13:00:00Z");
-  private static final Instant WEDNESDAY_16_30 = Instant.parse("2026-10-14T13:30:00Z");
+  private static final Instant WEDNESDAY_09_00 = Instant.parse("2026-10-14T06:00:00Z");
 
   private static final Instant DAY_BEFORE_CHRISTMAS_EVE_15_00 =
       Instant.parse("2026-12-23T13:00:00Z");
   private static final Instant DAY_BEFORE_CHRISTMAS_EVE_17_00 =
       Instant.parse("2026-12-23T15:00:00Z");
-  private static final Instant CHRISTMAS_EVE_17_00 = Instant.parse("2026-12-24T15:00:00Z");
-  private static final Instant MONDAY_AFTER_CHRISTMAS_16_00 = Instant.parse("2026-12-28T14:00:00Z");
-  private static final Instant MONDAY_AFTER_CHRISTMAS_16_30 = Instant.parse("2026-12-28T14:30:00Z");
-  private static final Instant TUESDAY_AFTER_CHRISTMAS_16_00 =
-      Instant.parse("2026-12-29T14:00:00Z");
-  private static final Instant TUESDAY_AFTER_CHRISTMAS_16_30 =
-      Instant.parse("2026-12-29T14:30:00Z");
+  private static final Instant DAY_BEFORE_CHRISTMAS_EVE_17_30 =
+      Instant.parse("2026-12-23T15:30:00Z");
+  private static final Instant CHRISTMAS_EVE_09_00 = Instant.parse("2026-12-24T07:00:00Z");
+  private static final Instant MONDAY_AFTER_CHRISTMAS_09_00 = Instant.parse("2026-12-28T07:00:00Z");
+  private static final Instant MONDAY_AFTER_CHRISTMAS_17_30 = Instant.parse("2026-12-28T15:30:00Z");
+  private static final Instant TUESDAY_AFTER_CHRISTMAS_09_00 =
+      Instant.parse("2026-12-29T07:00:00Z");
 
   @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
   @Autowired PaymentCheckEventRepository paymentCheckEventRepository;
 
   @Test
-  void aReturnSentOnSundayIsOverdueOnlyOnceTuesdaysBriefHasGoneOut() {
+  void aReturnSentOnSundayIsOverdueTheMorningAfterMondaysBrief() {
     var payment = submittedAt(SUNDAY_04_02);
 
     reconcileAt(MONDAY_09_00);
-    reconcileAt(TUESDAY_09_00);
-    reconcileAt(TUESDAY_16_00);
+    reconcileAt(MONDAY_17_30);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(TUESDAY_16_30);
+    reconcileAt(TUESDAY_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, TUESDAY_16_30));
+        .containsExactly(notExecuted(payment, TUESDAY_09_00));
   }
 
   @Test
-  void aPaymentSentBeforeFridaysBriefIsOverdueOnceMondaysBriefHasGoneOut() {
+  void aPaymentInFridaysBriefIsOverdueOnMondayMorning() {
     var payment = submittedAt(FRIDAY_15_00);
 
-    reconcileAt(MONDAY_09_00);
-    reconcileAt(MONDAY_16_00);
+    reconcileAt(FRIDAY_17_30);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(MONDAY_16_30);
+    reconcileAt(MONDAY_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, MONDAY_16_30));
+        .containsExactly(notExecuted(payment, MONDAY_09_00));
   }
 
   @Test
   void aPaymentSentAfterFridaysBriefBelongsToMondaysBrief() {
     var payment = submittedAt(FRIDAY_16_30);
 
-    reconcileAt(MONDAY_16_30);
-    reconcileAt(TUESDAY_16_00);
+    reconcileAt(MONDAY_09_00);
+    reconcileAt(MONDAY_17_30);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(TUESDAY_16_30);
+    reconcileAt(TUESDAY_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, TUESDAY_16_30));
+        .containsExactly(notExecuted(payment, TUESDAY_09_00));
   }
 
   @Test
@@ -100,42 +95,40 @@ class OutgoingPaymentReconcilerIT {
     var payment = submittedAt(MONDAY_17_00);
 
     reconcileAt(TUESDAY_17_30);
-    reconcileAt(WEDNESDAY_16_00);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(WEDNESDAY_16_30);
+    reconcileAt(WEDNESDAY_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, WEDNESDAY_16_30));
+        .containsExactly(notExecuted(payment, WEDNESDAY_09_00));
   }
 
   @Test
-  void aPaymentInTheBriefBeforeAHolidayIsOverdueOnlyOnceTheBriefAfterTheHolidayHasGoneOut() {
+  void aPaymentInTheBriefBeforeAHolidayIsOverdueOnTheHolidayMorning() {
     var payment = submittedAt(DAY_BEFORE_CHRISTMAS_EVE_15_00);
 
-    reconcileAt(CHRISTMAS_EVE_17_00);
-    reconcileAt(MONDAY_AFTER_CHRISTMAS_16_00);
+    reconcileAt(DAY_BEFORE_CHRISTMAS_EVE_17_30);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(MONDAY_AFTER_CHRISTMAS_16_30);
+    reconcileAt(CHRISTMAS_EVE_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, MONDAY_AFTER_CHRISTMAS_16_30));
+        .containsExactly(notExecuted(payment, CHRISTMAS_EVE_09_00));
   }
 
   @Test
-  void publicHolidaysAreNeitherApprovalDaysNorExecutionDays() {
+  void publicHolidaysAreNotApprovalDays() {
     var payment = submittedAt(DAY_BEFORE_CHRISTMAS_EVE_17_00);
 
-    reconcileAt(CHRISTMAS_EVE_17_00);
-    reconcileAt(MONDAY_AFTER_CHRISTMAS_16_30);
-    reconcileAt(TUESDAY_AFTER_CHRISTMAS_16_00);
+    reconcileAt(CHRISTMAS_EVE_09_00);
+    reconcileAt(MONDAY_AFTER_CHRISTMAS_09_00);
+    reconcileAt(MONDAY_AFTER_CHRISTMAS_17_30);
     assertThat(paymentCheckEventRepository.findAll()).isEmpty();
 
-    reconcileAt(TUESDAY_AFTER_CHRISTMAS_16_30);
+    reconcileAt(TUESDAY_AFTER_CHRISTMAS_09_00);
     assertThat(paymentCheckEventRepository.findAll())
         .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
-        .containsExactly(notExecuted(payment, TUESDAY_AFTER_CHRISTMAS_16_30));
+        .containsExactly(notExecuted(payment, TUESDAY_AFTER_CHRISTMAS_09_00));
   }
 
   private void reconcileAt(Instant now) {

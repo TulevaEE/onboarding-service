@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions2;
 import ee.tuleva.onboarding.banking.iso20022.camt052.TotalTransactions2;
@@ -256,6 +257,28 @@ class BankStatementTest {
 
     assertThat(result.getPeriod())
         .isEqualTo(new StatementPeriod(LocalDate.of(2026, 1, 13), LocalDate.of(2026, 1, 13)));
+  }
+
+  @Test
+  void from_accountReport_marksAnEntryBookedOnlyWhenTheBankReportsItsStatusAsBook() {
+    var account = Camt052Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var booked = Camt052Fixtures.creditEntry("100.00");
+    booked.setSts(EntryStatus2Code.BOOK);
+    var pending = Camt052Fixtures.creditEntry("200.00");
+    pending.setSts(EntryStatus2Code.PDNG);
+    var report =
+        Camt052Fixtures.accountReport(
+            account,
+            List.of(),
+            List.of(booked, pending),
+            null,
+            ZonedDateTime.parse("2026-01-13T10:00:00+02:00"));
+
+    var result = BankStatement.from(report, ZoneId.of("Europe/Tallinn"));
+
+    assertThat(result.getEntries())
+        .extracting(BankStatementEntry::booked)
+        .containsExactly(true, false);
   }
 
   @Test

@@ -74,19 +74,24 @@ class OwnershipLimitCheckNotifier {
     return switch (run.worstSeverity()) {
       case HARD -> "🛑 OWNERSHIP LIMIT BREACH: month=%s".formatted(run.month());
       case SOFT -> "⚠️ OWNERSHIP SOFT LIMIT EXCEEDED: month=%s".formatted(run.month());
-      case OK ->
-          !run.coveredEveryHolding()
-              ? "%s Ownership limit check INCOMPLETE: month=%s"
-                  .formatted(NOT_VERIFIED_ICON, run.month())
-              : run.hasStaleFundSizes()
-                  ? "⚠️ Ownership limit check OK, but EODHD fund sizes look stale: month=%s"
-                      .formatted(run.month())
-                  : run.leftFundSizesUncompared()
-                      ? ("⚠️ Ownership limit check OK, but EODHD fund sizes were not compared with"
-                              + " the month before: month=%s")
-                          .formatted(run.month())
-                      : "✅ Ownership limit check OK: month=%s".formatted(run.month());
+      case OK -> withinLimitsHeadline(run);
     };
+  }
+
+  private static String withinLimitsHeadline(OwnershipCheckRun run) {
+    if (!run.coveredEveryHolding()) {
+      return "%s Ownership limit check INCOMPLETE: month=%s"
+          .formatted(NOT_VERIFIED_ICON, run.month());
+    }
+    if (run.hasStaleFundSizes()) {
+      return "⚠️ Ownership limit check OK, but EODHD fund sizes look stale: month=%s"
+          .formatted(run.month());
+    }
+    if (run.leftFundSizesUncompared()) {
+      return "⚠️ Ownership limit check OK, but EODHD fund sizes were not compared with the month before: month=%s"
+          .formatted(run.month());
+    }
+    return "✅ Ownership limit check OK: month=%s".formatted(run.month());
   }
 
   private static String notCheckedLine(NotChecked notChecked) {

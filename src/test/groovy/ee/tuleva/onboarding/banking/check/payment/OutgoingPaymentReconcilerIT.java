@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.banking.check.payment;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_INDETERMINATE;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_NOT_EXECUTED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static java.time.ZoneOffset.UTC;
@@ -10,6 +12,7 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -132,6 +135,27 @@ class OutgoingPaymentReconcilerIT {
         .containsExactly(notExecuted(payment, TUESDAY_AFTER_CHRISTMAS_09_00));
   }
 
+  @Test
+  void aCallThatNeverReturnedAVerdictIsStillReportedOnAHoliday() {
+    var payment = savedAt(ATTEMPTED, DAY_BEFORE_CHRISTMAS_EVE_17_00);
+
+    reconcileAt(CHRISTMAS_EVE_09_00);
+
+    assertThat(paymentCheckEventRepository.findAll())
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id")
+        .containsExactly(
+            PaymentCheckEvent.builder()
+                .checkType(PAYMENT_INDETERMINATE)
+                .severity(WARNING)
+                .externalKey(payment.getEndToEndId())
+                .detail(
+                    "the call never returned a verdict, so it may or may not have reached the bank;"
+                        + " type=RETURN")
+                .createdAt(CHRISTMAS_EVE_09_00)
+                .lastSeenAt(CHRISTMAS_EVE_09_00)
+                .build());
+  }
+
   private void reconcileAt(Instant now) {
     var clock = Clock.fixed(now, UTC);
     var paymentCheckService =
@@ -162,6 +186,10 @@ class OutgoingPaymentReconcilerIT {
   }
 
   private OutgoingPayment submittedAt(Instant attemptedAt) {
+    return savedAt(SUBMITTED, attemptedAt);
+  }
+
+  private OutgoingPayment savedAt(OutgoingPaymentStatus status, Instant attemptedAt) {
     return outgoingPaymentRepository.save(
         OutgoingPayment.builder()
             .endToEndId("E2E" + attemptedAt.toEpochMilli())
@@ -171,7 +199,7 @@ class OutgoingPaymentReconcilerIT {
             .amount(new BigDecimal("100.00"))
             .currency("EUR")
             .bodyHash("hash")
-            .status(SUBMITTED)
+            .status(status)
             .attemptedAt(attemptedAt)
             .build());
   }

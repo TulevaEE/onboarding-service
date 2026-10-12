@@ -172,7 +172,7 @@ class SavingFundPaymentRepositoryTest {
     jdbcTemplate.update(
         "update saving_fund_payment set status_changed_at='2020-01-01'::date where id=:id",
         Map.of("id", stuck));
-    repository.cancel(stuck);
+    repository.cancel(stuck, "Kasutaja soovil");
     updatePaymentStatus(stuck, TO_BE_RETURNED);
     updatePaymentStatus(fresh, TO_BE_RETURNED);
 
@@ -201,7 +201,7 @@ class SavingFundPaymentRepositoryTest {
             Timestamp.from(Instant.now().minus(Duration.ofDays(10))),
             "id",
             olderThanTheWindow));
-    repository.cancel(cancelled);
+    repository.cancel(cancelled, "Kasutaja soovil");
     updatePaymentStatus(received, RECEIVED);
 
     var payments =
@@ -238,12 +238,29 @@ class SavingFundPaymentRepositoryTest {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    repository.cancel(id);
+    repository.cancel(id, "Kasutaja soovil");
 
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getCancelledAt()).isCloseTo(Instant.now(), within(10, SECONDS));
+    assertThat(payments.getFirst().getReturnReason()).isEqualTo("Kasutaja soovil");
+  }
+
+  @Test
+  void cancel_alreadyCancelled_refusesAndKeepsOriginalCancelledAt() {
+    var id = repository.savePaymentData(createPayment().build());
+    var originalCancelledAt = Instant.parse("2026-01-02T10:00:00Z");
+    jdbcTemplate.update(
+        "UPDATE saving_fund_payment SET cancelled_at=:cancelledAt WHERE id=:id",
+        Map.of("id", id, "cancelledAt", Timestamp.from(originalCancelledAt)));
+
+    assertThatThrownBy(() -> repository.cancel(id, "Kasutaja soovil"))
+        .isInstanceOf(PaymentCancellationRefusedException.class);
+
+    var stored = repository.findById(id).orElseThrow();
+    assertThat(stored.getCancelledAt()).isEqualTo(originalCancelledAt);
+    assertThat(stored.getReturnReason()).isNull();
   }
 
   @ParameterizedTest
@@ -255,12 +272,14 @@ class SavingFundPaymentRepositoryTest {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    assertThatThrownBy(() -> repository.cancel(id)).isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> repository.cancel(id, "Kasutaja soovil"))
+        .isInstanceOf(PaymentCancellationRefusedException.class);
 
     var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getCancelledAt()).isNull();
+    assertThat(payments.getFirst().getReturnReason()).isNull();
   }
 
   @ParameterizedTest

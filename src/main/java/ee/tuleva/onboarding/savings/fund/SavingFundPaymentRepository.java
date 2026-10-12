@@ -427,12 +427,33 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "reason", reason));
   }
 
-  public void cancel(UUID paymentId) {
-    var currentStatus = getAndLockCurrentStatus(paymentId);
-    if (!Set.of(CREATED, RECEIVED, VERIFIED).contains(currentStatus))
-      throw new IllegalStateException("Cancellation not allowed when payment is " + currentStatus);
+  public void cancel(UUID paymentId, String reason) {
+    var current = getAndLockCancellationState(paymentId);
+    if (current.cancelled()) {
+      throw new PaymentCancellationRefusedException(
+          "Payment already cancelled: paymentId=" + paymentId);
+    }
+    if (!Set.of(CREATED, RECEIVED, VERIFIED).contains(current.status())) {
+      throw new PaymentCancellationRefusedException(
+          "Cancellation not allowed: paymentId=" + paymentId + ", status=" + current.status());
+    }
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET cancelled_at=NOW() WHERE id=:id", Map.of("id", paymentId));
+        "UPDATE saving_fund_payment SET cancelled_at=NOW(), return_reason=:reason WHERE id=:id",
+        Map.of("id", paymentId, "reason", reason));
+  }
+
+  private record CancellationState(Status status, boolean cancelled) {}
+
+  private CancellationState getAndLockCancellationState(UUID paymentId) {
+    return requireNonNull(
+        jdbcTemplate.queryForObject(
+            "select status, cancelled_at from saving_fund_payment where id=:id for update",
+            Map.of("id", paymentId),
+            (rs, rowNum) ->
+                new CancellationState(
+                    Status.valueOf(rs.getString("status")),
+                    rs.getTimestamp("cancelled_at") != null)),
+        "Missing payment: paymentId=" + paymentId);
   }
 
   private Status getAndLockCurrentStatus(UUID paymentId) {

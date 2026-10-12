@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.ForeignFile;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotChecked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Outdated;
@@ -88,7 +89,7 @@ class InvestmentReportPublicationNotifier {
     return switch (publication) {
       case Published _ -> "✅";
       case NotChecked _ -> "⏸";
-      case Outdated _, NotLinked _ -> alarm(overdue);
+      case Outdated _, ForeignFile _, NotLinked _ -> alarm(overdue);
     };
   }
 

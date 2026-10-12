@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 
+import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.ForeignFile;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotChecked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.ReportPublication.Outdated;
@@ -102,6 +103,31 @@ class InvestmentReportPublicationNotifierTest {
                 "  ✅ TUK75: tuk75-aruanne-2026-09.pdf",
                 "  🔴 TUK00: the fund page links tuk00-aruanne-2026-08.pdf, not the 2026-09 report",
                 "  🔴 TUV100: the fund page links no investment report"),
+            INVESTMENT,
+            ERROR);
+  }
+
+  @Test
+  void anotherFundsReportOnAFundPage_turnsRedOnTheFifteenthLikeAMissingOne() {
+    notifier.notify(
+        SEPTEMBER,
+        List.of(
+            new Published(TUK75, UPLOADS + "2026/10/tuk75-aruanne-2026-09.pdf"),
+            new ForeignFile(TUK00, UPLOADS + "2026/10/tuk75-aruanne-2026-09.pdf"),
+            new Published(TUV100, UPLOADS + "2026/10/tuv100-aruanne-2026-09.pdf")),
+        OCTOBER_15);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            String.join(
+                "\n",
+                "🔴 Investment reports for 2026-09 are not all published on tuleva.ee"
+                    + " — due 2026-10-15",
+                "  ✅ TUK75: tuk75-aruanne-2026-09.pdf",
+                "  🔴 TUK00: the fund page links tuk75-aruanne-2026-09.pdf, which is not this fund's"
+                    + " investment report",
+                "  ✅ TUV100: tuv100-aruanne-2026-09.pdf"),
             INVESTMENT,
             ERROR);
   }

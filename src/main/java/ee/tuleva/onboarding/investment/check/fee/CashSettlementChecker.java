@@ -32,26 +32,19 @@ class CashSettlementChecker {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final NavLedgerRepository navLedgerRepository;
-  private final FeeCashIngestionCoverage coverage;
   private final BigDecimal cashPaymentTolerance;
   private final int paymentWindowDays;
 
   CashSettlementChecker(
       NavLedgerRepository navLedgerRepository,
-      FeeCashIngestionCoverage coverage,
-      @Value("${investment.fee-check.cash-payment-tolerance:0.02}") BigDecimal cashPaymentTolerance,
+      @Value("${investment.fee-check.cash-payment-tolerance:0.05}") BigDecimal cashPaymentTolerance,
       @Value("${investment.fee-check.cash-payment-window-days:20}") int paymentWindowDays) {
     this.navLedgerRepository = navLedgerRepository;
-    this.coverage = coverage;
     this.cashPaymentTolerance = cashPaymentTolerance;
     this.paymentWindowDays = paymentWindowDays;
   }
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
-    if (!coverage.coversFund(fund)) {
-      return List.of();
-    }
-
     var settlementDate = feeMonth.plusMonths(1).minusDays(1);
     var windowCloses = settlementDate.plusDays(paymentWindowDays);
     var settled =

@@ -6,7 +6,10 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.time.ClockConfig;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,9 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJpaTest
-@Import({BriefedBatches.class, PublicHolidays.class})
+@Import({BriefedBatches.class, PaymentCheckService.class, ClockConfig.class, PublicHolidays.class})
 class BriefedBatchesIT {
 
   private static final LocalDate MONDAY = LocalDate.of(2026, 9, 28);
@@ -30,6 +34,7 @@ class BriefedBatchesIT {
 
   @Autowired BriefedBatches briefedBatches;
   @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
+  @MockitoBean OperationsNotificationService notificationService;
 
   @Test
   void onAMonday_followsWhatWasSentSinceFridaysBriefAndCarriesOverWhatFridaysBriefListed() {
@@ -80,7 +85,22 @@ class BriefedBatchesIT {
     assertThat(batch.carriedOver()).containsExactly(listedOnFridayEarlier, listedOnFridayLater);
   }
 
+  @Test
+  void carriesOverAPaymentFromAnEarlierBriefThatTheBankExecutedOnlyAfterTodaysBrief() {
+    var executedAfterMondaysBrief =
+        store(
+            EXECUTED, Instant.parse("2026-09-25T09:00:00Z"), Instant.parse("2026-09-28T13:40:00Z"));
+    store(EXECUTED, Instant.parse("2026-09-25T09:00:00Z"), Instant.parse("2026-09-28T09:00:00Z"));
+
+    assertThat(briefedBatches.on(MONDAY).carriedOver()).containsExactly(executedAfterMondaysBrief);
+  }
+
   private OutgoingPayment store(OutgoingPaymentStatus status, Instant attemptedAt) {
+    return store(status, attemptedAt, attemptedAt);
+  }
+
+  private OutgoingPayment store(
+      OutgoingPaymentStatus status, Instant attemptedAt, Instant resolvedAt) {
     return outgoingPaymentRepository.save(
         OutgoingPayment.builder()
             .endToEndId(randomUUID().toString().replace("-", ""))
@@ -93,6 +113,7 @@ class BriefedBatchesIT {
             .bodyHash("hash")
             .status(status)
             .attemptedAt(attemptedAt)
+            .resolvedAt(resolvedAt)
             .build());
   }
 }

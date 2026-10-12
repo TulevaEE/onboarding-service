@@ -30,7 +30,7 @@ class LedgerTies {
                 REDEMPTION_TRANSFER,
                 "transfer to withdrawal account == ledger pricing of its batch",
                 ledger::pricedRedemptionBatch),
-            subscriptions(batch, sent),
+            subscriptions(batch),
             each(sent, RETURN, "returns == ledger return booking", ledger::bookedReturn))
         .flatMap(Optional::stream)
         .toList();
@@ -70,8 +70,8 @@ class LedgerTies {
                 expected.map(value -> amount(value) + " EUR").orElse("has none")));
   }
 
-  private Optional<LedgerTie> subscriptions(BriefedBatch batch, List<OutgoingPayment> sent) {
-    var transferred = sum(ofType(sent, SUBSCRIPTION_TRANSFER));
+  private Optional<LedgerTie> subscriptions(BriefedBatch batch) {
+    var transferred = sum(ofType(batch.sentSinceThePreviousBrief(), SUBSCRIPTION_TRANSFER));
     var issued = ledger.issuedSubscriptions(batch.after(), batch.until());
     if (transferred.signum() == 0 && issued.signum() == 0) {
       return Optional.empty();

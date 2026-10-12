@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.IN
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_BATCH_NOT_SETTLED;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_BATCH_SETTLED;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_LEFT_UNEXECUTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.FAILED;
@@ -45,8 +46,18 @@ class PaymentSettlementCheck {
   private final Duration inFlightGrace;
 
   Optional<Closing> closingFor(BriefedBatch batch, LocalDate today) {
+    return closing(batch, today, batch.withStatus(SUBMITTED));
+  }
+
+  Optional<Closing> lastClosingOfTheDayFor(BriefedBatch batch, LocalDate today) {
+    return closing(batch, today, batch.sentSinceThePreviousBriefWithStatus(SUBMITTED));
+  }
+
+  private Optional<Closing> closing(
+      BriefedBatch batch, LocalDate today, List<OutgoingPayment> awaitingApproval) {
     if (batch.isEmpty()
         || paymentCheckService.hasRecorded(PAYMENT_BATCH_SETTLED, today.toString())
+        || !awaitingApproval.isEmpty()
         || stillSettling(batch, Instant.now(clock))) {
       return Optional.empty();
     }
@@ -55,37 +66,50 @@ class PaymentSettlementCheck {
     var problems = problems(batch, ties);
     if (problems.isEmpty()) {
       return Optional.of(
-          new Closing(PAYMENT_BATCH_SETTLED, today.toString(), settled(batch, ties)));
+          new Closing(PAYMENT_BATCH_SETTLED, today.toString(), settled(batch, ties), List.of()));
     }
 
     var key = today + ":" + digestOf(problems);
     if (paymentCheckService.hasRecorded(PAYMENT_BATCH_NOT_SETTLED, key)) {
       return Optional.empty();
     }
-    return Optional.of(new Closing(PAYMENT_BATCH_NOT_SETTLED, key, notSettled(problems)));
+    return Optional.of(
+        new Closing(
+            PAYMENT_BATCH_NOT_SETTLED,
+            key,
+            notSettled(problems),
+            batch.carriedOverAwaitingApproval()));
   }
 
   void markPosted(Closing closing) {
     paymentCheckService.record(closing.outcome(), INFO, closing.key(), closing.headline());
+    closing
+        .leftUnexecuted()
+        .forEach(
+            payment ->
+                paymentCheckService.record(
+                    PAYMENT_LEFT_UNEXECUTED, INFO, payment.submissionKey(), closing.headline()));
   }
 
   private boolean stillSettling(BriefedBatch batch, Instant now) {
-    var awaitingApproval = !batch.withStatus(SUBMITTED).isEmpty();
     var stillInFlight =
         batch.withStatus(ATTEMPTED).stream()
             .anyMatch(payment -> payment.getAttemptedAt().isAfter(now.minus(inFlightGrace)));
     var statementRunStillBooking =
-        batch.payments().stream()
+        batch.listed().stream()
             .map(OutgoingPayment::getResolvedAt)
             .anyMatch(
                 resolvedAt ->
                     resolvedAt != null && resolvedAt.isAfter(now.minus(STATEMENT_RUN_TO_FINISH)));
-    return awaitingApproval || stillInFlight || statementRunStillBooking;
+    return stillInFlight || statementRunStillBooking;
   }
 
   private List<String> problems(BriefedBatch batch, List<LedgerTie> ties) {
     var problems = new ArrayList<String>();
-    problem("from earlier briefs still not executed", batch.carriedOver()).ifPresent(problems::add);
+    problem(
+            "still not executed by the bank since an earlier brief, reported once",
+            batch.carriedOverWithStatus(SUBMITTED))
+        .ifPresent(problems::add);
     problem("never got an answer from the bank", batch.withStatus(ATTEMPTED))
         .ifPresent(problems::add);
     problem("rejected by the bank at submission", batch.withStatus(FAILED))
@@ -151,7 +175,8 @@ class PaymentSettlementCheck {
     }
   }
 
-  record Closing(PaymentCheckType outcome, String key, String message) {
+  record Closing(
+      PaymentCheckType outcome, String key, String message, List<OutgoingPayment> leftUnexecuted) {
     String headline() {
       return message.lines().findFirst().orElseThrow();
     }

@@ -75,7 +75,7 @@ class OutgoingPaymentReconcilerTest {
   }
 
   @Test
-  void aSubmittedPaymentIsOverdueOnceItsBriefsDayHasEndedButAnAttemptedOneWithinMinutes() {
+  void aSubmittedPaymentIsOverdueTheWorkingMorningAfterItsBriefButAnAttemptedOneWithinMinutes() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)

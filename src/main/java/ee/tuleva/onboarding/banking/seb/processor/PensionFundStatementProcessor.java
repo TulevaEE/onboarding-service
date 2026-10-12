@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -148,20 +149,16 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.OwnAccountTransfer() ->
           fundBankLedger.recordOwnAccountTransfer(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());
-      case PensionFundEntryClassifier.TradeSettlement(
-              var isin,
-              var ticker,
-              var displayName,
-              var units) ->
+      case PensionFundEntryClassifier.TradeSettlement settlement ->
           fundBankLedger.recordTradeSettlement(
               fund,
               amount,
-              signedUnits(units, amount),
+              settlement.signedUnits(amount),
               externalReference,
               account.ledgerAccount(),
-              isin,
-              ticker,
-              displayName,
+              settlement.isin(),
+              settlement.ticker(),
+              settlement.displayName(),
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(
@@ -172,6 +169,12 @@ public class PensionFundStatementProcessor {
             entry.subFamilyCode(),
             reason);
         recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
+        paymentCheckService.record(
+            UNCLASSIFIED_BANK_OPERATION,
+            WARNING,
+            externalReference.toString(),
+            "cash parked in suspense, fund=%s, subFamilyCode=%s, reason=%s"
+                .formatted(fund.getCode(), entry.subFamilyCode(), reason));
       }
     }
   }
@@ -213,10 +216,5 @@ public class PensionFundStatementProcessor {
       log.info("Normalized bank entry amount: original={}, normalized={}", amount, normalized);
     }
     return normalized;
-  }
-
-  private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {
-    var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
-    return amount.signum() > 0 ? scaled.negate() : scaled;
   }
 }

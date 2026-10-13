@@ -53,13 +53,21 @@ public class ApplicationService {
 
   List<Application<?>> getAllApplications(AuthenticatedPerson person) {
     List<Application<?>> applications = new ArrayList<>();
+    if (!person.isLegalEntity()) {
+      applications.addAll(getPensionPillarApplications(person));
+    }
+    applications.addAll(savingsApplications.getApplications(person));
+    Collections.sort(applications);
+    return applications;
+  }
+
+  private List<Application<?>> getPensionPillarApplications(AuthenticatedPerson person) {
+    List<Application<?>> applications = new ArrayList<>();
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
     applications.addAll(paymentApplications.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
     applications.addAll(getFundPensionOpeningApplications(person));
-    applications.addAll(savingsApplications.getApplications(person));
-    Collections.sort(applications);
     return applications;
   }
 

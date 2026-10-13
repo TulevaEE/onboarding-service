@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment.application;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 
 import ee.tuleva.onboarding.account.CashFlowService;
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
@@ -50,11 +50,7 @@ public class PaymentLinkingService implements PaymentApplications {
   private final PublicHolidays publicHolidays;
 
   @Override
-  public List<Application<PaymentApplicationDetails>> getPaymentApplications(
-      AuthenticatedPerson person) {
-    if (person.isLegalEntity()) {
-      return List.of();
-    }
+  public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
     final var payments = paymentService.getThirdPillarPayments(person);
     final var cashFlowStatement = cashFlowService.getCashFlowStatement(person);
     final var locale = localeService.getCurrentLocale();

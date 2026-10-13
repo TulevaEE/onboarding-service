@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.payment
 
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.event.EventLogRepository
+import ee.tuleva.onboarding.mandate.application.ApplicationService
 import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioApiClient
@@ -25,11 +27,17 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.PAYMENT
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.GIFT
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static org.mockserver.model.HttpRequest.request
@@ -55,6 +63,9 @@ class PaymentIntegrationSpec extends Specification {
 
   @Autowired
   PaymentLinkingService paymentApplicationService
+
+  @Autowired
+  ApplicationService applicationService
 
   @Value('${frontend.url}')
   String frontendUrl
@@ -129,6 +140,46 @@ class PaymentIntegrationSpec extends Specification {
     expectToBeAbleToReceivePaymentNotification()
     mockSecurityContext()
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
+  }
+
+  def "a third pillar payment shows only in its recipient's role: the payer's own payment for the payer, a gift to the child for the child, nothing for a company"() {
+    given:
+    def childPersonalCode = "61506150006"
+    def payer = authenticatedPersonFromUser(aUser).build()
+    def payerActingForChild = authenticatedPersonFromUser(aUser)
+        .role(new Role(PERSON, childPersonalCode, "Child Name"))
+        .build()
+    def payerActingForCompany = authenticatedPersonFromUser(aUser)
+        .role(new Role(LEGAL_ENTITY, "12345678", "Acme OÜ"))
+        .build()
+
+    def ownPayment = aStoredThirdPillarPayment(aUser.personalCode, aPaymentAmount, SINGLE,
+        "3ab94f11-fb71-4401-8043-5e911227037e")
+    def giftToChild = aStoredThirdPillarPayment(childPersonalCode, 25.00, GIFT,
+        "7d3c2b1a-4e5f-4a6b-9c8d-0e1f2a3b4c5d")
+    mockEpisApplications()
+    mockEpisTransactions()
+
+    expect:
+    pendingPayments(payer) == [[PAYMENT, ownPayment.id, aPaymentAmount]]
+    pendingPayments(payerActingForChild) == [[PAYMENT, giftToChild.id, 25.00]]
+    applicationService.getApplications(PENDING, payerActingForCompany).isEmpty()
+  }
+
+  private Payment aStoredThirdPillarPayment(String recipientPersonalCode, BigDecimal amount,
+                                            PaymentData.PaymentType paymentType, String internalReference) {
+    return paymentRepository.save(Payment.builder()
+        .user(aUser)
+        .internalReference(UUID.fromString(internalReference))
+        .amount(amount)
+        .recipientPersonalCode(recipientPersonalCode)
+        .paymentType(paymentType)
+        .build())
+  }
+
+  private List<List<Object>> pendingPayments(AuthenticatedPerson person) {
+    return applicationService.getApplications(PENDING, person)
+        .collect { [it.type, it.id, it.details.amount] }
   }
 
   private void expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {

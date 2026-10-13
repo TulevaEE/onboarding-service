@@ -1,20 +1,25 @@
 package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.error.NotFoundException
 import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
+import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
@@ -314,6 +319,62 @@ class ApplicationServiceSpec extends Specification {
     applications.size() == 4
   }
 
+
+  def "a person acting for a child gets the child's pillar applications alongside savings applications"() {
+    given:
+    def personActingForChild = sampleAuthenticatedPersonAndMember()
+        .role(new Role(PERSON, "61506150006", "Child Name"))
+        .build()
+    def childPayment = paymentApplication().creationTime(TestClockHolder.now + Duration.ofDays(1)).build()
+    def childSavingsPayment = savingFundPaymentApplication(2L, TestClockHolder.now + Duration.ofDays(2))
+    mandateGateway.getApplications(personActingForChild) >> [sampleThirdPillarWithdrawalApplicationDto()]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(personActingForChild) >> [childPayment]
+    savingsApplications.getApplications(personActingForChild) >> [childSavingsPayment]
+
+    when:
+    def applications = applicationService.getAllApplications(personActingForChild)
+
+    then:
+    with(applications[0] as Application<WithdrawalApplicationDetails>) {
+      id == 123L
+      type == WITHDRAWAL_THIRD_PILLAR
+      status == PENDING
+      creationTime == TestClockHolder.now
+    }
+    applications.drop(1) == [childPayment, childSavingsPayment]
+  }
+
+  def "a company role does not fall back to the representative's own pillar applications"() {
+    given:
+    def personActingForCompany = sampleAuthenticatedPersonLegalEntity().build()
+    def laterSavingsPayment = savingFundPaymentApplication(2L, TestClockHolder.now)
+    def earlierSavingsPayment = savingFundPaymentApplication(1L, TestClockHolder.now - Duration.ofDays(1))
+    savingsApplications.getApplications(personActingForCompany) >> [laterSavingsPayment, earlierSavingsPayment]
+
+    when:
+    def applications = applicationService.getAllApplications(personActingForCompany)
+
+    then:
+    applications == [earlierSavingsPayment, laterSavingsPayment]
+    0 * mandateGateway.getApplications(_)
+    0 * paymentApplicationService.getPaymentApplications(_)
+  }
+
+  private static Application<SavingFundPaymentApplicationDetails> savingFundPaymentApplication(Long id, Instant creationTime) {
+    return Application.<SavingFundPaymentApplicationDetails> builder()
+        .id(id)
+        .creationTime(creationTime)
+        .status(PENDING)
+        .details(SavingFundPaymentApplicationDetails.builder()
+            .amount(100.00)
+            .currency(EUR)
+            .paymentId(UUID.fromString("3f6c1b0e-9a3d-4c2e-8f4b-1d2a3b4c5d6e"))
+            .fulfillmentDeadline(creationTime + Duration.ofDays(2))
+            .build())
+        .build()
+  }
 
   def "gets a single application by id"() {
     given:

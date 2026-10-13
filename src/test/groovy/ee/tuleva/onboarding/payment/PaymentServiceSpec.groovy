@@ -52,7 +52,7 @@ class PaymentServiceSpec extends Specification {
 
   def "gets the third pillar payments of the child a parent is acting for"() {
     given:
-    def childPersonalCode = "61508110000"
+    def childPersonalCode = "61506150006"
     def parentActingForChild = sampleAuthenticatedPersonAndMember()
         .role(new Role(PERSON, childPersonalCode, "Child Name"))
         .build()

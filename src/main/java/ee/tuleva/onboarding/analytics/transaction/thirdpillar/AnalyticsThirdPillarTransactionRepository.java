@@ -17,7 +17,9 @@ public interface AnalyticsThirdPillarTransactionRepository
       SELECT COUNT(DISTINCT FUNCTION('to_char', t.reportingDate, 'YYYY-MM'))
       FROM AnalyticsThirdPillarTransaction t
       WHERE t.personalId = :personalCode
-        AND t.transactionSource = 'Osakute väljalase isikult laekumiste alusel'
+        AND t.transactionSource IN (
+          'Osakute väljalase isikult laekumiste alusel',
+          'Osakute väljalase tööandjalt laekumiste alusel')
         AND t.reportingDate >= :fromDate
       """)
   int countContributionMonthsSince(String personalCode, LocalDate fromDate);

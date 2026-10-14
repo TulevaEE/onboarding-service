@@ -20,7 +20,7 @@ public interface AnalyticsThirdPillarTransactionRepository
         AND t.transactionSource = 'Osakute väljalase isikult laekumiste alusel'
         AND t.reportingDate >= :fromDate
       """)
-  int countOwnContributionMonthsSince(String personalCode, LocalDate fromDate);
+  int countContributionMonthsSince(String personalCode, LocalDate fromDate);
 
   @Query("SELECT MAX(t.reportingDate) FROM AnalyticsThirdPillarTransaction t")
   Optional<LocalDate> findLatestReportingDate();

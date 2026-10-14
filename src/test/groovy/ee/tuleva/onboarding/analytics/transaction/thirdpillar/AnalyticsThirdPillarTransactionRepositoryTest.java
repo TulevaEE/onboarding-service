@@ -178,7 +178,7 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
   }
 
   @Test
-  void countOwnContributionMonthsSince_countsDistinctMonthsOfOwnPaymentsOnly() {
+  void countContributionMonthsSince_countsDistinctMonthsOfOwnPaymentsOnly() {
     var ownSource = "Osakute väljalase isikult laekumiste alusel";
     repository.saveAll(
         List.of(
@@ -208,8 +208,7 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
                 .reportingDate(LocalDate.of(2026, 4, 5))
                 .build()));
 
-    int months =
-        repository.countOwnContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
+    int months = repository.countContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
 
     assertThat(months).isEqualTo(2);
   }

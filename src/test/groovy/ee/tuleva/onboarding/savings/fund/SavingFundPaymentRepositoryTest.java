@@ -42,6 +42,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 @Import({SavingFundPaymentRepository.class, ClockConfig.class})
 class SavingFundPaymentRepositoryTest {
 
+  private static final String CALLBACK_DESCRIPTION = "38888888888, 1791803138";
+  private static final PartyId CALLBACK_RECIPIENT = new PartyId(PERSON, "38888888888");
+
   @Autowired SavingFundPaymentRepository repository;
   @Autowired NamedParameterJdbcTemplate jdbcTemplate;
   @Autowired UserRepository userRepository;
@@ -63,6 +66,44 @@ class SavingFundPaymentRepositoryTest {
     assertThat(savedPayment.getId()).isEqualTo(id);
     assertThat(savedPayment.getCreatedAt()).isCloseTo(Instant.now(), within(10, SECONDS));
     assertThat(savedPayment.getStatusChangedAt()).isEqualTo(savedPayment.getCreatedAt());
+  }
+
+  @Test
+  void savePaymentDataOnce_savesTheCallbackPaymentWithItsPartyAsCreated() {
+    var payment = callbackPayment();
+
+    var saved = repository.savePaymentDataOnce(UUID.randomUUID(), payment, CALLBACK_RECIPIENT);
+
+    assertThat(saved).isTrue();
+    assertThat(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields(
+            "id", "createdAt", "statusChangedAt")
+        .containsExactly(payment.toBuilder().partyId(CALLBACK_RECIPIENT).status(CREATED).build());
+  }
+
+  @Test
+  void savePaymentDataOnce_aSecondCallbackForTheSamePaymentLinkSavesNothing() {
+    var paymentLink = UUID.randomUUID();
+    var firstCallback =
+        repository.savePaymentDataOnce(paymentLink, callbackPayment(), CALLBACK_RECIPIENT);
+
+    var secondCallback =
+        repository.savePaymentDataOnce(paymentLink, callbackPayment(), CALLBACK_RECIPIENT);
+
+    assertThat(List.of(firstCallback, secondCallback)).containsExactly(true, false);
+    assertThat(repository.findRecentPayments(CALLBACK_DESCRIPTION)).hasSize(1);
+  }
+
+  @Test
+  void savePaymentDataOnce_onlyThePaymentLinkConflictsSoTwoLinksWithOneDescriptionAreBothSaved() {
+    var firstLink =
+        repository.savePaymentDataOnce(UUID.randomUUID(), callbackPayment(), CALLBACK_RECIPIENT);
+
+    var secondLink =
+        repository.savePaymentDataOnce(UUID.randomUUID(), callbackPayment(), CALLBACK_RECIPIENT);
+
+    assertThat(List.of(firstLink, secondLink)).containsExactly(true, true);
+    assertThat(repository.findRecentPayments(CALLBACK_DESCRIPTION)).hasSize(2);
   }
 
   @Test
@@ -594,6 +635,15 @@ class SavingFundPaymentRepositoryTest {
     var result = repository.findWithdrawableIbans(childParty);
 
     assertThat(result).containsExactly("EE111111111111111111");
+  }
+
+  private SavingFundPayment callbackPayment() {
+    return SavingFundPayment.builder()
+        .remitterName("First Last")
+        .remitterIban("EE111111111111111111")
+        .amount(new BigDecimal("1000.00"))
+        .description(CALLBACK_DESCRIPTION)
+        .build();
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

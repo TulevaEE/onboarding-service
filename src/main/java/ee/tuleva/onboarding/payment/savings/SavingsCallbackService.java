@@ -71,6 +71,9 @@ public class SavingsCallbackService {
 
     var incomingPayment =
         new IncomingSavingsPayment(
+            requireNonNull(
+                merchantReference.getUuid(),
+                "Montonio order token missing merchant reference uuid: uuid=" + token.getUuid()),
             token.getSenderName(),
             token.getSenderIban(),
             merchantReference.getDescription(),

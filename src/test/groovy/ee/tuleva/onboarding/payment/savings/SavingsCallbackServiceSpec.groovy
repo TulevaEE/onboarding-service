@@ -51,6 +51,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def serializedToken = aSerializedSavingsPaymentToken
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
+        token.merchantReference.uuid,
         token.senderName,
         token.senderIban,
         token.merchantReference.description,
@@ -72,6 +73,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def mockUser = sampleUser().personalCode("38812121215").build()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
+        token.merchantReference.uuid,
         token.senderName,
         token.senderIban,
         token.merchantReference.description,
@@ -93,6 +95,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def mockUser = sampleUser().personalCode("38812121215").build()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
+        token.merchantReference.uuid,
         token.senderName,
         token.senderIban,
         token.merchantReference.description,
@@ -114,6 +117,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def mockUser = sampleUser().personalCode("38812121215").build()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
+        token.merchantReference.uuid,
         token.senderName,
         token.senderIban,
         token.merchantReference.description,
@@ -200,6 +204,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def mockUser = sampleUser().personalCode("38812121215").build()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
+        token.merchantReference.uuid,
         token.senderName,
         token.senderIban,
         token.merchantReference.description,
@@ -221,6 +226,19 @@ class SavingsCallbackServiceSpec extends Specification {
     "sender name and IBAN" | ["senderName", "senderIban"]
     "sender name"          | ["senderName"]
     "sender IBAN"          | ["senderIban"]
+  }
+
+  def "a paid token whose merchant reference has no uuid is rejected without recording or publishing anything"() {
+    given:
+    def serializedToken = aSerializedSavingsPaymentTokenWithout([], [uuid: null])
+
+    when:
+    savingsCallbackService.processToken(serializedToken)
+
+    then:
+    thrown(NullPointerException)
+    0 * savingsPayments.recordIncoming(_)
+    0 * eventPublisher.publishEvent(_)
   }
 
   def "rejects a missing or malformed token without recording or publishing anything"() {

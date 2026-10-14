@@ -180,9 +180,36 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_companyAccount_registryCodeMismatch_stillBounces() {
-    // The widening is for natural persons only; company accounts keep the identity checks.
+  void process_companyPayingIntoAnotherCompanysAccount_isReturned() {
     var payment = createPayment("14118923", "company 10391131");
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void process_companyPayingIntoAnAdultsAccount_isReturned() {
+    var payment = createPayment("12345678", "for user 48806046007");
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void process_companyPayingIntoAChildsAccount_isReturned() {
+    var payment = createPayment("12345678", "61506150006, 1759300000, ABCDEF");
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void process_personPayingIntoACompanysAccount_isReturned() {
+    var payment = createPayment("37508295796", "company 12345678");
 
     service.process(payment);
 
@@ -190,6 +217,127 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository)
         .addReturnReason(
             payment.getId(), "selgituses olev registrikood ei klapi maksja registrikoodiga");
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_companyNamedRemitterWithoutIdCode_payingIntoAChildsAccount_isReturned() {
+    var payment =
+        createPayment(null, "61506150006, 1759300000, ABCDEF").toBuilder()
+            .remitterName("Maasikas OÜ")
+            .build();
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void process_companyNamedWithoutDiacriticsAndWithoutIdCode_payingIntoAChildsAccount_isReturned() {
+    var payment =
+        createPayment(null, "61506150006, 1759300000, ABCDEF").toBuilder()
+            .remitterName("MAASIKAS OU")
+            .build();
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void
+      process_remitterWithoutIdCodeNamedOsauhingInUpperCase_payingIntoAnAdultsAccount_isReturned() {
+    var payment =
+        createPayment(null, "for user 48806046007").toBuilder()
+            .remitterName("OSAÜHING MAASIKAS")
+            .build();
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void process_remitterWithoutIdCodeNamedOuInLowerCase_payingIntoAnAdultsAccount_isReturned() {
+    var payment =
+        createPayment(null, "for user 48806046007").toBuilder().remitterName("maasikas oü").build();
+
+    service.process(payment);
+
+    assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(payment);
+  }
+
+  @Test
+  void
+      process_personWithoutIdCodeWhoseNameMerelyContainsOuInsideAWord_payingIntoAChildsAccount_isAccepted() {
+    var payment =
+        createPayment(null, "61506150006, 1759300000, ABCDEF").toBuilder()
+            .remitterName("PÄRT SOÜLA")
+            .build();
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void
+      process_remitterWithAPersonalCodeAndOuInTheName_payingIntoAChildsAccount_isAcceptedAsAPerson() {
+    var payment =
+        createPayment("37508295796", "61506150006, 1759300000, ABCDEF").toBuilder()
+            .remitterName("ÕLEKÕRS OÜ")
+            .build();
+    givenAnOnboardedChild("61506150006");
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), true);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_companyNamedRemitterWithoutIdCode_payingIntoItsOwnAccount_isVerified() {
+    var payment =
+        createPayment(null, "company 12345678").toBuilder().remitterName("MAASIKAS OÜ").build();
+    var company = Company.builder().registryCode("12345678").name("Maasikas OÜ").build();
+    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"), false);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  private void givenAnOnboardedChild(String personalCode) {
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(personalCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(personalCode)).thenReturn(Optional.of(child));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(personalCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+  }
+
+  private void assertReturnedBecauseACompanyCanOnlyPayIntoItsOwnAccount(SavingFundPayment payment) {
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "ettevõte saab teha sissemakseid ainult enda kontole");
     verify(savingsFundLedger)
         .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
@@ -197,8 +345,9 @@ class PaymentVerificationServiceTest {
             new UnattributedPaymentEvent(
                 payment.getId(),
                 payment.getAmount(),
-                "selgituses olev registrikood ei klapi maksja registrikoodiga"));
+                "ettevõte saab teha sissemakseid ainult enda kontole"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(savingsFundLedger, never()).recordPaymentReceived(any(), any(), any(), any());
   }
 
   @Test
@@ -568,18 +717,6 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "see ettevõte ei ole täiendava kogumisfondiga liitunud");
-  }
-
-  @Test
-  void process_companyPayment_codeMismatch() {
-    var payment = createPayment("87654321", "company 12345678");
-
-    service.process(payment);
-
-    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
-    verify(savingFundPaymentRepository)
-        .addReturnReason(
-            payment.getId(), "selgituses olev registrikood ei klapi maksja registrikoodiga");
   }
 
   @Test

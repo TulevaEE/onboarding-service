@@ -152,4 +152,36 @@ class NameMatcherTest {
     assertThat(nameMatcher.isSameName("Alpha OÜ", "Aplha OÜ")).isFalse();
     assertThat(nameMatcher.isSameName("AlphaBeta OÜ", "Alpha Beta OÜ")).isFalse();
   }
+
+  @Test
+  void looksLikeACompany_recognisesOsauhingWithOrWithoutDiacriticsInAnyCase() {
+    assertThat(nameMatcher.looksLikeACompany("Maasikas OÜ")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("MAASIKAS OU")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("maasikas ou")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("Osaühing Maasikas")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("OSAUHING MAASIKAS")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("osauhing maasikas")).isTrue();
+  }
+
+  @Test
+  void looksLikeACompany_recognisesTheLegalFormNextToPunctuationAndUnicodeVariants() {
+    assertThat(nameMatcher.looksLikeACompany("Maasikas OÜ,")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("Maasikas (OÜ)")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("Maasikas OU\u0308")).isTrue();
+    assertThat(nameMatcher.looksLikeACompany("OS\u00ADAÜHING Maasikas")).isTrue();
+  }
+
+  @Test
+  void looksLikeACompany_doesNotMatchTheLegalFormInsideALongerWord() {
+    assertThat(nameMatcher.looksLikeACompany("PÄRT SOÜLA")).isFalse();
+    assertThat(nameMatcher.looksLikeACompany("OUMAR MAASIKAS")).isFalse();
+    assertThat(nameMatcher.looksLikeACompany("SOULA")).isFalse();
+  }
+
+  @Test
+  void looksLikeACompany_isFalseForOtherLegalFormsAndMissingNames() {
+    assertThat(nameMatcher.looksLikeACompany("Maasikas AS")).isFalse();
+    assertThat(nameMatcher.looksLikeACompany(null)).isFalse();
+    assertThat(nameMatcher.looksLikeACompany("")).isFalse();
+  }
 }

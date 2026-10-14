@@ -26,6 +26,10 @@ public class NameMatcher {
     return normalized1.equals(normalized2);
   }
 
+  public boolean looksLikeACompany(@Nullable String name) {
+    return name != null && normalizedTokens(name).anyMatch(OSAUHING_ABBREVIATION::equals);
+  }
+
   private boolean isMissingDistinguishingName(String normalizedName) {
     return normalizedName.isEmpty() || normalizedName.equals(OSAUHING_ABBREVIATION);
   }

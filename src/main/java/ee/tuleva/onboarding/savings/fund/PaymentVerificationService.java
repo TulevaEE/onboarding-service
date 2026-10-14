@@ -38,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentVerificationService {
   private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
   private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
+  private static final String COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT =
+      "ettevõte saab teha sissemakseid ainult enda kontole";
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
@@ -91,6 +93,11 @@ public class PaymentVerificationService {
 
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
+
+    if (isCompanyPayingForSomeoneElse(remitterPartyId, payment.getRemitterName(), partyId)) {
+      identityCheckFailure(payment, COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT);
+      return;
+    }
 
     boolean acceptedFromAnyRemitter =
         partyIdFromDescription.isPresent()
@@ -192,6 +199,13 @@ public class PaymentVerificationService {
     return Optional.ofNullable(payment.getPartyId())
         .map(PartyId::code)
         .flatMap(userRepository::findByPersonalCode);
+  }
+
+  private boolean isCompanyPayingForSomeoneElse(
+      Optional<PartyId> remitterPartyId, @Nullable String remitterName, PartyId partyId) {
+    return remitterPartyId
+        .map(remitter -> remitter.type() == LEGAL_ENTITY && !remitter.equals(partyId))
+        .orElseGet(() -> partyId.type() == PERSON && nameMatcher.looksLikeACompany(remitterName));
   }
 
   private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {

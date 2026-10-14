@@ -61,6 +61,28 @@ public class SavingFundPaymentRepository {
     return id;
   }
 
+  public boolean savePaymentDataOnce(
+      UUID internalReference, SavingFundPayment payment, PartyId partyId) {
+    var parameters =
+        createParameters(payment)
+            .addValue("id", UUID.randomUUID())
+            .addValue("status", CREATED.name())
+            .addValue("internal_reference", internalReference)
+            .addValue("party_type", partyId.type().name())
+            .addValue("party_code", partyId.code());
+
+    var inserted =
+        jdbcTemplate.update(
+            """
+      insert into saving_fund_payment (id, internal_reference, external_id, end_to_end_id, amount, currency, description, remitter_iban, remitter_id_code, remitter_name, beneficiary_iban, beneficiary_id_code, beneficiary_name, received_before, party_type, party_code, status)
+      values (:id, :internal_reference, :external_id, :end_to_end_id, :amount, :currency, :description, :remitter_iban, :remitter_id_code, :remitter_name, :beneficiary_iban, :beneficiary_id_code, :beneficiary_name, :received_before, :party_type, :party_code, :status)
+      on conflict do nothing
+      """,
+            parameters);
+
+    return inserted == 1;
+  }
+
   public void updatePaymentData(UUID paymentId, SavingFundPayment payment) {
     var parameters = createParameters(payment).addValue("id", paymentId);
     jdbcTemplate.update(

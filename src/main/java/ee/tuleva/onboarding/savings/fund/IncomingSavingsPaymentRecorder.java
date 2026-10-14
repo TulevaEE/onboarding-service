@@ -31,9 +31,14 @@ class IncomingSavingsPaymentRecorder implements SavingsPayments {
             .currency(incomingPayment.currency())
             .build();
 
-    var paymentId = savingFundPaymentQueries.savePaymentData(payment);
-    savingFundPaymentQueries.attachParty(paymentId, incomingPayment.recipient());
-
-    return true;
+    var saved =
+        savingFundPaymentQueries.savePaymentDataOnce(
+            incomingPayment.internalReference(), payment, incomingPayment.recipient());
+    if (!saved) {
+      log.info(
+          "Saving fund payment already recorded by another callback: internalReference={}",
+          incomingPayment.internalReference());
+    }
+    return saved;
   }
 }

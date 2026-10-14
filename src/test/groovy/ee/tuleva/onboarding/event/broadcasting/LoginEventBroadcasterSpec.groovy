@@ -26,6 +26,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessio
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
+import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
 class LoginEventBroadcasterSpec extends Specification {
 
@@ -106,18 +107,26 @@ class LoginEventBroadcasterSpec extends Specification {
     1 * eventPublisher.publishEvent(new TrackableEvent(samplePerson, LOGIN, [method: SMART_ID]))
   }
 
-  def "keeps the Smart-ID document number out of the login event"() {
+  def "keeps the Smart-ID document number out of the login event, its recorded auth attributes included"() {
     given:
+    def broadcaster = new LoginEventBroadcaster(eventPublisher, conversionService, pillarActivations,
+        new ConversionDecorator(), securityContextRunner, secondPillarPaymentRateService, clientConnection)
     def person = sampleAuthenticatedPersonAndMember()
         .attributes([(GRANT_TYPE): SMART_ID.name(), (SMART_ID_DOCUMENT_NUMBER): "PNOEE-38888888888-MOCK-Q"])
         .build()
     def event = new AfterTokenGrantedEvent(this, person, SMART_ID, sampleAuthenticationTokens())
     pillarActivations.forPerson(_) >> new PillarActivation(true, true)
+    conversionService.getConversion(person) >> fullyConverted()
+    secondPillarPaymentRateService.getPaymentRates(person) >> samplePaymentRates()
 
     when:
-    service.onAfterTokenGrantedEvent(event)
+    broadcaster.onAfterTokenGrantedEvent(event)
 
     then:
-    1 * eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, [method: SMART_ID, (GRANT_TYPE): SMART_ID.name()]))
+    1 * eventPublisher.publishEvent({ TrackableEvent published ->
+      !published.data.containsKey(SMART_ID_DOCUMENT_NUMBER) &&
+          published.data.authAttributes == [(GRANT_TYPE): SMART_ID.name()]
+    })
   }
+
 }

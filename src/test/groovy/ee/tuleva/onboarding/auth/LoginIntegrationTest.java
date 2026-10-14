@@ -184,6 +184,15 @@ class LoginIntegrationTest {
   }
 
   @Test
+  void aSmartIdLoginEventKeepsTheSmartIdDocumentNumberOutOfEverythingItRecords() throws Exception {
+    completeQrLogin(anAuthenticationIdentity(), false);
+
+    assertThat(objectMapper.writeValueAsString(loginEventDataOf(personalCode)))
+        .contains("authAttributes")
+        .doesNotContain(documentNumber);
+  }
+
+  @Test
   void aSmartIdLoginEventRecordsWhichSmartIdFlowCompletedTheLogin() throws Exception {
     completeQrLogin(anAuthenticationIdentity(), false);
 

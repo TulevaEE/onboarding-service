@@ -21,7 +21,7 @@ public class RecurringSavers implements RecurringContributionStatus {
 
   @Override
   public boolean thirdPillar(String personalCode) {
-    return thirdPillarTransactions.countOwnContributionMonthsSince(personalCode, windowStart())
+    return thirdPillarTransactions.countContributionMonthsSince(personalCode, windowStart())
         >= MIN_CONTRIBUTION_MONTHS;
   }
 

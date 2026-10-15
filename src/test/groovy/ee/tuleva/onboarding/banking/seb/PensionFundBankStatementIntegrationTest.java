@@ -14,6 +14,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckEventRepository;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
@@ -56,6 +57,7 @@ class PensionFundBankStatementIntegrationTest {
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private BankAccounts bankAccounts;
   @Autowired private PaymentCheckService paymentCheckService;
+  @Autowired private PaymentCheckEventRepository paymentCheckEventRepository;
 
   @DynamicPropertySource
   static void registrarIbans(DynamicPropertyRegistry registry) {
@@ -156,6 +158,31 @@ class PensionFundBankStatementIntegrationTest {
 
     assertThat(applicationEvents.stream(ReconciliationBlockedEvent.class)).hasSize(1);
     assertThat(matchedReconciliations(TUK75)).isEqualTo(1);
+  }
+
+  @Test
+  void
+      unclassifiedEntryRaisesItsFindingOnce_andBlocksEachReconciliation_whenItsStatementIsDeliveredAgain() {
+    var account = bankAccounts.find(bankAccounts.getIban(TUK75, FUND_INVESTMENT_EUR)).orElseThrow();
+    var externalReference =
+        UUID.nameUUIDFromBytes((account.iban() + ":PENSION-UNKNOWN-1").getBytes(UTF_8));
+
+    persistMessage(statementWithAnUnknownCounterpartyCredit());
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    persistMessage(statementWithAnUnknownCounterpartyCredit());
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(
+            paymentCheckEventRepository.findByCheckTypeAndExternalKey(
+                UNCLASSIFIED_BANK_OPERATION, externalReference.toString()))
+        .hasValueSatisfying(
+            finding -> assertThat(finding.getLastSeenAt()).isEqualTo(finding.getCreatedAt()));
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
+    assertThat(applicationEvents.stream(ReconciliationBlockedEvent.class))
+        .containsExactly(
+            new ReconciliationBlockedEvent(account, LocalDate.of(2026, 2, 10), 1),
+            new ReconciliationBlockedEvent(account, LocalDate.of(2026, 2, 10), 1));
   }
 
   private long matchedReconciliations(TulevaFund fund) {

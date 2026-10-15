@@ -13,10 +13,20 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TradeSettlementParser {
 
+  private static final int BROKER_REFERENCE = 0;
+  private static final int TICKER = 1;
+  private static final int UNITS = 2;
+  private static final int PRICE = 3;
+
   private final InstrumentReferenceService instrumentReferenceService;
 
   public record TradeSettlementInfo(
-      String isin, String ticker, String displayName, BigDecimal units) {
+      String brokerReference,
+      String isin,
+      String ticker,
+      String displayName,
+      BigDecimal units,
+      BigDecimal price) {
 
     public BigDecimal signedUnits(BigDecimal cashAmount) {
       var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
@@ -24,7 +34,7 @@ public class TradeSettlementParser {
     }
 
     public TradeSettlementDetails ledgerDetails() {
-      return new TradeSettlementDetails(isin, ticker, displayName);
+      return new TradeSettlementDetails(brokerReference, isin, ticker, displayName, price);
     }
   }
 
@@ -34,11 +44,11 @@ public class TradeSettlementParser {
     }
 
     String[] segments = remittanceInfo.split("/");
-    if (segments.length < 3) {
+    if (segments.length <= PRICE) {
       return Optional.empty();
     }
 
-    String tickerSegment = segments[1].trim();
+    String tickerSegment = segments[TICKER].trim();
     int spaceIndex = tickerSegment.indexOf(' ');
     String ticker = spaceIndex > 0 ? tickerSegment.substring(0, spaceIndex) : tickerSegment;
 
@@ -50,9 +60,11 @@ public class TradeSettlementParser {
     return instrument.map(
         found ->
             new TradeSettlementInfo(
+                segments[BROKER_REFERENCE].trim(),
                 found.getIsin(),
                 ticker,
                 found.getDisplayName(),
-                new BigDecimal(segments[2].trim())));
+                new BigDecimal(segments[UNITS].trim()),
+                new BigDecimal(segments[PRICE].trim())));
   }
 }

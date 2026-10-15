@@ -22,7 +22,7 @@ class TradeSettlementInfoSpec extends Specification {
   }
 
   static TradeSettlementInfo developedWorld(BigDecimal units) {
-    new TradeSettlementInfo("IE00BFG1TM61", "BDWTEIA",
-        "iShares Developed World Screened Index Fund", units)
+    new TradeSettlementInfo("DLA0544429", "IE00BFG1TM61", "BDWTEIA",
+        "iShares Developed World Screened Index Fund", units, 34.085995776)
   }
 }

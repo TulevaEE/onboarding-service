@@ -250,10 +250,12 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
+            "DLA0553690",
             "LU1291102447",
             "EJAP",
             "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-            new BigDecimal("11704"));
+            new BigDecimal("11704"),
+            new BigDecimal("17.864"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -268,7 +270,11 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
                 new FundBankLedger.TradeSettlementDetails(
-                    "LU1291102447", "EJAP", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF")),
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -306,10 +312,12 @@ class BankOperationProcessorTest {
         .thenReturn(
             java.util.Optional.of(
                 new TradeSettlementParser.TradeSettlementInfo(
+                    "DLA0553690",
                     "LU1291102447",
                     "EJAP",
                     "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-                    new BigDecimal("11704"))));
+                    new BigDecimal("11704"),
+                    new BigDecimal("17.864"))));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -325,10 +333,12 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
+            "DLA0544429",
             "IE00BFG1TM61",
             "BDWTEIA",
             "iShares Developed World Screened Index Fund",
-            new BigDecimal("31426.66"));
+            new BigDecimal("31426.66"),
+            new BigDecimal("34.085995776"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -343,7 +353,11 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
                 new FundBankLedger.TradeSettlementDetails(
-                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
+                    "DLA0544429",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.085995776"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -354,10 +368,12 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
+            "DLA0553690",
             "LU1291102447",
             "EJAP",
             "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-            new BigDecimal("11704"));
+            new BigDecimal("11704"),
+            new BigDecimal("17.864"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -372,7 +388,11 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
                 new FundBankLedger.TradeSettlementDetails(
-                    "LU1291102447", "EJAP", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF")),
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -384,10 +404,12 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
+            "DLA0553691",
             "IE00BFG1TM61",
             "BDWTEIA",
             "iShares Developed World Screened Index Fund",
-            new BigDecimal("1450.25"));
+            new BigDecimal("1450.25"),
+            new BigDecimal("34.477"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -402,7 +424,11 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
                 new FundBankLedger.TradeSettlementDetails(
-                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
+                    "DLA0553691",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.477"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

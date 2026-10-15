@@ -174,9 +174,11 @@ public class FundBankLedger {
     Map<String, Object> metadata =
         Map.of(
             OPERATION_TYPE.getKey(), TRADE_SETTLEMENT.name(),
+            BROKER_REFERENCE.getKey(), trade.brokerReference(),
             INSTRUMENT.getKey(), trade.isin(),
             TICKER.getKey(), trade.ticker(),
-            DISPLAY_NAME.getKey(), trade.displayName());
+            DISPLAY_NAME.getKey(), trade.displayName(),
+            PRICE.getKey(), trade.price());
 
     return ledgerTransactionService.createTransaction(
         TRADE_SETTLEMENT,
@@ -402,7 +404,8 @@ public class FundBankLedger {
         entry(registrarAccount, amount.negate()));
   }
 
-  public record TradeSettlementDetails(String isin, String ticker, String displayName) {}
+  public record TradeSettlementDetails(
+      String brokerReference, String isin, String ticker, String displayName, BigDecimal price) {}
 
   public record UnclassifiedEntryDetails(
       @Nullable String counterpartyName,

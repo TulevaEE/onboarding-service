@@ -32,6 +32,7 @@ public class BankOperationProcessor {
   private static final String OTHR = "OTHR";
   private static final String TRAD = "TRAD";
   private static final String SUBS = "SUBS";
+  private static final String REDM = "REDM";
   private static final String BOOK = "BOOK";
 
   private final FundBankLedger fundBankLedger;
@@ -107,7 +108,7 @@ public class BankOperationProcessor {
         fundBankLedger.recordBankAdjustment(
             account.fund(), amount, externalReference, clearingAccount, bookingDate);
       }
-      case TRAD, SUBS -> {
+      case TRAD, SUBS, REDM -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
         if (tradeInfo.isEmpty()) {
           parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
@@ -157,7 +158,7 @@ public class BankOperationProcessor {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;
       case ADJT, OTHR -> BANK_ADJUSTMENT;
-      case TRAD, SUBS -> TRADE_SETTLEMENT;
+      case TRAD, SUBS, REDM -> TRADE_SETTLEMENT;
       case BOOK -> isManagementFeeRebate(remittanceInformation) ? MANAGEMENT_FEE_REBATE : null;
       default -> null;
     };

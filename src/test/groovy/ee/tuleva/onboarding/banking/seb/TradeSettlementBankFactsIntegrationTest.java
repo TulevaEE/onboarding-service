@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.banking.seb;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -12,10 +14,14 @@ import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -25,10 +31,15 @@ import org.springframework.context.ApplicationEventPublisher;
 @SebIntegrationTest
 class TradeSettlementBankFactsIntegrationTest {
 
+  private static final Instant AFTER_EVERY_BOOKING = Instant.parse("2100-01-01T00:00:00Z");
+  private static final String DEVELOPED_WORLD_ISIN = "IE00BFG1TM61";
+
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private BankAccounts bankAccounts;
   @Autowired private EntityManager entityManager;
+  @Autowired private FundBankLedger fundBankLedger;
+  @Autowired private NavLedgerRepository navLedgerRepository;
 
   @Test
   void tkf100TradeEntryKeepsItsSebReferenceAndPriceOnTheLedgerTransaction() {
@@ -72,6 +83,33 @@ class TradeSettlementBankFactsIntegrationTest {
             price ->
                 assertThat(new BigDecimal(price.toString()))
                     .isEqualByComparingTo(new BigDecimal("51.25")));
+  }
+
+  @Test
+  void tkf100FundRedemptionSettlesAsATradeWithItsUnitsLeavingCustody() {
+    persistMessage(
+        statement(
+            TKF100,
+            "TKF100-REDM-1",
+            "1969232.78",
+            "CRDT",
+            "REDM",
+            "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd"));
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TKF100, AFTER_EVERY_BOOKING))
+        .isZero();
+    assertThat(instrumentBalance(SECURITIES_CUSTODY, TKF100, DEVELOPED_WORLD_ISIN))
+        .isEqualByComparingTo(new BigDecimal("-59145"));
+    assertThat(instrumentBalance(TRADE_CASH_SETTLEMENT, TKF100, DEVELOPED_WORLD_ISIN))
+        .isEqualByComparingTo(new BigDecimal("-1969232.78"));
+    assertThat(tradeSettlementMetadata(TKF100, "TKF100-REDM-1"))
+        .containsEntry("brokerReference", "DLA0695877");
+  }
+
+  private BigDecimal instrumentBalance(SystemAccount systemAccount, TulevaFund fund, String isin) {
+    return navLedgerRepository.getSystemAccountBalance(systemAccount.getAccountName(fund, isin));
   }
 
   private Map<String, Object> tradeSettlementMetadata(TulevaFund fund, String entryReference) {

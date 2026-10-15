@@ -433,6 +433,43 @@ class BankOperationProcessorTest {
   }
 
   @Test
+  void processBankOperation_recordsFundRedemptionAsATradeSettlementWithUnitsLeavingCustody() {
+    var amount = new BigDecimal("1969232.78");
+    var remittanceInfo =
+        "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd";
+    var entry = createBankOperationEntry("REDM", amount, remittanceInfo);
+    given(tradeSettlementParser.parse(remittanceInfo))
+        .willReturn(
+            java.util.Optional.of(
+                new TradeSettlementParser.TradeSettlementInfo(
+                    "DLA0695877",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("59145"),
+                    new BigDecimal("33.295"))));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount),
+            eq(new BigDecimal("-59145.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0695877",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("33.295"))),
+            eq(LocalDate.of(2025, 10, 1)));
+    verifyNoInteractions(paymentCheckService);
+  }
+
+  @Test
   void processBankOperation_failsOnMissingExternalId() {
     var entry =
         new BankStatementEntry(

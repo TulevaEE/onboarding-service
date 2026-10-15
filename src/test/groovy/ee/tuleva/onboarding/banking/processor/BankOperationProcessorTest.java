@@ -266,9 +266,9 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("11704.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("LU1291102447"),
-            eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "LU1291102447", "EJAP", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -283,7 +283,7 @@ class BankOperationProcessorTest {
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
     verify(fundBankLedger)
         .recordUnclassifiedBankEntry(
             eq(TKF100),
@@ -314,7 +314,7 @@ class BankOperationProcessorTest {
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -341,9 +341,9 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("31426.66000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -370,9 +370,9 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("11704.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("LU1291102447"),
-            eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "LU1291102447", "EJAP", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -400,9 +400,9 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("-1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

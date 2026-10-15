@@ -129,9 +129,7 @@ public class BankOperationProcessor {
             units,
             externalReference,
             clearingAccount,
-            settlement.isin(),
-            settlement.ticker(),
-            settlement.displayName(),
+            settlement.ledgerDetails(),
             bookingDate);
       }
       case BOOK -> {

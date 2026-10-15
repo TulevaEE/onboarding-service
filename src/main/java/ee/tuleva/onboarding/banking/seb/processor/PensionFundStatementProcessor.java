@@ -156,9 +156,7 @@ public class PensionFundStatementProcessor {
               trade.signedUnits(amount),
               externalReference,
               account.ledgerAccount(),
-              trade.isin(),
-              trade.ticker(),
-              trade.displayName(),
+              trade.ledgerDetails(),
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(

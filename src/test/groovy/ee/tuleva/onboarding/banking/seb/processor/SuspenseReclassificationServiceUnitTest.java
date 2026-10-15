@@ -130,9 +130,8 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("1000.00000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new FundBankLedger.TradeSettlementDetails(
+                "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund"),
             BOOKING_DATE);
   }
 
@@ -159,9 +158,8 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("-1450.25000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new FundBankLedger.TradeSettlementDetails(
+                "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund"),
             BOOKING_DATE);
   }
 
@@ -221,7 +219,7 @@ class SuspenseReclassificationServiceUnitTest {
 
     assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test

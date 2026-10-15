@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FeeCheckServiceTest {
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 6, 4);
+  private static final Set<FeeCheckType> CHECK_TYPES_STILL_RUN = Set.of(FeeCheckType.values());
 
   @Mock private LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   @Mock private FeeBaseCompletenessChecker feeBaseCompletenessChecker;
@@ -159,7 +161,7 @@ class FeeCheckServiceTest {
   void theDailyWindowStillCoversADeviationThatWasNeverFixed() {
     givenAllCheckersPass();
     var firstSeen = LocalDate.of(2026, 5, 1);
-    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .willReturn(Optional.of(firstSeen));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
@@ -170,7 +172,7 @@ class FeeCheckServiceTest {
   @Test
   void aDeviationNewerThanTheRollingWindowDoesNotShrinkIt() {
     givenAllCheckersPass();
-    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .willReturn(Optional.of(CHECK_DATE));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);

@@ -115,10 +115,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
+                    "DLA0000001",
                     "IE00BFG1TM61",
                     "BDWTEIA",
                     "iShares Developed World Screened Index Fund",
-                    new BigDecimal("1000"))));
+                    new BigDecimal("1000"),
+                    new BigDecimal("34.44828"))));
 
     var result = service.reclassify(TUK75);
 
@@ -131,7 +133,11 @@ class SuspenseReclassificationServiceUnitTest {
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
             new FundBankLedger.TradeSettlementDetails(
-                "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund"),
+                "DLA0000001",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.44828")),
             BOOKING_DATE);
   }
 
@@ -144,10 +150,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
+                    "DLA0000002",
                     "IE00BFG1TM61",
                     "BDWTEIA",
                     "iShares Developed World Screened Index Fund",
-                    new BigDecimal("1450.25"))));
+                    new BigDecimal("1450.25"),
+                    new BigDecimal("34.477"))));
 
     service.reclassify(TUK75);
 
@@ -159,7 +167,11 @@ class SuspenseReclassificationServiceUnitTest {
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
             new FundBankLedger.TradeSettlementDetails(
-                "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund"),
+                "DLA0000002",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.477")),
             BOOKING_DATE);
   }
 
@@ -208,10 +220,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
+                    "DLA0000001",
                     "IE00BFG1TM61",
                     "BDWTEIA",
                     "iShares Developed World Screened Index Fund",
-                    new BigDecimal("1000"))));
+                    new BigDecimal("1000"),
+                    new BigDecimal("34.44828"))));
     given(fundBankLedger.hasLedgerEntry(transaction.getExternalReference(), TRADE_SETTLEMENT))
         .willReturn(true);
 

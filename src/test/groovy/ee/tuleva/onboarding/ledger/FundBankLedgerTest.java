@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -162,7 +163,7 @@ class FundBankLedgerTest {
   }
 
   @Test
-  void recordTradeSettlement_createsCorrectFourEntryTransaction() {
+  void recordTradeSettlement_createsAFourEntryTransactionCarryingTheBanksReferenceAndPrice() {
     var amount = new BigDecimal("-209025.86");
     var units = new BigDecimal("11704.00000");
     var externalReference = randomUUID();
@@ -177,14 +178,22 @@ class FundBankLedgerTest {
             externalReference,
             FUND_INVESTMENT_CASH_CLEARING,
             new FundBankLedger.TradeSettlementDetails(
-                isin, "EJAP", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+                "DLA0553690",
+                isin,
+                "EJAP",
+                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new BigDecimal("17.864")),
             BOOKING_DATE);
 
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("TRADE_SETTLEMENT");
-    assertThat(transaction.getMetadata().get("instrument")).isEqualTo(isin);
-    assertThat(transaction.getMetadata().get("ticker")).isEqualTo("EJAP");
-    assertThat(transaction.getMetadata().get("displayName"))
-        .isEqualTo("BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
+    assertThat(transaction.getMetadata())
+        .isEqualTo(
+            Map.of(
+                "operationType", "TRADE_SETTLEMENT",
+                "brokerReference", "DLA0553690",
+                "instrument", isin,
+                "ticker", "EJAP",
+                "displayName", "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                "price", new BigDecimal("17.864")));
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getEntries()).hasSize(4);
     assertThat(
@@ -214,7 +223,8 @@ class FundBankLedgerTest {
         units1,
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
-        new FundBankLedger.TradeSettlementDetails(isin1, "EJAP", "BNP Japan"),
+        new FundBankLedger.TradeSettlementDetails(
+            "DLA0553690", isin1, "EJAP", "BNP Japan", new BigDecimal("17.864")),
         BOOKING_DATE);
     fundBankLedger.recordTradeSettlement(
         TKF100,
@@ -222,7 +232,8 @@ class FundBankLedgerTest {
         units2,
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
-        new FundBankLedger.TradeSettlementDetails(isin2, "XRSM", "Xtrackers USA"),
+        new FundBankLedger.TradeSettlementDetails(
+            "DLA0553685", isin2, "XRSM", "Xtrackers USA", new BigDecimal("51.25")),
         BOOKING_DATE);
 
     assertThat(getInstrumentAccount(TRADE_CASH_SETTLEMENT, TKF100, isin1).getBalance())
@@ -251,7 +262,11 @@ class FundBankLedgerTest {
             randomUUID(),
             FUND_INVESTMENT_CASH_CLEARING,
             new FundBankLedger.TradeSettlementDetails(
-                isin, "BDWTEIA", "iShares Developed World Screened Index Fund"),
+                "DLA0544429",
+                isin,
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.448275862")),
             BOOKING_DATE);
 
     assertThat(getSystemAccount(SystemAccount.BANK_FEE, TUK75).getName())

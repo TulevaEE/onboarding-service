@@ -57,14 +57,27 @@ public class TradeSettlementParser {
             .findByTicker(ticker)
             .or(() -> instrumentReferenceService.findByBloombergTicker(ticker));
 
-    return instrument.map(
-        found ->
-            new TradeSettlementInfo(
-                segments[BROKER_REFERENCE].trim(),
-                found.getIsin(),
-                ticker,
-                found.getDisplayName(),
-                new BigDecimal(segments[UNITS].trim()),
-                new BigDecimal(segments[PRICE].trim())));
+    Optional<BigDecimal> units = number(segments[UNITS]);
+    Optional<BigDecimal> price = number(segments[PRICE]);
+    if (instrument.isEmpty() || units.isEmpty() || price.isEmpty()) {
+      return Optional.empty();
+    }
+
+    return Optional.of(
+        new TradeSettlementInfo(
+            segments[BROKER_REFERENCE].trim(),
+            instrument.get().getIsin(),
+            ticker,
+            instrument.get().getDisplayName(),
+            units.get(),
+            price.get()));
+  }
+
+  private static Optional<BigDecimal> number(String segment) {
+    try {
+      return Optional.of(new BigDecimal(segment.trim()));
+    } catch (NumberFormatException e) {
+      return Optional.empty();
+    }
   }
 }

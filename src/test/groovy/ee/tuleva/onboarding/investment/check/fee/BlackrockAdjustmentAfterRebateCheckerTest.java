@@ -41,10 +41,13 @@ class BlackrockAdjustmentAfterRebateCheckerTest {
   private static final String RECEIVABLE_ACCOUNT = "BLACKROCK_ADJUSTMENT:TUK75";
   private static final int WORKING_DAYS_REPORTED_AFTER_DEADLINE = 5;
 
+  private static final LocalDate THURSDAY_THE_WEEK_BEFORE = LocalDate.of(2026, 5, 28);
   private static final LocalDate MONDAY = LocalDate.of(2026, 6, 1);
   private static final LocalDate TUESDAY = LocalDate.of(2026, 6, 2);
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 6, 3);
+  private static final LocalDate THURSDAY = LocalDate.of(2026, 6, 4);
   private static final LocalDate FRIDAY = LocalDate.of(2026, 6, 5);
+  private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final LocalDate NEXT_MONDAY = LocalDate.of(2026, 6, 8);
   private static final LocalDate NEXT_TUESDAY = LocalDate.of(2026, 6, 9);
   private static final LocalDate NEXT_WEDNESDAY = LocalDate.of(2026, 6, 10);
@@ -210,14 +213,28 @@ class BlackrockAdjustmentAfterRebateCheckerTest {
   }
 
   @Test
-  void asksForTheFundsRebatesBackToTheFirstBookingDayStillInsideTheReportingWindow() {
+  void asksForTheFundsRebatesBookedFromTheFirstDayStillReportedUpToTheLastDayPastItsDeadline() {
     givenADeadlineOfWorkingDays(1);
 
     checker.check(TUK75, NEXT_WEDNESDAY);
 
     verify(navLedgerRepository)
         .findEntriesByTransactionTypeBetween(
-            REBATE_ACCOUNT, MANAGEMENT_FEE_REBATE, startOf(TUESDAY), startOf(NEXT_WEDNESDAY));
+            REBATE_ACCOUNT, MANAGEMENT_FEE_REBATE, startOf(TUESDAY), startOf(NEXT_TUESDAY));
+  }
+
+  @Test
+  void aCheckRunOnASaturdayCountsTheReportingWindowBackFromFriday() {
+    givenADeadlineOfWorkingDays(1);
+
+    checker.check(TUK75, SATURDAY);
+
+    verify(navLedgerRepository)
+        .findEntriesByTransactionTypeBetween(
+            REBATE_ACCOUNT,
+            MANAGEMENT_FEE_REBATE,
+            startOf(THURSDAY_THE_WEEK_BEFORE),
+            startOf(THURSDAY));
   }
 
   private List<FeeCheckSeverity> severities(LocalDate checkDate) {
@@ -236,7 +253,16 @@ class BlackrockAdjustmentAfterRebateCheckerTest {
     given(
             navLedgerRepository.findEntriesByTransactionTypeBetween(
                 eq(REBATE_ACCOUNT), eq(MANAGEMENT_FEE_REBATE), any(), any()))
-        .willReturn(List.of(rebates));
+        .willAnswer(
+            query -> bookedBetween(List.of(rebates), query.getArgument(2), query.getArgument(3)));
+  }
+
+  private static List<LedgerEntryAmount> bookedBetween(
+      List<LedgerEntryAmount> entries, Instant fromInclusive, Instant toExclusive) {
+    return entries.stream()
+        .filter(entry -> !entry.transactionDate().isBefore(fromInclusive))
+        .filter(entry -> entry.transactionDate().isBefore(toExclusive))
+        .toList();
   }
 
   private void givenTheReceivableWasSetAfter(LedgerEntryAmount rebate) {

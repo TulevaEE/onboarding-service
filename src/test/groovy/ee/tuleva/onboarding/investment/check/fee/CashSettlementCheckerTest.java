@@ -13,7 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -59,7 +59,8 @@ class CashSettlementCheckerTest {
     assertThat(findings)
         .extracting(FeeCheckFinding::fund, FeeCheckFinding::severity)
         .containsExactly(tuple(TUK75, WARNING));
-    verify(navLedgerRepository)
+    then(navLedgerRepository)
+        .should()
         .findEntriesByTransactionTypeBetween(
             eq("MANAGEMENT_FEE:TUK75"), eq(MANAGEMENT_FEE_PAYMENT), any(), any());
   }

@@ -115,7 +115,7 @@ public class SuspenseReclassificationService {
                       trade.signedUnits(cashAmount),
                       externalReference,
                       UNCLASSIFIED_BANK_ENTRY,
-                      trade.ledgerDetails(),
+                      trade.details(),
                       bookingDate));
       case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit(),
           PensionFundEntryClassifier.Unclassified _ ->

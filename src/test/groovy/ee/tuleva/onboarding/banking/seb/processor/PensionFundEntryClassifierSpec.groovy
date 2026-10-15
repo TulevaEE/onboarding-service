@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
@@ -103,8 +104,7 @@ class PensionFundEntryClassifierSpec extends Specification {
 
   static TradeSettlement developedWorldSettlement(
       String brokerReference, BigDecimal units, BigDecimal price) {
-    new TradeSettlement(new TradeSettlementInfo(brokerReference, "IE00BFG1TM61", "BDWTEIA",
-        "iShares Developed World Screened Index Fund", units, price))
+    new TradeSettlement(new TradeSettlementInfo(new TradeSettlementDetails(brokerReference, "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund", price), units))
   }
 
   static BankStatementEntry entry(

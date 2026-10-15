@@ -20,21 +20,11 @@ public class TradeSettlementParser {
 
   private final InstrumentReferenceService instrumentReferenceService;
 
-  public record TradeSettlementInfo(
-      String brokerReference,
-      String isin,
-      String ticker,
-      String displayName,
-      BigDecimal units,
-      BigDecimal price) {
+  public record TradeSettlementInfo(TradeSettlementDetails details, BigDecimal units) {
 
     public BigDecimal signedUnits(BigDecimal cashAmount) {
       var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
       return cashAmount.signum() > 0 ? scaled.negate() : scaled;
-    }
-
-    public TradeSettlementDetails ledgerDetails() {
-      return new TradeSettlementDetails(brokerReference, isin, ticker, displayName, price);
     }
   }
 
@@ -65,12 +55,13 @@ public class TradeSettlementParser {
 
     return Optional.of(
         new TradeSettlementInfo(
-            segments[BROKER_REFERENCE].trim(),
-            instrument.get().getIsin(),
-            ticker,
-            instrument.get().getDisplayName(),
-            units.get(),
-            price.get()));
+            new TradeSettlementDetails(
+                segments[BROKER_REFERENCE].trim(),
+                instrument.get().getIsin(),
+                ticker,
+                instrument.get().getDisplayName(),
+                price.get()),
+            units.get()));
   }
 
   private static Optional<BigDecimal> number(String segment) {

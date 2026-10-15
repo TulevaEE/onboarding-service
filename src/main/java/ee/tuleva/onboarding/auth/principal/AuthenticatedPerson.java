@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Builder;
@@ -87,5 +88,12 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public Optional<String> getSmartIdDocumentNumber() {
     return Optional.ofNullable(attributes.get(SMART_ID_DOCUMENT_NUMBER));
+  }
+
+  @JsonIgnore
+  public Map<String, String> getAttributesToRecord() {
+    Map<String, String> recorded = new HashMap<>(attributes);
+    recorded.remove(SMART_ID_DOCUMENT_NUMBER);
+    return recorded;
   }
 }

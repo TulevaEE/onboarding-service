@@ -48,7 +48,7 @@ public class SuspenseReclassificationService {
     int remaining = 0;
 
     for (LedgerTransaction suspense : unresolved) {
-      var target = moveOutOfSuspense(fund, suspense);
+      var target = tryMoveOutOfSuspense(fund, suspense);
 
       if (target == null) {
         remaining++;
@@ -68,6 +68,20 @@ public class SuspenseReclassificationService {
     }
 
     return new ReclassificationResult(reclassified, remaining);
+  }
+
+  private @Nullable TransactionType tryMoveOutOfSuspense(
+      TulevaFund fund, LedgerTransaction suspense) {
+    try {
+      return moveOutOfSuspense(fund, suspense);
+    } catch (RuntimeException e) {
+      log.error(
+          "Suspense entry could not be reclassified, left in suspense: fund={}, externalRef={}",
+          fund,
+          suspense.getExternalReference(),
+          e);
+      return null;
+    }
   }
 
   private @Nullable TransactionType moveOutOfSuspense(TulevaFund fund, LedgerTransaction suspense) {

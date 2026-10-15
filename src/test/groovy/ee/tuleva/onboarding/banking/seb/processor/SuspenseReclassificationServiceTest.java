@@ -241,6 +241,30 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
+  @Test
+  void reclassify_leavesAnEntryItCannotReadInSuspenseAndCarriesOnWithTheRest() {
+    parkBankOperation("2.00", "Intress", "INTR");
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("7.00"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, null, "OTHR"));
+    parkBankOperation(
+        "-34448.28", "DLA0000006/BDWTEIA/1,000/34.44828/Buy/ BlackRock Asset Management", "TRAD");
+    parkBankOperation("-3.00", "Korrigeerimine", "ADJT");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(2, 2));
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(2);
+    assertThat(balance(INTEREST_INCOME)).isEqualByComparingTo(new BigDecimal("-2.00"));
+    assertThat(balance(SystemAccount.BANK_ADJUSTMENT)).isEqualByComparingTo(new BigDecimal("3.00"));
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("34441.28"));
+  }
+
   private void parkFromCounterparty(
       String amount,
       @Nullable String counterpartyName,

@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRAD
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNCLASSIFIED_BANK_ENTRY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -80,7 +79,7 @@ class SuspenseReclassificationServiceUnitTest {
   }
 
   @Test
-  void reclassify_throwsWhenTheTransactionHasNoCashLeg() {
+  void reclassify_leavesATransactionWithNoCashLegInSuspenseAndBooksNothing() {
     var suspenseAccount =
         ledgerAccount(SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(TUK75));
     var onlyEntry = ledgerEntry(suspenseAccount, new BigDecimal("50.00"));
@@ -91,7 +90,11 @@ class SuspenseReclassificationServiceUnitTest {
 
     given(fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75)).willReturn(List.of(transaction));
 
-    assertThatThrownBy(() -> service.reclassify(TUK75)).isInstanceOf(IllegalStateException.class);
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    verify(fundBankLedger).findUnresolvedUnclassifiedEntries(TUK75);
+    verifyNoMoreInteractions(fundBankLedger);
   }
 
   @Test

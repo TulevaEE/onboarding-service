@@ -83,23 +83,23 @@ class BlackrockAdjustmentAfterRebateChecker {
         .findEntriesByTransactionTypeBetween(
             SystemAccount.MANAGEMENT_FEE_REBATE.getAccountName(fund),
             MANAGEMENT_FEE_REBATE,
-            startOf(workingDaysBefore(checkDate, lastWorkingDayReported)),
-            startOf(checkDate))
+            startOf(firstBookingDayWithElapsedWorkingDaysAtMost(checkDate, lastWorkingDayReported)),
+            startOf(firstBookingDayWithElapsedWorkingDaysAtMost(checkDate, deadlineWorkingDays)))
         .stream()
         .filter(BlackrockAdjustmentAfterRebateChecker::isCredit)
-        .filter(
-            rebate -> {
-              var elapsed = workingDaysSince(rebate, checkDate);
-              return elapsed > deadlineWorkingDays && elapsed <= lastWorkingDayReported;
-            })
         .toList();
   }
 
-  private LocalDate workingDaysBefore(LocalDate date, int workingDays) {
-    return Stream.iterate(date, publicHolidays::previousWorkingDay)
+  private LocalDate firstBookingDayWithElapsedWorkingDaysAtMost(
+      LocalDate checkDate, int workingDays) {
+    return Stream.iterate(lastWorkingDayOnOrBefore(checkDate), publicHolidays::previousWorkingDay)
         .skip(workingDays)
         .findFirst()
         .orElseThrow();
+  }
+
+  private LocalDate lastWorkingDayOnOrBefore(LocalDate date) {
+    return publicHolidays.previousWorkingDay(date.plusDays(1));
   }
 
   private long workingDaysSince(LedgerEntryAmount rebate, LocalDate checkDate) {

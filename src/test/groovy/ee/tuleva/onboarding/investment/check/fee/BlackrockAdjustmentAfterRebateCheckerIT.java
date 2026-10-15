@@ -44,6 +44,11 @@ class BlackrockAdjustmentAfterRebateCheckerIT {
   private static final LocalDate WEDNESDAY = LocalDate.of(2026, 6, 3);
   private static final LocalDate LAST_DAY_REPORTED = LocalDate.of(2026, 6, 9);
   private static final LocalDate FIRST_DAY_AGED_OUT = LocalDate.of(2026, 6, 10);
+  private static final LocalDate THURSDAY = LocalDate.of(2026, 6, 4);
+  private static final LocalDate SATURDAY_SIX_WORKING_DAYS_AFTER_THURSDAY =
+      LocalDate.of(2026, 6, 13);
+  private static final LocalDate MONDAY_SEVEN_WORKING_DAYS_AFTER_THURSDAY =
+      LocalDate.of(2026, 6, 15);
   private static final BigDecimal RECEIVABLE = new BigDecimal("1500.00");
   private static final BigDecimal REBATE = new BigDecimal("1234.56");
   private static final LocalDateTime FIRST_RECORDING = LocalDateTime.of(2100, 1, 1, 0, 0);
@@ -116,6 +121,14 @@ class BlackrockAdjustmentAfterRebateCheckerIT {
     assertThat(unchanged.transactionCreated()).isFalse();
     assertThat(severities(LAST_DAY_REPORTED)).containsExactly(WARNING);
     assertThat(severities(FIRST_DAY_AGED_OUT)).containsExactly(PASS);
+  }
+
+  @Test
+  void aCheckRunOnASaturdayStillWarnsOnTheLastWorkingDayOfTheRebatesReportingWindow() {
+    rebateLandsOn(TUK75, THURSDAY);
+
+    assertThat(severities(SATURDAY_SIX_WORKING_DAYS_AFTER_THURSDAY)).containsExactly(WARNING);
+    assertThat(severities(MONDAY_SEVEN_WORKING_DAYS_AFTER_THURSDAY)).containsExactly(PASS);
   }
 
   @Test

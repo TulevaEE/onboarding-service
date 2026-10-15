@@ -119,7 +119,9 @@ public class SuspenseReclassificationService {
                       trade.ticker(),
                       trade.displayName(),
                       bookingDate));
-      default -> null;
+      case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit(),
+          PensionFundEntryClassifier.Unclassified _ ->
+          null;
     };
   }
 

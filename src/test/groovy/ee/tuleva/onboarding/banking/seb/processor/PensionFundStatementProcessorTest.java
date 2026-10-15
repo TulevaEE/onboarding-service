@@ -178,7 +178,7 @@ class PensionFundStatementProcessorTest {
     var entry =
         entryWithCounterparty(
             new BigDecimal("99.99"), "selgituseta", "Mystery OU", "EE001234567890123499", "OTHR");
-    when(fundBankLedger.existsForExternalReference(any(UUID.class))).thenReturn(true);
+    given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 

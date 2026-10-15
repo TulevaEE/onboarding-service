@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -124,12 +125,13 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "DLA1",
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
-                    new BigDecimal("1450.25"),
-                    new BigDecimal("34.477"))));
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.477")),
+                    new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 
@@ -285,12 +287,13 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "DLA1",
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
-                    new BigDecimal("29000"),
-                    new BigDecimal("34.448"))));
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.448")),
+                    new BigDecimal("29000"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 
@@ -385,12 +388,13 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "DLA1",
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
-                    new BigDecimal("1450.25"),
-                    new BigDecimal("34.477"))));
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.477")),
+                    new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 

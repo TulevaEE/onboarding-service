@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -62,12 +63,13 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "DLA0553690",
-                "LU1291102447",
-                "EJAP",
-                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-                new BigDecimal("11704"),
-                new BigDecimal("17.864")));
+                new TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864")),
+                new BigDecimal("11704")));
   }
 
   @Test
@@ -79,12 +81,13 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "DLA0553685",
-                "IE00BJZ2DC62",
-                "XRSM",
-                "Xtrackers MSCI USA Screened UCITS ETF",
-                new BigDecimal("19422"),
-                new BigDecimal("51.25")));
+                new TradeSettlementDetails(
+                    "DLA0553685",
+                    "IE00BJZ2DC62",
+                    "XRSM",
+                    "Xtrackers MSCI USA Screened UCITS ETF",
+                    new BigDecimal("51.25")),
+                new BigDecimal("19422")));
   }
 
   @Test
@@ -110,12 +113,13 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "DLA0544429",
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("31426.66"),
-                new BigDecimal("34.085995776")));
+                new TradeSettlementDetails(
+                    "DLA0544429",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.085995776")),
+                new BigDecimal("31426.66")));
   }
 
   @Test
@@ -129,12 +133,13 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "DLA0553698",
-                "IE00NOTICKER0",
-                "NOYAHOO",
-                "Instrument without a yahoo ticker",
-                new BigDecimal("24.4021"),
-                new BigDecimal("32765.6")));
+                new TradeSettlementDetails(
+                    "DLA0553698",
+                    "IE00NOTICKER0",
+                    "NOYAHOO",
+                    "Instrument without a yahoo ticker",
+                    new BigDecimal("32765.6")),
+                new BigDecimal("24.4021")));
   }
 
   @Test
@@ -200,11 +205,12 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "DLA0553690",
-                "LU1291102447",
-                "EJAP",
-                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-                new BigDecimal("11704"),
-                new BigDecimal("17.864")));
+                new TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864")),
+                new BigDecimal("11704")));
   }
 }

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
@@ -113,10 +114,11 @@ class SuspenseReclassificationServiceUnitTest {
                     true)))
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("1000")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("1000"))));
 
     var result = service.reclassify(TUK75);
 
@@ -142,10 +144,11 @@ class SuspenseReclassificationServiceUnitTest {
     given(classifier.classify(any()))
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("1450.25")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("1450.25"))));
 
     service.reclassify(TUK75);
 
@@ -206,10 +209,11 @@ class SuspenseReclassificationServiceUnitTest {
     given(classifier.classify(any()))
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("1000")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("1000"))));
     given(fundBankLedger.hasLedgerEntry(transaction.getExternalReference(), TRADE_SETTLEMENT))
         .willReturn(true);
 

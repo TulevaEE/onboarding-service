@@ -15,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -122,10 +123,11 @@ class PensionFundStatementProcessorTest {
     when(classifier.classify(entry))
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("1450.25")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 
@@ -276,10 +278,11 @@ class PensionFundStatementProcessorTest {
     when(classifier.classify(entry))
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("29000")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("29000"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 
@@ -369,10 +372,11 @@ class PensionFundStatementProcessorTest {
     when(classifier.classify(entry))
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("1450.25")));
+                new TradeSettlementInfo(
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 

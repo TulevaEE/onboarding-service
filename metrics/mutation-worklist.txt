@@ -6,7 +6,6 @@
 36  ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
 30  ee.tuleva.onboarding.investment.transaction.TransactionPreparationService
 30  ee.tuleva.onboarding.investment.position.FundPositionImportJob
-24  ee.tuleva.onboarding.auth.idcard.AlbMtlsHeaderFilter$MtlsHeaderTranslatingRequest
 23  ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublisher
 22  ee.tuleva.onboarding.investment.transaction.ingest.SebPendingTransactionReconciliationService
 22  ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService

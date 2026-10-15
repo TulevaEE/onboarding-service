@@ -57,7 +57,6 @@ public class SecurityConfiguration {
                         "/v1/smart-id/login/**",
                         "/v1/mobile-id/login/remembered",
                         "/v1/mobile-id/login/remembered-person",
-                        "/idLogin",
                         "/notifications/payments",
                         "/v1/emails/webhooks/**",
                         "/admin/**",

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMENT;
@@ -13,12 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +45,7 @@ class SuspenseReclassificationServiceTest {
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private LedgerService ledgerService;
   @Autowired private NavLedgerRepository navLedgerRepository;
+  @Autowired private EntityManager entityManager;
 
   @DynamicPropertySource
   static void counterpartyIbans(DynamicPropertyRegistry registry) {
@@ -239,6 +245,46 @@ class SuspenseReclassificationServiceTest {
     assertThat(instrumentBalance(TRADE_CASH_SETTLEMENT))
         .isEqualByComparingTo(new BigDecimal("-18999.42"));
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void reclassify_keepsTheSebReferenceAndPriceOfAParkedTradeOnItsSettlement() {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("1969232.78"),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(
+            null,
+            null,
+            "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd",
+            "REDM"));
+
+    service.reclassify(TUK75);
+
+    assertThat(tradeSettlementMetadata(externalReference))
+        .containsEntry("brokerReference", "DLA0695877")
+        .hasEntrySatisfying(
+            "price",
+            price ->
+                assertThat(new BigDecimal(price.toString()))
+                    .isEqualByComparingTo(new BigDecimal("33.295")));
+  }
+
+  private Map<String, Object> tradeSettlementMetadata(UUID externalReference) {
+    entityManager.flush();
+    entityManager.clear();
+    return entityManager
+        .createQuery(
+            "select t from LedgerTransaction t where t.externalReference = :externalReference"
+                + " and t.transactionType = :transactionType",
+            LedgerTransaction.class)
+        .setParameter("externalReference", externalReference)
+        .setParameter("transactionType", TRADE_SETTLEMENT)
+        .getSingleResult()
+        .getMetadata();
   }
 
   private void parkFromCounterparty(

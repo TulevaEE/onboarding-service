@@ -32,7 +32,7 @@ public record BankStatementEntry(
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
 
-    @Getter private final String name;
+    @Getter @Nullable private final String name;
     @Getter private final String iban;
     @Nullable private final String idCode;
 

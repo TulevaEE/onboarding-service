@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -199,6 +200,61 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(SystemAccount.BANK_ADJUSTMENT)).isEqualByComparingTo(new BigDecimal("3.00"));
     assertThat(balance(FUND_INVESTMENT_CASH_CLEARING))
         .isEqualByComparingTo(new BigDecimal("-1.00"));
+  }
+
+  @Test
+  void
+      reclassify_leavesAnUnknownPayersOtherCreditInSuspense_whenTheStatementGaveItsIbanButNoName() {
+    parkFromCounterparty("99.99", null, "EE001234567890123499", "selgituseta", "OTHR");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(balance(SystemAccount.BANK_ADJUSTMENT)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("-99.99"));
+  }
+
+  @Test
+  void reclassify_movesARegistrarEntryOutOfSuspense_whenTheStatementGaveItsIbanButNoName() {
+    parkFromCounterparty("500.00", null, REGISTRAR_IBAN, "osakute laekumine", "ESCT");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
+    assertThat(balance(REGISTRAR_CASH_SETTLEMENT)).isEqualByComparingTo(new BigDecimal("-500.00"));
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void reclassify_takesParkedSalesAndRedemptionsOutOfCustody_andParkedBuysIntoIt() {
+    parkBankOperation("-34448.28", "DLA0000001/BDWTEIA/1000/34.44828/Buy/", "TRAD");
+    parkBankOperation("50000.00", "DLA0000004/BDWTEIA/1450.25/34.477/Sell/", "TRAD");
+    parkBankOperation("3447.70", "DLA0000005/BDWTEIA/100/34.477/Sell/", "REDM");
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(3, 0));
+    assertThat(instrumentBalance(SECURITIES_CUSTODY))
+        .isEqualByComparingTo(new BigDecimal("-550.25"));
+    assertThat(instrumentBalance(TRADE_CASH_SETTLEMENT))
+        .isEqualByComparingTo(new BigDecimal("-18999.42"));
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  private void parkFromCounterparty(
+      String amount,
+      @Nullable String counterpartyName,
+      String counterpartyIban,
+      String remittanceInformation,
+      String subFamilyCode) {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal(amount),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(
+            counterpartyName, counterpartyIban, remittanceInformation, subFamilyCode));
   }
 
   private void parkBankOperation(

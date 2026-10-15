@@ -108,15 +108,15 @@ public class BankOperationProcessor {
             units,
             externalReference,
             account,
-            settlement.ticker(),
-            settlement.isin());
+            settlement.details().ticker(),
+            settlement.details().isin());
         fundBankLedger.recordTradeSettlement(
             account.fund(),
             amount,
             units,
             externalReference,
             clearingAccount,
-            settlement.ledgerDetails(),
+            settlement.details(),
             bookingDate);
       }
       case BOOK -> {

@@ -37,6 +37,10 @@ import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
+import ee.tuleva.onboarding.auth.ocsp.CertificateStatusUnavailableException;
+import ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -57,8 +61,7 @@ class SmartIdAuthServiceTest {
       mock(DeviceLinkAuthenticationResponseValidator.class);
   private final NotificationAuthenticationResponseValidator notificationValidator =
       mock(NotificationAuthenticationResponseValidator.class);
-  private final SmartIdCertificateRevocationCheck revocationCheck =
-      mock(SmartIdCertificateRevocationCheck.class);
+  private final CertificateRevocationCheck revocationCheck = mock(CertificateRevocationCheck.class);
   private final SmartIdAuthService service =
       new SmartIdAuthService(
           connector,
@@ -399,7 +402,7 @@ class SmartIdAuthServiceTest {
     given(connector.getSessionStatus(aSessionId)).willReturn(status);
     given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
         .willReturn(anEstonianIdentityWith(certificate));
-    willThrow(new SmartIdCertificateRevokedException("REVOKED"))
+    willThrow(new CertificateRevokedException("REVOKED"))
         .given(revocationCheck)
         .requireNotRevoked(certificate);
 
@@ -421,7 +424,7 @@ class SmartIdAuthServiceTest {
     given(connector.getSessionStatus(aSessionId)).willReturn(status);
     given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
         .willReturn(anEstonianIdentityWith(certificate));
-    willThrow(new SmartIdCertificateStatusUnavailableException("responder unreachable"))
+    willThrow(new CertificateStatusUnavailableException("responder unreachable"))
         .given(revocationCheck)
         .requireNotRevoked(certificate);
 

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;

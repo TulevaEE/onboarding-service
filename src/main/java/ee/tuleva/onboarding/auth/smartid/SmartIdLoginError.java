@@ -11,6 +11,7 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.SessionTimeoutException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.exception.useraction.UserSelectedWrongVerificationCodeException;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import lombok.RequiredArgsConstructor;
 
@@ -37,7 +38,7 @@ public enum SmartIdLoginError {
   public static SmartIdLoginError of(Exception exception) {
     return switch (exception) {
       case UnsupportedSmartIdCountryException _ -> UNSUPPORTED_COUNTRY;
-      case SmartIdCertificateRevokedException _ -> CERTIFICATE_REVOKED;
+      case CertificateRevokedException _ -> CERTIFICATE_REVOKED;
       case UserRefusedException _ -> USER_REFUSED;
       case UserSelectedWrongVerificationCodeException _ -> WRONG_VERIFICATION_CODE;
       case SessionTimeoutException _ -> TIMEOUT;

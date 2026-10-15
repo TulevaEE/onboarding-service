@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -22,7 +22,7 @@ final class OcspResponderIds {
         return new JcaX509CertificateConverter().getCertificate(certificate);
       }
     }
-    throw new SmartIdCertificateStatusUnavailableException(
+    throw new CertificateStatusUnavailableException(
         "responder certificate not included in the response");
   }
 

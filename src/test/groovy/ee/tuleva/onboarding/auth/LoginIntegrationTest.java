@@ -58,9 +58,9 @@ import ee.sk.smartid.rest.dao.NotificationAuthenticationSessionResponse;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevocationCheck;
-import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevokedException;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.user.User;
@@ -112,7 +112,13 @@ class LoginIntegrationTest {
   @MockitoBean private SmartIdConnector smartIdConnector;
   @MockitoBean private DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   @MockitoBean private NotificationAuthenticationResponseValidator notificationResponseValidator;
-  @MockitoBean private SmartIdCertificateRevocationCheck certificateRevocationCheck;
+
+  @MockitoBean(name = "smartIdCertificateRevocationCheck")
+  private CertificateRevocationCheck certificateRevocationCheck;
+
+  @MockitoBean(name = "mobileIdCertificateRevocationCheck")
+  private CertificateRevocationCheck mobileIdCertificateRevocationCheck;
+
   @MockitoBean private MidClient midClient;
   @MockitoBean private MidConnector midConnector;
   @MockitoBean private MidSessionStatusPoller midSessionStatusPoller;
@@ -276,7 +282,7 @@ class LoginIntegrationTest {
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
         .willReturn(identity);
-    willThrow(new SmartIdCertificateRevokedException("REVOKED"))
+    willThrow(new CertificateRevokedException("REVOKED"))
         .given(certificateRevocationCheck)
         .requireNotRevoked(identity.getAuthCertificate());
 

@@ -67,7 +67,7 @@ class OcfCalculationServiceTest {
 
   @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
-  @Spy private MonthEndNavCheck monthEndNavCheck = new MonthEndNavCheck(new PublicHolidays());
+  @Spy private MonthEndNavCheck monthEndNavCheck = new MonthEndNavCheck(PUBLIC_HOLIDAYS);
 
   @InjectMocks private OcfCalculationService service;
 
@@ -76,9 +76,11 @@ class OcfCalculationServiceTest {
     given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
   }
 
+  private static final PublicHolidays PUBLIC_HOLIDAYS = new PublicHolidays();
   private static final YearMonth MONTH = YearMonth.of(2026, 4);
   private static final LocalDate MONTH_END = MONTH.atEndOfMonth();
-  private static final LocalDate DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY = MONTH_END.minusDays(1);
+  private static final LocalDate WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY =
+      PUBLIC_HOLIDAYS.previousWorkingDay(PUBLIC_HOLIDAYS.lastWorkingDayOf(MONTH));
   private static final String ISIN = "XX0000000001";
   private static final UUID CALCULATION_ID =
       UUID.fromString("00000000-0000-4000-8000-000000000001");
@@ -863,7 +865,7 @@ class OcfCalculationServiceTest {
     setupDepotFee(TUK75, new BigDecimal("0.0010"));
     givenRate(new BigDecimal("0.0010"));
     givenTheLatestPublishedCalculationIsOn(
-        DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
+        WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
         TUK75,
         securityLine(ISIN, new BigDecimal("500000")),
         unitsLine(new BigDecimal("1000000")));
@@ -873,7 +875,8 @@ class OcfCalculationServiceTest {
 
     assertThat(snapshot.complete()).isFalse();
     assertThat(snapshot.checks()).contains("\"gaps\":[\"MONTH_END_NAV_NOT_PUBLISHED\"]");
-    assertThat(snapshot.audit().navDate()).isEqualTo(DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY);
+    assertThat(snapshot.audit().navDate())
+        .isEqualTo(WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY);
   }
 
   @Test
@@ -883,7 +886,7 @@ class OcfCalculationServiceTest {
     givenRate(new BigDecimal("0.0010"));
     setupNoTransactionCosts(TUK75);
     givenTheLatestPublishedCalculationIsOn(
-        DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
+        WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
         TUK75,
         securityLine(ISIN, new BigDecimal("500000")),
         unitsLine(new BigDecimal("1000000")));

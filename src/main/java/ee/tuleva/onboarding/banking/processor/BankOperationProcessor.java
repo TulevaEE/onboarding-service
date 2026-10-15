@@ -52,6 +52,12 @@ public class BankOperationProcessor {
     var externalReference =
         UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
 
+    if (fundBankLedger.existsForExternalReference(externalReference)) {
+      log.debug(
+          "Ledger entry already exists: account={}, externalRef={}", account, externalReference);
+      return;
+    }
+
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = account.ledgerAccount();
     var subFamilyCode = entry.subFamilyCode();
@@ -65,14 +71,6 @@ public class BankOperationProcessor {
         mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
-      return;
-    }
-
-    if (fundBankLedger.hasLedgerEntry(externalReference, transactionType)) {
-      log.debug(
-          "Ledger entry already exists: subFamilyCode={}, externalRef={}",
-          subFamilyCode,
-          externalReference);
       return;
     }
 
@@ -178,10 +176,6 @@ public class BankOperationProcessor {
       UUID externalReference,
       BigDecimal amount,
       String reason) {
-    if (fundBankLedger.hasLedgerEntry(externalReference, UNCLASSIFIED_BANK_ENTRY)) {
-      log.debug("Suspense entry already exists: externalRef={}", externalReference);
-      return;
-    }
     log.error(
         "Unclassified bank operation: account={}, externalId={}, amount={}, subFamilyCode={}, reason={}",
         account,

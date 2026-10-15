@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 class FeeCheckService {
 
   private static final List<FeeCheckScope> PER_FEE_TYPE = List.of(MANAGEMENT, DEPOT);
+  private static final Set<FeeCheckType> CHECK_TYPES_STILL_RUN = Set.of(FeeCheckType.values());
 
   private final LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   private final FeeBaseCompletenessChecker feeBaseCompletenessChecker;
@@ -86,7 +88,7 @@ class FeeCheckService {
   private LocalDate windowStartCoveringUnresolvedDeviations(TulevaFund fund, LocalDate checkDate) {
     var rollingWindowStart = checkDate.minusDays(lookbackDays);
     return eventRepository
-        .findOldestUnresolvedDailyDeviationDate(fund)
+        .findOldestUnresolvedDailyDeviationDate(fund, CHECK_TYPES_STILL_RUN)
         .map(firstSeen -> firstSeen.minusDays(lookbackDays))
         .filter(rollingWindowStart::isAfter)
         .orElse(rollingWindowStart);

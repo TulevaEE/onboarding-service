@@ -214,19 +214,21 @@ public class OcfCalculationService {
     return new DepotFee(rate.annualRate(), true, rate.tierAnchorDate(), rate.tierBasis());
   }
 
-  UnderlyingFundCost getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {
-    var rates = instrumentOcfService.ratesFor(YearMonth.from(asOf));
+  UnderlyingFundCost getUnderlyingFundCost(TulevaFund fund, LocalDate monthEnd) {
+    var rates = instrumentOcfService.ratesFor(YearMonth.from(monthEnd));
     var navDate =
-        fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOf).orElse(null);
+        fundNavQueryService
+            .findLatestPublishedNavDateOnOrBefore(fund.getCode(), monthEnd)
+            .orElse(null);
     var calculation =
         navDate == null
             ? null
             : fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate).orElse(null);
     if (navDate == null || calculation == null) {
       log.warn(
-          "No published NAV calculation, underlying fund cost resolves to zero: fund={}, asOf={}",
+          "No published NAV calculation, underlying fund cost resolves to zero: fund={}, monthEnd={}",
           fund.getCode(),
-          asOf);
+          monthEnd);
       return new UnderlyingFundCost(
           ZERO, ZERO, navDate, null, null, List.of(NO_PUBLISHED_NAV_CALCULATION), List.of());
     }
@@ -234,9 +236,9 @@ public class OcfCalculationService {
     if (aum.signum() <= 0) {
       log.warn(
           "Published NAV has no positive AUM, underlying fund cost resolves to zero: fund={},"
-              + " asOf={}, aum={}",
+              + " monthEnd={}, aum={}",
           fund.getCode(),
-          asOf,
+          monthEnd,
           aum);
       return new UnderlyingFundCost(
           ZERO, ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM), List.of());
@@ -244,7 +246,7 @@ public class OcfCalculationService {
     var lines = calculation.securityLines();
     var unrated = OcfHolding.unratedIsins(lines, rates);
     if (!unrated.isEmpty()) {
-      throw new MissingInstrumentRateException(fund, asOf, unrated);
+      throw new MissingInstrumentRateException(fund, monthEnd, unrated);
     }
     var holdings = OcfHolding.of(lines, rates, aum);
     return new UnderlyingFundCost(
@@ -253,7 +255,7 @@ public class OcfCalculationService {
         navDate,
         calculation.id(),
         aum,
-        monthEndNavCheck.gapsOf(fund, asOf, navDate),
+        monthEndNavCheck.gapsOf(fund, monthEnd, navDate),
         holdings);
   }
 

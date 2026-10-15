@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
@@ -11,6 +12,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
@@ -40,6 +42,7 @@ class TradeSettlementBankFactsIntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private NavLedgerRepository navLedgerRepository;
+  @Autowired private PaymentCheckService paymentCheckService;
 
   @Test
   void tkf100TradeEntryKeepsItsSebReferenceAndPriceOnTheLedgerTransaction() {
@@ -106,6 +109,50 @@ class TradeSettlementBankFactsIntegrationTest {
         .isEqualByComparingTo(new BigDecimal("-1969232.78"));
     assertThat(tradeSettlementMetadata(TKF100, "TKF100-REDM-1"))
         .containsEntry("brokerReference", "DLA0695877");
+  }
+
+  @Test
+  void tkf100TradeEntryWithABlankPriceIsParkedInSuspenseWithAFinding() {
+    persistMessage(
+        statement(
+            TKF100,
+            "TKF100-TRAD-BLANK",
+            "209080.26",
+            "DBIT",
+            "TRAD",
+            "DLA0553690/EJAP GY/11704//Buy/ Euroclear, ABNCNL2AXXX, 14448"));
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TKF100, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
+    assertThat(
+            paymentCheckService.hasRecorded(
+                UNCLASSIFIED_BANK_OPERATION,
+                externalReference(TKF100, "TKF100-TRAD-BLANK").toString()))
+        .isTrue();
+  }
+
+  @Test
+  void pensionFundTradeEntryWithADecimalCommaPriceIsParkedInSuspenseWithAFinding() {
+    persistMessage(
+        statement(
+            TUK75,
+            "TUK75-TRAD-COMMA",
+            "995377.50",
+            "DBIT",
+            "TRAD",
+            "DLA0553685/XRSM GY/19422/51,25/Buy/ Euroclear, ABNCNL2AXXX, 14448"));
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
+    assertThat(
+            paymentCheckService.hasRecorded(
+                UNCLASSIFIED_BANK_OPERATION,
+                externalReference(TUK75, "TUK75-TRAD-COMMA").toString()))
+        .isTrue();
   }
 
   private BigDecimal instrumentBalance(SystemAccount systemAccount, TulevaFund fund, String isin) {

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
 
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
@@ -139,6 +138,38 @@ class TradeSettlementParserTest {
   }
 
   @Test
+  void parse_returnsEmptyForABlankPrice() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11704//Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForAPriceWrittenWithADecimalComma() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11704/17,864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForBlankUnits() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/ /17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForNonNumericUnits() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11,704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
   void parse_returnsEmptyForMalformedRemittanceInfo() {
     assertThat(parser.parse("some random text")).isEmpty();
     assertThat(parser.parse("")).isEmpty();
@@ -156,11 +187,7 @@ class TradeSettlementParserTest {
   }
 
   @Test
-  void parse_returnsEmptyForARemittanceWithoutAPrice_evenWhenItsTickerIsKnown() {
-    lenient()
-        .when(instrumentReferenceService.findByTicker("EJAP"))
-        .thenReturn(Optional.of(BNP_JAPAN));
-
+  void parse_returnsEmptyForARemittanceWithoutAPrice() {
     assertThat(parser.parse("DLA0553690/EJAP GY/11704")).isEmpty();
   }
 

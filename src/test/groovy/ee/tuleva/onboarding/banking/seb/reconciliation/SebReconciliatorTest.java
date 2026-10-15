@@ -244,10 +244,10 @@ class SebReconciliatorTest {
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
 
-    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
-        .thenReturn(ledgerAccount);
-    when(bankAccounts.find("EE123456789012345678"))
-        .thenReturn(
+    given(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .willReturn(ledgerAccount);
+    given(bankAccounts.find("EE123456789012345678"))
+        .willReturn(
             Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
     given(
             fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(

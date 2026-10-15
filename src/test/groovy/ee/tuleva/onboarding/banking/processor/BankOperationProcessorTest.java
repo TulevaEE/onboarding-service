@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.ledger.FundBankLedger;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -257,7 +258,7 @@ class BankOperationProcessorTest {
             new BigDecimal("11704"),
             new BigDecimal("17.864"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -284,7 +285,7 @@ class BankOperationProcessorTest {
     var remittanceInfo = "DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.empty());
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.empty());
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -307,17 +308,6 @@ class BankOperationProcessorTest {
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
-    lenient()
-        .when(tradeSettlementParser.parse(remittanceInfo))
-        .thenReturn(
-            java.util.Optional.of(
-                new TradeSettlementParser.TradeSettlementInfo(
-                    "DLA0553690",
-                    "LU1291102447",
-                    "EJAP",
-                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-                    new BigDecimal("11704"),
-                    new BigDecimal("17.864"))));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -340,7 +330,7 @@ class BankOperationProcessorTest {
             new BigDecimal("31426.66"),
             new BigDecimal("34.085995776"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -375,7 +365,7 @@ class BankOperationProcessorTest {
             new BigDecimal("11704"),
             new BigDecimal("17.864"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -411,7 +401,7 @@ class BankOperationProcessorTest {
             new BigDecimal("1450.25"),
             new BigDecimal("34.477"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -440,7 +430,7 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("REDM", amount, remittanceInfo);
     given(tradeSettlementParser.parse(remittanceInfo))
         .willReturn(
-            java.util.Optional.of(
+            Optional.of(
                 new TradeSettlementParser.TradeSettlementInfo(
                     "DLA0695877",
                     "IE00BFG1TM61",

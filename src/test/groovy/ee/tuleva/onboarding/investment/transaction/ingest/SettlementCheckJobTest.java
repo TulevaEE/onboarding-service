@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -86,10 +87,14 @@ class SettlementCheckJobTest {
   }
 
   private SettlementCheckJob job() {
-    return job(clock);
+    return job(true);
   }
 
-  private SettlementCheckJob job(Clock clock) {
+  private SettlementCheckJob jobWithRegistryComparisonsSwitchedOff() {
+    return job(false);
+  }
+
+  private SettlementCheckJob job(boolean registryComparisonsEnabled) {
     OverdueSettlementDetector detector =
         new OverdueSettlementDetector(
             publicHolidays, settlementDateCalculator(), executionRepository);
@@ -101,11 +106,54 @@ class SettlementCheckJobTest {
         unmatchedFinder,
         fundResolver,
         notificationService,
-        detector);
+        detector,
+        registryComparisonsEnabled);
   }
 
   @Test
-  void run_groupsOverdueAndUnmatchedPerFund_excludesSettled_writesNothing() {
+  void registryComparisonsSwitchedOff_unmatchedOverdueAndInconsistentRows_sendNothing() {
+    given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
+    InvestmentReport report = report(TODAY);
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
+    given(extractor.extract(report)).willReturn(List.of());
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 5, 11), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+    given(unmatchedFinder.collectUnmatched(report))
+        .willReturn(List.of(unmatchedRow("Tuleva Täiendav Kogumisfond")));
+    TransactionOrder inconsistentOrder =
+        order(5L, ETF, EXECUTED, dateOnly(2026, 5, 4), TUV100, "IE000F60HVH9", PRESENT_UUID);
+    given(unmatchedFinder.collectInconsistent(report))
+        .willReturn(
+            List.of(
+                new InconsistentMatchedRow(
+                    rowWithClientRef(PRESENT_UUID), inconsistentOrder, "ISIN_SIDE_MISMATCH")));
+
+    jobWithRegistryComparisonsSwitchedOff().run();
+
+    then(notificationService).shouldHaveNoInteractions();
+    then(unmatchedFinder).should().collectUnmatched(report);
+    then(unmatchedFinder).should().collectInconsistent(report);
+  }
+
+  @Test
+  void registryComparisonsSwitchedOff_noReport_sendsNoStaleReportWarning() {
+    given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
+    TransactionOrder sentEtf =
+        order(1L, ETF, SENT, dateOnly(2026, 5, 11), TulevaFund.TUK75, "IE000F60HVH9", SENT_UUID);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
+        .willReturn(List.of(sentEtf));
+    given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
+
+    jobWithRegistryComparisonsSwitchedOff().run();
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void registryComparisonsSwitchedOn_overdueAndUnmatchedRows_sendTheDigestPerFund_writesNothing() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
     InvestmentReport report = report(TODAY);
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(report));
@@ -217,9 +265,8 @@ class SettlementCheckJobTest {
   }
 
   @Test
-  void run_staleReport_emptyRegistry_sendsNothing() {
+  void registryComparisonsSwitchedOn_staleReport_emptyRegistry_sendsTheStaleReportWarning() {
     given(publicHolidays.previousWorkingDay(TODAY)).willReturn(LAST_WORKING_DAY);
-    // Stale report, but nothing in the transaction registry to settle => no alert.
     InvestmentReport stale = report(LocalDate.of(2026, 5, 11));
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.of(stale));
     given(extractor.extract(stale)).willReturn(List.of());
@@ -229,11 +276,18 @@ class SettlementCheckJobTest {
 
     job().run();
 
-    verifyNoInteractions(notificationService);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB arveldus- ja tehingukontroll – 2026-05-18"
+                + "\n\nHOIATUS: värske SEB ootel-tehingute raport puudub või on aegunud —"
+                + " arveldatud staatust ei saa tuvastada, kõik hilinenud täidetud tellimused"
+                + " on allpool loetletud.",
+            INVESTMENT);
   }
 
   @Test
-  void run_noReport_emptyRegistry_sendsNothing() {
+  void registryComparisonsSwitchedOn_noReport_emptyRegistry_sendsTheStaleReportWarning() {
     given(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS)).willReturn(Optional.empty());
     given(orderRepository.findByOrderStatusInAndOrderTimestampSince(any(), any()))
         .willReturn(List.of());
@@ -241,7 +295,14 @@ class SettlementCheckJobTest {
 
     job().run();
 
-    verifyNoInteractions(notificationService);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ SEB arveldus- ja tehingukontroll – 2026-05-18"
+                + "\n\nHOIATUS: värske SEB ootel-tehingute raport puudub või on aegunud —"
+                + " arveldatud staatust ei saa tuvastada, kõik hilinenud täidetud tellimused"
+                + " on allpool loetletud.",
+            INVESTMENT);
   }
 
   @Test

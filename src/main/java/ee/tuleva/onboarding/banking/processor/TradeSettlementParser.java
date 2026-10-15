@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
@@ -20,6 +21,10 @@ public class TradeSettlementParser {
     public BigDecimal signedUnits(BigDecimal cashAmount) {
       var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
       return cashAmount.signum() > 0 ? scaled.negate() : scaled;
+    }
+
+    public TradeSettlementDetails ledgerDetails() {
+      return new TradeSettlementDetails(isin, ticker, displayName);
     }
   }
 

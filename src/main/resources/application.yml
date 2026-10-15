@@ -255,6 +255,12 @@ transaction-registry:
     # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
     scan-lookback-days: 60
+    # Whether the daily settlement check's unmatched, overdue and inconsistent lists, which all
+    # compare the SEB pending report with the registry's orders, are sent. While false (the
+    # registry holds no real trades yet, so every report row would read as unmatched) the job
+    # logs the counts and sends nothing. Flip to true at the registry cutover (U-46 Phase 4b,
+    # T3-01).
+    registry-comparisons-enabled: ${TRANSACTION_REGISTRY_SETTLEMENT_CHECK_REGISTRY_COMPARISONS_ENABLED:false}
   ft-confirmation:
     # Whether onboarding-service is the authoritative FT-verification pipeline yet. While
     # false (parallel run with GAS), the FT check runs in shadow mode: confirmations are

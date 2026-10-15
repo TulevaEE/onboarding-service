@@ -138,9 +138,9 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("-1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -293,9 +293,9 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("29000.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -387,9 +387,9 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund")),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

@@ -1,10 +1,10 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
-import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.RESPONDER_URL;
-import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.authenticationCertificateIssuedBy;
-import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.caCertificate;
-import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.issuedBy;
-import static ee.tuleva.onboarding.auth.smartid.OcspResponderFixture.keyPair;
+import static ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture.RESPONDER_URL;
+import static ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture.authenticationCertificateIssuedBy;
+import static ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture.caCertificate;
+import static ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture.issuedBy;
+import static ee.tuleva.onboarding.auth.ocsp.OcspResponderFixture.keyPair;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpHeaders.RETRY_AFTER;
@@ -19,15 +19,12 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import ee.sk.smartid.DefaultTrustedCAStoreBuilder;
-import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import ee.tuleva.onboarding.config.SmartIdClientConfiguration;
 import java.io.EOFException;
 import java.math.BigInteger;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.security.KeyPair;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,7 +32,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import lombok.SneakyThrows;
 import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
@@ -55,7 +51,7 @@ import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.web.client.RestClient;
 
-class SmartIdCertificateRevocationCheckTest {
+class CertificateRevocationCheckTest {
 
   private static final Instant NOW = Instant.parse("2026-10-01T10:00:00Z");
   private static final MediaType OCSP_RESPONSE =
@@ -66,31 +62,26 @@ class SmartIdCertificateRevocationCheckTest {
   private final MockRestServiceServer responder =
       MockRestServiceServer.bindTo(restClientBuilder).build();
 
-  private SmartIdCertificateRevocationCheck check() {
+  private CertificateRevocationCheck check() {
     return checkRetrying(theConfiguredRetryDecisionsAskingAgainAtOnce().build());
   }
 
-  private SmartIdCertificateRevocationCheck checkRetryingWithin(Duration retryWindow) {
+  private CertificateRevocationCheck checkRetryingWithin(Duration retryWindow) {
     return checkRetrying(
         theConfiguredRetryDecisionsAskingAgainAtOnce().timeout(retryWindow).build());
   }
 
   private static RetryPolicy.Builder theConfiguredRetryDecisionsAskingAgainAtOnce() {
-    RetryPolicy configured =
-        new SmartIdClientConfiguration().smartIdOcspRetryTemplate().getRetryPolicy();
+    RetryPolicy configured = new SmartIdClientConfiguration().ocspRetryTemplate().getRetryPolicy();
     return RetryPolicy.builder()
         .predicate(configured::shouldRetry)
         .maxRetries(((ExponentialBackOff) configured.getBackOff()).getMaxAttempts())
         .delay(Duration.ZERO);
   }
 
-  private SmartIdCertificateRevocationCheck checkRetrying(RetryPolicy retryPolicy) {
-    return new SmartIdCertificateRevocationCheck(
-        new DefaultTrustedCAStoreBuilder()
-            .withTrustAnchors(Set.of(new TrustAnchor(fixture.root, null)))
-            .withIntermediateCACertificate(List.of(fixture.ca))
-            .withOcspEnabled(false)
-            .build(),
+  private CertificateRevocationCheck checkRetrying(RetryPolicy retryPolicy) {
+    return new CertificateRevocationCheck(
+        List.of(fixture.root, fixture.ca),
         restClientBuilder.build(),
         new OCSPUtils(),
         Clock.fixed(NOW, ZoneOffset.UTC),
@@ -137,7 +128,7 @@ class SmartIdCertificateRevocationCheckTest {
         fixture.answering(new RevokedStatus(Date.from(NOW.minus(Duration.ofDays(1))), 1), NOW));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateRevokedException.class);
+        .isInstanceOf(CertificateRevokedException.class);
     responder.verify();
   }
 
@@ -146,7 +137,7 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(fixture.answering(new UnknownStatus(), NOW));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateRevokedException.class);
+        .isInstanceOf(CertificateRevokedException.class);
   }
 
   @Test
@@ -154,7 +145,7 @@ class SmartIdCertificateRevocationCheckTest {
     responder.expect(times(3), requestTo(RESPONDER_URL)).andRespond(withServerError());
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -168,7 +159,7 @@ class SmartIdCertificateRevocationCheckTest {
             });
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -177,7 +168,7 @@ class SmartIdCertificateRevocationCheckTest {
     responder.expect(times(3), requestTo(RESPONDER_URL)).andRespond(withSuccess());
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -195,7 +186,7 @@ class SmartIdCertificateRevocationCheckTest {
             () ->
                 checkRetryingWithin(Duration.ofMillis(50))
                     .requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -254,7 +245,7 @@ class SmartIdCertificateRevocationCheckTest {
         .andRespond(withStatus(status).header(RETRY_AFTER, "2"));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -263,7 +254,7 @@ class SmartIdCertificateRevocationCheckTest {
     responder.expect(once(), requestTo(RESPONDER_URL)).andRespond(withBadRequest());
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -274,7 +265,7 @@ class SmartIdCertificateRevocationCheckTest {
         .andRespond(withSuccess("<html>maintenance</html>", MediaType.TEXT_HTML));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -297,7 +288,7 @@ class SmartIdCertificateRevocationCheckTest {
         .andRespond(answeringUnsuccessfully(OCSPRespBuilder.TRY_LATER));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -326,7 +317,7 @@ class SmartIdCertificateRevocationCheckTest {
         .andRespond(answeringUnsuccessfully(responseStatus));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -343,7 +334,7 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(replayed);
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -359,7 +350,7 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(forged);
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -379,7 +370,7 @@ class SmartIdCertificateRevocationCheckTest {
             fixture.authenticationCertificate.getSerialNumber()));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -397,7 +388,7 @@ class SmartIdCertificateRevocationCheckTest {
             fixture.authenticationCertificate.getSerialNumber()));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -412,7 +403,7 @@ class SmartIdCertificateRevocationCheckTest {
             BigInteger.valueOf(424242)));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -420,7 +411,7 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW.minus(Duration.ofMinutes(16))));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -428,7 +419,7 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(fixture.answering(CertificateStatus.GOOD, NOW.plus(Duration.ofMinutes(16))));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -439,7 +430,7 @@ class SmartIdCertificateRevocationCheckTest {
         authenticationCertificateIssuedBy(strangerCa, strangerCaKeys, RESPONDER_URL);
 
     assertThatThrownBy(() -> check().requireNotRevoked(certificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
     responder.verify();
   }
 
@@ -503,7 +494,7 @@ class SmartIdCertificateRevocationCheckTest {
         fixture.answering(CertificateStatus.GOOD, NOW).identifiedByName().including(fixture.ca));
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 
   @Test
@@ -521,6 +512,6 @@ class SmartIdCertificateRevocationCheckTest {
     responderAnswers(answer);
 
     assertThatThrownBy(() -> check().requireNotRevoked(fixture.authenticationCertificate))
-        .isInstanceOf(SmartIdCertificateStatusUnavailableException.class);
+        .isInstanceOf(CertificateStatusUnavailableException.class);
   }
 }

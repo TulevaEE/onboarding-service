@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;
 import static org.bouncycastle.cert.ocsp.OCSPResp.INTERNAL_ERROR;
@@ -52,17 +52,16 @@ final class OcspResponseVerifier {
       requireFresh(answer);
       return answer.getCertStatus();
     } catch (OCSPException | GeneralSecurityException | OperatorCreationException e) {
-      throw new SmartIdCertificateStatusUnavailableException("unreadable response", e);
+      throw new CertificateStatusUnavailableException("unreadable response", e);
     }
   }
 
   private static BasicOCSPResp basicResponse(OCSPResp response) throws OCSPException {
     if (response.getStatus() != SUCCESSFUL) {
-      throw new SmartIdCertificateStatusUnavailableException(
-          "responder status " + response.getStatus());
+      throw new CertificateStatusUnavailableException("responder status " + response.getStatus());
     }
     if (!(response.getResponseObject() instanceof BasicOCSPResp basic)) {
-      throw new SmartIdCertificateStatusUnavailableException("not a basic OCSP response");
+      throw new CertificateStatusUnavailableException("not a basic OCSP response");
     }
     return basic;
   }
@@ -71,7 +70,7 @@ final class OcspResponseVerifier {
       throws GeneralSecurityException, OperatorCreationException, OCSPException {
     X509Certificate responder = responderCertificate(response, issuer);
     if (!response.isSignatureValid(new JcaContentVerifierProviderBuilder().build(responder))) {
-      throw new SmartIdCertificateStatusUnavailableException("response signature invalid");
+      throw new CertificateStatusUnavailableException("response signature invalid");
     }
   }
 
@@ -89,13 +88,13 @@ final class OcspResponseVerifier {
   private void requireDelegatedBy(X509Certificate issuer, X509Certificate responder)
       throws GeneralSecurityException {
     if (!signedBy(responder, issuer)) {
-      throw new SmartIdCertificateStatusUnavailableException(
+      throw new CertificateStatusUnavailableException(
           "responder certificate not issued by the certificate's CA");
     }
     List<String> extendedKeyUsage = responder.getExtendedKeyUsage();
     if (extendedKeyUsage == null
         || !extendedKeyUsage.contains(KeyPurposeId.id_kp_OCSPSigning.getId())) {
-      throw new SmartIdCertificateStatusUnavailableException(
+      throw new CertificateStatusUnavailableException(
           "responder certificate not authorised for OCSP signing");
     }
     responder.checkValidity(Date.from(Instant.now(clock)));
@@ -104,14 +103,14 @@ final class OcspResponseVerifier {
   private static void requireEchoed(Extension sent, @Nullable Extension received) {
     if (received == null
         || !Arrays.equals(sent.getExtnValue().getOctets(), received.getExtnValue().getOctets())) {
-      throw new SmartIdCertificateStatusUnavailableException("nonce not echoed");
+      throw new CertificateStatusUnavailableException("nonce not echoed");
     }
   }
 
   private static SingleResp onlyAnswerAbout(CertificateID certificateId, BasicOCSPResp response) {
     SingleResp[] answers = response.getResponses();
     if (answers.length != 1 || !certificateId.equals(answers[0].getCertID())) {
-      throw new SmartIdCertificateStatusUnavailableException(
+      throw new CertificateStatusUnavailableException(
           "response is not about the certificate asked for");
     }
     return answers[0];
@@ -122,7 +121,7 @@ final class OcspResponseVerifier {
     Instant thisUpdate = answer.getThisUpdate().toInstant();
     if (thisUpdate.isBefore(now.minus(CLOCK_SKEW_TOLERATED_BETWEEN_US_AND_THE_RESPONDER))
         || thisUpdate.isAfter(now.plus(CLOCK_SKEW_TOLERATED_BETWEEN_US_AND_THE_RESPONDER))) {
-      throw new SmartIdCertificateStatusUnavailableException("response not fresh");
+      throw new CertificateStatusUnavailableException("response not fresh");
     }
   }
 

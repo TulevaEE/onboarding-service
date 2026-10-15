@@ -15,6 +15,8 @@ import ee.sk.smartid.exception.useraction.SessionTimeoutException
 import ee.sk.smartid.exception.useraction.UserRefusedDisplayTextAndPinException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.exception.useraction.UserSelectedWrongVerificationCodeException
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException
+import ee.tuleva.onboarding.auth.ocsp.CertificateStatusUnavailableException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import jakarta.ws.rs.InternalServerErrorException
 import spock.lang.Specification
@@ -32,8 +34,8 @@ class SmartIdLoginErrorSpec extends Specification {
     where:
     exception                                             | error
     new UnsupportedSmartIdCountryException("LT")          | UNSUPPORTED_COUNTRY
-    new SmartIdCertificateRevokedException("REVOKED")     | CERTIFICATE_REVOKED
-    new SmartIdCertificateStatusUnavailableException("x") | TECHNICAL_ERROR
+    new CertificateRevokedException("REVOKED")     | CERTIFICATE_REVOKED
+    new CertificateStatusUnavailableException("x") | TECHNICAL_ERROR
     new UserRefusedException()                            | USER_REFUSED
     new UserRefusedDisplayTextAndPinException()           | USER_REFUSED
     new UserSelectedWrongVerificationCodeException()      | WRONG_VERIFICATION_CODE

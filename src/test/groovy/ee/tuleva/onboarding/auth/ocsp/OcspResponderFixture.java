@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;
 
@@ -45,7 +45,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.jspecify.annotations.Nullable;
 
-final class OcspResponderFixture {
+public final class OcspResponderFixture {
 
   static final String RESPONDER_URL = "http://aia.example.test/eidq2024";
 
@@ -59,7 +59,7 @@ final class OcspResponderFixture {
   final KeyPair responderKeys = keyPair();
   final X509Certificate responder =
       issuedBy(ca, caKeys, "CN=TEST of Smart-ID OCSP responder", responderKeys, true);
-  final X509Certificate authenticationCertificate =
+  public final X509Certificate authenticationCertificate =
       authenticationCertificateIssuedBy(ca, caKeys, RESPONDER_URL);
 
   record Answer(

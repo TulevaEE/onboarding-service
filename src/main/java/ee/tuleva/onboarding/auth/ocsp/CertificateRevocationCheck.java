@@ -1,18 +1,14 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_nonce;
 
-import ee.sk.smartid.TrustedCACertStore;
-import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.util.List;
-import java.util.stream.Stream;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
@@ -26,15 +22,12 @@ import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-@Component
-public class SmartIdCertificateRevocationCheck {
+public class CertificateRevocationCheck {
 
   private static final MediaType OCSP_REQUEST =
       MediaType.parseMediaType("application/ocsp-request");
@@ -49,24 +42,17 @@ public class SmartIdCertificateRevocationCheck {
   private final RetryTemplate retryTemplate;
   private final SecureRandom random = new SecureRandom();
 
-  public SmartIdCertificateRevocationCheck(
-      TrustedCACertStore smartIdTrustedCaCertStore,
-      @Qualifier("smartIdOcspRestClient") RestClient restClient,
+  public CertificateRevocationCheck(
+      List<X509Certificate> issuingCaCertificates,
+      RestClient restClient,
       OCSPUtils ocspUtils,
       Clock clock,
-      @Qualifier("smartIdOcspRetryTemplate") RetryTemplate retryTemplate) {
-    this.issuingCaCertificates = issuingCaCertificatesOf(smartIdTrustedCaCertStore);
+      RetryTemplate retryTemplate) {
+    this.issuingCaCertificates = issuingCaCertificates;
     this.restClient = restClient;
     this.ocspUtils = ocspUtils;
     this.responseVerifier = new OcspResponseVerifier(clock);
     this.retryTemplate = retryTemplate;
-  }
-
-  private static List<X509Certificate> issuingCaCertificatesOf(TrustedCACertStore store) {
-    return Stream.concat(
-            store.getTrustAnchors().stream().map(TrustAnchor::getTrustedCert),
-            store.getTrustedCACertificates().stream())
-        .toList();
   }
 
   public void requireNotRevoked(X509Certificate certificate) {
@@ -77,7 +63,7 @@ public class SmartIdCertificateRevocationCheck {
     CertificateStatus status =
         responseVerifier.verifiedStatus(response, certificateId, nonce, issuer);
     if (status != CertificateStatus.GOOD) {
-      throw new SmartIdCertificateRevokedException(
+      throw new CertificateRevokedException(
           status instanceof RevokedStatus ? "REVOKED" : "UNKNOWN");
     }
   }
@@ -89,15 +75,14 @@ public class SmartIdCertificateRevocationCheck {
         .findFirst()
         .orElseThrow(
             () ->
-                new SmartIdCertificateStatusUnavailableException(
-                    "no bundled CA issued the certificate"));
+                new CertificateStatusUnavailableException("no bundled CA issued the certificate"));
   }
 
   private URI responderOf(X509Certificate certificate) {
     try {
       return ocspUtils.getResponderURI(certificate);
     } catch (RuntimeException e) {
-      throw new SmartIdCertificateStatusUnavailableException("no OCSP responder in the AIA", e);
+      throw new CertificateStatusUnavailableException("no OCSP responder in the AIA", e);
     }
   }
 
@@ -108,7 +93,7 @@ public class SmartIdCertificateRevocationCheck {
           new JcaX509CertificateHolder(issuer),
           certificate.getSerialNumber());
     } catch (OperatorCreationException | GeneralSecurityException | OCSPException e) {
-      throw new SmartIdCertificateStatusUnavailableException("cannot build the request", e);
+      throw new CertificateStatusUnavailableException("cannot build the request", e);
     }
   }
 
@@ -118,7 +103,7 @@ public class SmartIdCertificateRevocationCheck {
     try {
       return Extension.create(id_pkix_ocsp_nonce, false, new DEROctetString(value));
     } catch (IOException e) {
-      throw new SmartIdCertificateStatusUnavailableException("cannot build the nonce", e);
+      throw new CertificateStatusUnavailableException("cannot build the nonce", e);
     }
   }
 
@@ -131,7 +116,7 @@ public class SmartIdCertificateRevocationCheck {
               .build();
       return request.getEncoded();
     } catch (OCSPException | IOException e) {
-      throw new SmartIdCertificateStatusUnavailableException("cannot build the request", e);
+      throw new CertificateStatusUnavailableException("cannot build the request", e);
     }
   }
 
@@ -139,7 +124,7 @@ public class SmartIdCertificateRevocationCheck {
     try {
       return retryTemplate.invoke(() -> post(responder, request));
     } catch (RestClientException e) {
-      throw new SmartIdCertificateStatusUnavailableException("responder unavailable", e);
+      throw new CertificateStatusUnavailableException("responder unavailable", e);
     }
   }
 
@@ -167,7 +152,7 @@ public class SmartIdCertificateRevocationCheck {
     try {
       return new OCSPResp(body);
     } catch (IOException e) {
-      throw new SmartIdCertificateStatusUnavailableException("unreadable response", e);
+      throw new CertificateStatusUnavailableException("unreadable response", e);
     }
   }
 

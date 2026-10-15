@@ -116,7 +116,7 @@ public class BankOperationProcessor {
           return;
         }
         var settlement = tradeInfo.get();
-        var units = signedUnits(settlement.units(), amount);
+        var units = settlement.signedUnits(amount);
         log.info(
             "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
@@ -203,11 +203,6 @@ public class BankOperationProcessor {
         bookingDate(entry),
         new FundBankLedger.UnclassifiedEntryDetails(
             null, null, entry.remittanceInformation(), entry.subFamilyCode()));
-  }
-
-  private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {
-    var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
-    return amount.signum() > 0 ? scaled.negate() : scaled;
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry) {

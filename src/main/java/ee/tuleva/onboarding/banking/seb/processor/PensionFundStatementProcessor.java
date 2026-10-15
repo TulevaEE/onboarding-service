@@ -149,16 +149,16 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.OwnAccountTransfer() ->
           fundBankLedger.recordOwnAccountTransfer(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());
-      case PensionFundEntryClassifier.TradeSettlement settlement ->
+      case PensionFundEntryClassifier.TradeSettlement(var trade) ->
           fundBankLedger.recordTradeSettlement(
               fund,
               amount,
-              settlement.signedUnits(amount),
+              trade.signedUnits(amount),
               externalReference,
               account.ledgerAccount(),
-              settlement.isin(),
-              settlement.ticker(),
-              settlement.displayName(),
+              trade.isin(),
+              trade.ticker(),
+              trade.displayName(),
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(

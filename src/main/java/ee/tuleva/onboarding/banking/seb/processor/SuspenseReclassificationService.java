@@ -104,7 +104,7 @@ public class SuspenseReclassificationService {
               () ->
                   fundBankLedger.recordBankAdjustment(
                       fund, cashAmount, externalReference, UNCLASSIFIED_BANK_ENTRY, bookingDate));
-      case PensionFundEntryClassifier.TradeSettlement settlement ->
+      case PensionFundEntryClassifier.TradeSettlement(var trade) ->
           bookOnce(
               TRADE_SETTLEMENT,
               externalReference,
@@ -112,12 +112,12 @@ public class SuspenseReclassificationService {
                   fundBankLedger.recordTradeSettlement(
                       fund,
                       cashAmount,
-                      settlement.signedUnits(cashAmount),
+                      trade.signedUnits(cashAmount),
                       externalReference,
                       UNCLASSIFIED_BANK_ENTRY,
-                      settlement.isin(),
-                      settlement.ticker(),
-                      settlement.displayName(),
+                      trade.isin(),
+                      trade.ticker(),
+                      trade.displayName(),
                       bookingDate));
       default -> null;
     };

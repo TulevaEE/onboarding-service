@@ -47,7 +47,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin("et", false);
+    SmartIdSession session = service.startDeviceLinkLogin("et", false, null);
 
     assertThat(session.getCreatedAt()).isEqualTo(now);
     assertThat(session.getLogin()).isInstanceOf(DeviceLinkLogin.class);
@@ -66,12 +66,31 @@ class SmartIdLoginStarterTest {
   }
 
   @Test
+  void startDeviceLinkLoginCarriesThePageThePersonStartedFromInTheCallbackUrl() {
+    given(connector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(aSessionId));
+
+    var login =
+        (DeviceLinkLogin)
+            service
+                .startDeviceLinkLogin("et", false, "/3rd-pillar-payment?a=1&b={c}|d+e%20f")
+                .getLogin();
+
+    assertThat(login.initialCallbackUrl())
+        .isEqualTo(
+            demoProperties.callbackUrl()
+                + "?returnPath=%2F3rd-pillar-payment%3Fa%3D1%26b%3D%7Bc%7D%7Cd%2Be%2520f&value="
+                + login.callbackToken())
+        .isEqualTo(login.request().initialCallbackUrl());
+  }
+
+  @Test
   void startDeviceLinkLoginKeepsWhetherThePersonAskedThisBrowserToRememberThem() {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    assertThat(service.startDeviceLinkLogin("et", true).isRememberMe()).isTrue();
-    assertThat(service.startDeviceLinkLogin("et", false).isRememberMe()).isFalse();
+    assertThat(service.startDeviceLinkLogin("et", true, null).isRememberMe()).isTrue();
+    assertThat(service.startDeviceLinkLogin("et", false, null).isRememberMe()).isFalse();
   }
 
   @Test
@@ -79,7 +98,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin(null, false);
+    SmartIdSession session = service.startDeviceLinkLogin(null, false, null);
 
     assertThat(((DeviceLinkLogin) session.getLogin()).language()).isEqualTo("est");
   }
@@ -89,7 +108,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    SmartIdSession session = service.startDeviceLinkLogin("zz", false);
+    SmartIdSession session = service.startDeviceLinkLogin("zz", false, null);
 
     assertThat(((DeviceLinkLogin) session.getLogin()).language()).isEqualTo("est");
   }
@@ -99,9 +118,13 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willReturn(aDeviceLinkSessionResponse(aSessionId));
 
-    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("en", false).getLogin()).language())
+    assertThat(
+            ((DeviceLinkLogin) service.startDeviceLinkLogin("en", false, null).getLogin())
+                .language())
         .isEqualTo("eng");
-    assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("ru", false).getLogin()).language())
+    assertThat(
+            ((DeviceLinkLogin) service.startDeviceLinkLogin("ru", false, null).getLogin())
+                .language())
         .isEqualTo("rus");
   }
 
@@ -121,7 +144,7 @@ class SmartIdLoginStarterTest {
     given(connector.initAnonymousDeviceLinkAuthentication(any()))
         .willThrow(new ServerMaintenanceException());
 
-    assertThatThrownBy(() -> service.startDeviceLinkLogin("et", false))
+    assertThatThrownBy(() -> service.startDeviceLinkLogin("et", false, null))
         .isInstanceOf(SmartIdException.class)
         .extracting(e -> ((SmartIdException) e).getLoginError())
         .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.partner;
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.GrantType.PARTNER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,7 +61,6 @@ public class HandoverTokenLoginEventTest {
   @Mock private UserConversionService conversionService;
   @Mock private PillarActivations pillarActivations;
   @Mock private ConversionDecorator conversionDecorator;
-  @Mock private AuthenticatedPerson authenticatedPerson;
   @Mock private SecurityContextRunner securityContextRunner;
   @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
 
@@ -92,8 +92,6 @@ public class HandoverTokenLoginEventTest {
             secondPillarPaymentRateService,
             new ClientConnection());
 
-    when(authenticatedPerson.getPersonalCode()).thenReturn(testPersonalCode);
-
     doAnswer(
             invocation -> {
               invocation.getArgument(2, Runnable.class).run();
@@ -118,7 +116,7 @@ public class HandoverTokenLoginEventTest {
     expectedAttributes.put("documentNumber", documentNumber);
     expectedAttributes.put("phoneNumber", null);
 
-    when(authenticatedPerson.getAttributes()).thenReturn(expectedAttributes);
+    AuthenticatedPerson authenticatedPerson = personWith(expectedAttributes);
 
     when(principalService.getFrom(any(Person.class), anyMap())).thenReturn(authenticatedPerson);
 
@@ -202,7 +200,7 @@ public class HandoverTokenLoginEventTest {
     expectedAttributes.put("documentNumber", null);
     expectedAttributes.put("phoneNumber", phoneNumber);
 
-    when(authenticatedPerson.getAttributes()).thenReturn(expectedAttributes);
+    AuthenticatedPerson authenticatedPerson = personWith(expectedAttributes);
 
     when(principalService.getFrom(any(Person.class), anyMap())).thenReturn(authenticatedPerson);
 
@@ -261,7 +259,7 @@ public class HandoverTokenLoginEventTest {
     expectedAttributes.put("documentNumber", "PNOEE-30303039816-MOCK-Q");
     expectedAttributes.put("phoneNumber", null);
 
-    when(authenticatedPerson.getAttributes()).thenReturn(expectedAttributes);
+    AuthenticatedPerson authenticatedPerson = personWith(expectedAttributes);
 
     when(principalService.getFrom(any(Person.class), anyMap())).thenReturn(authenticatedPerson);
 
@@ -331,5 +329,12 @@ public class HandoverTokenLoginEventTest {
     }
 
     return builder.compact();
+  }
+
+  private AuthenticatedPerson personWith(Map<String, String> attributes) {
+    return sampleAuthenticatedPersonAndMember()
+        .personalCode(testPersonalCode)
+        .attributes(attributes)
+        .build();
   }
 }

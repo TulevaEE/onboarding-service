@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDigest;
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -65,6 +66,7 @@ import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -87,6 +89,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
@@ -178,6 +181,15 @@ class LoginIntegrationTest {
     assertThat(claims.get("attributes").get("smartIdDocumentNumber").asText())
         .isEqualTo(documentNumber);
     assertThat(claims.get("attributes").get("grantType").asText()).isEqualTo("SMART_ID");
+  }
+
+  @Test
+  void aSmartIdLoginEventKeepsTheSmartIdDocumentNumberOutOfEverythingItRecords() throws Exception {
+    completeQrLogin(anAuthenticationIdentity(), false);
+
+    assertThat(objectMapper.writeValueAsString(loginEventDataOf(personalCode)))
+        .contains("authAttributes")
+        .doesNotContain(documentNumber);
   }
 
   @Test
@@ -316,6 +328,30 @@ class LoginIntegrationTest {
             .andReturn();
 
     givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(callback)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aWeb2AppLoginCarriesThePageItStartedFromInTheCallbackUrlAndStillCompletes()
+      throws Exception {
+    String returnPath = "/3rd-pillar-payment?amount=50&note={b}|c+d%20e";
+    var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
+    MvcResult start =
+        startWeb2AppLogin(
+            request, Map.of("flow", "DEVICE_LINK", "language", "et", "returnPath", returnPath));
+    Cookie session = sessionCookie(start);
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+
+    assertThat(callbackParameterOf(request, "returnPath")).isEqualTo(returnPath);
+    MvcResult callback =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andReturn();
     mockMvc
         .perform(smartIdToken(session, authenticationHashOf(callback)))
         .andExpect(status().isOk())
@@ -1088,18 +1124,35 @@ class LoginIntegrationTest {
 
   private MvcResult startWeb2AppLogin(
       AtomicReference<DeviceLinkAuthenticationSessionRequest> request) throws Exception {
+    return startWeb2AppLogin(request, Map.of("flow", "DEVICE_LINK", "language", "et"));
+  }
+
+  private MvcResult startWeb2AppLogin(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request, Map<String, Object> body)
+      throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willAnswer(
             invocation -> {
               request.set(invocation.getArgument(0));
               return aDeviceLinkSessionResponse(SESSION_ID);
             });
-    return startDeviceLinkLogin();
+    return startDeviceLinkLogin(body);
   }
 
   private static String callbackValueOf(
       AtomicReference<DeviceLinkAuthenticationSessionRequest> request) {
-    return request.get().initialCallbackUrl().split("\\?value=")[1];
+    return callbackParameterOf(request, "value");
+  }
+
+  private static String callbackParameterOf(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request, String name) {
+    String encoded =
+        UriComponentsBuilder.fromUriString(request.get().initialCallbackUrl())
+            .build()
+            .getQueryParams()
+            .getFirst(name);
+    assertThat(encoded).isNotNull();
+    return URLDecoder.decode(encoded, UTF_8);
   }
 
   private void givenTheWeb2AppLoginValidatesWithVerifier(String verifier) {

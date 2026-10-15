@@ -46,7 +46,8 @@ public class SmartIdLoginController {
   @PostMapping
   public SmartIdLoginResponse start(@Valid @RequestBody StartSmartIdLoginCommand command) {
     return switch (command.flow()) {
-      case DEVICE_LINK -> startDeviceLinkLogin(command.language(), command.rememberMe());
+      case DEVICE_LINK ->
+          startDeviceLinkLogin(command.language(), command.rememberMe(), command.returnPath());
       case NOTIFICATION -> startNotificationLogin();
     };
   }
@@ -66,8 +67,10 @@ public class SmartIdLoginController {
     return new SmartIdCallbackResponse(redemptionSecret);
   }
 
-  private SmartIdLoginResponse startDeviceLinkLogin(@Nullable String language, boolean rememberMe) {
-    SmartIdSession session = smartIdLoginStarter.startDeviceLinkLogin(language, rememberMe);
+  private SmartIdLoginResponse startDeviceLinkLogin(
+      @Nullable String language, boolean rememberMe, @Nullable String returnPath) {
+    SmartIdSession session =
+        smartIdLoginStarter.startDeviceLinkLogin(language, rememberMe, returnPath);
     String redemptionSecret = storeInRenewedSession(session);
     return SmartIdLoginResponse.deviceLink(
         smartIdDeviceLinks.web2AppLink(session).toString(), redemptionSecret);

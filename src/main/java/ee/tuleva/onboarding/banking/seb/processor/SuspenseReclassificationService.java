@@ -172,11 +172,10 @@ public class SuspenseReclassificationService {
   }
 
   private static @Nullable CounterPartyDetails counterpartyDetails(Map<String, Object> metadata) {
-    var name = (String) metadata.get("counterpartyName");
     var iban = (String) metadata.get("counterpartyIban");
-    if (name == null || iban == null) {
+    if (iban == null) {
       return null;
     }
-    return new CounterPartyDetails(name, iban, null);
+    return new CounterPartyDetails((String) metadata.get("counterpartyName"), iban, null);
   }
 }

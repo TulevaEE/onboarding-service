@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -171,6 +172,47 @@ class PensionFundStatementProcessorTest {
             WARNING,
             externalReference.toString(),
             "cash parked in suspense, fund=TUK75, subFamilyCode=OTHR, reason=unknown counterparty");
+  }
+
+  @Test
+  void unclassifiedEntry_isNotParked_whenItsFindingCannotBeRecorded_soARedeliveryRaisesItAgain() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("99.99"), "selgituseta", "Mystery OU", "EE001234567890123499", "OTHR");
+    given(classifier.classify(entry))
+        .willReturn(new PensionFundEntryClassifier.Unclassified("unknown counterparty"));
+    willThrow(new IllegalStateException("finding store unavailable"))
+        .given(paymentCheckService)
+        .record(any(), any(), any(), any());
+
+    assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void
+      managementCompanyCreditNotStatedAsARebate_isNotParked_whenItsFindingCannotBeRecorded_soARedeliveryRaisesItAgain() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("100.00"),
+            "muu ülekanne",
+            "Tuleva Fondid AS",
+            "EE001234567890123488",
+            "RCDT");
+    given(classifier.classify(entry))
+        .willReturn(new PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit());
+    willThrow(new IllegalStateException("finding store unavailable"))
+        .given(paymentCheckService)
+        .record(any(), any(), any(), any());
+
+    assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
   }
 
   @Test

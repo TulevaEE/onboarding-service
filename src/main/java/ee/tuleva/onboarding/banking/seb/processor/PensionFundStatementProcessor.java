@@ -129,13 +129,13 @@ public class PensionFundStatementProcessor {
             account,
             entry.externalId(),
             entry.amount());
-        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
         paymentCheckService.record(
             UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
             WARNING,
             externalReference.toString(),
             "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=%s, amount=%s, bookingDate=%s, externalReference=%s"
                 .formatted(fund.getCode(), amount.toPlainString(), bookingDate, externalReference));
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
       }
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
@@ -168,13 +168,13 @@ public class PensionFundStatementProcessor {
             entry.amount(),
             entry.subFamilyCode(),
             reason);
-        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
         paymentCheckService.record(
             UNCLASSIFIED_BANK_OPERATION,
             WARNING,
             externalReference.toString(),
             "cash parked in suspense, fund=%s, subFamilyCode=%s, reason=%s"
                 .formatted(fund.getCode(), entry.subFamilyCode(), reason));
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
       }
     }
   }

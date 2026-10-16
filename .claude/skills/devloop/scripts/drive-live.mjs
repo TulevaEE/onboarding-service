@@ -203,7 +203,7 @@ async function main() {
   const screenshots = [];
   const elementMaps = [];
   try {
-    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    const context = await browser.newContext({ ignoreHTTPSErrors: args.env === 'local' });
     await context.addInitScript(
       `(() => {
         try {

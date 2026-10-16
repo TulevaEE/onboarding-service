@@ -1,7 +1,8 @@
 import './load-env.mjs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdir, readFile, writeFile, chmod } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, chmod, access } from 'node:fs/promises';
+import { chromium } from 'playwright';
 
 const ENVIRONMENTS = {
   live: { appOrigin: 'https://pension.tuleva.ee', apiBase: 'https://pension.tuleva.ee/api' },
@@ -29,7 +30,7 @@ function cookieHeader() {
 }
 
 function parseArgs(argv) {
-  const args = { env: 'live', method: 'smart-id', force: false, phone: process.env.TULEVA_PHONE };
+  const args = { env: 'live', method: 'browser', force: false, phone: process.env.TULEVA_PHONE };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--force') args.force = true;
@@ -73,10 +74,6 @@ async function writeCache(env, { accessToken, refreshToken, loginMethod }) {
   await writeFile(path, JSON.stringify(cache, null, 2), { mode: 0o600 });
   await chmod(path, 0o600);
   return cache;
-}
-
-function methodToType(method) {
-  return method === 'mobile-id' ? 'MOBILE_ID' : 'SMART_ID';
 }
 
 function fail(message) {
@@ -185,25 +182,24 @@ async function main() {
     }
   }
 
+  const written =
+    args.method === 'mobile-id'
+      ? await loginWithMobileId(apiBase, args)
+      : await loginInBrowser(envConfig.appOrigin, args.env);
+  console.log(`✅ logged in (${args.env}), expires ${localTime(written.expiresAt)}`);
+}
+
+async function loginWithMobileId(apiBase, args) {
   const code = args.code || process.env.TULEVA_ID_CODE;
   if (!code) fail('Missing personal code: pass --code or set TULEVA_ID_CODE');
-
-  const type = methodToType(args.method);
-  if (args.method === 'mobile-id' && !args.phone) {
-    fail('Missing phone number: --phone is required for mobile-id');
-  }
-
-  const authBody =
-    type === 'MOBILE_ID'
-      ? { personalCode: code, phoneNumber: args.phone, type }
-      : { personalCode: code, type };
+  if (!args.phone) fail('Missing phone number: --phone is required for mobile-id');
 
   let authRes;
   try {
     authRes = await fetch(`${apiBase}/authenticate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(authBody),
+      body: JSON.stringify({ personalCode: code, phoneNumber: args.phone, type: 'MOBILE_ID' }),
     });
   } catch (e) {
     fail(`Authenticate request failed: error=${e.message}`);
@@ -216,20 +212,104 @@ async function main() {
   const { challengeCode, authenticationHash } = await authRes.json();
   if (!authenticationHash) fail('Authenticate response missing authenticationHash');
 
-  console.log(
-    `\n  ➡️  Verification code: ${challengeCode}\n      Approve in your Smart-ID / Mobile-ID app now…\n`,
-  );
+  console.log(`\n  ➡️  Verification code: ${challengeCode}\n      Approve in your Mobile-ID app now…\n`);
 
-  const tokenBody = await pollToken(apiBase, type, authenticationHash);
+  const tokenBody = await pollToken(apiBase, 'MOBILE_ID', authenticationHash);
   process.stdout.write('\n');
   if (!tokenBody.access_token) fail('Token response missing access_token');
 
-  const written = await writeCache(args.env, {
+  return writeCache(args.env, {
     accessToken: tokenBody.access_token,
     refreshToken: tokenBody.refresh_token,
-    loginMethod: type,
+    loginMethod: 'MOBILE_ID',
   });
-  console.log(`✅ logged in (${args.env}), expires ${localTime(written.expiresAt)}`);
+}
+
+const BROWSER_LOGIN_TIMEOUT_MS = 180000;
+
+function browserStatePath(env) {
+  return join(homedir(), '.tuleva', `${env}-browser-state.json`);
+}
+
+async function fileExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readAppAuthentication(page) {
+  try {
+    const raw = await page.evaluate(() => sessionStorage.getItem('AUTHENTICATION_CONFIGURATION_KEY'));
+    const authentication = raw && JSON.parse(raw);
+    return authentication && authentication.accessToken ? authentication : null;
+  } catch {
+    return null;
+  }
+}
+
+async function waitForAppAuthentication(page) {
+  const deadline = Date.now() + BROWSER_LOGIN_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const authentication = await readAppAuthentication(page);
+    if (authentication) return authentication;
+    await sleep(1000);
+  }
+  fail(`Authentication timed out: waited=${BROWSER_LOGIN_TIMEOUT_MS / 1000}s`);
+}
+
+async function startRememberedLogin(page) {
+  const continueAs = page.getByRole('button', { name: /^(Jätka kui|Continue as) / }).first();
+  const remembered = await continueAs
+    .waitFor({ state: 'visible', timeout: 8000 })
+    .then(() => true, () => false);
+  if (!remembered) return false;
+  const method = (await page.getByRole('tab', { selected: true }).first().innerText()).trim();
+  await continueAs.click();
+  const verificationCode = page.getByText(/^\d{4}$/).first();
+  const code = await verificationCode
+    .waitFor({ state: 'visible', timeout: 15000 })
+    .then(() => verificationCode.innerText(), () => null);
+  console.log(
+    code
+      ? `\n  ➡️  Verification code: ${code.trim()}\n      Approve in your ${method} app now…\n`
+      : `\n  ➡️  Approve the ${method} request on your phone (code shown in the browser window)…\n`,
+  );
+  return true;
+}
+
+async function loginInBrowser(appOrigin, env) {
+  const statePath = browserStatePath(env);
+  const browser = await chromium.launch({ headless: false });
+  try {
+    const context = await browser.newContext({
+      ignoreHTTPSErrors: env === 'local',
+      storageState: (await fileExists(statePath)) ? statePath : undefined,
+    });
+    const page = await context.newPage();
+    await page.goto(`${appOrigin}/login`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+    if (!(await startRememberedLogin(page))) {
+      console.log(
+        '\n  ➡️  Log in in the browser window that opened: "Sisenen" shows the Smart-ID QR code; Mobile-ID and ID-card work too.' +
+          '\n      Tick "Jäta mind meelde" so the next login is a single Smart-ID push.\n',
+      );
+    }
+
+    const authentication = await waitForAppAuthentication(page);
+    await mkdir(join(homedir(), '.tuleva'), { recursive: true });
+    await context.storageState({ path: statePath });
+    await chmod(statePath, 0o600);
+    return writeCache(env, {
+      accessToken: authentication.accessToken,
+      refreshToken: authentication.refreshToken,
+      loginMethod: authentication.loginMethod,
+    });
+  } finally {
+    await browser.close();
+  }
 }
 
 main().catch((e) => fail(`Login failed: error=${e.message}`));

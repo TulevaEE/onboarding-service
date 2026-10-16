@@ -1,6 +1,6 @@
 ---
 name: devloop
-description: Drive the LIVE Tuleva app as the engineer (their own ID code, phone-approved login), navigate a feature, screenshot it across mobile + desktop, annotate findings on the images, cross-check on-screen data against the live API, and propose fixes. Use to UX-review or verify a feature against real production data.
+description: Drive the LIVE Tuleva app as the engineer (their own phone-approved login), navigate a feature, screenshot it across mobile + desktop, annotate findings on the images, cross-check on-screen data against the live API, and propose fixes. Use to UX-review or verify a feature against real production data.
 argument-hint: [feature e.g. "dashboard ux review"]
 ---
 
@@ -8,8 +8,8 @@ argument-hint: [feature e.g. "dashboard ux review"]
 
 You are reviewing a real feature of the Tuleva pension app against **live production data**, as the
 engineer who invoked you. `$ARGUMENTS` is a feature description (default first target: **dashboard
-UX review** on `pension.tuleva.ee`). You authenticate with the engineer's own Estonian ID code, they
-approve on their phone, then you screenshot the feature and grade it — both the visuals and whether
+UX review** on `pension.tuleva.ee`). The engineer logs in on the real login page with their own
+phone, then you screenshot the feature and grade it — both the visuals and whether
 the numbers on screen match the API.
 
 Everything defaults to **live** (`pension.tuleva.ee`). Use staging or local **only** when the engineer
@@ -44,11 +44,16 @@ node tuleva-login.mjs            # --env live is the default
 ```
 
 - If it prints `✅ already logged in` or `✅ refreshed`, continue.
-- If it prints a **verification code**, surface it prominently to the engineer:
-  `➡️ Approve code NNNN in your Smart-ID / Mobile-ID app.` The script blocks ~60s polling — wait for it.
-- The personal code is read from the skill's `scripts/.env` (`TULEVA_ID_CODE`) automatically — don't stop
-  to ask for it. Only if login actually errors with "Missing personal code" does it need setting (in
-  `scripts/.env`, or `export TULEVA_ID_CODE=…`; add `--method mobile-id --phone +372…` for Mobile-ID).
+- Otherwise it opens the real login page in a browser window on the engineer's screen and blocks up to
+  3 minutes while they log in there:
+  - A browser that logged in with "Jäta mind meelde" ticked gets a push to the remembered Smart-ID or
+    Mobile-ID: the script clicks "Jätka kui …" and prints the **verification code**. Surface it prominently:
+    `➡️ Approve code NNNN in your Smart-ID / Mobile-ID app.`
+  - Otherwise tell the engineer to scan the Smart-ID QR code in that window (or use Mobile-ID or ID-card),
+    ticking "Jäta mind meelde" so the next login is a single push.
+- The browser profile (cookies only) is kept in `~/.tuleva/<env>-browser-state.json` (mode 0600).
+- Headless alternative: `--method mobile-id --phone +372…` logs in through the API with the personal code
+  from the skill's `scripts/.env` (`TULEVA_ID_CODE`).
 
 ## Phase 2 — Capture the feature
 

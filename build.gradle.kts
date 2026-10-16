@@ -216,10 +216,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-restclient-test")
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
-    testImplementation("org.spockframework:spock-core:2.4-groovy-5.0") {
+    testImplementation("org.spockframework:spock-core:2.5-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
+    testImplementation("org.spockframework:spock-spring:2.5-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy:5.1.3")

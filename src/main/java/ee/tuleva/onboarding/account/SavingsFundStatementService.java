@@ -42,6 +42,10 @@ public class SavingsFundStatementService {
     }
     return ledgerService
         .findPartyAccount(ownerCode, partyType, FUND_UNITS)
+        .filter(
+            fundUnitsAccount ->
+                fundUnitsAccount.getBalance().signum() != 0
+                    || !savingsFundOnboardingService.isAccountClosed(partyId))
         .map(
             fundUnitsAccount ->
                 statement(

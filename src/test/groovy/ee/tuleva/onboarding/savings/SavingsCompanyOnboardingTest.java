@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.kyb.CompanyOnboarding;
@@ -34,5 +35,14 @@ class SavingsCompanyOnboardingTest {
     given(onboardingService.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.empty());
 
     assertThat(companyOnboarding.findState("12345678")).isEmpty();
+  }
+
+  @Test
+  void failsBecauseCompanyAccountsCannotBeClosed() {
+    given(onboardingService.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.of(SavingsFundOnboardingStatus.CLOSED));
+
+    assertThatThrownBy(() -> companyOnboarding.findState("12345678"))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

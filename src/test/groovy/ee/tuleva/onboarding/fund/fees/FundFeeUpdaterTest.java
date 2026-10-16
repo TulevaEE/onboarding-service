@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.fund.fees.FundFeeUpdater.NameMismatch;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -127,12 +128,13 @@ class FundFeeUpdaterTest {
   }
 
   @Test
-  void ignoresActiveFundMissingFromRows() {
-    var fund = fund("EE1", "Lonely Fund", 2, "0.0091", "0.0050");
+  void reportsActiveFundMissingFromPensionikeskusAsUnmatchedFund() {
+    var fund = fund("EE1", "Merged Away Fund", 2, "0.0091", "0.0050");
     given(fundRepository.findAllByPillarAndStatus(2, ACTIVE)).willReturn(List.of(fund));
 
-    updater.update(2, List.of(), ONGOING_CHARGES);
+    var mismatch = updater.update(2, List.of(), ONGOING_CHARGES);
 
+    assertThat(mismatch).isEqualTo(new NameMismatch(List.of("EE1 Merged Away Fund"), List.of()));
     verify(fundRepository, never()).save(any());
   }
 
@@ -218,32 +220,50 @@ class FundFeeUpdaterTest {
   }
 
   @Test
-  void reportsFeeRowsThatMatchNoActiveFund() {
+  void reportsPensionikeskusNameMatchingNoActiveFundAsUnmatchedName() {
     var fund = fund("EE1", "Tuleva Fund", 2, "0.0091", "0.0050");
     given(fundRepository.findAllByPillarAndStatus(2, ACTIVE)).willReturn(List.of(fund));
 
-    var unmatched =
+    var mismatch =
         updater.update(
             2,
             List.of(
                 new PensionikeskusFeeRow("Tuleva Fund", new BigDecimal("0.005")),
                 new PensionikeskusFeeRow("Unknown Fund", new BigDecimal("0.004"))),
-            FundFeeUpdater.FeeField.MANAGEMENT_FEE);
+            MANAGEMENT_FEE);
 
-    assertThat(unmatched).containsExactly("unknown fund");
+    assertThat(mismatch).isEqualTo(new NameMismatch(List.of(), List.of("Unknown Fund")));
   }
 
   @Test
-  void reportsNoUnmatchedRowsWhenEveryRowMatches() {
+  void reportsNoMismatchWhenEveryFundAndRowMatch() {
     var fund = fund("EE1", "Tuleva Fund", 2, "0.0091", "0.0050");
     given(fundRepository.findAllByPillarAndStatus(2, ACTIVE)).willReturn(List.of(fund));
 
-    var unmatched =
+    var mismatch =
         updater.update(
             2,
             List.of(new PensionikeskusFeeRow("Tuleva Fund", new BigDecimal("0.005"))),
-            FundFeeUpdater.FeeField.MANAGEMENT_FEE);
+            MANAGEMENT_FEE);
 
-    assertThat(unmatched).isEmpty();
+    assertThat(mismatch).isEqualTo(new NameMismatch(List.of(), List.of()));
+    assertThat(mismatch.isEmpty()).isTrue();
+  }
+
+  @Test
+  void reportsRenamedFundAsUnmatchedFundAlongsideItsNewPensionikeskusName() {
+    var fund = fund("EE1", "Old Name Fund", 3, "0.0099", "0.0116");
+    given(fundRepository.findAllByPillarAndStatus(3, ACTIVE)).willReturn(List.of(fund));
+
+    var mismatch =
+        updater.update(
+            3,
+            List.of(new PensionikeskusFeeRow("New Name Fund", new BigDecimal("0.0116"))),
+            ONGOING_CHARGES);
+
+    assertThat(mismatch)
+        .isEqualTo(new NameMismatch(List.of("EE1 Old Name Fund"), List.of("New Name Fund")));
+    assertThat(mismatch.isEmpty()).isFalse();
+    verify(fundRepository, never()).save(any());
   }
 }

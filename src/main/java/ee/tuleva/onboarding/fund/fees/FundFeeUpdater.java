@@ -28,7 +28,7 @@ class FundFeeUpdater {
     this.fundRepository = fundRepository;
   }
 
-  List<String> update(int pillar, List<PensionikeskusFeeRow> rows, FeeField field) {
+  NameMismatch update(int pillar, List<PensionikeskusFeeRow> rows, FeeField field) {
     Map<String, List<Fund>> fundsByName =
         fundRepository.findAllByPillarAndStatus(pillar, ACTIVE).stream()
             .collect(groupingBy(fund -> normalize(fund.getNameEstonian())));
@@ -44,15 +44,39 @@ class FundFeeUpdater {
           }
         });
 
-    List<String> unmatchedRowNames =
-        rowsByName.keySet().stream()
-            .filter(name -> !fundsByName.containsKey(name))
-            .sorted()
-            .toList();
-    for (String name : unmatchedRowNames) {
-      log.error("Fee row matches no active fund: pillar={}, name={}", pillar, name);
+    NameMismatch mismatch =
+        new NameMismatch(
+            unmatchedFunds(fundsByName, rowsByName),
+            unmatchedPensionikeskusNames(fundsByName, rowsByName));
+    if (!mismatch.isEmpty()) {
+      log.error(
+          "Fund names out of sync with Pensionikeskus, rename, deactivate or add funds in fund table: pillar={}, field={}, unmatchedFunds={}, unmatchedPensionikeskusNames={}",
+          pillar,
+          field,
+          mismatch.unmatchedFunds(),
+          mismatch.unmatchedPensionikeskusNames());
     }
-    return unmatchedRowNames;
+    return mismatch;
+  }
+
+  private static List<String> unmatchedFunds(
+      Map<String, List<Fund>> fundsByName, Map<String, List<PensionikeskusFeeRow>> rowsByName) {
+    return fundsByName.entrySet().stream()
+        .filter(entry -> !rowsByName.containsKey(entry.getKey()))
+        .flatMap(entry -> entry.getValue().stream())
+        .map(fund -> fund.getIsin() + " " + fund.getNameEstonian())
+        .sorted()
+        .toList();
+  }
+
+  private static List<String> unmatchedPensionikeskusNames(
+      Map<String, List<Fund>> fundsByName, Map<String, List<PensionikeskusFeeRow>> rowsByName) {
+    return rowsByName.entrySet().stream()
+        .filter(entry -> !fundsByName.containsKey(entry.getKey()))
+        .flatMap(entry -> entry.getValue().stream())
+        .map(PensionikeskusFeeRow::fundName)
+        .sorted()
+        .toList();
   }
 
   private void updateFund(
@@ -68,8 +92,6 @@ class FundFeeUpdater {
     Fund fund = funds.getFirst();
     List<PensionikeskusFeeRow> matchingRows = rowsByName.getOrDefault(name, List.of());
     if (matchingRows.isEmpty()) {
-      log.error(
-          "No fee row for active fund: field={}, isin={}, name={}", field, fund.getIsin(), name);
       return;
     }
     if (matchingRows.size() > 1) {
@@ -107,6 +129,12 @@ class FundFeeUpdater {
         .strip()
         .replaceAll("\\s+", " ")
         .toLowerCase(Locale.ROOT);
+  }
+
+  record NameMismatch(List<String> unmatchedFunds, List<String> unmatchedPensionikeskusNames) {
+    boolean isEmpty() {
+      return unmatchedFunds.isEmpty() && unmatchedPensionikeskusNames.isEmpty();
+    }
   }
 
   enum FeeField {

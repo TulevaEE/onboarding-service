@@ -35,6 +35,7 @@
       </mj-column>
     </mj-section>
     <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/disclaimer_social_tax_en.mjml" />
     <mj-include path="./partials/footer_bottom_coop.mjml" />
   </mj-body>
 </mjml>

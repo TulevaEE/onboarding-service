@@ -1,7 +1,7 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
 <mj-text>
-  Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Sel aastal
-  maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€, Tuleva fondis maksaksid
+  Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Praeguse
+  vara pealt maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€ aastas, Tuleva fondis maksaksid
   *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas.
 </mj-text>
 <mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
@@ -18,6 +18,12 @@
     <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|secondPillarFeeAmount|*&nbsp;€</td>
   </tr>
 </mj-table>
+<mj-text font-size="13px" color="#6C757D">
+  Arvutatud sinu II&nbsp;samba vara (*|secondPillarAssetsAmount|*&nbsp;€ seisuga
+  *|feeComparisonDate|*) ja fondide jooksvate tasude järgi: sinu praegustel fondidel kaalutud
+  keskmisena *|secondPillarFeePercent|*%, Tuleva Maailma Aktsiate Pensionifondil
+  *|tulevaFeePercent|*% aastas. Eeldab, et vara väärtus aasta jooksul ei muutu.
+</mj-text>
 <mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?utm_content=nudge_second_pillar">Vaata lähemalt</mj-button>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>

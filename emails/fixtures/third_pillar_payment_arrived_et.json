@@ -24,6 +24,9 @@
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
       "secondPillarSavingsAmount": 74,
+      "tulevaFeePercent": "0,28",
+      "secondPillarAssetsAmount": "20\u00a0000",
+      "feeComparisonDate": "16.10.2026",
       "anyPillarSuggestion": true
     },
     "II samba määra tõstmise soovitus": {

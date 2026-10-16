@@ -40,6 +40,6 @@ class NudgeInputsFixture {
   }
 
   static FeeComparison sampleFeeComparison() {
-    return new FeeComparison(0.65, 130, 56, 74)
+    return new FeeComparison(0.65, 130, 56, 74, 0.28, 20000, LocalDate.of(2026, 10, 16))
   }
 }

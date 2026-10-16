@@ -33,7 +33,15 @@ class NudgeDecisionSerializationTest {
     var decisions = new ArrayList<NudgeDecision>();
     decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     decisions.add(
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16))));
     decisions.add(NudgeDecision.secondPillarTransfer(null));
     decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
     decisions.add(NudgeDecision.of(NudgeKey.THIRD_PILLAR_START));
@@ -104,7 +112,12 @@ class NudgeDecisionSerializationTest {
         .containsEntry("suggestMembership", false)
         .containsEntry("hasFeeComparison", false)
         .containsEntry("anyPillarSuggestion", true)
-        .doesNotContainKeys("savingsFundFee", "secondPillarFeePercent");
+        .doesNotContainKeys(
+            "savingsFundFee",
+            "secondPillarFeePercent",
+            "tulevaFeePercent",
+            "secondPillarAssetsAmount",
+            "feeComparisonDate");
   }
 
   @Test
@@ -131,7 +144,15 @@ class NudgeDecisionSerializationTest {
   @Test
   void anyPillarSuggestionStaysRaisedWhenTheSecondPillarNudgeCarriesAFeeComparison() {
     NudgeDecision transfer =
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
 
     assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("anyPillarSuggestion", true);
   }
@@ -147,9 +168,17 @@ class NudgeDecisionSerializationTest {
   }
 
   @Test
-  void feeComparisonAndSavingsFundFeeAreFormattedForTheLocale() {
+  void feeComparisonItsBasisAndSavingsFundFeeAreFormattedForTheLocale() {
     NudgeDecision transfer =
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
     NudgeDecision savingsFund = NudgeDecision.savingsFund(new BigDecimal("0.28"));
 
     assertThat(transfer.mergeVars(Locale.of("et")))
@@ -157,8 +186,15 @@ class NudgeDecisionSerializationTest {
         .containsEntry("secondPillarFeePercent", "0,65")
         .containsEntry("secondPillarFeeAmount", 130L)
         .containsEntry("tulevaFeeAmount", 56L)
-        .containsEntry("secondPillarSavingsAmount", 74L);
-    assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("secondPillarFeePercent", "0.65");
+        .containsEntry("secondPillarSavingsAmount", 74L)
+        .containsEntry("tulevaFeePercent", "0,28")
+        .containsEntry("secondPillarAssetsAmount", "20\u00a0000")
+        .containsEntry("feeComparisonDate", "16.10.2026");
+    assertThat(transfer.mergeVars(Locale.ENGLISH))
+        .containsEntry("secondPillarFeePercent", "0.65")
+        .containsEntry("tulevaFeePercent", "0.28")
+        .containsEntry("secondPillarAssetsAmount", "20,000")
+        .containsEntry("feeComparisonDate", "16.10.2026");
     assertThat(savingsFund.mergeVars(Locale.of("et"))).containsEntry("savingsFundFee", "0,28");
     assertThat(savingsFund.mergeVars(Locale.ENGLISH)).containsEntry("savingsFundFee", "0.28");
   }

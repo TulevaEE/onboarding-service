@@ -17,6 +17,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -80,6 +82,13 @@ public record NudgeDecision(
       vars.put("secondPillarFeeAmount", feeComparison.currentFeeAmount());
       vars.put("tulevaFeeAmount", feeComparison.tulevaFeeAmount());
       vars.put("secondPillarSavingsAmount", feeComparison.savingsAmount());
+      vars.put("tulevaFeePercent", percent(feeComparison.tulevaFeePercent(), locale));
+      vars.put(
+          "secondPillarAssetsAmount",
+          NumberFormat.getIntegerInstance(locale).format(feeComparison.assetsAmount()));
+      vars.put(
+          "feeComparisonDate",
+          feeComparison.asOf().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
     }
     if (savingsFundFeePercent != null) {
       vars.put("savingsFundFee", percent(savingsFundFeePercent, locale));

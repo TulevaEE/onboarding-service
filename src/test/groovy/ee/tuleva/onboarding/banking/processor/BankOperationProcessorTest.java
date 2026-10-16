@@ -18,9 +18,11 @@ import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -250,12 +252,15 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
-            "LU1291102447",
-            "EJAP",
-            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new TradeSettlementDetails(
+                "DLA0553690",
+                "LU1291102447",
+                "EJAP",
+                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new BigDecimal("17.864")),
             new BigDecimal("11704"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -266,9 +271,13 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("11704.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("LU1291102447"),
-            eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -278,12 +287,12 @@ class BankOperationProcessorTest {
     var remittanceInfo = "DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.empty());
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.empty());
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
     verify(fundBankLedger)
         .recordUnclassifiedBankEntry(
             eq(TKF100),
@@ -301,20 +310,11 @@ class BankOperationProcessorTest {
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
-    lenient()
-        .when(tradeSettlementParser.parse(remittanceInfo))
-        .thenReturn(
-            java.util.Optional.of(
-                new TradeSettlementParser.TradeSettlementInfo(
-                    "LU1291102447",
-                    "EJAP",
-                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
-                    new BigDecimal("11704"))));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -325,12 +325,15 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new TradeSettlementDetails(
+                "DLA0544429",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.085995776")),
             new BigDecimal("31426.66"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -341,9 +344,13 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("31426.66000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0544429",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.085995776"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -354,12 +361,15 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
-            "LU1291102447",
-            "EJAP",
-            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new TradeSettlementDetails(
+                "DLA0553690",
+                "LU1291102447",
+                "EJAP",
+                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new BigDecimal("17.864")),
             new BigDecimal("11704"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -370,9 +380,13 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("11704.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("LU1291102447"),
-            eq("EJAP"),
-            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -384,12 +398,15 @@ class BankOperationProcessorTest {
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
     var tradeInfo =
         new TradeSettlementParser.TradeSettlementInfo(
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new TradeSettlementDetails(
+                "DLA0553691",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.477")),
             new BigDecimal("1450.25"));
 
-    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+    given(tradeSettlementParser.parse(remittanceInfo)).willReturn(Optional.of(tradeInfo));
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -400,10 +417,52 @@ class BankOperationProcessorTest {
             eq(new BigDecimal("-1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0553691",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.477"))),
             eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_recordsFundRedemptionAsATradeSettlementWithUnitsLeavingCustody() {
+    var amount = new BigDecimal("1969232.78");
+    var remittanceInfo =
+        "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd";
+    var entry = createBankOperationEntry("REDM", amount, remittanceInfo);
+    given(tradeSettlementParser.parse(remittanceInfo))
+        .willReturn(
+            Optional.of(
+                new TradeSettlementParser.TradeSettlementInfo(
+                    new TradeSettlementDetails(
+                        "DLA0695877",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("33.295")),
+                    new BigDecimal("59145"))));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount),
+            eq(new BigDecimal("-59145.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA0695877",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("33.295"))),
+            eq(LocalDate.of(2025, 10, 1)));
+    verifyNoInteractions(paymentCheckService);
   }
 
   @Test

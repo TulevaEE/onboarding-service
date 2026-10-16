@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlem
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
@@ -115,9 +116,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA0000001",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.44828")),
                     new BigDecimal("1000"))));
 
     var result = service.reclassify(TUK75);
@@ -130,9 +134,12 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("1000.00000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new FundBankLedger.TradeSettlementDetails(
+                "DLA0000001",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.44828")),
             BOOKING_DATE);
   }
 
@@ -145,9 +152,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA0000002",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.477")),
                     new BigDecimal("1450.25"))));
 
     service.reclassify(TUK75);
@@ -159,9 +169,12 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("-1450.25000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            "IE00BFG1TM61",
-            "BDWTEIA",
-            "iShares Developed World Screened Index Fund",
+            new FundBankLedger.TradeSettlementDetails(
+                "DLA0000002",
+                "IE00BFG1TM61",
+                "BDWTEIA",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("34.477")),
             BOOKING_DATE);
   }
 
@@ -210,9 +223,12 @@ class SuspenseReclassificationServiceUnitTest {
         .willReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA0000001",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.44828")),
                     new BigDecimal("1000"))));
     given(fundBankLedger.hasLedgerEntry(transaction.getExternalReference(), TRADE_SETTLEMENT))
         .willReturn(true);
@@ -221,7 +237,7 @@ class SuspenseReclassificationServiceUnitTest {
 
     assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(1, 0));
     verify(fundBankLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test

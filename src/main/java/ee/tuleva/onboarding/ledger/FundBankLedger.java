@@ -161,24 +161,24 @@ public class FundBankLedger {
       BigDecimal units,
       UUID externalReference,
       SystemAccount clearingAccount,
-      String isin,
-      String ticker,
-      String displayName,
+      TradeSettlementDetails trade,
       LocalDate bookingDate) {
     LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount, fund);
     LedgerAccount tradeSettlementAccount =
-        getInstrumentAccount(SystemAccount.TRADE_CASH_SETTLEMENT, fund, isin);
+        getInstrumentAccount(SystemAccount.TRADE_CASH_SETTLEMENT, fund, trade.isin());
     LedgerAccount securityUnitsAccount =
-        getInstrumentAccount(SystemAccount.TRADE_UNIT_SETTLEMENT, fund, isin);
+        getInstrumentAccount(SystemAccount.TRADE_UNIT_SETTLEMENT, fund, trade.isin());
     LedgerAccount securitiesCustodyAccount =
-        getInstrumentAccount(SystemAccount.SECURITIES_CUSTODY, fund, isin);
+        getInstrumentAccount(SystemAccount.SECURITIES_CUSTODY, fund, trade.isin());
 
     Map<String, Object> metadata =
         Map.of(
             OPERATION_TYPE.getKey(), TRADE_SETTLEMENT.name(),
-            INSTRUMENT.getKey(), isin,
-            TICKER.getKey(), ticker,
-            DISPLAY_NAME.getKey(), displayName);
+            BROKER_REFERENCE.getKey(), trade.brokerReference(),
+            INSTRUMENT.getKey(), trade.isin(),
+            TICKER.getKey(), trade.ticker(),
+            DISPLAY_NAME.getKey(), trade.displayName(),
+            PRICE.getKey(), trade.price());
 
     return ledgerTransactionService.createTransaction(
         TRADE_SETTLEMENT,
@@ -403,6 +403,9 @@ public class FundBankLedger {
         entry(cashAccount, amount),
         entry(registrarAccount, amount.negate()));
   }
+
+  public record TradeSettlementDetails(
+      String brokerReference, String isin, String ticker, String displayName, BigDecimal price) {}
 
   public record UnclassifiedEntryDetails(
       @Nullable String counterpartyName,

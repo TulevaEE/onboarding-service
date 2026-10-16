@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -124,9 +125,12 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.477")),
                     new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
@@ -138,9 +142,13 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("-1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA1",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.477"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -279,9 +287,12 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.448")),
                     new BigDecimal("29000"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
@@ -293,9 +304,13 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("29000.00000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA1",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.448"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 
@@ -373,9 +388,12 @@ class PensionFundStatementProcessorTest {
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
                 new TradeSettlementInfo(
-                    "IE00BFG1TM61",
-                    "BDWTEIA",
-                    "iShares Developed World Screened Index Fund",
+                    new TradeSettlementDetails(
+                        "DLA1",
+                        "IE00BFG1TM61",
+                        "BDWTEIA",
+                        "iShares Developed World Screened Index Fund",
+                        new BigDecimal("34.477")),
                     new BigDecimal("1450.25"))));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
@@ -387,9 +405,13 @@ class PensionFundStatementProcessorTest {
             eq(new BigDecimal("1450.25000")),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
-            eq("IE00BFG1TM61"),
-            eq("BDWTEIA"),
-            eq("iShares Developed World Screened Index Fund"),
+            eq(
+                new FundBankLedger.TradeSettlementDetails(
+                    "DLA1",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.477"))),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

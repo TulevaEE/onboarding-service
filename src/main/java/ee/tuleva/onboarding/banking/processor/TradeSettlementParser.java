@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
@@ -12,10 +13,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TradeSettlementParser {
 
+  private static final int BROKER_REFERENCE = 0;
+  private static final int TICKER = 1;
+  private static final int UNITS = 2;
+  private static final int PRICE = 3;
+
   private final InstrumentReferenceService instrumentReferenceService;
 
-  public record TradeSettlementInfo(
-      String isin, String ticker, String displayName, BigDecimal units) {
+  public record TradeSettlementInfo(TradeSettlementDetails details, BigDecimal units) {
 
     public BigDecimal signedUnits(BigDecimal cashAmount) {
       var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
@@ -29,11 +34,11 @@ public class TradeSettlementParser {
     }
 
     String[] segments = remittanceInfo.split("/");
-    if (segments.length < 3) {
+    if (segments.length <= PRICE) {
       return Optional.empty();
     }
 
-    String tickerSegment = segments[1].trim();
+    String tickerSegment = segments[TICKER].trim();
     int spaceIndex = tickerSegment.indexOf(' ');
     String ticker = spaceIndex > 0 ? tickerSegment.substring(0, spaceIndex) : tickerSegment;
 
@@ -42,12 +47,28 @@ public class TradeSettlementParser {
             .findByTicker(ticker)
             .or(() -> instrumentReferenceService.findByBloombergTicker(ticker));
 
-    return instrument.map(
-        found ->
-            new TradeSettlementInfo(
-                found.getIsin(),
+    Optional<BigDecimal> units = number(segments[UNITS]);
+    Optional<BigDecimal> price = number(segments[PRICE]);
+    if (instrument.isEmpty() || units.isEmpty() || price.isEmpty()) {
+      return Optional.empty();
+    }
+
+    return Optional.of(
+        new TradeSettlementInfo(
+            new TradeSettlementDetails(
+                segments[BROKER_REFERENCE].trim(),
+                instrument.get().getIsin(),
                 ticker,
-                found.getDisplayName(),
-                new BigDecimal(segments[2].trim())));
+                instrument.get().getDisplayName(),
+                price.get()),
+            units.get()));
+  }
+
+  private static Optional<BigDecimal> number(String segment) {
+    try {
+      return Optional.of(new BigDecimal(segment.trim()));
+    } catch (NumberFormatException e) {
+      return Optional.empty();
+    }
   }
 }

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.processor
 
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -22,7 +23,6 @@ class TradeSettlementInfoSpec extends Specification {
   }
 
   static TradeSettlementInfo developedWorld(BigDecimal units) {
-    new TradeSettlementInfo("IE00BFG1TM61", "BDWTEIA",
-        "iShares Developed World Screened Index Fund", units)
+    new TradeSettlementInfo(new TradeSettlementDetails("DLA0544429", "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund", 34.085995776), units)
   }
 }

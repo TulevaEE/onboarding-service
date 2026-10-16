@@ -101,6 +101,8 @@ public class SavingsFundLedger {
     INSTRUMENT("instrument"),
     TICKER("ticker"),
     DISPLAY_NAME("displayName"),
+    BROKER_REFERENCE("brokerReference"),
+    PRICE("price"),
     COUNTERPARTY_NAME("counterpartyName"),
     COUNTERPARTY_IBAN("counterpartyIban"),
     SUB_FAMILY_CODE("subFamilyCode"),

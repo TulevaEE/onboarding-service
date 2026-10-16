@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
@@ -67,8 +68,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "commission as bank fee"                 | entry("COMM", -0.48, null, null, "komisjonitasu")                                  | new BankFee()
     "detail-less adjustment"                 | entry("ADJT", 0.50, null, null, "korrektsioon")                                    | new BankAdjustment()
     "detail-less other as adjustment"        | entry("OTHR", 262.53, null, null, "Penalty CRED")                                  | new BankAdjustment()
-    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | developedWorldSettlement(31426.66)
-    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | developedWorldSettlement(31426.66)
+    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | developedWorldSettlement("DLA0544429", 31426.66, 34.085995776)
+    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | developedWorldSettlement("DLA0544429", 31426.66, 34.085995776)
     "trade with unknown ticker"              | entry("TRAD", -100.00, null, null, "DLA1/ZZZZ GY/1/1/Buy/")                        | new Unclassified("unknown ticker")
     "kickback booking"                       | entry("BOOK", 4370.58, null, null, "Management fee kickback VP00001 02/2026")      | new ManagementFeeRebate()
     "registrar credit"                       | entry("RCDT", 1000000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine") | new RegistrarContribution()
@@ -90,7 +91,7 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company damage compensation goes to suspense" | entry("ESCT", 7178.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile") | new UnrecognisedManagementCompanyCredit()
     "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
     "management company book credit not stated as a rebate goes to suspense" | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Ülekanne fondile") | new UnrecognisedManagementCompanyCredit()
-    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement(new BigDecimal("59145"))
+    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement("DLA0695877", new BigDecimal("59145"), 33.295)
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "own account transfer out"               | entry("ICDT", -50000.00, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "legacy bank service invoice"            | entry("ESCT", -140.00, "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3")       | new BankFee()
@@ -101,9 +102,9 @@ class PensionFundEntryClassifierSpec extends Specification {
     "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()
   }
 
-  static TradeSettlement developedWorldSettlement(BigDecimal units) {
-    new TradeSettlement(new TradeSettlementInfo("IE00BFG1TM61", "BDWTEIA",
-        "iShares Developed World Screened Index Fund", units))
+  static TradeSettlement developedWorldSettlement(
+      String brokerReference, BigDecimal units, BigDecimal price) {
+    new TradeSettlement(new TradeSettlementInfo(new TradeSettlementDetails(brokerReference, "IE00BFG1TM61", "BDWTEIA", "iShares Developed World Screened Index Fund", price), units))
   }
 
   static BankStatementEntry entry(

@@ -2,14 +2,12 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -32,6 +30,7 @@ public class BankOperationProcessor {
   private static final String OTHR = "OTHR";
   private static final String TRAD = "TRAD";
   private static final String SUBS = "SUBS";
+  private static final String REDM = "REDM";
   private static final String BOOK = "BOOK";
 
   private final FundBankLedger fundBankLedger;
@@ -61,18 +60,6 @@ public class BankOperationProcessor {
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = account.ledgerAccount();
     var subFamilyCode = entry.subFamilyCode();
-
-    if (subFamilyCode == null) {
-      parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
-      return;
-    }
-
-    TransactionType transactionType =
-        mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
-    if (transactionType == null) {
-      parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
-      return;
-    }
 
     var bookingDate = bookingDate(entry);
 
@@ -107,7 +94,7 @@ public class BankOperationProcessor {
         fundBankLedger.recordBankAdjustment(
             account.fund(), amount, externalReference, clearingAccount, bookingDate);
       }
-      case TRAD, SUBS -> {
+      case TRAD, SUBS, REDM -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
         if (tradeInfo.isEmpty()) {
           parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
@@ -121,20 +108,22 @@ public class BankOperationProcessor {
             units,
             externalReference,
             account,
-            settlement.ticker(),
-            settlement.isin());
+            settlement.details().ticker(),
+            settlement.details().isin());
         fundBankLedger.recordTradeSettlement(
             account.fund(),
             amount,
             units,
             externalReference,
             clearingAccount,
-            settlement.isin(),
-            settlement.ticker(),
-            settlement.displayName(),
+            settlement.details(),
             bookingDate);
       }
       case BOOK -> {
+        if (!isManagementFeeRebate(entry.remittanceInformation())) {
+          parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
+          return;
+        }
         log.info(
             "Management fee rebate received: amount={}, externalRef={}, account={}, description={}",
             amount,
@@ -149,23 +138,12 @@ public class BankOperationProcessor {
             bookingDate,
             entry.remittanceInformation());
       }
-      default -> throw new IllegalStateException("Unexpected value: " + subFamilyCode);
+      case null, default ->
+          parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
     }
   }
 
-  private @Nullable TransactionType mapSubFamilyCode(
-      String subFamilyCode, String remittanceInformation) {
-    return switch (subFamilyCode) {
-      case INTR -> INTEREST_RECEIVED;
-      case FEES, COMM -> BANK_FEE;
-      case ADJT, OTHR -> BANK_ADJUSTMENT;
-      case TRAD, SUBS -> TRADE_SETTLEMENT;
-      case BOOK -> isManagementFeeRebate(remittanceInformation) ? MANAGEMENT_FEE_REBATE : null;
-      default -> null;
-    };
-  }
-
-  private static boolean isManagementFeeRebate(String remittanceInformation) {
+  private static boolean isManagementFeeRebate(@Nullable String remittanceInformation) {
     return remittanceInformation != null
         && remittanceInformation.toLowerCase().contains("kickback");
   }

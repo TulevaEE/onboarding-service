@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -54,7 +55,7 @@ class TradeSettlementParserTest {
   @InjectMocks private TradeSettlementParser parser;
 
   @Test
-  void parse_extractsTickerAndUnitsFromRemittanceInfo() {
+  void parse_keepsTheSebReferenceTickerUnitsAndPriceOfAnEtfTrade() {
     given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
 
     var result = parser.parse("DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448");
@@ -62,14 +63,17 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "LU1291102447",
-                "EJAP",
-                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864")),
                 new BigDecimal("11704")));
   }
 
   @Test
-  void parse_extractsAnotherTickerAndUnits() {
+  void parse_keepsTheSebReferenceTickerUnitsAndPriceOfAnotherEtfTrade() {
     given(instrumentReferenceService.findByTicker("XRSM")).willReturn(Optional.of(XTRACKERS_USA));
 
     var result = parser.parse("DLA0553685/XRSM GY/19422/51.25/Buy/ Euroclear, ABNCNL2AXXX, 14448");
@@ -77,9 +81,12 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "IE00BJZ2DC62",
-                "XRSM",
-                "Xtrackers MSCI USA Screened UCITS ETF",
+                new TradeSettlementDetails(
+                    "DLA0553685",
+                    "IE00BJZ2DC62",
+                    "XRSM",
+                    "Xtrackers MSCI USA Screened UCITS ETF",
+                    new BigDecimal("51.25")),
                 new BigDecimal("19422")));
   }
 
@@ -94,21 +101,25 @@ class TradeSettlementParserTest {
   }
 
   @Test
-  void parse_resolvesMutualFundByBloombergTickerWithDecimalUnits() {
+  void parse_resolvesMutualFundByBloombergTickerWithDecimalUnitsAndPrice() {
     given(instrumentReferenceService.findByTicker("BDWTEIA")).willReturn(Optional.empty());
     given(instrumentReferenceService.findByBloombergTicker("BDWTEIA"))
         .willReturn(Optional.of(DEVELOPED_WORLD));
 
     var result =
-        parser.parse("DLA0553698/BDWTEIA ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX, 14448");
+        parser.parse(
+            "DLA0544429/BDWTEIA/31426.66/34.085995776/Buy/ BlackRock Asset Management Ireland Ltd");
 
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "IE00BFG1TM61",
-                "BDWTEIA",
-                "iShares Developed World Screened Index Fund",
-                new BigDecimal("24.4021")));
+                new TradeSettlementDetails(
+                    "DLA0544429",
+                    "IE00BFG1TM61",
+                    "BDWTEIA",
+                    "iShares Developed World Screened Index Fund",
+                    new BigDecimal("34.085995776")),
+                new BigDecimal("31426.66")));
   }
 
   @Test
@@ -122,10 +133,45 @@ class TradeSettlementParserTest {
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "IE00NOTICKER0",
-                "NOYAHOO",
-                "Instrument without a yahoo ticker",
+                new TradeSettlementDetails(
+                    "DLA0553698",
+                    "IE00NOTICKER0",
+                    "NOYAHOO",
+                    "Instrument without a yahoo ticker",
+                    new BigDecimal("32765.6")),
                 new BigDecimal("24.4021")));
+  }
+
+  @Test
+  void parse_returnsEmptyForABlankPrice() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11704//Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForAPriceWrittenWithADecimalComma() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11704/17,864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForBlankUnits() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/ /17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForNonNumericUnits() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("DLA0553690/EJAP GY/11,704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"))
+        .isEmpty();
   }
 
   @Test
@@ -146,17 +192,25 @@ class TradeSettlementParserTest {
   }
 
   @Test
-  void parse_parsesExactlyThreeSegments() {
+  void parse_returnsEmptyForARemittanceWithoutAPrice() {
+    assertThat(parser.parse("DLA0553690/EJAP GY/11704")).isEmpty();
+  }
+
+  @Test
+  void parse_parsesExactlyFourSegments() {
     given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
 
-    var result = parser.parse("DLA0553690/EJAP GY/11704");
+    var result = parser.parse("DLA0553690/EJAP GY/11704/17.864");
 
     assertThat(result)
         .contains(
             new TradeSettlementInfo(
-                "LU1291102447",
-                "EJAP",
-                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new TradeSettlementDetails(
+                    "DLA0553690",
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("17.864")),
                 new BigDecimal("11704")));
   }
 }

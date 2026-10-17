@@ -6,6 +6,15 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-raw>*|IF:gift|*</mj-raw>
+        <mj-text>
+          Your gift is on its way. The recipient’s identity code is *|recipientPersonalCode|*.
+        </mj-text>
+        <mj-text>
+          The new fund units will reach their pension account within 2&nbsp;working days.
+        </mj-text>
+        <mj-text>Thank you for helping someone close to you save for their future.</mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           Your contribution is complete. Your new units will appear in your pension account by the
           end of the next working day. If you made the transfer over the weekend, you’ll see the
@@ -15,6 +24,7 @@
           Only 30% of people in Estonia save in the third pillar. You are one of them, and you are
           deliberately putting money aside for your future.
         </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-include path="./partials/suggest_chain_open_en.mjml" />
 

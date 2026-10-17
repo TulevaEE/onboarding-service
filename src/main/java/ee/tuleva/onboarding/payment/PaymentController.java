@@ -39,8 +39,12 @@ public class PaymentController {
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
-        .map(payment -> new RedirectView(frontendUrl + "/3rd-pillar-success"))
+        .map(payment -> new RedirectView(frontendUrl + thirdPillarSuccessPath(payment)))
         .orElseGet(() -> new RedirectView(frontendUrl + "/3rd-pillar-payment"));
+  }
+
+  private static String thirdPillarSuccessPath(Payment payment) {
+    return payment.isGift() ? "/3rd-pillar-gift-success" : "/3rd-pillar-success";
   }
 
   @GetMapping("/member-success")

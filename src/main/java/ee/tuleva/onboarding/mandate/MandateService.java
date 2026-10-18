@@ -98,14 +98,15 @@ public class MandateService {
   public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {
     User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-    return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
+    return signService.startMobileIdSign(
+        signableMandate(mandateId), files, user.getPersonalCode(), phoneNumber);
   }
 
   public SmartIdSignatureSession smartIdSign(
       Long mandateId, AuthenticatedPerson authenticatedPerson) {
     List<SignatureFile> files =
         mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserIdOrThrow());
-    return signService.startSmartIdSign(files, authenticatedPerson);
+    return signService.startSmartIdSign(signableMandate(mandateId), files, authenticatedPerson);
   }
 
   public SignatureStatus finalizeSmartIdSignature(
@@ -116,7 +117,8 @@ public class MandateService {
     if (mandate.isSigned()) {
       return statusOfSignedMandate(mandate);
     }
-    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
+    return persistIfSigned(
+        user, mandate, signService.getSignedFile(session, signableMandate(mandateId)), locale);
   }
 
   private SignatureStatus persistIfSigned(
@@ -160,7 +162,8 @@ public class MandateService {
     if (mandate.isSigned()) {
       return statusOfSignedMandate(mandate);
     }
-    return persistIfSigned(user, mandate, signService.getSignedFile(session), locale);
+    return persistIfSigned(
+        user, mandate, signService.getSignedFile(session, signableMandate(mandateId)), locale);
   }
 
   public SignatureStatus persistIdCardSignature(

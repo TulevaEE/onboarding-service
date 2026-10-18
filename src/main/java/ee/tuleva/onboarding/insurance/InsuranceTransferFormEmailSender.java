@@ -33,10 +33,27 @@ class InsuranceTransferFormEmailSender {
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onSigned(InsuranceTransferFormSigned event) {
+    recordOutcome(event.formId(), sendOrFail(event));
+  }
+
+  private InsuranceTransferEmailStatus sendOrFail(InsuranceTransferFormSigned event) {
     try {
-      formService.recordEmailStatus(event.formId(), send(event));
+      return send(event);
     } catch (RuntimeException e) {
       log.error("Could not email the signed insurance transfer form: formId={}", event.formId(), e);
+      return FAILED;
+    }
+  }
+
+  private void recordOutcome(Long formId, InsuranceTransferEmailStatus status) {
+    try {
+      formService.recordEmailStatus(formId, status);
+    } catch (RuntimeException e) {
+      log.error(
+          "Could not record how the insurance transfer form email ended: formId={}, status={}",
+          formId,
+          status,
+          e);
     }
   }
 

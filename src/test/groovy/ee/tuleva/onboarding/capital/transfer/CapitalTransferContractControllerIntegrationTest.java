@@ -30,6 +30,7 @@ import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
@@ -263,11 +264,15 @@ class CapitalTransferContractControllerIntegrationTest {
             new SignatureFile(
                 "contract.pdf", "application/pdf", "Contract content placeholder".getBytes()));
     SmartIdSignatureSession sellerSession =
-        new SmartIdSignatureSession(sellerUser.getPersonalCode(), files);
+        new SmartIdSignatureSession(
+            new SignableEntity("Capital transfer contract", contractId),
+            sellerUser.getPersonalCode(),
+            files);
     sellerSession.setVerificationCode("verification1");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(sellerSession));
     when(signatureService.startSmartIdSign(
+            eq(new SignableEntity("Capital transfer contract", contractId)),
             any(),
             argThat(
                 signer ->
@@ -285,7 +290,8 @@ class CapitalTransferContractControllerIntegrationTest {
         .andExpect(jsonPath("$.challengeCode").value("verification1"));
 
     // given
-    when(signatureService.getSignedFile(sellerSession))
+    when(signatureService.getSignedFile(
+            sellerSession, new SignableEntity("Capital transfer contract", contractId)))
         .thenReturn("signed content by seller".getBytes());
 
     when(contactDetailsService.getContactDetails(any())).thenReturn(contactDetailsFixture());
@@ -310,18 +316,23 @@ class CapitalTransferContractControllerIntegrationTest {
 
     // given
     SmartIdSignatureSession buyerSession =
-        new SmartIdSignatureSession(buyerUser.getPersonalCode(), files);
+        new SmartIdSignatureSession(
+            new SignableEntity("Capital transfer contract", contractId),
+            buyerUser.getPersonalCode(),
+            files);
     buyerSession.setVerificationCode("verification2");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(buyerSession));
     when(signatureService.startSmartIdSign(
+            eq(new SignableEntity("Capital transfer contract", contractId)),
             any(),
             argThat(
                 signer ->
                     signer != null
                         && buyerUser.getPersonalCode().equals(signer.getPersonalCode()))))
         .thenReturn(buyerSession);
-    when(signatureService.getSignedFile(buyerSession))
+    when(signatureService.getSignedFile(
+            buyerSession, new SignableEntity("Capital transfer contract", contractId)))
         .thenReturn("signed content by buyer".getBytes());
 
     // when

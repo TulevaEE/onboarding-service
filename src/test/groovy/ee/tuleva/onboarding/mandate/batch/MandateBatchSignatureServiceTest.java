@@ -68,7 +68,10 @@ class MandateBatchSignatureServiceTest {
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
       when(signService.startMobileIdSign(
-              any(), eq(authenticatedPerson.getPersonalCode()), eq(phoneNumber)))
+              eq(new SignableEntity("Mandate batch", mandateBatchId)),
+              any(),
+              eq(authenticatedPerson.getPersonalCode()),
+              eq(phoneNumber)))
           .thenReturn(mockSession);
 
       var result =
@@ -100,7 +103,9 @@ class MandateBatchSignatureServiceTest {
     @Test
     void earlyStatusPollWithoutVerificationCodeStillReturnsTheStatus() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("personalCode", null);
+      var mockSession =
+          new SmartIdSignatureSession(
+              new SignableEntity("Mandate batch", 1L), "personalCode", null);
 
       when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
@@ -124,7 +129,9 @@ class MandateBatchSignatureServiceTest {
     @DisplayName("start smart id signature returns null challenge code")
     void startSmartIdSignatureReturnsNullChallengeCode() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("personalCode", null);
+      var mockSession =
+          new SmartIdSignatureSession(
+              new SignableEntity("Mandate batch", 1L), "personalCode", null);
       mockSession.setVerificationCode(null);
       var user = sampleUser().build();
       var authenticatedPerson = authenticatedPersonFromUser(user).build();
@@ -132,7 +139,11 @@ class MandateBatchSignatureServiceTest {
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
-      when(signService.startSmartIdSign(any(), eq(authenticatedPerson))).thenReturn(mockSession);
+      when(signService.startSmartIdSign(
+              eq(new SignableEntity("Mandate batch", mandateBatchId)),
+              any(),
+              eq(authenticatedPerson)))
+          .thenReturn(mockSession);
 
       var result =
           mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
@@ -145,7 +156,9 @@ class MandateBatchSignatureServiceTest {
     @DisplayName("get smart id signature status returns the status and challenge code")
     void getSmartIdSignatureStatusReturnsStatusAndChallengeCode() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("personalCode", null);
+      var mockSession =
+          new SmartIdSignatureSession(
+              new SignableEntity("Mandate batch", 1L), "personalCode", null);
       mockSession.setVerificationCode("1234");
 
       when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));

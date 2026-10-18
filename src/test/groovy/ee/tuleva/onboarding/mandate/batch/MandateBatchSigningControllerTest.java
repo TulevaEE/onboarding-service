@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -94,7 +95,9 @@ public class MandateBatchSigningControllerTest {
     @DisplayName("start smart id signature returns null challenge code")
     void startSmartIdSignatureReturnsNullChallengeCode() throws Exception {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("personalCode", null);
+      var mockSession =
+          new SmartIdSignatureSession(
+              new SignableEntity("Mandate batch", 1L), "personalCode", null);
       mockSession.setVerificationCode(null);
 
       var mockResponse = new MobileSignatureResponse(mockSession.getVerificationCode());
@@ -115,7 +118,9 @@ public class MandateBatchSigningControllerTest {
     @DisplayName("get smart id signature status returns the status and challenge code")
     void getSmartIdSignatureStatusReturnsStatusAndChallengeCode() throws Exception {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("personalCode", null);
+      var mockSession =
+          new SmartIdSignatureSession(
+              new SignableEntity("Mandate batch", 1L), "personalCode", null);
       mockSession.setVerificationCode("1234");
       var mockResponse =
           new MobileSignatureStatusResponse(SIGNATURE, mockSession.getVerificationCode());

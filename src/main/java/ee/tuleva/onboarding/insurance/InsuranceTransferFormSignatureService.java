@@ -42,10 +42,9 @@ class InsuranceTransferFormSignatureService {
   private final LocaleService localeService;
 
   MobileSignatureResponse startSmartIdSignature(Long id, AuthenticatedPerson person) {
-    List<SignatureFile> files = filesToSign(id, person);
-    SmartIdSignatureSession session = signatureService.startSmartIdSign(files, person);
+    SmartIdSignatureSession session =
+        signatureService.startSmartIdSign(signable(id), filesToSign(id, person), person);
     sessionStore.save(session);
-    sessionStore.save(new InsuranceTransferFormSigningSession(id));
     return new MobileSignatureResponse(session.getVerificationCode());
   }
 
@@ -54,7 +53,8 @@ class InsuranceTransferFormSignatureService {
         sessionStore
             .get(SmartIdSignatureSession.class)
             .orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
-    SignatureStatus status = finish(id, person, () -> signatureService.getSignedFile(session));
+    SignatureStatus status =
+        finish(id, person, () -> signatureService.getSignedFile(session, signable(id)));
     return new MobileSignatureStatusResponse(status, session.getVerificationCode());
   }
 
@@ -65,9 +65,9 @@ class InsuranceTransferFormSignatureService {
             person.getAttribute(PHONE_NUMBER),
             "Phone number missing: insuranceTransferFormId=" + id);
     MobileIdSignatureSession session =
-        signatureService.startMobileIdSign(files, person.getPersonalCode(), phoneNumber);
+        signatureService.startMobileIdSign(
+            signable(id), files, person.getPersonalCode(), phoneNumber);
     sessionStore.save(session);
-    sessionStore.save(new InsuranceTransferFormSigningSession(id));
     return new MobileSignatureResponse(session.getVerificationCode());
   }
 
@@ -76,7 +76,8 @@ class InsuranceTransferFormSignatureService {
         sessionStore
             .get(MobileIdSignatureSession.class)
             .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
-    SignatureStatus status = finish(id, person, () -> signatureService.getSignedFile(session));
+    SignatureStatus status =
+        finish(id, person, () -> signatureService.getSignedFile(session, signable(id)));
     return new MobileSignatureStatusResponse(status, session.getVerificationCode());
   }
 
@@ -99,7 +100,7 @@ class InsuranceTransferFormSignatureService {
         sessionStore
             .get(IdCardSignatureSession.class)
             .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
-    if (formService.get(id, person).isSigned()) {
+    if (formService.summary(id, person).isSigned()) {
       throw SignatureStateException.alreadySigned(ENTITY, id);
     }
     byte[] signedContainer =
@@ -109,7 +110,7 @@ class InsuranceTransferFormSignatureService {
   }
 
   IdCardSignatureStatusResponse getIdCardSignatureStatus(Long id, AuthenticatedPerson person) {
-    if (!formService.get(id, person).isSigned()) {
+    if (!formService.summary(id, person).isSigned()) {
       throw SignatureStateException.notSigned(ENTITY, id);
     }
     return new IdCardSignatureStatusResponse(SIGNATURE);
@@ -129,27 +130,15 @@ class InsuranceTransferFormSignatureService {
 
   private SignatureStatus finish(
       Long id, AuthenticatedPerson person, Supplier<byte @Nullable []> signedContainer) {
-    if (formService.get(id, person).isSigned()) {
+    if (formService.summary(id, person).isSigned()) {
       return SIGNATURE;
     }
-    requireSigningSessionStartedFor(id);
     byte[] container = signedContainer.get();
     if (container == null) {
       return OUTSTANDING_TRANSACTION;
     }
     formService.sign(id, container, localeService.getCurrentLocale());
     return SIGNATURE;
-  }
-
-  private void requireSigningSessionStartedFor(Long id) {
-    boolean startedForThisForm =
-        sessionStore
-            .get(InsuranceTransferFormSigningSession.class)
-            .map(session -> session.formId().equals(id))
-            .orElse(false);
-    if (!startedForThisForm) {
-      throw SignatureStateException.startedForAnotherEntity(signable(id));
-    }
   }
 
   private static SignableEntity signable(Long id) {

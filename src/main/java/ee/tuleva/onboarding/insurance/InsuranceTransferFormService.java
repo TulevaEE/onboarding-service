@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,14 +33,13 @@ class InsuranceTransferFormService {
       AuthenticatedPerson person, CreateInsuranceTransferFormCommand command) {
     final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
     requireActingAsSelf(person);
+    Instant now = clock.instant();
+    LocalDate today = LocalDate.ofInstant(now, ESTONIAN_ZONE);
+    requireEndDateNotPassed(command.endDate(), today);
     User user = userService.getByIdOrThrow(person.getUserIdOrThrow());
     String pensionAccountNumber = pensionAccountNumber(person);
-    Instant now = clock.instant();
     var application =
-        new InsuranceTransferApplication(
-            applicant(user, pensionAccountNumber),
-            command,
-            LocalDate.ofInstant(now, ESTONIAN_ZONE));
+        new InsuranceTransferApplication(applicant(user, pensionAccountNumber), command, today);
     byte[] filledPdf = insurerForms.fill(application);
     return repository.save(
         new InsuranceTransferForm(
@@ -50,7 +50,14 @@ class InsuranceTransferFormService {
     requireActingAsSelf(person);
     return repository
         .findByIdAndUserId(id, person.getUserIdOrThrow())
-        .orElseThrow(() -> new NotFoundException("Insurance transfer form not found: id=" + id));
+        .orElseThrow(() -> notFound(id));
+  }
+
+  public InsuranceTransferFormSummary summary(Long id, AuthenticatedPerson person) {
+    requireActingAsSelf(person);
+    return repository
+        .findSummaryByIdAndUserId(id, person.getUserIdOrThrow())
+        .orElseThrow(() -> notFound(id));
   }
 
   static byte[] filledPdfOf(InsuranceTransferForm form) {
@@ -73,11 +80,7 @@ class InsuranceTransferFormService {
 
   @Transactional
   public void sign(Long id, byte[] signedContainer, Locale locale) {
-    InsuranceTransferForm form =
-        repository
-            .findForUpdateById(id)
-            .orElseThrow(
-                () -> new NotFoundException("Insurance transfer form not found: id=" + id));
+    InsuranceTransferForm form = repository.findForUpdateById(id).orElseThrow(() -> notFound(id));
     if (form.isSigned()) {
       return;
     }
@@ -87,10 +90,7 @@ class InsuranceTransferFormService {
 
   @Transactional(propagation = REQUIRES_NEW)
   public void recordEmailStatus(Long id, InsuranceTransferEmailStatus status) {
-    repository
-        .findById(id)
-        .orElseThrow(() -> new NotFoundException("Insurance transfer form not found: id=" + id))
-        .recordEmailStatus(status);
+    repository.findById(id).orElseThrow(() -> notFound(id)).recordEmailStatus(status);
   }
 
   private String pensionAccountNumber(AuthenticatedPerson person) {
@@ -110,6 +110,16 @@ class InsuranceTransferFormService {
         user.getEmail(),
         user.getPhoneNumber(),
         pensionAccountNumber);
+  }
+
+  private static void requireEndDateNotPassed(@Nullable LocalDate endDate, LocalDate today) {
+    if (endDate != null && endDate.isBefore(today)) {
+      throw new EndDateInThePastException(endDate, today);
+    }
+  }
+
+  private static NotFoundException notFound(Long id) {
+    return new NotFoundException("Insurance transfer form not found: id=" + id);
   }
 
   private static void requireActingAsSelf(AuthenticatedPerson person) {

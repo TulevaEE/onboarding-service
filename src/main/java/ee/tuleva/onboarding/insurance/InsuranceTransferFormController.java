@@ -31,14 +31,14 @@ public class InsuranceTransferFormController {
   public InsuranceTransferFormResponse create(
       @AuthenticationPrincipal AuthenticatedPerson person,
       @Valid @RequestBody CreateInsuranceTransferFormCommand command) {
-    return InsuranceTransferFormResponse.from(formService.create(person, command));
+    return InsuranceTransferFormResponse.from(formService.create(person, command).summary());
   }
 
   @Operation(summary = "Get an insurance transfer form")
   @GetMapping("/{id}")
   public InsuranceTransferFormResponse get(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson person) {
-    return InsuranceTransferFormResponse.from(formService.get(id, person));
+    return InsuranceTransferFormResponse.from(formService.summary(id, person));
   }
 
   @Operation(summary = "Get the filled-in insurance transfer form before signing")

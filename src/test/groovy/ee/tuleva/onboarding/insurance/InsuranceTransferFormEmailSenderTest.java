@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -99,7 +100,17 @@ class InsuranceTransferFormEmailSenderTest {
   }
 
   @Test
-  void keepsTheSigningSuccessfulWhenTheEmailCannotBeHandled() {
+  void recordsAFailedEmailWhenTheSignedFormCannotBeReadForSending() {
+    given(repository.findById(1L)).willThrow(new IllegalStateException("database down"));
+
+    sender.onSigned(new InsuranceTransferFormSigned(1L, Locale.of("et")));
+
+    then(formService).should().recordEmailStatus(1L, FAILED);
+    then(emailService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void keepsTheSigningSuccessfulAndASentEmailUnmarkedAsFailedWhenItsOutcomeCannotBeRecorded() {
     givenASignedErgoForm();
     given(emailService.newMandrillMessage(any(), any(), anyMap(), anyList(), anyList()))
         .willReturn(message);
@@ -111,6 +122,7 @@ class InsuranceTransferFormEmailSenderTest {
 
     assertThatCode(() -> sender.onSigned(new InsuranceTransferFormSigned(1L, Locale.of("et"))))
         .doesNotThrowAnyException();
+    then(formService).should(never()).recordEmailStatus(1L, FAILED);
   }
 
   private void givenASignedErgoForm() {

@@ -146,7 +146,9 @@ public class MandateBatchService {
       return processingStatus(mandateBatch);
     }
 
-    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
+    var signedFile =
+        Optional.ofNullable(
+            signService.getSignedFile(session, signableMandateBatch(mandateBatchId)));
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
@@ -159,7 +161,9 @@ public class MandateBatchService {
       return processingStatus(mandateBatch);
     }
 
-    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
+    var signedFile =
+        Optional.ofNullable(
+            signService.getSignedFile(session, signableMandateBatch(mandateBatchId)));
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 

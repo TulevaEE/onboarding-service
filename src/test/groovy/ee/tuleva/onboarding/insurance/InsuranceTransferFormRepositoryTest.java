@@ -53,6 +53,30 @@ class InsuranceTransferFormRepositoryTest {
   }
 
   @Test
+  void summarizesAFormForItsOwnerOnly() {
+    User owner = user("38001085718");
+    User someoneElse = user("39901019992");
+    var form =
+        repository.save(
+            new InsuranceTransferForm(
+                owner.getId(), COMPENSA, "993432432", new byte[] {1}, CREATED_AT));
+    form.sign(new byte[] {9}, CREATED_AT.plusSeconds(60));
+    form.recordEmailStatus(InsuranceTransferEmailStatus.SENT);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(repository.findSummaryByIdAndUserId(form.getIdOrThrow(), owner.getId()))
+        .contains(
+            new InsuranceTransferFormSummary(
+                form.getIdOrThrow(),
+                COMPENSA,
+                CREATED_AT.plusSeconds(60),
+                InsuranceTransferEmailStatus.SENT));
+    assertThat(repository.findSummaryByIdAndUserId(form.getIdOrThrow(), someoneElse.getId()))
+        .isEmpty();
+  }
+
+  @Test
   void recordsTheSignedContainerAndTheEmailOutcome() {
     User owner = user("38001085718");
     var form =
@@ -66,7 +90,7 @@ class InsuranceTransferFormRepositoryTest {
 
     var signed = repository.findForUpdateById(form.getIdOrThrow()).orElseThrow();
 
-    assertThat(signed.getStatus()).isEqualTo(InsuranceTransferFormStatus.SIGNED);
+    assertThat(signed.isSigned()).isTrue();
     assertThat(signed.getSignedContainer()).containsExactly(9);
     assertThat(signed.getSignedAt()).isEqualTo(CREATED_AT.plusSeconds(60));
     assertThat(signed.getEmailStatus()).isEqualTo(InsuranceTransferEmailStatus.SENT);

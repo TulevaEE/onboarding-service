@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.insurance;
 
+import static ee.tuleva.onboarding.insurance.Insurer.ARTEA;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -36,6 +37,7 @@ class InsuranceTransferFormService {
     Instant now = clock.instant();
     LocalDate today = LocalDate.ofInstant(now, ESTONIAN_ZONE);
     requireEndDateNotPassed(command.endDate(), today);
+    requireIdentityDocumentValid(command, today);
     User user = userService.getByIdOrThrow(person.getUserIdOrThrow());
     String pensionAccountNumber = pensionAccountNumber(person);
     var application =
@@ -115,6 +117,13 @@ class InsuranceTransferFormService {
   private static void requireEndDateNotPassed(@Nullable LocalDate endDate, LocalDate today) {
     if (endDate != null && endDate.isBefore(today)) {
       throw new EndDateInThePastException(endDate, today);
+    }
+  }
+
+  private static void requireIdentityDocumentValid(
+      CreateInsuranceTransferFormCommand command, LocalDate today) {
+    if (command.insurer() == ARTEA) {
+      command.questionnaire().idDocument().requireValidOn(today);
     }
   }
 

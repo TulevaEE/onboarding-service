@@ -30,7 +30,8 @@ public record CreateInsuranceTransferFormCommand(
 
   public CreateInsuranceTransferFormCommand {
     if (policyNumber != null) {
-      policyNumber = policyNumber.strip();
+      policyNumber =
+          insurer == ARTEA ? ArteaContractNumber.printed(policyNumber) : policyNumber.strip();
     }
   }
 
@@ -68,8 +69,12 @@ public record CreateInsuranceTransferFormCommand(
 
   @AssertTrue
   public boolean isPolicyNumberInTheFormatTheFormHolds() {
-    return insurer != ERGO
+    return insurer == null
         || policyNumber == null
-        || ErgoPolicyNumber.parse(policyNumber).isPresent();
+        || switch (insurer) {
+          case ERGO -> ErgoPolicyNumber.parse(policyNumber).isPresent();
+          case ARTEA -> ArteaContractNumber.isInTheFormat(policyNumber);
+          case COMPENSA -> true;
+        };
   }
 }

@@ -38,6 +38,8 @@ class ExpectedErrorCodesSpec extends Specification {
     "id.card.signing.certificate.revoked"       || true
     "id.card.signing.hash.function.unsupported" || true
     "insurance.transfer.form.end.date.passed"   || true
+    "insurance.transfer.form.id.document.issued.in.future" || true
+    "insurance.transfer.form.id.document.expired"          || true
 
     "mobile.id.configuration.error"  || false
     "mobile.id.communication.error"  || false

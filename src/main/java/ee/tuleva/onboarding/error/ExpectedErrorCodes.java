@@ -34,7 +34,9 @@ public final class ExpectedErrorCodes {
           "id.card.signing.certificate.mismatch",
           "id.card.signing.certificate.revoked",
           "id.card.signing.hash.function.unsupported",
-          "insurance.transfer.form.end.date.passed");
+          "insurance.transfer.form.end.date.passed",
+          "insurance.transfer.form.id.document.issued.in.future",
+          "insurance.transfer.form.id.document.expired");
 
   private ExpectedErrorCodes() {}
 

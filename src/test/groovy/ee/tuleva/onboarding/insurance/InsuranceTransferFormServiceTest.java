@@ -5,9 +5,13 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.arteaRequest;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.compensaRequest;
+import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.idCard;
+import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.questionnaire;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.savedForm;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.signedForm;
+import static ee.tuleva.onboarding.insurance.Insurer.ARTEA;
 import static ee.tuleva.onboarding.insurance.Insurer.COMPENSA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -125,6 +129,41 @@ class InsuranceTransferFormServiceTest {
         .isInstanceOf(EndDateInThePastException.class);
     then(contactDetailsService).shouldHaveNoInteractions();
     then(repository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void refusesAnIdentityDocumentIssuedAfterTodayWithoutAskingThePensionRegistry() {
+    var issuedTomorrow =
+        arteaRequest(questionnaire(idCard(LocalDate.of(2026, 10, 19), LocalDate.of(2031, 1, 1))));
+
+    assertThatThrownBy(() -> service.create(person, issuedTomorrow))
+        .isInstanceOf(IdentityDocumentIssuedInTheFutureException.class);
+    then(contactDetailsService).shouldHaveNoInteractions();
+    then(repository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void refusesAnIdentityDocumentThatExpiredYesterdayInEstoniaWithoutAskingThePensionRegistry() {
+    var expiredYesterdayInEstonia =
+        arteaRequest(questionnaire(idCard(LocalDate.of(2021, 1, 1), LocalDate.of(2026, 10, 17))));
+
+    assertThatThrownBy(() -> service.create(person, expiredYesterdayInEstonia))
+        .isInstanceOf(IdentityDocumentExpiredException.class);
+    then(contactDetailsService).shouldHaveNoInteractions();
+    then(repository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void acceptsAnIdentityDocumentIssuedTodayInEstoniaAndValidUntilToday() {
+    given(userService.getByIdOrThrow(user.getId())).willReturn(user);
+    given(contactDetailsService.getContactDetails(person)).willReturn(contactDetailsFixture());
+    given(repository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+    var issuedAndExpiringTodayInEstonia =
+        arteaRequest(questionnaire(idCard(LocalDate.of(2026, 10, 18), LocalDate.of(2026, 10, 18))));
+
+    var form = service.create(person, issuedAndExpiringTodayInEstonia);
+
+    assertThat(form.getInsurer()).isEqualTo(ARTEA);
   }
 
   @Test

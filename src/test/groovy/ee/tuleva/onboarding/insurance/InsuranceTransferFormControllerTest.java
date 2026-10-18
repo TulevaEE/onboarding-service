@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferEmailStatus.SENT;
+import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.arteaRequest;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.compensaRequest;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.savedForm;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.signedForm;
@@ -110,7 +111,7 @@ class InsuranceTransferFormControllerTest {
             + " \"countryOfBirth\": \"XX\", \"taxResidency\": \"EE\", \"pep\": false}",
         "{\"insurer\": \"ERGO\", \"policyNumber\": \"12345\", %s, \"citizenship\": [\"EE\"],"
             + " \"countryOfBirth\": \"EE\", \"taxResidency\": \"EE\", \"pep\": false}",
-        "{\"insurer\": \"ARTEA\", \"policyNumber\": \"UP000123\", %s, \"citizenship\": [\"EE\"],"
+        "{\"insurer\": \"ARTEA\", \"policyNumber\": \"SP000123\", %s, \"citizenship\": [\"EE\"],"
             + " \"countryOfBirth\": \"EE\", \"taxResidency\": \"EE\", \"pep\": false}"
       })
   void refusesAnswersTheInsurersFormNeedsButDoesNotHave(String body) throws Exception {
@@ -142,7 +143,7 @@ class InsuranceTransferFormControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"insurer": "ARTEA", "policyNumber": "UP000123", %s, "citizenship": ["EE"],
+                    {"insurer": "ARTEA", "policyNumber": "SP000123", %s, "citizenship": ["EE"],
                      "countryOfBirth": "EE", "taxResidency": "EE", "pep": false,
                      "artea": {"idDocument": {"type": "ID_CARD", "number": "AB0000000",
                        "issuedOn": "2024-01-01", "validUntil": "2029-01-01", "issuingCountry": "EE"},
@@ -153,27 +154,28 @@ class InsuranceTransferFormControllerTest {
   }
 
   @Test
-  void acceptsACompleteCustomerQuestionnaire() throws Exception {
-    given(formService.create(any(), any())).willReturn(savedForm(1L, userId, ARTEA));
+  void acceptsACompleteCustomerQuestionnaireAndReadsTheContractNumberAsTheInsurerPrintsIt()
+      throws Exception {
+    given(formService.create(person, arteaRequest())).willReturn(savedForm(1L, userId, ARTEA));
 
     mvc.perform(
             as(post(FORMS))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"insurer": "ARTEA", "policyNumber": "UP000123", %s, "citizenship": ["EE"],
-                     "countryOfBirth": "EE", "taxResidency": "EE", "pep": false,
-                     "artea": {"idDocument": {"type": "ID_CARD", "number": "AB0000000",
-                       "issuedOn": "2024-01-01", "validUntil": "2029-01-01", "issuingCountry": "EE"},
-                       "occupation": {"status": "EMPLOYED", "position": "Spetsialist",
-                         "employer": "Näidis OÜ", "employerAddress": "Tallinn", "description": null},
-                       "incomeSources": [{"source": "SALARY", "details": null},
-                         {"source": "DIVIDENDS", "details": "Näidis AS"}],
-                       "monthlyNetIncome": "FROM_1201_TO_3000",
-                       "premiumAccountIban": "EE442200221092874625"}}
-                    """
-                        .formatted(ADDRESS)))
+                .content(completeArteaRequest(" sp-000123 ")))
         .andExpect(status().isOk());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"UP000123", "SP1234567", "XX123456", "12345678"})
+  void refusesAContractNumberOutsideTheSeriesTheInsurerIssues(String policyNumber)
+      throws Exception {
+    mvc.perform(
+            as(post(FORMS))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(completeArteaRequest(policyNumber)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.length()").value(1))
+        .andExpect(jsonPath("$.errors[0].path").value("policyNumberInTheFormatTheFormHolds"));
   }
 
   @Test
@@ -220,6 +222,39 @@ class InsuranceTransferFormControllerTest {
                         + " \"usPerson\": false}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("insurance.transfer.form.end.date.passed"));
+  }
+
+  @Test
+  void refusesAnIdentityDocumentIssuedAfterToday() throws Exception {
+    given(formService.create(any(), any()))
+        .willThrow(
+            new IdentityDocumentIssuedInTheFutureException(
+                LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 18)));
+
+    mvc.perform(
+            as(post(FORMS))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(completeArteaRequest("SP000123")))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.errors[0].code")
+                .value("insurance.transfer.form.id.document.issued.in.future"));
+  }
+
+  @Test
+  void refusesAnIdentityDocumentThatHasExpired() throws Exception {
+    given(formService.create(any(), any()))
+        .willThrow(
+            new IdentityDocumentExpiredException(
+                LocalDate.of(2026, 10, 17), LocalDate.of(2026, 10, 18)));
+
+    mvc.perform(
+            as(post(FORMS))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(completeArteaRequest("SP000123")))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.errors[0].code").value("insurance.transfer.form.id.document.expired"));
   }
 
   @Test
@@ -343,6 +378,22 @@ class InsuranceTransferFormControllerTest {
     mvc.perform(as(get(FORMS + "/1/signature/id-card/status")))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"statusCode\": \"SIGNATURE\"}"));
+  }
+
+  private static String completeArteaRequest(String policyNumber) {
+    return """
+        {"insurer": "ARTEA", "policyNumber": "%s", %s, "citizenship": ["EE", "FI"],
+         "countryOfBirth": "EE", "taxResidency": "EE", "pep": false,
+         "artea": {"idDocument": {"type": "ID_CARD", "number": "AB0000000",
+           "issuedOn": "2024-01-01", "validUntil": "2029-01-01", "issuingCountry": "EE"},
+           "occupation": {"status": "EMPLOYED", "position": "Spetsialist",
+             "employer": "Näidis OÜ", "employerAddress": "Tallinn", "description": null},
+           "incomeSources": [{"source": "SALARY", "details": null},
+             {"source": "DIVIDENDS", "details": "Näidis AS"}],
+           "monthlyNetIncome": "FROM_1201_TO_3000",
+           "premiumAccountIban": "EE442200221092874625"}}
+        """
+        .formatted(policyNumber, ADDRESS);
   }
 
   private MockHttpServletRequestBuilder as(MockHttpServletRequestBuilder request) {

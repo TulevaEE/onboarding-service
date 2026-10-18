@@ -35,14 +35,14 @@ class ArteaFormTest {
                 entry("Text Field5", "+37255555555"),
                 entry("Text Field6", "jaan@example.com"),
                 entry("Text Field7", "Tamme tn 1-2, 10111 Tallinn, Eesti"),
-                entry("Text Field8", "UP000123"),
+                entry("Text Field8", "SP000123"),
                 entry("Text Field9", "ülesütlemisega"),
                 entry("Text Field11", "Tuleva III Samba Pensionifond"),
                 entry("Text Field12", "Eesti"),
                 entry("Radio Button0", "0"),
                 entry(
                     "Text Field14",
-                    "Ütlen üles täiendava kogumispensioni kindlustuslepingu nr UP000123 esimesel"
+                    "Ütlen üles täiendava kogumispensioni kindlustuslepingu nr SP000123 esimesel"
                         + " võimalusel (KoPS § 63 lg 5) ja soovin kasutada selle kogu"
                         + " tagastusväärtust pensionifondi Tuleva III Samba Pensionifond (ISIN"
                         + " EE3600001707) osakute omandamiseks, pensionikonto 993432432 (KoPS § 63"
@@ -86,6 +86,16 @@ class ArteaFormTest {
                 entry("Radio Button2", "0"),
                 entry("Text Field44", "Jaan Õunapuu"),
                 entry("Text Field45", "18.10.2026")));
+  }
+
+  @Test
+  void printsTheContractNumberAsTheInsurerWritesItHoweverItWasTyped() throws IOException {
+    var values =
+        FilledForms.fieldValues(
+            form.documents(application(arteaRequest(" sp-000123 "))).getFirst());
+
+    assertThat(values).contains(entry("Text Field8", "SP000123"));
+    assertThat(values.get("Text Field14")).contains("kindlustuslepingu nr SP000123 ");
   }
 
   @Test
@@ -165,7 +175,7 @@ class ArteaFormTest {
 
     assertThat(FilledForms.pageCount(documents)).isEqualTo(4);
     assertThat(FilledForms.text(documents))
-        .contains("Jaan Õunapuu", "UP000123", "Tuleva III Samba Pensionifond", "AB0000000");
+        .contains("Jaan Õunapuu", "SP000123", "Tuleva III Samba Pensionifond", "AB0000000");
     assertThat(FilledForms.hasEditableFields(documents)).isFalse();
   }
 }

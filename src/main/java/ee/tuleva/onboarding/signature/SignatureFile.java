@@ -17,13 +17,19 @@ public class SignatureFile implements Serializable {
   }
 
   public enum SignatureFileType {
-    HTML("text/html"),
-    DIGIDOC_CONTAINER("application/vnd.etsi.asic-e+zip");
+    HTML("text/html", "html"),
+    DIGIDOC_CONTAINER("application/vnd.etsi.asic-e+zip", "asice");
 
     @Getter private final String mimeType;
+    private final String extension;
 
-    SignatureFileType(String mimeType) {
+    SignatureFileType(String mimeType, String extension) {
       this.mimeType = mimeType;
+      this.extension = extension;
+    }
+
+    public String fileName(String baseName) {
+      return baseName + "." + extension;
     }
   }
 

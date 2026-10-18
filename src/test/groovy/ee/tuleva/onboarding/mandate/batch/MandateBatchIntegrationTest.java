@@ -413,7 +413,7 @@ class MandateBatchIntegrationTest {
                                     .getAttachments()
                                     .getFirst()
                                     .getName()
-                                    .endsWith("_avaldused_" + batch.getId() + ".bdoc")),
+                                    .endsWith("_avaldused_" + batch.getId() + ".asice")),
                         eq(WITHDRAWAL_BATCH.getTemplateName(Locale.ENGLISH))));
     assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
   }

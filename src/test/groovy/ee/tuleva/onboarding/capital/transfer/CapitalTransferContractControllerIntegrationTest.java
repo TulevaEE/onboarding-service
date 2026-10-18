@@ -75,7 +75,7 @@ class CapitalTransferContractControllerIntegrationTest {
   @Autowired private EmailService emailService;
   @Autowired private CapitalService capitalService;
   @Autowired private EmailPersistenceService emailPersistenceService;
-  @Autowired private ContactDetailsService contactDetailsService;
+  @MockitoBean private ContactDetailsService contactDetailsService;
   @MockitoBean private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   private User sellerUser;
@@ -116,12 +116,6 @@ class CapitalTransferContractControllerIntegrationTest {
     @Primary
     public EmailPersistenceService emailPersistenceService() {
       return mock(EmailPersistenceService.class);
-    }
-
-    @Bean
-    @Primary
-    public ContactDetailsService contactDetailsService() {
-      return mock(ContactDetailsService.class);
     }
   }
 

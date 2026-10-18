@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.insurance.Insurer.ARTEA;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.user.User;
@@ -96,12 +97,11 @@ class InsuranceTransferFormService {
   }
 
   private String pensionAccountNumber(AuthenticatedPerson person) {
-    String pensionAccountNumber =
-        contactDetailsService.getContactDetails(person).getPensionAccountNumber();
-    if (pensionAccountNumber == null || pensionAccountNumber.isBlank()) {
+    ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
+    if (!contactDetails.hasPensionAccount()) {
       throw new PensionAccountNotReadyException();
     }
-    return pensionAccountNumber;
+    return contactDetails.getPensionAccountNumber();
   }
 
   private static Applicant applicant(User user, String pensionAccountNumber) {

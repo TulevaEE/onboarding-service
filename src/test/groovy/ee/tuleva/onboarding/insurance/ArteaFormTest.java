@@ -43,10 +43,10 @@ class ArteaFormTest {
                 entry(
                     "Text Field14",
                     "Ütlen üles täiendava kogumispensioni kindlustuslepingu nr SP000123 esimesel"
-                        + " võimalusel (KoPS § 63 lg 5) ja soovin kasutada selle kogu"
-                        + " tagastusväärtust pensionifondi Tuleva III Samba Pensionifond (ISIN"
-                        + " EE3600001707) osakute omandamiseks, pensionikonto 993432432 (KoPS § 63"
-                        + " lg 5¹ p 2 ja lg 5²). Tulumaksu ei peeta kinni (TuMS § 21 lg 1¹)."),
+                        + " võimalusel ja soovin kasutada selle kogu tagastusväärtust pensionifondi"
+                        + " Tuleva III Samba Pensionifond (ISIN EE3600001707) osakute omandamiseks,"
+                        + " pensionikonto 993432432 (KoPS § 63 lg 5, lg 5¹ p 2, lg 5² ja 5³)."
+                        + " Tulumaksu ei peeta kinni (TuMS § 21 lg 1¹ p 1 ja 2)."),
                 entry("Text Field15", "Jaan Õunapuu")));
   }
 

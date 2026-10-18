@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "allkirjastatud avaldus kindlustusandjale": {
+      "FNAME": "Mari",
+      "insurerName": "Näidiskindlustus",
+      "insurerEmail": "info@example.com"
+    }
+  }
+}

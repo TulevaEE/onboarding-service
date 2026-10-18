@@ -1,0 +1,33 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Kirjale on lisatud sinu allkirjastatud avaldus, millega lõpetad oma III&nbsp;samba
+          kindlustuslepingu ja kannad selle raha Tuleva III&nbsp;Samba Pensionifondi.
+        </mj-text>
+        <mj-text>
+          Avaldus jõuab kindlustusandjani siis, kui sa selle ise edasi saadad. Saada see kiri koos
+          manusega edasi kindlustusandjale (*|insurerName|*) aadressil
+          <a href="mailto:*|insurerEmail|*">*|insurerEmail|*</a>.
+        </mj-text>
+        <mj-text>
+          Kui kindlustusandja küsib sinult veel midagi, vasta talle otse.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

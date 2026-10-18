@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "signed request for the insurer": {
+      "FNAME": "Mari",
+      "insurerName": "Example Insurance",
+      "insurerEmail": "info@example.com"
+    }
+  }
+}

@@ -8,11 +8,6 @@ public class EntryAccountConsistencyValidator
     implements ConstraintValidator<EntryAccountConsistency, LedgerEntry> {
 
   @Override
-  public void initialize(EntryAccountConsistency constraintAnnotation) {
-    // No initialization needed
-  }
-
-  @Override
   public boolean isValid(LedgerEntry entry, ConstraintValidatorContext context) {
     if (entry == null || entry.getAccount() == null || entry.getAssetType() == null) {
       return true; // Let @NotNull handle null cases

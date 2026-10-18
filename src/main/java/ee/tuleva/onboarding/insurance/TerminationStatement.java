@@ -15,13 +15,14 @@ final class TerminationStatement {
         + application.request().policyNumber()
         + " "
         + when(application.request().endDate())
-        + " (KoPS § 63 lg 5) ja soovin kasutada selle kogu tagastusväärtust pensionifondi "
+        + " ja soovin kasutada selle kogu tagastusväärtust pensionifondi "
         + FUND_NAME
         + " (ISIN "
         + FUND_ISIN
         + ") osakute omandamiseks, pensionikonto "
         + application.applicant().pensionAccountNumber()
-        + " (KoPS § 63 lg 5¹ p 2 ja lg 5²). Tulumaksu ei peeta kinni (TuMS § 21 lg 1¹).";
+        + " (KoPS § 63 lg 5, lg 5¹ p 2, lg 5² ja 5³)."
+        + " Tulumaksu ei peeta kinni (TuMS § 21 lg 1¹ p 1 ja 2).";
   }
 
   private static String when(@Nullable LocalDate endDate) {

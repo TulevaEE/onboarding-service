@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.user.UserService;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.Optional;
@@ -81,9 +82,8 @@ class InsuranceTransferFormServiceTest {
             InsuranceTransferForm::getInsurer,
             InsuranceTransferForm::getPensionAccountNumber,
             InsuranceTransferForm::getCreatedAt,
-            InsuranceTransferForm::getStatus)
-        .containsExactly(
-            user.getId(), COMPENSA, "99812345678", NOW, InsuranceTransferFormStatus.CREATED);
+            InsuranceTransferForm::isSigned)
+        .containsExactly(user.getId(), COMPENSA, "99812345678", NOW, false);
     try (var pdf = Loader.loadPDF(form.getFilledPdf())) {
       assertThat(new PDFTextStripper().getText(pdf))
           .contains(
@@ -103,6 +103,28 @@ class InsuranceTransferFormServiceTest {
 
     assertThatThrownBy(() -> service.create(person, compensaRequest()))
         .isInstanceOf(PensionAccountNotReadyException.class);
+  }
+
+  @Test
+  void refusesToEndTheContractFromADateThatHasPassedInEstoniaWithoutAskingThePensionRegistry() {
+    var command = compensaRequest();
+    var yesterdayInEstonia =
+        new CreateInsuranceTransferFormCommand(
+            command.insurer(),
+            command.policyNumber(),
+            LocalDate.of(2026, 10, 17),
+            command.address(),
+            command.citizenship(),
+            command.countryOfBirth(),
+            command.taxResidency(),
+            command.pep(),
+            command.usPerson(),
+            command.artea());
+
+    assertThatThrownBy(() -> service.create(person, yesterdayInEstonia))
+        .isInstanceOf(EndDateInThePastException.class);
+    then(contactDetailsService).shouldHaveNoInteractions();
+    then(repository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -129,6 +151,24 @@ class InsuranceTransferFormServiceTest {
     given(repository.findByIdAndUserId(1L, user.getId())).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.get(1L, person)).isInstanceOf(NotFoundException.class);
+  }
+
+  @Test
+  void summarizesOnlyTheOwnersForm() {
+    var summary = signedForm(1L, user.getId(), COMPENSA).summary();
+    given(repository.findSummaryByIdAndUserId(1L, user.getId())).willReturn(Optional.of(summary));
+    given(repository.findSummaryByIdAndUserId(2L, user.getId())).willReturn(Optional.empty());
+
+    assertThat(service.summary(1L, person)).isEqualTo(summary);
+    assertThatThrownBy(() -> service.summary(2L, person)).isInstanceOf(NotFoundException.class);
+  }
+
+  @Test
+  void refusesToSummarizeAFormForAPersonActingForACompany() {
+    var company = sampleAuthenticatedPersonLegalEntity().build();
+
+    assertThatThrownBy(() -> service.summary(1L, company))
+        .isInstanceOf(NotActingAsSelfException.class);
   }
 
   @Test

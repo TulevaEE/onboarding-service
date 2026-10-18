@@ -14,6 +14,16 @@ interface InsuranceTransferFormRepository extends CrudRepository<InsuranceTransf
 
   Optional<InsuranceTransferForm> findByIdAndUserId(Long id, Long userId);
 
+  @Query(
+      """
+      select new ee.tuleva.onboarding.insurance.InsuranceTransferFormSummary(
+        form.id, form.insurer, form.signedAt, form.emailStatus)
+      from InsuranceTransferForm form
+      where form.id = :id and form.userId = :userId
+      """)
+  Optional<InsuranceTransferFormSummary> findSummaryByIdAndUserId(
+      @Param("id") Long id, @Param("userId") Long userId);
+
   @Lock(PESSIMISTIC_WRITE)
   @Query("select form from InsuranceTransferForm form where form.id = :id")
   Optional<InsuranceTransferForm> findForUpdateById(@Param("id") Long id);

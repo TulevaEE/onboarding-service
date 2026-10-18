@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.insurance;
 
-import static ee.tuleva.onboarding.insurance.InsuranceTransferFormStatus.CREATED;
-import static ee.tuleva.onboarding.insurance.InsuranceTransferFormStatus.SIGNED;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.IDENTITY;
 import static lombok.AccessLevel.PROTECTED;
@@ -62,8 +60,8 @@ class InsuranceTransferForm {
     return Objects.requireNonNull(id, "Insurance transfer form is not saved yet");
   }
 
-  InsuranceTransferFormStatus getStatus() {
-    return isSigned() ? SIGNED : CREATED;
+  InsuranceTransferFormSummary summary() {
+    return new InsuranceTransferFormSummary(getIdOrThrow(), insurer, signedAt, emailStatus);
   }
 
   boolean isSigned() {

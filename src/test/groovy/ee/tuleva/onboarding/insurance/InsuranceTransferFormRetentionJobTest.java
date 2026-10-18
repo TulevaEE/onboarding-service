@@ -44,7 +44,7 @@ class InsuranceTransferFormRetentionJobTest {
     var form = repository.findById(id).orElseThrow();
     assertThat(form.getFilledPdf()).isNull();
     assertThat(form.getSignedContainer()).isNull();
-    assertThat(form.getStatus()).isEqualTo(InsuranceTransferFormStatus.SIGNED);
+    assertThat(form.summary().status()).isEqualTo(InsuranceTransferFormStatus.SIGNED);
   }
 
   @Test
@@ -66,7 +66,7 @@ class InsuranceTransferFormRetentionJobTest {
 
     var form = repository.findById(id).orElseThrow();
     assertThat(form.getFilledPdf()).isNull();
-    assertThat(form.getStatus()).isEqualTo(InsuranceTransferFormStatus.CREATED);
+    assertThat(form.summary().status()).isEqualTo(InsuranceTransferFormStatus.CREATED);
   }
 
   @Test

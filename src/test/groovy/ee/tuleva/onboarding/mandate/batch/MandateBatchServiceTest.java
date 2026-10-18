@@ -434,7 +434,7 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verifyNoInteractions(applicationEventPublisher);
-      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class), any());
     }
 
     @Test
@@ -474,7 +474,7 @@ public class MandateBatchServiceTest {
       assertThat(errors.size()).isEqualTo(2);
 
       verifyNoInteractions(applicationEventPublisher);
-      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class), any());
     }
 
     @Test
@@ -503,7 +503,7 @@ public class MandateBatchServiceTest {
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
       verify(applicationEventPublisher, never()).publishEvent(any());
-      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class), any());
     }
 
     @Test
@@ -523,7 +523,9 @@ public class MandateBatchServiceTest {
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
-      when(signService.getSignedFile(session)).thenReturn(signedFile);
+      when(signService.getSignedFile(
+              session, new SignableEntity("Mandate batch", mandateBatch.getId())))
+          .thenReturn(signedFile);
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
@@ -558,14 +560,17 @@ public class MandateBatchServiceTest {
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
-      when(signService.getSignedFile(session)).thenReturn(null);
+      when(signService.getSignedFile(
+              session, new SignableEntity("Mandate batch", mandateBatch.getId())))
+          .thenReturn(null);
 
       SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(signService, times(1)).getSignedFile(session);
+      verify(signService, times(1))
+          .getSignedFile(session, new SignableEntity("Mandate batch", mandateBatch.getId()));
       verify(mandateBatchRepository, never()).save(any());
       verify(mandateProcessor, never()).start(any(), any());
       verify(applicationEventPublisher, never()).publishEvent(any());
@@ -605,7 +610,7 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verifyNoInteractions(applicationEventPublisher);
-      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class), any());
     }
 
     @Test
@@ -645,7 +650,7 @@ public class MandateBatchServiceTest {
       assertThat(errors.size()).isEqualTo(2);
 
       verifyNoInteractions(applicationEventPublisher);
-      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class), any());
     }
 
     @Test
@@ -674,7 +679,7 @@ public class MandateBatchServiceTest {
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
       verify(applicationEventPublisher, never()).publishEvent(any());
-      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
+      verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class), any());
     }
 
     @Test
@@ -694,7 +699,9 @@ public class MandateBatchServiceTest {
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
-      when(signService.getSignedFile(session)).thenReturn(signedFile);
+      when(signService.getSignedFile(
+              session, new SignableEntity("Mandate batch", mandateBatch.getId())))
+          .thenReturn(signedFile);
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
@@ -729,14 +736,17 @@ public class MandateBatchServiceTest {
 
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
-      when(signService.getSignedFile(session)).thenReturn(null);
+      when(signService.getSignedFile(
+              session, new SignableEntity("Mandate batch", mandateBatch.getId())))
+          .thenReturn(null);
 
       SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(signService, times(1)).getSignedFile(session);
+      verify(signService, times(1))
+          .getSignedFile(session, new SignableEntity("Mandate batch", mandateBatch.getId()));
       verify(mandateBatchRepository, never()).save(any());
       verify(mandateProcessor, never()).start(any(), any());
       verify(applicationEventPublisher, never()).publishEvent(any());

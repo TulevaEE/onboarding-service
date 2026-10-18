@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.Mockito.never;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,6 +24,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner;
@@ -188,6 +190,31 @@ class InsuranceTransferFormIntegrationTest {
     }
   }
 
+  @Test
+  void aSmartIdSessionStartedForAnotherFormCannotFinishIt() throws Exception {
+    long startedForm = createCompensaForm();
+    long otherForm = createCompensaForm();
+    stubSmartIdSigningAroundARealContainer();
+
+    var start =
+        mvc.perform(
+                put("/v1/insurance-transfer-forms/{id}/signature/smart-id", startedForm)
+                    .with(authentication(owner)))
+            .andExpect(status().isOk())
+            .andReturn();
+    Cookie session = start.getResponse().getCookie("SESSION");
+
+    mvc.perform(
+            get("/v1/insurance-transfer-forms/{id}/signature/smart-id/status", otherForm)
+                .cookie(session)
+                .with(authentication(owner)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("signature.session.entity.mismatch"));
+    mvc.perform(get("/v1/insurance-transfer-forms/{id}", otherForm).with(authentication(owner)))
+        .andExpect(jsonPath("$.status").value("CREATED"));
+    then(emailService).should(never()).send(any(), any(), any());
+  }
+
   private long createCompensaForm() throws Exception {
     var response =
         mvc.perform(
@@ -230,12 +257,13 @@ class InsuranceTransferFormIntegrationTest {
   }
 
   private void stubSmartIdSigningAroundARealContainer() {
-    given(smartIdSigner.startSign(any(), any()))
+    given(smartIdSigner.startSign(any(), any(), any()))
         .willAnswer(
             invocation -> {
-              List<SignatureFile> files = invocation.getArgument(0);
-              AuthenticatedPerson signer = invocation.getArgument(1);
-              var session = new SmartIdSignatureSession(signer.getPersonalCode(), files);
+              SignableEntity entity = invocation.getArgument(0);
+              List<SignatureFile> files = invocation.getArgument(1);
+              AuthenticatedPerson signer = invocation.getArgument(2);
+              var session = new SmartIdSignatureSession(entity, signer.getPersonalCode(), files);
               session.setVerificationCode(VERIFICATION_CODE);
               return session;
             });

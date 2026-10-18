@@ -89,6 +89,25 @@ class ArteaFormTest {
   }
 
   @Test
+  void printsThePremiumAccountIbanInTheFormItsBankIsReadFrom() throws IOException {
+    var answers = questionnaire();
+    var typedIban =
+        new ArteaQuestionnaire(
+            answers.idDocument(),
+            answers.occupation(),
+            answers.incomeSources(),
+            answers.monthlyNetIncome(),
+            " ee44 2200 2210 9287 4625 ");
+
+    var values =
+        FilledForms.fieldValues(form.documents(application(arteaRequest(typedIban))).get(1));
+
+    assertThat(values)
+        .contains(
+            entry("Text Field34", "EE442200221092874625"), entry("Text Field35", "Swedbank AS"));
+  }
+
+  @Test
   void describesAnOccupationOtherThanEmploymentAndMarksAPoliticallyExposedForeignResident()
       throws IOException {
     var answers = questionnaire();

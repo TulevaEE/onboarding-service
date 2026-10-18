@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -31,6 +32,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -204,10 +206,27 @@ class InsuranceTransferFormControllerTest {
   }
 
   @Test
+  void refusesAnEndDateThatHasPassed() throws Exception {
+    given(formService.create(any(), any()))
+        .willThrow(
+            new EndDateInThePastException(LocalDate.of(2024, 1, 1), LocalDate.of(2026, 10, 18)));
+
+    mvc.perform(
+            as(post(FORMS))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\","
+                        + " \"endDate\": \"2024-01-01\", %s,".formatted(ADDRESS)
+                        + " \"usPerson\": false}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("insurance.transfer.form.end.date.passed"));
+  }
+
+  @Test
   void reportsTheSignedStateAndHowTheEmailEnded() throws Exception {
     var form = signedForm(1L, userId, COMPENSA);
     form.recordEmailStatus(SENT);
-    given(formService.get(1L, person)).willReturn(form);
+    given(formService.summary(1L, person)).willReturn(form.summary());
 
     mvc.perform(as(get(FORMS + "/1")))
         .andExpect(status().isOk())
@@ -222,7 +241,7 @@ class InsuranceTransferFormControllerTest {
 
   @Test
   void hidesAnotherPersonsForm() throws Exception {
-    given(formService.get(1L, person)).willThrow(new NotFoundException("not found"));
+    given(formService.summary(1L, person)).willThrow(new NotFoundException("not found"));
 
     mvc.perform(as(get(FORMS + "/1"))).andExpect(status().isNotFound());
   }

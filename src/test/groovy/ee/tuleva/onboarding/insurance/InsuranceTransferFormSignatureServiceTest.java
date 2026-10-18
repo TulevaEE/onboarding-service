@@ -53,6 +53,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 class InsuranceTransferFormSignatureServiceTest {
 
   private static final SignableEntity FORM_1 = new SignableEntity("Insurance transfer form", 1L);
+  private static final SignableEntity MANDATE_1 = new SignableEntity("Mandate", 1L);
   private static final byte[] SIGNED_CONTAINER = {9, 9};
 
   @Mock private InsuranceTransferFormService formService;
@@ -82,23 +83,21 @@ class InsuranceTransferFormSignatureServiceTest {
     var form = savedForm(1L, user.getId(), COMPENSA);
     given(formService.get(1L, person)).willReturn(form);
     var session = smartIdSession();
-    given(signatureService.startSmartIdSign(argThat(isTheFilledForm(form)), eq(person)))
+    given(signatureService.startSmartIdSign(eq(FORM_1), argThat(isTheFilledForm(form)), eq(person)))
         .willReturn(session);
 
     MobileSignatureResponse response = service.startSmartIdSignature(1L, person);
 
     assertThat(response.getChallengeCode()).isEqualTo("1234");
     then(sessionStore).should().save(session);
-    then(sessionStore).should().save(new InsuranceTransferFormSigningSession(1L));
   }
 
   @Test
   void finishesSmartIdSigningOfTheFormTheSessionWasStartedFor() {
     var session = smartIdSession();
     given(sessionStore.get(SmartIdSignatureSession.class)).willReturn(Optional.of(session));
-    given(formService.get(1L, person)).willReturn(savedForm(1L, user.getId(), COMPENSA));
-    givenSigningStartedFor(1L);
-    given(signatureService.getSignedFile(session)).willReturn(SIGNED_CONTAINER);
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
+    given(signatureService.getSignedFile(session, FORM_1)).willReturn(SIGNED_CONTAINER);
 
     MobileSignatureStatusResponse status = service.getSmartIdSignatureStatus(1L, person);
 
@@ -110,9 +109,8 @@ class InsuranceTransferFormSignatureServiceTest {
   void keepsWaitingWhileThePersonHasNotSignedYet() {
     var session = smartIdSession();
     given(sessionStore.get(SmartIdSignatureSession.class)).willReturn(Optional.of(session));
-    given(formService.get(1L, person)).willReturn(savedForm(1L, user.getId(), COMPENSA));
-    givenSigningStartedFor(1L);
-    given(signatureService.getSignedFile(session)).willReturn(null);
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
+    given(signatureService.getSignedFile(session, FORM_1)).willReturn(null);
 
     MobileSignatureStatusResponse status = service.getSmartIdSignatureStatus(1L, person);
 
@@ -122,22 +120,36 @@ class InsuranceTransferFormSignatureServiceTest {
   }
 
   @Test
-  void aSigningSessionStartedForAnotherFormCannotFinishThisOne() {
-    given(sessionStore.get(SmartIdSignatureSession.class))
-        .willReturn(Optional.of(smartIdSession()));
-    given(formService.get(1L, person)).willReturn(savedForm(1L, user.getId(), COMPENSA));
-    givenSigningStartedFor(2L);
+  void aSmartIdSessionStartedForAnotherEntityCannotFinishThisForm() {
+    var mandateSession = smartIdSession(MANDATE_1);
+    given(sessionStore.get(SmartIdSignatureSession.class)).willReturn(Optional.of(mandateSession));
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
+    given(signatureService.getSignedFile(mandateSession, FORM_1))
+        .willThrow(SignatureStateException.startedForAnotherEntity(FORM_1));
 
     assertThatThrownBy(() -> service.getSmartIdSignatureStatus(1L, person))
         .isInstanceOf(SignatureStateException.class);
-    then(signatureService).shouldHaveNoInteractions();
+    then(formService).should(never()).sign(any(), any(), any());
+  }
+
+  @Test
+  void aMobileIdSessionStartedForAnotherEntityCannotFinishThisForm() {
+    var mandateSession = mobileIdSession(MANDATE_1);
+    given(sessionStore.get(MobileIdSignatureSession.class)).willReturn(Optional.of(mandateSession));
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
+    given(signatureService.getSignedFile(mandateSession, FORM_1))
+        .willThrow(SignatureStateException.startedForAnotherEntity(FORM_1));
+
+    assertThatThrownBy(() -> service.getMobileIdSignatureStatus(1L, person))
+        .isInstanceOf(SignatureStateException.class);
+    then(formService).should(never()).sign(any(), any(), any());
   }
 
   @Test
   void aRepeatedPollOfASignedFormReportsTheSignatureWithoutSigningOrEmailingAgain() {
     given(sessionStore.get(SmartIdSignatureSession.class))
         .willReturn(Optional.of(smartIdSession()));
-    given(formService.get(1L, person)).willReturn(signedForm(1L, user.getId(), COMPENSA));
+    given(formService.summary(1L, person)).willReturn(signedSummary());
 
     MobileSignatureStatusResponse status = service.getSmartIdSignatureStatus(1L, person);
 
@@ -170,23 +182,24 @@ class InsuranceTransferFormSignatureServiceTest {
     var session = mobileIdSession();
     given(
             signatureService.startMobileIdSign(
-                argThat(isTheFilledForm(form)), eq(user.getPersonalCode()), eq("+37255555555")))
+                eq(FORM_1),
+                argThat(isTheFilledForm(form)),
+                eq(user.getPersonalCode()),
+                eq("+37255555555")))
         .willReturn(session);
 
     MobileSignatureResponse response = service.startMobileIdSignature(1L, person);
 
     assertThat(response.getChallengeCode()).isEqualTo("5678");
     then(sessionStore).should().save(session);
-    then(sessionStore).should().save(new InsuranceTransferFormSigningSession(1L));
   }
 
   @Test
   void finishesMobileIdSigningOfTheFormTheSessionWasStartedFor() {
     var session = mobileIdSession();
     given(sessionStore.get(MobileIdSignatureSession.class)).willReturn(Optional.of(session));
-    given(formService.get(1L, person)).willReturn(savedForm(1L, user.getId(), COMPENSA));
-    givenSigningStartedFor(1L);
-    given(signatureService.getSignedFile(session)).willReturn(SIGNED_CONTAINER);
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
+    given(signatureService.getSignedFile(session, FORM_1)).willReturn(SIGNED_CONTAINER);
 
     MobileSignatureStatusResponse status = service.getMobileIdSignatureStatus(1L, person);
 
@@ -220,7 +233,7 @@ class InsuranceTransferFormSignatureServiceTest {
   void finishesIdCardSigningWithTheSignatureFromTheCard() {
     var session = idCardSession();
     given(sessionStore.get(IdCardSignatureSession.class)).willReturn(Optional.of(session));
-    given(formService.get(1L, person)).willReturn(savedForm(1L, user.getId(), COMPENSA));
+    given(formService.summary(1L, person)).willReturn(unsignedSummary());
     given(signatureService.getSignedFile(session, FORM_1, "signature"))
         .willReturn(SIGNED_CONTAINER);
 
@@ -234,7 +247,7 @@ class InsuranceTransferFormSignatureServiceTest {
   @Test
   void doesNotTakeASecondIdCardSignatureForASignedForm() {
     given(sessionStore.get(IdCardSignatureSession.class)).willReturn(Optional.of(idCardSession()));
-    given(formService.get(1L, person)).willReturn(signedForm(1L, user.getId(), COMPENSA));
+    given(formService.summary(1L, person)).willReturn(signedSummary());
 
     assertThatThrownBy(
             () ->
@@ -246,9 +259,9 @@ class InsuranceTransferFormSignatureServiceTest {
 
   @Test
   void reportsTheIdCardSignatureOnlyOnceTheFormIsSigned() {
-    given(formService.get(1L, person))
-        .willReturn(savedForm(1L, user.getId(), COMPENSA))
-        .willReturn(signedForm(1L, user.getId(), COMPENSA));
+    given(formService.summary(1L, person))
+        .willReturn(unsignedSummary())
+        .willReturn(signedSummary());
 
     assertThatThrownBy(() -> service.getIdCardSignatureStatus(1L, person))
         .isInstanceOf(SignatureStateException.class);
@@ -256,9 +269,12 @@ class InsuranceTransferFormSignatureServiceTest {
         .isEqualTo(new IdCardSignatureStatusResponse(SIGNATURE));
   }
 
-  private void givenSigningStartedFor(Long formId) {
-    given(sessionStore.get(InsuranceTransferFormSigningSession.class))
-        .willReturn(Optional.of(new InsuranceTransferFormSigningSession(formId)));
+  private InsuranceTransferFormSummary unsignedSummary() {
+    return savedForm(1L, user.getId(), COMPENSA).summary();
+  }
+
+  private InsuranceTransferFormSummary signedSummary() {
+    return signedForm(1L, user.getId(), COMPENSA).summary();
   }
 
   private static ArgumentMatcher<List<SignatureFile>> isTheFilledForm(InsuranceTransferForm form) {
@@ -270,13 +286,25 @@ class InsuranceTransferFormSignatureServiceTest {
   }
 
   private SmartIdSignatureSession smartIdSession() {
-    var session = new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+    return smartIdSession(FORM_1);
+  }
+
+  private SmartIdSignatureSession smartIdSession(SignableEntity startedFor) {
+    var session = new SmartIdSignatureSession(startedFor, user.getPersonalCode(), List.of());
     session.setVerificationCode("1234");
     return session;
   }
 
   private static MobileIdSignatureSession mobileIdSession() {
-    return MobileIdSignatureSession.builder().sessionId("session").verificationCode("5678").build();
+    return mobileIdSession(FORM_1);
+  }
+
+  private static MobileIdSignatureSession mobileIdSession(SignableEntity startedFor) {
+    return MobileIdSignatureSession.builder()
+        .signableEntity(startedFor)
+        .sessionId("session")
+        .verificationCode("5678")
+        .build();
   }
 
   private static IdCardSignatureSession idCardSession() {

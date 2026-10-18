@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SignableEntity
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -98,7 +99,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "smart id signature start returns no challenge code while the certificate is still being chosen"() {
     when:
-    def session = new SmartIdSignatureSession("personalCode", [])
+    def session = new SmartIdSignatureSession(new SignableEntity("Mandate", 1L), "personalCode", [])
     1 * mandateService.smartIdSign(1L, _) >> session
     1 * sessionStore.save(session)
 
@@ -113,7 +114,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "smart id signature start returns the challenge code as soon as signing has begun"() {
     when:
-    def session = new SmartIdSignatureSession("personalCode", [])
+    def session = new SmartIdSignatureSession(new SignableEntity("Mandate", 1L), "personalCode", [])
     session.verificationCode = "4321"
     1 * mandateService.smartIdSign(1L, _) >> session
     1 * sessionStore.save(session)
@@ -129,7 +130,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "get smart id signature status returns the status and challenge code"() {
     when:
-    def session = new SmartIdSignatureSession("personalCode", [])
+    def session = new SmartIdSignatureSession(new SignableEntity("Mandate", 1L), "personalCode", [])
     session.verificationCode = "1234"
     1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
     1 * localeService.getCurrentLocale() >> ENGLISH

@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.apache.pdfbox.Loader;
@@ -57,10 +58,12 @@ public final class FillablePdf {
     if (pdfs.size() == 1) {
       return pdfs.getFirst();
     }
-    List<PDDocument> parts = pdfs.stream().map(FillablePdf::load).toList();
+    List<PDDocument> parts = new ArrayList<>();
     try (PDDocument merged = new PDDocument()) {
       PDFMergerUtility merger = new PDFMergerUtility();
-      for (PDDocument part : parts) {
+      for (byte[] pdf : pdfs) {
+        PDDocument part = load(pdf);
+        parts.add(part);
         merger.appendDocument(merged, part);
       }
       return bytes(merged);

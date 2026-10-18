@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
+import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonView;
@@ -190,7 +191,9 @@ public class MandateController implements SignatureController<Long> {
       throws IOException {
 
     Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUserIdOrThrow());
-    response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
+    response.addHeader(
+        "Content-Disposition",
+        "attachment; filename=" + DIGIDOC_CONTAINER.fileName("Tuleva_avaldus"));
 
     byte[] content =
         mandate.getMandate().orElseThrow(() -> new RuntimeException("Mandate is not signed"));

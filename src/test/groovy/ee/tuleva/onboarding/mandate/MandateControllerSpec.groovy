@@ -201,7 +201,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(status().isOk())
         .andReturn()
 
-    result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
+    result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.asice"
     result.getResponse().committed
   }
 

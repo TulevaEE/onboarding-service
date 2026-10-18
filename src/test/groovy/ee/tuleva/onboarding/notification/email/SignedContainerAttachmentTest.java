@@ -15,8 +15,8 @@ class SignedContainerAttachmentTest {
     MessageContent attachment = SignedContainerAttachment.of("tuleva_avaldus_1", container);
 
     MessageContent expected = new MessageContent();
-    expected.setName("tuleva_avaldus_1.bdoc");
-    expected.setType("application/bdoc");
+    expected.setName("tuleva_avaldus_1.asice");
+    expected.setType("application/vnd.etsi.asic-e+zip");
     expected.setContent(Base64.getEncoder().encodeToString(container));
     assertThat(attachment).usingRecursiveComparison().isEqualTo(expected);
   }

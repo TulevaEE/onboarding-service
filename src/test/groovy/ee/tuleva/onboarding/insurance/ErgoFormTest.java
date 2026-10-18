@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.insurance;
 
+import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.PENSION_ACCOUNT_NUMBER;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.application;
 import static ee.tuleva.onboarding.insurance.InsuranceTransferFormFixture.ergoRequest;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,8 +16,9 @@ class ErgoFormTest {
   private final ErgoForm form = new ErgoForm();
 
   @Test
-  void fillsTheBenefitPaymentFormToEndTheContractAndTransferEverythingToTheFund()
-      throws IOException {
+  void
+      fillsTheBenefitPaymentFormToEndTheContractAndTransferEverythingToTheFundUnderThePensionAccountNumber()
+          throws IOException {
     var documents = form.documents(application(ergoRequest()));
 
     assertThat(documents).hasSize(1);
@@ -41,7 +43,9 @@ class ErgoFormTest {
                 entry("pol  pp kk aaaa", "01112026"),
                 entry("market", "yes"),
                 entry("%3", "100"),
-                entry("teenusepakkuja", "Tuleva III Samba Pensionifond"),
+                entry(
+                    "teenusepakkuja",
+                    "Tuleva III Samba Pensionifond, pensionikonto " + PENSION_ACCOUNT_NUMBER),
                 entry("ISIN", "EE3600001707"),
                 entry("KV ees ja perenimi", "Jaan Õunapuu"),
                 entry("KV  pp kk aaaa", "18102026")));
@@ -82,7 +86,7 @@ class ErgoFormTest {
     var documents = form.documents(application(ergoRequest()));
 
     assertThat(FilledForms.text(documents))
-        .contains("Jaan", "Õunapuu", "Tuleva III Samba Pensionifond");
+        .contains("Jaan", "Õunapuu", "Tuleva III Samba Pensionifond", PENSION_ACCOUNT_NUMBER);
     assertThat(FilledForms.hasEditableFields(documents)).isFalse();
   }
 }

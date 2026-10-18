@@ -46,6 +46,10 @@ public class ContactDetails implements Person {
     return isSecondPillarActive || secondPillarJoinDate != null;
   }
 
+  public boolean hasPensionAccount() {
+    return pensionAccountNumber != null && !pensionAccountNumber.isBlank();
+  }
+
   public Country getAddress() {
     return Country.builder().countryCode(country).build();
   }

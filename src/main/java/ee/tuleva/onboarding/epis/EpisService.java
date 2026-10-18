@@ -46,7 +46,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class EpisService {
 
   private final String APPLICATIONS_CACHE_NAME = "applications";
-  private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
+  static final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
   private final String FUNDS_CACHE_NAME = "funds";

@@ -70,6 +70,16 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "insurance_transfer_form_en": {
+      "subject": "Your request to end your third pillar insurance contract",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "insurance_transfer_form_et": {
+      "subject": "Sinu III samba kindlustuslepingu lõpetamise avaldus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "listing_expires_en": {
       "subject": "Your listing to transfer member capital has expired",
       "from_email": "tuleva@tuleva.ee",
@@ -334,6 +344,7 @@
     "capital_transfer_confirmed_by_seller": "Sent to the buyer when the seller confirms receiving the payment. The contract then goes to the board for approval.",
     "capital_transfer_seller_to_confirm": "Published in Mandrill but currently unused: no code path in the service sends this template. The confirmed_by_buyer email covers this step.",
     "hackathon_registration": "Confirmation sent immediately after registering for the Tuleva hackathon.",
+    "insurance_transfer_form": "Sent right after the person signs a request to end a third pillar insurance contract and move its money to Tuleva III Samba Pensionifond, with the signed request attached. Tuleva sends nothing to the insurer: the email asks the person to forward it to the insurer address it names.",
     "listing_expires": "Published in Mandrill but currently unused: no code path in the service sends this template yet.",
     "listing_reply_to_buyer": "Sent to the owner of a member capital buy listing when another member responds, with the responder's contact details.",
     "listing_reply_to_seller": "Sent to the owner of a member capital sell listing when another member responds, with the responder's contact details.",

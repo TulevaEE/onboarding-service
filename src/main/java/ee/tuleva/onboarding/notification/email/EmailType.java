@@ -47,6 +47,8 @@ public enum EmailType {
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
 
   HACKATHON_REGISTRATION("hackathon_registration"),
+
+  INSURANCE_TRANSFER_FORM("insurance_transfer_form"),
   ;
 
   private final String templateName;

@@ -18,6 +18,7 @@ public class SignatureFile implements Serializable {
 
   public enum SignatureFileType {
     HTML("text/html", "html"),
+    PDF("application/pdf", "pdf"),
     DIGIDOC_CONTAINER("application/vnd.etsi.asic-e+zip", "asice");
 
     @Getter private final String mimeType;

@@ -56,9 +56,18 @@ final class InsuranceTransferFormFixture {
   }
 
   static CreateInsuranceTransferFormCommand arteaRequest(ArteaQuestionnaire questionnaire) {
+    return arteaRequest("SP000123", questionnaire);
+  }
+
+  static CreateInsuranceTransferFormCommand arteaRequest(String policyNumber) {
+    return arteaRequest(policyNumber, questionnaire());
+  }
+
+  private static CreateInsuranceTransferFormCommand arteaRequest(
+      String policyNumber, ArteaQuestionnaire questionnaire) {
     return new CreateInsuranceTransferFormCommand(
         ARTEA,
-        "UP000123",
+        policyNumber,
         null,
         address(),
         List.of("EE", "FI"),
@@ -70,13 +79,17 @@ final class InsuranceTransferFormFixture {
   }
 
   static ArteaQuestionnaire questionnaire() {
+    return questionnaire(idCard(LocalDate.of(2024, 1, 1), LocalDate.of(2029, 1, 1)));
+  }
+
+  static IdentityDocument idCard(LocalDate issuedOn, LocalDate validUntil) {
+    return new IdentityDocument(
+        IdentityDocument.Type.ID_CARD, "AB0000000", issuedOn, validUntil, "EE");
+  }
+
+  static ArteaQuestionnaire questionnaire(IdentityDocument idDocument) {
     return new ArteaQuestionnaire(
-        new IdentityDocument(
-            IdentityDocument.Type.ID_CARD,
-            "AB0000000",
-            LocalDate.of(2024, 1, 1),
-            LocalDate.of(2029, 1, 1),
-            "EE"),
+        idDocument,
         new Occupation(Occupation.Status.EMPLOYED, "Spetsialist", "Näidis OÜ", "Tallinn", null),
         List.of(
             new IncomeSource(IncomeSource.Type.SALARY, null),

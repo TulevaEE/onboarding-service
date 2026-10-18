@@ -10,11 +10,6 @@ public class AmountPrecisionValidator
     implements ConstraintValidator<ValidAmountPrecision, LedgerEntry> {
 
   @Override
-  public void initialize(ValidAmountPrecision constraintAnnotation) {
-    // No initialization needed
-  }
-
-  @Override
   public boolean isValid(LedgerEntry entry, ConstraintValidatorContext context) {
     if (entry == null || entry.getAmount() == null || entry.getAssetType() == null) {
       return true; // Let @NotNull handle null cases

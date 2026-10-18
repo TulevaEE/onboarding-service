@@ -37,7 +37,6 @@ class AssetTypeConsistencyValidatorTest {
   void setUp() {
     validator = Validation.buildDefaultValidatorFactory().getValidator();
     customValidator = new AssetTypeConsistencyValidator();
-    customValidator.initialize(null);
   }
 
   @Test

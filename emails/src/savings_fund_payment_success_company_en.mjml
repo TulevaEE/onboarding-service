@@ -23,6 +23,17 @@
       </mj-column>
     </mj-section>
 
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
+        <mj-text>
+          You can also find the information needed for the annual report in your company's Tuleva
+          account.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
     <mj-include path="./partials/contact_en.mjml" />
     <mj-section padding="0 24px">
       <mj-column>
@@ -32,7 +43,11 @@
         </mj-text>
       </mj-column>
     </mj-section>
+    <mj-raw>*|IF:anyPillarSuggestion|*</mj-raw>
     <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-raw>*|ELSE:|*</mj-raw>
+    <mj-include path="./partials/disclaimer_savings_company_en.mjml" />
+    <mj-raw>*|END:IF|*</mj-raw>
     <mj-include path="./partials/disclaimer_social_tax_en.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>

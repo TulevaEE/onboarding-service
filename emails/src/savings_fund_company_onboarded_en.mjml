@@ -10,8 +10,11 @@
           The Tuleva Additional Investment Fund account for your company *|RECIPIENTNAME|* is now
           open.
         </mj-text>
-        <mj-text><strong>You can make the first deposit straight from the company's bank account:</strong></mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Make a deposit</mj-button>
+        <mj-text>
+          You can make your first contribution easily from the company's bank account. You can start
+          with any amount that suits you.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">Make a contribution</mj-button>
       </mj-column>
     </mj-section>
 
@@ -24,7 +27,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/disclaimer_savings_company_en.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

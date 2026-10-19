@@ -1,0 +1,42 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          You have started opening a Tuleva Additional Investment Fund account for your company
+          *|RECIPIENTNAME|*. <strong>We can open the account once the company's other shareholder has
+          verified their identity.</strong>
+        </mj-text>
+        <mj-text>
+          They can do this by logging in to Tuleva and filling in the same short questionnaire through
+          this link:
+          <a href="https://pension.tuleva.ee/savings-fund/onboarding/identity?language=en">pension.tuleva.ee/savings-fund/onboarding/identity</a>
+        </mj-text>
+        <mj-text>
+          Once the other shareholder has verified their identity, the account will be open and you will
+          receive a confirmation email. You can then make your first contribution.
+        </mj-text>
+        <mj-text>
+          We will never ask for your passwords or PIN codes by email or phone. If in doubt, open
+          pension.tuleva.ee in your browser yourself or write to
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager at Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -52,5 +53,17 @@ class ThirdPillarAnalyticsTest {
 
     assertThat(thirdPillarAnalytics.findTransactionsReportedOnOrAfter(cutoff))
         .containsExactly(transaction);
+  }
+
+  @Test
+  void findsTheSaversOwnContributionsSinceTheGivenDate() {
+    var from = LocalDate.of(2026, 7, 1);
+    var contribution =
+        new ThirdPillarContribution(LocalDate.of(2026, 7, 10), new BigDecimal("100.00"));
+    given(transactionRepository.findOwnContributionsSince("38888888888", from))
+        .willReturn(List.of(contribution));
+
+    assertThat(thirdPillarAnalytics.ownContributionsSince("38888888888", from))
+        .containsExactly(contribution);
   }
 }

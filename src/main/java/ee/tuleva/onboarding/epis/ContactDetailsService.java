@@ -1,14 +1,11 @@
 package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.epis.EpisService.CONTACT_DETAILS_CACHE_NAME;
-
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.error.ErrorsResponseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -47,18 +44,10 @@ public class ContactDetailsService {
     episService.clearCache(person);
   }
 
-  @CacheEvict(
-      value = CONTACT_DETAILS_CACHE_NAME,
-      key = "#person.representedPersonalCode",
-      condition = "!#result.hasPensionAccount()")
   public ContactDetails getContactDetails(Person person, String jwtToken) {
     return episService.getContactDetails(person, jwtToken);
   }
 
-  @CacheEvict(
-      value = CONTACT_DETAILS_CACHE_NAME,
-      key = "#person.representedPersonalCode",
-      condition = "!#result.hasPensionAccount()")
   public ContactDetails getContactDetails(Person person) {
     return episService.getContactDetails(person);
   }

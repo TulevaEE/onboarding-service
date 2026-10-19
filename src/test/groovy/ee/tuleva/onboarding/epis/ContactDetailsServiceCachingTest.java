@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.ResponseEntity.ok;
 
@@ -56,43 +57,45 @@ class ContactDetailsServiceCachingTest {
   }
 
   @Test
-  void readsThePensionAccountNumberOnceTheRegistryHasOpenedTheAccount() {
+  void servesContactDetailsWithoutAPensionAccountNumberFromTheCacheOnTheNextRead() {
     SecurityContextHolder.getContext()
         .setAuthentication(new TestingAuthenticationToken("person", TOKEN));
-    ContactDetails beforeTheAccountOpens = withoutPensionAccount();
-    ContactDetails afterTheAccountOpens = contactDetailsFixture();
-    givenTheRegistryAnswers(beforeTheAccountOpens, afterTheAccountOpens);
+    ContactDetails withoutPensionAccount = withoutPensionAccount();
+    givenTheRegistryAnswers(withoutPensionAccount, contactDetailsFixture());
 
     ContactDetails first = contactDetailsService.getContactDetails(person);
     ContactDetails second = contactDetailsService.getContactDetails(person);
 
-    assertThat(first).isSameAs(beforeTheAccountOpens);
-    assertThat(second).isSameAs(afterTheAccountOpens);
+    assertThat(first).isSameAs(withoutPensionAccount);
+    assertThat(second).isSameAs(withoutPensionAccount);
+    thenTheRegistryWasAskedOnce();
   }
 
   @Test
-  void readsThePensionAccountNumberOnceTheRegistryHasOpenedTheAccountForAGivenToken() {
-    ContactDetails beforeTheAccountOpens = withoutPensionAccount();
-    ContactDetails afterTheAccountOpens = contactDetailsFixture();
-    givenTheRegistryAnswers(beforeTheAccountOpens, afterTheAccountOpens);
+  void servesContactDetailsWithoutAPensionAccountNumberFromTheCacheOnTheNextReadForAGivenToken() {
+    ContactDetails withoutPensionAccount = withoutPensionAccount();
+    givenTheRegistryAnswers(withoutPensionAccount, contactDetailsFixture());
 
     ContactDetails first = contactDetailsService.getContactDetails(person, TOKEN);
     ContactDetails second = contactDetailsService.getContactDetails(person, TOKEN);
 
-    assertThat(first).isSameAs(beforeTheAccountOpens);
-    assertThat(second).isSameAs(afterTheAccountOpens);
+    assertThat(first).isSameAs(withoutPensionAccount);
+    assertThat(second).isSameAs(withoutPensionAccount);
+    thenTheRegistryWasAskedOnce();
   }
 
   @Test
-  void keepsContactDetailsWithAPensionAccountNumberInTheCache() {
-    ContactDetails cached = contactDetailsFixture();
-    givenTheRegistryAnswers(cached, contactDetailsFixture());
+  void asksTheRegistryAgainOnceTheCacheIsCleared() {
+    ContactDetails beforeClearing = withoutPensionAccount();
+    ContactDetails afterClearing = contactDetailsFixture();
+    givenTheRegistryAnswers(beforeClearing, afterClearing);
 
     ContactDetails first = contactDetailsService.getContactDetails(person, TOKEN);
+    contactDetailsService.clearCache(person);
     ContactDetails second = contactDetailsService.getContactDetails(person, TOKEN);
 
-    assertThat(first).isSameAs(cached);
-    assertThat(second).isSameAs(cached);
+    assertThat(first).isSameAs(beforeClearing);
+    assertThat(second).isSameAs(afterClearing);
   }
 
   private void givenTheRegistryAnswers(ContactDetails first, ContactDetails then) {
@@ -100,6 +103,13 @@ class ContactDetailsServiceCachingTest {
             episRestTemplate.exchange(
                 eq(CONTACT_DETAILS_URL), eq(GET), any(HttpEntity.class), eq(ContactDetails.class)))
         .willReturn(ok(first), ok(then));
+  }
+
+  private void thenTheRegistryWasAskedOnce() {
+    then(episRestTemplate)
+        .should()
+        .exchange(
+            eq(CONTACT_DETAILS_URL), eq(GET), any(HttpEntity.class), eq(ContactDetails.class));
   }
 
   private static ContactDetails withoutPensionAccount() {

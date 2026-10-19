@@ -29,7 +29,6 @@ import static ee.tuleva.onboarding.insurance.Occupation.Status.UNEMPLOYED;
 import static ee.tuleva.onboarding.personalcode.PersonalCode.getDateOfBirth;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Predicate.not;
 
 import ee.tuleva.onboarding.insurance.pdf.AddedField;
 import ee.tuleva.onboarding.insurance.pdf.FormDocument;
@@ -150,7 +149,7 @@ class ArteaForm implements InsurerForm {
             .text("Text Field35", Bank.displayNameFromIban(answers.premiumAccountIban()))
             .text("Text Field44", applicant.fullName())
             .text("Text Field45", FormText.date(application.today()));
-    otherCountriesOfIdentityDocuments(values, request.citizenship(), document);
+    otherCountriesOfIdentityDocuments(values, request.citizenship(), document.issuingCountry());
     taxResidency(values, request.taxResidency());
     occupation(values, answers.occupation());
     answers.incomeSources().forEach(source -> incomeSource(values, source));
@@ -159,10 +158,10 @@ class ArteaForm implements InsurerForm {
   }
 
   private static void otherCountriesOfIdentityDocuments(
-      FormValues values, @Nullable List<String> citizenship, IdentityDocument document) {
+      FormValues values, @Nullable List<String> citizenship, String documentCountry) {
     List<String> otherCountries =
         requireNonNull(citizenship, "Citizenship missing").stream()
-            .filter(not(document::isIssuedBy))
+            .filter(country -> !country.equalsIgnoreCase(documentCountry))
             .toList();
     if (!otherCountries.isEmpty()) {
       values.text("Text Field14", FormText.countries(otherCountries));

@@ -13,10 +13,6 @@ public record IdentityDocument(
     @NotNull LocalDate validUntil,
     @NotBlank @ValidIso2CountryCode String issuingCountry) {
 
-  boolean isIssuedBy(String countryCode) {
-    return issuingCountry.equalsIgnoreCase(countryCode);
-  }
-
   void requireValidOn(LocalDate today) {
     if (issuedOn.isAfter(today)) {
       throw new IdentityDocumentIssuedInTheFutureException(issuedOn, today);

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.ThirdPillarContribution;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,18 @@ public interface AnalyticsThirdPillarTransactionRepository
         AND t.reportingDate >= :fromDate
       """)
   int countContributionMonthsSince(String personalCode, LocalDate fromDate);
+
+  @Query(
+      """
+      SELECT new ee.tuleva.onboarding.analytics.ThirdPillarContribution(
+        t.reportingDate, t.transactionValue)
+      FROM AnalyticsThirdPillarTransaction t
+      WHERE t.personalId = :personalCode
+        AND t.transactionSource = 'Osakute väljalase isikult laekumiste alusel'
+        AND t.reportingDate >= :fromDate
+      ORDER BY t.reportingDate
+      """)
+  List<ThirdPillarContribution> findOwnContributionsSince(String personalCode, LocalDate fromDate);
 
   @Query("SELECT MAX(t.reportingDate) FROM AnalyticsThirdPillarTransaction t")
   Optional<LocalDate> findLatestReportingDate();

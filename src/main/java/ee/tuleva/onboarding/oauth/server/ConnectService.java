@@ -52,6 +52,7 @@ class ConnectService {
     return new ConnectRequestResponse(
         client(request).getClientName(),
         request.scopes().stream().sorted().toList(),
+        request.createdAt(),
         request.expiresAt());
   }
 

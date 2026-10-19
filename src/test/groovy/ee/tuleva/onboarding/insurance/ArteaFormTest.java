@@ -150,6 +150,22 @@ class ArteaFormTest {
   }
 
   @Test
+  void printsTheForeignTaxResidencyCountryOnTheRowOfOtherWhereTheFormPrintsNothingElse()
+      throws IOException {
+    var questionnaire = form.documents(application(foreignCompanyOwner())).get(1);
+    var countryField = ArteaForm.OTHER_TAX_RESIDENCY_COUNTRY.name();
+    var country = FilledForms.boxOf(questionnaire, countryField);
+    var other = FilledForms.boxOf(questionnaire, "Check Box1");
+
+    assertThat(country.page()).isEqualTo(other.page());
+    assertThat(country.bottom()).isLessThanOrEqualTo(other.bottom());
+    assertThat(country.top()).isGreaterThanOrEqualTo(other.top());
+    assertThat(country.left()).isGreaterThan(other.right());
+    assertThat(FilledForms.templateTextIn(questionnaire, country)).isEmpty();
+    assertThat(FilledForms.fieldsOverlapping(questionnaire, countryField)).isEmpty();
+  }
+
+  @Test
   void leavesTheOtherTaxResidencyCountryEmptyForAnEstonianTaxResident() throws IOException {
     var values = FilledForms.fieldValues(form.documents(application(arteaRequest())).get(1));
 

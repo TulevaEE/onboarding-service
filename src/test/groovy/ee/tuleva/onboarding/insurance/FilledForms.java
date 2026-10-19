@@ -22,6 +22,7 @@ import org.apache.pdfbox.cos.COSString;
 import org.apache.pdfbox.pdfparser.PDFStreamParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceStream;
@@ -29,6 +30,7 @@ import org.apache.pdfbox.pdmodel.interactive.form.PDAcroForm;
 import org.apache.pdfbox.pdmodel.interactive.form.PDButton;
 import org.apache.pdfbox.pdmodel.interactive.form.PDField;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 
 final class FilledForms {
 
@@ -199,6 +201,94 @@ final class FilledForms {
       numbers[i] = operands.get(i) instanceof COSNumber number ? number.floatValue() : 0;
     }
     return numbers;
+  }
+
+  record Box(int page, float left, float bottom, float right, float top) {
+
+    boolean overlaps(Box other) {
+      return page == other.page
+          && left < other.right
+          && other.left < right
+          && bottom < other.top
+          && other.bottom < top;
+    }
+  }
+
+  static Box boxOf(FormDocument document, String fieldName) throws IOException {
+    try (PDDocument pdf = FillablePdf.fill(document)) {
+      return boxOf(pdf, widgetOf(pdf, fieldName));
+    }
+  }
+
+  static List<String> fieldsOverlapping(FormDocument document, String fieldName)
+      throws IOException {
+    try (PDDocument pdf = FillablePdf.fill(document)) {
+      Box box = boxOf(pdf, widgetOf(pdf, fieldName));
+      List<String> overlapping = new ArrayList<>();
+      for (PDField field : pdf.getDocumentCatalog().getAcroForm().getFieldTree()) {
+        for (PDAnnotationWidget widget : field.getWidgets()) {
+          if (!field.getFullyQualifiedName().equals(fieldName)
+              && boxOf(pdf, widget).overlaps(box)) {
+            overlapping.add(field.getFullyQualifiedName());
+          }
+        }
+      }
+      return overlapping;
+    }
+  }
+
+  static String templateTextIn(FormDocument document, Box box) throws IOException {
+    try (PDDocument pdf = FillablePdf.fill(document)) {
+      float pageHeight = pdf.getPage(box.page()).getMediaBox().getHeight();
+      StringBuilder inside = new StringBuilder();
+      PDFTextStripper stripper =
+          new PDFTextStripper() {
+            @Override
+            protected void writeString(String text, List<TextPosition> glyphs) {
+              glyphs.stream()
+                  .filter(glyph -> !glyph.getUnicode().isBlank())
+                  .filter(glyph -> glyphBox(glyph, box.page(), pageHeight).overlaps(box))
+                  .forEach(glyph -> inside.append(glyph.getUnicode()));
+            }
+          };
+      stripper.setStartPage(box.page() + 1);
+      stripper.setEndPage(box.page() + 1);
+      stripper.getText(pdf);
+      return inside.toString();
+    }
+  }
+
+  private static Box glyphBox(TextPosition glyph, int page, float pageHeight) {
+    float baseline = pageHeight - glyph.getYDirAdj();
+    return new Box(
+        page,
+        glyph.getXDirAdj(),
+        baseline,
+        glyph.getXDirAdj() + glyph.getWidthDirAdj(),
+        baseline + glyph.getHeightDir());
+  }
+
+  private static PDAnnotationWidget widgetOf(PDDocument pdf, String fieldName) {
+    return pdf.getDocumentCatalog().getAcroForm().getField(fieldName).getWidgets().getFirst();
+  }
+
+  private static Box boxOf(PDDocument pdf, PDAnnotationWidget widget) throws IOException {
+    PDRectangle rectangle = widget.getRectangle();
+    return new Box(
+        pageOf(pdf, widget),
+        rectangle.getLowerLeftX(),
+        rectangle.getLowerLeftY(),
+        rectangle.getUpperRightX(),
+        rectangle.getUpperRightY());
+  }
+
+  private static int pageOf(PDDocument pdf, PDAnnotationWidget widget) throws IOException {
+    for (int index = 0; index < pdf.getNumberOfPages(); index++) {
+      if (pdf.getPage(index).getAnnotations().contains(widget)) {
+        return index;
+      }
+    }
+    throw new IllegalStateException("Widget is on no page");
   }
 
   static String text(List<FormDocument> documents) throws IOException {

@@ -44,6 +44,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
   private static final String OWN_SOURCE = "Osakute väljalase isikult laekumiste alusel";
   private static final String EMPLOYER_SOURCE = "Osakute väljalase tööandjalt laekumiste alusel";
   private static final BigDecimal MONTHLY_AMOUNT = new BigDecimal("100.00");
+  private static final BigDecimal ONE_OFF_AMOUNT = new BigDecimal("50.00");
 
   @TestConfiguration
   static class FixedClock {
@@ -159,23 +160,52 @@ class ThirdPillarStandingOrdersIntegrationTest {
     assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
   }
 
+  @Test
+  void detectsAStandingOrderNextToALinkPaymentOfAnotherAmountInTheSameMonth() {
+    contribution(OWN_SOURCE, LocalDate.of(2026, 7, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
+    linkPayment(SINGLE, Instant.parse("2026-09-08T10:00:00Z"), ONE_OFF_AMOUNT);
+    contribution(OWN_SOURCE, LocalDate.of(2026, 9, 9), ONE_OFF_AMOUNT);
+    contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
+
+    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isTrue();
+  }
+
+  @Test
+  void detectsAStandingOrderReportedMoreThanAWeekAfterALinkPaymentOfTheSameAmount() {
+    contribution(OWN_SOURCE, LocalDate.of(2026, 7, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
+    linkPayment(SINGLE, Instant.parse("2026-08-31T10:00:00Z"));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
+
+    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isTrue();
+  }
+
   private void contribution(String source, LocalDate reportedOn) {
+    contribution(source, reportedOn, MONTHLY_AMOUNT);
+  }
+
+  private void contribution(String source, LocalDate reportedOn, BigDecimal amount) {
     entityManager.persist(
         exampleTransactionBuilder()
             .personalId(saver.getPersonalCode())
             .transactionSource(source)
             .reportingDate(reportedOn)
-            .transactionValue(MONTHLY_AMOUNT)
+            .transactionValue(amount)
             .build());
   }
 
   private void linkPayment(PaymentType type, Instant paidAt) {
+    linkPayment(type, paidAt, MONTHLY_AMOUNT);
+  }
+
+  private void linkPayment(PaymentType type, Instant paidAt, BigDecimal amount) {
     ClockHolder.setClock(Clock.fixed(paidAt, UTC));
     entityManager.persist(
         Payment.builder()
             .user(saver)
             .internalReference(UUID.randomUUID())
-            .amount(MONTHLY_AMOUNT)
+            .amount(amount)
             .recipientPersonalCode(saver.getPersonalCode())
             .paymentType(type)
             .build());

@@ -232,8 +232,7 @@ class InsuranceTransferFormIntegrationTest {
                             "city": "Tallinn",
                             "postalCode": "10111",
                             "countryCode": "EE"
-                          },
-                          "usPerson": false
+                          }
                         }
                         """))
             .andExpect(status().isOk())

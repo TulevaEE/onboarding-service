@@ -122,7 +122,6 @@ class InsuranceTransferFormServiceTest {
             command.countryOfBirth(),
             command.taxResidency(),
             command.pep(),
-            command.usPerson(),
             command.artea());
 
     assertThatThrownBy(() -> service.create(person, yesterdayInEstonia))

@@ -30,6 +30,7 @@ import static ee.tuleva.onboarding.personalcode.PersonalCode.getDateOfBirth;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.insurance.pdf.AddedField;
 import ee.tuleva.onboarding.insurance.pdf.FormDocument;
 import ee.tuleva.onboarding.insurance.pdf.FormValues;
 import ee.tuleva.onboarding.mandate.details.BankAccountDetails.Bank;
@@ -42,6 +43,8 @@ class ArteaForm implements InsurerForm {
   static final String PAYOUT_TEMPLATE = "/insurance-transfer-forms/artea-pension-payout.pdf";
   static final String QUESTIONNAIRE_TEMPLATE =
       "/insurance-transfer-forms/artea-know-your-customer.pdf";
+  static final AddedField OTHER_TAX_RESIDENCY_COUNTRY =
+      new AddedField("Muu maksuresidentsuse riik", 0, 75, 458.4f, 156, 471.4f);
 
   private static final Map<IdentityDocument.Type, String> DOCUMENT_OPTIONS =
       Map.of(
@@ -92,7 +95,10 @@ class ArteaForm implements InsurerForm {
   public List<FormDocument> documents(InsuranceTransferApplication application) {
     return List.of(
         new FormDocument(PAYOUT_TEMPLATE, payout(application)),
-        new FormDocument(QUESTIONNAIRE_TEMPLATE, questionnaire(application)));
+        new FormDocument(
+            QUESTIONNAIRE_TEMPLATE,
+            questionnaire(application),
+            List.of(OTHER_TAX_RESIDENCY_COUNTRY)));
   }
 
   private static FormValues payout(InsuranceTransferApplication application) {
@@ -117,7 +123,6 @@ class ArteaForm implements InsurerForm {
   }
 
   private static FormValues questionnaire(InsuranceTransferApplication application) {
-    final String ESTONIA = "EE";
     Applicant applicant = application.applicant();
     CreateInsuranceTransferFormCommand request = application.request();
     ArteaQuestionnaire answers = request.questionnaire();
@@ -138,17 +143,28 @@ class ArteaForm implements InsurerForm {
             .text("Text Field11", FormText.date(document.issuedOn()))
             .text("Text Field12", FormText.date(document.validUntil()))
             .text("Text Field13", FormText.country(document.issuingCountry()))
-            .check(ESTONIA.equalsIgnoreCase(request.taxResidency()) ? "Check Box0" : "Check Box1")
             .choose("Radio Button1", fieldFor(INCOME_OPTIONS, answers.monthlyNetIncome()))
             .text("Text Field33", applicant.fullName())
             .text("Text Field34", answers.premiumAccountIban())
             .text("Text Field35", Bank.displayNameFromIban(answers.premiumAccountIban()))
             .text("Text Field44", applicant.fullName())
             .text("Text Field45", FormText.date(application.today()));
+    taxResidency(values, request.taxResidency());
     occupation(values, answers.occupation());
     answers.incomeSources().forEach(source -> incomeSource(values, source));
-    politicalExposure(values, request.declaredPep());
+    values.choose("Radio Button2", request.declaredPep() ? "1" : "0");
     return values;
+  }
+
+  private static void taxResidency(FormValues values, @Nullable String country) {
+    final String ESTONIA = "EE";
+    if (ESTONIA.equalsIgnoreCase(country)) {
+      values.check("Check Box0");
+    } else {
+      values
+          .check("Check Box1")
+          .text(OTHER_TAX_RESIDENCY_COUNTRY.name(), FormText.country(country));
+    }
   }
 
   private static void occupation(FormValues values, Occupation occupation) {
@@ -176,13 +192,6 @@ class ArteaForm implements InsurerForm {
 
   private static <K, V> V fieldFor(Map<K, V> fields, K answer) {
     return requireNonNull(fields.get(answer), () -> "No form field for answer: answer=" + answer);
-  }
-
-  private static void politicalExposure(FormValues values, boolean pep) {
-    values.choose("Radio Button2", pep ? "1" : "0");
-    if (pep) {
-      values.check("Check Box28");
-    }
   }
 
   private record IncomeSourceFields(String checkBox, @Nullable String details) {}

@@ -118,8 +118,58 @@ class ArteaFormTest {
   }
 
   @Test
-  void describesAnOccupationOtherThanEmploymentAndMarksAPoliticallyExposedForeignResident()
+  void describesAnOccupationOtherThanEmploymentForAForeignResident() throws IOException {
+    var values = FilledForms.fieldValues(form.documents(application(foreignCompanyOwner())).get(1));
+
+    assertThat(values)
+        .contains(
+            entry("Radio Button0", "4"),
+            entry("Check Box16", "Yes"),
+            entry("Text Field23", "Näidis OÜ, Tallinn, konsultatsioonid"),
+            entry("Check Box27", "Yes"),
+            entry("Text Field32", "Säästud"),
+            entry("Radio Button1", "4"))
+        .doesNotContainKeys("Check Box3", "Text Field19", "Text Field20");
+  }
+
+  @Test
+  void namesTheForeignTaxResidencyCountryNextToOtherAndAsksNothingMoreAboutIt() throws IOException {
+    var values = FilledForms.fieldValues(form.documents(application(foreignCompanyOwner())).get(1));
+
+    assertThat(values)
+        .contains(
+            entry("Check Box1", "Yes"),
+            entry(ArteaForm.OTHER_TAX_RESIDENCY_COUNTRY.name(), "Soome"))
+        .doesNotContainKeys(
+            "Check Box0",
+            "Check Box2",
+            "Text Field15",
+            "Text Field16",
+            "Text Field17",
+            "Text Field18");
+  }
+
+  @Test
+  void leavesTheOtherTaxResidencyCountryEmptyForAnEstonianTaxResident() throws IOException {
+    var values = FilledForms.fieldValues(form.documents(application(arteaRequest())).get(1));
+
+    assertThat(values)
+        .contains(entry("Check Box0", "Yes"))
+        .doesNotContainKeys("Check Box1", ArteaForm.OTHER_TAX_RESIDENCY_COUNTRY.name());
+  }
+
+  @Test
+  void answersOnlyWhetherTheyOrSomeoneCloseIsPoliticallyExposedAndNotWhichOfThem()
       throws IOException {
+    var documents = form.documents(application(foreignCompanyOwner()));
+
+    assertThat(FilledForms.fieldValues(documents.getFirst())).contains(entry("Radio Button0", "1"));
+    assertThat(FilledForms.fieldValues(documents.get(1)))
+        .contains(entry("Radio Button2", "1"))
+        .doesNotContainKeys("Check Box28", "Check Box29", "Check Box30", "Text Field43");
+  }
+
+  private static CreateInsuranceTransferFormCommand foreignCompanyOwner() {
     var answers = questionnaire();
     var companyOwner =
         new ArteaQuestionnaire(
@@ -139,33 +189,16 @@ class ArteaFormTest {
             OVER_6000,
             answers.premiumAccountIban());
     var request = arteaRequest(companyOwner);
-    var foreignResident =
-        new CreateInsuranceTransferFormCommand(
-            request.insurer(),
-            request.policyNumber(),
-            request.endDate(),
-            request.address(),
-            List.of("FI"),
-            "FI",
-            "FI",
-            true,
-            null,
-            companyOwner);
-
-    var values = FilledForms.fieldValues(form.documents(application(foreignResident)).get(1));
-
-    assertThat(values)
-        .contains(
-            entry("Radio Button0", "4"),
-            entry("Check Box1", "Yes"),
-            entry("Check Box16", "Yes"),
-            entry("Text Field23", "Näidis OÜ, Tallinn, konsultatsioonid"),
-            entry("Check Box27", "Yes"),
-            entry("Text Field32", "Säästud"),
-            entry("Radio Button1", "4"),
-            entry("Radio Button2", "1"),
-            entry("Check Box28", "Yes"))
-        .doesNotContainKeys("Check Box0", "Check Box3", "Text Field19", "Text Field20");
+    return new CreateInsuranceTransferFormCommand(
+        request.insurer(),
+        request.policyNumber(),
+        request.endDate(),
+        request.address(),
+        List.of("FI"),
+        "FI",
+        "FI",
+        true,
+        companyOwner);
   }
 
   @Test

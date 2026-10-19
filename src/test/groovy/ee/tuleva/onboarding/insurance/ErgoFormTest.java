@@ -52,23 +52,11 @@ class ErgoFormTest {
   }
 
   @Test
-  void endsTheContractFromTodayWhenNoEndDateIsChosenAndMarksAPoliticallyExposedPerson()
-      throws IOException {
-    var request = ergoRequest();
-    var asSoonAsPossible =
-        new CreateInsuranceTransferFormCommand(
-            request.insurer(),
-            "12-345678",
-            null,
-            request.address(),
-            List.of("EE", "FI"),
-            "LV",
-            "FI",
-            true,
-            null,
-            null);
-
-    var values = FilledForms.fieldValues(form.documents(application(asSoonAsPossible)).getFirst());
+  void endsTheContractFromTodayWhenNoEndDateIsChosen() throws IOException {
+    var values =
+        FilledForms.fieldValues(
+            form.documents(application(politicallyExposedForeignResidentWithoutEndDate()))
+                .getFirst());
 
     assertThat(values)
         .contains(
@@ -77,8 +65,18 @@ class ErgoFormTest {
             entry("no xxxxxx", "345678"),
             entry("A birth", "Läti"),
             entry("A citizen", "Eesti, Soome"),
-            entry("A residency", "Soome"),
-            entry("APEP", "jah"));
+            entry("A residency", "Soome"));
+  }
+
+  @Test
+  void leavesTheSelfDeclarationOfPoliticalExposureToTheInsurerWhenTheExposedOneMayBeSomeoneClose()
+      throws IOException {
+    var values =
+        FilledForms.fieldValues(
+            form.documents(application(politicallyExposedForeignResidentWithoutEndDate()))
+                .getFirst());
+
+    assertThat(values).doesNotContainKey("APEP");
   }
 
   @Test
@@ -88,5 +86,20 @@ class ErgoFormTest {
     assertThat(FilledForms.text(documents))
         .contains("Jaan", "Õunapuu", "Tuleva III Samba Pensionifond", PENSION_ACCOUNT_NUMBER);
     assertThat(FilledForms.hasEditableFields(documents)).isFalse();
+  }
+
+  private static CreateInsuranceTransferFormCommand
+      politicallyExposedForeignResidentWithoutEndDate() {
+    var request = ergoRequest();
+    return new CreateInsuranceTransferFormCommand(
+        request.insurer(),
+        "12-345678",
+        null,
+        request.address(),
+        List.of("EE", "FI"),
+        "LV",
+        "FI",
+        true,
+        null);
   }
 }

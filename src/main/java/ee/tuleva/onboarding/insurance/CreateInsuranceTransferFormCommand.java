@@ -25,7 +25,6 @@ public record CreateInsuranceTransferFormCommand(
     @Nullable String countryOfBirth,
     @Nullable String taxResidency,
     @Nullable Boolean pep,
-    @Nullable Boolean usPerson,
     @Nullable @Valid ArteaQuestionnaire artea) {
 
   public CreateInsuranceTransferFormCommand {
@@ -35,21 +34,12 @@ public record CreateInsuranceTransferFormCommand(
     }
   }
 
-  public boolean declaredUsPerson() {
-    return requireNonNull(usPerson, "US person answer missing: insurer=" + insurer);
-  }
-
   public boolean declaredPep() {
     return requireNonNull(pep, "Politically exposed person answer missing: insurer=" + insurer);
   }
 
   public ArteaQuestionnaire questionnaire() {
     return requireNonNull(artea, "Questionnaire missing: insurer=" + insurer);
-  }
-
-  @AssertTrue
-  public boolean isUsPersonAnsweredWhereAsked() {
-    return insurer != COMPENSA || usPerson != null;
   }
 
   @AssertTrue

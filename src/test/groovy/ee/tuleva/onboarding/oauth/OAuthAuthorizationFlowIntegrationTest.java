@@ -110,6 +110,7 @@ class OAuthAuthorizationFlowIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.clientName").value("Portfellow"))
         .andExpect(jsonPath("$.scopes[0]").value("balances:read"))
+        .andExpect(jsonPath("$.createdAt").isNotEmpty())
         .andExpect(jsonPath("$.expiresAt").isNotEmpty());
 
     var redirect = approve(connectRequest, smartIdLoginNow());

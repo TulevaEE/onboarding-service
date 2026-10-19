@@ -69,14 +69,14 @@ class ErgoFormTest {
   }
 
   @Test
-  void leavesTheSelfDeclarationOfPoliticalExposureToTheInsurerWhenTheExposedOneMayBeSomeoneClose()
+  void answersYesToPoliticalExposureWhenTheyOrAFamilyMemberOrCloseAssociateIsExposed()
       throws IOException {
     var values =
         FilledForms.fieldValues(
             form.documents(application(politicallyExposedForeignResidentWithoutEndDate()))
                 .getFirst());
 
-    assertThat(values).doesNotContainKey("APEP");
+    assertThat(values).contains(entry("APEP", "jah"));
   }
 
   @Test

@@ -71,6 +71,7 @@ class ArteaFormTest {
                 entry("Text Field11", "01.01.2024"),
                 entry("Text Field12", "01.01.2029"),
                 entry("Text Field13", "Eesti"),
+                entry("Text Field14", "Soome"),
                 entry("Check Box0", "Yes"),
                 entry("Check Box3", "Yes"),
                 entry("Text Field19", "Spetsialist"),
@@ -130,6 +131,35 @@ class ArteaFormTest {
             entry("Text Field32", "Säästud"),
             entry("Radio Button1", "4"))
         .doesNotContainKeys("Check Box3", "Text Field19", "Text Field20");
+  }
+
+  @Test
+  void leavesTheOtherIdentityDocumentCountriesEmptyWhenTheirOnlyCitizenshipIssuedTheDocument()
+      throws IOException {
+    var values = FilledForms.fieldValues(form.documents(application(foreignCompanyOwner())).get(1));
+
+    assertThat(values).contains(entry("Text Field13", "Soome")).doesNotContainKey("Text Field14");
+  }
+
+  @Test
+  void recognizesTheDocumentIssuingCountryAmongCitizenshipsWhateverTheLetterCase()
+      throws IOException {
+    var request = arteaRequest();
+    var lowerCaseCitizenship =
+        new CreateInsuranceTransferFormCommand(
+            request.insurer(),
+            request.policyNumber(),
+            request.endDate(),
+            request.address(),
+            List.of("ee", "fi"),
+            request.countryOfBirth(),
+            request.taxResidency(),
+            request.pep(),
+            request.artea());
+
+    var values = FilledForms.fieldValues(form.documents(application(lowerCaseCitizenship)).get(1));
+
+    assertThat(values).contains(entry("Text Field14", "Soome"));
   }
 
   @Test

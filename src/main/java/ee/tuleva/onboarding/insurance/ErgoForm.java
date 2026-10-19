@@ -26,6 +26,7 @@ class ErgoForm implements InsurerForm {
             .text("A birth", FormText.country(request.countryOfBirth()))
             .text("A citizen", FormText.countries(request.citizenship()))
             .text("A residency", FormText.country(request.taxResidency()))
+            .choose("APEP", request.declaredPep() ? "jah" : "ei")
             .text("no xx", policy.series())
             .text("no xxxxxx", policy.number())
             .choose("opt", "ennet")
@@ -38,9 +39,6 @@ class ErgoForm implements InsurerForm {
             .text("ISIN", FormText.FUND_ISIN)
             .text("KV ees ja perenimi", applicant.fullName())
             .text("KV  pp kk aaaa", FormText.dateDigits(application.today()));
-    if (!request.declaredPep()) {
-      values.choose("APEP", "ei");
-    }
     return List.of(new FormDocument(TEMPLATE, values));
   }
 }

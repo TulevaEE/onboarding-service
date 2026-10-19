@@ -121,12 +121,22 @@
       "from_name": "Tuleva"
     },
     "savings_fund_company_onboarded_en": {
-      "subject": "The company's Additional Investment Fund account is open",
+      "subject": "Your company's Tuleva Additional Investment Fund account is open",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_company_onboarded_et": {
-      "subject": "Ettevõtte Täiendava Kogumisfondi konto on avatud",
+      "subject": "Sinu OÜ kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_waiting_related_en": {
+      "subject": "Your company's account is waiting for the other shareholder to verify their identity",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_waiting_related_et": {
+      "subject": "Sinu OÜ kogumisfondikonto ootab teise osaniku tuvastamist",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -136,12 +146,17 @@
       "from_name": "Tuleva"
     },
     "savings_fund_first_payment_reminder_child_et": {
-      "subject": "Tee lapse Tuleva Kogumisfondi esimene sissemakse",
+      "subject": "Tee lapse kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_company_en": {
+      "subject": "Make your company's first contribution to Tuleva Additional Investment Fund",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_first_payment_reminder_company_et": {
-      "subject": "Tee ettevõtte Tuleva Kogumisfondi esimene sissemakse",
+      "subject": "Tee OÜ kogumisfondi kontole esimene sissemakse",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -171,7 +186,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_onboarding_abandonment_person_et": {
-      "subject": "Sinu Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "subject": "Sinu kogumisfondi konto avamine jäi pooleli",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -196,12 +211,12 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_cancelled_en": {
-      "subject": "Tuleva Additional Investment Fund payment cancellation succeeded",
+      "subject": "Tuleva Additional Investment Fund contribution cancelled",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_cancelled_et": {
-      "subject": "Tuleva kogumisfondi sissemakse katkestamine õnnestus",
+      "subject": "Kogumisfondi sissemakse katkestamine õnnestus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -211,7 +226,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_failed_et": {
-      "subject": "Sinu makse Tuleva Kogumisfondi ebaõnnestus",
+      "subject": "Sinu makse kogumisfondi ebaõnnestus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -221,17 +236,17 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse kogumisfondi on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Your contribution has been received",
+      "subject": "Your company's contribution to Tuleva Additional Investment Fund has been received",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse OÜ kogumisfondi kontole on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -241,7 +256,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_person_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse kogumisfondi on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -371,6 +386,7 @@
     "savings_fund_first_payment_reminder_person": "Sent by a daily job at 12:00 Europe/Tallinn to a person whose own savings fund account was opened 7 to 30 days ago with no contribution yet, once per account, in Estonian or English by the saver’s language preference. Minors, children with a guardian link and board members of a company that has already paid are left out.",
     "savings_fund_first_payment_reminder_child": "Sent by the same daily job to every active guardian of a child whose savings fund account was opened 7 to 30 days ago with no contribution yet, once per child account, in Estonian, naming the child.",
     "savings_fund_first_payment_reminder_company": "Planned: sent to the representative when a company’s account has been open for a while with no contributions. Trigger not wired yet.",
-    "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account."
+    "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account.",
+    "savings_fund_company_waiting_related": "Planned (draft): sent to the applicant when a company's application is submitted but waits for the second related person to verify (PENDING with a submitted survey). Tells what the other shareholder has to do. Trigger not wired yet."
   }
 }

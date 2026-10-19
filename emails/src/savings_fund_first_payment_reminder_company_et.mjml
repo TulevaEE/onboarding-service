@@ -11,32 +11,23 @@
           esimest sissemakset teinud.
         </mj-text>
         <mj-text>
-          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
-          aktsiatesse. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ja muid lisatasusid ei ole.
-        </mj-text>
-        <mj-text>
-          Kui soovid kogumisega alustada, vali endale sobiv summa ja tee esimene sissemakse.
-          Investeerimisel ei ole vaja oodata õiget hetke. Olulisem on anda oma varale aega
-          kasvada.
+          Alustada võid kasvõi 1&nbsp;eurost. Fondi tasu on *|savingsFundFee|*%&nbsp;aastas ja muid
+          lisatasusid ei ole.
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
-          Teen esimese sissemakse
+          Teen sissemakse
         </mj-button>
-        <mj-text>Soovi korral saad kogumisfondi kohta uurida veel neist materjalidest:</mj-text>
         <mj-text>
-          <a href="https://tuleva.ee/analuusid/kuhu-tuleva-taiendav-kogumisfond-investeerib/">
-            Kuhu investeerib Tuleva Täiendav Kogumisfond?
-          </a>
+          Kaks asja, mida ettevõtjad meilt sageli küsivad: kogumisfondis investeerimiseks <strong>ei ole vaja LEI-koodi</strong> ning <strong>majandusaasta aruande jaoks
+          vajaliku väljavõtte</strong> saad mugavalt kätte oma Tuleva kontolt, valides OÜ rolli.
         </mj-text>
+        <mj-text>Soovi korral uuri lähemalt:</mj-text>
         <mj-text>
-          <a href="https://tuleva.ee/taskuhaaling/uus-tuleva-taiendav-kogumisfond-avaneb/">
-            Tuleva Taskuhääling: Tõnu ja Kristi selgitavad, mida võiksid teada uuest fondist
-          </a>
-        </mj-text>
-        <mj-text>
-          <a href="https://tuleva.ee/taiendav-kogumisfond/kas-investeerida-oma-ou-kaudu-kellele-see-sobib-ja-kellele-mitte/">
-            Kellele sobib OÜ kaudu Täiendavasse Kogumisfondi investeerida?
-          </a>
+          <ul style="margin:0;padding-left:20px;">
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/taiendav-kogumisfond/kuidas-teha-raamatupidamist-kui-su-ou-on-taiendavasse-kogumisfondi-investeerinud/">Kuidas teha raamatupidamist, kui su OÜ on Täiendavasse Kogumisfondi investeerinud</a></li>
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/taiendav-kogumisfond/kas-investeerida-oma-ou-kaudu-kellele-see-sobib-ja-kellele-mitte/">Kellele sobib OÜ kaudu Täiendavasse Kogumisfondi investeerida?</a></li>
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/taskuhaaling/uus-tuleva-taiendav-kogumisfond-avaneb/">Tuleva Taskuhääling: Tõnu ja Kristi selgitavad, mida võiksid teada uuest fondist</a></li>
+          </ul>
         </mj-text>
         <mj-text>
           Kui sul tekib küsimusi, kirjuta
@@ -54,7 +45,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/disclaimer_savings_company_et.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

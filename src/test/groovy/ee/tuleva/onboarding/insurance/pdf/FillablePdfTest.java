@@ -7,11 +7,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.contentstream.operator.Operator;
 import org.apache.pdfbox.cos.COSName;
+import org.apache.pdfbox.cos.COSNumber;
+import org.apache.pdfbox.pdfparser.PDFStreamParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
+import org.apache.pdfbox.pdmodel.interactive.form.PDField;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +76,39 @@ class FillablePdfTest {
   }
 
   @Test
+  void keepsTheTemplateFontSizeForALineThatFitsAndShrinksOnlyALineThatDoesNot() throws IOException {
+    var values =
+        new FormValues()
+            .text("Aeesnimi", "Mari")
+            .text("teenusepakkuja", "Tuleva III Samba Pensionifond, pensionikonto 993432432");
+
+    try (PDDocument pdf = FillablePdf.fill(new FormDocument(COMB_FORM, values))) {
+      var form = pdf.getDocumentCatalog().getAcroForm();
+      assertThat(fontSizeDrawn(form.getField("Aeesnimi"))).isEqualTo(8);
+      assertThat(fontSizeDrawn(form.getField("teenusepakkuja"))).isLessThan(8);
+    }
+  }
+
+  @Test
+  void addsAFieldTheTemplateLacksAtTheGivenPlaceOnTheGivenPage() throws IOException {
+    var added = new AddedField("Muu riik", 0, 75, 458, 156, 471);
+    var document =
+        new FormDocument(QUESTIONNAIRE, new FormValues().text("Muu riik", "Soome"), List.of(added));
+
+    try (PDDocument pdf = FillablePdf.fill(document)) {
+      var field = pdf.getDocumentCatalog().getAcroForm().getField("Muu riik");
+      var widget = field.getWidgets().getFirst();
+      assertThat(field.getValueAsString()).isEqualTo("Soome");
+      assertThat(widget.getRectangle().toString())
+          .isEqualTo(new PDRectangle(75, 458, 81, 13).toString());
+      assertThat(pdf.getPage(0).getAnnotations()).contains(widget);
+    }
+    try (PDDocument pdf = Loader.loadPDF(FillablePdf.fillAndFlatten(List.of(document)))) {
+      assertThat(textOf(pdf, 1)).contains("Soome");
+    }
+  }
+
+  @Test
   void refusesAFieldTheTemplateDoesNotHave() {
     var values = new FormValues().text("No such field", "value");
 
@@ -111,6 +149,13 @@ class FillablePdfTest {
       assertThat(textOf(pdf, 1)).contains("Payout");
       assertThat(textOf(pdf, 2)).contains("Questionnaire");
     }
+  }
+
+  private static float fontSizeDrawn(PDField field) throws IOException {
+    List<Object> tokens =
+        new PDFStreamParser(field.getWidgets().getFirst().getNormalAppearanceStream()).parse();
+    int fontSetting = tokens.indexOf(Operator.getOperator("Tf"));
+    return ((COSNumber) tokens.get(fontSetting - 1)).floatValue();
   }
 
   private static List<PDFont> fontsOf(PDResources resources) throws IOException {

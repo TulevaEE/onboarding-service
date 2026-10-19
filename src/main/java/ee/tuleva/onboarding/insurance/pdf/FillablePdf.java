@@ -10,8 +10,12 @@ import java.util.Objects;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
 import org.apache.pdfbox.pdmodel.interactive.form.PDAcroForm;
 import org.apache.pdfbox.pdmodel.interactive.form.PDField;
+import org.apache.pdfbox.pdmodel.interactive.form.PDTextField;
 import org.jspecify.annotations.Nullable;
 
 public final class FillablePdf {
@@ -29,6 +33,9 @@ public final class FillablePdf {
           Objects.requireNonNull(
               pdf.getDocumentCatalog().getAcroForm(),
               "Form template has no fields: template=" + document.template());
+      for (AddedField added : document.addedFields()) {
+        add(pdf, form, added);
+      }
       FieldFont.embedForTextFields(pdf, form);
       document
           .values()
@@ -40,6 +47,24 @@ public final class FillablePdf {
       throw new IllegalStateException(
           "Could not fill form template: template=" + document.template(), e);
     }
+  }
+
+  private static void add(PDDocument pdf, PDAcroForm form, AddedField added) throws IOException {
+    PDTextField field = new PDTextField(form);
+    field.setPartialName(added.name());
+    field.setDefaultAppearance("/Helv 0 Tf 0 g");
+    PDAnnotationWidget widget = field.getWidgets().getFirst();
+    widget.setRectangle(
+        new PDRectangle(
+            added.left(),
+            added.bottom(),
+            added.right() - added.left(),
+            added.top() - added.bottom()));
+    PDPage page = pdf.getPage(added.pageIndex());
+    widget.setPage(page);
+    widget.setPrinted(true);
+    page.getAnnotations().add(widget);
+    form.getFields().add(field);
   }
 
   private static byte[] fillAndFlatten(FormDocument document) {

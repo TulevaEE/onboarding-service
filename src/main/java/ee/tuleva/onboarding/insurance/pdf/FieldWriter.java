@@ -3,12 +3,17 @@ package ee.tuleva.onboarding.insurance.pdf;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
+import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceGray;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceCharacteristicsDictionary;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceDictionary;
 import org.apache.pdfbox.pdmodel.interactive.form.PDButton;
 import org.apache.pdfbox.pdmodel.interactive.form.PDField;
@@ -24,6 +29,10 @@ final class FieldWriter {
         case FieldValue.Text text -> writeLine((PDTextField) field, text.text());
         case FieldValue.Paragraph paragraph ->
             writeParagraph((PDTextField) field, paragraph.text());
+        case FieldValue.ParagraphOverWritingLines paragraph -> {
+          blankWhatIsUnder((PDTextField) field);
+          writeParagraph((PDTextField) field, paragraph.text());
+        }
         case FieldValue.Check() -> checkOnlyOption((PDButton) field);
         case FieldValue.Choice choice ->
             choose((PDButton) field, onState -> onState.startsWith(choice.onValuePrefix()));
@@ -36,6 +45,9 @@ final class FieldWriter {
 
   private static void writeLine(PDTextField field, String text) throws IOException {
     field.setMultiline(false);
+    if (!FieldFont.fitsAtItsOwnSize(field, text)) {
+      FieldFont.useAutomaticSize(field);
+    }
     redrawWidgets(field);
     field.setValue(text);
   }
@@ -45,6 +57,20 @@ final class FieldWriter {
     FieldFont.useAutomaticSize(field);
     redrawWidgets(field);
     field.setValue(text);
+  }
+
+  private static void blankWhatIsUnder(PDTextField field) {
+    field
+        .getWidgets()
+        .forEach(
+            widget -> {
+              PDAppearanceCharacteristicsDictionary characteristics =
+                  Objects.requireNonNullElseGet(
+                      widget.getAppearanceCharacteristics(),
+                      () -> new PDAppearanceCharacteristicsDictionary(new COSDictionary()));
+              characteristics.setBackground(new PDColor(new float[] {1}, PDDeviceGray.INSTANCE));
+              widget.setAppearanceCharacteristics(characteristics);
+            });
   }
 
   private static void redrawWidgets(PDTextField field) {

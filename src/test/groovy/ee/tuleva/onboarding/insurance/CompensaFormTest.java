@@ -44,29 +44,29 @@ class CompensaFormTest {
                 entry(
                     "Kindlustusvõtja allkiri või esindaja nimi ja allkiri",
                     "Jaan Õunapuu (digiallkiri)"),
-                entry("Allakirjutamise aeg ja koht", "18.10.2026"),
-                entry("fatca", "NO")));
+                entry("Allakirjutamise aeg ja koht", "18.10.2026")));
   }
 
   @Test
-  void declaresAUsPersonAsAContractReportableToTheUnitedStates() throws IOException {
-    var request = compensaRequest();
-    var usPerson =
-        new CreateInsuranceTransferFormCommand(
-            request.insurer(),
-            request.policyNumber(),
-            request.endDate(),
-            request.address(),
-            null,
-            null,
-            null,
-            null,
-            true,
-            null);
+  void leavesTheSectionTheInsurerFillsInUntouched() throws IOException {
+    var values = FilledForms.fieldValues(form.documents(application(compensaRequest())).getFirst());
 
-    var values = FilledForms.fieldValues(form.documents(application(usPerson)).getFirst());
+    assertThat(values)
+        .doesNotContainKeys(
+            "fatca",
+            "Jah riik",
+            "avalduse_vastuvõtja",
+            "avalduse_kontrollija",
+            "avalduse_vastuvõtmise_kuupäev");
+  }
 
-    assertThat(values).contains(entry("fatca", "YES"), entry("Jah riik", "Ameerika Ühendriigid"));
+  @Test
+  void blanksTheDottedWritingLinesUnderTheStatementSoNoneOfItLooksStruckThrough()
+      throws IOException {
+    var document = form.documents(application(compensaRequest())).getFirst();
+
+    assertThat(FilledForms.paintsItsBoxWhiteBeforeTheText(document, "Arvelduskonto omaniku nimi"))
+        .isTrue();
   }
 
   @Test

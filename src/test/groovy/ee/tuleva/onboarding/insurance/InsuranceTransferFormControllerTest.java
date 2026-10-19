@@ -82,8 +82,7 @@ class InsuranceTransferFormControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"insurer": "COMPENSA", "policyNumber": " UP000123 ", "endDate": null, %s,
-                     "usPerson": false}
+                    {"insurer": "COMPENSA", "policyNumber": " UP000123 ", "endDate": null, %s}
                     """
                         .formatted(ADDRESS)))
         .andExpect(status().isOk())
@@ -100,9 +99,8 @@ class InsuranceTransferFormControllerTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"  \", %s, \"usPerson\": false}",
-        "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", %s}",
-        "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", \"usPerson\": false}",
+        "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"  \", %s}",
+        "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\"}",
         "{\"insurer\": \"ERGO\", \"policyNumber\": \"70-512-345678\", %s, \"citizenship\": [\"EE\"],"
             + " \"countryOfBirth\": \"EE\", \"taxResidency\": \"EE\"}",
         "{\"insurer\": \"ERGO\", \"policyNumber\": \"70-512-345678\", %s, \"citizenship\": [],"
@@ -186,9 +184,8 @@ class InsuranceTransferFormControllerTest {
             as(post(FORMS))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", %s,"
-                            .formatted(ADDRESS)
-                        + " \"usPerson\": false}"))
+                    "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", %s}"
+                        .formatted(ADDRESS)))
         .andExpect(status().isForbidden());
   }
 
@@ -200,9 +197,8 @@ class InsuranceTransferFormControllerTest {
             as(post(FORMS))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", %s,"
-                            .formatted(ADDRESS)
-                        + " \"usPerson\": false}"))
+                    "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\", %s}"
+                        .formatted(ADDRESS)))
         .andExpect(status().isConflict())
         .andExpect(content().json("{\"error\": \"PENSION_ACCOUNT_NOT_READY\"}"));
   }
@@ -218,8 +214,7 @@ class InsuranceTransferFormControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"insurer\": \"COMPENSA\", \"policyNumber\": \"UP000123\","
-                        + " \"endDate\": \"2024-01-01\", %s,".formatted(ADDRESS)
-                        + " \"usPerson\": false}"))
+                        + " \"endDate\": \"2024-01-01\", %s}".formatted(ADDRESS)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("insurance.transfer.form.end.date.passed"));
   }

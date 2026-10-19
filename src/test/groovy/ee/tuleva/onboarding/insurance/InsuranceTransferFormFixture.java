@@ -34,7 +34,7 @@ final class InsuranceTransferFormFixture {
 
   static CreateInsuranceTransferFormCommand compensaRequest() {
     return new CreateInsuranceTransferFormCommand(
-        COMPENSA, "UP000123", null, address(), null, null, null, null, false, null);
+        COMPENSA, "UP000123", null, address(), null, null, null, null, null);
   }
 
   static CreateInsuranceTransferFormCommand ergoRequest() {
@@ -47,7 +47,6 @@ final class InsuranceTransferFormFixture {
         "EE",
         "EE",
         false,
-        null,
         null);
   }
 
@@ -74,7 +73,6 @@ final class InsuranceTransferFormFixture {
         "EE",
         "EE",
         false,
-        null,
         questionnaire);
   }
 
@@ -100,6 +98,67 @@ final class InsuranceTransferFormFixture {
 
   static InsuranceTransferApplication application(CreateInsuranceTransferFormCommand request) {
     return new InsuranceTransferApplication(applicant(), request, TODAY);
+  }
+
+  static InsuranceTransferApplication longestApplication(Insurer insurer) {
+    var applicant =
+        new Applicant(
+            "Jaan-Sebastian",
+            "Õunapuu-Kõrvemägi",
+            "38001085718",
+            "jaansebastian-ounapuukorvemagi@example.com",
+            "+37255555555",
+            PENSION_ACCOUNT_NUMBER);
+    var address =
+        new Address(
+            "Vana-Näidise talu, Suur-Näidisküla küla",
+            "Näidisvalla vald, Näidismaa maakond",
+            "99999",
+            "EE");
+    var policyNumber =
+        switch (insurer) {
+          case COMPENSA -> "UP000123";
+          case ERGO -> "70-512-345678";
+          case ARTEA -> "SP000123";
+        };
+    var request =
+        new CreateInsuranceTransferFormCommand(
+            insurer,
+            policyNumber,
+            LocalDate.of(2026, 11, 1),
+            address,
+            List.of("EE", "US"),
+            "US",
+            "US",
+            true,
+            insurer == ARTEA ? longestQuestionnaire() : null);
+    return new InsuranceTransferApplication(applicant, request, TODAY);
+  }
+
+  private static ArteaQuestionnaire longestQuestionnaire() {
+    return new ArteaQuestionnaire(
+        new IdentityDocument(
+            IdentityDocument.Type.FOREIGN_PASSPORT,
+            "A00000000",
+            LocalDate.of(2024, 1, 1),
+            LocalDate.of(2034, 1, 1),
+            "US"),
+        new Occupation(
+            Occupation.Status.EMPLOYED,
+            "Vanemspetsialist, finantsanalüütik",
+            "Näidis Konsultatsioonid OÜ",
+            "Vana-Näidise talu, Suur-Näidisküla küla, Näidisvalla vald, Näidismaa maakond",
+            null),
+        List.of(
+            new IncomeSource(IncomeSource.Type.SALARY, null),
+            new IncomeSource(IncomeSource.Type.DIVIDENDS, "Näidis Konsultatsioonid OÜ dividendid"),
+            new IncomeSource(IncomeSource.Type.INVESTMENTS, "Aktsiad ja fondiosakud"),
+            new IncomeSource(IncomeSource.Type.RENTAL, "Korteri üürimine Tartus"),
+            new IncomeSource(
+                IncomeSource.Type.FAMILY_TRANSFERS, "Abikaasa toetus ja vanemate kingitused"),
+            new IncomeSource(IncomeSource.Type.OTHER, "Säästud varasematest aastatest")),
+        FROM_1201_TO_3000,
+        "EE442200221092874625");
   }
 
   static InsuranceTransferForm savedForm(Long id, Long userId, Insurer insurer) {

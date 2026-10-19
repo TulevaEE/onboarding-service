@@ -23,6 +23,11 @@ public final class FormValues {
     return this;
   }
 
+  public FormValues paragraphOverWritingLines(String field, String text) {
+    values.put(field, new FieldValue.ParagraphOverWritingLines(text));
+    return this;
+  }
+
   public FormValues check(String field) {
     values.put(field, new FieldValue.Check());
     return this;

@@ -138,11 +138,11 @@ final class InsuranceTransferFormFixture {
   private static ArteaQuestionnaire longestQuestionnaire() {
     return new ArteaQuestionnaire(
         new IdentityDocument(
-            IdentityDocument.Type.FOREIGN_PASSPORT,
+            IdentityDocument.Type.PASSPORT,
             "A00000000",
             LocalDate.of(2024, 1, 1),
             LocalDate.of(2034, 1, 1),
-            "US"),
+            "EE"),
         new Occupation(
             Occupation.Status.EMPLOYED,
             "Vanemspetsialist, finantsanalüütik",

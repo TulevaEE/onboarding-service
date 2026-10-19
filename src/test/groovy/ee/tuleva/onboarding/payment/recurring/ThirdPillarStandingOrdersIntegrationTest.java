@@ -10,8 +10,10 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
+import ee.tuleva.onboarding.deadline.EstonianClockConfiguration;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
@@ -29,15 +31,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
 @Import({
   ThirdPillarStandingOrders.class,
   ThirdPillarAnalytics.class,
-  ThirdPillarStandingOrdersIntegrationTest.FixedClock.class
+  ClockConfig.class,
+  EstonianClockConfiguration.class
 })
 class ThirdPillarStandingOrdersIntegrationTest {
 
@@ -45,14 +46,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
   private static final String EMPLOYER_SOURCE = "Osakute väljalase tööandjalt laekumiste alusel";
   private static final BigDecimal MONTHLY_AMOUNT = new BigDecimal("100.00");
   private static final BigDecimal ONE_OFF_AMOUNT = new BigDecimal("50.00");
-
-  @TestConfiguration
-  static class FixedClock {
-    @Bean
-    Clock clock() {
-      return Clock.fixed(Instant.parse("2026-10-19T09:00:00Z"), UTC);
-    }
-  }
+  private static final Instant NOW = Instant.parse("2026-10-19T09:00:00Z");
 
   @Autowired private TestEntityManager entityManager;
   @Autowired private ThirdPillarStandingOrders standingOrders;
@@ -84,7 +78,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isTrue();
+    assertThat(paysByStandingOrder()).isTrue();
   }
 
   @Test
@@ -93,7 +87,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -103,7 +97,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     linkPayment(SINGLE, Instant.parse("2026-09-08T10:00:00Z"));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 9));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -112,7 +106,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(EMPLOYER_SOURCE, LocalDate.of(2026, 8, 10));
     contribution(EMPLOYER_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -126,7 +120,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     linkPayment(SINGLE, Instant.parse("2026-10-05T10:00:00Z"));
     contribution(OWN_SOURCE, LocalDate.of(2026, 10, 6));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -136,7 +130,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -147,7 +141,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 8));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -157,7 +151,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     linkPayment(GIFT, Instant.parse("2026-09-08T10:00:00Z"));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 9));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isFalse();
+    assertThat(paysByStandingOrder()).isFalse();
   }
 
   @Test
@@ -168,7 +162,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 9), ONE_OFF_AMOUNT);
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isTrue();
+    assertThat(paysByStandingOrder()).isTrue();
   }
 
   @Test
@@ -178,7 +172,34 @@ class ThirdPillarStandingOrdersIntegrationTest {
     linkPayment(SINGLE, Instant.parse("2026-08-31T10:00:00Z"));
     contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
 
-    assertThat(standingOrders.paysByStandingOrder(saver.getPersonalCode())).isTrue();
+    assertThat(paysByStandingOrder()).isTrue();
+  }
+
+  @Test
+  void keepsCountingTheFourthMonthBackUntilMidnightInEstonia() {
+    contribution(OWN_SOURCE, LocalDate.of(2026, 7, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
+
+    assertThat(paysByStandingOrderAt(Instant.parse("2026-10-31T21:30:00Z"))).isTrue();
+  }
+
+  @Test
+  void stopsCountingTheFourthMonthBackFromMidnightInEstonia() {
+    contribution(OWN_SOURCE, LocalDate.of(2026, 7, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 8, 10));
+    contribution(OWN_SOURCE, LocalDate.of(2026, 9, 10));
+
+    assertThat(paysByStandingOrderAt(Instant.parse("2026-10-31T22:30:00Z"))).isFalse();
+  }
+
+  private boolean paysByStandingOrder() {
+    return paysByStandingOrderAt(NOW);
+  }
+
+  private boolean paysByStandingOrderAt(Instant now) {
+    ClockHolder.setClock(Clock.fixed(now, UTC));
+    return standingOrders.paysByStandingOrder(saver.getPersonalCode());
   }
 
   private void contribution(String source, LocalDate reportedOn) {

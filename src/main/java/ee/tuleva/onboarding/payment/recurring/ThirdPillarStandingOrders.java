@@ -19,12 +19,13 @@ class ThirdPillarStandingOrders {
 
   private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final PaymentRepository paymentRepository;
-  private final Clock clock;
+  private final Clock estonianClock;
 
   boolean paysByStandingOrder(String personalCode) {
     final int LOOKBACK_MONTHS = 4;
     final int MIN_STANDING_ORDER_MONTHS = 3;
-    var windowStart = LocalDate.now(clock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
+    var windowStart =
+        LocalDate.now(estonianClock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
     var linkPayments = linkPaymentsReportedOnOrAfter(personalCode, windowStart);
     var standingOrderMonths =
         thirdPillarAnalytics.ownContributionsSince(personalCode, windowStart).stream()

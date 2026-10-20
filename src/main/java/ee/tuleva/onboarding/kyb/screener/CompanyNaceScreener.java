@@ -19,12 +19,10 @@ public class CompanyNaceScreener implements KybScreener {
 
   @Override
   public List<KybCheck> screen(KybCompanyData companyData) {
-    var naceCode = companyData.company().naceCode();
-    boolean isHighRisk = naceCode == null || HIGH_RISK_NACE_CODES.contains(naceCode);
+    var activityCodes = companyData.company().activityCodes();
+    boolean isHighRisk =
+        activityCodes.isEmpty() || activityCodes.stream().anyMatch(HIGH_RISK_NACE_CODES::contains);
     return List.of(
-        new KybCheck(
-            HIGH_RISK_NACE,
-            !isHighRisk,
-            Map.of("naceCode", naceCode != null ? naceCode : "unknown")));
+        new KybCheck(HIGH_RISK_NACE, !isHighRisk, Map.of("activityCodes", activityCodes)));
   }
 }

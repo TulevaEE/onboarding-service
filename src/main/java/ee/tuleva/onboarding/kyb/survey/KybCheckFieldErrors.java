@@ -60,7 +60,11 @@ final class KybCheckFieldErrors {
       case COMPANY_ACTIVE ->
           Stream.of(fieldError("status", "COMPANY_ACTIVE", "Ettevõte ei ole aktiivne"));
       case HIGH_RISK_NACE ->
-          Stream.of(fieldError("naceCode", "UNSUPPORTED_NACE", "See tegevusala ei ole toetatud"));
+          Stream.of(
+              fieldError(
+                  "naceCode",
+                  "UNSUPPORTED_NACE",
+                  "Kahjuks sinu ettevõtte registreeritud tegevusala viitab kõrgema riskiga tegevusele, mis ei vasta meie fondi tingimustele."));
       case COMPANY_SANCTION, COMPANY_PEP ->
           Stream.of(fieldError("name", "UNSERVICEABLE", "Ettevõtet ei ole võimalik teenindada"));
       case RELATED_PERSONS_KYC -> relatedPersonsKycErrors(check, userPersonalCode, relatedPersons);

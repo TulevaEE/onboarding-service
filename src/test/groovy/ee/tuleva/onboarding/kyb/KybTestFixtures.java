@@ -26,7 +26,7 @@ public final class KybTestFixtures {
   // --- Shared builders ---
 
   static final CompanyDto VALID_COMPANY =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), OÜ);
 
   static final SelfCertification VALID_CERT = new SelfCertification(true, true, true);
 
@@ -487,7 +487,7 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule41Fail_highRiskNace() {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", "64321", OÜ);
+    var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", List.of("64321"), OÜ);
     var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
@@ -530,7 +530,7 @@ public final class KybTestFixtures {
   }
 
   static KybCompanyData rule50Fail_notOÜ() {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", "62011", AS);
+    var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", List.of("62011"), AS);
     var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }

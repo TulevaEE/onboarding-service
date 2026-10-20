@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Esi
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Ettevotja;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Isikuandmed;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusala;
+import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6TeatatudTegevusalad;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6Yldandmed;
 import ee.tuleva.onboarding.country.CountryCodes;
 import java.math.BigInteger;
@@ -28,6 +29,8 @@ class CompanyDetailMapper {
             mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getEmtakTekstina).orElse(null))
         .naceCode(
             mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getNaceKood).orElse(null))
+        .activityCodes(
+            yldandmed.map(CompanyDetailMapper::extractCurrentActivityCodes).orElseGet(List::of))
         .representationRights(extractRepresentationRights(ettevotja))
         .build();
   }
@@ -72,6 +75,27 @@ class CompanyDetailMapper {
                         a.getEhakNimetus(),
                         a.getPostiindeks(),
                         CountryCodes.toAlpha2(a.getRiik()))));
+  }
+
+  private static List<String> extractCurrentActivityCodes(DetailandmedV6Yldandmed yldandmed) {
+    return Optional.ofNullable(yldandmed.getTeatatudTegevusalad())
+        .map(DetailandmedV6TeatatudTegevusalad::getItem)
+        .orElseGet(List::of)
+        .stream()
+        .filter(tegevusala -> tegevusala.getLoppKpv() == null)
+        .map(CompanyDetailMapper::activityCode)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private static String activityCode(DetailandmedV6TeatatudTegevusala tegevusala) {
+    var code = tegevusala.getEmtakKood();
+    if (code == null) {
+      throw new IllegalStateException(
+          "Current business activity without an EMTAK code: kirjeId=" + tegevusala.getKirjeId());
+    }
+    return code;
   }
 
   private static Optional<DetailandmedV6TeatatudTegevusala> extractMainActivityRecord(

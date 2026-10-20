@@ -58,7 +58,7 @@ class KybCompanyDataMapper {
         new CompanyDto(
             new RegistryCode(detail.getRegistryCode()),
             detail.getName(),
-            detail.getMainActivity().orElse(null),
+            detail.getActivityCodes(),
             legalForm);
 
     var beneficialOwnerCodes =

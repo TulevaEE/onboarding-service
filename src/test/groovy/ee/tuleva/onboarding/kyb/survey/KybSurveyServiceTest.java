@@ -110,7 +110,10 @@ class KybSurveyServiceTest {
     assertThat(result.businessActivity().value()).isEqualTo("Fondide valitsemine");
     assertThat(result.naceCode().value()).isEqualTo("6630");
     assertThat(result.naceCode().errors())
-        .containsExactly(new ValidationError("UNSUPPORTED_NACE", "See tegevusala ei ole toetatud"));
+        .containsExactly(
+            new ValidationError(
+                "UNSUPPORTED_NACE",
+                "Kahjuks sinu ettevõtte registreeritud tegevusala viitab kõrgema riskiga tegevusele, mis ei vasta meie fondi tingimustele."));
     assertThat(result.relatedPersons().value()).hasSize(1);
     assertThat(result.relatedPersons().value().getFirst().name()).isEqualTo("Jaan Tamm");
     assertThat(result.relatedPersons().errors())

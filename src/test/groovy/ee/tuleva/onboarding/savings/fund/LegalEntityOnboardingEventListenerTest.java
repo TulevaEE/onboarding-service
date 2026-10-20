@@ -32,7 +32,7 @@ class LegalEntityOnboardingEventListenerTest {
       new LegalEntityOnboardingEventListener(repository, eventPublisher);
 
   private final CompanyDto company =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ);
 
   private final List<KybRelatedPerson> relatedPersons =
       List.of(boardMemberOwner("38501010001", 100.0).kycStatus(KybKycStatus.COMPLETED).build());

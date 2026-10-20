@@ -63,7 +63,7 @@ class CompanyRegisteredInEstoniaScreenerTest {
   private KybCompanyData companyWith(String countryCode, String fullAddress) {
     var person = boardMemberOwner("38501010002", 100.0).build();
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
         new PersonalCode("38501010002"),
         R,
         List.of(person),

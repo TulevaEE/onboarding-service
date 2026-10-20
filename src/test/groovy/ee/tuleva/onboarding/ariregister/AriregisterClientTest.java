@@ -149,6 +149,7 @@ class AriregisterClientTest {
                 "Pärnu mnt 123, 11313 Tallinn",
                 new AddressDetails("Pärnu mnt 123", "Tallinn", "11313", "EE")));
     assertThat(detail.getMainActivity()).contains("Fondide valitsemine");
+    assertThat(detail.getActivityCodes()).containsExactly("64201", "66301");
     assertThat(detail.getRepresentationRights())
         .containsExactly(
             new RepresentationRight(

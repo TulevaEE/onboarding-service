@@ -34,7 +34,7 @@ class CompanyOnboardingEventListenerTest {
           companyRepository, companyPartyRepository, companyRepresentationRightRepository);
 
   private final CompanyDto company =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ);
 
   // board member + shareholder + beneficial owner
   private final KybRelatedPerson person1 = boardMemberOwner("38501010001", 50.0).build();

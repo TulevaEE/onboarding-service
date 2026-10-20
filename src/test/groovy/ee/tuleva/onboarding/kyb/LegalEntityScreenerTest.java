@@ -95,7 +95,7 @@ class LegalEntityScreenerTest {
     given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", List.of(), LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),
@@ -127,7 +127,7 @@ class LegalEntityScreenerTest {
     given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", List.of(), LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),
@@ -165,7 +165,7 @@ class LegalEntityScreenerTest {
         .willReturn(new KybSurveyInputs(PERSONAL_CODE, SELF_CERT));
     var companyData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", null, LegalForm.OÜ),
+            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", List.of(), LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),

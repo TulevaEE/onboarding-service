@@ -3,13 +3,17 @@ package ee.tuleva.onboarding.payment.recurring;
 import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.CREATE_ANALYTICS_SCHEMA;
 import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.CREATE_THIRD_PILLAR_TABLE;
 import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.GIFT;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.deadline.EstonianClockConfiguration;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
@@ -47,6 +51,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
   private static final BigDecimal MONTHLY_AMOUNT = new BigDecimal("100.00");
   private static final BigDecimal ONE_OFF_AMOUNT = new BigDecimal("50.00");
   private static final Instant NOW = Instant.parse("2026-10-19T09:00:00Z");
+  private static final String REPRESENTED_PERSONAL_CODE = "38501010002";
 
   @Autowired private TestEntityManager entityManager;
   @Autowired private ThirdPillarStandingOrders standingOrders;
@@ -193,13 +198,30 @@ class ThirdPillarStandingOrdersIntegrationTest {
     assertThat(paysByStandingOrderAt(Instant.parse("2026-10-31T22:30:00Z"))).isFalse();
   }
 
+  @Test
+  void looksAtThePersonTheUserActsFor() {
+    var actingForAnotherPerson =
+        sampleAuthenticatedPersonNonMember()
+            .role(new Role(PERSON, REPRESENTED_PERSONAL_CODE, "Represented Person"))
+            .build();
+    contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 7, 10));
+    contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 8, 10));
+    contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 9, 10));
+
+    assertThat(paysByStandingOrder(actingForAnotherPerson, NOW)).isTrue();
+  }
+
   private boolean paysByStandingOrder() {
     return paysByStandingOrderAt(NOW);
   }
 
   private boolean paysByStandingOrderAt(Instant now) {
+    return paysByStandingOrder(saver, now);
+  }
+
+  private boolean paysByStandingOrder(Person person, Instant now) {
     ClockHolder.setClock(Clock.fixed(now, UTC));
-    return standingOrders.paysByStandingOrder(saver.getPersonalCode());
+    return standingOrders.detectedFor(person);
   }
 
   private void contribution(String source, LocalDate reportedOn) {
@@ -207,9 +229,18 @@ class ThirdPillarStandingOrdersIntegrationTest {
   }
 
   private void contribution(String source, LocalDate reportedOn, BigDecimal amount) {
+    contribution(saver.getPersonalCode(), source, reportedOn, amount);
+  }
+
+  private void contributionOf(String personalCode, LocalDate reportedOn) {
+    contribution(personalCode, OWN_SOURCE, reportedOn, MONTHLY_AMOUNT);
+  }
+
+  private void contribution(
+      String personalCode, String source, LocalDate reportedOn, BigDecimal amount) {
     entityManager.persist(
         exampleTransactionBuilder()
-            .personalId(saver.getPersonalCode())
+            .personalId(personalCode)
             .transactionSource(source)
             .reportingDate(reportedOn)
             .transactionValue(amount)

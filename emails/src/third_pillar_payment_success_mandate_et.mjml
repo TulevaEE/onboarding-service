@@ -7,10 +7,28 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sissemakse on tehtud. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva lõpuks.
-          Kui kandsid raha üle nädalavahetusel, näed uusi osakuid oma pensionikontol teisipäeva
-          õhtuks.
+          Sinu III&nbsp;samba sissemakse on tehtud. Uued osakud jõuavad sinu pensionikontole
+          järgmise tööpäeva lõpuks. Kui tegid sissemakse nädalavahetusel, näed uusi osakuid
+          teisipäeva õhtuks.
         </mj-text>
+
+        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
+        <mj-text>
+          Järjepidev kogumine aitab oma vara pikaajaliselt kasvatada. Tulevas kogud juba nii
+          III&nbsp;sambas kui ka Täiendavas Kogumisfondis. Viimases saad kogumise veelgi lihtsamaks
+          teha, kui seadistad püsimakse.
+        </mj-text>
+        <mj-text>
+          Nii läheb valitud summa iga kuu automaatselt Täiendavasse Kogumisfondi, ilma et peaksid
+          iga kord eraldi ülekannet tegema.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&utm_content=nudge_savings_fund_recurring">
+          Seadistan püsimakse
+        </mj-button>
+        <mj-text>
+          Olemasoleva püsimakse summat saad igal ajal oma internetipangas muuta.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           III&nbsp;sambas kogub vaid 30% Eesti inimestest. Sina kuulud nende hulka ja panustad
           teadlikult oma tuleviku heaks.
@@ -18,6 +36,7 @@
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
 
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

@@ -17,16 +17,19 @@ class CompanyDetailMapper {
   static CompanyDetail fromEttevotja(DetailandmedV6Ettevotja ettevotja) {
     var yldandmed = Optional.ofNullable(ettevotja.getYldandmed());
     var mainActivityRecord = yldandmed.flatMap(CompanyDetailMapper::extractMainActivityRecord);
-    return new CompanyDetail(
-        ettevotja.getNimi(),
-        ettevotja.getAriregistriKood().toString(),
-        yldandmed.map(DetailandmedV6Yldandmed::getStaatus).orElse(null),
-        yldandmed.map(DetailandmedV6Yldandmed::getOiguslikVorm).orElse(null),
-        yldandmed.flatMap(CompanyDetailMapper::extractFoundingDate).orElse(null),
-        yldandmed.flatMap(CompanyDetailMapper::extractCurrentAddress).orElse(null),
-        mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getEmtakTekstina).orElse(null),
-        mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getNaceKood).orElse(null),
-        extractRepresentationRights(ettevotja));
+    return CompanyDetail.builder()
+        .name(ettevotja.getNimi())
+        .registryCode(ettevotja.getAriregistriKood().toString())
+        .status(yldandmed.map(DetailandmedV6Yldandmed::getStaatus).orElse(null))
+        .legalForm(yldandmed.map(DetailandmedV6Yldandmed::getOiguslikVorm).orElse(null))
+        .foundingDate(yldandmed.flatMap(CompanyDetailMapper::extractFoundingDate).orElse(null))
+        .address(yldandmed.flatMap(CompanyDetailMapper::extractCurrentAddress).orElse(null))
+        .mainActivity(
+            mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getEmtakTekstina).orElse(null))
+        .naceCode(
+            mainActivityRecord.map(DetailandmedV6TeatatudTegevusala::getNaceKood).orElse(null))
+        .representationRights(extractRepresentationRights(ettevotja))
+        .build();
   }
 
   private static List<RepresentationRight> extractRepresentationRights(

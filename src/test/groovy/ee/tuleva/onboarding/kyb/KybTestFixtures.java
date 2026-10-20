@@ -30,6 +30,14 @@ public final class KybTestFixtures {
 
   static final SelfCertification VALID_CERT = new SelfCertification(true, true, true);
 
+  static CompanyDetail.CompanyDetailBuilder companyDetail() {
+    return CompanyDetail.builder()
+        .name("Test OÜ")
+        .registryCode("12345678")
+        .status("R")
+        .legalForm("OÜ");
+  }
+
   public static KybRelatedPerson.KybRelatedPersonBuilder kybPerson() {
     return KybRelatedPerson.builder().naturalPerson(true).ownershipPercent(ZERO).kycStatus(UNKNOWN);
   }
@@ -248,16 +256,11 @@ public final class KybTestFixtures {
   // =====================================================================
 
   static final CompanyDetail VALID_COMPANY_DETAIL =
-      new CompanyDetail(
-          "Test OÜ",
-          "12345678",
-          "R",
-          "OÜ",
-          LocalDate.of(2020, 1, 15),
-          null,
-          "Programmeerimine",
-          "62011",
-          List.of());
+      companyDetail()
+          .foundingDate(LocalDate.of(2020, 1, 15))
+          .mainActivity("Programmeerimine")
+          .naceCode("62011")
+          .build();
 
   static List<CompanyRelationship> rule31PassRelationships() {
     return List.of(
@@ -416,19 +419,6 @@ public final class KybTestFixtures {
   // Rule 34: Company is active in Äriregister
   // =====================================================================
 
-  static CompanyDetail companyDetailInLiquidation() {
-    return new CompanyDetail(
-        "Test OÜ",
-        "12345678",
-        "L",
-        "OÜ",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Programmeerimine",
-        "62011",
-        List.of());
-  }
-
   static KybCompanyData rule34Pass() {
     return rule31Pass();
   }
@@ -485,19 +475,6 @@ public final class KybTestFixtures {
   // Rule 41: High-risk NACE code
   // =====================================================================
 
-  static CompanyDetail companyDetailHighRiskNace() {
-    return new CompanyDetail(
-        "Crypto OÜ",
-        "12345678",
-        "R",
-        "OÜ",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Krüptovarade teenused",
-        "64321",
-        List.of());
-  }
-
   static KybCompanyData rule41Pass() {
     return rule31Pass();
   }
@@ -540,19 +517,6 @@ public final class KybTestFixtures {
   // =====================================================================
   // Rule 50: Legal form must be OÜ
   // =====================================================================
-
-  static CompanyDetail companyDetailAS() {
-    return new CompanyDetail(
-        "Test AS",
-        "12345678",
-        "R",
-        "AS",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Programmeerimine",
-        "62011",
-        List.of());
-  }
 
   static KybCompanyData rule50Pass() {
     return rule31Pass();

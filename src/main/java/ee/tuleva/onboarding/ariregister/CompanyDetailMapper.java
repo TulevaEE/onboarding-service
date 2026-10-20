@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.ariregister;
 
-import static java.util.stream.Collectors.flatMapping;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.mapping;
 
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6EsindusoiguseEritingimus;
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.DetailandmedV6EsindusoiguseEritingimused;
@@ -17,10 +16,13 @@ import ee.tuleva.onboarding.country.CountryCodes;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 class CompanyDetailMapper {
 
@@ -65,23 +67,26 @@ class CompanyDetailMapper {
                 groupingBy(
                     isik -> new JointShare(isik.getGrupp(), isik.getOsaluseProtsent()),
                     LinkedHashMap::new,
-                    flatMapping(CompanyDetailMapper::ownerCode, toList())))
+                    mapping(CompanyDetailMapper::ownerCode, Collectors.<@Nullable String>toList())))
             .entrySet()
             .stream()
             .map(share -> new Shareholding(share.getKey().ownershipPercent(), share.getValue()));
     var otherShares =
         currentHoldings.stream()
             .filter(isik -> !isJointlyOwned(isik))
-            .map(isik -> new Shareholding(isik.getOsaluseProtsent(), ownerCode(isik).toList()));
+            .map(
+                isik ->
+                    new Shareholding(
+                        isik.getOsaluseProtsent(), Collections.singletonList(ownerCode(isik))));
     return Stream.concat(jointlyOwnedShares, otherShares).toList();
+  }
+
+  private static @Nullable String ownerCode(DetailandmedV6KaardivalineIsik isik) {
+    return isik.getIsikukoodRegistrikood();
   }
 
   private static boolean isJointlyOwned(DetailandmedV6KaardivalineIsik isik) {
     return JOINT_OWNERSHIP.equals(isik.getOsaluseOmandiliik()) && isik.getGrupp() != null;
-  }
-
-  private static Stream<String> ownerCode(DetailandmedV6KaardivalineIsik isik) {
-    return Stream.ofNullable(isik.getIsikukoodRegistrikood());
   }
 
   private static List<RepresentationRight> extractRepresentationRights(

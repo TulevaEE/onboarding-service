@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.HIGH_RISK_NACE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.springframework.ws.test.client.RequestMatchers.xpath;
 import static org.springframework.ws.test.client.ResponseCreators.withPayload;
@@ -103,8 +102,11 @@ class RegistryResponseScreeningIntegrationTest {
         "ettevottegaSeotudIsikud_v1_joint_ownership_one_board_member_response.xml");
 
     assertThat(ownershipChecks())
-        .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
+        .containsExactly(
+            new KybCheck(
+                SINGLE_BOARD_MEMBER_OWNERSHIP,
+                true,
+                Map.of("boardMemberPersonalCode", "38501010002", "totalOwnership", "100.000000")));
   }
 
   private List<KybCheck> ownershipChecks() {

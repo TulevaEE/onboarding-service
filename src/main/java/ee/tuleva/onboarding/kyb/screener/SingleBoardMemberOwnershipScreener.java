@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -44,13 +45,18 @@ public class SingleBoardMemberOwnershipScreener implements KybScreener {
             && totalOwnership.compareTo(BigDecimal.valueOf(100)) == 0;
 
     return List.of(
-        new KybCheck(SINGLE_BOARD_MEMBER_OWNERSHIP, success, buildMetadata(boardMember)));
+        new KybCheck(
+            SINGLE_BOARD_MEMBER_OWNERSHIP, success, buildMetadata(boardMember, totalOwnership)));
   }
 
-  private Map<String, Object> buildMetadata(KybRelatedPerson boardMember) {
+  private Map<String, Object> buildMetadata(
+      KybRelatedPerson boardMember, BigDecimal totalOwnership) {
+    var metadata = new HashMap<String, Object>();
     var personalCode = boardMember.personalCode();
-    return personalCode == null
-        ? Map.of()
-        : Map.of("boardMemberPersonalCode", personalCode.toString());
+    if (personalCode != null) {
+      metadata.put("boardMemberPersonalCode", personalCode.toString());
+    }
+    metadata.put("totalOwnership", totalOwnership.toPlainString());
+    return Map.copyOf(metadata);
   }
 }

@@ -33,6 +33,7 @@ public class UserConversionService {
   private final ConversionCashFlows conversionCashFlows;
   private final Clock estonianClock;
   private final PendingMandateApplications pendingMandateApplications;
+  private final ThirdPillarRecurringPayments thirdPillarRecurringPayments;
 
   private final WeightedAverageFeeCalculator weightedAverageFeeCalculator =
       new WeightedAverageFeeCalculator();
@@ -100,6 +101,7 @@ public class UserConversionService {
                         .total(totalSubtractionSum(cashFlows, 3))
                         .build())
                 .paymentComplete(paymentComplete(cashFlows, sameTimeLastYear))
+                .recurringPaymentDetected(thirdPillarRecurringPayments.detectedFor(person))
                 .weightedAverageFee(
                     weightedAverageFeeCalculator.getWeightedAverageFee(
                         filter(holdings, 3).toList(), getPendingExchanges(3, person).toList()))

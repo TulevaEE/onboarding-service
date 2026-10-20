@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.analytics.ThirdPillarContribution;
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.conversion.ThirdPillarRecurringPayments;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -15,13 +17,15 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class ThirdPillarStandingOrders {
+class ThirdPillarStandingOrders implements ThirdPillarRecurringPayments {
 
   private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final PaymentRepository paymentRepository;
   private final Clock estonianClock;
 
-  boolean paysByStandingOrder(String personalCode) {
+  @Override
+  public boolean detectedFor(Person person) {
+    var personalCode = person.getRepresentedPersonalCode();
     final int LOOKBACK_MONTHS = 4;
     final int MIN_STANDING_ORDER_MONTHS = 3;
     var windowStart =

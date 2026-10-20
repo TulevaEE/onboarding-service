@@ -8,8 +8,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpHeaders.LOCATION;
+import static org.springframework.http.HttpHeaders.USER_AGENT;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,6 +26,8 @@ import com.nimbusds.jwt.SignedJWT;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.event.EventLog;
+import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.servlet.http.Cookie;
 import java.nio.file.Path;
@@ -55,6 +59,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
@@ -86,6 +91,8 @@ class OAuthAuthorizationFlowIntegrationTest {
   private static final String OTHER_CALLBACK = "https://other.example/callback";
   private static final String CLIENT_ASSERTION_TYPE =
       "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  private static final String BROWSER_ADDRESS = "203.0.113.7";
+  private static final String BROWSER = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)";
   private static final Path KILL_SWITCH = Path.of("docs/runbooks/oauth-kill-switch-portfellow.sql");
 
   @Autowired private MockMvc mockMvc;
@@ -93,6 +100,7 @@ class OAuthAuthorizationFlowIntegrationTest {
   @Autowired private JsonMapper jsonMapper;
   @Autowired private DataSource dataSource;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EventLogRepository eventLogRepository;
 
   @AfterEach
   void resetClock() {
@@ -129,6 +137,39 @@ class OAuthAuthorizationFlowIntegrationTest {
     assertThat(UUID.fromString(claims.get("grant_id").asString())).isNotNull();
     assertThat(claims.get("scope").get(0).asString()).isEqualTo("balances:read");
     assertThat(tokens.get("refresh_token").asString()).isNotBlank();
+  }
+
+  @Test
+  void approvingRecordsTheConnectionFromThePersonsBrowserAndNothingFromTheClientsServers()
+      throws Exception {
+    var pkce = Pkce.generate();
+    var connectRequest = startAuthorization(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read", pkce);
+    var lastEventBefore = lastEventLogId();
+
+    var approval =
+        mockMvc
+            .perform(
+                approveRequest(connectRequest, bearer(smartIdLoginNow()))
+                    .with(fromAddress(BROWSER_ADDRESS))
+                    .header(USER_AGENT, BROWSER))
+            .andExpect(status().isOk())
+            .andReturn();
+    var code = redirectUriOf(approval).getQueryParams().getFirst("code");
+    var tokens = exchangeCode(PORTFELLOW, PORTFELLOW_CALLBACK, code, pkce);
+    refresh(PORTFELLOW, tokens.get("refresh_token").asString());
+
+    assertThat(eventLogRepository.findAll())
+        .filteredOn(event -> event.getId() > lastEventBefore)
+        .extracting(EventLog::getPrincipal, EventLog::getType, EventLog::getData)
+        .containsExactly(
+            tuple(
+                PERSONAL_CODE,
+                "APP_CONNECTED",
+                Map.of(
+                    "clientId", PORTFELLOW,
+                    "scopes", List.of("balances:read"),
+                    "ipAddress", BROWSER_ADDRESS,
+                    "userAgent", BROWSER)));
   }
 
   @Test
@@ -549,6 +590,17 @@ class OAuthAuthorizationFlowIntegrationTest {
     return post("/v1/connect/{id}/approve", connectRequest.id())
         .cookie(connectRequest.cookie())
         .header(AUTHORIZATION, "Bearer " + bearer);
+  }
+
+  private long lastEventLogId() {
+    return jdbcClient.sql("SELECT COALESCE(MAX(id), 0) FROM event_log").query(Long.class).single();
+  }
+
+  private static RequestPostProcessor fromAddress(String address) {
+    return request -> {
+      request.setRemoteAddr(address);
+      return request;
+    };
   }
 
   private org.springframework.web.util.UriComponents redirectUriOf(MvcResult result)

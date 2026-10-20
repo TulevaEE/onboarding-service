@@ -4,9 +4,12 @@ import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import lombok.Builder;
+import lombok.Singular;
 import lombok.Value;
 
 @Value
+@Builder
 public class CompanyDetail {
 
   String name;
@@ -17,7 +20,7 @@ public class CompanyDetail {
   @Nullable CompanyAddress address;
   @Nullable String mainActivity;
   @Nullable String naceCode;
-  List<RepresentationRight> representationRights;
+  @Singular List<RepresentationRight> representationRights;
 
   public Optional<String> getStatus() {
     return Optional.ofNullable(status);

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyDetail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -218,7 +219,6 @@ class LegalEntityScreenerTest {
   }
 
   private static CompanyDetail sampleDetail() {
-    return new CompanyDetail(
-        "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null, List.of());
+    return companyDetail().registryCode(REGISTRY_CODE).build();
   }
 }

@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.ariregister.AddressDetails;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
-import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -60,8 +59,7 @@ class KybCompanyDataMapperTest {
             "Osaluse kaudu",
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -105,8 +103,7 @@ class KybCompanyDataMapperTest {
             null,
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -147,8 +144,7 @@ class KybCompanyDataMapperTest {
             null,
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -181,8 +177,7 @@ class KybCompanyDataMapperTest {
             "Osaluse kaudu",
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -214,8 +209,7 @@ class KybCompanyDataMapperTest {
             null,
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -253,8 +247,7 @@ class KybCompanyDataMapperTest {
             null,
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -277,8 +270,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void synthesizesUnidentifiedPersonPerHiddenBeneficialOwner() {
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -291,8 +283,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void synthesizesUnidentifiedPersonForForeignBeneficialOwnerWithoutCode() {
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -311,8 +302,7 @@ class KybCompanyDataMapperTest {
         new CompanyAddress(
             "Tartu maakond, Tartu linn, Paju 2",
             new AddressDetails("Paju 2", "Tartu linn", "50104", "EE"));
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, address, null, null, List.of());
+    var detail = companyDetail().address(address).build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -323,8 +313,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsNullAddressToNullCountryCodeAndFullAddress() {
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -335,8 +324,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsCompanyStatus() {
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -346,17 +334,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsFoundingDate() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            "12345678",
-            "R",
-            "OÜ",
-            LocalDate.of(2020, 1, 15),
-            null,
-            null,
-            null,
-            List.of());
+    var detail = companyDetail().foundingDate(LocalDate.of(2020, 1, 15)).build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -366,8 +344,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsNullFoundingDateWhenAriregisterHasNone() {
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -406,8 +383,7 @@ class KybCompanyDataMapperTest {
             null,
             "GBR");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -426,8 +402,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsKnownLegalFormTüh() {
-    var detail =
-        new CompanyDetail("Test TÜH", "12345678", "R", "TÜH", null, null, null, null, List.of());
+    var detail = companyDetail().name("Test TÜH").legalForm("TÜH").build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -437,8 +412,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsUnknownLegalFormToOther() {
-    var detail =
-        new CompanyDetail("Test XYZ", "12345678", "R", "XYZ", null, null, null, null, List.of());
+    var detail = companyDetail().name("Test XYZ").legalForm("XYZ").build();
 
     var result =
         mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
@@ -477,8 +451,7 @@ class KybCompanyDataMapperTest {
             null,
             "EST");
 
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -495,8 +468,7 @@ class KybCompanyDataMapperTest {
     when(kycChecks.latestKycCheckPassedWithinLastYear("38888888888")).thenReturn(Optional.of(true));
 
     var relationship = boardMemberRelationship("38888888888");
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -511,8 +483,7 @@ class KybCompanyDataMapperTest {
         .thenReturn(Optional.of(false));
 
     var relationship = boardMemberRelationship("38888888888");
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -524,8 +495,7 @@ class KybCompanyDataMapperTest {
   @Test
   void resolvesUnknownKycStatusWhenNoCheckExists() {
     var relationship = boardMemberRelationship("38888888888");
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -537,8 +507,7 @@ class KybCompanyDataMapperTest {
   @Test
   void mapsNasdaqCsdShareholderRoleToShareholder() {
     var shareholder = nasdaqCsdShareholder("38888888888", "Jaan", "Tamm", new BigDecimal("100.00"));
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(
@@ -557,8 +526,7 @@ class KybCompanyDataMapperTest {
   void mapsLegalEntityOwnerAsNonNaturalPerson() {
     var legalEntityOwner =
         legalEntityShareholder("90000002", "Holding OÜ", new BigDecimal("100.00"));
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+    var detail = companyDetail().build();
 
     var result =
         mapper.toKybCompanyData(

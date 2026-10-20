@@ -71,7 +71,8 @@ class KybCompanyDataMapperTest {
             SELF_CERT);
 
     assertThat(result.company())
-        .isEqualTo(new CompanyDto(new RegistryCode("12345678"), "Test OÜ", null, LegalForm.OÜ));
+        .isEqualTo(
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of(), LegalForm.OÜ));
     assertThat(result.personalCode()).isEqualTo(PERSONAL_CODE);
     assertThat(result.status()).isEqualTo(R);
     assertThat(result.selfCertification()).isEqualTo(SELF_CERT);
@@ -539,6 +540,16 @@ class KybCompanyDataMapperTest {
                 .shareholder(true)
                 .ownershipPercent(new BigDecimal("100.00"))
                 .build());
+  }
+
+  @Test
+  void companyCarriesTheCodesOfItsActivities() {
+    var detail = companyDetail().activityCode("66301").activityCode("70201").build();
+
+    var result =
+        mapper.toKybCompanyData(detail, PERSONAL_CODE, List.of(), NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.company().activityCodes()).containsExactly("66301", "70201");
   }
 
   @Test

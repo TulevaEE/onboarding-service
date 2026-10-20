@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ariregister;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.*;
 import java.math.BigInteger;
@@ -31,7 +32,34 @@ class CompanyDetailMapperTest {
                 "Pärnu mnt 1", new AddressDetails("Pärnu mnt 1", "Tallinn", "11313", "EE")));
     assertThat(result.getMainActivity()).contains("Fondide valitsemine");
     assertThat(result.getNaceCode()).contains("6630");
+    assertThat(result.getActivityCodes()).containsExactly("66301");
     assertThat(result.getRepresentationRights()).isEmpty();
+  }
+
+  @Test
+  void mapsTheCodesOfEveryCurrentActivityButNotTheEndedOnes() {
+    var yldandmed = new DetailandmedV6Yldandmed();
+    var tegevusalad = new DetailandmedV6TeatatudTegevusalad();
+    tegevusalad.getItem().add(activityRecord("70201", true, null));
+    tegevusalad.getItem().add(activityRecord("66301", false, null));
+    tegevusalad.getItem().add(activityRecord("69202", true, LocalDate.of(2025, 4, 25)));
+    yldandmed.setTeatatudTegevusalad(tegevusalad);
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotjaWith(yldandmed));
+
+    assertThat(result.getActivityCodes()).containsExactly("66301", "70201");
+  }
+
+  @Test
+  void refusesACurrentActivityWithoutACodeRatherThanLeaveItUnchecked() {
+    var yldandmed = new DetailandmedV6Yldandmed();
+    var tegevusalad = new DetailandmedV6TeatatudTegevusalad();
+    tegevusalad.getItem().add(activityRecord(null, true, null));
+    yldandmed.setTeatatudTegevusalad(tegevusalad);
+    var ettevotja = ettevotjaWith(yldandmed);
+
+    assertThatThrownBy(() -> CompanyDetailMapper.fromEttevotja(ettevotja))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -48,6 +76,7 @@ class CompanyDetailMapperTest {
     assertThat(result.getAddress()).isEmpty();
     assertThat(result.getMainActivity()).isEmpty();
     assertThat(result.getNaceCode()).isEmpty();
+    assertThat(result.getActivityCodes()).isEmpty();
     assertThat(result.getRepresentationRights()).isEmpty();
   }
 
@@ -110,10 +139,12 @@ class CompanyDetailMapperTest {
     var tegevusalad = new DetailandmedV6TeatatudTegevusalad();
 
     var secondary = new DetailandmedV6TeatatudTegevusala();
+    secondary.setEmtakKood("70201");
     secondary.setEmtakTekstina("Secondary");
     secondary.setOnPohitegevusala(false);
 
     var main = new DetailandmedV6TeatatudTegevusala();
+    main.setEmtakKood("62011");
     main.setEmtakTekstina("Main");
     main.setOnPohitegevusala(true);
 
@@ -162,11 +193,21 @@ class CompanyDetailMapperTest {
   private static DetailandmedV6TeatatudTegevusalad activity(String name, boolean main) {
     var tegevusalad = new DetailandmedV6TeatatudTegevusalad();
     var tegevusala = new DetailandmedV6TeatatudTegevusala();
+    tegevusala.setEmtakKood("66301");
     tegevusala.setEmtakTekstina(name);
     tegevusala.setNaceKood("6630");
     tegevusala.setOnPohitegevusala(main);
     tegevusalad.getItem().add(tegevusala);
     return tegevusalad;
+  }
+
+  private static DetailandmedV6TeatatudTegevusala activityRecord(
+      String emtakCode, boolean main, LocalDate endDate) {
+    var tegevusala = new DetailandmedV6TeatatudTegevusala();
+    tegevusala.setEmtakKood(emtakCode);
+    tegevusala.setOnPohitegevusala(main);
+    tegevusala.setLoppKpv(endDate);
+    return tegevusala;
   }
 
   private static DetailandmedV6Isikuandmed isikuandmedWith(

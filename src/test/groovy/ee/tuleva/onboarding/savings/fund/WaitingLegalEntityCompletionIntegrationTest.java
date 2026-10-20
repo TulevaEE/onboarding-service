@@ -199,7 +199,10 @@ class WaitingLegalEntityCompletionIntegrationTest {
         new KybCheckPerformedEvent(
             this,
             new CompanyDto(
-                new RegistryCode(registryCode), nameOf(registryCode), "62011", LegalForm.OÜ),
+                new RegistryCode(registryCode),
+                nameOf(registryCode),
+                List.of("62011"),
+                LegalForm.OÜ),
             new PersonalCode(APPLICANT),
             List.of(),
             List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())),

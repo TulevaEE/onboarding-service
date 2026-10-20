@@ -20,6 +20,7 @@ public class CompanyDetail {
   @Nullable CompanyAddress address;
   @Nullable String mainActivity;
   @Nullable String naceCode;
+  @Singular List<String> activityCodes;
   @Singular List<RepresentationRight> representationRights;
 
   public Optional<String> getStatus() {

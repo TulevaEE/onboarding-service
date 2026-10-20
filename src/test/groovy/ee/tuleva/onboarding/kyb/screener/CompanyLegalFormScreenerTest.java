@@ -52,7 +52,7 @@ class CompanyLegalFormScreenerTest {
 
   private KybCompanyData companyWithLegalForm(LegalForm legalForm) {
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", legalForm),
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), legalForm),
         new PersonalCode("38501010001"),
         R,
         List.of(),

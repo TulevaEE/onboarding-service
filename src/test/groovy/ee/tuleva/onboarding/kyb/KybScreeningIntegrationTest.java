@@ -132,7 +132,7 @@ class KybScreeningIntegrationTest {
 
     var changedData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.L,
             List.of(person),
@@ -213,7 +213,7 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
@@ -283,7 +283,7 @@ class KybScreeningIntegrationTest {
     var person2 = boardMemberOwner("49001010001", 50.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person1, person2),
@@ -337,7 +337,7 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
@@ -393,9 +393,11 @@ class KybScreeningIntegrationTest {
     assertThat((List<Map<String, Object>>) dataChanged.metadata().get("changes")).isEmpty();
   }
 
-  private KybCompanyData companyFor(String registryCode, String naceCode, KybRelatedPerson owner) {
+  private KybCompanyData companyFor(
+      String registryCode, String activityCode, KybRelatedPerson owner) {
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode(registryCode), "Test OÜ", naceCode, LegalForm.OÜ),
+        new CompanyDto(
+            new RegistryCode(registryCode), "Test OÜ", List.of(activityCode), LegalForm.OÜ),
         PERSONAL_CODE,
         R,
         List.of(owner),

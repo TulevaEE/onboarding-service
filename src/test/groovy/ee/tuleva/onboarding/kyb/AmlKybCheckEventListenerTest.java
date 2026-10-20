@@ -84,7 +84,8 @@ class AmlKybCheckEventListenerTest {
 
   private static KybCheckPerformedEvent event(
       String registryCode, String personalCode, List<KybCheck> checks) {
-    var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
+    var company =
+        new CompanyDto(new RegistryCode(registryCode), "Test OÜ", List.of("62011"), LegalForm.OÜ);
     var relatedPersons = List.of(boardMemberOwner(new PersonalCode(personalCode), 100.0).build());
     return new KybCheckPerformedEvent(
         AmlKybCheckEventListenerTest.class,

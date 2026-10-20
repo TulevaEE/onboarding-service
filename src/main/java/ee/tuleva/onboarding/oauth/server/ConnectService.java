@@ -5,9 +5,12 @@ import static org.springframework.security.oauth2.core.endpoint.PkceParameterNam
 import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE_METHOD;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.oauth.AppConnected;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
@@ -29,17 +32,20 @@ class ConnectService {
   private final RegisteredClientRepository clients;
   private final AuthorizationServerSettings settings;
   private final OAuth2AuthorizationCodeRequestAuthenticationProvider codeIssuer;
+  private final ApplicationEventPublisher eventPublisher;
 
   ConnectService(
       PendingAuthorizations pendingAuthorizations,
       PairwiseSubjects subjects,
       RegisteredClientRepository clients,
       AuthorizationServerSettings settings,
-      OAuth2AuthorizationService authorizationService) {
+      OAuth2AuthorizationService authorizationService,
+      ApplicationEventPublisher eventPublisher) {
     this.pendingAuthorizations = pendingAuthorizations;
     this.subjects = subjects;
     this.clients = clients;
     this.settings = settings;
+    this.eventPublisher = eventPublisher;
     this.codeIssuer =
         new OAuth2AuthorizationCodeRequestAuthenticationProvider(
             clients, authorizationService, new InMemoryOAuth2AuthorizationConsentService());
@@ -51,7 +57,7 @@ class ConnectService {
     var request = openRequest(id, browserBinding);
     return new ConnectRequestResponse(
         client(request).getClientName(),
-        request.scopes().stream().sorted().toList(),
+        sortedScopes(request),
         request.createdAt(),
         request.expiresAt());
   }
@@ -79,6 +85,8 @@ class ConnectService {
     try {
       var issued =
           (OAuth2AuthorizationCodeRequestAuthenticationToken) codeIssuer.authenticate(codeRequest);
+      eventPublisher.publishEvent(
+          new AppConnected(person, request.clientId(), sortedScopes(request)));
       return redirect(
           request, Map.of("code", requireNonNull(issued.getAuthorizationCode()).getTokenValue()));
     } finally {
@@ -114,6 +122,10 @@ class ConnectService {
     if (!pendingAuthorizations.consume(request.id())) {
       throw ConnectRejectedException.requestNotFound();
     }
+  }
+
+  private static List<String> sortedScopes(PendingAuthorization request) {
+    return request.scopes().stream().sorted().toList();
   }
 
   private static RedirectResponse redirect(

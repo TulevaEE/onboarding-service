@@ -200,10 +200,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
 
   @Test
   void looksAtThePersonTheUserActsFor() {
-    var actingForAnotherPerson =
-        sampleAuthenticatedPersonNonMember()
-            .role(new Role(PERSON, REPRESENTED_PERSONAL_CODE, "Represented Person"))
-            .build();
+    var actingForAnotherPerson = actingForAnotherPerson();
     contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 7, 10));
     contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 8, 10));
     contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 9, 10));
@@ -211,8 +208,64 @@ class ThirdPillarStandingOrdersIntegrationTest {
     assertThat(paysByStandingOrder(actingForAnotherPerson, NOW)).isTrue();
   }
 
+  @Test
+  void detectsAStandingOrderTheSaverConfirmedSettingUpBeforeAnyContributionArrived() {
+    confirmationAt(Instant.parse("2026-10-15T10:00:00Z"));
+
+    assertThat(paysByStandingOrder()).isTrue();
+  }
+
+  @Test
+  void countsAConfirmationMadeAtMidnightInEstoniaWhenTheWindowOpens() {
+    confirmationAt(Instant.parse("2026-06-30T21:00:00Z"));
+
+    assertThat(paysByStandingOrder()).isTrue();
+  }
+
+  @Test
+  void doesNotCountAConfirmationMadeBeforeTheWindowOpensAtMidnightInEstonia() {
+    confirmationAt(Instant.parse("2026-06-30T20:59:59Z"));
+
+    assertThat(paysByStandingOrder()).isFalse();
+  }
+
+  @Test
+  void keepsCountingAConfirmationUntilTheWindowMovesPastItAtMidnightInEstonia() {
+    confirmationAt(Instant.parse("2026-07-15T10:00:00Z"));
+
+    assertThat(paysByStandingOrderAt(Instant.parse("2026-10-31T21:30:00Z"))).isTrue();
+  }
+
+  @Test
+  void stopsCountingAConfirmationOnceTheWindowMovesPastIt() {
+    confirmationAt(Instant.parse("2026-07-15T10:00:00Z"));
+
+    assertThat(paysByStandingOrderAt(Instant.parse("2026-10-31T22:30:00Z"))).isFalse();
+  }
+
+  @Test
+  void countsAConfirmationForThePersonTheUserActedFor() {
+    var actingForAnotherPerson = actingForAnotherPerson();
+    confirmationBy(actingForAnotherPerson, Instant.parse("2026-10-15T10:00:00Z"));
+
+    assertThat(paysByStandingOrder(actingForAnotherPerson, NOW)).isTrue();
+  }
+
+  @Test
+  void doesNotCountAConfirmationMadeForSomeoneElseAsTheUsersOwn() {
+    confirmationBy(actingForAnotherPerson(), Instant.parse("2026-10-15T10:00:00Z"));
+
+    assertThat(paysByStandingOrder()).isFalse();
+  }
+
   private boolean paysByStandingOrder() {
     return paysByStandingOrderAt(NOW);
+  }
+
+  private static Person actingForAnotherPerson() {
+    return sampleAuthenticatedPersonNonMember()
+        .role(new Role(PERSON, REPRESENTED_PERSONAL_CODE, "Represented Person"))
+        .build();
   }
 
   private boolean paysByStandingOrderAt(Instant now) {
@@ -222,6 +275,15 @@ class ThirdPillarStandingOrdersIntegrationTest {
   private boolean paysByStandingOrder(Person person, Instant now) {
     ClockHolder.setClock(Clock.fixed(now, UTC));
     return standingOrders.detectedFor(person);
+  }
+
+  private void confirmationAt(Instant confirmedAt) {
+    confirmationBy(saver, confirmedAt);
+  }
+
+  private void confirmationBy(Person person, Instant confirmedAt) {
+    ClockHolder.setClock(Clock.fixed(confirmedAt, UTC));
+    standingOrders.recordConfirmation(person);
   }
 
   private void contribution(String source, LocalDate reportedOn) {

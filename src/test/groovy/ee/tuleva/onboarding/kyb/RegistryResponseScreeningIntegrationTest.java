@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.ariregister.AriregisterTestClients.client;
 import static ee.tuleva.onboarding.ariregister.AriregisterTestClients.webServiceTemplate;
+import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.HIGH_RISK_NACE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.springframework.ws.test.client.RequestMatchers.xpath;
 import static org.springframework.ws.test.client.ResponseCreators.withPayload;
@@ -82,6 +85,42 @@ class RegistryResponseScreeningIntegrationTest {
     registryRespondsWithDetails("detailandmed_v2_ended_high_risk_activity_response.xml");
 
     assertThat(activityCheck().success()).isTrue();
+  }
+
+  @Test
+  void acceptsTwoBoardMembersWhoOwnTheCompanysOnlyShareJointly() throws IOException {
+    registryRespondsWithJointOwnership(
+        "ettevottegaSeotudIsikud_v1_joint_ownership_two_board_members_response.xml");
+
+    assertThat(ownershipChecks())
+        .containsExactly(
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, true, Map.of("totalOwnership", "100.000000")));
+  }
+
+  @Test
+  void acceptsAJointlyOwnedShareWhenOnlyOneOfItsOwnersSitsOnTheBoard() throws IOException {
+    registryRespondsWithJointOwnership(
+        "ettevottegaSeotudIsikud_v1_joint_ownership_one_board_member_response.xml");
+
+    assertThat(ownershipChecks())
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
+  }
+
+  private List<KybCheck> ownershipChecks() {
+    var relationships = legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE);
+    var checks =
+        legalEntityScreener
+            .validate(REGISTRY_CODE, new PersonalCode("38501010002"), null, relationships)
+            .checks();
+    registry.verify();
+    return checks.stream().filter(check -> check.type().isOwnershipCheck()).toList();
+  }
+
+  private void registryRespondsWithJointOwnership(String relationshipsFixture) throws IOException {
+    registryResponds("ettevottegaSeotudIsikud_v1", relationshipsFixture);
+    registryResponds("detailandmed_v2", "detailandmed_v2_joint_ownership_response.xml");
+    registryResponds("tegelikudKasusaajad_v2", "tegelikudKasusaajad_v2_joint_owners_response.xml");
   }
 
   private KybCheck activityCheck() {

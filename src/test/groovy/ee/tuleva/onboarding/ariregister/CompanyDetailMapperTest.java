@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.ariregister.generated.detailandmed.*;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CompanyDetailMapperTest {
@@ -63,6 +65,81 @@ class CompanyDetailMapperTest {
   }
 
   @Test
+  void collapsesAJointlyOwnedShareListedOncePerOwnerIntoOneShareholding() {
+    var ettevotja =
+        ettevotjaWithOffRegisterPersons(
+            holding("38501010002", "100.000000", JOINT, 361709),
+            holding("40404049996", "100.000000", JOINT, 361709));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings())
+        .containsExactly(
+            new Shareholding(new BigDecimal("100.000000"), List.of("38501010002", "40404049996")));
+  }
+
+  @Test
+  void keepsAJointShareApartFromAShareTheSameOwnerHoldsAlone() {
+    var ettevotja =
+        ettevotjaWithOffRegisterPersons(
+            holding("38501010002", "75.000000", JOINT, 532088),
+            holding("40404049996", "75.000000", JOINT, 532088),
+            holding("38501010002", "25.000000", SOLE, 532089));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings())
+        .containsExactly(
+            new Shareholding(new BigDecimal("75.000000"), List.of("38501010002", "40404049996")),
+            new Shareholding(new BigDecimal("25.000000"), List.of("38501010002")));
+  }
+
+  @Test
+  void countsJointRowsSeparatelyWhenTheyDisagreeOnTheShareOrLackAGroup() {
+    var ettevotja =
+        ettevotjaWithOffRegisterPersons(
+            holding("38501010002", "100.000000", JOINT, 361709),
+            holding("40404049996", "50.000000", JOINT, 361709),
+            holding("39901019992", "50.000000", JOINT, null));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings())
+        .containsExactly(
+            new Shareholding(new BigDecimal("100.000000"), List.of("38501010002")),
+            new Shareholding(new BigDecimal("50.000000"), List.of("40404049996")),
+            new Shareholding(new BigDecimal("50.000000"), List.of("39901019992")));
+  }
+
+  @Test
+  void neverMergesSolelyOwnedSharesOfTheSameSize() {
+    var ettevotja =
+        ettevotjaWithOffRegisterPersons(
+            holding("38501010002", "50.000000", SOLE, 1),
+            holding("40404049996", "50.000000", SOLE, 1));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings())
+        .containsExactly(
+            new Shareholding(new BigDecimal("50.000000"), List.of("38501010002")),
+            new Shareholding(new BigDecimal("50.000000"), List.of("40404049996")));
+  }
+
+  @Test
+  void leavesOutEndedHoldingsAndPersonsWithoutAShare() {
+    var ended = holding("38501010002", "100.000000", SOLE, 217920);
+    ended.setLoppKpv(LocalDate.of(2023, 9, 2));
+    var founder = holding("40404049996", null, SOLE, null);
+    founder.setIsikuRoll("A");
+    var ettevotja = ettevotjaWithOffRegisterPersons(ended, founder);
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings()).isEmpty();
+  }
+
+  @Test
   void handlesNullYldandmed() {
     var ettevotja = ettevotjaWith(null);
 
@@ -77,6 +154,7 @@ class CompanyDetailMapperTest {
     assertThat(result.getMainActivity()).isEmpty();
     assertThat(result.getNaceCode()).isEmpty();
     assertThat(result.getActivityCodes()).isEmpty();
+    assertThat(result.getShareholdings()).isEmpty();
     assertThat(result.getRepresentationRights()).isEmpty();
   }
 
@@ -208,6 +286,31 @@ class CompanyDetailMapperTest {
     tegevusala.setOnPohitegevusala(main);
     tegevusala.setLoppKpv(endDate);
     return tegevusala;
+  }
+
+  private static final String SOLE = "L";
+  private static final String JOINT = "Y";
+
+  private static DetailandmedV6Ettevotja ettevotjaWithOffRegisterPersons(
+      DetailandmedV6KaardivalineIsik... persons) {
+    var kaardivalised = new DetailandmedV6KaardivalisedIsikud();
+    kaardivalised.getItem().addAll(List.of(persons));
+    var isikuandmed = new DetailandmedV6Isikuandmed();
+    isikuandmed.setKaardivalisedIsikud(kaardivalised);
+    var ettevotja = ettevotjaWith(null);
+    ettevotja.setIsikuandmed(isikuandmed);
+    return ettevotja;
+  }
+
+  private static DetailandmedV6KaardivalineIsik holding(
+      String personalCode, String percent, String ownershipForm, Integer group) {
+    var isik = new DetailandmedV6KaardivalineIsik();
+    isik.setIsikuRoll("OSAN");
+    isik.setIsikukoodRegistrikood(personalCode);
+    isik.setOsaluseProtsent(percent == null ? null : new BigDecimal(percent));
+    isik.setOsaluseOmandiliik(ownershipForm);
+    isik.setGrupp(group == null ? null : BigInteger.valueOf(group));
+    return isik;
   }
 
   private static DetailandmedV6Isikuandmed isikuandmedWith(

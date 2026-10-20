@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -553,7 +554,12 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
-  void totalOwnershipAddsUpTheRelatedPersonsShares() {
+  void totalOwnershipAddsUpTheSharesTheScreenedShareholdersHold() {
+    var detail =
+        companyDetail()
+            .shareholding(new Shareholding(new BigDecimal("60.00"), List.of(JAAN.value())))
+            .shareholding(new Shareholding(new BigDecimal("40.00"), List.of(MARI.value())))
+            .build();
     var relationships =
         List.of(
             shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("60.00")),
@@ -561,9 +567,48 @@ class KybCompanyDataMapperTest {
 
     var result =
         mapper.toKybCompanyData(
-            companyDetail().build(), PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
+            detail, PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.totalOwnership()).isEqualByComparingTo("100");
+  }
+
+  @Test
+  void totalOwnershipCountsAJointlyOwnedShareOnceAlthoughEachOwnerIsListedWithAllOfIt() {
+    var detail =
+        companyDetail()
+            .shareholding(
+                new Shareholding(new BigDecimal("100.00"), List.of(JAAN.value(), MARI.value())))
+            .build();
+    var relationships =
+        List.of(
+            shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("100.00")),
+            shareholder(MARI.value(), "Mari", "Kask", new BigDecimal("100.00")));
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.totalOwnership()).isEqualByComparingTo("100");
+  }
+
+  @Test
+  void totalOwnershipLeavesOutAShareHeldByAnyoneWhoWasNotScreenedAsAShareholder() {
+    var detail =
+        companyDetail()
+            .shareholding(new Shareholding(new BigDecimal("60.00"), List.of(JAAN.value())))
+            .shareholding(
+                new Shareholding(new BigDecimal("40.00"), List.of(MARI.value(), PEETER.value())))
+            .build();
+    var relationships =
+        List.of(
+            shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("60.00")),
+            shareholder(MARI.value(), "Mari", "Kask", new BigDecimal("40.00")));
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.totalOwnership()).isEqualByComparingTo("60");
   }
 
   private CompanyRelationship boardMemberRelationship(String personalCode) {

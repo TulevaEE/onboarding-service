@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.deadline.EstonianClockConfiguration;
+import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -55,6 +56,7 @@ class ThirdPillarStandingOrdersIntegrationTest {
 
   @Autowired private TestEntityManager entityManager;
   @Autowired private ThirdPillarStandingOrders standingOrders;
+  @Autowired private EventLogRepository eventLogRepository;
 
   private User saver;
 
@@ -206,6 +208,18 @@ class ThirdPillarStandingOrdersIntegrationTest {
     contributionOf(REPRESENTED_PERSONAL_CODE, LocalDate.of(2026, 9, 10));
 
     assertThat(paysByStandingOrder(actingForAnotherPerson, NOW)).isTrue();
+  }
+
+  @Test
+  void recordsTheConfirmationInTheEventLogUnderThePersonItIsFor() {
+    var confirmedAt = Instant.parse("2026-10-15T10:00:00Z");
+
+    confirmationAt(confirmedAt);
+
+    assertThat(
+            eventLogRepository.existsByTypeAndPrincipalAndTimestampGreaterThanEqual(
+                "RECURRING_PAYMENT_CONFIRMED", saver.getPersonalCode(), confirmedAt))
+        .isTrue();
   }
 
   @Test

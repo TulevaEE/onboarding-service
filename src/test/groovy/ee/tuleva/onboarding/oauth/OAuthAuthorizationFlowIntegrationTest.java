@@ -7,12 +7,14 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MINUTES;
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpHeaders.LOCATION;
 import static org.springframework.http.HttpHeaders.USER_AGENT;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -45,9 +47,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -60,9 +65,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -86,6 +93,7 @@ class OAuthAuthorizationFlowIntegrationTest {
   private static final String ISSUER = "http://localhost:9000";
   private static final String CONNECT_API_AUDIENCE = ISSUER + "/connect/v1";
   private static final String PERSONAL_CODE = "38812121215";
+  private static final String ANOTHER_PERSONAL_CODE = "30303039816";
   private static final String PORTFELLOW = "portfellow";
   private static final String PORTFELLOW_CALLBACK = "https://app.example/callback";
   private static final String OTHER_CLIENT = "other-client";
@@ -536,11 +544,197 @@ class OAuthAuthorizationFlowIntegrationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void aPersonSeesTheAppTheyConnectedWithWhatItMayReadAndUntilWhen() throws Exception {
+    var connectedAt = Instant.now().truncatedTo(SECONDS);
+    ClockHolder.setClock(Clock.fixed(connectedAt, ZoneOffset.UTC));
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "transactions:read balances:read");
+    var accessTokenIssuedAt =
+        Instant.ofEpochSecond(claimsOf(tokens.get("access_token").asString()).get("iat").asLong());
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .singleElement()
+        .satisfies(
+            app -> {
+              assertThat(app)
+                  .usingRecursiveComparison()
+                  .ignoringFields("lastUsedAt")
+                  .isEqualTo(
+                      new ConnectedApp(
+                          grantIdOf(tokens),
+                          "Portfellow",
+                          List.of("balances:read", "transactions:read"),
+                          connectedAt,
+                          null,
+                          connectedAt.plus(30, DAYS)));
+              assertThat(app.lastUsedAt().truncatedTo(SECONDS)).isEqualTo(accessTokenIssuedAt);
+            });
+  }
+
+  @Test
+  void anAppThePersonApprovedButThatHasNotYetFetchedAnAccessTokenIsListedAsNeverUsed()
+      throws Exception {
+    approve(
+        startAuthorization(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read"), smartIdLoginNow());
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .singleElement()
+        .extracting(ConnectedApp::lastUsedAt)
+        .isNull();
+  }
+
+  @Test
+  void anApprovalWhoseCodeTheAppNeverCollectedIsNoLongerListedOnceTheCodeExpires()
+      throws Exception {
+    var approvedAt = Instant.now().truncatedTo(SECONDS);
+    ClockHolder.setClock(Clock.fixed(approvedAt, ZoneOffset.UTC));
+    approve(
+        startAuthorization(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read"), smartIdLoginNow());
+
+    ClockHolder.setClock(Clock.fixed(approvedAt.plus(2, MINUTES), ZoneOffset.UTC));
+
+    assertThat(connectedApps(smartIdLoginNow())).isEmpty();
+  }
+
+  @Test
+  void anAppThatKeepsRefreshingIsListedUntilOneHundredEightyDaysAndThenNoLonger() throws Exception {
+    var connectedAt = Instant.now().truncatedTo(SECONDS);
+    ClockHolder.setClock(Clock.fixed(connectedAt, ZoneOffset.UTC));
+    var refreshToken =
+        connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read").get("refresh_token").asString();
+    for (int day = 25; day <= 175; day += 25) {
+      ClockHolder.setClock(Clock.fixed(connectedAt.plus(day, DAYS), ZoneOffset.UTC));
+      refreshToken = refresh(PORTFELLOW, refreshToken).get("refresh_token").asString();
+    }
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .extracting(ConnectedApp::expiresAt)
+        .containsExactly(connectedAt.plus(180, DAYS));
+
+    ClockHolder.setClock(Clock.fixed(connectedAt.plus(180, DAYS), ZoneOffset.UTC));
+
+    assertThat(connectedApps(smartIdLoginNow())).isEmpty();
+  }
+
+  @Test
+  void connectedAppsAreListedNewestFirstAndDropOffAfterThirtyDaysWithoutARefresh()
+      throws Exception {
+    var firstConnectedAt = Instant.now().truncatedTo(SECONDS);
+    ClockHolder.setClock(Clock.fixed(firstConnectedAt, ZoneOffset.UTC));
+    connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read");
+    ClockHolder.setClock(Clock.fixed(firstConnectedAt.plus(20, DAYS), ZoneOffset.UTC));
+    connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .extracting(ConnectedApp::clientName)
+        .containsExactly("Portfellow", "Other");
+
+    ClockHolder.setClock(Clock.fixed(firstConnectedAt.plus(30, DAYS), ZoneOffset.UTC));
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .extracting(ConnectedApp::clientName)
+        .containsExactly("Portfellow");
+  }
+
+  @Test
+  void aPersonWhoRevokesAConnectedAppStopsItRefreshingAndNoLongerSeesIt() throws Exception {
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+    var otherTokens = connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read");
+
+    revokeConnectedApp(smartIdLoginNow(), grantIdOf(tokens)).andExpect(status().isNoContent());
+
+    refreshExpectingInvalidGrant(PORTFELLOW, tokens.get("refresh_token").asString());
+    assertThat(connectedApps(smartIdLoginNow()))
+        .extracting(ConnectedApp::id)
+        .containsExactly(grantIdOf(otherTokens));
+    assertThat(revocationReasonOf(grantIdOf(tokens))).isEqualTo("PERSON");
+  }
+
+  @Test
+  void revokingAConnectedAppThatHasAlreadyEndedSucceedsSoADoubleClickOrARaceIsHarmless()
+      throws Exception {
+    var connectedAt = Instant.now().truncatedTo(SECONDS);
+    ClockHolder.setClock(Clock.fixed(connectedAt, ZoneOffset.UTC));
+    var revokedBefore = grantIdOf(connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read"));
+    var expired = grantIdOf(connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read"));
+    revokeConnectedApp(smartIdLoginNow(), revokedBefore).andExpect(status().isNoContent());
+    ClockHolder.setClock(Clock.fixed(connectedAt.plus(30, DAYS), ZoneOffset.UTC));
+
+    revokeConnectedApp(smartIdLoginNow(), revokedBefore).andExpect(status().isNoContent());
+    revokeConnectedApp(smartIdLoginNow(), expired).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void anotherPersonsConnectedAppIsNeitherListedNorRevocableAndLooksLikeAMissingOne()
+      throws Exception {
+    var othersTokens =
+        connectAs(ANOTHER_PERSONAL_CODE, PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+
+    assertThat(connectedApps(smartIdLoginNow())).isEmpty();
+    revokeConnectedApp(smartIdLoginNow(), grantIdOf(othersTokens)).andExpect(status().isNotFound());
+    revokeConnectedApp(smartIdLoginNow(), UUID.randomUUID()).andExpect(status().isNotFound());
+    assertThat(
+            refresh(PORTFELLOW, othersTokens.get("refresh_token").asString()).get("access_token"))
+        .isNotNull();
+  }
+
+  @ParameterizedTest
+  @MethodSource("rolesOfSomeoneElse")
+  void aPersonActingForSomeoneElseStillSeesAndRevokesTheAppsTheyConnectedThemselves(Role role)
+      throws Exception {
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+    var actingForSomeoneElse = loggedIn("SMART_ID", Instant.now(), role);
+
+    assertThat(connectedApps(actingForSomeoneElse))
+        .extracting(ConnectedApp::id)
+        .containsExactly(grantIdOf(tokens));
+    revokeConnectedApp(actingForSomeoneElse, grantIdOf(tokens)).andExpect(status().isNoContent());
+    refreshExpectingInvalidGrant(PORTFELLOW, tokens.get("refresh_token").asString());
+  }
+
+  static Stream<Role> rolesOfSomeoneElse() {
+    return Stream.of(
+        new Role(LEGAL_ENTITY, "12345678", "Company OÜ"),
+        new Role(PERSON, "60001019906", "Child Name"));
+  }
+
+  @Test
+  void anAppThatTulevaSuspendedIsNoLongerListed() throws Exception {
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+    connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read");
+
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO oauth_client_suspension (client_id, suspended_at, reason)
+            VALUES (:clientId, CURRENT_TIMESTAMP, 'test')
+            """)
+        .param("clientId", OTHER_CLIENT)
+        .update();
+
+    assertThat(connectedApps(smartIdLoginNow()))
+        .extracting(ConnectedApp::id)
+        .containsExactly(grantIdOf(tokens));
+  }
+
+  @Test
+  void anAppsOwnAccessTokenCannotListOrRevokeThePersonsConnectedApps() throws Exception {
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+    var appAccessToken = tokens.get("access_token").asString();
+
+    mockMvc
+        .perform(get("/v1/me/connected-apps").header(AUTHORIZATION, "Bearer " + appAccessToken))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            delete("/v1/me/connected-apps/{id}", grantIdOf(tokens))
+                .header(AUTHORIZATION, "Bearer " + appAccessToken))
+        .andExpect(status().isForbidden());
+    assertThat(connectedApps(smartIdLoginNow())).hasSize(1);
+  }
+
   private JsonNode connect(String clientId, String callback, String scope) throws Exception {
-    var pkce = Pkce.generate();
-    var connectRequest = startAuthorization(clientId, callback, scope, pkce);
-    var code = approve(connectRequest, smartIdLoginNow()).getQueryParams().getFirst("code");
-    return exchangeCode(clientId, callback, code, pkce);
+    return connectAs(PERSONAL_CODE, clientId, callback, scope);
   }
 
   private ConnectRequest startAuthorization(String clientId, String callback, String scope)
@@ -703,8 +897,8 @@ class OAuthAuthorizationFlowIntegrationTest {
         .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(base64)));
   }
 
-  private AuthenticatedPerson smartIdLoginNow() {
-    return loggedIn("SMART_ID", Instant.now(ClockHolder.clock()), ownRole());
+  private static AuthenticatedPerson smartIdLoginNow() {
+    return smartIdLoginNowAs(PERSONAL_CODE);
   }
 
   private static Role ownRole() {
@@ -712,8 +906,13 @@ class OAuthAuthorizationFlowIntegrationTest {
   }
 
   private static AuthenticatedPerson loggedIn(String grantType, Instant authTime, Role role) {
+    return loggedIn(PERSONAL_CODE, grantType, authTime, role);
+  }
+
+  private static AuthenticatedPerson loggedIn(
+      String personalCode, String grantType, Instant authTime, Role role) {
     return AuthenticatedPerson.builder()
-        .personalCode(PERSONAL_CODE)
+        .personalCode(personalCode)
         .firstName("Jordan")
         .lastName("Valdma")
         .attributes(Map.of("grantType", grantType, "authTime", authTime.toString()))
@@ -739,6 +938,61 @@ class OAuthAuthorizationFlowIntegrationTest {
     return java.util.HexFormat.of()
         .formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(US_ASCII)));
   }
+
+  private JsonNode connectAs(String personalCode, String clientId, String callback, String scope)
+      throws Exception {
+    var pkce = Pkce.generate();
+    var connectRequest = startAuthorization(clientId, callback, scope, pkce);
+    var code =
+        approve(connectRequest, smartIdLoginNowAs(personalCode)).getQueryParams().getFirst("code");
+    return exchangeCode(clientId, callback, code, pkce);
+  }
+
+  private List<ConnectedApp> connectedApps(AuthenticatedPerson person) throws Exception {
+    var result =
+        mockMvc
+            .perform(get("/v1/me/connected-apps").header(AUTHORIZATION, "Bearer " + bearer(person)))
+            .andExpect(status().isOk())
+            .andReturn();
+    return jsonMapper.readValue(
+        result.getResponse().getContentAsString(), new TypeReference<List<ConnectedApp>>() {});
+  }
+
+  private ResultActions revokeConnectedApp(AuthenticatedPerson person, UUID grantId)
+      throws Exception {
+    return mockMvc.perform(
+        delete("/v1/me/connected-apps/{id}", grantId)
+            .header(AUTHORIZATION, "Bearer " + bearer(person)));
+  }
+
+  private UUID grantIdOf(JsonNode tokens) {
+    return UUID.fromString(
+        claimsOf(tokens.get("access_token").asString()).get("grant_id").asString());
+  }
+
+  private String revocationReasonOf(UUID grantId) {
+    return jdbcClient
+        .sql("SELECT revocation_reason FROM oauth_grant WHERE id = :id")
+        .param("id", grantId)
+        .query(String.class)
+        .single();
+  }
+
+  private static AuthenticatedPerson smartIdLoginNowAs(String personalCode) {
+    return loggedIn(
+        personalCode,
+        "SMART_ID",
+        Instant.now(ClockHolder.clock()),
+        new Role(PERSON, personalCode, "Jordan Valdma"));
+  }
+
+  private record ConnectedApp(
+      UUID id,
+      String clientName,
+      List<String> scopes,
+      Instant connectedAt,
+      Instant lastUsedAt,
+      Instant expiresAt) {}
 
   private record ConnectRequest(String id, Cookie cookie) {}
 

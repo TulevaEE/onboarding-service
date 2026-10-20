@@ -1,5 +1,5 @@
 {
-  "branchCoverage": 89.39,
+  "branchCoverage": 89.4,
   "classCouplingViolations": 35,
   "clockViolations": 0,
   "cognitiveComplexityViolations": 2,
@@ -11,7 +11,7 @@
   "godClasses": 6,
   "interactionVerifyingTestClasses": 435,
   "interactionVerifyingTestShare": 34.1,
-  "lineCoverage": 87.21,
+  "lineCoverage": 87.22,
   "longClasses": 2,
   "meanInstability": 0.504,
   "mocklessTestClasses": 618,
@@ -34,10 +34,10 @@
     "GodClass": 6,
     "TooManyMethods": 3
   },
-  "slowest10TestClassesSeconds": 143.6,
+  "slowest10TestClassesSeconds": 194.5,
   "springBootTests": 79,
   "suiteWallTimeSeconds": null,
-  "testClassesOver10Seconds": 13,
+  "testClassesOver10Seconds": 19,
   "testClassesTotal": 1275,
   "testIntegrationShare": 5.5,
   "testSliceShare": 15.3,

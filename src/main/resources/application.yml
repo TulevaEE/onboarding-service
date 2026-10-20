@@ -443,50 +443,9 @@ morningstar:
   password: ${MORNINGSTAR_PASSWORD}
 
 payment-provider:
-  url: https://stargate.montonio.com/api
   use-fake-notification-url: false
   savings-channel:
-    access-key: 38ca14da-8b07-43af-9f43-e052b5d2a8c1
-    secret-key: ${PAYMENT_SECRET_SAVINGS}
-    return-url: ${api.url}/payments/savings/callback
     notification-url: ${api.url}/payments/savings/notifications
-  savings-fund:
-    recipient-name: ${SAVINGS_FUND_RECIPIENT_NAME:Tuleva Täiendav Kogumisfond}
-    recipient-iban: ${SAVINGS_FUND_RECIPIENT_IBAN:EE711010220306707220}
-  third-pillar:
-    recipient-name: "AS Pensionikeskus"
-    description: "30101119828, EE3600001707"
-    bank-accounts:
-      LHV: "EE547700771002908125"
-      SEB: "EE141010220263146225"
-      SWEDBANK: "EE362200221067235244"
-      COOP: "EE362200221067235244"
-      COOP_WEB: "EE362200221067235244"
-      PARTNER: "EE362200221067235244"
-  payment-channels:
-    luminor:
-      access-key: fb673dc3-d898-4592-844f-83491aa430cc
-      secret-key: ${PAYMENT_SECRET_LUMINOR}
-      bic: RIKOEE22
-    seb:
-      access-key: bec7e2ff-df2b-4342-829e-d131706a7858
-      secret-key: ${PAYMENT_SECRET_SEB}
-      bic: EEUHEE2X
-    swedbank:
-      access-key: 0741a0c4-39c2-4d28-a692-0ab66d4c9c7c
-      secret-key: ${PAYMENT_SECRET_SWEDBANK}
-      bic: HABAEE2X
-    lhv:
-      access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
-      secret-key: ${PAYMENT_SECRET_LHV}
-      bic: LHVBEE22
-    coop:
-      access-key: f5cd942d-5b23-4467-80ce-95cd67186c6f
-      secret-key: ${PAYMENT_SECRET_COOP}
-      bic: EKRDEE22
-    tulundusuhistu:
-      access-key: 02f596e6-d6b6-43a8-83ac-53d33cc1f13d
-      secret-key: ${PAYMENT_SECRET_TULUNDUSUHISTU}
 
 sentry:
   traces-sample-rate: 1.0
@@ -580,6 +539,24 @@ spring:
 
 sentry:
   environment: production
+
+payment-provider:
+  url: https://stargate.montonio.com/api
+  savings-channel:
+    access-key: 38ca14da-8b07-43af-9f43-e052b5d2a8c1
+  payment-channels:
+    luminor:
+      access-key: fb673dc3-d898-4592-844f-83491aa430cc
+    seb:
+      access-key: bec7e2ff-df2b-4342-829e-d131706a7858
+    swedbank:
+      access-key: 0741a0c4-39c2-4d28-a692-0ab66d4c9c7c
+    lhv:
+      access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
+    coop:
+      access-key: f5cd942d-5b23-4467-80ce-95cd67186c6f
+    tulundusuhistu:
+      access-key: 02f596e6-d6b6-43a8-83ac-53d33cc1f13d
 
 mobile-id:
   hostUrl: "https://mid.sk.ee/mid-api"

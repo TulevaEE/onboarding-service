@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.recurring;
 
+import static ee.tuleva.onboarding.event.TrackableEventType.RECURRING_PAYMENT_CONFIRMED;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.GIFT;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 
@@ -7,11 +8,14 @@ import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.analytics.ThirdPillarContribution;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.ThirdPillarRecurringPayments;
+import ee.tuleva.onboarding.event.EventLog;
+import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +25,7 @@ class ThirdPillarStandingOrders implements ThirdPillarRecurringPayments {
 
   private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final PaymentRepository paymentRepository;
-  private final RecurringPaymentConfirmationRepository confirmationRepository;
+  private final EventLogRepository eventLogRepository;
   private final Clock estonianClock;
 
   @Override
@@ -35,14 +39,20 @@ class ThirdPillarStandingOrders implements ThirdPillarRecurringPayments {
   }
 
   void recordConfirmation(Person person) {
-    confirmationRepository.save(
-        new RecurringPaymentConfirmation(
-            person.getRepresentedPersonalCode(), estonianClock.instant()));
+    eventLogRepository.save(
+        EventLog.builder()
+            .type(RECURRING_PAYMENT_CONFIRMED.name())
+            .principal(person.getRepresentedPersonalCode())
+            .timestamp(estonianClock.instant())
+            .data(Map.of())
+            .build());
   }
 
   private boolean confirmedSince(String personalCode, LocalDate windowStart) {
-    return confirmationRepository.existsByPersonalCodeAndConfirmedAtGreaterThanEqual(
-        personalCode, windowStart.atStartOfDay(estonianClock.getZone()).toInstant());
+    return eventLogRepository.existsByTypeAndPrincipalAndTimestampGreaterThanEqual(
+        RECURRING_PAYMENT_CONFIRMED.name(),
+        personalCode,
+        windowStart.atStartOfDay(estonianClock.getZone()).toInstant());
   }
 
   private boolean paidByStandingOrderSince(String personalCode, LocalDate windowStart) {

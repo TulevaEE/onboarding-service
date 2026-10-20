@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.ariregister.generated.detailandmed.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -109,6 +110,20 @@ class CompanyDetailMapperTest {
             new Shareholding(new BigDecimal("100.000000"), List.of("38501010002")),
             new Shareholding(new BigDecimal("50.000000"), List.of("40404049996")),
             new Shareholding(new BigDecimal("50.000000"), List.of("39901019992")));
+  }
+
+  @Test
+  void keepsAJointOwnerWithoutAnEstonianCodeOnTheShareAsUnidentified() {
+    var ettevotja =
+        ettevotjaWithOffRegisterPersons(
+            holding("38501010002", "100.000000", JOINT, 361709),
+            holding(null, "100.000000", JOINT, 361709));
+
+    var result = CompanyDetailMapper.fromEttevotja(ettevotja);
+
+    assertThat(result.getShareholdings())
+        .containsExactly(
+            new Shareholding(new BigDecimal("100.000000"), Arrays.asList("38501010002", null)));
   }
 
   @Test

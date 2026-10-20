@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -609,6 +610,23 @@ class KybCompanyDataMapperTest {
             detail, PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.totalOwnership()).isEqualByComparingTo("60");
+  }
+
+  @Test
+  void totalOwnershipLeavesOutAJointShareWhoseCoOwnerCouldNotBeIdentified() {
+    var detail =
+        companyDetail()
+            .shareholding(
+                new Shareholding(new BigDecimal("100.00"), Arrays.asList(JAAN.value(), null)))
+            .build();
+    var relationships =
+        List.of(shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("100.00")));
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.totalOwnership()).isEqualByComparingTo("0");
   }
 
   private CompanyRelationship boardMemberRelationship(String personalCode) {

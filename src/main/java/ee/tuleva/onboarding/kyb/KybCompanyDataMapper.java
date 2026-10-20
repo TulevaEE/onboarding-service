@@ -111,11 +111,18 @@ class KybCompanyDataMapper {
         personalCode,
         status,
         relatedPersons,
+        totalOwnership(relatedPersons),
         selfCertification,
         countryCode,
         fullAddress,
         foundingDate,
         representationRights);
+  }
+
+  private static BigDecimal totalOwnership(List<KybRelatedPerson> relatedPersons) {
+    return relatedPersons.stream()
+        .map(KybRelatedPerson::ownershipPercent)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private KybRelatedPerson toRelatedPerson(

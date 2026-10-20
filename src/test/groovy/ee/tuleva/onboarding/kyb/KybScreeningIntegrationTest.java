@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
@@ -135,6 +136,7 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             CompanyStatus.L,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -215,6 +217,7 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -284,6 +287,7 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person1, person2),
+            totalOwnershipOf(List.of(person1, person2)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -337,6 +341,7 @@ class KybScreeningIntegrationTest {
             PERSONAL_CODE,
             R,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -394,6 +399,7 @@ class KybScreeningIntegrationTest {
         PERSONAL_CODE,
         R,
         List.of(owner),
+        totalOwnershipOf(List.of(owner)),
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

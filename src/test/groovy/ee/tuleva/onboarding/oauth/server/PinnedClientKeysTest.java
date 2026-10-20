@@ -7,15 +7,20 @@ import static org.springframework.security.oauth2.core.AuthorizationGrantType.AU
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
@@ -25,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContext;
@@ -37,19 +43,7 @@ class PinnedClientKeysTest {
   private static final String CLIENT_ID = "portfellow";
 
   private final PinnedClientKeys pinnedClientKeys =
-      new PinnedClientKeys(
-          new OAuthProperties(
-              null,
-              Map.of(
-                  CLIENT_ID,
-                  new OAuthProperties.Client(
-                      "Portfellow",
-                      List.of("https://app.example/callback"),
-                      List.of("balances:read"),
-                      List.of(
-                          new ClassPathResource("oauth/test-client-public-key.pem"),
-                          new ClassPathResource("oauth/test-client-rotated-public-key.pem"))))),
-          Clock.systemUTC());
+      pinning("oauth/test-client-public-key.pem", "oauth/test-client-rotated-public-key.pem");
 
   private final RegisteredClient client =
       RegisteredClient.withId(CLIENT_ID)
@@ -110,7 +104,7 @@ class PinnedClientKeysTest {
                     "oauth/test-client-private-key.pem",
                     ISSUER,
                     60,
-                    new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("portfellow-2026-10").build()));
+                    new JWSHeader.Builder(JWSAlgorithm.ES384).keyID("portfellow-2026-10").build()));
 
     assertThat(jwt.getSubject()).isEqualTo(CLIENT_ID);
   }
@@ -138,7 +132,7 @@ class PinnedClientKeysTest {
             "oauth/test-client-private-key.pem",
             ISSUER,
             60,
-            new JWSHeader(JWSAlgorithm.RS256),
+            new JWSHeader(JWSAlgorithm.ES384),
             Instant.now().plus(30, ChronoUnit.DAYS));
 
     assertThatThrownBy(() -> pinnedClientKeys.createDecoder(client).decode(assertion))
@@ -154,6 +148,21 @@ class PinnedClientKeysTest {
   }
 
   @Test
+  void anAssertionSignedWithRsaIsRefused() throws Exception {
+    var assertion =
+        assertion("oauth/test-rsa-private-key.pem", ISSUER, 60, new JWSHeader(JWSAlgorithm.RS256));
+
+    assertThatThrownBy(() -> pinnedClientKeys.createDecoder(client).decode(assertion))
+        .isInstanceOf(JwtException.class);
+  }
+
+  @Test
+  void aClientKeyOnACurveWeakerThanP384IsRefusedAtStartup() {
+    assertThatThrownBy(() -> pinning("oauth/test-p256-public-key.pem"))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void aClientWithoutPinnedKeysHasNoDecoder() {
     var unknown =
         RegisteredClient.withId("unknown")
@@ -166,10 +175,26 @@ class PinnedClientKeysTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
+  private static PinnedClientKeys pinning(String... publicKeyResources) {
+    return new PinnedClientKeys(
+        new OAuthProperties(
+            null,
+            Map.of(
+                CLIENT_ID,
+                new OAuthProperties.Client(
+                    "Portfellow",
+                    List.of("https://app.example/callback"),
+                    List.of("balances:read"),
+                    Arrays.stream(publicKeyResources)
+                        .<Resource>map(ClassPathResource::new)
+                        .toList()))),
+        Clock.systemUTC());
+  }
+
   private static String assertion(String privateKeyResource, String audience, int lifetimeSeconds)
       throws Exception {
     return assertion(
-        privateKeyResource, audience, lifetimeSeconds, new JWSHeader(JWSAlgorithm.RS256));
+        privateKeyResource, audience, lifetimeSeconds, new JWSHeader(JWSAlgorithm.ES384));
   }
 
   private static String assertion(
@@ -195,17 +220,25 @@ class PinnedClientKeysTest {
             .jwtID(UUID.randomUUID().toString())
             .build();
     var jwt = new SignedJWT(header, claims);
-    jwt.sign(new RSASSASigner(privateKey(privateKeyResource)));
+    jwt.sign(signerFor(privateKey(privateKeyResource)));
     return jwt.serialize();
+  }
+
+  private static JWSSigner signerFor(PrivateKey key) throws Exception {
+    return key instanceof ECPrivateKey ecKey
+        ? new ECDSASigner(ecKey)
+        : new RSASSASigner((RSAPrivateKey) key);
   }
 
   private static PrivateKey privateKey(String resource) throws Exception {
     var pem = new String(new ClassPathResource(resource).getInputStream().readAllBytes(), UTF_8);
-    var base64 =
-        pem.replace("-----BEGIN PRIVATE KEY-----", "")
-            .replace("-----END PRIVATE KEY-----", "")
-            .replaceAll("\\s", "");
-    return KeyFactory.getInstance("RSA")
-        .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(base64)));
+    var der =
+        Base64.getDecoder()
+            .decode(
+                pem.replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replace("-----END PRIVATE KEY-----", "")
+                    .replaceAll("\\s", ""));
+    var algorithm = resource.contains("rsa") ? "RSA" : "EC";
+    return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(der));
   }
 }

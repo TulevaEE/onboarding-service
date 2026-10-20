@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -35,6 +35,7 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
+import java.security.interfaces.ECPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Clock;
 import java.time.Instant;
@@ -130,6 +131,8 @@ class OAuthAuthorizationFlowIntegrationTest {
             PORTFELLOW, PORTFELLOW_CALLBACK, redirect.getQueryParams().getFirst("code"), pkce);
 
     var claims = claimsOf(tokens.get("access_token").asString());
+    assertThat(headerOf(tokens.get("access_token").asString()).get("alg").asString())
+        .isEqualTo("ES384");
     assertThat(claims.get("iss").asString()).isEqualTo(ISSUER);
     assertThat(claims.get("aud").asString()).isEqualTo(CONNECT_API_AUDIENCE);
     assertThat(UUID.fromString(claims.get("sub").asString())).isNotNull();
@@ -678,8 +681,8 @@ class OAuthAuthorizationFlowIntegrationTest {
             .expirationTime(Date.from(now.plusSeconds(60)))
             .jwtID(UUID.randomUUID().toString())
             .build();
-    var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
-    jwt.sign(new RSASSASigner(key));
+    var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.ES384), claims);
+    jwt.sign(new ECDSASigner((ECPrivateKey) key));
     return jwt.serialize();
   }
 
@@ -696,7 +699,7 @@ class OAuthAuthorizationFlowIntegrationTest {
         pem.replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
             .replaceAll("\\s", "");
-    return KeyFactory.getInstance("RSA")
+    return KeyFactory.getInstance("EC")
         .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(base64)));
   }
 
@@ -720,6 +723,11 @@ class OAuthAuthorizationFlowIntegrationTest {
 
   private String bearer(AuthenticatedPerson person) {
     return jwtTokenUtil.generateAccessToken(person, List.of(new SimpleGrantedAuthority(USER)));
+  }
+
+  private JsonNode headerOf(String jwt) {
+    var header = jwt.split("\\.")[0];
+    return jsonMapper.readTree(new String(Base64.getUrlDecoder().decode(header), UTF_8));
   }
 
   private JsonNode claimsOf(String jwt) {

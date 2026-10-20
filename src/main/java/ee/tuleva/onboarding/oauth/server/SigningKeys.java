@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.oauth.server;
 
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSelector;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import java.util.List;
@@ -34,10 +34,10 @@ class SigningKeys implements JWKSource<SecurityContext> {
       }
       return new JWKSet();
     }
-    var privateKey = RsaPem.privateKey(signingKey);
+    var privateKey = EcPem.privateKey(signingKey);
     try {
       return new JWKSet(
-          new RSAKey.Builder(RsaPem.publicKeyOf(privateKey))
+          new ECKey.Builder(EcPem.CURVE, EcPem.publicKeyOf(privateKey))
               .privateKey(privateKey)
               .keyIDFromThumbprint()
               .build());

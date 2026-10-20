@@ -7,18 +7,11 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.conversion.ConversionResponse.Amount;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Conversion;
 import ee.tuleva.onboarding.pillar.Pillar;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,11 +33,8 @@ public class UserConversionService {
 
   public ConversionResponse getConversion(Person person) {
     List<ConversionHolding> holdings = conversionHoldings.forPerson(person);
-    List<ConversionCashFlow> cashFlows = conversionCashFlows.forPerson(person);
-    ZoneId zone = estonianClock.getZone();
-    Instant sameTimeLastYear = sameTimeLastYear();
-    int thisYear = thisYear();
-    int lastYear = thisYear - 1;
+    CashFlowTotals cashFlowTotals =
+        new CashFlowTotals(conversionCashFlows.forPerson(person), estonianClock);
 
     var pendingExchanges =
         Stream.concat(getPendingExchanges(2, person), getPendingExchanges(3, person)).toList();
@@ -65,18 +55,8 @@ public class UserConversionService {
                 .transfersComplete(isTransfersComplete(holdings, 2, person))
                 .transfersPartial(isTransfersPartial(holdings, 2, person))
                 .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, SECOND))
-                .contribution(
-                    Amount.builder()
-                        .yearToDate(cashContributionSum(cashFlows, 2, thisYear, zone))
-                        .lastYear(cashContributionSum(cashFlows, 2, lastYear, zone))
-                        .total(totalContributionSum(cashFlows, 2))
-                        .build())
-                .subtraction(
-                    Amount.builder()
-                        .yearToDate(subtractionSum(cashFlows, 2, thisYear, zone))
-                        .lastYear(subtractionSum(cashFlows, 2, lastYear, zone))
-                        .total(totalSubtractionSum(cashFlows, 2))
-                        .build())
+                .contribution(cashFlowTotals.contribution(2))
+                .subtraction(cashFlowTotals.subtraction(2))
                 .weightedAverageFee(
                     weightedAverageFeeCalculator.getWeightedAverageFee(
                         filter(holdings, 2).toList(), getPendingExchanges(2, person).toList()))
@@ -88,79 +68,15 @@ public class UserConversionService {
                 .transfersComplete(isTransfersComplete(holdings, 3, person))
                 .transfersPartial(isTransfersPartial(holdings, 3, person))
                 .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, THIRD))
-                .contribution(
-                    Amount.builder()
-                        .yearToDate(cashContributionSum(cashFlows, 3, thisYear, zone))
-                        .lastYear(cashContributionSum(cashFlows, 3, lastYear, zone))
-                        .total(totalContributionSum(cashFlows, 3))
-                        .build())
-                .subtraction(
-                    Amount.builder()
-                        .yearToDate(subtractionSum(cashFlows, 3, thisYear, zone))
-                        .lastYear(subtractionSum(cashFlows, 3, lastYear, zone))
-                        .total(totalSubtractionSum(cashFlows, 3))
-                        .build())
-                .paymentComplete(paymentComplete(cashFlows, sameTimeLastYear))
+                .contribution(cashFlowTotals.contribution(3))
+                .subtraction(cashFlowTotals.subtraction(3))
+                .paymentComplete(cashFlowTotals.paymentComplete(3))
                 .recurringPaymentDetected(thirdPillarRecurringPayments.detectedFor(person))
                 .weightedAverageFee(
                     weightedAverageFeeCalculator.getWeightedAverageFee(
                         filter(holdings, 3).toList(), getPendingExchanges(3, person).toList()))
                 .build())
         .build();
-  }
-
-  private static boolean paymentComplete(
-      List<ConversionCashFlow> cashFlows, Instant sameTimeLastYear) {
-    return cashFlows.stream()
-            .filter(cashFlow -> cashFlow.time().isAfter(sameTimeLastYear))
-            .filter(ConversionCashFlow::cashContribution)
-            .filter(cashFlow -> cashFlow.pillar() == 3)
-            .map(ConversionCashFlow::amount)
-            .reduce(ZERO, BigDecimal::add)
-            .compareTo(ZERO)
-        > 0;
-  }
-
-  private static BigDecimal cashContributionSum(
-      List<ConversionCashFlow> cashFlows, int pillar, int year, ZoneId zone) {
-    return sum(
-        cashFlows, pillar, cashFlow -> cashFlow.cashContribution() && year(cashFlow, zone) == year);
-  }
-
-  private static BigDecimal totalContributionSum(List<ConversionCashFlow> cashFlows, int pillar) {
-    return sum(cashFlows, pillar, ConversionCashFlow::contribution);
-  }
-
-  private static BigDecimal subtractionSum(
-      List<ConversionCashFlow> cashFlows, int pillar, int year, ZoneId zone) {
-    return sum(
-        cashFlows, pillar, cashFlow -> cashFlow.subtraction() && year(cashFlow, zone) == year);
-  }
-
-  private static int year(ConversionCashFlow cashFlow, ZoneId zone) {
-    return cashFlow.time().atZone(zone).getYear();
-  }
-
-  private static BigDecimal totalSubtractionSum(List<ConversionCashFlow> cashFlows, int pillar) {
-    return sum(cashFlows, pillar, ConversionCashFlow::subtraction);
-  }
-
-  private static BigDecimal sum(
-      List<ConversionCashFlow> cashFlows, int pillar, Predicate<ConversionCashFlow> filterBy) {
-    return cashFlows.stream()
-        .filter(filterBy)
-        .filter(cashFlow -> cashFlow.pillar() == pillar)
-        .map(ConversionCashFlow::amount)
-        .reduce(ZERO, BigDecimal::add)
-        .setScale(2, RoundingMode.HALF_UP);
-  }
-
-  private int thisYear() {
-    return ZonedDateTime.now(estonianClock).getYear();
-  }
-
-  private Instant sameTimeLastYear() {
-    return ZonedDateTime.now(estonianClock).minusYears(1).toInstant();
   }
 
   private static boolean isSelectionComplete(List<ConversionHolding> holdings, int pillar) {

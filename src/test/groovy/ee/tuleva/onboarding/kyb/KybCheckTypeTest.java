@@ -21,4 +21,11 @@ class KybCheckTypeTest {
     assertThat(SELF_CERTIFICATION.isOnboardingGate()).isTrue();
     assertThat(RELATED_PERSONS_KYC.isOnboardingGate()).isTrue();
   }
+
+  @Test
+  void anAmlOfficerCanApproveAReviewedActivityOrOwnershipFailure() {
+    assertThat(HIGH_RISK_NACE.isManuallyForceable()).isTrue();
+    assertThat(SINGLE_BOARD_MEMBER_OWNERSHIP.isManuallyForceable()).isTrue();
+    assertThat(COMPANY_SANCTION.isManuallyForceable()).isFalse();
+  }
 }

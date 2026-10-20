@@ -37,6 +37,6 @@ public enum KybCheckType {
   }
 
   public boolean isManuallyForceable() {
-    return isOwnershipCheck() || this == SELF_CERTIFICATION;
+    return isOwnershipCheck() || this == SELF_CERTIFICATION || this == HIGH_RISK_NACE;
   }
 }

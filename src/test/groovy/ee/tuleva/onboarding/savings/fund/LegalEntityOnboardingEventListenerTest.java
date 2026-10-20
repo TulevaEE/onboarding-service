@@ -101,6 +101,87 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
+  void keepsCompletedForManualReviewWhenOnlyTheActivityCheckFails() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            dataChangedFor(HIGH_RISK_NACE));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void keepsCompletedWhenTheActivityCheckFailsAlongsideAnUnchangedOwnershipFailure() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "100")),
+            dataChangedFor(HIGH_RISK_NACE));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void setsStatusRejectedWhenTheActivityCheckFailsAlongsideOwnershipThatChanged() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "60")),
+            dataChangedFor(DUAL_MEMBER_OWNERSHIP));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void setsStatusRejectedWhenACompletedCompanyFailsTheActivityCheckAlongsideAnotherGateCheck() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, false, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void setsStatusRejectedWhenAPendingCompanyFailsTheActivityCheck() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66301"))));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void setsStatusRejectedWhenANewApplicationFailsTheActivityCheck() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.empty());
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66301"))));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
   void keepsCompletedWhenOwnershipCheckFailsWithoutEvidenceOfChange() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
@@ -434,6 +515,20 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  private static KybCheck dataChangedFor(KybCheckType changedCheck) {
+    return new KybCheck(
+        DATA_CHANGED,
+        false,
+        Map.of(
+            "changes",
+            List.of(
+                Map.of(
+                    "check", changedCheck.name(),
+                    "previousSuccess", true,
+                    "currentSuccess", false,
+                    "metadataChanged", true))));
   }
 
   private KybCheckPerformedEvent eventWith(List<KybCheck> checks, KybScreeningTrigger trigger) {

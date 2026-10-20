@@ -248,6 +248,21 @@ public final class KybTestFixtures {
     return companyWith(List.of(relatedPersons));
   }
 
+  public static KybCompanyData companyWithTotalOwnership(
+      BigDecimal totalOwnership, KybRelatedPerson... relatedPersons) {
+    return new KybCompanyData(
+        VALID_COMPANY,
+        JAAN,
+        R,
+        List.of(relatedPersons),
+        totalOwnership,
+        VALID_CERT,
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of());
+  }
+
   public static KybCompanyData companyWith(List<KybRelatedPerson> relatedPersons) {
     return companyData(VALID_COMPANY, JAAN, R, relatedPersons, VALID_CERT);
   }

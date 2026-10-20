@@ -21,15 +21,32 @@ class ThirdPillarStandingOrders implements ThirdPillarRecurringPayments {
 
   private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final PaymentRepository paymentRepository;
+  private final RecurringPaymentConfirmationRepository confirmationRepository;
   private final Clock estonianClock;
 
   @Override
   public boolean detectedFor(Person person) {
     var personalCode = person.getRepresentedPersonalCode();
     final int LOOKBACK_MONTHS = 4;
-    final int MIN_STANDING_ORDER_MONTHS = 3;
     var windowStart =
         LocalDate.now(estonianClock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
+    return confirmedSince(personalCode, windowStart)
+        || paidByStandingOrderSince(personalCode, windowStart);
+  }
+
+  void recordConfirmation(Person person) {
+    confirmationRepository.save(
+        new RecurringPaymentConfirmation(
+            person.getRepresentedPersonalCode(), estonianClock.instant()));
+  }
+
+  private boolean confirmedSince(String personalCode, LocalDate windowStart) {
+    return confirmationRepository.existsByPersonalCodeAndConfirmedAtGreaterThanEqual(
+        personalCode, windowStart.atStartOfDay(estonianClock.getZone()).toInstant());
+  }
+
+  private boolean paidByStandingOrderSince(String personalCode, LocalDate windowStart) {
+    final int MIN_STANDING_ORDER_MONTHS = 3;
     var linkPayments = linkPaymentsReportedOnOrAfter(personalCode, windowStart);
     var standingOrderMonths =
         thirdPillarAnalytics.ownContributionsSince(personalCode, windowStart).stream()

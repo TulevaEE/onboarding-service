@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -44,7 +45,13 @@ class BeneficialOwnerScreeningIntegrationTest {
         .willReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE))
-        .willReturn(Optional.of(companyDetail().registryCode(REGISTRY_CODE).build()));
+        .willReturn(
+            Optional.of(
+                companyDetail()
+                    .registryCode(REGISTRY_CODE)
+                    .shareholding(
+                        new Shareholding(new BigDecimal("100.00"), List.of(OWNER.value())))
+                    .build()));
     given(ariregisterClient.getActiveCompanyRelationships(eq(REGISTRY_CODE), any()))
         .willReturn(List.of(boardMemberRow(), shareholderRow()));
   }

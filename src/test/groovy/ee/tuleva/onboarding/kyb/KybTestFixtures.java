@@ -262,13 +262,6 @@ public final class KybTestFixtures {
   // Rule 31: Single person OÜ — sole board member is 100% owner
   // =====================================================================
 
-  static final CompanyDetail VALID_COMPANY_DETAIL =
-      companyDetail()
-          .foundingDate(LocalDate.of(2020, 1, 15))
-          .mainActivity("Programmeerimine")
-          .naceCode("62011")
-          .build();
-
   static List<CompanyRelationship> rule31PassRelationships() {
     return List.of(
         boardMember(JAAN.value(), "Jaan", "Tamm"),

@@ -21,6 +21,7 @@ public class CompanyDetail {
   @Nullable String mainActivity;
   @Nullable String naceCode;
   @Singular List<String> activityCodes;
+  @Singular List<Shareholding> shareholdings;
   @Singular List<RepresentationRight> representationRights;
 
   public Optional<String> getStatus() {

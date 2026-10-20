@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.oauth.server;
 
 import static java.util.Objects.requireNonNull;
+import static org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.ES384;
 import static org.springframework.security.oauth2.server.authorization.OAuth2TokenType.ACCESS_TOKEN;
 
 import java.util.List;
@@ -22,6 +23,7 @@ class AccessTokenClaims implements OAuth2TokenCustomizer<JwtEncodingContext> {
   @Override
   public void customize(JwtEncodingContext context) {
     if (ACCESS_TOKEN.equals(context.getTokenType())) {
+      context.getJwsHeader().algorithm(ES384);
       context
           .getClaims()
           .audience(List.of(requireNonNull(settings.getIssuer()) + CONNECT_API_PATH))

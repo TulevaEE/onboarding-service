@@ -6,7 +6,7 @@ import static org.springframework.security.oauth2.server.authorization.authentic
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
-import java.security.interfaces.RSAPublicKey;
+import java.security.interfaces.ECPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -27,7 +27,7 @@ class PinnedClientKeys implements JwtDecoderFactory<RegisteredClient> {
   static final Duration CLIENT_ASSERTION_MAX_LIFETIME = Duration.ofSeconds(60);
   static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
 
-  private final Map<String, List<RSAPublicKey>> keysByClientId;
+  private final Map<String, List<ECPublicKey>> keysByClientId;
   private final Clock clock;
 
   PinnedClientKeys(OAuthProperties properties, Clock clock) {
@@ -38,7 +38,7 @@ class PinnedClientKeys implements JwtDecoderFactory<RegisteredClient> {
                 toUnmodifiableMap(
                     Map.Entry::getKey,
                     entry ->
-                        entry.getValue().publicKeys().stream().map(RsaPem::publicKey).toList()));
+                        entry.getValue().publicKeys().stream().map(EcPem::publicKey).toList()));
   }
 
   @Override
@@ -50,7 +50,7 @@ class PinnedClientKeys implements JwtDecoderFactory<RegisteredClient> {
     }
     var processor = new DefaultJWTProcessor<SecurityContext>();
     processor.setJWSKeySelector(
-        (header, context) -> JWSAlgorithm.RS256.equals(header.getAlgorithm()) ? keys : List.of());
+        (header, context) -> JWSAlgorithm.ES384.equals(header.getAlgorithm()) ? keys : List.of());
     var decoder = new NimbusJwtDecoder(processor);
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(

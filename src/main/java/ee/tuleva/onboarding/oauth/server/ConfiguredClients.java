@@ -69,7 +69,7 @@ class ConfiguredClients implements RegisteredClientRepository {
             ClientSettings.builder()
                 .requireProofKey(true)
                 .requireAuthorizationConsent(false)
-                .tokenEndpointAuthenticationSigningAlgorithm(SignatureAlgorithm.RS256)
+                .tokenEndpointAuthenticationSigningAlgorithm(SignatureAlgorithm.ES384)
                 .build())
         .tokenSettings(
             TokenSettings.builder()

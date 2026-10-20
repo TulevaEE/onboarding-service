@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.oauth.server;
 import java.sql.Types;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -57,6 +58,25 @@ class Grants {
         .param("id", id)
         .query(GrantRow::map)
         .optional();
+  }
+
+  List<GrantRow> liveOf(String personalCode) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM oauth_grant
+            WHERE personal_code = :personalCode AND revoked_at IS NULL
+              AND (refresh_token_hash IS NOT NULL
+                OR (authorization_code_used = FALSE AND authorization_code_expires_at > :now))
+            ORDER BY granted_at DESC
+            """)
+        .param("personalCode", personalCode)
+        .param("now", Timestamps.of(clock.instant()))
+        .query(GrantRow::map)
+        .list()
+        .stream()
+        .filter(this::isLive)
+        .toList();
   }
 
   Optional<GrantRow> byTokenHash(TokenColumn column, String hash) {
@@ -200,6 +220,7 @@ class Grants {
   enum RevocationReason {
     REMOVED,
     TOKEN_INVALIDATED,
-    REFRESH_TOKEN_REUSED
+    REFRESH_TOKEN_REUSED,
+    PERSON
   }
 }

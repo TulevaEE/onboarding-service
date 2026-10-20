@@ -75,6 +75,7 @@ class GrantAuthorizationServiceTest {
         "client-state",
         "challenge",
         "S256",
+        NOW.minus(10, DAYS),
         NOW.plus(170, DAYS),
         NOW.minus(1, DAYS),
         null,

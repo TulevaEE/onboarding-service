@@ -14,7 +14,12 @@ final class GrantLifetime {
     return grantedAt.plus(ABSOLUTE_LIMIT);
   }
 
+  static Instant endsAt(Instant expiresAt, Instant lastRefreshedAt) {
+    var idleEnd = lastRefreshedAt.plus(IDLE_LIMIT);
+    return idleEnd.isBefore(expiresAt) ? idleEnd : expiresAt;
+  }
+
   static boolean isLive(Instant expiresAt, Instant lastRefreshedAt, Instant now) {
-    return now.isBefore(expiresAt) && now.isBefore(lastRefreshedAt.plus(IDLE_LIMIT));
+    return now.isBefore(endsAt(expiresAt, lastRefreshedAt));
   }
 }

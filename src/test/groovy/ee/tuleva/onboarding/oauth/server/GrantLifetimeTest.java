@@ -16,6 +16,21 @@ class GrantLifetimeTest {
   }
 
   @Test
+  void aGrantEndsThirtyDaysAfterItsLastRefreshWhenThatComesBeforeItsExpiry() {
+    var expiresAt = GrantLifetime.expiresAt(GRANTED);
+
+    assertThat(GrantLifetime.endsAt(expiresAt, GRANTED.plus(100, DAYS)))
+        .isEqualTo(GRANTED.plus(130, DAYS));
+  }
+
+  @Test
+  void aGrantEndsAtItsExpiryWhenItWasRefreshedWithinThirtyDaysOfIt() {
+    var expiresAt = GrantLifetime.expiresAt(GRANTED);
+
+    assertThat(GrantLifetime.endsAt(expiresAt, GRANTED.plus(170, DAYS))).isEqualTo(expiresAt);
+  }
+
+  @Test
   void aGrantRefreshedWithinThirtyDaysAndBeforeItsExpiryIsLive() {
     var expiresAt = GrantLifetime.expiresAt(GRANTED);
 

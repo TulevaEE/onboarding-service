@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
@@ -19,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -29,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -258,6 +261,44 @@ class KybScreeningIntegrationTest {
     assertThat(results)
         .anyMatch(check -> check.type() == KybCheckType.SOLE_MEMBER_OWNERSHIP && !check.success());
     assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
+  }
+
+  @Test
+  void aCompletedCompanyIsNotRejectedJustBecauseItsOwnershipCheckStartsRecordingTheTotal() {
+    var registryCode = "12345678";
+    var boardMember = boardMemberOwner(PERSONAL_CODE, 50.0).build();
+    var otherOwner = shareholderOwner("40404049996", 50.0).build();
+    kybScreeningService.screen(companyWith(boardMember, otherOwner), SUBMISSION);
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
+    entityManager.flush();
+    recordedWithoutTheTotal(KYB_SINGLE_BOARD_MEMBER_OWNERSHIP);
+    entityManager.flush();
+    entityManager.clear();
+
+    var results =
+        kybScreeningService.screen(
+            companyWith(
+                boardMemberOwner(PERSONAL_CODE, 50.0).beneficialOwner(false).build(),
+                shareholderOwner("40404049996", 50.0).beneficialOwner(false).build()),
+            RESCREENING);
+
+    assertThat(results)
+        .anyMatch(
+            check ->
+                check.type() == KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP && !check.success());
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
+  }
+
+  private void recordedWithoutTheTotal(AmlCheckType type) {
+    amlCheckRepository.findAll().stream()
+        .filter(check -> check.getType() == type)
+        .forEach(
+            check -> {
+              var metadata = new HashMap<>(check.getMetadata());
+              metadata.remove("totalOwnership");
+              check.setMetadata(metadata);
+              amlCheckRepository.save(check);
+            });
   }
 
   @Test

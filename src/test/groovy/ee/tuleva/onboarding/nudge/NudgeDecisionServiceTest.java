@@ -278,12 +278,21 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
-  void aCompanyPayerGoesThroughTheSameChainAsEveryoneElse() {
-    given(recurringStatus.savingsFund(company)).willReturn(true);
+  void aCompanyPaymentNeverSuggestsThePayersOwnPensionOrMembership() {
+    User nonMember = sampleUser().member(null).build();
+    given(pillarStatus.of(nonMember)).willReturn(new PillarActivity(false, false, false));
+
+    assertThat(service.decide(nonMember, company, SAVINGS_FUND_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aCompanyPaymentSuggestsTheCompanyStandingOrderWhenItHasNone() {
+    given(recurringStatus.savingsFund(company)).willReturn(false);
     given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false, false));
 
     assertThat(service.decide(member, company, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
+        .isEqualTo(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
   }
 
   @Test

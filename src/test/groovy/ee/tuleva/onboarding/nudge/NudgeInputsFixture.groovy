@@ -10,6 +10,7 @@ class NudgeInputsFixture {
 
   static NudgeInputs.NudgeInputsBuilder everythingSorted() {
     return NudgeInputs.builder()
+        .actingForCompany(false)
         .adult(true)
         .reachedRetirementAge(false)
         .member(true)

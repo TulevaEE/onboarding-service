@@ -20,6 +20,7 @@ class OfflineNudgeInputs {
     Known savingsFundRecurring = lookups.savingsFundRecurring(self);
     Known savingsFundSaver = lookups.savesFor(self);
     return NudgeInputs.builder()
+        .actingForCompany(self.isLegalEntity())
         .adult(saver.adult())
         .reachedRetirementAge(saver.reachedRetirementAge())
         .member(saver.member())

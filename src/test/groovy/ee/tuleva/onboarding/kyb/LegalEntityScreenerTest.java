@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyDetail;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -98,6 +99,7 @@ class LegalEntityScreenerTest {
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),
+            ZERO,
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -129,6 +131,7 @@ class LegalEntityScreenerTest {
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),
+            ZERO,
             null,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -166,6 +169,7 @@ class LegalEntityScreenerTest {
             PERSONAL_CODE,
             CompanyStatus.R,
             List.of(),
+            ZERO,
             SELF_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",

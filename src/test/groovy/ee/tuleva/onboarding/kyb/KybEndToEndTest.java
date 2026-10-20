@@ -212,6 +212,7 @@ class KybEndToEndTest {
             JAAN,
             CompanyStatus.R,
             List.of(person1, person2),
+            totalOwnershipOf(List.of(person1, person2)),
             VALID_CERT,
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",

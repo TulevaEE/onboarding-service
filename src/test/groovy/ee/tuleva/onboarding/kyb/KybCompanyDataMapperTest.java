@@ -541,6 +541,20 @@ class KybCompanyDataMapperTest {
                 .build());
   }
 
+  @Test
+  void totalOwnershipAddsUpTheRelatedPersonsShares() {
+    var relationships =
+        List.of(
+            shareholder(JAAN.value(), "Jaan", "Tamm", new BigDecimal("60.00")),
+            shareholder(MARI.value(), "Mari", "Kask", new BigDecimal("40.00")));
+
+    var result =
+        mapper.toKybCompanyData(
+            companyDetail().build(), PERSONAL_CODE, relationships, NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.totalOwnership()).isEqualByComparingTo("100");
+  }
+
   private CompanyRelationship boardMemberRelationship(String personalCode) {
     return new CompanyRelationship(
         "F",

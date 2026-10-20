@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.screener;
 
 import static ee.tuleva.onboarding.kyb.CompanyStatus.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyb.*;
@@ -43,6 +44,7 @@ class CompanyActiveScreenerTest {
         new PersonalCode("38501010001"),
         status,
         List.of(),
+        ZERO,
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

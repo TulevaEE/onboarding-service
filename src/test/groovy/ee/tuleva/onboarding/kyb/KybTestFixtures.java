@@ -229,11 +229,18 @@ public final class KybTestFixtures {
         personalCode,
         status,
         relatedPersons,
+        totalOwnershipOf(relatedPersons),
         selfCertification,
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
         null,
         List.of());
+  }
+
+  public static BigDecimal totalOwnershipOf(List<KybRelatedPerson> relatedPersons) {
+    return relatedPersons.stream()
+        .map(KybRelatedPerson::ownershipPercent)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   // A standard active OÜ with the given related persons (defaults for the fields screeners ignore).

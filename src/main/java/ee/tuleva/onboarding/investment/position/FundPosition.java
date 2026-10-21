@@ -37,6 +37,8 @@ public class FundPosition {
 
   private static final String REDEMPTION_PAYABLE_ACCOUNT_NAME = "Payables of redeemed units";
 
+  private static final String UNIT_RECEIVABLE_ACCOUNT_NAME = "Receivables of outstanding units";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -76,6 +78,11 @@ public class FundPosition {
 
   public boolean isTradeReceivable() {
     return accountName.contains(TRADE_RECEIVABLE_ACCOUNT_NAME);
+  }
+
+  public boolean isUnitReceivableOf(TulevaFund issuingFund) {
+    return accountName.contains(UNIT_RECEIVABLE_ACCOUNT_NAME)
+        && issuingFund.getIsin().equals(accountId);
   }
 
   public boolean isRedemptionPayableOf(TulevaFund redeemedFund) {

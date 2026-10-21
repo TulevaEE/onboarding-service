@@ -1,6 +1,7 @@
 const {
   SOURCES,
   getSourceForSender,
+  getSourceForMessage,
   getFileConfigAndDate,
   isMessageWithinWindow,
   shouldProcessMessage,
@@ -39,6 +40,49 @@ describe("getSourceForSender", () => {
   });
   test("rejects unknown sender", () => {
     expect(getSourceForSender("attacker@example.com")).toBeNull();
+  });
+  test("matches a bare allowed address and ignores letter case", () => {
+    const seb = SOURCES.SEB.senders[0];
+    expect(getSourceForSender(seb)).toBe(SOURCES.SEB);
+    expect(getSourceForSender("SEB <" + seb.toUpperCase() + ">")).toBe(SOURCES.SEB);
+  });
+  test("rejects a lookalike domain that only contains an allowed address", () => {
+    const seb = SOURCES.SEB.senders[0];
+    expect(getSourceForSender("Attacker <" + seb + ".example.com>")).toBeNull();
+    expect(getSourceForSender(seb + ".example.com")).toBeNull();
+  });
+  test("rejects an address that only ends with an allowed address", () => {
+    expect(getSourceForSender("Attacker <x" + SOURCES.FT.senders[0] + ">")).toBeNull();
+  });
+  test("rejects a display name that only claims to be an allowed sender", () => {
+    expect(getSourceForSender(SOURCES.SEB.senders[0] + " <attacker@example.com>")).toBeNull();
+  });
+});
+
+describe("getSourceForMessage", () => {
+  const FUNDS_MAILBOX = "Tuleva Fondid <funds@tuleva.ee>";
+  const SEB_TRUSTEE = "SEB <" + SOURCES.SEB.senders[0] + ">";
+  const SENT_BY_FUNDS_MAILBOX = true;
+  const RECEIVED_FROM_OUTSIDE = false;
+
+  test("accepts a corrected position report the funds mailbox sends only to itself", () => {
+    expect(getSourceForMessage(FUNDS_MAILBOX, "funds@tuleva.ee, , ", SENT_BY_FUNDS_MAILBOX)).toBe(SOURCES.SEB);
+  });
+  test("rejects the funds mailbox replying to SEB so a re-attached original cannot overwrite a correction", () => {
+    expect(getSourceForMessage(FUNDS_MAILBOX, SEB_TRUSTEE + ", , ", SENT_BY_FUNDS_MAILBOX)).toBeNull();
+  });
+  test("rejects funds mailbox mail to itself that also goes to another recipient", () => {
+    expect(getSourceForMessage(FUNDS_MAILBOX, "funds@tuleva.ee, " + SEB_TRUSTEE + ", ", SENT_BY_FUNDS_MAILBOX)).toBeNull();
+    expect(getSourceForMessage(FUNDS_MAILBOX, "funds@tuleva.ee, , someone@example.com", SENT_BY_FUNDS_MAILBOX)).toBeNull();
+  });
+  test("rejects mail claiming the funds mailbox as sender that the mailbox never sent", () => {
+    expect(getSourceForMessage(FUNDS_MAILBOX, "funds@tuleva.ee, , ", RECEIVED_FROM_OUTSIDE)).toBeNull();
+  });
+  test("rejects a display name that only claims to be the funds mailbox", () => {
+    expect(getSourceForMessage("funds@tuleva.ee <attacker@example.com>", "funds@tuleva.ee, , ", RECEIVED_FROM_OUTSIDE)).toBeNull();
+  });
+  test("accepts the SEB trustee whoever the mail is addressed to", () => {
+    expect(getSourceForMessage(SEB_TRUSTEE, "funds@tuleva.ee, someone@example.com, ", RECEIVED_FROM_OUTSIDE)).toBe(SOURCES.SEB);
   });
 });
 
@@ -240,7 +284,13 @@ describe("partitionFilenamesByMatch", () => {
       "TKF100 NAV arvutamine 15042026.csv",
       "TUV100 NAV arvutamine 15042026.csv",
     ]);
-    expect(shouldAlertOnUnmatched(result.matched.length, result.unmatched.length)).toBe(false);
+    expect(
+      shouldAlertOnUnmatched(
+        "SEB <" + SOURCES.SEB.senders[0] + ">",
+        result.matched.length,
+        result.unmatched,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -268,17 +318,34 @@ describe("isIgnoredFilename", () => {
 });
 
 describe("shouldAlertOnUnmatched", () => {
+  const SEB_TRUSTEE = "SEB <" + SOURCES.SEB.senders[0] + ">";
+
   test("alerts when a known sender has any unmatched attachment", () => {
-    expect(shouldAlertOnUnmatched(0, 1)).toBe(true);
+    expect(shouldAlertOnUnmatched(SEB_TRUSTEE, 0, ["unknown.csv"])).toBe(true);
   });
   test("alerts even when SOME attachments matched (mixed case)", () => {
-    expect(shouldAlertOnUnmatched(2, 1)).toBe(true);
+    expect(shouldAlertOnUnmatched(SEB_TRUSTEE, 2, ["unknown.csv"])).toBe(true);
   });
   test("does not alert when everything matched", () => {
-    expect(shouldAlertOnUnmatched(2, 0)).toBe(false);
+    expect(shouldAlertOnUnmatched(SEB_TRUSTEE, 2, [])).toBe(false);
   });
   test("does not alert when the message has no attachments at all", () => {
-    expect(shouldAlertOnUnmatched(0, 0)).toBe(false);
+    expect(shouldAlertOnUnmatched(SEB_TRUSTEE, 0, [])).toBe(false);
+  });
+  test("does not alert on the reports and extracts the funds mailbox sends itself", () => {
+    expect(
+      shouldAlertOnUnmatched("Tuleva <funds@tuleva.ee>", 0, [
+        "TKF100_osakute_registri_valjavote_2026-10-20.csv",
+        "Tuleva Maailma Aktsiate Pensionifondi investeeringute aruanne 2026-09.pdf",
+      ]),
+    ).toBe(false);
+  });
+  test("alerts when the funds mailbox sends itself a misnamed position report correction", () => {
+    expect(
+      shouldAlertOnUnmatched("Tuleva <funds@tuleva.ee>", 0, [
+        "TULEVA_pos_raport_2026-10-20_korrigeeritud.csv",
+      ]),
+    ).toBe(true);
   });
 });
 

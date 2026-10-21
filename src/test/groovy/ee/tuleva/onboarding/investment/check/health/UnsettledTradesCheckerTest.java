@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNSET
 import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,6 +88,46 @@ class UnsettledTradesCheckerTest {
         .containsExactly(
             "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
                 + " No trade left SEB's trade list");
+  }
+
+  @Test
+  void namesOnlyTradesOfTheSideThatIsOff() {
+    var today = trades(developedWorldPurchase, emergingMarketsPurchase);
+    var previous =
+        trades(
+            developedWorldPurchase,
+            emergingMarketsPurchase,
+            trade(SELL, "100.00", "DLA1289470", "IE00BFG1TM61", NAV_DATE));
+
+    var findings =
+        checker.check(
+            TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly(
+            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                + " No trade left SEB's trade list");
+  }
+
+  @Test
+  void leavesTheSettlementDateOutForATradeThatHadNone() {
+    var today = trades(developedWorldPurchase, emergingMarketsPurchase);
+    var previous =
+        trades(
+            developedWorldPurchase,
+            emergingMarketsPurchase,
+            trade(BUY, "100.00", "DLA1289471", "IE00BKPTWY98", null));
+
+    var findings =
+        checker.check(
+            TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly(
+            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                + " Cause: DLA1289471 IE00BKPTWY98 100.00 left SEB's trade list");
   }
 
   @Test

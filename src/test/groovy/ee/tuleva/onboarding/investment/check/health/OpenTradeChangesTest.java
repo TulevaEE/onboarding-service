@@ -129,6 +129,27 @@ class OpenTradeChangesTest {
   }
 
   @Test
+  void cannotTellWhatChangedFromARowOfTheFundWithoutAnIsin() {
+    var withoutIsin =
+        new OpenTrade(
+            TUK75,
+            BUY,
+            new BigDecimal("100.00"),
+            "DLA1",
+            null,
+            CURRENT,
+            new BigDecimal("10"),
+            Instant.parse("2026-10-16T09:37:55Z"));
+
+    var changes = OpenTradeChanges.between(TUK75, PREVIOUS, trades(), CURRENT, trades(withoutIsin));
+
+    assertThat(changes)
+        .isEqualTo(
+            OpenTradeChanges.unavailable(
+                "SEB trade list for 2026-10-20 has an incomplete row of this fund"));
+  }
+
+  @Test
   void anotherFundsIncompleteRowDoesNotStopThisFundsComparison() {
     var changes =
         OpenTradeChanges.between(

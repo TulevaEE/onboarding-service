@@ -78,10 +78,11 @@ class UnitsFromCashTest {
   }
 
   @Test
-  void leavesReceivablesThatAreNotForTheFundsUnitsOut() {
+  void leavesReceivablesAndPayablesThatAreNotForTheFundsUnitsOut() {
     var today = snapshot(CURRENT, "110000.00", "1000000", "2000000.00");
     today.add(position(RECEIVABLES, "Dividend receivable", "IE0005032192", "20000.00"));
     today.add(position(RECEIVABLES, "Receivables of outstanding units", TUK75.getIsin(), "500.00"));
+    today.add(position(LIABILITY, "Total payables of unsettled transactions", null, "-7000.00"));
 
     var unitsFromCash =
         UnitsFromCash.of(
@@ -148,14 +149,16 @@ class UnitsFromCashTest {
 
   @Test
   void hasNoFigureWhenThePreviousDayCannotPriceAUnit() {
-    var unitsFromCash =
-        UnitsFromCash.of(
-            TUK00,
-            snapshot(CURRENT, "110000.00", "1000000", "2000000.00"),
-            snapshot(PREVIOUS, "110000.00", "0", "2000000.00"),
-            NO_TRADE_CHANGES);
+    var today = snapshot(CURRENT, "110000.00", "1000000", "2000000.00");
 
-    assertThat(unitsFromCash).isEmpty();
+    assertThat(
+            UnitsFromCash.of(
+                TUK00, today, snapshot(PREVIOUS, "110000.00", "0", "2000000.00"), NO_TRADE_CHANGES))
+        .isEmpty();
+    assertThat(
+            UnitsFromCash.of(
+                TUK00, today, snapshot(PREVIOUS, "110000.00", "1000000", "0.00"), NO_TRADE_CHANGES))
+        .isEmpty();
   }
 
   private static ArrayList<FundPosition> snapshot(

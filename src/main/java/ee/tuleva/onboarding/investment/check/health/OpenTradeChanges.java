@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
@@ -25,10 +24,17 @@ record OpenTradeChanges(
       @Nullable OpenTrades previous,
       LocalDate navDate,
       @Nullable OpenTrades current) {
-    var reason =
-        unusable(fund, previousNavDate, previous).or(() -> unusable(fund, navDate, current));
-    if (reason.isPresent() || previous == null || current == null) {
-      return unavailable(reason.orElseThrow());
+    if (previous == null) {
+      return noTradeList(previousNavDate);
+    }
+    if (hasIncompleteRow(previous, fund)) {
+      return incompleteRow(previousNavDate);
+    }
+    if (current == null) {
+      return noTradeList(navDate);
+    }
+    if (hasIncompleteRow(current, fund)) {
+      return incompleteRow(navDate);
     }
     var difference = previous.comparedWith(current, fund);
     return new OpenTradeChanges(
@@ -53,17 +59,18 @@ record OpenTradeChanges(
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private static Optional<String> unusable(
-      TulevaFund fund, LocalDate navDate, @Nullable OpenTrades tradeList) {
-    if (tradeList == null) {
-      return Optional.of("no SEB trade list for %s".formatted(navDate));
-    }
-    if (tradeList.fundsWithIncompleteRows().contains(fund)
-        || tradeList.of(fund).stream().anyMatch(OpenTradeChanges::lacksIsinOrQuantity)) {
-      return Optional.of(
-          "SEB trade list for %s has an incomplete row of this fund".formatted(navDate));
-    }
-    return Optional.empty();
+  private static OpenTradeChanges noTradeList(LocalDate navDate) {
+    return unavailable("no SEB trade list for %s".formatted(navDate));
+  }
+
+  private static OpenTradeChanges incompleteRow(LocalDate navDate) {
+    return unavailable(
+        "SEB trade list for %s has an incomplete row of this fund".formatted(navDate));
+  }
+
+  private static boolean hasIncompleteRow(OpenTrades tradeList, TulevaFund fund) {
+    return tradeList.fundsWithIncompleteRows().contains(fund)
+        || tradeList.of(fund).stream().anyMatch(OpenTradeChanges::lacksIsinOrQuantity);
   }
 
   private static boolean lacksIsinOrQuantity(OpenTrade trade) {

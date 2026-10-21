@@ -74,7 +74,23 @@ class NavUnitImpactCheckerTest {
   }
 
   @Test
-  void aFailureNamesNeitherSideWhenTheCashIsEquallyFarFromBoth() {
+  void aFailureNamesNeitherSideWhenTheCashIsNotNearOneOfThem() {
+    var findings =
+        checker.check(
+            TUK00,
+            new BigDecimal("990000"),
+            new BigDecimal("1000000"),
+            new BigDecimal("2000000.00"),
+            new BigDecimal("960000.000"));
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .singleElement()
+        .satisfies(message -> assertThat(message).endsWith(", unitsFromCash=960000"));
+  }
+
+  @Test
+  void aFailureNamesNeitherSideWhenTheCashIsAsFarFromEither() {
     var findings =
         checker.check(
             TUK00,

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 class NavUnitImpactChecker {
 
   private static final BigDecimal UNIT_DIFFERENCE_THRESHOLD = new BigDecimal("0.5");
+  private static final BigDecimal NEAR_ENOUGH_SHARE_OF_THE_GAP = new BigDecimal("0.1");
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
@@ -88,13 +89,20 @@ class NavUnitImpactChecker {
     }
     var fromSeb = unitsFromCash.subtract(reportedUnits).abs();
     var fromEpis = unitsFromCash.subtract(authoritativeUnits).abs();
-    var closer =
-        switch (Integer.signum(fromSeb.compareTo(fromEpis))) {
-          case -1 -> " (closer to SEB)";
-          case 1 -> " (closer to EPIS)";
-          default -> "";
-        };
-    return ", unitsFromCash=%s%s".formatted(units(unitsFromCash), closer);
+    var sebToEpis = reportedUnits.subtract(authoritativeUnits).abs();
+    return ", unitsFromCash=%s%s"
+        .formatted(units(unitsFromCash), nearSide(fromSeb, fromEpis, sebToEpis));
+  }
+
+  private static String nearSide(BigDecimal fromSeb, BigDecimal fromEpis, BigDecimal sebToEpis) {
+    var nearEnough = sebToEpis.multiply(NEAR_ENOUGH_SHARE_OF_THE_GAP);
+    if (fromSeb.compareTo(nearEnough) <= 0 && fromSeb.compareTo(fromEpis) < 0) {
+      return " (closer to SEB)";
+    }
+    if (fromEpis.compareTo(nearEnough) <= 0 && fromEpis.compareTo(fromSeb) < 0) {
+      return " (closer to EPIS)";
+    }
+    return "";
   }
 
   private static String units(BigDecimal units) {

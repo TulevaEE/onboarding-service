@@ -220,7 +220,9 @@ class BenchmarkCheckBuilder {
             s.isin(),
             benchmarkKey);
         holdingsReportedAsBenchmarkGap.add(s);
-        holdingsWithoutBenchmarkPrices.add(s);
+        if (s.actualWeight().signum() > 0) {
+          holdingsWithoutBenchmarkPrices.add(s);
+        }
         continue;
       }
       var secReturn =

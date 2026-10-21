@@ -203,6 +203,19 @@ class BenchmarkCheckBuilderTest {
   }
 
   @Test
+  void anUnheldAllocationWhoseBenchmarkHadNoPriceIsNotNamedSinceItsPriceWouldStillMeasureNothing() {
+    var result =
+        builder.buildBenchmarkModelCheck(
+            TUK75,
+            CHECK_DATE,
+            List.of(
+                flatHolding(DEVELOPED_MARKETS_ISIN, BigDecimal.ZERO),
+                flatHolding(UNTRACKED_ISIN, BigDecimal.ONE)));
+
+    assertThat(result).isEqualTo(new NothingToMeasure());
+  }
+
+  @Test
   void aSleeveWithNoBenchmarkProxyAtAllHasNothingToMeasureSinceNoPriceWouldEverMeasureIt() {
     var result =
         builder.buildBenchmarkModelCheck(

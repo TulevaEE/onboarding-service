@@ -17,12 +17,15 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.OpenTradeSource;
+import ee.tuleva.onboarding.investment.transaction.OpenTrades;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -58,8 +61,50 @@ class HealthCheckServiceTest {
   @Mock ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource executedPriceSource;
 
   @Mock ExitMarkResolver exitMarkResolver;
+  @Mock OpenTradeSource openTradeSource;
+  @Mock UnsettledTradesChecker unsettledTradesChecker;
 
   @InjectMocks HealthCheckService healthCheckService;
+
+  @Test
+  void readsEachDaysTradeListOnceHoweverManyFundsItCovers() {
+    var positions =
+        List.of(
+            securityPosition(TUK75, "IE001", new BigDecimal("1000")),
+            securityPosition(TUV100, "IE001", new BigDecimal("1000")));
+    var previousNavDate = NAV_DATE.minusDays(1);
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(any(), eq(previousNavDate)))
+        .willReturn(Optional.of(previousNavDate));
+
+    healthCheckService.check(positions);
+
+    verify(openTradeSource).openTrades(NAV_DATE);
+    verify(openTradeSource).openTrades(previousNavDate);
+  }
+
+  @Test
+  void blocksAFundWhoseTradePayablesExceedTheTradesStillOpenOnSebsTradeList() {
+    var payables = liabilityPosition(TUK75, new BigDecimal("-4311904.84"));
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")), payables);
+    var previousNavDate = NAV_DATE.minusDays(1);
+    var todaysTradeList = new OpenTrades(List.of(), Set.of(), List.of());
+    var previousTradeList = new OpenTrades(List.of(), Set.of(), List.of());
+    var stalePayable =
+        new HealthCheckFinding(TUK75, HealthCheckType.UNSETTLED_TRADES, FAIL, "stale payable");
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousNavDate))
+        .willReturn(Optional.of(previousNavDate));
+    given(openTradeSource.openTrades(NAV_DATE)).willReturn(Optional.of(todaysTradeList));
+    given(openTradeSource.openTrades(previousNavDate)).willReturn(Optional.of(previousTradeList));
+    given(
+            unsettledTradesChecker.check(
+                TUK75, NAV_DATE, List.of(payables), List.of(), todaysTradeList, previousTradeList))
+        .willReturn(List.of(stalePayable));
+
+    var results = healthCheckService.check(positions);
+
+    assertThat(results.getFirst().findings()).contains(stalePayable);
+    assertThat(HealthCheckResult.blockedFunds(results)).containsExactly(TUK75);
+  }
 
   @Test
   void delegatesToCheckersWithPositionsGroupedByFund() {

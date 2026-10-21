@@ -106,7 +106,7 @@ class LegalEntityOnboardingEventListenerTest {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66191"))),
             dataChangedFor(HIGH_RISK_NACE));
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
@@ -119,7 +119,7 @@ class LegalEntityOnboardingEventListenerTest {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
-            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66191"))),
             new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "100")),
             dataChangedFor(HIGH_RISK_NACE));
 
@@ -133,7 +133,7 @@ class LegalEntityOnboardingEventListenerTest {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
-            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66191"))),
             new KybCheck(DUAL_MEMBER_OWNERSHIP, false, Map.of("totalOwnership", "60")),
             dataChangedFor(DUAL_MEMBER_OWNERSHIP));
 
@@ -148,7 +148,7 @@ class LegalEntityOnboardingEventListenerTest {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, false, Map.of()),
-            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("69202"))));
+            new KybCheck(HIGH_RISK_NACE, false, Map.of("activityCodes", List.of("66191"))));
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 

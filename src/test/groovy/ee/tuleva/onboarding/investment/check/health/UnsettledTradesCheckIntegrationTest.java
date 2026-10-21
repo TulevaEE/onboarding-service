@@ -78,9 +78,10 @@ class UnsettledTradesCheckIntegrationTest {
             finding -> {
               assertThat(finding.severity()).isEqualTo(FAIL);
               assertThat(finding.message())
-                  .contains("excess=3088796.84")
-                  .contains(
-                      "DLA1289466 IE000QWCYQT0 3088796.84 settling 2026-10-20 (equals the excess)");
+                  .isEqualTo(
+                      "Trade payables 4311904.84, open buys 1223108.00, excess 3088796.84, NAV"
+                          + " too low. Cause: DLA1289466 IE000QWCYQT0 3088796.84 left SEB's"
+                          + " trade list, settlement 2026-10-20");
             });
   }
 

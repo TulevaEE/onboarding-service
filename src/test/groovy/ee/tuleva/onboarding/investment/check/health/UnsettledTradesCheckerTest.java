@@ -53,11 +53,66 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 FAIL,
-                "SEB counts more purchases as owed than its trade list has open, so NAV would be"
-                    + " too low: fund=TUK75, navDate=2026-10-20, tradePayables=4311904.84,"
-                    + " openPurchases=1223108.00, excess=3088796.84, leftTradeList=[DLA1289466"
-                    + " IE000QWCYQT0 3088796.84 settling 2026-10-20 (equals the excess),"
-                    + " DLA1289465 IE000I9HGDZ3 2730597.59 settling 2026-10-20]"));
+                "Trade payables 4311904.84, open buys 1223108.00, excess 3088796.84, NAV too low."
+                    + " Cause: DLA1289466 IE000QWCYQT0 3088796.84 left SEB's trade list,"
+                    + " settlement 2026-10-20"));
+  }
+
+  @Test
+  void listsTheTradesThatLeftTheTradeListWhenNoneEqualsTheExcess() {
+    var today = trades(developedWorldPurchase, emergingMarketsPurchase);
+    var previous = trades(amundiPurchaseSettledToday, xtrackersPurchaseSettledToday);
+
+    var findings =
+        checker.check(
+            TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly(
+            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                + " Left SEB's trade list: DLA1289466 IE000QWCYQT0 3088796.84, settlement"
+                + " 2026-10-20; DLA1289465 IE000I9HGDZ3 2730597.59, settlement 2026-10-20");
+  }
+
+  @Test
+  void saysNoTradeLeftTheTradeListWhenTheExcessHasNoSuchCause() {
+    var today = trades(developedWorldPurchase, emergingMarketsPurchase);
+
+    var findings =
+        checker.check(TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, today);
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly(
+            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                + " No trade left SEB's trade list");
+  }
+
+  @Test
+  void doesNotNameATradeWhoseReferenceSebAddedOnlyOnTheNextList() {
+    var yesterdaysRowWithoutReference =
+        new OpenTrade(
+            TUK75,
+            BUY,
+            new BigDecimal("115536.00"),
+            null,
+            "IE00BFG1TM61",
+            SETTLEMENT,
+            new BigDecimal("100"),
+            TRADE_TIME);
+    var today = trades(developedWorldPurchase, emergingMarketsPurchase);
+    var previous = trades(yesterdaysRowWithoutReference);
+
+    var findings =
+        checker.check(
+            TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly(
+            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                + " No trade left SEB's trade list");
   }
 
   @Test
@@ -114,10 +169,8 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 FAIL,
-                "SEB counts more sales as receivable than its trade list has open, so NAV would"
-                    + " be too high: fund=TUK75, navDate=2026-10-20, tradeReceivables=3318180.78,"
-                    + " openSales=0.00, excess=3318180.78, leftTradeList=[previous trade list not"
-                    + " imported]"));
+                "Trade receivables 3318180.78, open sells 0.00, excess 3318180.78, NAV too high."
+                    + " Previous SEB trade list missing"));
   }
 
   @Test
@@ -156,9 +209,8 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 NOT_RUN,
-                "SEB's trade list is not imported, so trade payables and receivables cannot be"
-                    + " checked against open trades: fund=TUK75, navDate=2026-10-20,"
-                    + " tradePayables=1223108.00, tradeReceivables=0.00"));
+                "Not checked: no SEB trade list for 2026-10-20; trade payables 1223108.00,"
+                    + " receivables 0.00"));
   }
 
   @Test
@@ -178,9 +230,7 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 NOT_RUN,
-                "SEB's trade list has a row for this fund without a side or an amount, so trade"
-                    + " payables and receivables cannot be checked against open trades:"
-                    + " fund=TUK75, navDate=2026-10-20"));
+                "Not checked: SEB's trade list has a row of this fund without a side or amount"));
   }
 
   @Test
@@ -237,10 +287,8 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 NOT_RUN,
-                "SEB's trade list has rows whose fund is not recognised, and they could explain"
-                    + " this fund's excess: fund=TUK75, navDate=2026-10-20, excess=3088796.84,"
-                    + " unrecognisedClientNames=[Tuleva Vabatahtlik Pensionifond, (no client"
-                    + " name)]"));
+                "Not checked: excess 3088796.84, and SEB's trade list has rows of no known fund:"
+                    + " [Tuleva Vabatahtlik Pensionifond, (no client name)]"));
   }
 
   @Test
@@ -277,9 +325,7 @@ class UnsettledTradesCheckerTest {
                 TUK75,
                 UNSETTLED_TRADES,
                 NOT_RUN,
-                "SEB's positions carry a trade payables or receivables row without an amount, so"
-                    + " it cannot be checked against open trades: fund=TUK75,"
-                    + " navDate=2026-10-20"));
+                "Not checked: a trade payables or receivables row has no amount"));
   }
 
   private OpenTrades trades(OpenTrade... trades) {

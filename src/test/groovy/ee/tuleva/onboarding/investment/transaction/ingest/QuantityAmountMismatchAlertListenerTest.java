@@ -148,7 +148,8 @@ class QuantityAmountMismatchAlertListenerTest {
             LocalDate.of(2026, 5, 13),
             "Tuleva Täiendav Kogumisfond",
             "VP68168",
-            "ICAV Amundi MSCI USA Screened UCITS ETF");
+            "ICAV Amundi MSCI USA Screened UCITS ETF",
+            "EUR");
     TransactionOrder nearMiss =
         TransactionOrder.builder()
             .id(123L)

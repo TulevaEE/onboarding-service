@@ -365,7 +365,8 @@ class QuantityAmountValidatorTest {
         null,
         "Tuleva Täiendav Kogumisfond",
         null,
-        null);
+        null,
+        "EUR");
   }
 
   private static SebPendingTransactionRow etfRowWithRef(String ourRef, BigDecimal quantity) {
@@ -383,7 +384,8 @@ class QuantityAmountValidatorTest {
         null,
         "Tuleva Täiendav Kogumisfond",
         null,
-        null);
+        null,
+        "EUR");
   }
 
   private static TransactionOrder fundBuyOrder(BigDecimal orderAmount) {
@@ -414,6 +416,7 @@ class QuantityAmountValidatorTest {
         null,
         "Tuleva Täiendav Kogumisfond",
         null,
-        null);
+        null,
+        "EUR");
   }
 }

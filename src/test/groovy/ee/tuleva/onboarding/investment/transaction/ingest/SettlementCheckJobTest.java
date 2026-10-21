@@ -468,7 +468,8 @@ class SettlementCheckJobTest {
         LocalDate.of(2026, 5, 13),
         clientName,
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static InvestmentReport report(LocalDate reportDate) {
@@ -531,7 +532,8 @@ class SettlementCheckJobTest {
         LocalDate.of(2026, 5, 6),
         "Tuleva Maailma Aktsiate Pensionifond",
         "VP1",
-        "Some fund");
+        "Some fund",
+        "EUR");
   }
 
   private static SebPendingTransactionRow unmatchedRow(String clientName) {
@@ -549,7 +551,8 @@ class SettlementCheckJobTest {
         LocalDate.of(2026, 5, 13),
         clientName,
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static Instant dateOnly(int year, int month, int day) {

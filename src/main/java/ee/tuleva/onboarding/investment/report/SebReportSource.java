@@ -29,7 +29,7 @@ public class SebReportSource extends AbstractReportSource {
 
   @Override
   public List<ReportType> getSupportedReportTypes() {
-    return List.of(POSITIONS, PENDING_TRANSACTIONS);
+    return List.of(PENDING_TRANSACTIONS, POSITIONS);
   }
 
   @Override

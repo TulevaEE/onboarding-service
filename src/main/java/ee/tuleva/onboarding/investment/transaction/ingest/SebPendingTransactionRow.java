@@ -22,7 +22,8 @@ record SebPendingTransactionRow(
     @Nullable LocalDate settlementDate,
     @Nullable String clientName,
     @Nullable String account,
-    @Nullable String instrumentName) {
+    @Nullable String instrumentName,
+    @Nullable String currency) {
 
   SebPendingTransactionRow withQuantity(BigDecimal newQuantity) {
     return new SebPendingTransactionRow(
@@ -39,7 +40,8 @@ record SebPendingTransactionRow(
         settlementDate,
         clientName,
         account,
-        instrumentName);
+        instrumentName,
+        currency);
   }
 
   static SebPendingTransactionRow fromRawData(Map<String, Object> raw) {
@@ -57,7 +59,8 @@ record SebPendingTransactionRow(
         parseLocalDate(raw.get("Settlement date")),
         asString(raw.get("Client name")),
         asString(raw.get("Account")),
-        asString(raw.get("Instrument name")));
+        asString(raw.get("Instrument name")),
+        asString(raw.get("Currency")));
   }
 
   private static @Nullable UUID parseUuid(@Nullable Object value) {

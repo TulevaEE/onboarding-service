@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.FindingNumbers.signedQuantity;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
 import static java.math.BigDecimal.ZERO;
@@ -22,6 +24,23 @@ import org.springframework.stereotype.Component;
 class QuantityChangeChecker {
 
   private static final BigDecimal ROUNDING_TOLERANCE = new BigDecimal("0.01");
+
+  List<HealthCheckFinding> check(
+      TulevaFund fund,
+      List<FundPosition> securities,
+      List<FundPosition> previousSecurities,
+      PendingTradeChanges changes) {
+    var unavailableReason = changes.unavailableReason();
+    if (unavailableReason == null) {
+      return check(fund, securities, previousSecurities, TradedQuantity.byIsin(changes.appeared()));
+    }
+    if (check(fund, securities, previousSecurities, Map.of()).isEmpty()) {
+      return List.of();
+    }
+    return List.of(
+        new HealthCheckFinding(
+            fund, QUANTITY_CHANGE, NOT_RUN, "Not checked: " + unavailableReason));
+  }
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
@@ -81,13 +100,12 @@ class QuantityChangeChecker {
         fund,
         QUANTITY_CHANGE,
         WARNING,
-        "%s: SECURITY quantity changed by %s for ISIN %s (previous %s, current %s) — executed transactions explain %s"
+        "%s quantity %s (%s → %s), new pending trades %s"
             .formatted(
-                fund,
-                quantityChange.toPlainString(),
                 isin,
-                previousQuantity.toPlainString(),
-                currentQuantity.toPlainString(),
-                expectedChange.toPlainString()));
+                signedQuantity(quantityChange),
+                previousQuantity.stripTrailingZeros().toPlainString(),
+                currentQuantity.stripTrailingZeros().toPlainString(),
+                signedQuantity(expectedChange)));
   }
 }

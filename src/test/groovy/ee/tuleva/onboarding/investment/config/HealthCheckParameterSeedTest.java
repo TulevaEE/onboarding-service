@@ -23,7 +23,11 @@ class HealthCheckParameterSeedTest {
   @ParameterizedTest
   @EnumSource(
       value = InvestmentParameter.class,
-      names = {"NAV_FLOW_CONSISTENCY_THRESHOLD", "NAV_IMPACT_VOLUME_THRESHOLD"})
+      names = {
+        "NAV_FLOW_CONSISTENCY_THRESHOLD",
+        "NAV_IMPACT_VOLUME_THRESHOLD",
+        "UNIT_CASH_FLOW_THRESHOLD"
+      })
   void healthCheckThresholdsCoverEveryNavDateTheImportLookbackReaches(
       InvestmentParameter parameter) {
     assertThat(repository.findLatestValue(parameter, BEFORE_ANY_HEALTH_CHECKED_NAV_DATE))

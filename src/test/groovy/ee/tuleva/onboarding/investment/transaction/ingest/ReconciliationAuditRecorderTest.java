@@ -398,7 +398,8 @@ class ReconciliationAuditRecorderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static SebPendingTransactionRow rowWithoutOurRef() {
@@ -416,7 +417,8 @@ class ReconciliationAuditRecorderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private QuantityAmountMismatchEvent sampleMismatch() {

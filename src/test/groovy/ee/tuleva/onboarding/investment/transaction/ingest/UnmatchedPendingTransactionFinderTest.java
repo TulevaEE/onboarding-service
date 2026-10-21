@@ -282,7 +282,8 @@ class UnmatchedPendingTransactionFinderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static SebPendingTransactionRow rowWithClientRefAndIsin(UUID clientRef, String isin) {
@@ -300,7 +301,8 @@ class UnmatchedPendingTransactionFinderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static SebPendingTransactionRow rowWithClientRef(UUID clientRef) {
@@ -318,7 +320,8 @@ class UnmatchedPendingTransactionFinderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 
   private static SebPendingTransactionRow row(String ourRef) {
@@ -336,6 +339,7 @@ class UnmatchedPendingTransactionFinderTest {
         LocalDate.of(2026, 5, 13),
         "Tuleva Täiendav Kogumisfond",
         "VP68168",
-        "ICAV Amundi MSCI USA Screened UCITS ETF");
+        "ICAV Amundi MSCI USA Screened UCITS ETF",
+        "EUR");
   }
 }

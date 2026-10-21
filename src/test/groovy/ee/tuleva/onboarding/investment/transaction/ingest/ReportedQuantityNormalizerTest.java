@@ -148,7 +148,8 @@ class ReportedQuantityNormalizerTest {
         LocalDate.of(2026, 8, 27),
         "Tuleva Täiendav Kogumisfond",
         "VP68958",
-        "CCF Developed World (ESG Screened) Index Fund Class X0");
+        "CCF Developed World (ESG Screened) Index Fund Class X0",
+        "EUR");
   }
 
   private static TransactionExecution execution(String brokerRef, String quantity) {

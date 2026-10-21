@@ -32,7 +32,9 @@ class SebExecutedPriceSourceTest {
 
   private SebExecutedPriceSource source() {
     return new SebExecutedPriceSource(
-        reportService, new SebPendingTransactionExtractor(), new SebClientNameToFundResolver());
+        new SebPendingReportFinder(reportService),
+        new SebPendingTransactionExtractor(),
+        new SebClientNameToFundResolver());
   }
 
   @Test

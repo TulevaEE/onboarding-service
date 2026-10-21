@@ -95,11 +95,11 @@ class NavUnitImpactChecker {
   }
 
   private static String nearSide(BigDecimal fromSeb, BigDecimal fromEpis, BigDecimal sebToEpis) {
-    var nearEnough = sebToEpis.multiply(NEAR_ENOUGH_SHARE_OF_THE_GAP);
-    if (fromSeb.compareTo(nearEnough) <= 0 && fromSeb.compareTo(fromEpis) < 0) {
+    var nearEnoughToBeCloserThanTheOther = sebToEpis.multiply(NEAR_ENOUGH_SHARE_OF_THE_GAP);
+    if (fromSeb.compareTo(nearEnoughToBeCloserThanTheOther) <= 0) {
       return " (closer to SEB)";
     }
-    if (fromEpis.compareTo(nearEnough) <= 0 && fromEpis.compareTo(fromSeb) < 0) {
+    if (fromEpis.compareTo(nearEnoughToBeCloserThanTheOther) <= 0) {
       return " (closer to EPIS)";
     }
     return "";

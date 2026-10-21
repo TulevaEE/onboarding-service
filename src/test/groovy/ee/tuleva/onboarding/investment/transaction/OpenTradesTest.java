@@ -78,6 +78,40 @@ class OpenTradesTest {
   }
 
   @Test
+  void pairsAsManyTradesAsTheirReferencesAllowWhateverTheRowOrder() {
+    var withoutReference = trade(TUK75, null, "500", "5000.00");
+    var lostItsReference = trade(TUK75, "DLA1", "500", "5000.00");
+    var gainedItsReference = trade(TUK75, "DLA2", "500", "5000.00");
+    var unchanged = new OpenTrades.Difference(List.of(), List.of());
+
+    for (var earlier :
+        List.of(
+            List.of(withoutReference, lostItsReference),
+            List.of(lostItsReference, withoutReference))) {
+      for (var later :
+          List.of(
+              List.of(withoutReference, gainedItsReference),
+              List.of(gainedItsReference, withoutReference))) {
+        assertThat(listOf(earlier).comparedWith(listOf(later), TUK75)).isEqualTo(unchanged);
+        assertThat(listOf(later).comparedWith(listOf(earlier), TUK75)).isEqualTo(unchanged);
+      }
+    }
+  }
+
+  @Test
+  void leavesTheSameTradesUnpairedWhateverTheRowOrder() {
+    var first = trade(TUK75, "DLA1", "500", "5000.00");
+    var second = trade(TUK75, "DLA2", "500", "5001.00");
+    var withoutReference = trade(TUK75, null, "500", "5000.50");
+
+    var difference = trades(first, second).comparedWith(trades(withoutReference), TUK75);
+
+    assertThat(trades(second, first).comparedWith(trades(withoutReference), TUK75))
+        .isEqualTo(difference);
+    assertThat(difference.onlyEarlier()).hasSize(1);
+  }
+
+  @Test
   void identicalRowsAreMatchedOneForOne() {
     var part = trade(TUK75, "DLA1", "500", "2500.00");
 
@@ -94,7 +128,11 @@ class OpenTradesTest {
   }
 
   private static OpenTrades trades(OpenTrade... trades) {
-    return new OpenTrades(List.of(trades), Set.of(), List.of());
+    return listOf(List.of(trades));
+  }
+
+  private static OpenTrades listOf(List<OpenTrade> trades) {
+    return new OpenTrades(trades, Set.of(), List.of());
   }
 
   private static OpenTrade trade(

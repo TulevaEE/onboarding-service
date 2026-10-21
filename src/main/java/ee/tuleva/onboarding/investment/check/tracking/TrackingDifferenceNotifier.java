@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.forma
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.check.tracking.EscalationRule.Verdict;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -243,29 +244,40 @@ class TrackingDifferenceNotifier {
   }
 
   void notify(List<TrackingDifferenceResult> results) {
+    notify(results, List.of());
+  }
+
+  void notify(List<TrackingDifferenceResult> results, List<NoHoldingMeasured> checksNotMeasured) {
     try {
-      var alertableResults = alertableResults(results);
-      if (alertableResults.isEmpty()) {
-        notificationService.sendMessage(
-            """
-            ⚠️ TD RUN produced no tracking difference results to alert on
-              Nothing actionable was checked: every fund was skipped, or only the suppressed ACWI
-              benchmark ran. The reason per fund is in the logs; the daily series is unchanged.""",
-            INVESTMENT);
-        return;
-      }
-      var verdicts =
-          alertableResults.stream()
-              .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
-              .toList();
-      if (verdicts.stream().noneMatch(Verdict::alerts)) {
-        notificationService.sendMessage(formatAllWithinLimits(alertableResults), INVESTMENT);
-        return;
-      }
-      notificationService.sendMessage(formatAlerts(verdicts), INVESTMENT);
+      notificationService.sendMessage(
+          formatResults(results) + formatChecksNotMeasured(checksNotMeasured), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
+  }
+
+  private String formatResults(List<TrackingDifferenceResult> results) {
+    var alertableResults = alertableResults(results);
+    if (alertableResults.isEmpty()) {
+      return """
+          ⚠️ TD RUN produced no tracking difference results to alert on
+            Nothing actionable was checked: every fund was skipped, or only the suppressed ACWI
+            benchmark ran. The reason per fund is in the logs; the daily series is unchanged.""";
+    }
+    var verdicts =
+        alertableResults.stream()
+            .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
+            .toList();
+    if (verdicts.stream().noneMatch(Verdict::alerts)) {
+      return formatAllWithinLimits(alertableResults);
+    }
+    return formatAlerts(verdicts);
+  }
+
+  private static String formatChecksNotMeasured(List<NoHoldingMeasured> checksNotMeasured) {
+    return checksNotMeasured.stream()
+        .map(notMeasured -> "\n  ⚠️ " + notMeasured.describe())
+        .collect(joining());
   }
 
   private static String formatAllWithinLimits(List<TrackingDifferenceResult> alertableResults) {

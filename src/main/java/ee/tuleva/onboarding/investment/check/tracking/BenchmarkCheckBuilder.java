@@ -245,7 +245,7 @@ class BenchmarkCheckBuilder {
     if (totalWeight.signum() == 0) {
       return holdingsWithoutBenchmarkPrices.isEmpty()
           ? new NothingToMeasure()
-          : new NoHoldingMeasured(isins(holdingsWithoutBenchmarkPrices));
+          : new NoHoldingMeasured(fund, checkDate, isins(holdingsWithoutBenchmarkPrices));
     }
 
     var benchmarkReturn =

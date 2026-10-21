@@ -16,8 +16,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -26,6 +29,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -34,6 +38,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
@@ -71,6 +76,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   BenchmarkLegResolver.class,
   StaleFundReturnDetector.class,
   MissingNavClassifier.class,
+  NavTrackingDifferenceGate.class,
   TrackingDifferenceServiceGapFillIT.FixedClockConfiguration.class
 })
 class TrackingDifferenceServiceGapFillIT {
@@ -99,6 +105,7 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   @Autowired TrackingDifferenceService service;
+  @Autowired NavTrackingDifferenceGate gate;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Autowired NavReportRepository navReportRepository;
@@ -108,6 +115,8 @@ class TrackingDifferenceServiceGapFillIT {
   @MockitoBean FundValueProvider fundValueProvider;
   @MockitoBean PriorityPriceProvider priorityPriceProvider;
   @MockitoBean InstrumentReferenceService instrumentReferenceService;
+  @MockitoBean TrackingDifferenceNotifier trackingDifferenceNotifier;
+  @MockitoBean PipelineTracker pipelineTracker;
 
   @BeforeEach
   void storeTheTrackingParameters() {
@@ -216,6 +225,64 @@ class TrackingDifferenceServiceGapFillIT {
                 assertThat(incomplete.completedResults())
                     .extracting(TrackingDifferenceResult::checkType)
                     .containsExactly(MODEL_PORTFOLIO));
+  }
+
+  @Test
+  void theNavGateNamesTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    gate.check(TUK75, THURSDAY);
+
+    then(trackingDifferenceNotifier)
+        .should()
+        .notify(
+            assertArg(
+                results ->
+                    assertThat(results)
+                        .extracting(TrackingDifferenceResult::checkType)
+                        .containsExactly(MODEL_PORTFOLIO)),
+            eq(List.of(new NoHoldingMeasured(TUK75, THURSDAY, List.of(HELD_ISIN)))));
+  }
+
+  @Test
+  void theNavGateNamesNothingWhenOnlyAnUnheldModelAllocationLacksABenchmarkPrice() {
+    storeModelPortfolio(HELD_ISIN, new BigDecimal("0.50"));
+    storeModelPortfolio(UNHELD_ISIN, new BigDecimal("0.50"));
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    givenPrice(UNHELD_ISIN, WEDNESDAY, "50.00");
+    givenPrice(UNHELD_ISIN, THURSDAY, "50.50");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenABenchmarkWithoutPricesFor(UNHELD_ISIN);
+
+    gate.check(TUK75, THURSDAY);
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
+  }
+
+  @Test
+  void theNavGateNamesNothingForHoldingsWithNoBenchmarkSinceNoPriceWouldEverMeasureThem() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+
+    gate.check(TUK75, THURSDAY);
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
   }
 
   @Test

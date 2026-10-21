@@ -71,8 +71,8 @@ class UnsettledTradesCheckerTest {
         .extracting(HealthCheckFinding::message)
         .containsExactly(
             "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
-                + " Left SEB's trade list: DLA1289466 IE000QWCYQT0 3088796.84, settlement"
-                + " 2026-10-20; DLA1289465 IE000I9HGDZ3 2730597.59, settlement 2026-10-20");
+                + " Left SEB's trade list: DLA1289465 IE000I9HGDZ3 2730597.59, settlement"
+                + " 2026-10-20; DLA1289466 IE000QWCYQT0 3088796.84, settlement 2026-10-20");
   }
 
   @Test

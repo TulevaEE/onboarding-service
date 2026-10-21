@@ -417,6 +417,44 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
+  void aChangeTheFundsOwnNewTradesExplainPassesBesideARowOfNoKnownFund() {
+    var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
+    var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+    var newTrade = trade(TUK75, "DLA1", "IE00BFG1TM61", BUY, "500", "5000.00");
+
+    var findings =
+        checker.check(
+            TUK75,
+            today,
+            previous,
+            new OpenTradeChanges(null, List.of(newTrade), List.of(), List.of("Some Other Fund")));
+
+    assertThat(findings).isEmpty();
+  }
+
+  @Test
+  void anUnexplainedChangeIsNotCheckedWhenARowOfNoKnownFundCouldExplainIt() {
+    var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
+    var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+
+    var findings =
+        checker.check(
+            TUK75,
+            today,
+            previous,
+            new OpenTradeChanges(null, List.of(), List.of(), List.of("Some Other Fund")));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                QUANTITY_CHANGE,
+                NOT_RUN,
+                "Not checked: SEB's trade lists have rows of no known fund that could explain it:"
+                    + " [Some Other Fund]"));
+  }
+
+  @Test
   void saysItCouldNotRunWhenAQuantityMovedAndTheTradeListsCannotExplainIt() {
     var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
     var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));

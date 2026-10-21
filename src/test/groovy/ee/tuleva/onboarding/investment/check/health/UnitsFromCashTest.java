@@ -107,6 +107,18 @@ class UnitsFromCashTest {
   }
 
   @Test
+  void hasNoFigureWhenATradeListRowNamesNoKnownFund() {
+    var unitsFromCash =
+        UnitsFromCash.of(
+            TUK00,
+            snapshot(CURRENT, "110000.00", "1000000", "2000000.00"),
+            snapshot(PREVIOUS, "110000.00", "1000000", "2000000.00"),
+            new OpenTradeChanges(null, List.of(), List.of(), List.of("Some Other Fund")));
+
+    assertThat(unitsFromCash).isEmpty();
+  }
+
+  @Test
   void hasNoFigureWithoutThePreviousDaysPositions() {
     var unitsFromCash =
         UnitsFromCash.of(

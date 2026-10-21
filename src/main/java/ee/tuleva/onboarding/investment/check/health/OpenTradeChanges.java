@@ -10,10 +10,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 record OpenTradeChanges(
-    @Nullable String unavailableReason, List<OpenTrade> appeared, List<OpenTrade> disappeared) {
+    @Nullable String unavailableReason,
+    List<OpenTrade> appeared,
+    List<OpenTrade> disappeared,
+    List<String> unknownFundRows) {
 
   static OpenTradeChanges between(
       TulevaFund fund,
@@ -27,11 +31,19 @@ record OpenTradeChanges(
       return unavailable(reason.orElseThrow());
     }
     var difference = previous.comparedWith(current, fund);
-    return new OpenTradeChanges(null, difference.onlyLater(), difference.onlyEarlier());
+    return new OpenTradeChanges(
+        null,
+        difference.onlyLater(),
+        difference.onlyEarlier(),
+        Stream.concat(
+                previous.unattributedClientNames().stream(),
+                current.unattributedClientNames().stream())
+            .distinct()
+            .toList());
   }
 
   static OpenTradeChanges unavailable(String reason) {
-    return new OpenTradeChanges(reason, List.of(), List.of());
+    return new OpenTradeChanges(reason, List.of(), List.of(), List.of());
   }
 
   BigDecimal disappearedTotal(TransactionType side) {
@@ -50,11 +62,6 @@ record OpenTradeChanges(
         || tradeList.of(fund).stream().anyMatch(OpenTradeChanges::lacksIsinOrQuantity)) {
       return Optional.of(
           "SEB trade list for %s has an incomplete row of this fund".formatted(navDate));
-    }
-    if (!tradeList.unattributedClientNames().isEmpty()) {
-      return Optional.of(
-          "SEB trade list for %s has rows of no known fund: %s"
-              .formatted(navDate, tradeList.unattributedClientNames()));
     }
     return Optional.empty();
   }

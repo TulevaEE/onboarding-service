@@ -112,6 +112,34 @@ class OpenTradesTest {
   }
 
   @Test
+  void pairsTwoPartsOfOneReferenceSoThatTheRowWithoutAReferenceStillPairs() {
+    var largerPart = trade(TUK75, "DLA1", "200", "2000.00");
+    var smallerPart = trade(TUK75, "DLA1", "100", "1000.00");
+    var revisedPart = trade(TUK75, "DLA1", "100", "1000.00");
+    var withoutReference = trade(TUK75, null, "100", "1000.00");
+    var unchanged = new OpenTrades.Difference(List.of(), List.of());
+
+    for (var earlier :
+        List.of(List.of(largerPart, smallerPart), List.of(smallerPart, largerPart))) {
+      for (var later :
+          List.of(List.of(revisedPart, withoutReference), List.of(withoutReference, revisedPart))) {
+        assertThat(listOf(earlier).comparedWith(listOf(later), TUK75)).isEqualTo(unchanged);
+        assertThat(listOf(later).comparedWith(listOf(earlier), TUK75)).isEqualTo(unchanged);
+      }
+    }
+  }
+
+  @Test
+  void leavesTheSameRowUnpairedWhenRowsDifferOnlyInSettlementDate() {
+    var settlingFirst = trade(TUK75, null, "500", "5000.00", LocalDate.of(2026, 10, 21));
+    var settlingLater = trade(TUK75, null, "500", "5000.00", LocalDate.of(2026, 10, 22));
+    var later = trades(trade(TUK75, null, "500", "5000.00", LocalDate.of(2026, 10, 22)));
+
+    assertThat(trades(settlingFirst, settlingLater).comparedWith(later, TUK75))
+        .isEqualTo(trades(settlingLater, settlingFirst).comparedWith(later, TUK75));
+  }
+
+  @Test
   void identicalRowsAreMatchedOneForOne() {
     var part = trade(TUK75, "DLA1", "500", "2500.00");
 
@@ -137,13 +165,22 @@ class OpenTradesTest {
 
   private static OpenTrade trade(
       TulevaFund fund, @Nullable String reference, String quantity, String total) {
+    return trade(fund, reference, quantity, total, LocalDate.of(2026, 10, 22));
+  }
+
+  private static OpenTrade trade(
+      TulevaFund fund,
+      @Nullable String reference,
+      String quantity,
+      String total,
+      LocalDate settlementDate) {
     return new OpenTrade(
         fund,
         BUY,
         new BigDecimal(total),
         reference,
         "IE00BFG1TM61",
-        LocalDate.of(2026, 10, 22),
+        settlementDate,
         new BigDecimal(quantity),
         Instant.parse("2026-10-16T09:37:55Z"));
   }

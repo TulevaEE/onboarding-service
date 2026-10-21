@@ -14,14 +14,11 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,9 +30,6 @@ public class HealthCheckNotifier {
 
   private final OperationsNotificationService notificationService;
   private final HealthCheckEventRepository eventRepository;
-
-  private static final DateTimeFormatter IMPORT_TIME =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
 
   public boolean notify(
       ReportProvider provider,
@@ -64,7 +58,12 @@ public class HealthCheckNotifier {
 
       var message =
           buildMessage(
-              provider, date, results, earlierImports, activeTransitions, clearedTransitions);
+              provider,
+              date,
+              results,
+              new EarlierImports(earlierImports),
+              activeTransitions,
+              clearedTransitions);
       notificationService.sendMessage(message, INVESTMENT);
       return true;
 
@@ -135,7 +134,7 @@ public class HealthCheckNotifier {
       ReportProvider provider,
       LocalDate date,
       List<HealthCheckResult> results,
-      Map<TulevaFund, Instant> earlierImports,
+      EarlierImports earlierImports,
       List<Transition> active,
       List<Transition> cleared) {
     var message = new StringBuilder();
@@ -175,12 +174,12 @@ public class HealthCheckNotifier {
       ReportProvider provider,
       LocalDate date,
       List<HealthCheckResult> results,
-      Map<TulevaFund, Instant> earlierImports,
+      EarlierImports earlierImports,
       List<Transition> active) {
     var blockedFunds = HealthCheckResult.blockedFunds(results);
     if (!blockedFunds.isEmpty()) {
       return "IMPORT BLOCKED: %s %s — %s, source files need to be fixed\n"
-          .formatted(provider, date, whatBlockingLeft(blockedFunds, earlierImports));
+          .formatted(provider, date, earlierImports.whatBlockingLeft(blockedFunds));
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);
@@ -191,43 +190,12 @@ public class HealthCheckNotifier {
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
   }
 
-  private static String whatBlockingLeft(
-      Set<TulevaFund> blockedFunds, Map<TulevaFund, Instant> earlierImports) {
-    var notImported = new ArrayList<String>();
-    var stillInUse = new ArrayList<String>();
-    for (var fund : blockedFunds) {
-      var importedAt = earlierImports.get(fund);
-      if (importedAt == null) {
-        notImported.add(fund.getCode());
-      } else {
-        stillInUse.add(
-            "%s positions from %s".formatted(fund.getCode(), IMPORT_TIME.format(importedAt)));
-      }
-    }
-    var parts = new ArrayList<String>();
-    if (!notImported.isEmpty()) {
-      parts.add(String.join(", ", notImported) + " not imported");
-    }
-    if (!stillInUse.isEmpty()) {
-      parts.add(String.join(", ", stillInUse) + " stay in use for NAV");
-    }
-    return String.join("; ", parts);
-  }
-
-  private String fundStatuses(
-      List<HealthCheckResult> results, Map<TulevaFund, Instant> earlierImports) {
+  private String fundStatuses(List<HealthCheckResult> results, EarlierImports earlierImports) {
     return "Funds: %s\n"
         .formatted(
             results.stream()
-                .map(result -> result.fund().getCode() + " " + status(result, earlierImports))
+                .map(result -> result.fund().getCode() + " " + earlierImports.importStatus(result))
                 .collect(joining(", ")));
-  }
-
-  private static String status(HealthCheckResult result, Map<TulevaFund, Instant> earlierImports) {
-    if (result.hasFails() && earlierImports.containsKey(result.fund())) {
-      return "blocked (earlier positions in use)";
-    }
-    return result.importStatus();
   }
 
   private static Optional<String> correctionSteps(

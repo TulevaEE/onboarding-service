@@ -7,6 +7,8 @@ import static java.util.stream.Collectors.groupingBy;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,10 @@ public class FundPositionImportService {
   }
 
   @Transactional
+  public Optional<Instant> lastWrittenAt(TulevaFund fund, LocalDate navDate) {
+    return repository.findLastWrittenAt(fund, navDate);
+  }
+
   public ImportResult upsertPositions(List<FundPosition> positions) {
     List<FundPosition> importedPositions = new ArrayList<>();
     List<FundPosition> updatedPositions = new ArrayList<>();

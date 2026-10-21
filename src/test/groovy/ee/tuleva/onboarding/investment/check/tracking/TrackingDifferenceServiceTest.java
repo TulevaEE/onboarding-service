@@ -1630,9 +1630,9 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // IWDA.DE benchmark looked up on instrument's actual price dates
-    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", todayPriceDate))
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", todayPriceDate))
         .willReturn(Optional.of(fundValue("81.60")));
-    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", previousPriceDate))
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", previousPriceDate))
         .willReturn(Optional.of(fundValue("80.00")));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1714,10 +1714,12 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
+    given(priorityPriceProvider.resolve(eq("LU0826455353"), any(LocalDate.class)))
+        .willReturn(Optional.empty());
     // IEAG.DE benchmark for Euro Aggregate bonds
-    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", CHECK_DATE))
+    given(priorityPriceProvider.resolve("IE00B3DKXQ41", CHECK_DATE))
         .willReturn(Optional.of(fundValue("105.30")));
-    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", PREVIOUS_DATE))
+    given(priorityPriceProvider.resolve("IE00B3DKXQ41", PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("105.00")));
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -2029,9 +2031,9 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // EUNM.DE benchmark for EM ETF
-    given(fundValueProvider.getLatestValue("IE00B4L5YC18.XETR", CHECK_DATE))
+    given(priorityPriceProvider.resolve("IE00B4L5YC18", CHECK_DATE))
         .willReturn(Optional.of(fundValue("40.80")));
-    given(fundValueProvider.getLatestValue("IE00B4L5YC18.XETR", PREVIOUS_DATE))
+    given(priorityPriceProvider.resolve("IE00B4L5YC18", PREVIOUS_DATE))
         .willReturn(Optional.of(fundValue("40.00")));
 
     var results = service.runChecksAsOf(CHECK_DATE);

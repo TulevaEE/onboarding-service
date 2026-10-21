@@ -35,6 +35,8 @@ class BenchmarkCheckBuilderTest {
   private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 9);
   private static final String EMERGING_MARKETS_ISIN = "IE00BKPTWY98";
   private static final String DEVELOPED_MARKETS_ISIN = "IE00BFG1TM61";
+  private static final String DEVELOPED_MARKETS_ETF_ISIN = "IE00BFY0GT14";
+  private static final String DEVELOPED_MARKETS_PROXY_ISIN = "IE00B4L5Y983";
   private static final String UNTRACKED_ISIN = "IE00NOTATRACKER";
   private static final String EMERGING_MARKETS_INDEX = "MSCI_EM";
   private static final String DEVELOPED_MARKETS_INDEX = "MSCI_WORLD";
@@ -59,13 +61,18 @@ class BenchmarkCheckBuilderTest {
                     List.of(
                         tracked(EMERGING_MARKETS_ISIN, "IE00BKPTWY98.EUFUND", "EQUITY_EM"),
                         tracked(DEVELOPED_MARKETS_ISIN, "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
+                        tracked(DEVELOPED_MARKETS_ETF_ISIN, "SPPW.XETRA", "EQUITY_DM"),
                         tracked("IE00B4L5YC18", "EUNM.XETRA", null),
-                        tracked("IE00B4L5Y983", "EUNL.XETRA", null)),
+                        tracked(DEVELOPED_MARKETS_PROXY_ISIN, "EUNL.XETRA", null)),
                     List.of(
                         new BenchmarkCategoryProxy(
                             1L, "EQUITY_EM", "IE00B4L5YC18", null, EMERGING_MARKETS_INDEX),
                         new BenchmarkCategoryProxy(
-                            2L, "EQUITY_DM", "IE00B4L5Y983", null, DEVELOPED_MARKETS_INDEX)))),
+                            2L,
+                            "EQUITY_DM",
+                            DEVELOPED_MARKETS_PROXY_ISIN,
+                            null,
+                            DEVELOPED_MARKETS_INDEX)))),
             consecutiveBreachTracker);
     given(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
         .willReturn(new BigDecimal("0.5"));
@@ -159,6 +166,31 @@ class BenchmarkCheckBuilderTest {
     assertThat(result.escalationUncheckedDays()).isEqualTo(1);
   }
 
+  @Test
+  void anExchangeTradedHoldingIsMeasuredAgainstItsProxyEtfPricedTheWayTheNavPricesIt() {
+    given(priorityPriceProvider.resolve(DEVELOPED_MARKETS_PROXY_ISIN, CHECK_DATE))
+        .willReturn(Optional.of(proxyValue(CHECK_DATE, "102.00")));
+    given(priorityPriceProvider.resolve(DEVELOPED_MARKETS_PROXY_ISIN, PREVIOUS_DATE))
+        .willReturn(Optional.of(proxyValue(PREVIOUS_DATE, "100.00")));
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
+                    holdingUpTwoPercent(DEVELOPED_MARKETS_ETF_ISIN, new BigDecimal("0.50"))))
+            .orElseThrow();
+
+    assertThat(result.benchmarkGapIsins()).isEmpty();
+    assertThat(result.securityAttributions())
+        .filteredOn(attribution -> attribution.isin().equals(DEVELOPED_MARKETS_ETF_ISIN))
+        .singleElement()
+        .satisfies(
+            attribution -> assertThat(attribution.benchmarkReturn()).isEqualByComparingTo("0.02"));
+  }
+
   private static ConsecutiveBreachTracker.ConsecutiveBreachInfo streakOf(
       int count, int uncheckedDays, int uncheckedDaysSince) {
     return new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
@@ -198,6 +230,19 @@ class BenchmarkCheckBuilderTest {
   private static FundValue indexValue(LocalDate date) {
     return new FundValue(
         EMERGING_MARKETS_INDEX, date, new BigDecimal("500.00"), "TEST", Instant.EPOCH);
+  }
+
+  private static SecurityData holdingUpTwoPercent(String isin, BigDecimal actualWeight) {
+    return new SecurityData(
+        isin,
+        actualWeight,
+        actualWeight,
+        new PriceSnapshot(new BigDecimal("20.40"), CHECK_DATE),
+        new PriceSnapshot(new BigDecimal(FLAT_PRICE), PREVIOUS_DATE));
+  }
+
+  private static FundValue proxyValue(LocalDate date, String value) {
+    return new FundValue("EUNL.XETRA", date, new BigDecimal(value), "EODHD", Instant.EPOCH);
   }
 
   private static InstrumentReference tracked(

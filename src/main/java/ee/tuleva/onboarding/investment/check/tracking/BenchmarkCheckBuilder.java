@@ -197,24 +197,24 @@ class BenchmarkCheckBuilder {
     var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
 
     for (var s : validSecurities) {
-      var benchmarkKey = resolveBenchmarkKey(s.isin());
-      if (benchmarkKey == null) {
+      var benchmark = benchmarkLegResolver.resolve(s.isin());
+      if (benchmark.isEmpty()) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
         holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
       var bmReturn =
           lookupReturn(
-              benchmarkKey,
+              benchmark.get(),
               s.today().requireDate(s.isin()),
               s.previous().requireDate(s.isin()),
               maxDailyReturn);
       if (bmReturn.isEmpty()) {
         log.warn(
-            "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
+            "Missing benchmark model data: fund={}, isin={}, benchmark={}",
             fund,
             s.isin(),
-            benchmarkKey);
+            benchmarkName(benchmark.get()));
         holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
@@ -302,18 +302,29 @@ class BenchmarkCheckBuilder {
     return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
   }
 
-  private @Nullable String resolveBenchmarkKey(String isin) {
-    return benchmarkLegResolver.resolve(isin).map(BenchmarkProxy::storageKey).orElse(null);
-  }
-
   private Optional<BigDecimal> lookupReturn(
-      String key, LocalDate todayDate, LocalDate previousDate, BigDecimal maxDailyReturn) {
-    var today = fundValueProvider.getLatestValue(key, todayDate);
-    var yesterday = fundValueProvider.getLatestValue(key, previousDate);
+      BenchmarkProxy benchmark,
+      LocalDate todayDate,
+      LocalDate previousDate,
+      BigDecimal maxDailyReturn) {
+    var today = benchmarkValue(benchmark, todayDate);
+    var yesterday = benchmarkValue(benchmark, previousDate);
     if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
       return Optional.empty();
     }
     return Optional.of(
         safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
+  }
+
+  private Optional<FundValue> benchmarkValue(BenchmarkProxy benchmark, LocalDate date) {
+    var proxyInstrument = benchmark.proxyInstrument();
+    return proxyInstrument == null
+        ? fundValueProvider.getLatestValue(benchmark.storageKey(), date)
+        : priorityPriceProvider.resolve(proxyInstrument.getIsin(), date);
+  }
+
+  private static String benchmarkName(BenchmarkProxy benchmark) {
+    var proxyInstrument = benchmark.proxyInstrument();
+    return proxyInstrument == null ? benchmark.storageKey() : proxyInstrument.getIsin();
   }
 }

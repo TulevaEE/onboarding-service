@@ -20,10 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -148,7 +146,7 @@ public class HealthCheckService {
     var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
 
     var reportedUnits = unitsPositions.isEmpty() ? null : unitsPositions.getFirst().getQuantity();
-    var aum = resolveAum(positions, securities, receivables, liabilities);
+    var aum = PositionTotals.aum(positions);
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
@@ -181,24 +179,6 @@ public class HealthCheckService {
     saveEvents(fund, navDate, findings);
 
     return new HealthCheckResult(fund, navDate, findings);
-  }
-
-  private BigDecimal resolveAum(
-      List<FundPosition> positions,
-      List<FundPosition> securities,
-      List<FundPosition> receivables,
-      List<FundPosition> liabilities) {
-    var navPositions = filterByType(positions, NAV);
-    if (!navPositions.isEmpty() && navPositions.getFirst().getMarketValue() != null) {
-      return navPositions.getFirst().getMarketValue();
-    }
-    var cashPositions = filterByType(positions, CASH);
-    // Liabilities have negative marketValue — simple sum is correct
-    return Stream.of(securities, cashPositions, receivables, liabilities)
-        .flatMap(List::stream)
-        .map(FundPosition::getMarketValue)
-        .filter(Objects::nonNull)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private List<FundPosition> filterByType(List<FundPosition> positions, AccountType type) {

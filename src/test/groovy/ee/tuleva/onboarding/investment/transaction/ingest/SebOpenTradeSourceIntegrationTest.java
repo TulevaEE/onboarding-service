@@ -44,6 +44,7 @@ import org.springframework.context.annotation.Import;
 class SebOpenTradeSourceIntegrationTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 10, 20);
+  private static final Instant TRADE_TIME = Instant.parse("2026-10-16T11:48:17Z");
 
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired SebOpenTradeSource source;
@@ -68,21 +69,27 @@ class SebOpenTradeSourceIntegrationTest {
                 new java.math.BigDecimal("115536.00"),
                 "DLA1287775",
                 "IE00BFG1TM61",
-                LocalDate.of(2026, 10, 22)),
+                LocalDate.of(2026, 10, 22),
+                new java.math.BigDecimal("100"),
+                TRADE_TIME),
             new OpenTrade(
                 TUK75,
                 BUY,
                 new java.math.BigDecimal("1107572.00"),
                 "DLA1287774",
                 "IE00BKPTWY98",
-                LocalDate.of(2026, 10, 22)),
+                LocalDate.of(2026, 10, 22),
+                new java.math.BigDecimal("100"),
+                TRADE_TIME),
             new OpenTrade(
                 TUV100,
                 SELL,
                 new java.math.BigDecimal("871918.00"),
                 "DLA1287773",
                 "IE00BFG1TM61",
-                LocalDate.of(2026, 10, 22)));
+                LocalDate.of(2026, 10, 22),
+                new java.math.BigDecimal("100"),
+                TRADE_TIME));
     assertThat(openTrades.total(TUK75, BUY)).isEqualByComparingTo("1223108.00");
     assertThat(openTrades.total(TUK75, SELL)).isEqualByComparingTo("0");
     assertThat(openTrades.unattributedClientNames()).isEmpty();
@@ -154,7 +161,7 @@ class SebOpenTradeSourceIntegrationTest {
     row.put("Price", new java.math.BigDecimal("10"));
     row.put("Total", new java.math.BigDecimal(total));
     row.put("Buy/Sell", side);
-    row.put("Trade date", "2026-10-16T11:48:17Z");
+    row.put("Trade date", TRADE_TIME.toString());
     row.put("Settlement date", settlementDate);
     return row;
   }

@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 public record OpenTrades(
     List<OpenTrade> trades,
@@ -30,15 +31,28 @@ public record OpenTrades(
         .reduce(ZERO, BigDecimal::add);
   }
 
-  public List<OpenTrade> missingFrom(OpenTrades later, TulevaFund fund) {
-    var unmatchedLater = new ArrayList<>(later.of(fund));
-    var missing = new ArrayList<OpenTrade>();
-    for (var trade : of(fund)) {
-      unmatchedLater.stream()
-          .filter(trade::isSameTradeAs)
-          .findFirst()
-          .ifPresentOrElse(unmatchedLater::remove, () -> missing.add(trade));
-    }
-    return List.copyOf(missing);
+  public Difference comparedWith(OpenTrades later, TulevaFund fund) {
+    var onlyEarlier = new ArrayList<>(of(fund));
+    var onlyLater = new ArrayList<>(later.of(fund));
+    removePairs(onlyEarlier, onlyLater, OpenTrade::hasSameReferenceAs);
+    removePairs(onlyEarlier, onlyLater, OpenTrade::isSameTradeAs);
+    return new Difference(List.copyOf(onlyEarlier), List.copyOf(onlyLater));
   }
+
+  private static void removePairs(
+      List<OpenTrade> earlier, List<OpenTrade> later, BiPredicate<OpenTrade, OpenTrade> sameTrade) {
+    for (var trades = earlier.iterator(); trades.hasNext(); ) {
+      var trade = trades.next();
+      later.stream()
+          .filter(candidate -> sameTrade.test(trade, candidate))
+          .findFirst()
+          .ifPresent(
+              match -> {
+                later.remove(match);
+                trades.remove();
+              });
+    }
+  }
+
+  public record Difference(List<OpenTrade> onlyEarlier, List<OpenTrade> onlyLater) {}
 }

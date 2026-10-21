@@ -30,6 +30,10 @@ public record OpenTrade(
         && hasSameQuantityAs(other);
   }
 
+  public boolean hasSameReferenceAs(OpenTrade other) {
+    return fund == other.fund && reference != null && reference.equals(other.reference);
+  }
+
   private boolean hasSameQuantityAs(OpenTrade other) {
     return quantity != null && other.quantity != null && quantity.compareTo(other.quantity) == 0;
   }

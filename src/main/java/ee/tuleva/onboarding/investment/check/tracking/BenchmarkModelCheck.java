@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
@@ -13,7 +15,8 @@ sealed interface BenchmarkModelCheck {
       implements BenchmarkModelCheck {
 
     String reason() {
-      return "BENCHMARK_MODEL measured no holding for want of a benchmark price"
+      return BENCHMARK_MODEL
+          + " measured no holding for want of a benchmark price"
           + " (insert it, then backfill the date): holdings="
           + String.join(", ", holdingsWithoutBenchmarkPrices);
     }

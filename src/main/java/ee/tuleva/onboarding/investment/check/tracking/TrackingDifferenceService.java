@@ -109,7 +109,7 @@ class TrackingDifferenceService {
 
     if (!incompleteChecks.isEmpty()) {
       throw new IncompletePriceDataException(
-          "Incomplete security price data:\n" + String.join("\n", incompleteChecks), results);
+          "Incomplete price data:\n" + String.join("\n", incompleteChecks), results);
     }
 
     return results;

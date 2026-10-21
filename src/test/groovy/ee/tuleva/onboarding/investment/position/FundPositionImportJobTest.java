@@ -70,7 +70,6 @@ class FundPositionImportJobTest {
             sebParser,
             importService,
             reportService,
-            repository,
             fundPositionLedgerService,
             healthCheckService,
             healthCheckNotifier,

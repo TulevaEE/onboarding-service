@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
@@ -25,7 +26,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +48,6 @@ public class FundPositionImportJob {
   private final SebFundPositionParser parser;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
-  private final FundPositionRepository fundPositionRepository;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final HealthCheckService healthCheckService;
   private final HealthCheckNotifier healthCheckNotifier;
@@ -139,15 +138,13 @@ public class FundPositionImportJob {
 
   private Map<TulevaFund, Instant> earlierImportsOfBlockedFunds(
       List<HealthCheckResult> healthResults) {
-    var earlierImports = new EnumMap<TulevaFund, Instant>(TulevaFund.class);
-    healthResults.stream()
+    return healthResults.stream()
         .filter(HealthCheckResult::hasFails)
-        .forEach(
+        .flatMap(
             result ->
-                fundPositionRepository
-                    .findLastWrittenAt(result.fund(), result.checkDate())
-                    .ifPresent(importedAt -> earlierImports.put(result.fund(), importedAt)));
-    return Map.copyOf(earlierImports);
+                importService.lastWrittenAt(result.fund(), result.checkDate()).stream()
+                    .map(writtenAt -> Map.entry(result.fund(), writtenAt)))
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   public ImportResult importForProviderAndDate(ReportProvider provider, LocalDate date) {

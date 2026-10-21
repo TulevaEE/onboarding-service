@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.transaction.OpenTrade;
@@ -42,7 +41,7 @@ class UnsettledTradesChecker {
                 receivables.stream().filter(FundPosition::isTradeReceivable))
             .toList();
     if (tradeRows.stream().anyMatch(row -> row.getMarketValue() == null)) {
-      return List.of(tradeRowWithoutAmount(fund, navDate));
+      return List.of(notRun(fund, "a trade payables or receivables row has no amount"));
     }
     var tradePayables = sum(liabilities, FundPosition::isTradePayable).negate();
     var tradeReceivables = sum(receivables, FundPosition::isTradeReceivable);
@@ -50,21 +49,25 @@ class UnsettledTradesChecker {
       return List.of();
     }
     if (openTrades == null) {
-      return List.of(tradeListNotImported(fund, navDate, tradePayables, tradeReceivables));
+      return List.of(
+          notRun(
+              fund,
+              "no SEB trade list for %s; trade payables %s, receivables %s"
+                  .formatted(navDate, amount(tradePayables), amount(tradeReceivables))));
     }
     if (openTrades.fundsWithIncompleteRows().contains(fund)) {
-      return List.of(fundsTradeRowIncomplete(fund, navDate));
+      return List.of(
+          notRun(fund, "SEB's trade list has a row of this fund without a side or amount"));
     }
     return Stream.of(
-            excess(fund, navDate, BUY, tradePayables, openTrades, previousOpenTrades, PURCHASES),
-            excess(fund, navDate, SELL, tradeReceivables, openTrades, previousOpenTrades, SALES))
+            excess(fund, BUY, tradePayables, openTrades, previousOpenTrades, PURCHASES),
+            excess(fund, SELL, tradeReceivables, openTrades, previousOpenTrades, SALES))
         .filter(Objects::nonNull)
         .toList();
   }
 
   private @Nullable HealthCheckFinding excess(
       TulevaFund fund,
-      LocalDate navDate,
       TransactionType side,
       BigDecimal booked,
       OpenTrades openTrades,
@@ -76,99 +79,68 @@ class UnsettledTradesChecker {
       return null;
     }
     if (!openTrades.unattributedClientNames().isEmpty()) {
-      return excessUnrecognisedTradesCouldExplain(fund, navDate, excess, openTrades);
+      return notRun(
+          fund,
+          "excess %s, and SEB's trade list has rows of no known fund: %s"
+              .formatted(amount(excess), openTrades.unattributedClientNames()));
     }
     return new HealthCheckFinding(
         fund,
         UNSETTLED_TRADES,
         FAIL,
-        ("SEB counts more %s than its trade list has open, so NAV would be %s: fund=%s,"
-                + " navDate=%s, %s=%s, %s=%s, excess=%s, leftTradeList=[%s]")
+        "%s %s, %s %s, excess %s, NAV %s. %s"
             .formatted(
-                wording.description(),
-                wording.navEffect(),
-                fund.getCode(),
-                navDate,
                 wording.bookedName(),
                 amount(booked),
                 wording.openName(),
                 amount(open),
                 amount(excess),
-                leftTradeList(fund, side, excess, openTrades, previousOpenTrades)));
+                wording.navEffect(),
+                cause(fund, side, excess, openTrades, previousOpenTrades)));
   }
 
-  private String leftTradeList(
+  private static String cause(
       TulevaFund fund,
       TransactionType side,
       BigDecimal excess,
       OpenTrades openTrades,
       @Nullable OpenTrades previousOpenTrades) {
     if (previousOpenTrades == null) {
-      return "previous trade list not imported";
+      return "Previous SEB trade list missing";
     }
-    var stillOpen =
-        openTrades.of(fund).stream()
-            .map(OpenTrade::reference)
-            .filter(Objects::nonNull)
-            .collect(toSet());
-    return previousOpenTrades.of(fund).stream()
-        .filter(trade -> trade.side() == side)
-        .filter(trade -> !stillOpen.contains(trade.reference()))
-        .map(trade -> describe(trade, excess))
-        .collect(joining(", "));
+    var left =
+        previousOpenTrades.missingFrom(openTrades, fund).stream()
+            .filter(trade -> trade.side() == side)
+            .toList();
+    var equalToExcess =
+        left.stream().filter(trade -> isWithinRounding(trade.total(), excess)).toList();
+    if (equalToExcess.size() == 1) {
+      return "Cause: %s left SEB's trade list%s"
+          .formatted(identify(equalToExcess.getFirst()), settlement(equalToExcess.getFirst()));
+    }
+    if (left.isEmpty()) {
+      return "No trade left SEB's trade list";
+    }
+    return "Left SEB's trade list: "
+        + left.stream().map(trade -> identify(trade) + settlement(trade)).collect(joining("; "));
   }
 
-  private static String describe(OpenTrade trade, BigDecimal excess) {
-    var description =
-        "%s %s %s settling %s"
-            .formatted(
-                trade.reference(), trade.isin(), amount(trade.total()), trade.settlementDate());
-    var equalsExcess = trade.total().subtract(excess).abs().compareTo(ROUNDING_TOLERANCE) <= 0;
-    return equalsExcess ? description + " (equals the excess)" : description;
+  private static String identify(OpenTrade trade) {
+    return Stream.of(trade.reference(), trade.isin(), amount(trade.total()))
+        .filter(Objects::nonNull)
+        .collect(joining(" "));
   }
 
-  private HealthCheckFinding fundsTradeRowIncomplete(TulevaFund fund, LocalDate navDate) {
-    return new HealthCheckFinding(
-        fund,
-        UNSETTLED_TRADES,
-        NOT_RUN,
-        ("SEB's trade list has a row for this fund without a side or an amount, so trade payables"
-                + " and receivables cannot be checked against open trades: fund=%s, navDate=%s")
-            .formatted(fund.getCode(), navDate));
+  private static String settlement(OpenTrade trade) {
+    return trade.settlementDate() == null ? "" : ", settlement " + trade.settlementDate();
   }
 
-  private HealthCheckFinding tradeRowWithoutAmount(TulevaFund fund, LocalDate navDate) {
-    return new HealthCheckFinding(
-        fund,
-        UNSETTLED_TRADES,
-        NOT_RUN,
-        ("SEB's positions carry a trade payables or receivables row without an amount, so it"
-                + " cannot be checked against open trades: fund=%s, navDate=%s")
-            .formatted(fund.getCode(), navDate));
+  private static boolean isWithinRounding(BigDecimal amount, BigDecimal excess) {
+    return amount.subtract(excess).abs().compareTo(ROUNDING_TOLERANCE) <= 0;
   }
 
-  private HealthCheckFinding tradeListNotImported(
-      TulevaFund fund, LocalDate navDate, BigDecimal tradePayables, BigDecimal tradeReceivables) {
-    return new HealthCheckFinding(
-        fund,
-        UNSETTLED_TRADES,
-        NOT_RUN,
-        ("SEB's trade list is not imported, so trade payables and receivables cannot be checked"
-                + " against open trades: fund=%s, navDate=%s, tradePayables=%s,"
-                + " tradeReceivables=%s")
-            .formatted(fund.getCode(), navDate, amount(tradePayables), amount(tradeReceivables)));
-  }
-
-  private HealthCheckFinding excessUnrecognisedTradesCouldExplain(
-      TulevaFund fund, LocalDate navDate, BigDecimal excess, OpenTrades openTrades) {
-    return new HealthCheckFinding(
-        fund,
-        UNSETTLED_TRADES,
-        NOT_RUN,
-        ("SEB's trade list has rows whose fund is not recognised, and they could explain this"
-                + " fund's excess: fund=%s, navDate=%s, excess=%s, unrecognisedClientNames=%s")
-            .formatted(
-                fund.getCode(), navDate, amount(excess), openTrades.unattributedClientNames()));
+  private static HealthCheckFinding notRun(TulevaFund fund, String reason) {
+    return new HealthCheckFinding(fund, UNSETTLED_TRADES, NOT_RUN, "Not checked: " + reason);
   }
 
   private static BigDecimal sum(List<FundPosition> positions, Predicate<FundPosition> include) {
@@ -183,11 +155,8 @@ class UnsettledTradesChecker {
     return value.setScale(2, HALF_UP).toPlainString();
   }
 
-  private static final Wording PURCHASES =
-      new Wording("purchases as owed", "too low", "tradePayables", "openPurchases");
-  private static final Wording SALES =
-      new Wording("sales as receivable", "too high", "tradeReceivables", "openSales");
+  private static final Wording PURCHASES = new Wording("Trade payables", "open buys", "too low");
+  private static final Wording SALES = new Wording("Trade receivables", "open sells", "too high");
 
-  private record Wording(
-      String description, String navEffect, String bookedName, String openName) {}
+  private record Wording(String bookedName, String openName, String navEffect) {}
 }

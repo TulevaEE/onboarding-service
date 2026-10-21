@@ -21,7 +21,7 @@ class OpenTradesTest {
     var settled = trade(TUK75, "DLA1", "1000", "5000.00");
     var stillOpen = trade(TUK75, "DLA2", "10", "100.00");
 
-    var missing = trades(settled, stillOpen).missingFrom(trades(stillOpen), TUK75);
+    var missing = trades(settled, stillOpen).comparedWith(trades(stillOpen), TUK75).onlyEarlier();
 
     assertThat(missing).containsExactly(settled);
   }
@@ -31,8 +31,8 @@ class OpenTradesTest {
     var withoutReference = trade(TUK75, null, "1000", "5000.00");
     var withReference = trade(TUK75, "DLA1", "1000.000", "5000.00");
 
-    assertThat(trades(withoutReference).missingFrom(trades(withReference), TUK75)).isEmpty();
-    assertThat(trades(withReference).missingFrom(trades(withoutReference), TUK75)).isEmpty();
+    assertThat(trades(withoutReference).comparedWith(trades(withReference), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(), List.of()));
   }
 
   @Test
@@ -40,7 +40,8 @@ class OpenTradesTest {
     var estimated = trade(TUK75, "DLA1", "1000", "5000.00");
     var revised = trade(TUK75, "DLA1", "1000.37", "5001.85");
 
-    assertThat(trades(estimated).missingFrom(trades(revised), TUK75)).isEmpty();
+    assertThat(trades(estimated).comparedWith(trades(revised), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(), List.of()));
   }
 
   @Test
@@ -48,7 +49,8 @@ class OpenTradesTest {
     var first = trade(TUK75, "DLA1", "500", "2500.00");
     var second = trade(TUK75, "DLA2", "500", "2500.00");
 
-    assertThat(trades(first).missingFrom(trades(second), TUK75)).containsExactly(first);
+    assertThat(trades(first).comparedWith(trades(second), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(first), List.of(second)));
   }
 
   @Test
@@ -56,21 +58,39 @@ class OpenTradesTest {
     var first = trade(TUK75, null, "500", "2500.00");
     var second = trade(TUK75, null, "501", "2500.00");
 
-    assertThat(trades(first).missingFrom(trades(second), TUK75)).containsExactly(first);
+    assertThat(trades(first).comparedWith(trades(second), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(first), List.of(second)));
+  }
+
+  @Test
+  void aTradeThatLostItsReferenceDoesNotTakeTheMatchOfATradeThatKeptOne() {
+    var first = trade(TUK75, "DLA1", "500", "5000.00");
+    var second = trade(TUK75, "DLA2", "500", "5000.00");
+    var secondWithoutReference = trade(TUK75, null, "500", "5000.00");
+    var unchanged = new OpenTrades.Difference(List.of(), List.of());
+
+    assertThat(trades(first, second).comparedWith(trades(secondWithoutReference, first), TUK75))
+        .isEqualTo(unchanged);
+    assertThat(trades(first, second).comparedWith(trades(first, secondWithoutReference), TUK75))
+        .isEqualTo(unchanged);
+    assertThat(trades(second, first).comparedWith(trades(secondWithoutReference, first), TUK75))
+        .isEqualTo(unchanged);
   }
 
   @Test
   void identicalRowsAreMatchedOneForOne() {
     var part = trade(TUK75, "DLA1", "500", "2500.00");
 
-    assertThat(trades(part, part).missingFrom(trades(part), TUK75)).containsExactly(part);
+    assertThat(trades(part, part).comparedWith(trades(part), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(part), List.of()));
   }
 
   @Test
   void onlyTheFundsOwnTradesCount() {
     var otherFunds = trade(TUK00, "DLA9", "1", "10.00");
 
-    assertThat(trades(otherFunds).missingFrom(trades(), TUK75)).isEmpty();
+    assertThat(trades(otherFunds).comparedWith(trades(), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(), List.of()));
   }
 
   private static OpenTrades trades(OpenTrade... trades) {

@@ -26,8 +26,8 @@ record OpenTradeChanges(
     if (reason.isPresent() || previous == null || current == null) {
       return unavailable(reason.orElseThrow());
     }
-    return new OpenTradeChanges(
-        null, current.missingFrom(previous, fund), previous.missingFrom(current, fund));
+    var difference = previous.comparedWith(current, fund);
+    return new OpenTradeChanges(null, difference.onlyLater(), difference.onlyEarlier());
   }
 
   static OpenTradeChanges unavailable(String reason) {

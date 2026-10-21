@@ -109,7 +109,7 @@ class UnsettledTradesChecker {
       return "Previous SEB trade list missing";
     }
     var left =
-        previousOpenTrades.missingFrom(openTrades, fund).stream()
+        previousOpenTrades.comparedWith(openTrades, fund).onlyEarlier().stream()
             .filter(trade -> trade.side() == side)
             .toList();
     var equalToExcess =

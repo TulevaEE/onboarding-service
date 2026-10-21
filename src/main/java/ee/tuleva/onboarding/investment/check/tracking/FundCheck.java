@@ -8,7 +8,12 @@ sealed interface FundCheck {
     return List.of();
   }
 
-  record Checked(List<TrackingDifferenceResult> results) implements FundCheck {}
+  default List<String> checksNotMeasured() {
+    return List.of();
+  }
+
+  record Checked(List<TrackingDifferenceResult> results, List<String> checksNotMeasured)
+      implements FundCheck {}
 
   record NotCheckable(String reason) implements FundCheck {}
 

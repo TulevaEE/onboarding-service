@@ -10,6 +10,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.instrument.BenchmarkProxy;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -171,7 +174,7 @@ class BenchmarkCheckBuilder {
     return Optional.of(totalReturn.setScale(6, RoundingMode.HALF_UP));
   }
 
-  Optional<TrackingDifferenceResult> buildBenchmarkModelCheck(
+  BenchmarkModelCheck buildBenchmarkModelCheck(
       TulevaFund fund, LocalDate checkDate, List<SecurityData> securities) {
 
     var validSecurities =
@@ -186,7 +189,7 @@ class BenchmarkCheckBuilder {
             .toList();
 
     if (validSecurities.isEmpty()) {
-      return Optional.empty();
+      return new NothingToMeasure();
     }
 
     var maxDailyReturn = calculator.maxDailyReturn(checkDate);
@@ -195,6 +198,7 @@ class BenchmarkCheckBuilder {
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
     var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
+    var holdingsWithoutBenchmarkPrices = new ArrayList<SecurityData>();
 
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
@@ -216,6 +220,7 @@ class BenchmarkCheckBuilder {
             s.isin(),
             benchmarkKey);
         holdingsReportedAsBenchmarkGap.add(s);
+        holdingsWithoutBenchmarkPrices.add(s);
         continue;
       }
       var secReturn =
@@ -236,7 +241,9 @@ class BenchmarkCheckBuilder {
     }
 
     if (totalWeight.signum() == 0) {
-      return Optional.empty();
+      return holdingsWithoutBenchmarkPrices.isEmpty()
+          ? new NothingToMeasure()
+          : new NoHoldingMeasured(isins(holdingsWithoutBenchmarkPrices));
     }
 
     var benchmarkReturn =
@@ -269,7 +276,7 @@ class BenchmarkCheckBuilder {
               priorBreaches.contributionByIsin(), attributions);
     }
 
-    return Optional.of(
+    return new Measured(
         TrackingDifferenceResult.builder()
             .fund(fund)
             .checkDate(checkDate)

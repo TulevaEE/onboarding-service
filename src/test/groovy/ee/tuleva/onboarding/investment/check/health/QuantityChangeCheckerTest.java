@@ -1,8 +1,14 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
+import static ee.tuleva.onboarding.investment.check.health.OpenTradeChangesTest.CURRENT;
+import static ee.tuleva.onboarding.investment.check.health.OpenTradeChangesTest.PREVIOUS;
+import static ee.tuleva.onboarding.investment.check.health.OpenTradeChangesTest.trade;
+import static ee.tuleva.onboarding.investment.check.health.OpenTradeChangesTest.trades;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,7 +59,8 @@ class QuantityChangeCheckerTest {
         .satisfies(
             finding -> {
               assertThat(finding.severity()).isEqualTo(WARNING);
-              assertThat(finding.message()).contains("IE000QWCYQT0", "500", "previous 0");
+              assertThat(finding.message())
+                  .isEqualTo("IE000QWCYQT0 quantity +500 (0 → 500), new on SEB's trade list +0");
             });
   }
 
@@ -85,7 +92,9 @@ class QuantityChangeCheckerTest {
               assertThat(finding.fund()).isEqualTo(TUK75);
               assertThat(finding.checkType()).isEqualTo(QUANTITY_CHANGE);
               assertThat(finding.severity()).isEqualTo(WARNING);
-              assertThat(finding.message()).contains("IE0009FT4LX4", "500", "1000", "1500");
+              assertThat(finding.message())
+                  .isEqualTo(
+                      "IE0009FT4LX4 quantity +500 (1000 → 1500), new on SEB's trade list +0");
             });
   }
 
@@ -286,7 +295,7 @@ class QuantityChangeCheckerTest {
         .satisfies(
             f -> {
               assertThat(f.severity()).isEqualTo(WARNING);
-              assertThat(f.message()).contains("IE0009FT4LX4", "-1000", "current 0");
+              assertThat(f.message()).contains("IE0009FT4LX4", "-1000", "→ 0)");
             });
   }
 
@@ -315,8 +324,8 @@ class QuantityChangeCheckerTest {
 
     assertThat(findings).hasSize(2);
     assertThat(findings).allMatch(f -> f.severity() == WARNING);
-    assertThat(findings.get(0).message()).contains("IE0009FT4LX4", "-1000", "current 0");
-    assertThat(findings.get(1).message()).contains("IE00BFG1TM61", "-2000", "current 0");
+    assertThat(findings.get(0).message()).contains("IE0009FT4LX4", "-1000", "→ 0)");
+    assertThat(findings.get(1).message()).contains("IE00BFG1TM61", "-2000", "→ 0)");
   }
 
   @Test
@@ -370,6 +379,73 @@ class QuantityChangeCheckerTest {
     assertThat(findings).hasSize(2);
     assertThat(findings.get(0).message()).contains("IE0009FT4LX4");
     assertThat(findings.get(1).message()).contains("IE00BFG1TM61");
+  }
+
+  @Test
+  void explainsAChangeWithTheTradesThatAreNewOnSebsTradeList() {
+    var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
+    var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+    var newTrade = trade(TUK75, "DLA1", "IE00BFG1TM61", BUY, "500", "5000.00");
+
+    var findings =
+        checker.check(
+            TUK75,
+            today,
+            previous,
+            OpenTradeChanges.between(TUK75, PREVIOUS, trades(), CURRENT, trades(newTrade)));
+
+    assertThat(findings).isEmpty();
+  }
+
+  @Test
+  void doesNotCountATradeThatWasAlreadyOnThePreviousTradeList() {
+    var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
+    var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+    var stillOpen = trade(TUK75, "DLA1", "IE00BFG1TM61", BUY, "500", "5000.00");
+
+    var findings =
+        checker.check(
+            TUK75,
+            today,
+            previous,
+            OpenTradeChanges.between(
+                TUK75, PREVIOUS, trades(stillOpen), CURRENT, trades(stillOpen)));
+
+    assertThat(findings)
+        .extracting(HealthCheckFinding::message)
+        .containsExactly("IE00BFG1TM61 quantity +500 (1000 → 1500), new on SEB's trade list +0");
+  }
+
+  @Test
+  void saysItCouldNotRunWhenAQuantityMovedAndTheTradeListsCannotExplainIt() {
+    var today = List.of(security("IE00BFG1TM61", new BigDecimal("1500")));
+    var previous = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+
+    var findings =
+        checker.check(
+            TUK75,
+            today,
+            previous,
+            OpenTradeChanges.unavailable("no SEB trade list for 2026-10-19"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75, QUANTITY_CHANGE, NOT_RUN, "Not checked: no SEB trade list for 2026-10-19"));
+  }
+
+  @Test
+  void staysQuietWithoutTradeListsWhenNoQuantityMoved() {
+    var holdings = List.of(security("IE00BFG1TM61", new BigDecimal("1000")));
+
+    var findings =
+        checker.check(
+            TUK75,
+            holdings,
+            holdings,
+            OpenTradeChanges.unavailable("no SEB trade list for 2026-10-19"));
+
+    assertThat(findings).isEmpty();
   }
 
   private FundPosition security(String isin, BigDecimal quantity) {

@@ -46,7 +46,6 @@ public class HealthCheckService {
   private final AuthoritativeUnitsSource authoritativeUnitsSource;
   private final ReceivablesChecker receivablesChecker;
   private final QuantityChangeChecker quantityChangeChecker;
-  private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
   private final LiabilityRecognitionChecker liabilityRecognitionChecker;
@@ -130,10 +129,20 @@ public class HealthCheckService {
             .map(date -> fundPositionRepository.findByNavDateAndFund(date, fund))
             .orElse(List.of());
 
-    var tradedQuantities =
+    var tradeList =
+        tradeListsByDate.computeIfAbsent(navDate, openTradeSource::openTrades).orElse(null);
+    var previousTradeList =
         previousNavDate
-            .map(date -> tradedQuantitySource.resolve(fund, date, navDate))
-            .orElse(Map.of());
+            .flatMap(date -> tradeListsByDate.computeIfAbsent(date, openTradeSource::openTrades))
+            .orElse(null);
+    var tradeChanges =
+        previousNavDate
+            .map(
+                date -> OpenTradeChanges.between(fund, date, previousTradeList, navDate, tradeList))
+            .orElseGet(
+                () ->
+                    OpenTradeChanges.unavailable(
+                        "no position report before %s".formatted(navDate)));
 
     var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
     var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
@@ -157,18 +166,10 @@ public class HealthCheckService {
             fund, securities, previousSecurities, liabilities, previousLiabilities));
     findings.addAll(
         unsettledTradesChecker.check(
-            fund,
-            navDate,
-            liabilities,
-            receivables,
-            tradeListsByDate.computeIfAbsent(navDate, openTradeSource::openTrades).orElse(null),
-            previousNavDate
-                .flatMap(
-                    date -> tradeListsByDate.computeIfAbsent(date, openTradeSource::openTrades))
-                .orElse(null)));
+            fund, navDate, liabilities, receivables, tradeList, previousTradeList));
     findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
     findings.addAll(
-        quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
+        quantityChangeChecker.check(fund, securities, previousSecurities, tradeChanges));
     findings.addAll(
         navFlowConsistencyChecker.check(
             fund,

@@ -4,6 +4,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -27,5 +28,17 @@ public record OpenTrades(
         .filter(trade -> trade.side() == side)
         .map(OpenTrade::total)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  public List<OpenTrade> missingFrom(OpenTrades later, TulevaFund fund) {
+    var unmatchedLater = new ArrayList<>(later.of(fund));
+    var missing = new ArrayList<OpenTrade>();
+    for (var trade : of(fund)) {
+      unmatchedLater.stream()
+          .filter(trade::isSameTradeAs)
+          .findFirst()
+          .ifPresentOrElse(unmatchedLater::remove, () -> missing.add(trade));
+    }
+    return List.copyOf(missing);
   }
 }

@@ -425,6 +425,116 @@ class PriorityPriceProviderTest {
     verify(fundValueProvider, never()).getLatestValue(eq("XWSC.XETRA"), any(LocalDate.class));
   }
 
+  @Test
+  void resolvePair_takesBothPricesFromTheFeedWhosePairIsFreshest() {
+    InstrumentReference instrument = givenKnown(XETRA_ETF);
+    String xetraKey = instrument.getXetraStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+    FundValue adjustedOlder =
+        new FundValue(eodhdTicker, OLDER_DATE, new BigDecimal("98.00"), "EODHD", null);
+    FundValue rawOlder =
+        new FundValue(xetraKey, OLDER_DATE, new BigDecimal("100.00"), "DEUTSCHE_BOERSE", null);
+    FundValue rawToday =
+        new FundValue(xetraKey, DATE, new BigDecimal("100.00"), "DEUTSCHE_BOERSE", null);
+
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(Optional.of(adjustedOlder));
+    when(fundValueProvider.getLatestValue(eodhdTicker, OLDER_DATE))
+        .thenReturn(Optional.of(adjustedOlder));
+    when(fundValueProvider.getLatestValue(xetraKey, DATE)).thenReturn(Optional.of(rawToday));
+    when(fundValueProvider.getLatestValue(xetraKey, OLDER_DATE)).thenReturn(Optional.of(rawOlder));
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).contains(new PriorityPriceProvider.PricePair(rawToday, rawOlder));
+  }
+
+  @Test
+  void resolvePair_prefersTheHigherPriorityFeedWhenBothFeedsHavePricesOnTheSameDates() {
+    InstrumentReference instrument = givenKnown(XETRA_ETF);
+    String xetraKey = instrument.getXetraStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+    FundValue eodhdToday =
+        new FundValue(eodhdTicker, DATE, new BigDecimal("101.00"), "EODHD", null);
+    FundValue eodhdOlder =
+        new FundValue(eodhdTicker, OLDER_DATE, new BigDecimal("100.00"), "EODHD", null);
+
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE)).thenReturn(Optional.of(eodhdToday));
+    when(fundValueProvider.getLatestValue(eodhdTicker, OLDER_DATE))
+        .thenReturn(Optional.of(eodhdOlder));
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(xetraKey, DATE, new BigDecimal("102.00"), "DEUTSCHE_BOERSE", null)));
+    when(fundValueProvider.getLatestValue(xetraKey, OLDER_DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(
+                    xetraKey, OLDER_DATE, new BigDecimal("100.00"), "DEUTSCHE_BOERSE", null)));
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).contains(new PriorityPriceProvider.PricePair(eodhdToday, eodhdOlder));
+  }
+
+  @Test
+  void resolvePair_isEmptyWhenNoSingleFeedHasAPriceForBothDates() {
+    InstrumentReference instrument = givenKnown(XETRA_ETF);
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("101.00"), "EODHD", null)));
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void resolvePair_rejectsAPriceOlderThanTheLookbackFromItsOwnDate() {
+    InstrumentReference instrument = givenKnown(XETRA_ETF);
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("101.00"), "EODHD", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, OLDER_DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(eodhdTicker, STALE_DATE, new BigDecimal("100.00"), "EODHD", null)));
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void resolvePair_ignoresAZeroPrice() {
+    InstrumentReference instrument = givenKnown(XETRA_ETF);
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("101.00"), "EODHD", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, OLDER_DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, OLDER_DATE, BigDecimal.ZERO, "EODHD", null)));
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void resolvePair_isEmptyForAnUnknownInstrument() {
+    when(instrumentReferenceService.findByIsin(ETF_ISIN)).thenReturn(Optional.empty());
+
+    var result = provider.resolvePair(ETF_ISIN, DATE, OLDER_DATE);
+
+    assertThat(result).isEmpty();
+  }
+
   private List<PriceSource> sourcesWithStorageKey(InstrumentReference instrument) {
     return PriorityPriceProvider.priceFeeds().stream()
         .filter(feed -> feed.storageKey().apply(instrument).isPresent())

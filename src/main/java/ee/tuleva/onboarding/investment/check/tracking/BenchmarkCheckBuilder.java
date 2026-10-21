@@ -307,20 +307,27 @@ class BenchmarkCheckBuilder {
       LocalDate todayDate,
       LocalDate previousDate,
       BigDecimal maxDailyReturn) {
-    var today = benchmarkValue(benchmark, todayDate);
-    var yesterday = benchmarkValue(benchmark, previousDate);
-    if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
-      return Optional.empty();
+    var proxyInstrument = benchmark.proxyInstrument();
+    if (proxyInstrument != null) {
+      return priorityPriceProvider
+          .resolvePair(proxyInstrument.getIsin(), todayDate, previousDate)
+          .flatMap(prices -> dailyReturnBetween(prices.today(), prices.previous(), maxDailyReturn));
     }
-    return Optional.of(
-        safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
+    var indexSeries = benchmark.storageKey();
+    var today = fundValueProvider.getLatestValue(indexSeries, todayDate);
+    var previous = fundValueProvider.getLatestValue(indexSeries, previousDate);
+    return today.flatMap(
+        todayValue ->
+            previous.flatMap(
+                previousValue -> dailyReturnBetween(todayValue, previousValue, maxDailyReturn)));
   }
 
-  private Optional<FundValue> benchmarkValue(BenchmarkProxy benchmark, LocalDate date) {
-    var proxyInstrument = benchmark.proxyInstrument();
-    return proxyInstrument == null
-        ? fundValueProvider.getLatestValue(benchmark.storageKey(), date)
-        : priorityPriceProvider.resolve(proxyInstrument.getIsin(), date);
+  private static Optional<BigDecimal> dailyReturnBetween(
+      FundValue today, FundValue previous, BigDecimal maxDailyReturn) {
+    if (previous.value().signum() == 0) {
+      return Optional.empty();
+    }
+    return Optional.of(safeDailyReturn(today.value(), previous.value(), maxDailyReturn));
   }
 
   private static String benchmarkName(BenchmarkProxy benchmark) {

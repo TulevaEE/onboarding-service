@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider.PricePair;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
@@ -123,6 +124,40 @@ class BenchmarkCheckBuilderTest {
   }
 
   @Test
+  void aHoldingWhoseIndexStoodAtZeroTheDayBeforeIsReportedAsABenchmarkGap() {
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, CHECK_DATE))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    DEVELOPED_MARKETS_INDEX,
+                    CHECK_DATE,
+                    new BigDecimal("500.00"),
+                    "TEST",
+                    Instant.EPOCH)));
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, PREVIOUS_DATE))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    DEVELOPED_MARKETS_INDEX,
+                    PREVIOUS_DATE,
+                    BigDecimal.ZERO,
+                    "TEST",
+                    Instant.EPOCH)));
+
+    var result =
+        builder
+            .buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
+                    flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.50"))))
+            .orElseThrow();
+
+    assertThat(result.benchmarkGapIsins()).containsExactly(DEVELOPED_MARKETS_ISIN);
+  }
+
+  @Test
   void aFullyCoveredSleeveReportsNoBenchmarkGap() {
     var result =
         builder
@@ -168,10 +203,13 @@ class BenchmarkCheckBuilderTest {
 
   @Test
   void anExchangeTradedHoldingIsMeasuredAgainstItsProxyEtfPricedTheWayTheNavPricesIt() {
-    given(priorityPriceProvider.resolve(DEVELOPED_MARKETS_PROXY_ISIN, CHECK_DATE))
-        .willReturn(Optional.of(proxyValue(CHECK_DATE, "102.00")));
-    given(priorityPriceProvider.resolve(DEVELOPED_MARKETS_PROXY_ISIN, PREVIOUS_DATE))
-        .willReturn(Optional.of(proxyValue(PREVIOUS_DATE, "100.00")));
+    given(
+            priorityPriceProvider.resolvePair(
+                DEVELOPED_MARKETS_PROXY_ISIN, CHECK_DATE, PREVIOUS_DATE))
+        .willReturn(
+            Optional.of(
+                new PricePair(
+                    proxyValue(CHECK_DATE, "102.00"), proxyValue(PREVIOUS_DATE, "100.00"))));
 
     var result =
         builder

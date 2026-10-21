@@ -80,18 +80,18 @@ class BenchmarkCheckBuilderIT {
   }
 
   @Test
-  void theProxyReturnUsesTheFreshestPriceOnEachDateAcrossItsSourcesAsTheNavDoes() {
+  void theProxyReturnTakesBothPricesFromOneFeedSoAnAdjustedCloseNeverMeetsARawOne() {
     fundValueRepository.saveAll(
         List.of(
-            proxyPrice(BOND_EURO_PROXY_EODHD_KEY, PREVIOUS_DATE, "100.00", "EODHD"),
-            proxyPrice(BOND_EURO_PROXY_XETRA_KEY, CHECK_DATE, "102.00", "DEUTSCHE_BOERSE")));
+            proxyPrice(BOND_EURO_PROXY_EODHD_KEY, PREVIOUS_DATE, "98.00", "EODHD"),
+            proxyPrice(BOND_EURO_PROXY_XETRA_KEY, PREVIOUS_DATE, "100.00", "DEUTSCHE_BOERSE"),
+            proxyPrice(BOND_EURO_PROXY_XETRA_KEY, CHECK_DATE, "100.00", "DEUTSCHE_BOERSE")));
 
     var result =
         builder.buildBenchmarkModelCheck(TUK00, CHECK_DATE, List.of(euroAggregateHolding()));
 
     assertThat(result)
-        .hasValueSatisfying(
-            check -> assertThat(check.benchmarkReturn()).isEqualByComparingTo("0.02"));
+        .hasValueSatisfying(check -> assertThat(check.benchmarkReturn()).isEqualByComparingTo("0"));
   }
 
   @Test

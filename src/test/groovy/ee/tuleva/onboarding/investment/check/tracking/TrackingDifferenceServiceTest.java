@@ -36,6 +36,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider.PricePair;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -1630,10 +1631,8 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // IWDA.DE benchmark looked up on instrument's actual price dates
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", todayPriceDate))
-        .willReturn(Optional.of(fundValue("81.60")));
-    given(priorityPriceProvider.resolve("IE00B4L5Y983", previousPriceDate))
-        .willReturn(Optional.of(fundValue("80.00")));
+    given(priorityPriceProvider.resolvePair("IE00B4L5Y983", todayPriceDate, previousPriceDate))
+        .willReturn(Optional.of(new PricePair(fundValue("81.60"), fundValue("80.00"))));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -1714,13 +1713,9 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
-    given(priorityPriceProvider.resolve(eq("LU0826455353"), any(LocalDate.class)))
-        .willReturn(Optional.empty());
     // IEAG.DE benchmark for Euro Aggregate bonds
-    given(priorityPriceProvider.resolve("IE00B3DKXQ41", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("105.30")));
-    given(priorityPriceProvider.resolve("IE00B3DKXQ41", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("105.00")));
+    given(priorityPriceProvider.resolvePair("IE00B3DKXQ41", CHECK_DATE, PREVIOUS_DATE))
+        .willReturn(Optional.of(new PricePair(fundValue("105.30"), fundValue("105.00"))));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -2031,10 +2026,8 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // EUNM.DE benchmark for EM ETF
-    given(priorityPriceProvider.resolve("IE00B4L5YC18", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("40.80")));
-    given(priorityPriceProvider.resolve("IE00B4L5YC18", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("40.00")));
+    given(priorityPriceProvider.resolvePair("IE00B4L5YC18", CHECK_DATE, PREVIOUS_DATE))
+        .willReturn(Optional.of(new PricePair(fundValue("40.80"), fundValue("40.00"))));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 

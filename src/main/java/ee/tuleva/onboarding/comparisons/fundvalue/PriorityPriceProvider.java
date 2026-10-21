@@ -69,6 +69,41 @@ public class PriorityPriceProvider {
                 .thenComparing(fundValue -> providerPriority(fundValue.provider())));
   }
 
+  public record PricePair(FundValue today, FundValue previous) {}
+
+  public Optional<PricePair> resolvePair(String isin, LocalDate date, LocalDate previousDate) {
+    return instrumentReferenceService
+        .findByIsin(isin)
+        .flatMap(instrument -> resolvePairForInstrument(instrument, date, previousDate));
+  }
+
+  private Optional<PricePair> resolvePairForInstrument(
+      InstrumentReference instrument, LocalDate date, LocalDate previousDate) {
+    return PRICE_FEEDS.stream()
+        .flatMap(feed -> feed.storageKey().apply(instrument).stream())
+        .flatMap(storageKey -> pairFromOneFeed(storageKey, date, previousDate).stream())
+        .max(
+            Comparator.comparing((PricePair pair) -> pair.today().date())
+                .thenComparing(pair -> pair.previous().date())
+                .thenComparing(pair -> providerPriority(pair.today().provider())));
+  }
+
+  private Optional<PricePair> pairFromOneFeed(
+      String storageKey, LocalDate date, LocalDate previousDate) {
+    return usableValue(storageKey, date)
+        .flatMap(
+            today ->
+                usableValue(storageKey, previousDate)
+                    .map(previous -> new PricePair(today, previous)));
+  }
+
+  private Optional<FundValue> usableValue(String storageKey, LocalDate date) {
+    return fundValueProvider
+        .getLatestValue(storageKey, date)
+        .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
+        .filter(fundValue -> !fundValue.date().isBefore(date.minusDays(MAX_LOOKBACK_DAYS)));
+  }
+
   private Optional<FundValue> fetchLatestValue(
       String storageKey, LocalDate date, @Nullable Instant updatedBefore) {
     if (updatedBefore != null) {

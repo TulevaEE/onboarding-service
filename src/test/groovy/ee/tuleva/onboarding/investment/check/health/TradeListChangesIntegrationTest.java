@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
@@ -81,11 +82,39 @@ class TradeListChangesIntegrationTest {
   }
 
   @Test
+  void aMovedQuantityIsNotCheckedWithoutThePreviousTradeList() {
+    saveTradeList(NAV_DATE, List.of(purchase("DLA0000001", "500", "5000.00")));
+
+    assertThat(quantityChangeFindings())
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75, QUANTITY_CHANGE, NOT_RUN, "Not checked: no SEB trade list for 2026-10-19"));
+  }
+
+  @Test
+  void anUnexplainedQuantityIsNotCheckedWhileARowNamesNoKnownFund() {
+    var unknownFund = purchase("DLA0000002", "500", "5000.00");
+    unknownFund.put("Client name", "Some Other Fund");
+    saveTradeList(PREVIOUS_NAV_DATE, List.of());
+    saveTradeList(NAV_DATE, List.of(unknownFund));
+
+    assertThat(quantityChangeFindings())
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                QUANTITY_CHANGE,
+                NOT_RUN,
+                "Not checked: SEB's trade lists have rows of no known fund that could explain it:"
+                    + " [Some Other Fund]"));
+  }
+
+  @Test
   void aUnitBreakSaysTheCashForUnitsAgreesWithEpisWhenSebsUnitCountIsOff() {
     saveTradeList(PREVIOUS_NAV_DATE, List.of(purchase("DLA0000001", "500", "5000.00")));
     saveTradeList(NAV_DATE, List.of());
     var previous = fundPositions(PREVIOUS_NAV_DATE, "110000.00", "1000000", "2000000.00");
-    var today = fundPositions(NAV_DATE, "125000.00", "990000", "2020000.00");
+    var today = new ArrayList<>(fundPositions(NAV_DATE, "121000.00", "990000", "2020000.00"));
+    today.addAll(unitReceivable(NAV_DATE, "4000.00"));
 
     var unitsFromCash = UnitsFromCash.of(TUK75, today, previous, tradeChanges()).orElseThrow();
     var findings =
@@ -127,6 +156,12 @@ class TradeListChangesIntegrationTest {
     totalRow.put("Account", "Total");
     return parser.parse(
         List.of(cashRow, unitsRow, totalRow), navDate, Map.of("asOfDate", navDate.toString()));
+  }
+
+  private List<FundPosition> unitReceivable(LocalDate navDate, String marketValue) {
+    var row = positionRow("Receivables of outstanding units", marketValue);
+    row.put("ISIN", TUK75.getIsin());
+    return parser.parse(List.of(row), navDate, Map.of("asOfDate", navDate.toString()));
   }
 
   private Map<String, Object> positionRow(String name, String marketValue) {

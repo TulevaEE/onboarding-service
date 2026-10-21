@@ -27,6 +27,23 @@ class NavFlowConsistencyCheckerTest {
       new NavFlowConsistencyChecker(new MarketPnlCalculator());
 
   @Test
+  void aWarningBreaksTheDaysChangeDownByAccountSoTheLineThatMovedIsVisible() {
+    var previous =
+        positions(security("IE00A", "10000", "100", "1000000"), cash("100000"), units("1000000"));
+    var today = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
+
+    var findings = checker.check(TUK75, today, previous, THRESHOLD, Map.of());
+
+    assertThat(findings)
+        .singleElement()
+        .extracting(HealthCheckFinding::message)
+        .asString()
+        .contains(
+            "securitiesChange=0.00, cashChange=-100000.00, receivablesChange=0.00,"
+                + " payablesChange=0.00");
+  }
+
+  @Test
   void aDayWhereOnlyPricesMovedReconciles() {
     var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
     var today = positions(security("IE00A", "10000", "102", "1020000"), units("1000000"));

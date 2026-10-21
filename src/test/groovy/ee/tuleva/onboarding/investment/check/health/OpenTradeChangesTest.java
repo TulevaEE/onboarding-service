@@ -29,7 +29,8 @@ class OpenTradeChangesTest {
 
     var changes = OpenTradeChanges.between(TUK75, PREVIOUS, trades(), CURRENT, trades(newTrade));
 
-    assertThat(changes).isEqualTo(new OpenTradeChanges(null, List.of(newTrade), List.of()));
+    assertThat(changes)
+        .isEqualTo(new OpenTradeChanges(null, List.of(newTrade), List.of(), List.of()));
   }
 
   @Test
@@ -41,7 +42,8 @@ class OpenTradeChangesTest {
         OpenTradeChanges.between(
             TUK75, PREVIOUS, trades(settled, stillOpen), CURRENT, trades(stillOpen));
 
-    assertThat(changes).isEqualTo(new OpenTradeChanges(null, List.of(), List.of(settled)));
+    assertThat(changes)
+        .isEqualTo(new OpenTradeChanges(null, List.of(), List.of(settled), List.of()));
   }
 
   @Test
@@ -127,19 +129,25 @@ class OpenTradeChangesTest {
   }
 
   @Test
-  void aRowNamingNoKnownFundStopsEveryFundsComparison() {
+  void carriesAlongTheRowsThatNameNoKnownFundOnEitherList() {
+    var newTrade = trade(TUK75, "DLA2", "IE00BKPTWY98", BUY, "500", "5000.00");
+
     var changes =
         OpenTradeChanges.between(
             TUK75,
             PREVIOUS,
-            trades(),
+            new OpenTrades(List.of(), Set.of(), List.of("Some Other Fund")),
             CURRENT,
-            new OpenTrades(List.of(), Set.of(), List.of("Some Other Fund")));
+            new OpenTrades(
+                List.of(newTrade), Set.of(), List.of("Some Other Fund", "(no client name)")));
 
     assertThat(changes)
         .isEqualTo(
-            OpenTradeChanges.unavailable(
-                "SEB trade list for 2026-10-20 has rows of no known fund: [Some Other Fund]"));
+            new OpenTradeChanges(
+                null,
+                List.of(newTrade),
+                List.of(),
+                List.of("Some Other Fund", "(no client name)")));
   }
 
   static OpenTrades trades(OpenTrade... trades) {

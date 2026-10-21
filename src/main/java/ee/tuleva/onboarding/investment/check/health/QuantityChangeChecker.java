@@ -30,16 +30,25 @@ class QuantityChangeChecker {
       List<FundPosition> previousSecurities,
       OpenTradeChanges tradeChanges) {
     var unavailableReason = tradeChanges.unavailableReason();
-    if (unavailableReason == null) {
-      return check(
-          fund, securities, previousSecurities, TradedQuantity.byIsin(tradeChanges.appeared()));
+    if (unavailableReason != null) {
+      return check(fund, securities, previousSecurities, Map.of()).isEmpty()
+          ? List.of()
+          : notRun(fund, unavailableReason);
     }
-    if (check(fund, securities, previousSecurities, Map.of()).isEmpty()) {
-      return List.of();
+    var findings =
+        check(fund, securities, previousSecurities, TradedQuantity.byIsin(tradeChanges.appeared()));
+    if (findings.isEmpty() || tradeChanges.unknownFundRows().isEmpty()) {
+      return findings;
     }
+    return notRun(
+        fund,
+        "SEB's trade lists have rows of no known fund that could explain it: %s"
+            .formatted(tradeChanges.unknownFundRows()));
+  }
+
+  private static List<HealthCheckFinding> notRun(TulevaFund fund, String reason) {
     return List.of(
-        new HealthCheckFinding(
-            fund, QUANTITY_CHANGE, NOT_RUN, "Not checked: " + unavailableReason));
+        new HealthCheckFinding(fund, QUANTITY_CHANGE, NOT_RUN, "Not checked: " + reason));
   }
 
   List<HealthCheckFinding> check(

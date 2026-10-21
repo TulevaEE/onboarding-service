@@ -27,7 +27,7 @@ final class UnitsFromCash {
       List<FundPosition> positions,
       List<FundPosition> previousPositions,
       OpenTradeChanges tradeChanges) {
-    if (tradeChanges.unavailableReason() != null) {
+    if (tradeChanges.unavailableReason() != null || !tradeChanges.unknownFundRows().isEmpty()) {
       return Optional.empty();
     }
     var today = Day.of(fund, positions);

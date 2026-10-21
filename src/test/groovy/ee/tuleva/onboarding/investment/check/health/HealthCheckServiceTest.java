@@ -398,7 +398,7 @@ class HealthCheckServiceTest {
             eq(TUK75),
             any(),
             eq(previousSecurities),
-            eq(new OpenTradeChanges(null, List.of(newTrade), List.of())));
+            eq(new OpenTradeChanges(null, List.of(newTrade), List.of(), List.of())));
   }
 
   @Test

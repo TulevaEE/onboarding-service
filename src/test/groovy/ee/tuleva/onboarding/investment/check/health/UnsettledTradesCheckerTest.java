@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.transaction.OpenTrade;
 import ee.tuleva.onboarding.investment.transaction.OpenTrades;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ class UnsettledTradesCheckerTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 10, 20);
   private static final LocalDate SETTLEMENT = LocalDate.of(2026, 10, 22);
+  private static final Instant TRADE_TIME = Instant.parse("2026-10-16T09:37:55Z");
 
   private final UnsettledTradesChecker checker = new UnsettledTradesChecker();
 
@@ -122,7 +124,14 @@ class UnsettledTradesCheckerTest {
   void ignoresAnotherFundsOpenTrades() {
     var otherFundsPurchase =
         new OpenTrade(
-            TUV100, BUY, new BigDecimal("4311904.84"), "DLA1", "IE00BFG1TM61", SETTLEMENT);
+            TUV100,
+            BUY,
+            new BigDecimal("4311904.84"),
+            "DLA1",
+            "IE00BFG1TM61",
+            SETTLEMENT,
+            new BigDecimal("100"),
+            TRADE_TIME);
 
     var findings =
         checker.check(
@@ -279,7 +288,15 @@ class UnsettledTradesCheckerTest {
 
   private static OpenTrade trade(
       TransactionType side, String total, String reference, String isin, LocalDate settlement) {
-    return new OpenTrade(TUK75, side, new BigDecimal(total), reference, isin, settlement);
+    return new OpenTrade(
+        TUK75,
+        side,
+        new BigDecimal(total),
+        reference,
+        isin,
+        settlement,
+        new BigDecimal("100"),
+        TRADE_TIME);
   }
 
   private FundPosition payables(String marketValue) {

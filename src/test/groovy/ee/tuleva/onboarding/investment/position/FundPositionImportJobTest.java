@@ -70,6 +70,7 @@ class FundPositionImportJobTest {
             sebParser,
             importService,
             reportService,
+            repository,
             fundPositionLedgerService,
             healthCheckService,
             healthCheckNotifier,
@@ -374,12 +375,28 @@ class FundPositionImportJobTest {
 
     assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
     verify(repository, times(1)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList(), eq(Map.of()));
 
     verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
     verify(eventPublisher).publishEvent(new NavPositionsUpdated(TUV100, date, 1));
     verify(fundPositionLedgerService, never()).recordPositionsToLedger(TUK75, date);
     verify(fundPositionLedgerService, never()).rerecordPositionsFromDate(TUK75, date);
+  }
+
+  @Test
+  void
+      importForProviderAndDate_tellsTheNotifierWhenItBlocksAFundWhosePositionsAreAlreadyImported() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var importedAt = Instant.parse("2026-01-06T07:10:00Z");
+    var results = List.of(isinMatchFail(TUK75, date));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
+    when(healthCheckService.check(anyList())).thenReturn(results);
+    when(repository.findLastWrittenAt(TUK75, date)).thenReturn(Optional.of(importedAt));
+
+    job.importForProviderAndDate(SEB, date);
+
+    verify(healthCheckNotifier).notify(SEB, date, results, Map.of(TUK75, importedAt));
   }
 
   @Test
@@ -395,7 +412,7 @@ class FundPositionImportJobTest {
     assertThat(result.imported()).isEqualTo(0);
     assertThat(result.updated()).isEqualTo(0);
     verify(repository, never()).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList(), eq(Map.of()));
   }
 
   @Test
@@ -465,7 +482,7 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList(), eq(Map.of()));
   }
 
   @Test
@@ -490,7 +507,7 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList(), eq(Map.of()));
   }
 
   @Test

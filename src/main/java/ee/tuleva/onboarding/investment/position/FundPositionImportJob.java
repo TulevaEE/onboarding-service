@@ -23,8 +23,11 @@ import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -45,6 +48,7 @@ public class FundPositionImportJob {
   private final SebFundPositionParser parser;
   private final FundPositionImportService importService;
   private final InvestmentReportService reportService;
+  private final FundPositionRepository fundPositionRepository;
   private final FundPositionLedgerService fundPositionLedgerService;
   private final HealthCheckService healthCheckService;
   private final HealthCheckNotifier healthCheckNotifier;
@@ -123,11 +127,27 @@ public class FundPositionImportJob {
   }
 
   private void notifyHealth(
-      ReportProvider provider, LocalDate date, List<HealthCheckResult> healthResults) {
-    var notified = healthCheckNotifier.notify(provider, date, healthResults);
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> healthResults,
+      Map<TulevaFund, Instant> earlierImports) {
+    var notified = healthCheckNotifier.notify(provider, date, healthResults, earlierImports);
     if (notified) {
       pipelineTracker.markHealthNotificationFired();
     }
+  }
+
+  private Map<TulevaFund, Instant> earlierImportsOfBlockedFunds(
+      List<HealthCheckResult> healthResults) {
+    var earlierImports = new EnumMap<TulevaFund, Instant>(TulevaFund.class);
+    healthResults.stream()
+        .filter(HealthCheckResult::hasFails)
+        .forEach(
+            result ->
+                fundPositionRepository
+                    .findLastWrittenAt(result.fund(), result.checkDate())
+                    .ifPresent(importedAt -> earlierImports.put(result.fund(), importedAt)));
+    return Map.copyOf(earlierImports);
   }
 
   public ImportResult importForProviderAndDate(ReportProvider provider, LocalDate date) {
@@ -155,6 +175,7 @@ public class FundPositionImportJob {
 
     var healthResults = healthCheckService.check(positions);
     Set<TulevaFund> blockedFunds = HealthCheckResult.blockedFunds(healthResults);
+    var earlierImports = earlierImportsOfBlockedFunds(healthResults);
 
     if (!blockedFunds.isEmpty()) {
       healthCheckFailed = true;
@@ -170,13 +191,13 @@ public class FundPositionImportJob {
     List<FundPosition> importablePositions =
         positions.stream().filter(position -> !blockedFunds.contains(position.getFund())).toList();
     if (importablePositions.isEmpty()) {
-      notifyHealth(provider, date, healthResults);
+      notifyHealth(provider, date, healthResults, earlierImports);
       return ImportResult.none();
     }
 
     ImportResult result = importService.upsertPositions(importablePositions);
 
-    notifyHealth(provider, date, healthResults);
+    notifyHealth(provider, date, healthResults, earlierImports);
     if (result.imported() > 0 || result.updated() > 0) {
       pipelineTracker.markChanged();
     }

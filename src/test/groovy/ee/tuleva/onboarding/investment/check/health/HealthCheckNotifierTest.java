@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNSETTLED_TRADES;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -14,6 +15,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +38,7 @@ class HealthCheckNotifierTest {
   void silentWhenNoIssuesAndNoPriorState() {
     var result = new HealthCheckResult(TUK75, DATE, List.of());
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
     verifyNoInteractions(notificationService);
@@ -47,7 +49,7 @@ class HealthCheckNotifierTest {
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("IMPORT BLOCKED"), eq(INVESTMENT));
@@ -60,7 +62,8 @@ class HealthCheckNotifierTest {
   void aBlockedImportSaysHowToGetACorrectedFileIn() {
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
 
-    notifier.notify(SEB, DATE, List.of(new HealthCheckResult(TUK75, DATE, List.of(finding))));
+    notifier.notify(
+        SEB, DATE, List.of(new HealthCheckResult(TUK75, DATE, List.of(finding))), Map.of());
 
     verify(notificationService)
         .sendMessage(
@@ -82,7 +85,8 @@ class HealthCheckNotifierTest {
         List.of(
             new HealthCheckResult(TUK75, DATE, List.of(failed)),
             new HealthCheckResult(TUV100, DATE, List.of(warned)),
-            new HealthCheckResult(TUK00, DATE, List.of())));
+            new HealthCheckResult(TUK00, DATE, List.of())),
+        Map.of());
 
     verify(notificationService)
         .sendMessage(
@@ -100,7 +104,8 @@ class HealthCheckNotifierTest {
         DATE,
         List.of(
             new HealthCheckResult(TUK75, DATE, List.of(failed)),
-            new HealthCheckResult(TUV100, DATE, List.of(warned))));
+            new HealthCheckResult(TUV100, DATE, List.of(warned))),
+        Map.of());
 
     verify(notificationService)
         .sendMessage(
@@ -108,11 +113,39 @@ class HealthCheckNotifierTest {
   }
 
   @Test
+  void aBlockedFundWhosePositionsWereImportedEarlierSaysTheyStayInUse() {
+    var stalePayable =
+        new HealthCheckFinding(
+            TUK75,
+            UNSETTLED_TRADES,
+            FAIL,
+            "Trade payables 2000.00, open buys 1000.00, excess 1000.00, NAV too low."
+                + " No trade left SEB's trade list");
+    var unknownIsin = new HealthCheckFinding(TUV100, ISIN_MATCH, FAIL, "TUV100: unknown ISIN");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(stalePayable)),
+            new HealthCheckResult(TUV100, DATE, List.of(unknownIsin))),
+        Map.of(TUK75, Instant.parse("2026-04-16T06:10:00Z")));
+
+    verify(notificationService)
+        .sendMessage(
+            startsWith(
+                "IMPORT BLOCKED: SEB 2026-04-15 — TUV100 not imported; TUK75 positions from"
+                    + " 2026-04-16 09:10 stay in use for NAV, source files need to be fixed\n"
+                    + "Funds: TUK75 blocked (earlier positions in use), TUV100 blocked\n"),
+            eq(INVESTMENT));
+  }
+
+  @Test
   void sendsWarningWhenNoFails() {
     var finding = new HealthCheckFinding(TUK75, COMPLETENESS, WARNING, "TUK75: no CASH");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
@@ -128,7 +161,7 @@ class HealthCheckNotifierTest {
             TUK75, NAV_FLOW_CONSISTENCY, NOT_RUN, "TUK75: unpricedHoldings=IE00A");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("could not run"), eq(INVESTMENT));
@@ -140,7 +173,7 @@ class HealthCheckNotifierTest {
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    notifier.notify(SEB, DATE, List.of(result));
+    notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     verify(notificationService).sendMessage(contains("SEB"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("2026-04-15"), eq(INVESTMENT));
@@ -152,7 +185,7 @@ class HealthCheckNotifierTest {
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
     givenPreviousSeverity(ISIN_MATCH, FAIL);
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
     verifyNoInteractions(notificationService);
@@ -164,7 +197,7 @@ class HealthCheckNotifierTest {
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
     givenPreviousSeverity(ISIN_MATCH, FAIL);
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
@@ -175,7 +208,7 @@ class HealthCheckNotifierTest {
     var result = new HealthCheckResult(TUK75, DATE, List.of());
     givenPreviousSeverity(ISIN_MATCH, FAIL);
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("Import cleared"), eq(INVESTMENT));
@@ -188,7 +221,7 @@ class HealthCheckNotifierTest {
     var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "test");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    var notified = notifier.notify(SEB, DATE, List.of(result));
+    var notified = notifier.notify(SEB, DATE, List.of(result), Map.of());
 
     assertThat(notified).isFalse();
   }
@@ -207,7 +240,7 @@ class HealthCheckNotifierTest {
             "could not be reconciled: unexplainedExits=IE00A");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    assertThat(notifier.notify(SEB, DATE, List.of(result))).isTrue();
+    assertThat(notifier.notify(SEB, DATE, List.of(result), Map.of())).isTrue();
   }
 
   @Test
@@ -221,7 +254,7 @@ class HealthCheckNotifierTest {
             "could not be reconciled: no threshold configured");
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
-    assertThat(notifier.notify(SEB, DATE, List.of(result))).isFalse();
+    assertThat(notifier.notify(SEB, DATE, List.of(result), Map.of())).isFalse();
   }
 
   @Test
@@ -235,7 +268,8 @@ class HealthCheckNotifierTest {
         DATE,
         List.of(
             new HealthCheckResult(TUK75, DATE, List.of(unchangedFail)),
-            new HealthCheckResult(TUV100, DATE, List.of(newFail))));
+            new HealthCheckResult(TUV100, DATE, List.of(newFail))),
+        Map.of());
 
     verify(notificationService)
         .sendMessage(

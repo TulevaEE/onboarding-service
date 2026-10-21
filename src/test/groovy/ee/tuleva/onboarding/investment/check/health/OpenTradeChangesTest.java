@@ -73,6 +73,8 @@ class OpenTradeChangesTest {
         OpenTradeChanges.between(
             TUK75, PREVIOUS, trades(withoutReference, largerPart), CURRENT, trades(revisedPart));
 
+    assertThat(changes)
+        .isEqualTo(new OpenTradeChanges(null, List.of(), List.of(withoutReference), List.of()));
     assertThat(changes.disappearedTotal(BUY)).isEqualByComparingTo("1000.00");
   }
 

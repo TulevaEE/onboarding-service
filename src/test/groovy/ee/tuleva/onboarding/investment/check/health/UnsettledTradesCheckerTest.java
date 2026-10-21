@@ -104,10 +104,13 @@ class UnsettledTradesCheckerTest {
             TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
 
     assertThat(findings)
-        .extracting(HealthCheckFinding::message)
         .containsExactly(
-            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
-                + " No trade left SEB's trade list");
+            new HealthCheckFinding(
+                TUK75,
+                UNSETTLED_TRADES,
+                FAIL,
+                "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                    + " No trade left SEB's trade list"));
   }
 
   @Test
@@ -124,10 +127,13 @@ class UnsettledTradesCheckerTest {
             TUK75, NAV_DATE, List.of(payables("-1223208.00")), List.of(), today, previous);
 
     assertThat(findings)
-        .extracting(HealthCheckFinding::message)
         .containsExactly(
-            "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
-                + " Cause: DLA1289471 IE00BKPTWY98 100.00 left SEB's trade list");
+            new HealthCheckFinding(
+                TUK75,
+                UNSETTLED_TRADES,
+                FAIL,
+                "Trade payables 1223208.00, open buys 1223108.00, excess 100.00, NAV too low."
+                    + " Cause: DLA1289471 IE00BKPTWY98 100.00 left SEB's trade list"));
   }
 
   @Test

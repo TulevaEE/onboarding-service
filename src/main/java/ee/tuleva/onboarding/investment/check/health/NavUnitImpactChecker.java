@@ -19,7 +19,8 @@ class NavUnitImpactChecker {
       TulevaFund fund,
       @Nullable BigDecimal reportedUnits,
       @Nullable BigDecimal authoritativeUnits,
-      @Nullable BigDecimal aum) {
+      @Nullable BigDecimal aum,
+      @Nullable BigDecimal unitsFromCash) {
     if (reportedUnits == null || authoritativeUnits == null) {
       return List.of();
     }
@@ -42,13 +43,14 @@ class NavUnitImpactChecker {
               NAV_UNIT_IMPACT,
               FAIL,
               ("Unit difference %s exceeds threshold %s but NAV impact is indeterminate"
-                      + " (aum=%s, reported=%s, authoritative=%s) — manual check required")
+                      + " (aum=%s, reported=%s, authoritative=%s) — manual check required%s")
                   .formatted(
                       difference.toPlainString(),
                       UNIT_DIFFERENCE_THRESHOLD.toPlainString(),
                       aum == null ? "null" : aum.toPlainString(),
                       reportedUnits.toPlainString(),
-                      authoritativeUnits.toPlainString())));
+                      authoritativeUnits.toPlainString(),
+                      cashComparison(reportedUnits, authoritativeUnits, unitsFromCash))));
     }
 
     var navScale = fund.getNavScale();
@@ -62,7 +64,7 @@ class NavUnitImpactChecker {
               NAV_UNIT_IMPACT,
               FAIL,
               ("NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference: unitsSeb=%s, unitsEpis=%s,"
-                      + " unitsDifference=%s")
+                      + " unitsDifference=%s%s")
                   .formatted(
                       navWithReported.toPlainString(),
                       navWithAuthoritative.toPlainString(),
@@ -73,9 +75,26 @@ class NavUnitImpactChecker {
                           .toPlainString(),
                       units(reportedUnits),
                       units(authoritativeUnits),
-                      units(reportedUnits.subtract(authoritativeUnits)))));
+                      units(reportedUnits.subtract(authoritativeUnits)),
+                      cashComparison(reportedUnits, authoritativeUnits, unitsFromCash))));
     }
     return List.of();
+  }
+
+  private static String cashComparison(
+      BigDecimal reportedUnits, BigDecimal authoritativeUnits, @Nullable BigDecimal unitsFromCash) {
+    if (unitsFromCash == null) {
+      return "";
+    }
+    var fromSeb = unitsFromCash.subtract(reportedUnits).abs();
+    var fromEpis = unitsFromCash.subtract(authoritativeUnits).abs();
+    var closer =
+        switch (Integer.signum(fromSeb.compareTo(fromEpis))) {
+          case -1 -> " (closer to SEB)";
+          case 1 -> " (closer to EPIS)";
+          default -> "";
+        };
+    return ", unitsFromCash=%s%s".formatted(units(unitsFromCash), closer);
   }
 
   private static String units(BigDecimal units) {

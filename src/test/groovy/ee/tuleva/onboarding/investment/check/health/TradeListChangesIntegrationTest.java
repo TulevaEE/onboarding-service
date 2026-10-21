@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
@@ -39,6 +41,7 @@ import org.springframework.context.annotation.Import;
   InvestmentReportService.class,
   CsvToJsonConverter.class,
   QuantityChangeChecker.class,
+  NavUnitImpactChecker.class,
   TradeListChangesIntegrationTest.SebTradeListReading.class
 })
 class TradeListChangesIntegrationTest {
@@ -50,6 +53,7 @@ class TradeListChangesIntegrationTest {
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired OpenTradeSource openTradeSource;
   @Autowired QuantityChangeChecker quantityChangeChecker;
+  @Autowired NavUnitImpactChecker navUnitImpactChecker;
 
   private final SebFundPositionParser parser =
       new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate());
@@ -76,16 +80,67 @@ class TradeListChangesIntegrationTest {
                 "IE00BFG1TM61 quantity +500 (1000 → 1500), new on SEB's trade list +0"));
   }
 
-  private List<HealthCheckFinding> quantityChangeFindings() {
-    var changes =
-        OpenTradeChanges.between(
+  @Test
+  void aUnitBreakSaysTheCashForUnitsAgreesWithEpisWhenSebsUnitCountIsOff() {
+    saveTradeList(PREVIOUS_NAV_DATE, List.of(purchase("DLA0000001", "500", "5000.00")));
+    saveTradeList(NAV_DATE, List.of());
+    var previous = fundPositions(PREVIOUS_NAV_DATE, "110000.00", "1000000", "2000000.00");
+    var today = fundPositions(NAV_DATE, "125000.00", "990000", "2020000.00");
+
+    var unitsFromCash = UnitsFromCash.of(TUK75, today, previous, tradeChanges()).orElseThrow();
+    var findings =
+        navUnitImpactChecker.check(
             TUK75,
-            PREVIOUS_NAV_DATE,
-            openTradeSource.openTrades(PREVIOUS_NAV_DATE).orElse(null),
-            NAV_DATE,
-            openTradeSource.openTrades(NAV_DATE).orElse(null));
+            new BigDecimal("990000"),
+            new BigDecimal("1010000"),
+            PositionTotals.aum(today),
+            unitsFromCash);
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                NAV_UNIT_IMPACT,
+                FAIL,
+                "NAV_SEB=2.04040 vs NAV_EPIS=2.00000 = 2.020000% NAV difference:"
+                    + " unitsSeb=990000, unitsEpis=1010000, unitsDifference=-20000,"
+                    + " unitsFromCash=1010000 (closer to EPIS)"));
+  }
+
+  private OpenTradeChanges tradeChanges() {
+    return OpenTradeChanges.between(
+        TUK75,
+        PREVIOUS_NAV_DATE,
+        openTradeSource.openTrades(PREVIOUS_NAV_DATE).orElse(null),
+        NAV_DATE,
+        openTradeSource.openTrades(NAV_DATE).orElse(null));
+  }
+
+  private List<FundPosition> fundPositions(
+      LocalDate navDate, String cash, String units, String netAssets) {
+    var cashRow = positionRow("Cash account in SEB Pank", cash);
+    var unitsRow = positionRow("Total outstanding units:", null);
+    unitsRow.put("Account", "Register");
+    unitsRow.put("ISIN", TUK75.getIsin());
+    unitsRow.put("Quantity", units);
+    var totalRow = positionRow("", netAssets);
+    totalRow.put("Account", "Total");
+    return parser.parse(
+        List.of(cashRow, unitsRow, totalRow), navDate, Map.of("asOfDate", navDate.toString()));
+  }
+
+  private Map<String, Object> positionRow(String name, String marketValue) {
+    var row = new HashMap<String, Object>();
+    row.put("Client name", "TUK75");
+    row.put("Account", "EE000000000000000000");
+    row.put("Name", name);
+    row.put("Market Value (EUR)", marketValue == null ? "" : marketValue);
+    return row;
+  }
+
+  private List<HealthCheckFinding> quantityChangeFindings() {
     return quantityChangeChecker.check(
-        TUK75, securities(NAV_DATE, "1500"), securities(PREVIOUS_NAV_DATE, "1000"), changes);
+        TUK75, securities(NAV_DATE, "1500"), securities(PREVIOUS_NAV_DATE, "1000"), tradeChanges());
   }
 
   private List<FundPosition> securities(LocalDate navDate, String quantity) {

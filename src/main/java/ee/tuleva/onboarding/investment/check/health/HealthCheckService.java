@@ -147,6 +147,8 @@ public class HealthCheckService {
 
     var reportedUnits = unitsPositions.isEmpty() ? null : unitsPositions.getFirst().getQuantity();
     var aum = PositionTotals.aum(positions);
+    var unitsFromCash =
+        UnitsFromCash.of(fund, positions, previousPositions, tradeChanges).orElse(null);
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
@@ -154,8 +156,9 @@ public class HealthCheckService {
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
     findings.addAll(
         unitReconciliationChecker.check(
-            fund, navDate, unitsPositions, authoritativeUnits, threshold));
-    findings.addAll(navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum));
+            fund, navDate, unitsPositions, authoritativeUnits, threshold, unitsFromCash));
+    findings.addAll(
+        navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum, unitsFromCash));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));

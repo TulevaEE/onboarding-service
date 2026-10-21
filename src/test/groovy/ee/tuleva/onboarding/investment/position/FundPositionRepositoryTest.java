@@ -174,7 +174,7 @@ class FundPositionRepositoryTest {
   }
 
   @Test
-  void findLastWrittenAt_returnsTheLatestWriteOfTheFundsPositionsForTheDate() {
+  void findLastImportedAt_returnsTheLatestWriteOfTheFundsPositionsForTheDate() {
     LocalDate navDate = LocalDate.of(2026, 10, 20);
     saveWrittenPosition(TUK75, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
     saveWrittenPosition(
@@ -187,17 +187,37 @@ class FundPositionRepositoryTest {
     saveWrittenPosition(
         TUK75, navDate.plusDays(1), "Cash account in SEB Pank", "2026-10-22T06:10:00Z", null);
 
-    var result = fundPositionRepository.findLastWrittenAt(TUK75, navDate);
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
 
     assertThat(result).contains(Instant.parse("2026-10-21T07:30:00Z"));
   }
 
   @Test
-  void findLastWrittenAt_returnsEmptyWhenTheFundHasNoPositionsForTheDate() {
+  void findLastImportedAt_leavesOutTheFeeAccrualRowsWrittenAfterTheImport() {
+    LocalDate navDate = LocalDate.of(2026, 10, 20);
+    saveWrittenPosition(TUK75, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(navDate)
+            .accountType(AccountType.FEE)
+            .accountName("Management Fee Accrual")
+            .marketValue(new BigDecimal("-100.00"))
+            .createdAt(Instant.parse("2026-10-21T06:11:00Z"))
+            .updatedAt(Instant.parse("2026-10-23T08:00:00Z"))
+            .build());
+
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
+
+    assertThat(result).contains(Instant.parse("2026-10-21T06:10:00Z"));
+  }
+
+  @Test
+  void findLastImportedAt_returnsEmptyWhenTheFundHasNoPositionsForTheDate() {
     LocalDate navDate = LocalDate.of(2026, 10, 20);
     saveWrittenPosition(TUV100, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
 
-    var result = fundPositionRepository.findLastWrittenAt(TUK75, navDate);
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
 
     assertThat(result).isEmpty();
   }

@@ -28,7 +28,7 @@ class EarlierImportsTest {
 
     assertThat(earlierImports.whatBlockingLeft(EnumSet.of(TUK75, TUK00)))
         .isEqualTo(
-            "TUK75 positions from 2026-10-21 09:10, TUK00 positions from 2026-10-21 09:12 stay in"
+            "TUK75 positions written 2026-10-21 09:10, TUK00 positions written 2026-10-21 09:12 stay in"
                 + " use for NAV");
   }
 
@@ -39,7 +39,7 @@ class EarlierImportsTest {
   }
 
   @Test
-  void aFundThatPassesKeepsItsUsualStatusEvenWithEarlierPositions() {
+  void aBlockedFundWithEarlierPositionsSaysSoAndAPassingOneKeepsItsUsualStatus() {
     var earlierImports = new EarlierImports(Map.of(TUK75, Instant.parse("2026-10-21T06:10:00Z")));
 
     assertThat(earlierImports.importStatus(new HealthCheckResult(TUK75, DATE, List.of())))

@@ -391,7 +391,7 @@ class FundPositionImportJobTest {
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
     when(healthCheckService.check(anyList())).thenReturn(results);
-    when(repository.findLastWrittenAt(TUK75, date)).thenReturn(Optional.of(importedAt));
+    when(repository.findLastImportedAt(TUK75, date)).thenReturn(Optional.of(importedAt));
 
     job.importForProviderAndDate(SEB, date);
 

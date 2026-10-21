@@ -55,8 +55,8 @@ public class FundPositionImportService {
     return imported;
   }
 
-  public Optional<Instant> lastWrittenAt(TulevaFund fund, LocalDate navDate) {
-    return repository.findLastWrittenAt(fund, navDate);
+  public Optional<Instant> lastImportedAt(TulevaFund fund, LocalDate navDate) {
+    return repository.findLastImportedAt(fund, navDate);
   }
 
   @Transactional

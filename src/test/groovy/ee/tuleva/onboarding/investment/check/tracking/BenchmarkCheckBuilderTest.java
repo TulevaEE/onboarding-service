@@ -199,7 +199,8 @@ class BenchmarkCheckBuilderTest {
                 flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.70")),
                 flatHolding(UNTRACKED_ISIN, new BigDecimal("0.30"))));
 
-    assertThat(result).isEqualTo(new NoHoldingMeasured(List.of(DEVELOPED_MARKETS_ISIN)));
+    assertThat(result)
+        .isEqualTo(new NoHoldingMeasured(TUK75, CHECK_DATE, List.of(DEVELOPED_MARKETS_ISIN)));
   }
 
   @Test

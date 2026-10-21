@@ -96,10 +96,10 @@ class TrackingDifferenceService {
       }
 
       try {
-        var check = checkFundOrSayWhyNot(fund, checkDate);
+        var check = checkFund(fund, checkDate);
         results.addAll(check.results());
         check.checksNotMeasured().stream()
-            .map(reason -> "fund=%s, checkDate=%s, %s".formatted(fund, checkDate, reason))
+            .map(NoHoldingMeasured::describe)
             .forEach(incompleteChecks::add);
       } catch (IncompletePriceDataException e) {
         log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
@@ -195,7 +195,7 @@ class TrackingDifferenceService {
   private List<TrackingDifferenceResult> checkOrRecordFailure(
       TulevaFund fund, LocalDate checkDate, GapWindow window, List<GapFailure> failures) {
     try {
-      var check = checkFundOrSayWhyNot(fund, checkDate);
+      var check = checkFund(fund, checkDate);
       if (check instanceof NotCheckable notCheckable) {
         failures.add(
             GapFailure.inWindow(
@@ -203,9 +203,9 @@ class TrackingDifferenceService {
       }
       check.checksNotMeasured().stream()
           .map(
-              reason ->
+              notMeasured ->
                   GapFailure.inWindow(
-                      fund, checkDate, window, reason, MISSING_PRICE, publicHolidays))
+                      fund, checkDate, window, notMeasured.reason(), MISSING_PRICE, publicHolidays))
           .forEach(failures::add);
       return check.results();
     } catch (IncompletePriceDataException e) {
@@ -245,11 +245,7 @@ class TrackingDifferenceService {
         || security.previous().price().signum() == 0;
   }
 
-  List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
-    return checkFundOrSayWhyNot(fund, checkDate).results();
-  }
-
-  private FundCheck checkFundOrSayWhyNot(TulevaFund fund, LocalDate checkDate) {
+  FundCheck checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var previousDate = publicHolidays.previousWorkingDay(checkDate);
@@ -416,13 +412,13 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    var checksNotMeasured = new ArrayList<String>();
+    var checksNotMeasured = new ArrayList<NoHoldingMeasured>();
     switch (benchmarkCheckBuilder.buildBenchmarkModelCheck(fund, checkDate, securities)) {
       case Measured(var result) -> {
         saveEvent(result);
         results.add(result);
       }
-      case NoHoldingMeasured noHoldingMeasured -> checksNotMeasured.add(noHoldingMeasured.reason());
+      case NoHoldingMeasured noHoldingMeasured -> checksNotMeasured.add(noHoldingMeasured);
       case NothingToMeasure() -> {}
     }
 

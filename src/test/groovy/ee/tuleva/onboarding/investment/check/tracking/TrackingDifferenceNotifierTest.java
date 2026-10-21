@@ -19,6 +19,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -38,6 +39,12 @@ import org.mockito.quality.Strictness;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class TrackingDifferenceNotifierTest {
+
+  private static final NoHoldingMeasured NO_HOLDING_MEASURED =
+      new NoHoldingMeasured(TUK75, LocalDate.of(2026, 4, 3), List.of("IE00B4L5Y983"));
+  private static final String NO_HOLDING_MEASURED_LINE =
+      "\n  ⚠️ fund=TUK75, checkDate=2026-04-03, BENCHMARK_MODEL measured no holding for want of a"
+          + " benchmark price (insert it, then backfill the date): holdings=IE00B4L5Y983";
 
   @Mock OperationsNotificationService notificationService;
   @Mock TrackingDifferenceCalculator calculator;
@@ -1256,6 +1263,54 @@ class TrackingDifferenceNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(contains("Part of the sleeve has no benchmark proxy"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aCleanDayEndsWithTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+    notifier.notify(List.of(withinLimitsResult(TUK75)), List.of(NO_HOLDING_MEASURED));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("✅ TUK75 TD check completed: within limits")
+                        .endsWith(NO_HOLDING_MEASURED_LINE)),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aBreachDayEndsWithTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+    notifier.notify(
+        List.of(result(true, 1, new BigDecimal("0.0015"))), List.of(NO_HOLDING_MEASURED));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("🛑 TD BREACH DETECTED")
+                        .endsWith(NO_HOLDING_MEASURED_LINE)),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aRunWithNothingToAlertOnStillEndsWithTheHoldingsTheModelCheckMeasuredNoneOf() {
+    notifier.notify(
+        List.of(result(false, 0, ZERO).toBuilder().checkType(BENCHMARK).build()),
+        List.of(NO_HOLDING_MEASURED));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("⚠️ TD RUN produced no tracking difference results")
+                        .endsWith(NO_HOLDING_MEASURED_LINE)),
+            eq(INVESTMENT));
   }
 
   @Test

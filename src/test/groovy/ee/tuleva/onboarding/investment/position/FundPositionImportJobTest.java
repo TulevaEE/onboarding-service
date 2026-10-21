@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -20,6 +21,8 @@ import ee.tuleva.onboarding.investment.check.health.HealthCheckFinding;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.investment.event.FundPositionsImported;
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -31,6 +34,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -271,6 +275,48 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SEB, date);
 
     verify(repository, never()).save(any());
+  }
+
+  @Test
+  void runsTheFullPositionPipelineWhenSebCorrectsATradeListForPositionsAlreadyStored() {
+    var asOf = LocalDate.now(ZoneOffset.UTC).minusDays(1);
+    var storedUnder = asOf.plusDays(1);
+    lenient().when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
+    when(reportService.getReport(SEB, PENDING_TRANSACTIONS, storedUnder))
+        .thenReturn(Optional.of(tradeList(asOf, storedUnder)));
+    when(reportService.getReport(SEB, POSITIONS, asOf))
+        .thenReturn(Optional.of(createSebReport(asOf)));
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+
+    job.onReportImportCompleted(
+        new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, storedUnder, 7));
+
+    verify(healthCheckService).check(anyList());
+    verify(eventPublisher).publishEvent(any(FundPositionsImported.class));
+  }
+
+  @Test
+  void leavesTheMorningsPositionsImportToRunOnceWhenTheTradeListArrivesFirst() {
+    var date = LocalDate.now(ZoneOffset.UTC);
+    when(reportService.getReport(SEB, PENDING_TRANSACTIONS, date))
+        .thenReturn(Optional.of(tradeList(date, date)));
+    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.empty());
+
+    job.onReportImportCompleted(new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, date, 7));
+
+    verifyNoInteractions(healthCheckService);
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  private InvestmentReport tradeList(LocalDate asOf, LocalDate storedUnder) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(storedUnder)
+        .metadata(Map.of("asOfDate", asOf.toString()))
+        .createdAt(Instant.now())
+        .build();
   }
 
   @Test

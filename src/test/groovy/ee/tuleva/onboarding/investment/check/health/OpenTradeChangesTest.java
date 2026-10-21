@@ -64,6 +64,19 @@ class OpenTradeChangesTest {
   }
 
   @Test
+  void countsOnlyTheRowWithoutAReferenceAsSettledWhenItsReferencedMatchStaysOpen() {
+    var withoutReference = trade(TUK75, null, "IE00BFG1TM61", BUY, "100", "1000.00");
+    var largerPart = trade(TUK75, "DLA1", "IE00BFG1TM61", BUY, "200", "2000.00");
+    var revisedPart = trade(TUK75, "DLA1", "IE00BFG1TM61", BUY, "100", "1000.00");
+
+    var changes =
+        OpenTradeChanges.between(
+            TUK75, PREVIOUS, trades(withoutReference, largerPart), CURRENT, trades(revisedPart));
+
+    assertThat(changes.disappearedTotal(BUY)).isEqualByComparingTo("1000.00");
+  }
+
+  @Test
   void cannotTellWhatChangedWithoutThePreviousTradeList() {
     var changes = OpenTradeChanges.between(TUK75, PREVIOUS, null, CURRENT, trades());
 

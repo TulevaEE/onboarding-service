@@ -2,13 +2,12 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsFirst;
+import static java.util.stream.Collectors.toSet;
 
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 final class TradePairing {
 
@@ -20,58 +19,46 @@ final class TradePairing {
           .thenComparing(OpenTrade::tradeDate, nullsFirst(naturalOrder()))
           .thenComparing(OpenTrade::settlementDate, nullsFirst(naturalOrder()))
           .thenComparing(OpenTrade::total);
+  private static final long SAME_REFERENCE_BONUS = 1;
 
-  private final List<OpenTrade> earlier;
-  private final List<OpenTrade> later;
-  private final Map<Integer, Integer> pairedEarlierByLater = new HashMap<>();
-
-  private TradePairing(List<OpenTrade> earlier, List<OpenTrade> later) {
-    this.earlier = earlier.stream().sorted(PAIRING_ORDER).toList();
-    this.later = later.stream().sorted(PAIRING_ORDER).toList();
-  }
+  private TradePairing() {}
 
   static OpenTrades.Difference unpaired(List<OpenTrade> earlier, List<OpenTrade> later) {
-    var pairing = new TradePairing(earlier, later);
-    IntStream.range(0, pairing.earlier.size())
-        .forEach(index -> pairing.pairOrRepair(index, new boolean[pairing.later.size()]));
-    return pairing.difference();
-  }
-
-  private boolean pairOrRepair(int earlierIndex, boolean[] laterTried) {
-    for (var laterIndex : candidates(earlier.get(earlierIndex))) {
-      if (laterTried[laterIndex]) {
-        continue;
-      }
-      laterTried[laterIndex] = true;
-      var pairedEarlier = pairedEarlierByLater.get(laterIndex);
-      if (pairedEarlier == null || pairOrRepair(pairedEarlier, laterTried)) {
-        pairedEarlierByLater.put(laterIndex, earlierIndex);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private List<Integer> candidates(OpenTrade trade) {
-    var laterIndexes = IntStream.range(0, later.size()).boxed().toList();
-    return Stream.concat(
-            laterIndexes.stream().filter(index -> trade.hasSameReferenceAs(later.get(index))),
-            laterIndexes.stream()
-                .filter(index -> !trade.hasSameReferenceAs(later.get(index)))
-                .filter(index -> trade.isSameTradeAs(later.get(index))))
-        .toList();
-  }
-
-  private OpenTrades.Difference difference() {
-    var pairedEarlier = pairedEarlierByLater.values();
+    var sortedEarlier = earlier.stream().sorted(PAIRING_ORDER).toList();
+    var sortedLater = later.stream().sorted(PAIRING_ORDER).toList();
+    var pairWeight =
+        weightOutweighingEverySameReferenceBonus(
+            Math.max(sortedEarlier.size(), sortedLater.size()));
+    var weights =
+        sortedEarlier.stream()
+            .map(
+                trade ->
+                    sortedLater.stream()
+                        .mapToLong(other -> weight(trade, other, pairWeight))
+                        .toArray())
+            .toArray(long[][]::new);
+    var laterOfEarlier = MaximumWeightAssignment.columnsOfRows(weights, sortedLater.size());
+    var pairedLater =
+        Arrays.stream(laterOfEarlier).filter(index -> index >= 0).boxed().collect(toSet());
     return new OpenTrades.Difference(
-        IntStream.range(0, earlier.size())
-            .filter(index -> !pairedEarlier.contains(index))
-            .mapToObj(earlier::get)
+        IntStream.range(0, sortedEarlier.size())
+            .filter(index -> laterOfEarlier[index] < 0)
+            .mapToObj(sortedEarlier::get)
             .toList(),
-        IntStream.range(0, later.size())
-            .filter(index -> !pairedEarlierByLater.containsKey(index))
-            .mapToObj(later::get)
+        IntStream.range(0, sortedLater.size())
+            .filter(index -> !pairedLater.contains(index))
+            .mapToObj(sortedLater::get)
             .toList());
+  }
+
+  private static long weightOutweighingEverySameReferenceBonus(int mostPairs) {
+    return (mostPairs + 1) * SAME_REFERENCE_BONUS;
+  }
+
+  private static long weight(OpenTrade earlier, OpenTrade later, long pairWeight) {
+    if (!earlier.isSameTradeAs(later)) {
+      return 0;
+    }
+    return earlier.hasSameReferenceAs(later) ? pairWeight + SAME_REFERENCE_BONUS : pairWeight;
   }
 }

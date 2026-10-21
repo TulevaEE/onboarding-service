@@ -130,6 +130,34 @@ class OpenTradesTest {
   }
 
   @Test
+  void keepsARowWithItsReferenceRatherThanPairingItsMatchWithARowWithoutOne() {
+    var withoutReference = trade(TUK75, null, "100", "1000.00");
+    var largerPart = trade(TUK75, "DLA1", "200", "2000.00");
+    var revisedPart = trade(TUK75, "DLA1", "100", "1000.00");
+
+    for (var earlier :
+        List.of(List.of(withoutReference, largerPart), List.of(largerPart, withoutReference))) {
+      assertThat(listOf(earlier).comparedWith(trades(revisedPart), TUK75))
+          .isEqualTo(new OpenTrades.Difference(List.of(withoutReference), List.of()));
+      assertThat(trades(revisedPart).comparedWith(listOf(earlier), TUK75))
+          .isEqualTo(new OpenTrades.Difference(List.of(), List.of(withoutReference)));
+    }
+  }
+
+  @Test
+  void pairsAsManyRowsAsPossibleBeforeKeepingRowsWithTheirReference() {
+    var smallerWithReference = trade(TUK75, "DLA1", "100", "1000.00");
+    var largerWithoutReference = trade(TUK75, null, "200", "2000.00");
+    var largerWithReference = trade(TUK75, "DLA1", "200", "2000.00");
+    var smallerWithoutReference = trade(TUK75, null, "100", "1000.00");
+
+    assertThat(
+            trades(smallerWithReference, largerWithoutReference)
+                .comparedWith(trades(largerWithReference, smallerWithoutReference), TUK75))
+        .isEqualTo(new OpenTrades.Difference(List.of(), List.of()));
+  }
+
+  @Test
   void leavesTheSameRowUnpairedWhenRowsDifferOnlyInSettlementDate() {
     var settlingFirst = trade(TUK75, null, "500", "5000.00", LocalDate.of(2026, 10, 21));
     var settlingLater = trade(TUK75, null, "500", "5000.00", LocalDate.of(2026, 10, 22));

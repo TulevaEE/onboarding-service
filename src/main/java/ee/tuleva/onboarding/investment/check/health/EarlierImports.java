@@ -8,21 +8,22 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 
-record EarlierImports(Map<TulevaFund, Instant> writtenAt) {
+record EarlierImports(Map<TulevaFund, Instant> importedAt) {
 
-  private static final DateTimeFormatter WRITE_TIME =
+  private static final DateTimeFormatter IMPORT_TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
 
   String whatBlockingLeft(Set<TulevaFund> blockedFunds) {
     var notImported = new ArrayList<String>();
     var stillInUse = new ArrayList<String>();
     for (var fund : blockedFunds) {
-      var fundWrittenAt = writtenAt.get(fund);
-      if (fundWrittenAt == null) {
+      var fundImportedAt = importedAt.get(fund);
+      if (fundImportedAt == null) {
         notImported.add(fund.getCode());
       } else {
         stillInUse.add(
-            "%s positions from %s".formatted(fund.getCode(), WRITE_TIME.format(fundWrittenAt)));
+            "%s positions written %s"
+                .formatted(fund.getCode(), IMPORT_TIME.format(fundImportedAt)));
       }
     }
     var parts = new ArrayList<String>();
@@ -36,7 +37,7 @@ record EarlierImports(Map<TulevaFund, Instant> writtenAt) {
   }
 
   String importStatus(HealthCheckResult result) {
-    if (result.hasFails() && writtenAt.containsKey(result.fund())) {
+    if (result.hasFails() && importedAt.containsKey(result.fund())) {
       return "blocked (earlier positions in use)";
     }
     return result.importStatus();

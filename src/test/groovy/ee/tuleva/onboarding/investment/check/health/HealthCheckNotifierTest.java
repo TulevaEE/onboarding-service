@@ -134,7 +134,7 @@ class HealthCheckNotifierTest {
     verify(notificationService)
         .sendMessage(
             startsWith(
-                "IMPORT BLOCKED: SEB 2026-04-15 — TUV100 not imported; TUK75 positions from"
+                "IMPORT BLOCKED: SEB 2026-04-15 — TUV100 not imported; TUK75 positions written"
                     + " 2026-04-16 09:10 stay in use for NAV, source files need to be fixed\n"
                     + "Funds: TUK75 blocked (earlier positions in use), TUV100 blocked\n"),
             eq(INVESTMENT));

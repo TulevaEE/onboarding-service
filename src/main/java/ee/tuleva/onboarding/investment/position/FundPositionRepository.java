@@ -122,6 +122,14 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   Optional<Instant> findLastWrittenAt(TulevaFund fund, LocalDate navDate);
 
   @Query(
+      """
+      SELECT MAX(COALESCE(fp.updatedAt, fp.createdAt)) FROM FundPosition fp
+      WHERE fp.fund = :fund AND fp.navDate = :navDate
+        AND fp.accountType <> ee.tuleva.onboarding.investment.position.AccountType.FEE
+      """)
+  Optional<Instant> findLastImportedAt(TulevaFund fund, LocalDate navDate);
+
+  @Query(
       "SELECT DISTINCT fp.navDate FROM FundPosition fp WHERE fp.fund = :fund ORDER BY fp.navDate")
   List<LocalDate> findDistinctNavDatesByFund(TulevaFund fund);
 

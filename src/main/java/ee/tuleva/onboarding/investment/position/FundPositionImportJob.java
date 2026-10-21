@@ -142,8 +142,8 @@ public class FundPositionImportJob {
         .filter(HealthCheckResult::hasFails)
         .flatMap(
             result ->
-                importService.lastWrittenAt(result.fund(), result.checkDate()).stream()
-                    .map(writtenAt -> Map.entry(result.fund(), writtenAt)))
+                importService.lastImportedAt(result.fund(), result.checkDate()).stream()
+                    .map(importedAt -> Map.entry(result.fund(), importedAt)))
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 

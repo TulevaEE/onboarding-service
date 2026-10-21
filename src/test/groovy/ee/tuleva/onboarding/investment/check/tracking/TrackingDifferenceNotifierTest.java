@@ -1201,7 +1201,7 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue())
         .contains("TD check RAN ONLY IN PART")
         .contains("TUK75: IE00MISSING")
-        .contains("Those funds were skipped");
+        .contains("a whole fund, or the one check it names");
   }
 
   @Test
@@ -1421,7 +1421,7 @@ class TrackingDifferenceNotifierTest {
         .sendMessage(
             """
             ⚠️ TD BACKFILL INCOMPLETE: daysBack=30
-              The check dates named in the message above were not re-run and keep their old \
+              The checks named in the message above were not re-run and keep their old \
             events, and the breach streaks counted after them still run through those events. \
             Rerun the backfill once their prices are in.
 

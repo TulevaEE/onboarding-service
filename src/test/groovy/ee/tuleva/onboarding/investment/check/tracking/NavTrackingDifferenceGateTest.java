@@ -226,6 +226,7 @@ class NavTrackingDifferenceGateTest {
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notifyCheckCouldNotRun(TUK75, NAV_DATE);
+    then(trackingDifferenceNotifier).should(never()).notify(anyList());
     then(trackingDifferenceNotifier).should(never()).notify(anyList(), anyList());
   }
 

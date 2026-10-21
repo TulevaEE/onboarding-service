@@ -168,13 +168,7 @@ class TrackingDifferenceServiceGapFillIT {
 
   @Test
   void namesADateOnWhichTheModelCheckMeasuredNoHoldingForWantOfABenchmarkPrice() {
-    storeModelPortfolio();
-    storeHolding(WEDNESDAY);
-    storeHolding(THURSDAY);
-    givenPrice(WEDNESDAY, "100.00");
-    givenPrice(THURSDAY, "101.00");
-    publishNav(WEDNESDAY, "10.0000");
-    publishNav(THURSDAY, "10.1000");
+    storeACheckableThursday();
     givenTheHoldingsBenchmarkHasNoPrices();
 
     assertThat(service.fillGaps(LOOKBACK_DAYS).failures())
@@ -209,13 +203,7 @@ class TrackingDifferenceServiceGapFillIT {
 
   @Test
   void aManualRunWhoseModelCheckMeasuredNoHoldingEndsIncompleteAndKeepsTheOtherChecks() {
-    storeModelPortfolio();
-    storeHolding(WEDNESDAY);
-    storeHolding(THURSDAY);
-    givenPrice(WEDNESDAY, "100.00");
-    givenPrice(THURSDAY, "101.00");
-    publishNav(WEDNESDAY, "10.0000");
-    publishNav(THURSDAY, "10.1000");
+    storeACheckableThursday();
     givenTheHoldingsBenchmarkHasNoPrices();
 
     assertThatThrownBy(() -> service.runChecksAsOf(THURSDAY))
@@ -229,16 +217,10 @@ class TrackingDifferenceServiceGapFillIT {
 
   @Test
   void theNavGateNamesTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
-    storeModelPortfolio();
-    storeHolding(WEDNESDAY);
-    storeHolding(THURSDAY);
-    givenPrice(WEDNESDAY, "100.00");
-    givenPrice(THURSDAY, "101.00");
-    publishNav(WEDNESDAY, "10.0000");
-    publishNav(THURSDAY, "10.1000");
+    storeACheckableThursday();
     givenTheHoldingsBenchmarkHasNoPrices();
 
-    gate.check(TUK75, THURSDAY);
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
 
     then(trackingDifferenceNotifier)
         .should()
@@ -265,22 +247,16 @@ class TrackingDifferenceServiceGapFillIT {
     publishNav(THURSDAY, "10.1000");
     givenABenchmarkWithoutPricesFor(UNHELD_ISIN);
 
-    gate.check(TUK75, THURSDAY);
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
   }
 
   @Test
   void theNavGateNamesNothingForHoldingsWithNoBenchmarkSinceNoPriceWouldEverMeasureThem() {
-    storeModelPortfolio();
-    storeHolding(WEDNESDAY);
-    storeHolding(THURSDAY);
-    givenPrice(WEDNESDAY, "100.00");
-    givenPrice(THURSDAY, "101.00");
-    publishNav(WEDNESDAY, "10.0000");
-    publishNav(THURSDAY, "10.1000");
+    storeACheckableThursday();
 
-    gate.check(TUK75, THURSDAY);
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
   }
@@ -387,6 +363,16 @@ class TrackingDifferenceServiceGapFillIT {
         .bodImpliedFundReturn(onePercent)
         .navResidual(ZERO)
         .build();
+  }
+
+  private void storeACheckableThursday() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
   }
 
   private void givenTheHoldingsBenchmarkHasNoPrices() {

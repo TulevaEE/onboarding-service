@@ -35,7 +35,7 @@ class TrackingDifferenceNotifier {
   private static final String BACKFILL_INCOMPLETE_HEADER =
       """
       ⚠️ TD BACKFILL INCOMPLETE: daysBack=%d
-        The check dates named in the message above were not re-run and keep their old \
+        The checks named in the message above were not re-run and keep their old \
       events, and the breach streaks counted after them still run through those events. \
       Rerun the backfill once their prices are in.
       """;
@@ -71,8 +71,9 @@ class TrackingDifferenceNotifier {
       notificationService.sendMessage(
           """
           ⚠️ %s RAN ONLY IN PART: %s
-            Those funds were skipped, so nothing on this channel says whether their tracking
-            difference is within limits today. The result that follows covers the rest."""
+            What each line above names was skipped (a whole fund, or the one check it names), so
+            nothing on this channel says whether it is within limits today. The result that
+            follows covers the rest."""
               .formatted(run, reason),
           INVESTMENT);
     } catch (Exception e) {

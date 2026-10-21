@@ -280,6 +280,16 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "second_pillar_rejoin_en": {
+      "subject": "Your II pillar applications",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_rejoin_et": {
+      "subject": "Sinu II samba avaldused",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "second_pillar_transfer_cancellation_en": {
       "subject": "Pension fund application",
       "from_email": "tuleva@tuleva.ee",
@@ -371,6 +381,7 @@
     "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",
     "second_pillar_mandate": "Sent right after signing a second pillar fund transfer or fund selection application, with the signed application attached.",
     "second_pillar_payment_rate": "Sent right after signing a second pillar contribution rate change application, with the signed application attached.",
+    "second_pillar_rejoin": "Sent right after signing the II pillar rejoin (the application to make contributions, the contribution rate and the fund selection), with the signed applications attached and when contributions start.",
     "second_pillar_transfer_cancellation": "Sent right after signing an application that cancels a pending second pillar fund transfer, with the signed application attached.",
     "second_pillar_withdrawal_cancellation": "Sent right after signing an application that cancels a pending second pillar withdrawal, with the signed application attached.",
     "third_pillar_payment_arrived": "Sent by the daily noon job to people whose first ever own contribution has reached the third pillar fund, including payers who have never logged in. Each person gets it once; capped at 200 recipients per day.",

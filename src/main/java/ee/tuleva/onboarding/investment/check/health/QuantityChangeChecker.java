@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
 import static java.math.BigDecimal.ZERO;
@@ -22,6 +23,24 @@ import org.springframework.stereotype.Component;
 class QuantityChangeChecker {
 
   private static final BigDecimal ROUNDING_TOLERANCE = new BigDecimal("0.01");
+
+  List<HealthCheckFinding> check(
+      TulevaFund fund,
+      List<FundPosition> securities,
+      List<FundPosition> previousSecurities,
+      OpenTradeChanges tradeChanges) {
+    var unavailableReason = tradeChanges.unavailableReason();
+    if (unavailableReason == null) {
+      return check(
+          fund, securities, previousSecurities, TradedQuantity.byIsin(tradeChanges.appeared()));
+    }
+    if (check(fund, securities, previousSecurities, Map.of()).isEmpty()) {
+      return List.of();
+    }
+    return List.of(
+        new HealthCheckFinding(
+            fund, QUANTITY_CHANGE, NOT_RUN, "Not checked: " + unavailableReason));
+  }
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
@@ -81,13 +100,20 @@ class QuantityChangeChecker {
         fund,
         QUANTITY_CHANGE,
         WARNING,
-        "%s: SECURITY quantity changed by %s for ISIN %s (previous %s, current %s) — executed transactions explain %s"
+        "%s quantity %s (%s → %s), new on SEB's trade list %s"
             .formatted(
-                fund,
-                quantityChange.toPlainString(),
                 isin,
-                previousQuantity.toPlainString(),
-                currentQuantity.toPlainString(),
-                expectedChange.toPlainString()));
+                signed(quantityChange),
+                plain(previousQuantity),
+                plain(currentQuantity),
+                signed(expectedChange)));
+  }
+
+  private static String signed(BigDecimal quantity) {
+    return quantity.signum() < 0 ? plain(quantity) : "+" + plain(quantity);
+  }
+
+  private static String plain(BigDecimal quantity) {
+    return quantity.stripTrailingZeros().toPlainString();
   }
 }

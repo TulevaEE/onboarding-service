@@ -87,6 +87,7 @@ class TrackingDifferenceServiceGapFillIT {
       LocalDate.of(2026, 5, 8);
   private static final LocalDate MODEL_EFFECTIVE_DATE = LocalDate.of(2026, 1, 1);
   private static final String HELD_ISIN = "IE00B4L5Y983";
+  private static final String UNHELD_ISIN = "IE00B4L5YC18";
   private static final BigDecimal HOLDING_VALUE = new BigDecimal("1000000.00");
 
   @TestConfiguration
@@ -177,6 +178,24 @@ class TrackingDifferenceServiceGapFillIT {
                 MISSING_PRICE,
                 1,
                 LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW));
+  }
+
+  @Test
+  void
+      namesNothingWhenOnlyAnUnheldModelAllocationLacksABenchmarkPriceSinceItsPriceWouldMeasureNothing() {
+    storeModelPortfolio(HELD_ISIN, new BigDecimal("0.50"));
+    storeModelPortfolio(UNHELD_ISIN, new BigDecimal("0.50"));
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    givenPrice(UNHELD_ISIN, WEDNESDAY, "50.00");
+    givenPrice(UNHELD_ISIN, THURSDAY, "50.50");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenABenchmarkWithoutPricesFor(UNHELD_ISIN);
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS).failures()).isEmpty();
   }
 
   @Test
@@ -304,19 +323,27 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   private void givenTheHoldingsBenchmarkHasNoPrices() {
-    given(instrumentReferenceService.findByIsin(HELD_ISIN))
-        .willReturn(Optional.of(instrument(HELD_ISIN).benchmarkCategory("EQUITY_DM").build()));
+    givenABenchmarkWithoutPricesFor(HELD_ISIN);
+  }
+
+  private void givenABenchmarkWithoutPricesFor(String isin) {
+    given(instrumentReferenceService.findByIsin(isin))
+        .willReturn(Optional.of(instrument(isin).benchmarkCategory("EQUITY_DM").build()));
     given(instrumentReferenceService.resolveBenchmarkProxy(eq("EQUITY_DM"), anyBoolean()))
         .willReturn(Optional.of(new BenchmarkProxy(null, "MSCI_WORLD")));
   }
 
   private void storeModelPortfolio() {
+    storeModelPortfolio(HELD_ISIN, BigDecimal.ONE);
+  }
+
+  private void storeModelPortfolio(String isin, BigDecimal weight) {
     modelPortfolioAllocationRepository.save(
         ModelPortfolioAllocation.builder()
             .fund(TUK75)
             .effectiveDate(MODEL_EFFECTIVE_DATE)
-            .isin(HELD_ISIN)
-            .weight(BigDecimal.ONE)
+            .isin(isin)
+            .weight(weight)
             .build());
   }
 
@@ -347,7 +374,11 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   private void givenPrice(LocalDate priceDate, String price) {
-    given(positionPriceResolver.resolve(eq(HELD_ISIN), eq(priceDate), any(Instant.class)))
+    givenPrice(HELD_ISIN, priceDate, price);
+  }
+
+  private void givenPrice(String isin, LocalDate priceDate, String price) {
+    given(positionPriceResolver.resolve(eq(isin), eq(priceDate), any(Instant.class)))
         .willReturn(
             Optional.of(
                 ResolvedPrice.builder()

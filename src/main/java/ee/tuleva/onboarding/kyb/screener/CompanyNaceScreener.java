@@ -14,7 +14,7 @@ public class CompanyNaceScreener implements KybScreener {
 
   static final Set<String> HIGH_RISK_NACE_CODES =
       Set.of(
-          "64321", "66191", "66199", "66301", "69202", "92001", "92009", "46481", "46722", "47771",
+          "64321", "64991", "66191", "66199", "66301", "92001", "92009", "46481", "46722", "47771",
           "47791");
 
   @Override

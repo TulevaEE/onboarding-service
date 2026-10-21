@@ -30,7 +30,7 @@ class CompanyNaceScreenerTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"64321", "66199", "66301", "92001", "47791"})
+  @ValueSource(strings = {"64321", "64991", "66191", "66199", "66301", "92001", "47791"})
   void anyHighRiskActivityFailsEvenBesideAnUnlistedMainActivity(String highRiskCode) {
     var data = companyWithActivities(List.of("62011", highRiskCode));
 
@@ -39,6 +39,17 @@ class CompanyNaceScreenerTest {
     assertThat(results)
         .extracting(KybCheck::type, KybCheck::success)
         .containsExactly(tuple(HIGH_RISK_NACE, false));
+  }
+
+  @Test
+  void bookkeepingAndTaxAdviceIsNotAHighRiskActivity() {
+    var data = companyWithActivities(List.of("69202"));
+
+    var results = screener.screen(data);
+
+    assertThat(results)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(HIGH_RISK_NACE, true));
   }
 
   @Test

@@ -30,7 +30,7 @@ class CompanyNaceScreenerTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"64321", "64991", "66191", "66199", "66301", "92001", "47791"})
+  @ValueSource(strings = {"64301", "64321", "64991", "66191", "66199", "66301", "92001", "47791"})
   void anyHighRiskActivityFailsEvenBesideAnUnlistedMainActivity(String highRiskCode) {
     var data = companyWithActivities(List.of("62011", highRiskCode));
 

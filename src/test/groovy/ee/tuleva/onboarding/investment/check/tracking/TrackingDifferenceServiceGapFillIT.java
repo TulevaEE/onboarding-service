@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.investment.check.tracking.GapFillRun.NOTHING_TO_FILL;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
@@ -11,7 +13,9 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
@@ -20,6 +24,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -152,6 +157,49 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   @Test
+  void namesADateOnWhichTheModelCheckMeasuredNoHoldingForWantOfABenchmarkPrice() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS).failures())
+        .containsExactly(
+            new GapFailure(
+                THURSDAY,
+                "fund=TUK75, BENCHMARK_MODEL measured no holding for want of a benchmark price"
+                    + " (insert it, then backfill the date): holdings="
+                    + HELD_ISIN,
+                MISSING_PRICE,
+                1,
+                LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW));
+  }
+
+  @Test
+  void aManualRunWhoseModelCheckMeasuredNoHoldingEndsIncompleteAndKeepsTheOtherChecks() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    assertThatThrownBy(() -> service.runChecksAsOf(THURSDAY))
+        .isInstanceOfSatisfying(
+            TrackingDifferenceService.IncompletePriceDataException.class,
+            incomplete ->
+                assertThat(incomplete.completedResults())
+                    .extracting(TrackingDifferenceResult::checkType)
+                    .containsExactly(MODEL_PORTFOLIO));
+  }
+
+  @Test
   void namesNothingForAPositionDateOnAPublicHolidayOrAWeekendSinceNoNavIsEverCalculatedForIt() {
     storeModelPortfolio();
     storeHolding(GOOD_FRIDAY);
@@ -253,6 +301,13 @@ class TrackingDifferenceServiceGapFillIT {
         .bodImpliedFundReturn(onePercent)
         .navResidual(ZERO)
         .build();
+  }
+
+  private void givenTheHoldingsBenchmarkHasNoPrices() {
+    given(instrumentReferenceService.findByIsin(HELD_ISIN))
+        .willReturn(Optional.of(instrument(HELD_ISIN).benchmarkCategory("EQUITY_DM").build()));
+    given(instrumentReferenceService.resolveBenchmarkProxy(eq("EQUITY_DM"), anyBoolean()))
+        .willReturn(Optional.of(new BenchmarkProxy(null, "MSCI_WORLD")));
   }
 
   private void storeModelPortfolio() {

@@ -1888,7 +1888,7 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void benchmarkModelSkipsWhenBenchmarkDataMissing() {
+  void aModelCheckWithoutBenchmarkDataEndsTheRunIncompleteAndKeepsTheOtherChecks() {
     skipOtherFunds(TUK75);
 
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
@@ -1945,11 +1945,14 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
-    // No IWDA.DE benchmark data — BENCHMARK_MODEL should be skipped
-    var results = service.runChecksAsOf(CHECK_DATE);
-
-    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
-    assertThat(bmModel).isEmpty();
+    assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
+        .isInstanceOfSatisfying(
+            TrackingDifferenceService.IncompletePriceDataException.class,
+            incomplete ->
+                assertThat(incomplete.completedResults())
+                    .extracting(TrackingDifferenceResult::checkType)
+                    .contains(MODEL_PORTFOLIO)
+                    .doesNotContain(BENCHMARK_MODEL));
   }
 
   @Test

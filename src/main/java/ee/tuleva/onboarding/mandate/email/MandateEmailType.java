@@ -26,6 +26,11 @@ public final class MandateEmailType {
   }
 
   public static EmailType emailTypeFor(MandateBatch batch) {
+    if (batch.getMandates().stream()
+        .anyMatch(mandate -> mandate.getMandateType() == MandateType.REJOIN)) {
+      return SECOND_PILLAR_REJOIN;
+    }
+
     var allMandatesWithdrawals =
         batch.getMandates().stream()
             .allMatch(

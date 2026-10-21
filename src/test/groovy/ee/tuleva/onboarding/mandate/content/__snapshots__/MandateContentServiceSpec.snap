@@ -775,7 +775,7 @@ fund_transfer_2nd_pillar=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">
@@ -1807,7 +1807,7 @@ fund_transfer_3rd_pillar=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">
@@ -2467,7 +2467,7 @@ future_contributions_2nd_pillar=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">
@@ -3077,7 +3077,7 @@ future_contributions_3rd_pillar=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">
@@ -3707,7 +3707,7 @@ mandate_cancellation=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">
@@ -4273,7 +4273,7 @@ payment_rate_change=[
   <!-- Third row with variables -->
   <tr style="height:22pt">
     <td ><p ><span>5555555</span></p></td>
-    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+    <td ><p ><span>jordan@example.com</span></p></td>
   </tr>
   <!-- Labels for third row -->
   <tr style="height:22pt">

@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContacts;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -31,7 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class PaymentRateChangeMandateFactoryTest {
+public class DetailsOnlyMandateFactoryTest {
 
   @Mock private MandateContacts mandateContacts;
 
@@ -43,7 +44,7 @@ public class PaymentRateChangeMandateFactoryTest {
 
   @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
 
-  @InjectMocks private PaymentRateChangeMandateFactory paymentRateChangeMandateFactory;
+  @InjectMocks private DetailsOnlyMandateFactory detailsOnlyMandateFactory;
 
   @Test
   @DisplayName("delegates mandate creation to mandate factory and fetches payment rates")
@@ -54,7 +55,8 @@ public class PaymentRateChangeMandateFactoryTest {
         AuthenticatedPersonFixture.authenticatedPersonFromUser(anUser).build();
     var paymentRates = new PaymentRates(6, null);
 
-    var anDto = sampleMandateCreationDto(new PaymentRateChangeMandateDetails(SIX));
+    MandateDto<MandateDetails> anDto =
+        sampleMandateCreationDto(new PaymentRateChangeMandateDetails(SIX));
 
     when(userService.getById(any())).thenReturn(Optional.of(anUser));
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());
@@ -62,8 +64,7 @@ public class PaymentRateChangeMandateFactoryTest {
     when(secondPillarPaymentRateService.getPaymentRates(authenticatedPerson))
         .thenReturn(paymentRates);
 
-    Mandate genericMandate =
-        paymentRateChangeMandateFactory.createMandate(authenticatedPerson, anDto);
+    Mandate genericMandate = detailsOnlyMandateFactory.createMandate(authenticatedPerson, anDto);
 
     assertThat(genericMandate.getUser()).isEqualTo(anUser);
     assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.address());
@@ -88,9 +89,10 @@ public class PaymentRateChangeMandateFactoryTest {
   }
 
   @Test
-  @DisplayName("supports PAYMENT_RATE_CHANGE mandates")
+  @DisplayName("supports PAYMENT_RATE_CHANGE and REJOIN mandates")
   void testSupports() {
-    assertThat(paymentRateChangeMandateFactory.supports(PAYMENT_RATE_CHANGE)).isTrue();
-    assertThat(paymentRateChangeMandateFactory.supports(WITHDRAWAL_CANCELLATION)).isFalse();
+    assertThat(detailsOnlyMandateFactory.supports(PAYMENT_RATE_CHANGE)).isTrue();
+    assertThat(detailsOnlyMandateFactory.supports(REJOIN)).isTrue();
+    assertThat(detailsOnlyMandateFactory.supports(WITHDRAWAL_CANCELLATION)).isFalse();
   }
 }

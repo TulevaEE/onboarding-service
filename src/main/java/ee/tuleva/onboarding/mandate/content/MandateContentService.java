@@ -169,6 +169,20 @@ class MandateContentService {
     return templateEngine.process("payment_rate_change", ctx);
   }
 
+  String getRejoinHtml(User user, Mandate mandate, MandateContactDetails contactDetails) {
+    Context ctx =
+        ContextBuilder.builder()
+            .mandate(mandate)
+            .user(user)
+            .address(requireAddress(mandate))
+            .contactDetails(contactDetails)
+            .transactionId(UUID.randomUUID().toString())
+            .documentNumber(mandate.getIdOrThrow().toString())
+            .build();
+
+    return templateEngine.process("second_pillar_rejoin", ctx);
+  }
+
   private static Country requireAddress(Mandate mandate) {
     return requireNonNull(mandate.getAddress(), "Address missing: mandateId=" + mandate.getId());
   }

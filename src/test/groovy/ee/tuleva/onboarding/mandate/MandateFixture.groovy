@@ -309,6 +309,22 @@ class MandateFixture {
     return mandate
   }
 
+  static Mandate sampleRejoinMandate() {
+    Mandate mandate = builder()
+        .address(countryFixture().build())
+        .fundTransferExchanges([])
+        .user(sampleUser().build())
+        .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.setMetadata(Map.of())
+    mandate.setPillar(SECOND.toInt())
+    mandate.setDetails(new RejoinMandateDetails())
+    return mandate
+  }
+
   static Mandate sampleMandateWithEmptyTransfer() {
     Mandate mandate = builder()
         .fundTransferExchanges([

@@ -12,6 +12,7 @@ public enum ApplicationType {
   CANCELLATION("Avalduse tühistamise avaldus"), // 2nd pillar, to cancel EARLY_WITHDRAWAL/WITHDRAWAL
   PAYMENT("Sissemakse"), // 3rd pillar contribution payment,
   PAYMENT_RATE("Sissemaksete määra muutmine"), // 2nd pillar payment rate change
+  REJOIN("Maksete tegemise avaldus"), // 2nd pillar
   FUND_PENSION_OPENING("Fondipensioni avamise avaldus"),
   FUND_PENSION_OPENING_THIRD_PILLAR("Täiendava fondipensioni avamise avaldus"),
   PARTIAL_WITHDRAWAL("Osalise väljamakse avaldus II sambast"),

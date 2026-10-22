@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.nudge;
 
-import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY;
 import static ee.tuleva.onboarding.nudge.NudgeDecision.of;
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
 import static ee.tuleva.onboarding.nudge.NudgeKey.NONE;
@@ -12,21 +11,27 @@ final class NudgeRules {
   private NudgeRules() {}
 
   static NudgeDecision decide(NudgeInputs in, NudgeContext context) {
-    if (isCompanyPayment(in, context)) {
-      return standingOrderForTheProductJustPaid(in, context).orElse(of(NONE));
-    }
-    NudgeDecision decision =
-        PensionNudges.pillarChoices(in, context)
-            .or(() -> standingOrderForTheProductJustPaid(in, context))
-            .or(() -> PensionNudges.standingOrders(in, context))
-            .or(() -> SavingsNudges.decide(in, context))
-            .or(() -> membership(in, context))
-            .orElse(of(NONE));
-    return withSeason(decision, in, context);
+    return withSeason(decision(in, context), in, context);
   }
 
-  private static boolean isCompanyPayment(NudgeInputs in, NudgeContext context) {
-    return in.actingFor() == COMPANY && context.impliesSavingsFundSaver();
+  private static NudgeDecision decision(NudgeInputs in, NudgeContext context) {
+    if (!context.impliesSavingsFundSaver()) {
+      return chain(in, context);
+    }
+    return switch (in.actingFor()) {
+      case SELF -> chain(in, context);
+      case CHILD -> SavingsNudges.savingsFundRecurring(in).orElseGet(() -> chain(in, context));
+      case COMPANY -> SavingsNudges.savingsFundRecurring(in).orElse(of(NONE));
+    };
+  }
+
+  private static NudgeDecision chain(NudgeInputs in, NudgeContext context) {
+    return PensionNudges.pillarChoices(in, context)
+        .or(() -> standingOrderForTheProductJustPaid(in, context))
+        .or(() -> PensionNudges.standingOrders(in, context))
+        .or(() -> SavingsNudges.decide(in, context))
+        .or(() -> membership(in, context))
+        .orElse(of(NONE));
   }
 
   private static Optional<NudgeDecision> standingOrderForTheProductJustPaid(

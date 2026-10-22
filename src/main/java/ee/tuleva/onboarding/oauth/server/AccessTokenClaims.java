@@ -15,18 +15,22 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class AccessTokenClaims implements OAuth2TokenCustomizer<JwtEncodingContext> {
 
-  static final String CONNECT_API_PATH = "/connect/v1";
+  static final String ACCESS_TOKEN_TYPE = "at+jwt";
   static final String GRANT_ID_CLAIM = "grant_id";
 
   private final AuthorizationServerSettings settings;
 
+  static String audienceOf(String issuer) {
+    return issuer + "/v1";
+  }
+
   @Override
   public void customize(JwtEncodingContext context) {
     if (ACCESS_TOKEN.equals(context.getTokenType())) {
-      context.getJwsHeader().algorithm(ES384);
+      context.getJwsHeader().algorithm(ES384).type(ACCESS_TOKEN_TYPE);
       context
           .getClaims()
-          .audience(List.of(requireNonNull(settings.getIssuer()) + CONNECT_API_PATH))
+          .audience(List.of(audienceOf(requireNonNull(settings.getIssuer()))))
           .claim(GRANT_ID_CLAIM, requireNonNull(context.getAuthorization()).getId());
     }
   }

@@ -6,17 +6,15 @@ import static org.springframework.security.oauth2.core.OAuth2AccessToken.TokenTy
 import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE;
 import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE_METHOD;
 import static org.springframework.security.oauth2.server.authorization.OAuth2Authorization.Token.INVALIDATED_METADATA_NAME;
-import static org.springframework.security.oauth2.server.authorization.OAuth2TokenType.ACCESS_TOKEN;
-import static org.springframework.security.oauth2.server.authorization.OAuth2TokenType.REFRESH_TOKEN;
 
 import ee.tuleva.onboarding.oauth.server.Grants.NewGrant;
 import ee.tuleva.onboarding.oauth.server.Grants.RevocationReason;
 import ee.tuleva.onboarding.oauth.server.Grants.TokenColumn;
 import java.security.Principal;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
@@ -25,13 +23,11 @@ import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,15 +36,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class GrantAuthorizationService implements OAuth2AuthorizationService {
 
-  static final OAuth2TokenType CODE = new OAuth2TokenType(OAuth2ParameterNames.CODE);
-
   private static final String STORED_AS_HASH = "hashed:";
   static final String LOADED_REFRESH_TOKEN_HASH =
       GrantAuthorizationService.class.getName() + ".loadedRefreshTokenHash";
 
   private final Grants grants;
-  private final RegisteredClientRepository clients;
+  private final ConfiguredClients clients;
   private final AuthorizationServerSettings settings;
+  private final Clock clock;
 
   @Override
   @Transactional(noRollbackFor = OAuth2AuthenticationException.class)
@@ -77,8 +72,9 @@ class GrantAuthorizationService implements OAuth2AuthorizationService {
   public @Nullable OAuth2Authorization findByToken(
       String token, @Nullable OAuth2TokenType tokenType) {
     var hash = TokenHash.of(token);
+    var columns = TokenColumn.holding(tokenType);
     var match =
-        columnsFor(tokenType)
+        columns.stream()
             .flatMap(
                 column ->
                     grants
@@ -87,7 +83,7 @@ class GrantAuthorizationService implements OAuth2AuthorizationService {
                         .stream())
             .findFirst();
     if (match.isEmpty()) {
-      if (tokenType == null || REFRESH_TOKEN.equals(tokenType)) {
+      if (columns.contains(TokenColumn.REFRESH_TOKEN)) {
         grants
             .grantOfSpentRefreshToken(hash)
             .ifPresent(grantId -> grants.revoke(grantId, RevocationReason.REFRESH_TOKEN_REUSED));
@@ -167,11 +163,10 @@ class GrantAuthorizationService implements OAuth2AuthorizationService {
   }
 
   private Optional<OAuth2Authorization> active(GrantRow row, @Nullable Match match) {
-    if (!grants.isLive(row)) {
+    if (!row.isLiveAt(clock.instant())) {
       return Optional.empty();
     }
-    return Optional.ofNullable(clients.findById(row.clientId()))
-        .map(client -> build(row, client, match));
+    return clients.find(row.clientId()).map(client -> build(row, client, match));
   }
 
   private OAuth2Authorization build(GrantRow row, RegisteredClient client, @Nullable Match match) {
@@ -237,22 +232,6 @@ class GrantAuthorizationService implements OAuth2AuthorizationService {
 
   private static boolean isInvalidated(OAuth2Authorization.@Nullable Token<?> token) {
     return token != null && token.isInvalidated();
-  }
-
-  private static Stream<TokenColumn> columnsFor(@Nullable OAuth2TokenType tokenType) {
-    if (tokenType == null) {
-      return Stream.of(TokenColumn.values());
-    }
-    if (CODE.equals(tokenType)) {
-      return Stream.of(TokenColumn.AUTHORIZATION_CODE);
-    }
-    if (ACCESS_TOKEN.equals(tokenType)) {
-      return Stream.of(TokenColumn.ACCESS_TOKEN);
-    }
-    if (REFRESH_TOKEN.equals(tokenType)) {
-      return Stream.of(TokenColumn.REFRESH_TOKEN);
-    }
-    return Stream.empty();
   }
 
   private record Match(GrantRow row, TokenColumn column, String rawToken) {}

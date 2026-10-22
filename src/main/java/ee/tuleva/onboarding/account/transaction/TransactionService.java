@@ -19,7 +19,7 @@ public class TransactionService {
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
     List<Transaction> savingsFundTransactions = savingsTransactions.getTransactions(person);
 
-    if (!person.isActingAsSelf()) {
+    if (!person.mayQueryPensionRegister()) {
       return savingsFundTransactions;
     }
 

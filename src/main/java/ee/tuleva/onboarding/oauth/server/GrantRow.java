@@ -63,4 +63,8 @@ record GrantRow(
         Timestamps.read(resultSet, "refresh_token_expires_at"),
         Timestamps.read(resultSet, "revoked_at"));
   }
+
+  boolean isLiveAt(Instant now) {
+    return revokedAt == null && GrantLifetime.isLive(expiresAt, lastRefreshedAt, now);
+  }
 }

@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.CashFlow;
@@ -65,6 +66,7 @@ public record Transaction(
     return time.atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
+  @JsonIgnore
   public boolean isAcquisition() {
     return type == CONTRIBUTION_CASH
         || type == CONTRIBUTION_CASH_WORKPLACE

@@ -12,6 +12,8 @@ This guide is for an app that reads a person's Tuleva data with their permission
 | Token endpoint | `https://onboarding-service.tuleva.ee/oauth2/token` |
 | Revocation endpoint | `https://onboarding-service.tuleva.ee/oauth2/revoke` |
 | Token signing keys (JWKS) | `https://onboarding-service.tuleva.ee/oauth2/jwks` |
+| API | `https://onboarding-service.tuleva.ee/v1` |
+| API metadata (RFC 9728) | `https://onboarding-service.tuleva.ee/.well-known/oauth-protected-resource/v1` |
 | Grant types | `authorization_code`, `refresh_token` |
 | Client authentication | `private_key_jwt`, ES384 (ECDSA on P-384) |
 | PKCE | required, `S256` |
@@ -142,7 +144,9 @@ Keep your server clock synchronized: an assertion issued more than a minute in t
 
 ### Access token
 
-- A JWT valid for 10 minutes, signed by Tuleva with ES384. Send it as `Authorization: Bearer <access_token>`.
+- A JWT valid for 10 minutes, signed by Tuleva with ES384, of type `at+jwt`. Send it as `Authorization: Bearer <access_token>`.
+- It is for Tuleva's API: its audience (`aud`) is `https://onboarding-service.tuleva.ee/v1`.
+- It stops working at once when the connection ends, even before its 10 minutes are over.
 - `sub` identifies the person. It is stable for your app and different for every other app; you never receive the person's personal identification code. Use `sub` as your user ID for Tuleva.
 - Do not depend on other claims.
 
@@ -184,7 +188,7 @@ A connection can also end on Tuleva's side:
 - the person revokes it on Tuleva's Security page
 - Tuleva revokes it, for example after a suspected leak
 
-Either way, your next refresh gets `invalid_grant`.
+Either way, your next refresh gets `invalid_grant`, and an access token you still hold gets `401` on its next use.
 
 ## 5. Errors
 
@@ -194,50 +198,136 @@ Either way, your next refresh gets `invalid_grant`.
 | redirect | `invalid_scope` | Ask only for the scopes listed above. |
 | token endpoint | `invalid_client` | Check the client assertion: key, `alg` (must be `ES384`), `aud`, `iat`, `exp`. If everything is right, your app may be suspended; contact us. |
 | token endpoint | `invalid_grant` | The code expired or was used, or the connection has ended. Send the person through step 2 again. |
+| API | `401`, `WWW-Authenticate: Bearer error="invalid_token"` | The access token expired: refresh it. If the refresh gets `invalid_grant`, the connection has ended. |
+| API | `403` | The token has no scope for this endpoint, or the endpoint is not open to apps. Do not retry. |
 
 ## 6. Data
 
-Draft. The endpoints and fields below are a proposal to agree on before we build them.
+Apps read the person's data through Tuleva's own API, the one Tuleva's web app uses, limited to the scopes the person allowed:
 
-All data endpoints need an access token with the matching scope. Amounts are in euros.
+| Endpoint | Scope | Returns |
+|---|---|---|
+| `GET https://onboarding-service.tuleva.ee/v1/savings-account-statement` | `balances:read` | the person's holding in Tuleva's savings fund |
+| `GET https://onboarding-service.tuleva.ee/v1/transactions` | `transactions:read` | the person's savings fund transactions |
 
-### `GET https://onboarding-service.tuleva.ee/connect/v1/balances` (scope `balances:read`)
+- For now, an app sees savings fund data only. II and III pillar data come later, once agreed.
+- Every other API endpoint refuses an app's access token with `403`, whatever its scopes.
+- Tuleva records every read for the person: which app, which connection, which endpoint and which scopes.
+- Amounts are in euros. Times are UTC, in ISO 8601. Dates are calendar dates in Estonia.
+- Send `Accept-Language: en` for English fund names. Without it, names are in Estonian.
+- The examples below are real responses with made-up values. Expect new fields to appear over time and ignore the ones you do not know.
 
-```json
-{
-  "holdings": [
-    {
-      "isin": "EE0000000000",
-      "fundName": "Example Pension Fund",
-      "units": 1234.567,
-      "unitPrice": 1.2345,
-      "value": 1524.17,
-      "currency": "EUR",
-      "priceDate": "2026-10-19"
-    }
-  ]
-}
-```
+### Savings fund statement
 
-### `GET https://onboarding-service.tuleva.ee/connect/v1/transactions?from=2026-01-01&to=2026-10-20` (scope `transactions:read`)
+`GET https://onboarding-service.tuleva.ee/v1/savings-account-statement` (scope `balances:read`)
+
+`204` with no body when the person has never had a savings fund account. Otherwise `200` with the statement, which can show zero units, for example before the person's first payment arrives or after they have redeemed everything.
 
 ```json
 {
-  "transactions": [
-    {
-      "id": "b3a1f0c2-...",
-      "date": "2026-10-15",
-      "isin": "EE0000000000",
-      "fundName": "Example Pension Fund",
-      "type": "CONTRIBUTION",
-      "units": 10.123,
-      "unitPrice": 1.2301,
-      "amount": 12.45,
-      "currency": "EUR"
-    }
-  ]
+  "fund": {
+    "fundManager": { "name": "Tuleva" },
+    "isin": "EE0000000000",
+    "name": "Example Savings Fund",
+    "managementFeeRate": 0.0016,
+    "pillar": null,
+    "ongoingChargesFigure": 0.0029,
+    "status": "ACTIVE",
+    "inceptionDate": "2025-09-18"
+  },
+  "value": 1234.56,
+  "unavailableValue": 0.00,
+  "currency": "EUR",
+  "activeContributions": false,
+  "contributions": 1000.00,
+  "subtractions": -100.00,
+  "profit": 334.56,
+  "units": 100.12345
 }
 ```
+
+| Field | Meaning |
+|---|---|
+| `units` | fund units the person holds and can redeem |
+| `value` | what `units` are worth at the latest net asset value |
+| `unavailableValue` | what the units reserved for a pending redemption are worth |
+| `contributions` | euros paid in for the person's units |
+| `subtractions` | euros the person has redeemed, as a negative number |
+| `profit` | `value` plus `unavailableValue`, minus `contributions` and `subtractions` |
+| `fund.managementFeeRate`, `fund.ongoingChargesFigure` | yearly rates as fractions: `0.0016` is 0.16% |
+| `fund.pillar`, `activeContributions` | used for pension funds only; `null` and `false` for the savings fund |
+
+### Transactions
+
+`GET https://onboarding-service.tuleva.ee/v1/transactions` (scope `transactions:read`)
+
+`200` with a list, newest first. Only a person who has completed joining the savings fund gets their transactions. For anyone else the list is empty, even when the statement shows units.
+
+```json
+[
+  {
+    "id": "7d1a9f3e-2c4b-4e8a-9b6d-0f5e3a2c1b47",
+    "amount": 400.00,
+    "currency": "EUR",
+    "time": "2026-10-14T09:00:00Z",
+    "navDate": "2026-10-14",
+    "priceCalculationDate": null,
+    "settledTime": "2026-10-14T09:00:00Z",
+    "applicationTime": null,
+    "counterpartyIban": null,
+    "isin": "EE0000000000",
+    "type": "TRANSFER_IN",
+    "units": 32.49391,
+    "nav": null,
+    "acquisitionCost": 350.00
+  },
+  {
+    "id": "2b8e4d1c-6f3a-4a9b-8c7d-5e1f2a3b4c5d",
+    "amount": -123.10,
+    "currency": "EUR",
+    "time": "2026-10-07T12:00:00Z",
+    "navDate": "2026-10-06",
+    "priceCalculationDate": "2026-10-07",
+    "settledTime": "2026-10-09T08:00:00Z",
+    "applicationTime": "2026-10-05T18:20:00Z",
+    "counterpartyIban": "EE001010220000000000",
+    "isin": "EE0000000000",
+    "type": "SUBTRACTION",
+    "units": 10.00000,
+    "nav": 12.3100
+  },
+  {
+    "id": "9c3f5a7b-1d2e-4f6a-8b9c-0d1e2f3a4b5c",
+    "amount": 100.00,
+    "currency": "EUR",
+    "time": "2026-10-02T14:00:00Z",
+    "navDate": "2026-10-01",
+    "priceCalculationDate": "2026-10-02",
+    "settledTime": "2026-10-02T14:00:00Z",
+    "applicationTime": "2026-10-01T11:30:00Z",
+    "counterpartyIban": "EE001010220000000000",
+    "isin": "EE0000000000",
+    "type": "CONTRIBUTION_CASH",
+    "units": 8.13008,
+    "nav": 12.3000
+  }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | the transaction's stable ID |
+| `type` | `CONTRIBUTION_CASH`: the person bought units with a payment. `SUBTRACTION`: the person redeemed units. `TRANSFER_IN`, `TRANSFER_OUT`: units moved from or to another person, for example as a gift or an inheritance. |
+| `amount` | euros, negative when value leaves the person's holding |
+| `units` | fund units, always positive; `type` says which way they moved |
+| `nav` | the net asset value per unit the transaction used; `null` for a transfer that was not priced |
+| `time` | when the transaction was booked |
+| `navDate` | the date of the net asset value the transaction used. When the transaction has no net asset value date, the day it was booked, and `priceCalculationDate` is `null`. |
+| `priceCalculationDate` | the day that net asset value was calculated, `null` when the transaction has no net asset value date |
+| `settledTime` | when the money or the units settled |
+| `applicationTime` | when the person's payment arrived or their redemption request was made, `null` when not known |
+| `counterpartyIban` | the bank account a payment came from or a redemption was paid to. Usually the person's own; for a gift, or a payment someone else made for the person, the account of whoever paid. `null` when not known |
+| `acquisitionCost` | on `TRANSFER_IN` only, and only when known: what the units cost the person for tax purposes, in euros |
 
 ## 7. Security expectations
 

@@ -1,57 +1,34 @@
 package ee.tuleva.onboarding.oauth.server;
 
-import static java.util.Objects.requireNonNull;
-import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE;
-import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE_METHOD;
+import static ee.tuleva.onboarding.event.TrackableEventType.APP_CONNECTED;
 
+import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.oauth.AppConnected;
+import ee.tuleva.onboarding.event.RequestOrigin;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationConsentService;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContext;
-import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContextHolder;
-import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
+@RequiredArgsConstructor
 class ConnectService {
 
   private final PendingAuthorizations pendingAuthorizations;
   private final PairwiseSubjects subjects;
-  private final RegisteredClientRepository clients;
-  private final AuthorizationServerSettings settings;
-  private final OAuth2AuthorizationCodeRequestAuthenticationProvider codeIssuer;
+  private final ConfiguredClients clients;
+  private final AuthorizationCodeIssuer codeIssuer;
   private final ApplicationEventPublisher eventPublisher;
-
-  ConnectService(
-      PendingAuthorizations pendingAuthorizations,
-      PairwiseSubjects subjects,
-      RegisteredClientRepository clients,
-      AuthorizationServerSettings settings,
-      OAuth2AuthorizationService authorizationService,
-      ApplicationEventPublisher eventPublisher) {
-    this.pendingAuthorizations = pendingAuthorizations;
-    this.subjects = subjects;
-    this.clients = clients;
-    this.settings = settings;
-    this.eventPublisher = eventPublisher;
-    this.codeIssuer =
-        new OAuth2AuthorizationCodeRequestAuthenticationProvider(
-            clients, authorizationService, new InMemoryOAuth2AuthorizationConsentService());
-    this.codeIssuer.setAuthorizationConsentRequired(consentGivenOnTheConnectPage -> false);
-    this.codeIssuer.setAuthenticationValidator(AuthorizationRequestRules.VALIDATOR);
-  }
+  private final ClientConnection clientConnection;
 
   ConnectRequestResponse details(UUID id, String browserBinding) {
     var request = openRequest(id, browserBinding);
@@ -70,28 +47,17 @@ class ConnectService {
     }
     consume(request);
     var subject = subjects.subjectFor(request.clientId(), person.getPersonalCode());
-    var codeRequest =
-        new OAuth2AuthorizationCodeRequestAuthenticationToken(
-            requireNonNull(settings.getIssuer()) + settings.getAuthorizationEndpoint(),
-            request.clientId(),
-            ConnectedPerson.authenticated(subject, person.getPersonalCode()),
-            request.redirectUri(),
-            request.state(),
-            request.scopes(),
-            Map.of(
-                CODE_CHALLENGE, request.codeChallenge(),
-                CODE_CHALLENGE_METHOD, request.codeChallengeMethod()));
-    AuthorizationServerContextHolder.setContext(authorizationServerContext());
-    try {
-      var issued =
-          (OAuth2AuthorizationCodeRequestAuthenticationToken) codeIssuer.authenticate(codeRequest);
-      eventPublisher.publishEvent(
-          new AppConnected(person, request.clientId(), sortedScopes(request)));
-      return redirect(
-          request, Map.of("code", requireNonNull(issued.getAuthorizationCode()).getTokenValue()));
-    } finally {
-      AuthorizationServerContextHolder.resetContext();
-    }
+    var code = codeIssuer.issue(request, subject, person.getPersonalCode());
+    recordConnection(person, request);
+    return redirect(request, Map.of("code", code));
+  }
+
+  private void recordConnection(AuthenticatedPerson person, PendingAuthorization request) {
+    Map<String, @Nullable Object> connection = new HashMap<>();
+    connection.put("clientId", request.clientId());
+    connection.put("scopes", sortedScopes(request));
+    connection.putAll(RequestOrigin.readOnTheRequestThread(clientConnection));
+    eventPublisher.publishEvent(new TrackableEvent(person, APP_CONNECTED, connection));
   }
 
   @Transactional
@@ -111,11 +77,7 @@ class ConnectService {
   }
 
   private RegisteredClient client(PendingAuthorization request) {
-    var client = clients.findByClientId(request.clientId());
-    if (client == null) {
-      throw ConnectRejectedException.requestNotFound();
-    }
-    return client;
+    return clients.find(request.clientId()).orElseThrow(ConnectRejectedException::requestNotFound);
   }
 
   private void consume(PendingAuthorization request) {
@@ -137,19 +99,5 @@ class ConnectService {
     var uri = UriComponentsBuilder.fromUriString(request.redirectUri());
     values.keySet().forEach(name -> uri.queryParam(name, "{" + name + "}"));
     return new RedirectResponse(uri.encode().buildAndExpand(values).toUriString());
-  }
-
-  private AuthorizationServerContext authorizationServerContext() {
-    return new AuthorizationServerContext() {
-      @Override
-      public String getIssuer() {
-        return requireNonNull(settings.getIssuer());
-      }
-
-      @Override
-      public AuthorizationServerSettings getAuthorizationServerSettings() {
-        return settings;
-      }
-    };
   }
 }

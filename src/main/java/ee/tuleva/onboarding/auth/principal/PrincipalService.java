@@ -50,6 +50,7 @@ public class PrincipalService {
         .userId(user.id())
         .attributes(attributes)
         .role(role)
+        .pensionRegisterConsent(true)
         .build();
   }
 

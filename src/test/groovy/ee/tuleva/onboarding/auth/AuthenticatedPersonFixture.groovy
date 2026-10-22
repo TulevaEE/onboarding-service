@@ -32,6 +32,7 @@ class AuthenticatedPersonFixture {
                 .personalCode(user.personalCode)
                 .userId(user.id)
                 .role(new Role(PERSON, user.personalCode, user.fullName))
+                .pensionRegisterConsent(true)
     }
 
 }

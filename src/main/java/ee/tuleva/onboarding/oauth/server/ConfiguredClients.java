@@ -7,6 +7,7 @@ import static org.springframework.security.oauth2.core.ClientAuthenticationMetho
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -44,16 +45,17 @@ class ConfiguredClients implements RegisteredClientRepository {
 
   @Override
   public @Nullable RegisteredClient findById(String id) {
-    return findByClientId(id);
+    return find(id).orElse(null);
   }
 
   @Override
   public @Nullable RegisteredClient findByClientId(String clientId) {
-    var client = clients.get(clientId);
-    if (client == null || suspensions.isSuspended(clientId)) {
-      return null;
-    }
-    return client;
+    return find(clientId).orElse(null);
+  }
+
+  Optional<RegisteredClient> find(String clientId) {
+    return Optional.ofNullable(clients.get(clientId))
+        .filter(client -> !suspensions.isSuspended(clientId));
   }
 
   private static RegisteredClient client(String clientId, OAuthProperties.Client properties) {

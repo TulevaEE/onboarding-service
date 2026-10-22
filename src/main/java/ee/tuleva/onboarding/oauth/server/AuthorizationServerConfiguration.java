@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.oauth.server;
 
+import static ee.tuleva.onboarding.config.SecurityFilterChainOrder.AUTHORIZATION_SERVER;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 import static org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE;
@@ -13,7 +14,6 @@ import java.util.function.Consumer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,7 +30,7 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 class AuthorizationServerConfiguration {
 
   @Bean
-  @Order(Ordered.HIGHEST_PRECEDENCE)
+  @Order(AUTHORIZATION_SERVER)
   SecurityFilterChain authorizationServerSecurityFilterChain(
       HttpSecurity http,
       ConnectEntryPoint connectEntryPoint,
@@ -52,10 +52,7 @@ class AuthorizationServerConfiguration {
                                   .map(
                                       OAuth2AuthorizationCodeRequestAuthenticationProvider.class
                                           ::cast)
-                                  .forEach(
-                                      provider ->
-                                          provider.setAuthenticationValidator(
-                                              AuthorizationRequestRules.VALIDATOR))));
+                                  .forEach(AuthorizationRequestRules::enforceOn)));
               authorizationServer.authorizationServerMetadataEndpoint(
                   metadata ->
                       metadata.authorizationServerMetadataCustomizer(

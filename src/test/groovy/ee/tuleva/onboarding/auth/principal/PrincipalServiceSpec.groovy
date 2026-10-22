@@ -165,6 +165,31 @@ class PrincipalServiceSpec extends Specification {
     authenticatedPerson.role == role
   }
 
+  def "a login holds the consent to query the pension register that the login screen asks for"() {
+    given:
+    Person person = samplePerson()
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
+
+    then:
+    authenticatedPerson.mayQueryPensionRegister()
+  }
+
+  def "a principal rebuilt from any token of a login or a partner handover holds the consent, however long ago the token was issued"() {
+    given:
+    Person person = samplePerson()
+    def ownRole = new Role(PERSON, person.personalCode, "Jordan Valdma")
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of(), ownRole)
+
+    then:
+    authenticatedPerson.mayQueryPensionRegister()
+  }
+
   def "getFromPerson: initialising non active user throws exception"() {
     given:
     Person person = samplePerson()

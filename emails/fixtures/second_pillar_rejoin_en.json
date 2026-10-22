@@ -1,7 +1,8 @@
 {
   "variants": {
     "rejoin": {
-      "FNAME": "Mari"
+      "FNAME": "Mari",
+      "contributionStartDate": "May 1, 2027"
     }
   }
 }

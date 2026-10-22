@@ -1,7 +1,8 @@
 {
   "variants": {
     "taasliitumine": {
-      "FNAME": "Mari"
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027"
     }
   }
 }

@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const DISCLAIMER_TEXT_COLOR = '#212529';
+
+const languages = {
+  et: {
+    sotsmaksHref: 'https://tuleva.ee/sotsmaks',
+    sotsmaksText: 'tuleva.ee/sotsmaks',
+    required: [
+      'Sissemaksed algavad *|contributionStartDate|*.',
+      'Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid uuesti lõpetada ega raha teist korda välja võtta.',
+      'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
+      'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
+      'Vaata II&nbsp;samba mõju I&nbsp;sambale',
+    ],
+    forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
+  },
+  en: {
+    sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
+    sotsmaksText: 'tuleva.ee/en/sotsmaks',
+    required: [
+      'Contributions start on *|contributionStartDate|*.',
+      'You can use the money from age 60. After rejoining, you can\'t stop contributions again or withdraw the money a second time.',
+      'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
+      'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar.',
+      'See how the II&nbsp;pillar affects your I&nbsp;pillar at',
+    ],
+    forbidden: ['30&nbsp;November', 'Past performance', 'tax return'],
+  },
+};
+
+const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+for (const [language, copy] of Object.entries(languages)) {
+  const name = `second_pillar_rejoin_${language}`;
+  const html = readFileSync(join(root, 'dist', `${name}.html`), 'utf8');
+
+  test(`${name}: says when contributions start, what rejoining commits to, and how it affects the I pillar`, () => {
+    for (const sentence of copy.required) {
+      assert.ok(text(html).includes(sentence), `missing: ${sentence}`);
+    }
+  });
+
+  test(`${name}: carries no returns or III pillar tax refund disclaimer and no hard-coded filing deadline`, () => {
+    for (const phrase of copy.forbidden) {
+      assert.ok(!text(html).includes(phrase), `must not carry: ${phrase}`);
+    }
+  });
+
+  test(`${name}: the social tax link is in the disclaimer text color, not the link blue`, () => {
+    const links = [...html.matchAll(/<a\b[^>]*>/g)]
+      .map((m) => m[0])
+      .filter((tag) => tag.includes(`href="${copy.sotsmaksHref}"`));
+    assert.equal(links.length, 1, `expected one link to ${copy.sotsmaksHref}`);
+    assert.match(links[0], new RegExp(`style="[^"]*color: ${DISCLAIMER_TEXT_COLOR}`));
+    assert.ok(html.includes(`href="${copy.sotsmaksHref}">${copy.sotsmaksText}</a>`), 'link text matches where it goes');
+  });
+
+  test(`${name}: every fixture variant fills the contribution start date`, () => {
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants)) {
+      assert.ok(vars.contributionStartDate, `variant "${variant}" has no contributionStartDate`);
+    }
+  });
+}

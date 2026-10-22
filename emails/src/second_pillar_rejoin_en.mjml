@@ -14,8 +14,10 @@
         <mj-text>Application to make contributions</mj-text>
         <mj-text>Contribution rate change application</mj-text>
         <mj-text>Fund selection application</mj-text>
+        <mj-text>Contributions start on *|contributionStartDate|*.</mj-text>
         <mj-text>
-          If you applied by 30&nbsp;November, contributions start in May next year.
+          You can use the money from age 60. After rejoining, you can't stop contributions again
+          or withdraw the money a second time.
         </mj-text>
         <mj-text>
           A copy of your applications, as sent to Pensionikeskus, is attached to this email.
@@ -29,7 +31,7 @@
         <mj-text padding-top="12px">Tuleva</mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/disclaimer_second_pillar_rejoin_en.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

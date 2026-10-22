@@ -28,9 +28,7 @@ class PositionLimitChecker {
     }
 
     Map<String, PositionLimit> limitsByIsin =
-        limits.stream()
-            .filter(l -> l.getIsin() != null)
-            .collect(Collectors.toMap(PositionLimit::getIsin, Function.identity()));
+        limits.stream().collect(Collectors.toMap(PositionLimit::getIsin, Function.identity()));
 
     return positions.stream()
         .filter(p -> limitsByIsin.containsKey(p.getAccountId()))

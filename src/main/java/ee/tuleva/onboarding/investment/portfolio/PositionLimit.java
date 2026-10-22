@@ -41,7 +41,7 @@ public class PositionLimit {
   @Column(name = "fund_code")
   private TulevaFund fund;
 
-  @Nullable private String isin;
+  @NotNull private String isin;
 
   @Nullable private String ticker;
 

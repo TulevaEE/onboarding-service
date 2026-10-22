@@ -90,30 +90,6 @@ class PositionLimitCheckerTest {
     assertThat(breaches).isEmpty();
   }
 
-  @Test
-  void aLimitRowWithoutAnIsinMeasuresNothingAndTheIsinLimitsStillApply() {
-    var position = position("IE00B4L5Y983", new BigDecimal("100000"));
-    var isinLimit = positionLimit("IE00B4L5Y983", "iShares MSCI World", 15, 20);
-    var rowWithoutIsin =
-        PositionLimit.builder()
-            .label("Aggregate")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.ONE)
-            .hardLimitPercent(BigDecimal.ONE)
-            .build();
-
-    var breaches =
-        checker.check(
-            TUK75,
-            List.of(position),
-            new BigDecimal("1000000"),
-            List.of(isinLimit, rowWithoutIsin));
-
-    assertThat(breaches)
-        .singleElement()
-        .satisfies(b -> assertThat(b.isin()).isEqualTo("IE00B4L5Y983"));
-  }
-
   private FundPosition position(String isin, BigDecimal marketValue) {
     return FundPosition.builder().accountId(isin).fund(TUK75).marketValue(marketValue).build();
   }

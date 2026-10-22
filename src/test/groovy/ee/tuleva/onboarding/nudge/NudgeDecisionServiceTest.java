@@ -288,6 +288,7 @@ class NudgeDecisionServiceTest {
 
   @Test
   void aCompanyPaymentNeverSuggestsThePayersOwnPensionOrMembership() {
+    given(recurringStatus.savingsFund(company)).willReturn(true);
     User nonMember = sampleUser().member(null).build();
     given(pillarStatus.of(nonMember)).willReturn(new PillarActivity(false, false, false));
 

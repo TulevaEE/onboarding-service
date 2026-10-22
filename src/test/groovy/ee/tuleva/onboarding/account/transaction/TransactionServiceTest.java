@@ -9,15 +9,12 @@ import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.role.Role;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,47 +30,12 @@ class TransactionServiceTest {
   @InjectMocks private TransactionService service;
 
   @Test
-  void
-      appsGetTheSavingsFundTransactionsWithoutAskingPensionikeskusEvenForAPersonActingAsThemselves() {
-    var person = sampleAuthenticatedPersonAndMember().build();
-    var savingsTransaction = savingsFundPaymentFrom(null);
-    given(savingsTransactions.getTransactions(person)).willReturn(List.of(savingsTransaction));
-
-    assertThat(service.getTransactionsSharedWithApps(person)).containsExactly(savingsTransaction);
-    verifyNoInteractions(cashFlowService);
-  }
-
-  @Test
-  void appsGetNoBankAccountNumberOfWhoeverPaidOrReceivedTheMoney() {
-    var person = sampleAuthenticatedPersonAndMember().build();
-    given(savingsTransactions.getTransactions(person))
-        .willReturn(List.of(savingsFundPaymentFrom("EE001010220000000000")));
-
-    assertThat(service.getTransactionsSharedWithApps(person))
-        .containsExactly(savingsFundPaymentFrom(null));
-  }
-
-  private static Transaction savingsFundPaymentFrom(@Nullable String counterpartyIban) {
-    return Transaction.builder()
-        .id(UUID.fromString("9c3f5a7b-1d2e-4f6a-8b9c-0d1e2f3a4b5c"))
-        .amount(new BigDecimal("100.00"))
-        .currency(EUR)
-        .time(Instant.parse("2026-10-02T14:00:00Z"))
-        .counterpartyIban(counterpartyIban)
-        .isin("EE0000003283")
-        .type(CONTRIBUTION_CASH)
-        .units(new BigDecimal("8.13008"))
-        .nav(new BigDecimal("12.3000"))
-        .build();
-  }
-
-  @Test
   void filtersContributionsAndSubtractionsFromEpis() {
     var person = sampleAuthenticatedPersonAndMember().build();
     var cashFlowStatement = cashFlowFixture();
 
-    when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
+    given(cashFlowService.getCashFlowStatement(person)).willReturn(cashFlowStatement);
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -103,8 +65,8 @@ class TransactionServiceTest {
             .nav(new BigDecimal("10.0000"))
             .build();
 
-    when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(savingsTransaction));
+    given(cashFlowService.getCashFlowStatement(person)).willReturn(cashFlowStatement);
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of(savingsTransaction));
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -139,8 +101,8 @@ class TransactionServiceTest {
             .nav(new BigDecimal("10.0000"))
             .build();
 
-    when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(transferIn, transferOut));
+    given(cashFlowService.getCashFlowStatement(person)).willReturn(cashFlowStatement);
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of(transferIn, transferOut));
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -165,7 +127,31 @@ class TransactionServiceTest {
             .nav(new BigDecimal("10.0000"))
             .build();
 
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(savingsTransaction));
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of(savingsTransaction));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions).containsExactly(savingsTransaction);
+    verifyNoInteractions(cashFlowService);
+  }
+
+  @Test
+  void
+      returnsOnlySavingsTransactionsWithoutAskingPensionikeskusWhenTheSessionHoldsNoConsentForIt() {
+    var person = sampleAuthenticatedPersonAndMember().pensionRegisterConsent(false).build();
+    var savingsTransaction =
+        Transaction.builder()
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2099-01-01T00:00:00Z"))
+            .counterpartyIban("EE001010220000000000")
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("10.0000"))
+            .build();
+
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of(savingsTransaction));
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -177,7 +163,7 @@ class TransactionServiceTest {
   void returnsOnlySavingsTransactionsWhenRepresentingLegalEntity() {
     var person = sampleAuthenticatedPersonLegalEntity().build();
 
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -190,8 +176,8 @@ class TransactionServiceTest {
     var person = sampleAuthenticatedPersonAndMember().build();
     var emptyStatement = ee.tuleva.onboarding.epis.CashFlowStatement.builder().build();
 
-    when(cashFlowService.getCashFlowStatement(person)).thenReturn(emptyStatement);
-    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
+    given(cashFlowService.getCashFlowStatement(person)).willReturn(emptyStatement);
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 

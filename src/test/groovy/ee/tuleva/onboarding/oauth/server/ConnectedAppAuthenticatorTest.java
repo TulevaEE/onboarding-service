@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.oauth.server;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,14 +9,14 @@ import static org.mockito.Mockito.mock;
 import static org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -42,9 +41,9 @@ class ConnectedAppAuthenticatorTest {
 
   private final Grants grants = mock(Grants.class);
   private final RegisteredClientRepository clients = mock(RegisteredClientRepository.class);
-  private final PrincipalService principalService = mock(PrincipalService.class);
+  private final UserService users = mock(UserService.class);
   private final ConnectedAppAuthenticator authenticator =
-      new ConnectedAppAuthenticator(grants, clients, principalService);
+      new ConnectedAppAuthenticator(grants, clients, users);
 
   private final GrantRow grant = grantOf(Set.of("balances:read", "transactions:read"));
 
@@ -96,9 +95,29 @@ class ConnectedAppAuthenticatorTest {
   }
 
   @Test
+  void anAppActsForThePersonWithoutTheConsentToQueryThePensionRegister() {
+    givenALiveGrantOfARegisteredAppForAnActiveUser();
+
+    var authentication = authenticator.authenticate(accessToken(List.of("balances:read")));
+
+    assertThat(((AuthenticatedPerson) authentication.getPrincipal()).mayQueryPensionRegister())
+        .isFalse();
+  }
+
+  @Test
   void aGrantOfAPersonWhoIsNoLongerAnActiveUserAuthenticatesNobody() {
     givenALiveGrantOfARegisteredAppForAnActiveUser();
-    given(principalService.findActingAsThemselves(PERSONAL_CODE)).willReturn(Optional.empty());
+    given(users.findByPersonalCode(PERSONAL_CODE))
+        .willReturn(Optional.of(storedUser().active(false).build()));
+
+    assertThatThrownBy(() -> authenticator.authenticate(accessToken(List.of("balances:read"))))
+        .isInstanceOf(InvalidBearerTokenException.class);
+  }
+
+  @Test
+  void aGrantOfAPersonTulevaHoldsNoUserForAuthenticatesNobody() {
+    givenALiveGrantOfARegisteredAppForAnActiveUser();
+    given(users.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> authenticator.authenticate(accessToken(List.of("balances:read"))))
         .isInstanceOf(InvalidBearerTokenException.class);
@@ -109,8 +128,16 @@ class ConnectedAppAuthenticatorTest {
     given(grants.isLive(grant)).willReturn(true);
     given(clients.findByClientId("portfellow"))
         .willReturn(registeredClientWith("balances:read", "transactions:read"));
-    given(principalService.findActingAsThemselves(PERSONAL_CODE))
-        .willReturn(Optional.of(PERSON_ACTING_AS_THEMSELVES));
+    given(users.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(storedUser().build()));
+  }
+
+  private static User.UserBuilder storedUser() {
+    return User.builder()
+        .id(7L)
+        .personalCode(PERSONAL_CODE)
+        .firstName("Jordan")
+        .lastName("Valdma")
+        .active(true);
   }
 
   private static RegisteredClient registeredClientWith(String... scopes) {
@@ -127,9 +154,7 @@ class ConnectedAppAuthenticatorTest {
         UsernamePasswordAuthenticationToken.authenticated(
             PERSON_ACTING_AS_THEMSELVES,
             null,
-            Stream.concat(Stream.of(CONNECTED_APP), scopes.stream().map("SCOPE_"::concat))
-                .map(SimpleGrantedAuthority::new)
-                .toList());
+            scopes.stream().map("SCOPE_"::concat).map(SimpleGrantedAuthority::new).toList());
     authentication.setDetails(new ConnectedAppAccess("portfellow", GRANT_ID, scopes));
     return authentication;
   }

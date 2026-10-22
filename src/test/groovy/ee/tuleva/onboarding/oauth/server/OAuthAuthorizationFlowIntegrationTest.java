@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.oauth;
+package ee.tuleva.onboarding.oauth.server;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -18,7 +20,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.springframework.http.HttpHeaders.ACCEPT_LANGUAGE;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpHeaders.LOCATION;
@@ -29,8 +31,11 @@ import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.ExpectedCount.never;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.anything;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,6 +52,7 @@ import com.nimbusds.jwt.SignedJWT;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.account.SavingsFundStatementService;
 import ee.tuleva.onboarding.account.transaction.Transaction;
+import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -54,9 +60,15 @@ import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
+import ee.tuleva.onboarding.ledger.LedgerParty;
+import ee.tuleva.onboarding.ledger.PartyRef;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.Cookie;
 import java.math.BigDecimal;
@@ -68,6 +80,7 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.interfaces.ECPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -96,10 +109,12 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -198,7 +213,7 @@ class OAuthAuthorizationFlowIntegrationTest {
           "priceCalculationDate": "2026-10-07",
           "settledTime": "2026-10-09T08:00:00Z",
           "applicationTime": "2026-10-05T18:20:00Z",
-          "counterpartyIban": null,
+          "counterpartyIban": "EE001010220000000000",
           "isin": "EE0000000000",
           "type": "SUBTRACTION",
           "units": 10.00000,
@@ -213,7 +228,7 @@ class OAuthAuthorizationFlowIntegrationTest {
           "priceCalculationDate": "2026-10-02",
           "settledTime": "2026-10-02T14:00:00Z",
           "applicationTime": "2026-10-01T11:30:00Z",
-          "counterpartyIban": null,
+          "counterpartyIban": "EE001010220000000000",
           "isin": "EE0000000000",
           "type": "CONTRIBUTION_CASH",
           "units": 8.13008,
@@ -228,6 +243,9 @@ class OAuthAuthorizationFlowIntegrationTest {
   @Autowired private DataSource dataSource;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EventLogRepository eventLogRepository;
+  @Autowired private FilterChainProxy filterChainProxy;
+  @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
 
   @Autowired
   @Qualifier("episRestTemplate")
@@ -237,8 +255,8 @@ class OAuthAuthorizationFlowIntegrationTest {
   @Qualifier("episLongRequestRestTemplate")
   private RestTemplate episLongRequestRestTemplate;
 
-  @MockitoBean private SavingsFundStatementService savingsFundStatementService;
-  @MockitoBean private SavingsFundTransactionService savingsFundTransactionService;
+  @MockitoSpyBean private SavingsFundStatementService savingsFundStatementService;
+  @MockitoSpyBean private SavingsFundTransactionService savingsFundTransactionService;
 
   @AfterEach
   void resetClock() {
@@ -868,8 +886,9 @@ class OAuthAuthorizationFlowIntegrationTest {
   void anAppWithBalancesReadGetsThePersonsSavingsFundStatementInThePublishedShape()
       throws Exception {
     var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
-    given(savingsFundStatementService.getAccountStatement(thePersonActingAsThemselves()))
-        .willReturn(Optional.of(savingsFundBalance()));
+    willReturn(Optional.of(savingsFundBalance()))
+        .given(savingsFundStatementService)
+        .getAccountStatement(thePersonActingAsThemselves());
 
     var response =
         appRequest(get("/v1/savings-account-statement"), tokens)
@@ -880,19 +899,90 @@ class OAuthAuthorizationFlowIntegrationTest {
   }
 
   @Test
-  void
-      anAppWithTransactionsReadGetsOnlyTheSavingsFundTransactionsWithoutBankAccountNumbersAndPensionikeskusIsNeverAsked()
-          throws Exception {
+  void anAppWithTransactionsReadGetsThePersonsSavingsFundTransactionsInThePublishedShape()
+      throws Exception {
     var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "transactions:read");
-    given(savingsFundTransactionService.getTransactions(thePersonActingAsThemselves()))
-        .willReturn(savingsFundTransactions());
-    var pensionikeskus = pensionikeskusThatMustNeverBeAsked();
+    willReturn(savingsFundTransactions())
+        .given(savingsFundTransactionService)
+        .getTransactions(thePersonActingAsThemselves());
 
     var response =
         appRequest(get("/v1/transactions"), tokens).andExpect(status().isOk()).andReturn();
 
     assertThat(jsonOf(response)).isEqualTo(jsonMapper.readTree(PUBLISHED_TRANSACTIONS));
+  }
+
+  @Test
+  void anAppGetsExactlyTheSavingsFundStatementTheWebAppGetsForTheSameHolding() throws Exception {
+    thePersonHoldsSavingsFundUnitsAndHasRedeemedSome();
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+
+    var webApp = webAppRequest(get("/v1/savings-account-statement")).andReturn();
+    var app = appRequest(get("/v1/savings-account-statement"), tokens).andReturn();
+
+    assertThat(jsonOf(app)).isEqualTo(jsonOf(webApp));
+  }
+
+  @Test
+  void
+      anAppGetsExactlyTheSavingsFundTransactionsTheWebAppGetsWhenThePersonHasNoPensionTransactions()
+          throws Exception {
+    thePersonHoldsSavingsFundUnitsAndHasRedeemedSome();
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "transactions:read");
+    var pensionikeskus = pensionikeskusWithNoPensionTransactions();
+
+    var webApp = webAppRequest(get("/v1/transactions")).andReturn();
+    var app = appRequest(get("/v1/transactions"), tokens).andReturn();
+
+    pensionikeskus.verify();
+    assertThat(jsonOf(app)).hasSize(2).isEqualTo(jsonOf(webApp));
+  }
+
+  @ParameterizedTest
+  @MethodSource("endpointsOpenToApps")
+  void noEndpointOpenToAppsAsksPensionikeskusWhileServingThePersonsSavingsFundHoldingToTheApp(
+      AppEndpoint endpoint) throws Exception {
+    thePersonHoldsSavingsFundUnitsAndHasRedeemedSome();
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, endpoint.scope());
+    var pensionikeskus = pensionikeskusThatMustNeverBeAsked();
+
+    appRequest(request(endpoint.method(), endpoint.path()), tokens).andExpect(status().isOk());
+
     pensionikeskus.forEach(MockRestServiceServer::verify);
+  }
+
+  static Stream<AppEndpoint> endpointsOpenToApps() {
+    return AppEndpoint.OPEN_TO_APPS.stream();
+  }
+
+  @ParameterizedTest
+  @MethodSource("anyRequestAnAppMightSend")
+  void anAppAccessTokenNeverReachesTheWebAppLoginFilterWhateverItIsSentTo(
+      HttpMethod method, String path) throws Exception {
+    var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
+
+    assertThat(filtersServing(method, path, tokens.get("access_token").asString()))
+        .noneMatch(JwtAuthorizationFilter.class::isInstance);
+  }
+
+  @Test
+  void aWebAppLoginTokenIsStillHandedToTheWebAppLoginFilter() {
+    assertThat(filtersServing(GET, "/v1/transactions", bearer(smartIdLoginNow())))
+        .anyMatch(JwtAuthorizationFilter.class::isInstance);
+  }
+
+  static Stream<Arguments> anyRequestAnAppMightSend() {
+    return Stream.of(
+            endpointsNotOpenToApps(),
+            endpointsOpenToApps().map(endpoint -> arguments(endpoint.method(), endpoint.path())),
+            Stream.of(
+                arguments(POST, "/authenticate"),
+                arguments(POST, "/oauth/token"),
+                arguments(POST, "/oauth2/token"),
+                arguments(POST, "/oauth2/revoke"),
+                arguments(GET, "/error"),
+                arguments(GET, "/")))
+        .flatMap(requests -> requests);
   }
 
   @Test
@@ -999,8 +1089,9 @@ class OAuthAuthorizationFlowIntegrationTest {
   }
 
   @Test
-  void aRefusedAccessTokenPointsToPublicMetadataNamingTheApiAndTulevaAsItsAuthorizationServer()
-      throws Exception {
+  void
+      aRefusedAccessTokenPointsToTheMetadataAddressOfTheApiWhichNamesTulevaAsItsAuthorizationServer()
+          throws Exception {
     var tokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
     ClockHolder.setClock(Clock.fixed(Instant.now().plus(12, MINUTES), ZoneOffset.UTC));
 
@@ -1010,12 +1101,11 @@ class OAuthAuthorizationFlowIntegrationTest {
             .andReturn()
             .getResponse()
             .getHeader(WWW_AUTHENTICATE);
+    var metadataLink = resourceMetadataLinkOf(challenge);
     var metadata =
-        mockMvc
-            .perform(get(URI.create(resourceMetadataLinkOf(challenge))))
-            .andExpect(status().isOk())
-            .andReturn();
+        mockMvc.perform(get(URI.create(metadataLink))).andExpect(status().isOk()).andReturn();
 
+    assertThat(metadataLink).isEqualTo(ISSUER + "/.well-known/oauth-protected-resource/v1");
     assertThat(jsonOf(metadata))
         .isEqualTo(
             jsonMapper.readTree(
@@ -1100,6 +1190,33 @@ class OAuthAuthorizationFlowIntegrationTest {
             .header(ACCEPT_LANGUAGE, "en"));
   }
 
+  private ResultActions webAppRequest(MockHttpServletRequestBuilder request) throws Exception {
+    return mockMvc
+        .perform(
+            request
+                .header(AUTHORIZATION, "Bearer " + bearer(smartIdLoginNow()))
+                .header(ACCEPT_LANGUAGE, "en"))
+        .andExpect(status().isOk());
+  }
+
+  private List<Filter> filtersServing(HttpMethod method, String path, String bearerToken) {
+    var request = new MockHttpServletRequest(method.name(), path);
+    request.addHeader(AUTHORIZATION, "Bearer " + bearerToken);
+    return filterChainProxy.getFilterChains().stream()
+        .filter(chain -> chain.matches(request))
+        .findFirst()
+        .orElseThrow()
+        .getFilters();
+  }
+
+  private MockRestServiceServer pensionikeskusWithNoPensionTransactions() {
+    var server = MockRestServiceServer.bindTo(episRestTemplate).bufferContent().build();
+    server
+        .expect(requestTo(containsString("/account-cash-flow-statement")))
+        .andRespond(withSuccess("{\"transactions\": []}", APPLICATION_JSON));
+    return server;
+  }
+
   private JsonNode jsonOf(MvcResult result) throws Exception {
     return jsonMapper.readTree(result.getResponse().getContentAsString());
   }
@@ -1124,6 +1241,34 @@ class OAuthAuthorizationFlowIntegrationTest {
                                 + resultSet.getString("last_name")))
                     .build())
         .single();
+  }
+
+  private void thePersonHoldsSavingsFundUnitsAndHasRedeemedSome() {
+    var person = new PartyRef(LedgerParty.PartyType.PERSON, PERSONAL_CODE);
+    var navDate = LocalDate.now(ClockHolder.clock()).minusDays(7);
+    var nav = new BigDecimal("10.0000");
+    var payment = UUID.randomUUID();
+    var redemption = UUID.randomUUID();
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        PERSONAL_CODE, PartyId.Type.PERSON, COMPLETED);
+    savingsFundLedger.recordPaymentReceived(person, new BigDecimal("100.00"), payment);
+    savingsFundLedger.reservePaymentForSubscription(person, new BigDecimal("100.00"), payment);
+    savingsFundLedger.issueFundUnitsFromReserved(
+        person, new BigDecimal("100.00"), new BigDecimal("10.00000"), nav, navDate, payment);
+    savingsFundLedger.reserveFundUnitsForRedemption(person, new BigDecimal("1.00000"), redemption);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        person, new BigDecimal("1.00000"), new BigDecimal("10.00"), nav, navDate, redemption);
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO index_values (key, date, value, provider, updated_at)
+            VALUES (:key, :date, :value, 'EODHD', :updatedAt)
+            """)
+        .param("key", TKF100.getIsin())
+        .param("date", navDate)
+        .param("value", nav)
+        .param("updatedAt", Timestamp.from(Instant.now(ClockHolder.clock())))
+        .update();
   }
 
   private List<MockRestServiceServer> pensionikeskusThatMustNeverBeAsked() {

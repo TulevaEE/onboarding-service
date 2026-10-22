@@ -16,16 +16,10 @@ public class TransactionService {
   private final CashFlowService cashFlowService;
   private final SavingsTransactions savingsTransactions;
 
-  public List<Transaction> getTransactionsSharedWithApps(AuthenticatedPerson person) {
-    return savingsTransactions.getTransactions(person).stream()
-        .map(transaction -> transaction.toBuilder().counterpartyIban(null).build())
-        .toList();
-  }
-
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
     List<Transaction> savingsFundTransactions = savingsTransactions.getTransactions(person);
 
-    if (!person.isActingAsSelf()) {
+    if (!person.mayQueryPensionRegister()) {
       return savingsFundTransactions;
     }
 

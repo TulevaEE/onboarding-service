@@ -1,13 +1,16 @@
 package ee.tuleva.onboarding.oauth.server;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP_ACCESS_TOKEN_TYPE;
-import static ee.tuleva.onboarding.auth.authority.Authority.isConnectedAppAccessToken;
+import static ee.tuleva.onboarding.oauth.server.AccessTokenClaims.ACCESS_TOKEN_TYPE;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.ES384;
 
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.text.ParseException;
 import java.time.Clock;
 import java.util.List;
 import org.apache.commons.lang3.Strings;
@@ -34,7 +37,7 @@ final class AppAccessTokens implements JwtDecoder {
         JwtValidators.createDefaultWithValidators(
             List.of(
                 timestamps,
-                new JwtTypeValidator(CONNECTED_APP_ACCESS_TOKEN_TYPE),
+                new JwtTypeValidator(ACCESS_TOKEN_TYPE),
                 new JwtIssuerValidator(issuer),
                 new JwtAudienceValidator(AccessTokenClaims.audienceOf(issuer)))));
   }
@@ -42,7 +45,17 @@ final class AppAccessTokens implements JwtDecoder {
   static boolean arePresentedBy(HttpServletRequest request) {
     var authorization = request.getHeader(AUTHORIZATION);
     return Strings.CI.startsWith(authorization, BEARER)
-        && isConnectedAppAccessToken(authorization.substring(BEARER.length()));
+        && looksLikeAnAccessToken(authorization.substring(BEARER.length()));
+  }
+
+  private static boolean looksLikeAnAccessToken(String token) {
+    try {
+      var header = JWSObject.parse(token).getHeader();
+      return JWSAlgorithm.ES384.equals(header.getAlgorithm())
+          && new JOSEObjectType(ACCESS_TOKEN_TYPE).equals(header.getType());
+    } catch (ParseException notASignedToken) {
+      return false;
+    }
   }
 
   @Override

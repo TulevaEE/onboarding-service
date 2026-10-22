@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.role.Role;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 class AuthenticatedPersonTest {
 
@@ -65,6 +66,50 @@ class AuthenticatedPersonTest {
             .build();
 
     assertThat(person.isActingAsSelf()).isFalse();
+  }
+
+  @Test
+  void mayQueryThePensionRegisterWhenActingAsThemselvesInASessionThatHoldsTheConsent() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38501010002")
+            .role(new Role(PERSON, "38501010002", "First Last"))
+            .pensionRegisterConsent(true)
+            .build();
+
+    assertThat(person.mayQueryPensionRegister()).isTrue();
+  }
+
+  @Test
+  void mayNotQueryThePensionRegisterInASessionThatHoldsNoConsent() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38501010002")
+            .role(new Role(PERSON, "38501010002", "First Last"))
+            .build();
+
+    assertThat(person.mayQueryPensionRegister()).isFalse();
+  }
+
+  @Test
+  void mayNotQueryThePensionRegisterWhileActingForSomeoneElseEvenWithTheConsent() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38501010002")
+            .role(new Role(PERSON, "61506150006", "Child Name"))
+            .pensionRegisterConsent(true)
+            .build();
+
+    assertThat(person.mayQueryPensionRegister()).isFalse();
+  }
+
+  @Test
+  void thePensionRegisterConsentStaysOutOfThePrincipalTheWebAppReads() {
+    var person = sampleAuthenticatedPersonAndMember().pensionRegisterConsent(true).build();
+
+    var json = JsonMapper.builder().build().valueToTree(person);
+
+    assertThat(json.has("pensionRegisterConsent")).isFalse();
   }
 
   @Test

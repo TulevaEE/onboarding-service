@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.account.transaction;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.isConnectedApp;
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,11 +19,7 @@ public class TransactionController {
   @GetMapping("/transactions")
   @Operation(summary = "Get a list of transactions")
   public List<Transaction> getTransactions(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      Authentication authentication) {
-    if (isConnectedApp(authentication)) {
-      return transactionService.getTransactionsSharedWithApps(authenticatedPerson);
-    }
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return transactionService.getTransactions(authenticatedPerson);
   }
 }

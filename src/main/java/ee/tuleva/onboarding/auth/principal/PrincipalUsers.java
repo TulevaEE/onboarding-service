@@ -9,9 +9,5 @@ public interface PrincipalUsers {
 
   Optional<String> fullName(String personalCode);
 
-  Optional<KnownUser> find(String personalCode);
-
   record PrincipalUser(Long id, boolean active) {}
-
-  record KnownUser(Long id, boolean active, String firstName, String lastName) {}
 }

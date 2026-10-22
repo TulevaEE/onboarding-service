@@ -13,7 +13,7 @@ This guide is for an app that reads a person's Tuleva data with their permission
 | Revocation endpoint | `https://onboarding-service.tuleva.ee/oauth2/revoke` |
 | Token signing keys (JWKS) | `https://onboarding-service.tuleva.ee/oauth2/jwks` |
 | API | `https://onboarding-service.tuleva.ee/v1` |
-| API metadata (RFC 9728) | `https://onboarding-service.tuleva.ee/.well-known/oauth-protected-resource` |
+| API metadata (RFC 9728) | `https://onboarding-service.tuleva.ee/.well-known/oauth-protected-resource/v1` |
 | Grant types | `authorization_code`, `refresh_token` |
 | Client authentication | `private_key_jwt`, ES384 (ECDSA on P-384) |
 | PKCE | required, `S256` |
@@ -290,7 +290,7 @@ Apps read the person's data through Tuleva's own API, the one Tuleva's web app u
     "priceCalculationDate": "2026-10-07",
     "settledTime": "2026-10-09T08:00:00Z",
     "applicationTime": "2026-10-05T18:20:00Z",
-    "counterpartyIban": null,
+    "counterpartyIban": "EE001010220000000000",
     "isin": "EE0000000000",
     "type": "SUBTRACTION",
     "units": 10.00000,
@@ -305,7 +305,7 @@ Apps read the person's data through Tuleva's own API, the one Tuleva's web app u
     "priceCalculationDate": "2026-10-02",
     "settledTime": "2026-10-02T14:00:00Z",
     "applicationTime": "2026-10-01T11:30:00Z",
-    "counterpartyIban": null,
+    "counterpartyIban": "EE001010220000000000",
     "isin": "EE0000000000",
     "type": "CONTRIBUTION_CASH",
     "units": 8.13008,
@@ -326,7 +326,7 @@ Apps read the person's data through Tuleva's own API, the one Tuleva's web app u
 | `priceCalculationDate` | the day that net asset value was calculated, `null` when the transaction has no net asset value date |
 | `settledTime` | when the money or the units settled |
 | `applicationTime` | when the person's payment arrived or their redemption request was made, `null` when not known |
-| `counterpartyIban` | always `null` for apps: Tuleva does not share bank account numbers with apps |
+| `counterpartyIban` | the bank account a payment came from or a redemption was paid to. Usually the person's own; for a gift, or a payment someone else made for the person, the account of whoever paid. `null` when not known |
 | `acquisitionCost` | on `TRANSFER_IN` only, and only when known: what the units cost the person for tax purposes, in euros |
 
 ## 7. Security expectations

@@ -10,7 +10,6 @@ import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.auth.principal.PrincipalUsers.KnownUser
 import static ee.tuleva.onboarding.auth.principal.PrincipalUsers.PrincipalUser
 import static ee.tuleva.onboarding.auth.role.RoleType.*
 
@@ -166,6 +165,31 @@ class PrincipalServiceSpec extends Specification {
     authenticatedPerson.role == role
   }
 
+  def "a login holds the consent to query the pension register that the login screen asks for"() {
+    given:
+    Person person = samplePerson()
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
+
+    then:
+    authenticatedPerson.mayQueryPensionRegister()
+  }
+
+  def "a principal rebuilt from any token of a login or a partner handover holds the consent, however long ago the token was issued"() {
+    given:
+    Person person = samplePerson()
+    def ownRole = new Role(PERSON, person.personalCode, "Jordan Valdma")
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of(), ownRole)
+
+    then:
+    authenticatedPerson.mayQueryPensionRegister()
+  }
+
   def "getFromPerson: initialising non active user throws exception"() {
     given:
     Person person = samplePerson()
@@ -177,39 +201,6 @@ class PrincipalServiceSpec extends Specification {
 
     then:
     thrown IllegalStateException
-  }
-
-  def "a connected app's request acts as the person behind the grant, as we hold them in our own users"() {
-    given:
-    principalUsers.find("38812121215") >> Optional.of(new KnownUser(7L, true, "Jordan", "Valdma"))
-
-    when:
-    def person = service.findActingAsThemselves("38812121215")
-
-    then:
-    person == Optional.of(AuthenticatedPerson.builder()
-        .personalCode("38812121215")
-        .firstName("Jordan")
-        .lastName("Valdma")
-        .userId(7L)
-        .role(new Role(PERSON, "38812121215", "Jordan Valdma"))
-        .build())
-  }
-
-  def "a connected app's request for an inactive user acts as nobody"() {
-    given:
-    principalUsers.find("38812121215") >> Optional.of(new KnownUser(7L, false, "Jordan", "Valdma"))
-
-    expect:
-    service.findActingAsThemselves("38812121215") == Optional.empty()
-  }
-
-  def "a connected app's request for a person we hold no user for acts as nobody"() {
-    given:
-    principalUsers.find("38812121215") >> Optional.empty()
-
-    expect:
-    service.findActingAsThemselves("38812121215") == Optional.empty()
   }
 
 }

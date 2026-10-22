@@ -3,12 +3,10 @@ package ee.tuleva.onboarding.auth.principal;
 import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
-import ee.tuleva.onboarding.auth.principal.PrincipalUsers.KnownUser;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import jakarta.validation.Valid;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -52,22 +50,8 @@ public class PrincipalService {
         .userId(user.id())
         .attributes(attributes)
         .role(role)
+        .pensionRegisterConsent(true)
         .build();
-  }
-
-  public Optional<AuthenticatedPerson> findActingAsThemselves(String personalCode) {
-    return principalUsers
-        .find(personalCode)
-        .filter(KnownUser::active)
-        .map(
-            user ->
-                AuthenticatedPerson.builder()
-                    .firstName(user.firstName())
-                    .lastName(user.lastName())
-                    .personalCode(personalCode)
-                    .userId(user.id())
-                    .role(new Role(PERSON, personalCode, user.firstName() + " " + user.lastName()))
-                    .build());
   }
 
   public AuthenticatedPerson withRole(AuthenticatedPerson person, Role role) {

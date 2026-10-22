@@ -1,15 +1,20 @@
 package ee.tuleva.onboarding.oauth.server;
 
+import static ee.tuleva.onboarding.event.TrackableEventType.APP_CONNECTED;
 import static java.util.Objects.requireNonNull;
 import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE;
 import static org.springframework.security.oauth2.core.endpoint.PkceParameterNames.CODE_CHALLENGE_METHOD;
 
+import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.oauth.AppConnected;
+import ee.tuleva.onboarding.event.RequestOrigin;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -33,6 +38,7 @@ class ConnectService {
   private final AuthorizationServerSettings settings;
   private final OAuth2AuthorizationCodeRequestAuthenticationProvider codeIssuer;
   private final ApplicationEventPublisher eventPublisher;
+  private final ClientConnection clientConnection;
 
   ConnectService(
       PendingAuthorizations pendingAuthorizations,
@@ -40,12 +46,14 @@ class ConnectService {
       RegisteredClientRepository clients,
       AuthorizationServerSettings settings,
       OAuth2AuthorizationService authorizationService,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      ClientConnection clientConnection) {
     this.pendingAuthorizations = pendingAuthorizations;
     this.subjects = subjects;
     this.clients = clients;
     this.settings = settings;
     this.eventPublisher = eventPublisher;
+    this.clientConnection = clientConnection;
     this.codeIssuer =
         new OAuth2AuthorizationCodeRequestAuthenticationProvider(
             clients, authorizationService, new InMemoryOAuth2AuthorizationConsentService());
@@ -85,13 +93,20 @@ class ConnectService {
     try {
       var issued =
           (OAuth2AuthorizationCodeRequestAuthenticationToken) codeIssuer.authenticate(codeRequest);
-      eventPublisher.publishEvent(
-          new AppConnected(person, request.clientId(), sortedScopes(request)));
+      recordConnection(person, request);
       return redirect(
           request, Map.of("code", requireNonNull(issued.getAuthorizationCode()).getTokenValue()));
     } finally {
       AuthorizationServerContextHolder.resetContext();
     }
+  }
+
+  private void recordConnection(AuthenticatedPerson person, PendingAuthorization request) {
+    Map<String, @Nullable Object> connection = new HashMap<>();
+    connection.put("clientId", request.clientId());
+    connection.put("scopes", sortedScopes(request));
+    connection.putAll(RequestOrigin.readOnTheRequestThread(clientConnection));
+    eventPublisher.publishEvent(new TrackableEvent(person, APP_CONNECTED, connection));
   }
 
   @Transactional

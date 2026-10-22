@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.isConnectedApp;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.ServiceTokenProvider;
@@ -34,7 +33,6 @@ public class EpisRequestHeaders {
   }
 
   HttpHeaders forToken(String jwtToken) {
-    refuseConnectedApps();
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
     headers.add("Authorization", "Bearer " + jwtToken);
@@ -42,18 +40,11 @@ public class EpisRequestHeaders {
   }
 
   String userJwtToken() {
-    refuseConnectedApps();
     var authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null) {
       throw new IllegalStateException("No authentication present!");
     }
     return requireNonNull(
         (String) authentication.getCredentials(), "No credentials present in authentication");
-  }
-
-  private static void refuseConnectedApps() {
-    if (isConnectedApp(SecurityContextHolder.getContext().getAuthentication())) {
-      throw new IllegalStateException("Refusing to query EPIS for a connected app");
-    }
   }
 }

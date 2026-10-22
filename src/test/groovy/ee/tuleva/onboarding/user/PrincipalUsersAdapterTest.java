@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.auth.PersonFixture;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.auth.principal.PrincipalUsers.KnownUser;
 import ee.tuleva.onboarding.auth.principal.PrincipalUsers.PrincipalUser;
 import ee.tuleva.onboarding.user.member.Member;
 import java.util.Optional;
@@ -55,29 +54,6 @@ class PrincipalUsersAdapterTest {
 
     verify(userService).createNewUser(expectedNewUser);
     assertThat(result).isEqualTo(new PrincipalUser(2L, true));
-  }
-
-  @Test
-  void findReturnsTheUserWithTheNamesWeHold() {
-    User user =
-        User.builder()
-            .id(7L)
-            .personalCode("38812121215")
-            .firstName("Jordan")
-            .lastName("Valdma")
-            .active(true)
-            .build();
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-
-    assertThat(principalUsersAdapter.find("38812121215"))
-        .contains(new KnownUser(7L, true, "Jordan", "Valdma"));
-  }
-
-  @Test
-  void findIsEmptyWhenNoUserIsFound() {
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.empty());
-
-    assertThat(principalUsersAdapter.find("38812121215")).isEmpty();
   }
 
   @Test

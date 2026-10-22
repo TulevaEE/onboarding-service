@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
+import static ee.tuleva.onboarding.config.SecurityFilterChainOrder.WEB_APP;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasAuthority;
 import static org.springframework.security.authorization.AuthorizationManagers.allOf;
@@ -15,6 +16,7 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -36,6 +38,7 @@ public class SecurityConfiguration {
   };
 
   @Bean
+  @Order(WEB_APP)
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http, JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {

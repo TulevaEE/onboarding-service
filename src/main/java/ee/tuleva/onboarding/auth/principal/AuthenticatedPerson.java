@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
@@ -42,6 +44,9 @@ public class AuthenticatedPerson implements Person, Serializable {
   @Nullable Long userId;
 
   @NotNull @Nullable Role role;
+
+  @Getter(NONE)
+  boolean pensionRegisterConsent;
 
   @Override
   public String toString() {
@@ -78,6 +83,11 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public boolean isActingAsSelf() {
     return role == null || role.code().equals(personalCode);
+  }
+
+  @JsonIgnore
+  public boolean mayQueryPensionRegister() {
+    return pensionRegisterConsent && isActingAsSelf();
   }
 
   @JsonIgnore

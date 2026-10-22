@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.oauth.server;
 
-import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP_ACCESS_TOKEN_TYPE;
+import static ee.tuleva.onboarding.oauth.server.AccessTokenClaims.ACCESS_TOKEN_TYPE;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,7 +94,7 @@ class AppAccessTokensTest {
   void refusesAnAccessTokenSignedWithAnyOtherKey() throws Exception {
     var token =
         signed(
-            header(JWSAlgorithm.ES384, CONNECTED_APP_ACCESS_TOKEN_TYPE),
+            header(JWSAlgorithm.ES384, ACCESS_TOKEN_TYPE),
             validClaims().build(),
             new ECDSASigner(
                 EcPem.privateKey(new ClassPathResource("oauth/test-client-private-key.pem"))));
@@ -107,7 +107,7 @@ class AppAccessTokensTest {
     var token =
         signed(
             new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .type(new JOSEObjectType(CONNECTED_APP_ACCESS_TOKEN_TYPE))
+                .type(new JOSEObjectType(ACCESS_TOKEN_TYPE))
                 .build(),
             validClaims().build(),
             new RSASSASigner(rsaPrivateKey()));
@@ -132,7 +132,16 @@ class AppAccessTokensTest {
   void doesNotTakeOtherBearerTokensForAccessTokens() throws Exception {
     var plainJwt = signed(header(JWSAlgorithm.ES384, JOSEObjectType.JWT), validClaims().build());
 
+    var rsaSignedAccessToken =
+        signed(
+            new JWSHeader.Builder(JWSAlgorithm.RS256)
+                .type(new JOSEObjectType(ACCESS_TOKEN_TYPE))
+                .build(),
+            validClaims().build(),
+            new RSASSASigner(rsaPrivateKey()));
+
     assertThat(AppAccessTokens.arePresentedBy(bearer(plainJwt))).isFalse();
+    assertThat(AppAccessTokens.arePresentedBy(bearer(rsaSignedAccessToken))).isFalse();
     assertThat(AppAccessTokens.arePresentedBy(bearer("not-a-jwt"))).isFalse();
     assertThat(AppAccessTokens.arePresentedBy(new MockHttpServletRequest())).isFalse();
   }
@@ -150,7 +159,7 @@ class AppAccessTokensTest {
   }
 
   private String accessToken(JWTClaimsSet claims) throws Exception {
-    return signed(header(JWSAlgorithm.ES384, CONNECTED_APP_ACCESS_TOKEN_TYPE), claims);
+    return signed(header(JWSAlgorithm.ES384, ACCESS_TOKEN_TYPE), claims);
   }
 
   private JWSHeader header(JWSAlgorithm algorithm, String type) {

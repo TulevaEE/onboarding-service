@@ -35,19 +35,6 @@ class PrincipalUsersAdapter implements PrincipalUsers {
     return userService.findByPersonalCode(personalCode).map(User::getFullName);
   }
 
-  @Override
-  public Optional<KnownUser> find(String personalCode) {
-    return userService
-        .findByPersonalCode(personalCode)
-        .map(
-            user ->
-                new KnownUser(
-                    requireNonNull(user.getId(), "User id missing for a stored user"),
-                    user.getActive(),
-                    user.getFirstName(),
-                    user.getLastName()));
-  }
-
   private User createUser(Person person) {
     return userService.createNewUser(
         User.builder()

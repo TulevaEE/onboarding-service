@@ -27,7 +27,11 @@ public abstract class MandateDetails implements Serializable {
 
   public Pillar pillar() {
     return switch (mandateType) {
-      case SELECTION, WITHDRAWAL_CANCELLATION, EARLY_WITHDRAWAL_CANCELLATION, PAYMENT_RATE_CHANGE ->
+      case SELECTION,
+          WITHDRAWAL_CANCELLATION,
+          EARLY_WITHDRAWAL_CANCELLATION,
+          PAYMENT_RATE_CHANGE,
+          REJOIN ->
           Pillar.SECOND;
       default ->
           throw new IllegalStateException("Pillar undefined for mandate type: type=" + mandateType);

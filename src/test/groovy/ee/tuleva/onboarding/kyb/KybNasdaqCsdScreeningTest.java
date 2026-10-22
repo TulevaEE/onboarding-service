@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
+import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.SHAREHOLDER_ROLES;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -12,7 +13,9 @@ import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
+import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.Shareholding;
 import ee.tuleva.onboarding.kyb.screener.CompanyStructureScreener;
 import ee.tuleva.onboarding.kyb.screener.DualMemberOwnershipScreener;
 import ee.tuleva.onboarding.kyb.screener.SingleBoardMemberOwnershipScreener;
@@ -110,7 +113,20 @@ class KybNasdaqCsdScreeningTest {
                 REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
         .willReturn(relationships);
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE))
-        .willReturn(Optional.of(VALID_COMPANY_DETAIL));
+        .willReturn(Optional.of(detailListingTheSharesOf(relationships)));
+  }
+
+  private static CompanyDetail detailListingTheSharesOf(List<CompanyRelationship> relationships) {
+    return companyDetail()
+        .shareholdings(
+            relationships.stream()
+                .filter(relationship -> SHAREHOLDER_ROLES.contains(relationship.roleCode()))
+                .map(
+                    shareholder ->
+                        new Shareholding(
+                            shareholder.ownershipPercent(), List.of(shareholder.personalCode())))
+                .toList())
+        .build();
   }
 
   private List<KybCheck> screenActive(PersonalCode owner) {

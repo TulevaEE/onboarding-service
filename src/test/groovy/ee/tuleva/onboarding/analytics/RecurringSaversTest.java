@@ -37,7 +37,7 @@ class RecurringSaversTest {
 
   @Test
   void thirdPillarIsRecurringFromThreeContributionMonthsInTheLastFour() {
-    given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
+    given(thirdPillarTransactions.countContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(3);
 
     assertThat(recurringSavers.thirdPillar(PERSONAL_CODE)).isTrue();
@@ -45,7 +45,7 @@ class RecurringSaversTest {
 
   @Test
   void thirdPillarIsNotRecurringJustBelowTheThreshold() {
-    given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
+    given(thirdPillarTransactions.countContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(2);
 
     assertThat(recurringSavers.thirdPillar(PERSONAL_CODE)).isFalse();

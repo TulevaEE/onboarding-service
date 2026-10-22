@@ -2,7 +2,7 @@
 
 Tooling to drive the **LIVE** Tuleva app as the engineer, for visual review.
 
-You log in once with your own Estonian ID code (you approve the Smart-ID / Mobile-ID prompt on your phone), then read live API data and screenshot real features in a real browser.
+You log in once on the real login page with your own phone, then read live API data and screenshot real features in a real browser.
 
 Everything defaults to **LIVE** (`https://pension.tuleva.ee`). Staging / local are reachable only via `--env staging` / `--env local`.
 
@@ -18,15 +18,15 @@ on live"*. Each engineer only needs this one-time, per-machine setup with **thei
 cd .claude/skills/devloop/scripts
 npm install
 npx playwright install chromium
-cp .env.sample .env         # then set TULEVA_ID_CODE=<your Estonian personal code>
+cp .env.sample .env         # only for the headless Mobile-ID login: set TULEVA_ID_CODE and TULEVA_PHONE
 ```
 
-The scripts auto-load `.env` from this directory (gitignored). Put `TULEVA_ID_CODE` there once and you
-never pass `--code`. A shell `export TULEVA_ID_CODE=…` still works and takes precedence.
+The scripts auto-load `.env` from this directory (gitignored). A shell `export TULEVA_ID_CODE=…` still
+works and takes precedence.
 
-`.env` is personal and never committed — everyone uses their own code and approves the login on their own
-phone. The first `tuleva-login.mjs` (or first `/devloop` run) does the Smart-ID/Mobile-ID approval; the
-token caches to `~/.tuleva/`, so later runs need no phone until it expires.
+`.env` is personal and never committed. The first `tuleva-login.mjs` (or first `/devloop` run) opens the
+login page and you log in there with your own phone; the token caches to `~/.tuleva/`, so later runs need no
+phone until it expires.
 
 ## Commands
 
@@ -35,14 +35,17 @@ token caches to `~/.tuleva/`, so later runs need no phone until it expires.
 Authenticates and caches the token at `~/.tuleva/<env>-token.json` (mode 0600). Reuses a valid cached token, refreshes an expired one, and only does a full login (with phone approval) when needed.
 
 ```sh
-node tuleva-login.mjs                       # live, smart-id, code from TULEVA_ID_CODE
-node tuleva-login.mjs --method mobile-id --phone +37200000000
-node tuleva-login.mjs --code 38001010000
+node tuleva-login.mjs                       # live, in a browser window
+node tuleva-login.mjs --method mobile-id --phone +37200000000   # headless, code from TULEVA_ID_CODE
 node tuleva-login.mjs --force               # force re-login
 node tuleva-login.mjs --env staging
 ```
 
-It prints a verification code — approve that code in your Smart-ID / Mobile-ID app.
+The default opens the real login page in a browser window, because Smart-ID login is a QR code scan (or a
+push to a browser that ticked "Jäta mind meelde"), never a push started from a personal code. Log in there;
+the script waits up to 3 minutes and takes the token the app stores. When the browser is remembered, the
+script clicks "Jätka kui …" for you and prints the verification code to approve. The browser's cookies are
+kept in `~/.tuleva/<env>-browser-state.json` (mode 0600) so the next login is a single push.
 
 ### 2. Read API data (`tuleva-q.mjs`)
 

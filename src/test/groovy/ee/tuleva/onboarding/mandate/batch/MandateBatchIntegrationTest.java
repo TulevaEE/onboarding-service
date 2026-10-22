@@ -5,9 +5,14 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.MandateType.PAYMENT_RATE_CHANGE;
+import static ee.tuleva.onboarding.mandate.MandateType.REJOIN;
+import static ee.tuleva.onboarding.mandate.MandateType.SELECTION;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
+import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -16,6 +21,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,11 +33,21 @@ import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.MandateFixture;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
+import ee.tuleva.onboarding.mandate.MandateProcessResult.MandateProcessOutcome;
 import ee.tuleva.onboarding.mandate.MandateRepository;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
+import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
+import ee.tuleva.onboarding.mandate.details.RejoinMandateDetails;
+import ee.tuleva.onboarding.mandate.details.SelectionMandateDetails;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
@@ -63,18 +79,22 @@ class MandateBatchIntegrationTest {
   @Autowired private MandateRepository mandateRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private MandateBatchProcessingPoller mandateBatchProcessingPoller;
+  @Autowired private MandateBatchService mandateBatchService;
+  @Autowired private MandateProcessRepository mandateProcessRepository;
 
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
   @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
   @MockitoBean private OperationsNotificationService notificationService;
   @MockitoSpyBean private EmailService emailService;
+  @MockitoBean private SignatureService signatureService;
 
   // The JWT authenticates samplePerson, and the auth filter creates that user on the server
   // thread, which no test-side transaction can roll back. It outlives the test in the shared
   // database and collides with every later test that inserts the same personal code.
   @AfterEach
   void cleanup() {
+    mandateProcessRepository.deleteAll();
     mandateRepository.deleteAll();
     mandateBatchRepository.deleteAll();
     userRepository
@@ -413,9 +433,74 @@ class MandateBatchIntegrationTest {
                                     .getAttachments()
                                     .getFirst()
                                     .getName()
-                                    .endsWith("_avaldused_" + batch.getId() + ".bdoc")),
+                                    .endsWith("_avaldused_" + batch.getId() + ".asice")),
                         eq(WITHDRAWAL_BATCH.getTemplateName(Locale.ENGLISH))));
     assertThat(personalCodesEpisWasCalledAs).containsExactly(ownerPersonalCode, ownerPersonalCode);
+  }
+
+  @Test
+  void signingARejoinSendsTheRejoinTheSixPercentRateAndTheFundToEpisAndEmailsTheRejoin() {
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(invocation -> invocation.getArgument(1));
+    var applicationsSentToEpis = new CopyOnWriteArrayList<MandateType>();
+    given(episService.sendMandateV2(any()))
+        .willAnswer(
+            invocation -> {
+              MandateSubmissionCommand<?> command = invocation.getArgument(0);
+              applicationsSentToEpis.add(command.submission().getMandateType());
+              return new MandateProcessResult(
+                  List.of(new MandateProcessOutcome(command.processId(), true, null)));
+            });
+
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .body(
+            MandateBatchDto.builder()
+                .mandates(
+                    List.of(
+                        MandateDto.builder().details(new RejoinMandateDetails()).build(),
+                        MandateDto.builder()
+                            .details(new PaymentRateChangeMandateDetails(SIX))
+                            .build(),
+                        MandateDto.builder()
+                            .details(new SelectionMandateDetails("EE3600109435"))
+                            .build()))
+                .build())
+        .exchange()
+        .expectStatus()
+        .isOk();
+    var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
+    var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
+    signer.setEmail("rejoiner@example.com");
+    signer.setPhoneNumber("+37255555555");
+    userRepository.save(signer);
+    given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
+        .willReturn(new byte[] {1, 2, 3});
+
+    mandateBatchService.finalizeMobileSignature(
+        signer.getId(), batch.getId(), mock(MobileIdSignatureSession.class), Locale.ENGLISH);
+    mandateBatchProcessingPoller.processQueue();
+
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () ->
+                then(emailService)
+                    .should()
+                    .send(
+                        argThat(
+                            person ->
+                                person.getPersonalCode().equals(samplePerson().getPersonalCode())),
+                        any(),
+                        eq(SECOND_PILLAR_REJOIN.getTemplateName(Locale.ENGLISH))));
+    assertThat(applicationsSentToEpis)
+        .containsExactlyInAnyOrder(REJOIN, PAYMENT_RATE_CHANGE, SELECTION);
+    then(notificationService).shouldHaveNoInteractions();
   }
 
   private static String authenticatedPersonalCode() {

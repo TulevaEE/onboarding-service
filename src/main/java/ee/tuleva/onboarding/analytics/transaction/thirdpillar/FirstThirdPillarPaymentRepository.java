@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction.OWN_CONTRIBUTION_SOURCE;
+
 import ee.tuleva.onboarding.notification.email.firstpayment.FirstThirdPillarPayment;
 import java.time.LocalDate;
 import java.util.List;
@@ -12,8 +14,6 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class FirstThirdPillarPaymentRepository {
 
-  static final String OWN_MONEY_SOURCE = "Osakute väljalase isikult laekumiste alusel";
-
   private final JdbcClient jdbcClient;
 
   public Optional<LocalDate> oldestOwnPaymentDate() {
@@ -23,7 +23,7 @@ public class FirstThirdPillarPaymentRepository {
             SELECT MIN(reporting_date) FROM analytics.third_pillar_transactions
             WHERE transaction_source = :ownMoneySource
             """)
-        .param("ownMoneySource", OWN_MONEY_SOURCE)
+        .param("ownMoneySource", OWN_CONTRIBUTION_SOURCE)
         .query(LocalDate.class)
         .optional();
   }
@@ -90,7 +90,7 @@ public class FirstThirdPillarPaymentRepository {
 
     return jdbcClient
         .sql(sql)
-        .param("ownMoneySource", OWN_MONEY_SOURCE)
+        .param("ownMoneySource", OWN_CONTRIBUTION_SOURCE)
         .param("windowStart", windowStart)
         .param("adultBirthDateCutoff", adultBirthDateCutoff)
         .query(

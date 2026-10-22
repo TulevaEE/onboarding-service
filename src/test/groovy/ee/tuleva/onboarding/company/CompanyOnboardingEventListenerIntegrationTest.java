@@ -97,7 +97,8 @@ class CompanyOnboardingEventListenerIntegrationTest {
     listener.onKybCheckPerformed(
         new KybCheckPerformedEvent(
             this,
-            new CompanyDto(new RegistryCode(REGISTRY_CODE), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(
+                new RegistryCode(REGISTRY_CODE), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             new PersonalCode(PERSONAL_CODE),
             List.of(boardMember),
             List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())),

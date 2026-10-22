@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb.screener;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_LEGAL_FORM;
 import static ee.tuleva.onboarding.kyb.LegalForm.*;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyb.*;
@@ -51,10 +52,11 @@ class CompanyLegalFormScreenerTest {
 
   private KybCompanyData companyWithLegalForm(LegalForm legalForm) {
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", legalForm),
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), legalForm),
         new PersonalCode("38501010001"),
         R,
         List.of(),
+        ZERO,
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment
 
+import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.savings.SavingsCallbackService
@@ -8,7 +9,9 @@ import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymen
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
@@ -45,6 +48,22 @@ class PaymentServiceSpec extends Specification {
     def payments = paymentService.getThirdPillarPayments(person)
     then:
     payments == [payment]
+  }
+
+  def "gets the third pillar payments of the child a parent is acting for"() {
+    given:
+    def childPersonalCode = "61506150006"
+    def parentActingForChild = sampleAuthenticatedPersonAndMember()
+        .role(new Role(PERSON, childPersonalCode, "Child Name"))
+        .build()
+    def childPayment = aNewSinglePayment()
+    paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(childPersonalCode, MEMBER_FEE) >> [childPayment]
+
+    when:
+    def payments = paymentService.getThirdPillarPayments(parentActingForChild)
+
+    then:
+    payments == [childPayment]
   }
 
   def "can get a single payment link"() {

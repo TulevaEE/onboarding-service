@@ -23,6 +23,16 @@
       </mj-column>
     </mj-section>
 
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
+        <mj-text>
+          Majandusaasta aruande jaoks vajalikud andmed leiad samuti oma OÜ Tuleva kontolt.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
     <mj-include path="./partials/contact_et.mjml" />
     <mj-section padding="0 24px">
       <mj-column>
@@ -32,7 +42,12 @@
         </mj-text>
       </mj-column>
     </mj-section>
+    <mj-raw>*|IF:anyPillarSuggestion|*</mj-raw>
     <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-raw>*|ELSE:|*</mj-raw>
+    <mj-include path="./partials/disclaimer_savings_company_et.mjml" />
+    <mj-raw>*|END:IF|*</mj-raw>
+    <mj-include path="./partials/disclaimer_social_tax_et.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

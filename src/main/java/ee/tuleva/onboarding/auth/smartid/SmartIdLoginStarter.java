@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.sk.smartid.AuthenticationCertificateLevel.QUALIFIED;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.resilience.annotation.ConcurrencyLimit.ThrottlePolicy.REJECT;
 
 import ee.sk.smartid.RpChallenge;
@@ -13,6 +14,7 @@ import ee.sk.smartid.common.devicelink.interactions.DeviceLinkInteraction;
 import ee.sk.smartid.common.notification.interactions.NotificationInteraction;
 import ee.sk.smartid.util.CallbackUrlUtil;
 import ee.tuleva.onboarding.auth.SmartIdProperties;
+import java.net.URLEncoder;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.resilience.annotation.ConcurrencyLimit;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @RequiredArgsConstructor
@@ -39,9 +42,11 @@ public class SmartIdLoginStarter {
   @ConcurrencyLimit(
       value = ANONYMOUS_LOGIN_STARTS_IN_FLIGHT_BEFORE_SHEDDING_A_FLOOD,
       policy = REJECT)
-  public SmartIdSession startDeviceLinkLogin(@Nullable String language, boolean rememberMe) {
+  public SmartIdSession startDeviceLinkLogin(
+      @Nullable String language, boolean rememberMe, @Nullable String returnPath) {
     String deviceLinkLanguage = DeviceLinkLanguage.of(language);
-    CallbackUrl callbackUrl = CallbackUrlUtil.createCallbackUrl(properties.callbackUrl());
+    CallbackUrl callbackUrl =
+        CallbackUrlUtil.createCallbackUrl(callbackBaseReturningTo(returnPath));
     var builder =
         smartIdClient
             .createDeviceLinkAuthentication()
@@ -63,6 +68,16 @@ public class SmartIdLoginStarter {
             callbackUrl.initialCallbackUri().toString(),
             deviceLinkLanguage),
         rememberMe);
+  }
+
+  private String callbackBaseReturningTo(@Nullable String returnPath) {
+    if (returnPath == null) {
+      return properties.callbackUrl();
+    }
+    return UriComponentsBuilder.fromUriString(properties.callbackUrl())
+        .queryParam("returnPath", URLEncoder.encode(returnPath, UTF_8))
+        .build()
+        .toUriString();
   }
 
   public SmartIdSession startNotificationLogin(RememberedSmartIdAccount account) {

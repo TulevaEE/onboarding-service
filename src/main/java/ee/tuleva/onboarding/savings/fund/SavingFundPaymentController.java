@@ -31,7 +31,7 @@ public class SavingFundPaymentController {
   private final UserService userService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final IbanWhitelistService ibanWhitelistService;
-  private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  private final SavingFundPaymentCancellationService savingFundPaymentCancellationService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final LegalEntitySavingsFundOnboardingService legalEntitySavingsFundOnboardingService;
   private final LocaleService localeService;
@@ -44,7 +44,7 @@ public class SavingFundPaymentController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info("Cancelling savings fund payment {}", paymentId);
     var partyId = PartyId.from(authenticatedPerson);
-    savingFundPaymentUpsertionService.cancelPayment(partyId, paymentId);
+    savingFundPaymentCancellationService.cancelPayment(partyId, paymentId);
     userService
         .findByPersonalCode(authenticatedPerson.getPersonalCode())
         .ifPresent(

@@ -67,8 +67,11 @@ public class SebReconciliator {
     }
 
     var unresolvedUnclassifiedEntries =
-        fundBankLedger.countUnresolvedUnclassifiedEntries(account.fund());
+        fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(account.fund(), reconciliationTime);
     if (unresolvedUnclassifiedEntries > 0) {
+      eventPublisher.publishEvent(
+          new ReconciliationBlockedEvent(
+              account, closingBankBalance.time(), unresolvedUnclassifiedEntries));
       throw new IllegalStateException(
           "Unresolved unclassified bank entries: fund=%s, count=%d"
               .formatted(account.fund(), unresolvedUnclassifiedEntries));

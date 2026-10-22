@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_PEP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -26,7 +27,7 @@ class CompanySanctionScreenerTest {
       new CompanySanctionScreener(sanctionCheckService);
 
   private static final CompanyDto COMPANY =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ);
 
   @Test
   void noMatchesBothChecksSucceed() {
@@ -111,6 +112,7 @@ class CompanySanctionScreenerTest {
         new PersonalCode("38501010001"),
         R,
         List.of(person),
+        totalOwnershipOf(List.of(person)),
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

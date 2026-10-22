@@ -139,7 +139,7 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
-  void processCommand_withCommandCash_passesCashOverrideToInputService() {
+  void processCommand_withCommandCash_passesCashToInputServiceAndRecordsItsComment() {
     var command =
         TransactionCommand.builder()
             .id(20L)
@@ -148,6 +148,7 @@ class TransactionPreparationServiceTest {
             .asOfDate(LocalDate.of(2026, 1, 15))
             .manualAdjustments(Map.of())
             .cash(new BigDecimal("40000"))
+            .cashComment("Cash line confirmed with the custodian")
             .status(PROCESSING)
             .build();
     var input =
@@ -183,6 +184,14 @@ class TransactionPreparationServiceTest {
 
     verify(inputService)
         .gatherInput(TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000"));
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_COMPLETED".equals(event.getEventType())
+                        && "Cash line confirmed with the custodian"
+                            .equals(event.getPayload().get("cashComment"))
+                        && !event.getPayload().containsKey("cash")));
   }
 
   @Test
@@ -769,6 +778,8 @@ class TransactionPreparationServiceTest {
                     new BigDecimal("-4000"),
                     new BigDecimal("1500"),
                     new BigDecimal("500"),
+                    new BigDecimal("1100"),
+                    new BigDecimal("350"),
                     new BigDecimal("600"),
                     new BigDecimal("900"),
                     new BigDecimal("400")))
@@ -788,6 +799,8 @@ class TransactionPreparationServiceTest {
         .containsEntry("r45Net", "-4000")
         .containsEntry("pendingBuys", "1500")
         .containsEntry("pendingSells", "500")
+        .containsEntry("unsettledTradePayables", "1100")
+        .containsEntry("unsettledTradeReceivables", "350")
         .containsEntry("unreconciledBankReceipts", "600")
         .containsEntry("fundUnitsReservedValue", "900")
         .containsEntry("incomingPaymentsClearing", "400");
@@ -896,6 +909,65 @@ class TransactionPreparationServiceTest {
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
     verify(commandRepository).save(command);
+  }
+
+  @Test
+  void processCommand_onFailureWithACashOverride_recordsTheCashAndItsComment() {
+    var command =
+        TransactionCommand.builder()
+            .id(15L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .cash(new BigDecimal("40000"))
+            .cashComment("Cash line confirmed with the custodian")
+            .status(PROCESSING)
+            .build();
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(any(), any(), any(), any()))
+        .willThrow(new IllegalStateException("No position data found"));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && "40000".equals(event.getPayload().get("cash"))
+                        && "Cash line confirmed with the custodian"
+                            .equals(event.getPayload().get("cashComment"))));
+  }
+
+  @Test
+  void processCommand_withACashFigureButNoComment_failsWithoutGatheringInput() {
+    var command =
+        TransactionCommand.builder()
+            .id(16L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .cash(new BigDecimal("40000"))
+            .status(PROCESSING)
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isNull();
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    verifyNoInteractions(inputService, calculationEngine);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && "40000".equals(event.getPayload().get("cash"))
+                        && !event.getPayload().containsKey("cashComment")
+                        && !event.getPayload().containsKey("input")));
   }
 
   @Test

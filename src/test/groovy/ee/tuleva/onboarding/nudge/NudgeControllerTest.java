@@ -63,7 +63,14 @@ class NudgeControllerTest {
                 eq(user), eq(NudgeAccount.of(person.getRole())), eq(THIRD_PILLAR_PAYMENT)))
         .willReturn(
             NudgeDecision.secondPillarTransfer(
-                new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
+                new FeeComparison(
+                    new BigDecimal("0.65"),
+                    130,
+                    56,
+                    74,
+                    new BigDecimal("0.28"),
+                    20000,
+                    LocalDate.of(2026, 10, 16))));
 
     mvc.perform(
             get("/v1/me/nudge")

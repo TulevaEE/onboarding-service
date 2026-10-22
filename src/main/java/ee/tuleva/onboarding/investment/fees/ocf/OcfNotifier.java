@@ -158,13 +158,13 @@ class OcfNotifier {
     var wording = GapWording.forCount(incomplete);
     return Stream.of(
         """
-        %s %d of the written ones %s: a component resolved to zero instead of failing,
+        %s %d of the written ones %s: not every component was computed from complete inputs,
           so %s and must not be published until %s."""
             .formatted(
                 INCOMPLETE.icon,
                 incomplete,
                 wording.haveGaps,
-                wording.totalsAreUnderstated,
+                wording.totalsAreProvisional,
                 wording.theyAreComplete));
   }
 
@@ -173,7 +173,7 @@ class OcfNotifier {
     var wording = GapWording.forCount(incomplete);
     return """
         %s %s WROTE AN INCOMPLETE FIGURE: %s, %d of %d %s %s
-          A component resolved to zero instead of failing, so %s and
+          Not every component was computed from complete inputs, so %s and
           must not be published until %s."""
         .formatted(
             INCOMPLETE.icon,
@@ -183,7 +183,7 @@ class OcfNotifier {
             outcomes.size(),
             countedUnit(outcomes),
             wording.haveGaps,
-            wording.totalsAreUnderstated,
+            wording.totalsAreProvisional,
             wording.theyAreComplete);
   }
 
@@ -242,11 +242,11 @@ class OcfNotifier {
 
   @RequiredArgsConstructor
   private enum GapWording {
-    ONE_FUND("has gaps", "that total is understated", "it is complete"),
-    SEVERAL_FUNDS("have gaps", "those totals are understated", "they are complete");
+    ONE_FUND("has gaps", "that total is provisional", "it is complete"),
+    SEVERAL_FUNDS("have gaps", "those totals are provisional", "they are complete");
 
     private final String haveGaps;
-    private final String totalsAreUnderstated;
+    private final String totalsAreProvisional;
     private final String theyAreComplete;
 
     private static GapWording forCount(long incompleteFunds) {

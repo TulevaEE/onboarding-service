@@ -279,11 +279,7 @@ class TrackingDifferenceService {
     var cashWeight =
         totalNav.signum() != 0 ? cashTotal.divide(totalNav, 6, RoundingMode.HALF_UP) : ZERO;
 
-    var totalSecurities =
-        positions.stream()
-            .map(FundPosition::getMarketValue)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
+    var totalSecurities = SecurityDataBuilder.totalMarketValue(positions);
 
     var securities =
         securityDataBuilder.buildSecurityData(
@@ -334,11 +330,7 @@ class TrackingDifferenceService {
 
     var bodPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, fund, SECURITY);
-    var bodTotalSecurities =
-        bodPositions.stream()
-            .map(FundPosition::getMarketValue)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
+    var bodTotalSecurities = SecurityDataBuilder.totalMarketValue(bodPositions);
     var previousTotalNav =
         fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, previousDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY));
@@ -383,6 +375,7 @@ class TrackingDifferenceService {
             .accruedFeeFraction(accruedFeeFraction)
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
+            .bodWeights(SecurityDataBuilder.beginningOfDayWeights(bodPositions, bodTotalSecurities))
             .bodSecuritiesFraction(bodSecuritiesFraction)
             .openingNetAssets(previousTotalNav)
             .closingNetAssets(totalNav)

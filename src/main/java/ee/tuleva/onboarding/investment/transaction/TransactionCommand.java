@@ -50,6 +50,8 @@ public class TransactionCommand {
 
   @Nullable private BigDecimal cash;
 
+  @Nullable private String cashComment;
+
   @Builder.Default
   @JdbcTypeCode(JSON)
   private Map<String, Object> manualAdjustments = Map.of();
@@ -68,6 +70,25 @@ public class TransactionCommand {
   @Nullable private Instant createdAt;
 
   @Nullable private Instant processedAt;
+
+  static TransactionCommand requested(
+      TulevaFund fund,
+      TransactionMode mode,
+      LocalDate asOfDate,
+      @Nullable Map<String, Object> manualAdjustments,
+      String actor,
+      @Nullable CashOverride cash) {
+    return TransactionCommand.builder()
+        .fund(fund)
+        .mode(mode)
+        .asOfDate(asOfDate)
+        .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
+        .cash(cash == null ? null : cash.amount())
+        .cashComment(cash == null ? null : cash.comment())
+        .actor(actor)
+        .status(CommandStatus.PROCESSING)
+        .build();
+  }
 
   @PrePersist
   protected void onCreate() {

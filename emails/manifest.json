@@ -70,6 +70,16 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "insurance_transfer_form_en": {
+      "subject": "Your request to end your third pillar insurance contract",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "insurance_transfer_form_et": {
+      "subject": "Sinu III samba kindlustuslepingu lõpetamise avaldus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "listing_expires_en": {
       "subject": "Your listing to transfer member capital has expired",
       "from_email": "tuleva@tuleva.ee",
@@ -111,12 +121,22 @@
       "from_name": "Tuleva"
     },
     "savings_fund_company_onboarded_en": {
-      "subject": "The company's Additional Investment Fund account is open",
+      "subject": "Your company's Tuleva Additional Investment Fund account is open",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_company_onboarded_et": {
-      "subject": "Ettevõtte Täiendava Kogumisfondi konto on avatud",
+      "subject": "Sinu OÜ kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_waiting_related_en": {
+      "subject": "Your company's account is waiting for the other shareholder to verify their identity",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_waiting_related_et": {
+      "subject": "Sinu OÜ kogumisfondikonto ootab teise osaniku tuvastamist",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -126,12 +146,17 @@
       "from_name": "Tuleva"
     },
     "savings_fund_first_payment_reminder_child_et": {
-      "subject": "Tee lapse Tuleva Kogumisfondi esimene sissemakse",
+      "subject": "Tee lapse kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_company_en": {
+      "subject": "Make your company's first contribution to Tuleva Additional Investment Fund",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_first_payment_reminder_company_et": {
-      "subject": "Tee ettevõtte Tuleva Kogumisfondi esimene sissemakse",
+      "subject": "Tee OÜ kogumisfondi kontole esimene sissemakse",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -161,7 +186,12 @@
       "from_name": "Tuleva"
     },
     "savings_fund_onboarding_abandonment_person_et": {
-      "subject": "Sinu Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "subject": "Sinu kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_person_en": {
+      "subject": "Continue opening your account",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -186,12 +216,12 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_cancelled_en": {
-      "subject": "Tuleva Additional Investment Fund payment cancellation succeeded",
+      "subject": "Tuleva Additional Investment Fund contribution cancelled",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_cancelled_et": {
-      "subject": "Tuleva kogumisfondi sissemakse katkestamine õnnestus",
+      "subject": "Kogumisfondi sissemakse katkestamine õnnestus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -201,7 +231,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_failed_et": {
-      "subject": "Sinu makse Tuleva Kogumisfondi ebaõnnestus",
+      "subject": "Sinu makse kogumisfondi ebaõnnestus",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -211,17 +241,17 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse kogumisfondi on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Your contribution has been received",
+      "subject": "Your company's contribution to Tuleva Additional Investment Fund has been received",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse OÜ kogumisfondi kontole on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -231,7 +261,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_person_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "subject": "Sissemakse kogumisfondi on tehtud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -252,6 +282,16 @@
     },
     "second_pillar_payment_rate_et": {
       "subject": "Sinu II samba sissemakse suurus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_rejoin_en": {
+      "subject": "Your II pillar applications",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_rejoin_et": {
+      "subject": "Sinu II samba avaldused",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -334,6 +374,7 @@
     "capital_transfer_confirmed_by_seller": "Sent to the buyer when the seller confirms receiving the payment. The contract then goes to the board for approval.",
     "capital_transfer_seller_to_confirm": "Published in Mandrill but currently unused: no code path in the service sends this template. The confirmed_by_buyer email covers this step.",
     "hackathon_registration": "Confirmation sent immediately after registering for the Tuleva hackathon.",
+    "insurance_transfer_form": "Sent right after the person signs a request to end a third pillar insurance contract and move its money to Tuleva III Samba Pensionifond, with the signed request attached. Tuleva sends nothing to the insurer: the email asks the person to forward it to the insurer address it names.",
     "listing_expires": "Published in Mandrill but currently unused: no code path in the service sends this template yet.",
     "listing_reply_to_buyer": "Sent to the owner of a member capital buy listing when another member responds, with the responder's contact details.",
     "listing_reply_to_seller": "Sent to the owner of a member capital sell listing when another member responds, with the responder's contact details.",
@@ -345,6 +386,7 @@
     "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",
     "second_pillar_mandate": "Sent right after signing a second pillar fund transfer or fund selection application, with the signed application attached.",
     "second_pillar_payment_rate": "Sent right after signing a second pillar contribution rate change application, with the signed application attached.",
+    "second_pillar_rejoin": "Sent right after signing the II pillar rejoin (the application to make contributions, the contribution rate and the fund selection), with the signed applications attached and when contributions start.",
     "second_pillar_transfer_cancellation": "Sent right after signing an application that cancels a pending second pillar fund transfer, with the signed application attached.",
     "second_pillar_withdrawal_cancellation": "Sent right after signing an application that cancels a pending second pillar withdrawal, with the signed application attached.",
     "third_pillar_payment_arrived": "Sent by the daily noon job to people whose first ever own contribution has reached the third pillar fund, including payers who have never logged in. Each person gets it once; capped at 200 recipients per day.",
@@ -354,12 +396,13 @@
     "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
     "savings_fund_onboarding_completed_person": "Sent once, at 9:00 Tallinn time the morning after an adult’s savings fund account opens, to the account holder. The first payment call and button show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button takes their place. Sent in English to holders who prefer English in the latest registry snapshot. Adults who still have an active guardian are left out.",
     "savings_fund_onboarding_completed_child": "Sent once, at 9:00 Tallinn time the morning after a minor’s savings fund account opens, to the parent who started it (the earliest active parent link, ahead of any ops-created guardian link). The first payment call and its button to the child’s payment page show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button to the child’s recurring payment page takes their place. When a co-parent captured from the population register is still waiting to confirm, it also tells the parent how to bring them in (hasCoParent). Sent in English to parents who prefer English in the latest registry snapshot.",
-    "savings_fund_onboarding_abandonment_person": "Planned: sent to a person who started opening a savings fund account but stopped. No signal exists yet for adults who abandon before submitting the KYC survey.",
+    "savings_fund_onboarding_abandonment_person": "Sent by a daily job at 12:45 Europe/Tallinn to an adult who opened the savings fund survey (/savings-fund/onboarding/person) and never submitted it, 3 to 30 days after their last visit to it. People with a savings fund account in any status, a submitted personal KYC survey or an active guardian are left out. Once per person. In Estonian or English by the saver’s language preference.",
     "savings_fund_onboarding_abandonment_child": "Sent by a daily job at 12:30 Europe/Tallinn to the parent who started opening a child’s account but never submitted the KYC survey (PENDING row without kyc_survey), 3 to 30 days after starting. Once per attempt: a parent is reminded again only about a child account started after their last reminder. In Estonian or English by the parent’s language preference.",
     "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. Since the company-waits flow, PENDING means waiting for related persons to verify, not abandonment, so this trigger needs its own definition before wiring.",
     "savings_fund_first_payment_reminder_person": "Sent by a daily job at 12:00 Europe/Tallinn to a person whose own savings fund account was opened 7 to 30 days ago with no contribution yet, once per account, in Estonian or English by the saver’s language preference. Minors, children with a guardian link and board members of a company that has already paid are left out.",
     "savings_fund_first_payment_reminder_child": "Sent by the same daily job to every active guardian of a child whose savings fund account was opened 7 to 30 days ago with no contribution yet, once per child account, in Estonian, naming the child.",
     "savings_fund_first_payment_reminder_company": "Planned: sent to the representative when a company’s account has been open for a while with no contributions. Trigger not wired yet.",
-    "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account."
+    "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account.",
+    "savings_fund_company_waiting_related": "Planned (draft): sent to the applicant when a company's application is submitted but waits for the second related person to verify (PENDING with a submitted survey). Tells what the other shareholder has to do. Trigger not wired yet."
   }
 }

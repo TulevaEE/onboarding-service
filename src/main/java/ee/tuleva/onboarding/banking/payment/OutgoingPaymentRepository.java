@@ -19,6 +19,9 @@ public interface OutgoingPaymentRepository extends CrudRepository<OutgoingPaymen
 
   List<OutgoingPayment> findByBatchIdIn(Collection<UUID> batchIds);
 
+  List<OutgoingPayment> findByAttemptedAtLessThanEqualAndResolvedAtAfter(
+      Instant attemptedAt, Instant resolvedAt);
+
   List<OutgoingPayment> findByStatusAndAttemptedAtBefore(
       OutgoingPaymentStatus status, Instant before);
 

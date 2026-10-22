@@ -4,19 +4,29 @@ import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidClient;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.web.client.RestClient;
 
 @Configuration
 @Slf4j
@@ -64,6 +74,33 @@ public class MobileIdConfiguration {
   MidAuthenticationResponseValidator mobileIDValidator(ResourceLoader resourceLoader) {
     KeyStore trustStore = getTrustStore(resourceLoader);
     return new MidAuthenticationResponseValidator(trustStore);
+  }
+
+  @Bean
+  @SneakyThrows
+  CertificateRevocationCheck mobileIdCertificateRevocationCheck(
+      ResourceLoader resourceLoader,
+      @Qualifier("ocspRestClient") RestClient ocspRestClient,
+      OCSPUtils ocspUtils,
+      Clock clock,
+      @Qualifier("ocspRetryTemplate") RetryTemplate ocspRetryTemplate) {
+    return new CertificateRevocationCheck(
+        issuingCaCertificatesOf(getTrustStore(resourceLoader)),
+        ocspRestClient,
+        ocspUtils,
+        clock,
+        ocspRetryTemplate);
+  }
+
+  @SneakyThrows
+  private static List<X509Certificate> issuingCaCertificatesOf(KeyStore trustStore) {
+    List<X509Certificate> certificates = new ArrayList<>();
+    for (String alias : Collections.list(trustStore.aliases())) {
+      if (trustStore.getCertificate(alias) instanceof X509Certificate certificate) {
+        certificates.add(certificate);
+      }
+    }
+    return certificates;
   }
 
   private KeyStore getTrustStore(ResourceLoader resourceLoader)

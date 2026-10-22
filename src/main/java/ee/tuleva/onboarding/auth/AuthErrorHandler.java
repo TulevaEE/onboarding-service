@@ -7,7 +7,6 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.auth.browser.PushLoginStartedTooSoonException;
-import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -132,12 +131,6 @@ public class AuthErrorHandler {
   @ExceptionHandler(WebEidAuthException.class)
   public ResponseEntity<Object> handleErrors(WebEidAuthException exception) {
     log.info("WebEidAuthException {}", exception.getMessage());
-    return idCardAuthFailedResponse();
-  }
-
-  @ExceptionHandler(IdCardSessionNotFoundException.class)
-  public ResponseEntity<Object> handleErrors(IdCardSessionNotFoundException exception) {
-    log.info("IdCardSessionNotFoundException {}", exception.getMessage());
     return idCardAuthFailedResponse();
   }
 

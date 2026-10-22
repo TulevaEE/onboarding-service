@@ -31,6 +31,59 @@ class KybDataChangeDetectorTest {
   }
 
   @Test
+  void aMetadataKeyRecordedForTheFirstTimeIsNotAChange() {
+    var previousChecks =
+        List.of(
+            new KybCheck(
+                SINGLE_BOARD_MEMBER_OWNERSHIP,
+                false,
+                Map.of("boardMemberPersonalCode", "38501010001")));
+    var currentChecks =
+        List.of(
+            new KybCheck(
+                SINGLE_BOARD_MEMBER_OWNERSHIP,
+                false,
+                Map.of("boardMemberPersonalCode", "38501010001", "totalOwnership", "200")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    assertThat(result.success()).isTrue();
+    assertThat((List<?>) result.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void aChangedValueUnderAKeyRecordedBeforeIsStillAChange() {
+    var previousChecks =
+        List.of(new KybCheck(DUAL_MEMBER_OWNERSHIP, true, Map.of("totalOwnership", "100")));
+    var currentChecks =
+        List.of(
+            new KybCheck(
+                DUAL_MEMBER_OWNERSHIP, true, Map.of("totalOwnership", "60", "newKey", "x")));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    assertThat(result.success()).isFalse();
+    var changes = (List<Map<String, Object>>) result.metadata().get("changes");
+    assertThat(changes.getFirst()).containsEntry("metadataChanged", true);
+  }
+
+  @Test
+  void aMetadataKeyNoLongerRecordedIsAChange() {
+    var previousChecks =
+        List.of(new KybCheck(HIGH_RISK_NACE, true, Map.of("naceCode", "Programmeerimine")));
+    var currentChecks =
+        List.of(new KybCheck(HIGH_RISK_NACE, true, Map.of("activityCodes", List.of("62011"))));
+    when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(previousChecks);
+
+    var result = detector.detect(PERSONAL_CODE, REGISTRY_CODE, currentChecks);
+
+    assertThat(result.success()).isFalse();
+  }
+
+  @Test
   void identicalResultsReturnsSuccess() {
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of("status", "R")));
     when(checkHistory.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE)).thenReturn(checks);

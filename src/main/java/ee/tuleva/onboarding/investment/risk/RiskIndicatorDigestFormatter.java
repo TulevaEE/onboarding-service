@@ -185,7 +185,9 @@ class RiskIndicatorDigestFormatter {
       sources.add("%s: %s".formatted(outcome.indicator().fund(), String.join("+", sourceKeys)));
     }
     return "Allikad: %s. SRI = MRM, eeldusel CRM = %d.%n"
-        .formatted(String.join("; ", sources), SriCalculator.ASSUMED_CREDIT_RISK_MEASURE);
+        .formatted(
+            String.join("; ", sources),
+            SriCalculator.ASSUMED_CRM_KEEPING_SRI_AT_MRM_PER_PRIIPS_ANNEX_II_P52);
   }
 
   private String text(@Nullable Object value) {

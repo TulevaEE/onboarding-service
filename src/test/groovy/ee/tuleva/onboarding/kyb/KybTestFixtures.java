@@ -26,9 +26,17 @@ public final class KybTestFixtures {
   // --- Shared builders ---
 
   static final CompanyDto VALID_COMPANY =
-      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), OÜ);
 
   static final SelfCertification VALID_CERT = new SelfCertification(true, true, true);
+
+  static CompanyDetail.CompanyDetailBuilder companyDetail() {
+    return CompanyDetail.builder()
+        .name("Test OÜ")
+        .registryCode("12345678")
+        .status("R")
+        .legalForm("OÜ");
+  }
 
   public static KybRelatedPerson.KybRelatedPersonBuilder kybPerson() {
     return KybRelatedPerson.builder().naturalPerson(true).ownershipPercent(ZERO).kycStatus(UNKNOWN);
@@ -221,6 +229,7 @@ public final class KybTestFixtures {
         personalCode,
         status,
         relatedPersons,
+        totalOwnershipOf(relatedPersons),
         selfCertification,
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -228,9 +237,30 @@ public final class KybTestFixtures {
         List.of());
   }
 
+  public static BigDecimal totalOwnershipOf(List<KybRelatedPerson> relatedPersons) {
+    return relatedPersons.stream()
+        .map(KybRelatedPerson::ownershipPercent)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
   // A standard active OÜ with the given related persons (defaults for the fields screeners ignore).
   public static KybCompanyData companyWith(KybRelatedPerson... relatedPersons) {
     return companyWith(List.of(relatedPersons));
+  }
+
+  public static KybCompanyData companyWithTotalOwnership(
+      BigDecimal totalOwnership, KybRelatedPerson... relatedPersons) {
+    return new KybCompanyData(
+        VALID_COMPANY,
+        JAAN,
+        R,
+        List.of(relatedPersons),
+        totalOwnership,
+        VALID_CERT,
+        "EE",
+        "Harju maakond, Tallinn, Pärnu mnt 1",
+        null,
+        List.of());
   }
 
   public static KybCompanyData companyWith(List<KybRelatedPerson> relatedPersons) {
@@ -246,18 +276,6 @@ public final class KybTestFixtures {
   // =====================================================================
   // Rule 31: Single person OÜ — sole board member is 100% owner
   // =====================================================================
-
-  static final CompanyDetail VALID_COMPANY_DETAIL =
-      new CompanyDetail(
-          "Test OÜ",
-          "12345678",
-          "R",
-          "OÜ",
-          LocalDate.of(2020, 1, 15),
-          null,
-          "Programmeerimine",
-          "62011",
-          List.of());
 
   static List<CompanyRelationship> rule31PassRelationships() {
     return List.of(
@@ -416,19 +434,6 @@ public final class KybTestFixtures {
   // Rule 34: Company is active in Äriregister
   // =====================================================================
 
-  static CompanyDetail companyDetailInLiquidation() {
-    return new CompanyDetail(
-        "Test OÜ",
-        "12345678",
-        "L",
-        "OÜ",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Programmeerimine",
-        "62011",
-        List.of());
-  }
-
   static KybCompanyData rule34Pass() {
     return rule31Pass();
   }
@@ -485,25 +490,12 @@ public final class KybTestFixtures {
   // Rule 41: High-risk NACE code
   // =====================================================================
 
-  static CompanyDetail companyDetailHighRiskNace() {
-    return new CompanyDetail(
-        "Crypto OÜ",
-        "12345678",
-        "R",
-        "OÜ",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Krüptovarade teenused",
-        "64321",
-        List.of());
-  }
-
   static KybCompanyData rule41Pass() {
     return rule31Pass();
   }
 
   static KybCompanyData rule41Fail_highRiskNace() {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", "64321", OÜ);
+    var company = new CompanyDto(new RegistryCode("12345678"), "Crypto OÜ", List.of("64321"), OÜ);
     var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }
@@ -541,25 +533,12 @@ public final class KybTestFixtures {
   // Rule 50: Legal form must be OÜ
   // =====================================================================
 
-  static CompanyDetail companyDetailAS() {
-    return new CompanyDetail(
-        "Test AS",
-        "12345678",
-        "R",
-        "AS",
-        LocalDate.of(2020, 1, 15),
-        null,
-        "Programmeerimine",
-        "62011",
-        List.of());
-  }
-
   static KybCompanyData rule50Pass() {
     return rule31Pass();
   }
 
   static KybCompanyData rule50Fail_notOÜ() {
-    var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", "62011", AS);
+    var company = new CompanyDto(new RegistryCode("12345678"), "Test AS", List.of("62011"), AS);
     var owner = boardMemberOwner(JAAN, 100.0).build();
     return companyData(company, JAAN, R, List.of(owner), VALID_CERT);
   }

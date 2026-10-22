@@ -176,7 +176,7 @@ class MandateServiceSpec extends Specification {
     def signatureSession = MobileIdSignatureSession.builder().build()
 
     1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-    1 * signService.startMobileIdSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
+    1 * signService.startMobileIdSign(new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
         signatureSession
 
     when:
@@ -190,10 +190,10 @@ class MandateServiceSpec extends Specification {
     given:
     def user = sampleUser()
     def authenticatedPerson = authenticatedPersonFromUser(user).build()
-    def signatureSession = new SmartIdSignatureSession(null, null)
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
 
     1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-    1 * signService.startSmartIdSign(_ as List<SignatureFile>, authenticatedPerson) >>
+    1 * signService.startSmartIdSign(new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, authenticatedPerson) >>
         signatureSession
 
     when:
@@ -206,10 +206,10 @@ class MandateServiceSpec extends Specification {
   def "finalizeSmartIdSignature: get correct status if currently signing mandate"() {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
-    def signatureSession = new SmartIdSignatureSession(null, null)
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> null
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> null
 
     when:
     def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
@@ -222,10 +222,10 @@ class MandateServiceSpec extends Specification {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
     byte[] sampleFile = "file".getBytes()
-    def signatureSession = new SmartIdSignatureSession(null, null)
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> sampleFile
     1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
     when:
@@ -240,10 +240,10 @@ class MandateServiceSpec extends Specification {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
     byte[] sampleFile = "file".getBytes()
-    def signatureSession = new SmartIdSignatureSession(null, null)
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> sampleFile
     1 * mandateRepository.save(sampleMandate) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
@@ -264,7 +264,7 @@ class MandateServiceSpec extends Specification {
   def "finalizeSmartIdSignature: answers signature for a processed mandate without notifying again"() {
     given:
     Mandate sampleMandate = sampleMandate()
-    def signatureSession = new SmartIdSignatureSession(null, null)
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -305,7 +305,7 @@ class MandateServiceSpec extends Specification {
     def signatureSession = MobileIdSignatureSession.builder().build()
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> null
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> null
 
     when:
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
@@ -321,7 +321,7 @@ class MandateServiceSpec extends Specification {
     def signatureSession = MobileIdSignatureSession.builder().build()
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> sampleFile
     1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
     when:
@@ -355,7 +355,7 @@ class MandateServiceSpec extends Specification {
     def signatureSession = MobileIdSignatureSession.builder().build()
 
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(_) >> sampleFile
+    1 * signService.getSignedFile(signatureSession, new SignableEntity("Mandate", sampleMandate.id)) >> sampleFile
     1 * mandateRepository.save(sampleMandate) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse

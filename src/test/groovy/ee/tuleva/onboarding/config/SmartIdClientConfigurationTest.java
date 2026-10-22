@@ -105,30 +105,43 @@ class SmartIdClientConfigurationTest {
   }
 
   @Test
-  void smartIdOcspRetryTemplateAsksTwiceMoreWhenAnExchangeWithTheResponderFails() {
+  void trustStoreLoadsTheConfiguredFileFromDisk() throws Exception {
+    ReflectionTestUtils.setField(
+        configuration,
+        "trustStorePath",
+        TestTrustStores.writeTrustStoreContainingASelfSignedCertificate());
+
+    KeyStore trustStore = configuration.trustStore(TestTrustStores.RESOURCE_LOADER);
+
+    assertThat(trustStore).isNotNull();
+    assertThat(java.util.Collections.list(trustStore.aliases())).hasSize(1);
+  }
+
+  @Test
+  void ocspRetryTemplateAsksTwiceMoreWhenAnExchangeWithTheResponderFails() {
     assertThat(ocspAttemptsUntilGivingUpOn(new ResourceAccessException("connection reset")))
         .isEqualTo(3);
   }
 
   @Test
-  void smartIdOcspRetryTemplateDoesNotAskAgainAfterAFailureOtherThanAFailedExchange() {
+  void ocspRetryTemplateDoesNotAskAgainAfterAFailureOtherThanAFailedExchange() {
     assertThat(ocspAttemptsUntilGivingUpOn(new IllegalStateException("not an exchange failure")))
         .isEqualTo(1);
   }
 
   @Test
-  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
+  void ocspRetryTemplateDoesNotAskAgainWhenTheResponderRejectsTheRequest() {
     assertThat(ocspAttemptsUntilGivingUpOn(refusal(BAD_REQUEST))).isEqualTo(1);
   }
 
   @ParameterizedTest
   @EnumSource(names = {"REQUEST_TIMEOUT", "TOO_MANY_REQUESTS"})
-  void smartIdOcspRetryTemplateAsksTwiceMoreWhenTheResponderRefusesOnlyForNow(HttpStatus status) {
+  void ocspRetryTemplateAsksTwiceMoreWhenTheResponderRefusesOnlyForNow(HttpStatus status) {
     assertThat(ocspAttemptsUntilGivingUpOn(refusal(status))).isEqualTo(3);
   }
 
   @Test
-  void smartIdOcspRetryTemplateDoesNotAskAgainWhenTheResponderSaysHowLongToWait() {
+  void ocspRetryTemplateDoesNotAskAgainWhenTheResponderSaysHowLongToWait() {
     HttpHeaders waitTwoSeconds = new HttpHeaders();
     waitTwoSeconds.set(RETRY_AFTER, "2");
 
@@ -137,22 +150,21 @@ class SmartIdClientConfigurationTest {
   }
 
   @Test
-  void smartIdOcspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
+  void ocspRetryWindowClosesBeforeEitherOcspTimeoutSoATimedOutAttemptIsNeverAskedAgain()
       throws Exception {
     Object requestFactory =
-        privateField(
-            configuration.smartIdOcspRestClient(RestClient.builder()), "clientRequestFactory");
+        privateField(configuration.ocspRestClient(RestClient.builder()), "clientRequestFactory");
     Duration connectTimeout =
         ((HttpClient) privateField(requestFactory, "httpClient")).connectTimeout().orElseThrow();
     Duration readTimeout = (Duration) privateField(requestFactory, "readTimeout");
 
-    Duration retryWindow = configuration.smartIdOcspRetryTemplate().getRetryPolicy().getTimeout();
+    Duration retryWindow = configuration.ocspRetryTemplate().getRetryPolicy().getTimeout();
 
     assertThat(retryWindow).isPositive().isLessThan(connectTimeout).isLessThan(readTimeout);
   }
 
   private int ocspAttemptsUntilGivingUpOn(RuntimeException failure) {
-    RetryTemplate retryTemplate = configuration.smartIdOcspRetryTemplate();
+    RetryTemplate retryTemplate = configuration.ocspRetryTemplate();
     var attempts = new AtomicInteger();
 
     assertThatThrownBy(
@@ -173,19 +185,6 @@ class SmartIdClientConfigurationTest {
   private static HttpClientErrorException refusal(HttpStatus status, HttpHeaders headers) {
     return HttpClientErrorException.create(
         status, status.getReasonPhrase(), headers, new byte[0], null);
-  }
-
-  @Test
-  void trustStoreLoadsTheConfiguredFileFromDisk() throws Exception {
-    ReflectionTestUtils.setField(
-        configuration,
-        "trustStorePath",
-        TestTrustStores.writeTrustStoreContainingASelfSignedCertificate());
-
-    KeyStore trustStore = configuration.trustStore(TestTrustStores.RESOURCE_LOADER);
-
-    assertThat(trustStore).isNotNull();
-    assertThat(java.util.Collections.list(trustStore.aliases())).hasSize(1);
   }
 
   private static X509Certificate demoTestAccountCertificate() {

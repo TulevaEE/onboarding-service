@@ -30,4 +30,17 @@ public record HealthCheckResult(
   public boolean hasIssues() {
     return findings.stream().anyMatch(f -> f.severity() != PASS);
   }
+
+  public String importStatus() {
+    if (hasFails()) {
+      return "blocked";
+    }
+    if (hasWarnings()) {
+      return "imported with warnings";
+    }
+    if (hasIssues()) {
+      return "imported, a check could not run";
+    }
+    return "imported";
+  }
 }

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
+import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class FundReportMappingTest {
@@ -28,6 +30,15 @@ class FundReportMappingTest {
             "tuleva-maailma-volakirjade-pensionifond",
             "tuleva-iii-samba-pensionifond",
             "tuleva-taiendav-kogumisfond-dokumendid");
+  }
+
+  @Test
+  void everyPensionFundHasAFundPageForItsReport() {
+    assertThat(
+            Stream.of(TulevaFund.getPillar2Funds(), TulevaFund.getPillar3Funds())
+                .flatMap(List::stream))
+        .isNotEmpty()
+        .allSatisfy(fund -> assertThat(FundReportMapping.forFund(fund).pageSlug()).isNotBlank());
   }
 
   @Test

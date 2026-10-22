@@ -18,12 +18,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Limit;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
 class FeeCheckEventRepositoryTest {
@@ -31,9 +33,12 @@ class FeeCheckEventRepositoryTest {
   private static final LocalDate MAY = LocalDate.of(2026, 5, 1);
   private static final LocalDate JUNE = LocalDate.of(2026, 6, 1);
   private static final Instant BASE_TIME = Instant.parse("2026-06-03T07:00:00Z");
+  private static final String RETIRED_CHECK_TYPE = "BLACKROCK_ADJUSTMENT_FRESHNESS";
+  private static final Set<FeeCheckType> CHECK_TYPES_STILL_RUN = Set.of(FeeCheckType.values());
 
   @Autowired FeeCheckEventRepository repository;
   @Autowired TestEntityManager entityManager;
+  @Autowired JdbcClient jdbcClient;
 
   private int saved = 0;
 
@@ -165,7 +170,8 @@ class FeeCheckEventRepositoryTest {
   void aFundWithNothingOutstandingHasNoUnresolvedDeviationDate() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, PASS);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
   }
 
   @Test
@@ -173,7 +179,7 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, FAIL);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .contains(LocalDate.of(2026, 6, 1));
   }
 
@@ -182,7 +188,8 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, PASS);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
   }
 
   // A clean run only clears its own check type and scope. One leg recovering must not shorten the
@@ -192,7 +199,7 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), SETTLEMENT_COMPLETENESS, MANAGEMENT, PASS);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .contains(LocalDate.of(2026, 6, 1));
   }
 
@@ -203,14 +210,33 @@ class FeeCheckEventRepositoryTest {
     event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
     repository.saveAndFlush(event);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
   }
 
   @Test
   void aPensionikeskusFeeMismatchDoesNotWidenTheDailyWindowBecauseItHasNoHistoryToRescan() {
     saveOn(LocalDate.of(2026, 6, 1), PENSIONIKESKUS_MANAGEMENT_FEE, MANAGEMENT, FAIL);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
+  }
+
+  @Test
+  void aDeviationStoredByARetiredCheckCanNeverClearSoItDoesNotHoldTheDailyWindowOpen() {
+    saveRetiredCheckDeviationOn(LocalDate.of(2026, 6, 1));
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
+  }
+
+  @Test
+  void aRetiredChecksDeviationDoesNotHideAnOpenDeviationOfACheckStillRunning() {
+    saveRetiredCheckDeviationOn(LocalDate.of(2026, 5, 1));
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .contains(LocalDate.of(2026, 6, 1));
   }
 
   @Test
@@ -218,7 +244,7 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .contains(LocalDate.of(2026, 6, 1));
   }
 
@@ -228,7 +254,8 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
     saveOn(LocalDate.of(2026, 6, 3), FEE_BASE_COMPLETENESS, ALL, PASS);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
   }
 
   @Test
@@ -236,14 +263,29 @@ class FeeCheckEventRepositoryTest {
     saveOn(LocalDate.of(2026, 6, 1), CUSTODIAN_POSITION_COMPLETENESS, ALL, FAIL);
     saveOn(LocalDate.of(2026, 6, 2), CUSTODIAN_POSITION_COMPLETENESS, ALL, INFO);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
   }
 
   @Test
   void aRunThatCouldNotCheckIsNotItselfAnOpenDeviation() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
 
-    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
+        .isEmpty();
+  }
+
+  private void saveRetiredCheckDeviationOn(LocalDate checkDate) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_check_event
+            (fund_code, check_date, check_type, fee_scope, severity, deviation_found)
+            VALUES ('TUK75', :checkDate, :checkType, 'ALL', 'WARNING', true)
+            """)
+        .param("checkDate", checkDate)
+        .param("checkType", RETIRED_CHECK_TYPE)
+        .update();
   }
 
   private void saveOn(

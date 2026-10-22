@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.processor;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,13 @@ public class TradeSettlementParser {
   private final InstrumentReferenceService instrumentReferenceService;
 
   public record TradeSettlementInfo(
-      String isin, String ticker, String displayName, BigDecimal units) {}
+      String isin, String ticker, String displayName, BigDecimal units) {
+
+    public BigDecimal signedUnits(BigDecimal cashAmount) {
+      var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
+      return cashAmount.signum() > 0 ? scaled.negate() : scaled;
+    }
+  }
 
   public Optional<TradeSettlementInfo> parse(String remittanceInfo) {
     if (remittanceInfo == null || remittanceInfo.isEmpty()) {

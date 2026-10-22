@@ -14,8 +14,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService.TransactionCost;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
@@ -65,6 +67,8 @@ class OcfCalculationServiceTest {
 
   @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
+  @Spy private MonthEndNavCheck monthEndNavCheck = new MonthEndNavCheck(PUBLIC_HOLIDAYS);
+
   @InjectMocks private OcfCalculationService service;
 
   @BeforeEach
@@ -72,8 +76,11 @@ class OcfCalculationServiceTest {
     given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
   }
 
+  private static final PublicHolidays PUBLIC_HOLIDAYS = new PublicHolidays();
   private static final YearMonth MONTH = YearMonth.of(2026, 4);
   private static final LocalDate MONTH_END = MONTH.atEndOfMonth();
+  private static final LocalDate WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY =
+      PUBLIC_HOLIDAYS.previousWorkingDay(PUBLIC_HOLIDAYS.lastWorkingDayOf(MONTH));
   private static final String ISIN = "XX0000000001";
   private static final UUID CALCULATION_ID =
       UUID.fromString("00000000-0000-4000-8000-000000000001");
@@ -94,9 +101,14 @@ class OcfCalculationServiceTest {
   }
 
   private void givenPublishedCalculation(TulevaFund fund, NavAccountLine... lines) {
+    givenTheLatestPublishedCalculationIsOn(MONTH_END, fund, lines);
+  }
+
+  private void givenTheLatestPublishedCalculationIsOn(
+      LocalDate navDate, TulevaFund fund, NavAccountLine... lines) {
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), MONTH_END))
-        .willReturn(Optional.of(MONTH_END));
-    given(fundNavQueryService.findPublishedCalculation(fund.getCode(), MONTH_END))
+        .willReturn(Optional.of(navDate));
+    given(fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate))
         .willReturn(Optional.of(new NavCalculation(CALCULATION_ID, Instant.EPOCH, List.of(lines))));
   }
 
@@ -565,6 +577,33 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void aFullYearThatContainsALeapDayIsLeftAtItsObservedRate() {
+    var leapMonthEnd = LocalDate.of(2028, 3, 31);
+    var periodStart = leapMonthEnd.minusYears(1).plusDays(1);
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), periodStart, leapMonthEnd))
+        .willReturn(List.of(periodStart, leapMonthEnd));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    assertThat(service.getTransactionCost(TUK75, leapMonthEnd))
+        .isEqualTo(
+            new TransactionCost(
+                new BigDecimal("0.00001000"),
+                periodStart,
+                leapMonthEnd,
+                new BigDecimal("1000"),
+                new BigDecimal("100000000.00000000"),
+                List.of(periodStart, leapMonthEnd),
+                List.of()));
+  }
+
+  @Test
   void transactionCostReturnsZeroWhenZeroAum() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
@@ -818,6 +857,49 @@ class OcfCalculationServiceTest {
     assertThat(snapshot.complete()).isFalse();
     assertThat(snapshot.checks()).contains("\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]");
     assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void aMonthEndNavStillUnpublishedLeavesTheSnapshotIncompleteInsteadOfCompleteOnAnEarlierNav() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenTheLatestPublishedCalculationIsOn(
+        WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
+        TUK75,
+        securityLine(ISIN, new BigDecimal("500000")),
+        unitsLine(new BigDecimal("1000000")));
+    setupNoTransactionCosts(TUK75);
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"MONTH_END_NAV_NOT_PUBLISHED\"]");
+    assertThat(snapshot.audit().navDate())
+        .isEqualTo(WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY);
+  }
+
+  @Test
+  void rerunningOnceTheMonthEndNavIsPublishedClearsTheMonthEndNavGap() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    setupNoTransactionCosts(TUK75);
+    givenTheLatestPublishedCalculationIsOn(
+        WORKING_DAY_BEFORE_THE_MONTHS_LAST_WORKING_DAY,
+        TUK75,
+        securityLine(ISIN, new BigDecimal("500000")),
+        unitsLine(new BigDecimal("1000000")));
+    service.calculateOcf(TUK75, MONTH);
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("800000")), unitsLine(new BigDecimal("1000000")));
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isTrue();
+    assertThat(snapshot.checks()).contains("\"gaps\":[]");
+    assertThat(snapshot.audit().navDate()).isEqualTo(MONTH_END);
+    assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0008"));
   }
 
   @Test

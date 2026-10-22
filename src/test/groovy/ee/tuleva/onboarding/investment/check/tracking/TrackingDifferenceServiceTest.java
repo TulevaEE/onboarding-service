@@ -61,6 +61,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -677,6 +678,8 @@ class TrackingDifferenceServiceTest {
     // even though cash dilutes the holding to 95% of total NAV. The cash effect is attributed
     // once, via cashDrag — not embedded again in the per-instrument deviation.
     setupFundData(TUK75);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(List.of(securityPosition(PREVIOUS_DATE, "IE00B4L5Y983", "950000")));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -731,23 +734,22 @@ class TrackingDifferenceServiceTest {
         .willReturn(Optional.of(resolvedPrice("50.00")));
 
     // 600k + 400k securities = 1,000,000 sleeve; 50k cash → 1,050,000 total NAV
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId(isinA)
-                    .marketValue(new BigDecimal("600000"))
-                    .build(),
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId(isinB)
-                    .marketValue(new BigDecimal("400000"))
-                    .build()));
+    givenTheFundHeldAllDay(
+        List.of(
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId(isinA)
+                .marketValue(new BigDecimal("600000"))
+                .build(),
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId(isinB)
+                .marketValue(new BigDecimal("400000"))
+                .build()));
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
@@ -772,6 +774,94 @@ class TrackingDifferenceServiceTest {
     assertThat(weightSum).isEqualByComparingTo(BigDecimal.ONE);
     assertThat(diffSum.abs()).isLessThan(new BigDecimal("0.000001"));
     assertThat(contribSum.abs()).isLessThan(new BigDecimal("0.000001"));
+  }
+
+  @Test
+  void attributesEachSecurityAtTheWeightTheFundHeldWhenTheDayBegan() {
+    skipOtherFunds(TUK75);
+    var isinA = "IE00AAA";
+    var isinB = "IE00BBB";
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isinA)
+                    .weight(new BigDecimal("0.50"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build(),
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isinB)
+                    .weight(new BigDecimal("0.50"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(positionPriceResolver.resolve(eq(isinA), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq(isinA), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq(isinB), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("98.00")));
+    given(positionPriceResolver.resolve(eq(isinB), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                securityPosition(PREVIOUS_DATE, isinA, "500000"),
+                securityPosition(PREVIOUS_DATE, isinB, "500000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                securityPosition(CHECK_DATE, isinA, "510000"),
+                securityPosition(CHECK_DATE, isinB, "490000")));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(ZERO);
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
+        .willReturn(List.of());
+
+    var model =
+        service.runChecksAsOf(CHECK_DATE).stream()
+            .filter(r -> r.checkType() == MODEL_PORTFOLIO)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(model.securityAttributions())
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactlyInAnyOrder(
+            new SecurityAttribution(
+                isinA,
+                new BigDecimal("0.50"),
+                new BigDecimal("0.50"),
+                ZERO,
+                new BigDecimal("0.02"),
+                null,
+                ZERO),
+            new SecurityAttribution(
+                isinB,
+                new BigDecimal("0.50"),
+                new BigDecimal("0.50"),
+                ZERO,
+                new BigDecimal("-0.02"),
+                null,
+                ZERO));
+    assertThat(model.residual()).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -830,6 +920,13 @@ class TrackingDifferenceServiceTest {
     assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("-250000"));
     assertThat(flow.unexplained()).isEqualByComparingTo(new BigDecimal("250000"));
     assertThat(model.navResidual()).isEqualByComparingTo(new BigDecimal("0.25"));
+  }
+
+  private void givenTheFundHeldAllDay(List<FundPosition> positions) {
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(positions);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(positions);
   }
 
   private FundPosition securityPosition(LocalDate navDate, String isin, String marketValue) {
@@ -2977,16 +3074,15 @@ class TrackingDifferenceServiceTest {
     // The model has adopted IE00NEW but the fund still holds only IE00OLD, so IE00NEW has no
     // price of ours yet. Gating on the raw model would abandon the whole fund's check over an
     // instrument that carries no weight in the portfolio.
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00OLD")
-                    .marketValue(new BigDecimal("500000"))
-                    .build()));
+    givenTheFundHeldAllDay(
+        List.of(
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00OLD")
+                .marketValue(new BigDecimal("500000"))
+                .build()));
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
@@ -3333,8 +3429,7 @@ class TrackingDifferenceServiceTest {
             .accountId("IE00NEW")
             .marketValue(new BigDecimal("500000"))
             .build();
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(List.of(oldPosition, newPosition));
+    givenTheFundHeldAllDay(List.of(oldPosition, newPosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -3499,8 +3594,7 @@ class TrackingDifferenceServiceTest {
             .accountId("IE00ROGUE")
             .marketValue(new BigDecimal("200000"))
             .build();
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(List.of(oldPosition, newPosition, roguePosition));
+    givenTheFundHeldAllDay(List.of(oldPosition, newPosition, roguePosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -3579,30 +3673,29 @@ class TrackingDifferenceServiceTest {
     given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(prevStableAlloc, oldAlloc));
 
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00STABLE")
-                    .marketValue(new BigDecimal("580000"))
-                    .build(),
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00NEW")
-                    .marketValue(new BigDecimal("200000"))
-                    .build(),
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00OLD")
-                    .marketValue(new BigDecimal("200000"))
-                    .build()));
+    givenTheFundHeldAllDay(
+        List.of(
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00STABLE")
+                .marketValue(new BigDecimal("580000"))
+                .build(),
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00NEW")
+                .marketValue(new BigDecimal("200000"))
+                .build(),
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00OLD")
+                .marketValue(new BigDecimal("200000"))
+                .build()));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -3699,8 +3792,7 @@ class TrackingDifferenceServiceTest {
             .accountId("IE00NEW")
             .marketValue(new BigDecimal("950000"))
             .build();
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(List.of(newPosition));
+    givenTheFundHeldAllDay(List.of(newPosition));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -3751,16 +3843,15 @@ class TrackingDifferenceServiceTest {
     given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of());
 
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00A")
-                    .marketValue(new BigDecimal("950000"))
-                    .build()));
+    givenTheFundHeldAllDay(
+        List.of(
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00A")
+                .marketValue(new BigDecimal("950000"))
+                .build()));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
@@ -3831,23 +3922,22 @@ class TrackingDifferenceServiceTest {
     given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of(prevA, prevB));
 
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00A")
-                    .marketValue(new BigDecimal("550000"))
-                    .build(),
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .navDate(CHECK_DATE)
-                    .accountType(SECURITY)
-                    .accountId("IE00B")
-                    .marketValue(new BigDecimal("450000"))
-                    .build()));
+    givenTheFundHeldAllDay(
+        List.of(
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00A")
+                .marketValue(new BigDecimal("550000"))
+                .build(),
+            FundPosition.builder()
+                .fund(TUK75)
+                .navDate(CHECK_DATE)
+                .accountType(SECURITY)
+                .accountId("IE00B")
+                .marketValue(new BigDecimal("450000"))
+                .build()));
 
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(

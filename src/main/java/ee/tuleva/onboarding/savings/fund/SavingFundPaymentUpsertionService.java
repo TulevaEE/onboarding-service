@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 
-import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -25,7 +23,6 @@ public class SavingFundPaymentUpsertionService {
       Set.of(CREATED, RETURNED, PROCESSED, FROZEN);
 
   private final SavingFundPaymentRepository repository;
-  private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final NameMatcher nameMatcher;
   private final Clock clock;
 
@@ -75,18 +72,6 @@ public class SavingFundPaymentUpsertionService {
       var status = onInsert.apply(payment.toBuilder().id(paymentId).build());
       repository.changeStatus(paymentId, status);
     }
-  }
-
-  public void cancelPayment(PartyId partyId, UUID paymentId) {
-    var payment = repository.findById(paymentId).orElseThrow();
-    if (!partyId.equals(payment.getPartyId()) || payment.getCancelledAt() != null) {
-      throw new NoSuchElementException();
-    }
-    var deadline = savingFundDeadlinesService.getCancellationDeadline(payment);
-    if (deadline.isBefore(clock.instant())) {
-      throw new IllegalStateException("Payment cancellation deadline has passed");
-    }
-    repository.cancel(paymentId);
   }
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {

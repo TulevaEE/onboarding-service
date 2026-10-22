@@ -7,21 +7,27 @@ import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.SOFT;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.OWNERSHIP;
 import static ee.tuleva.onboarding.investment.check.limit.UnderlyingFunds.EODHD_EUR_USD_STORAGE_KEY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.check.limit.EODHDFundSizeClient.FundSize;
 import ee.tuleva.onboarding.investment.check.limit.OwnershipCheckRun.NotChecked;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
@@ -43,6 +49,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   UnderlyingFunds.class,
   NavReportPositionProvider.class,
   LimitCheckEventWriter.class,
+  StaleFundSizes.class,
   OwnershipLimitCheckIT.FixedClock.class
 })
 class OwnershipLimitCheckIT {
@@ -50,15 +57,21 @@ class OwnershipLimitCheckIT {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final YearMonth SEPTEMBER = YearMonth.of(2026, 9);
   private static final LocalDate MONTH_END = LocalDate.of(2026, 9, 30);
+  private static final YearMonth AUGUST = YearMonth.of(2026, 8);
+  private static final LocalDate AUGUST_END = LocalDate.of(2026, 8, 31);
+  private static final YearMonth JULY = YearMonth.of(2026, 7);
+  private static final LocalDate JULY_END = LocalDate.of(2026, 7, 31);
   private static final String INVESCO_EM = "IE00BMDBMY19";
   private static final String INVESCO_EM_TICKER = "ESGM.XETRA";
   private static final String XTRACKERS_CANADA = "LU0476289540";
+  private static final String ISHARES_DEVELOPED_WORLD = "IE00BFG1TM61";
   private static final BigDecimal HUNDRED_MILLION = new BigDecimal("100000000");
   private static final LocalDate EODHD_UPDATED = LocalDate.of(2026, 10, 3);
 
   @Autowired private OwnershipLimitCheckService service;
   @Autowired private LimitCheckEventRepository limitCheckEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EntityManager entityManager;
 
   @MockitoBean private EODHDFundSizeClient fundSizeClient;
   @MockitoBean private InstrumentReferenceService instrumentReferenceService;
@@ -75,7 +88,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aTkf100HoldingOverTwentyPercentOfItsUnderlyingFund_isSoftAgainstTheSeededLimit() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -111,7 +124,7 @@ class OwnershipLimitCheckIT {
     insertOwnershipLimit(LocalDate.of(2026, 9, 15), "30", "40");
     insertOwnershipLimit(LocalDate.of(2026, 10, 15), "10", "15");
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "12000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -129,7 +142,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aHoldingOfTwentyFivePercentOfItsUnderlyingFund_isHard() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "25000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -140,7 +153,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aHoldingAtTwentyPercent_isOk_andTheStoredEventCarriesNoBreach() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "20000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -153,7 +166,7 @@ class OwnershipLimitCheckIT {
   @Test
   void theNavReportsMarketValue_isUsedOverTheCustodiansWhenTheReportHasTheIsin() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
     insertPublishedNavReportSecurity(MONTH_END, INVESCO_EM, "22000000");
 
@@ -165,7 +178,7 @@ class OwnershipLimitCheckIT {
   @Test
   void rowsOfOneIsinUnderTwoNames_areSummedIntoOneHolding() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "INVESCO EM ACC", "15000000");
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "INVESCO EM ACC II", "10000000");
 
@@ -179,7 +192,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aNavReportValueForAnIsinSplitAcrossTwoCustodianRows_isCountedOnce() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "INVESCO EM ACC", "8000000");
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "INVESCO EM ACC II", "8000000");
     insertPublishedNavReportSecurity(MONTH_END, INVESCO_EM, "16000000");
@@ -198,16 +211,17 @@ class OwnershipLimitCheckIT {
   @Test
   void eachUnderlyingFund_isCheckedAgainstItsOwnSize() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     given(instrumentReferenceService.findByIsin(XTRACKERS_CANADA))
         .willReturn(
             Optional.of(
                 instrument(XTRACKERS_CANADA)
                     .displayName("Xtrackers MSCI Canada Screened")
                     .eodhdTicker("D5BH.XETRA")
+                    .fundCurrency("EUR")
                     .build()));
     given(fundSizeClient.fetch("D5BH.XETRA"))
-        .willReturn(new FundSize.Reported(new BigDecimal("1000000000"), "EUR", EODHD_UPDATED));
+        .willReturn(new FundSize.Reported(new BigDecimal("1000000000"), EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
     insertSecurity(TKF100.name(), MONTH_END, XTRACKERS_CANADA, "21000000");
 
@@ -221,7 +235,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aMonthWithOnlyThePreviousMonthsPositions_isNotChecked_insteadOfCheckedOnStaleData() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), LocalDate.of(2026, 8, 31), INVESCO_EM, "1000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -236,7 +250,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aFundSizeEodhdLastUpdatedBeforeTheMonthBegan_isUnverified() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", LocalDate.of(2026, 8, 15)));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, LocalDate.of(2026, 8, 15)));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -253,13 +267,14 @@ class OwnershipLimitCheckIT {
   @Test
   void aHoldingWhoseSizingThrows_isUnverified_andTheOtherHoldingsAreStillChecked() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     given(instrumentReferenceService.findByIsin(XTRACKERS_CANADA))
         .willReturn(
             Optional.of(
                 instrument(XTRACKERS_CANADA)
                     .displayName("Xtrackers MSCI Canada Screened")
                     .eodhdTicker("D5BH.XETRA")
+                    .fundCurrency("EUR")
                     .build()));
     given(fundSizeClient.fetch("D5BH.XETRA")).willThrow(new IllegalStateException("boom"));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
@@ -278,7 +293,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aHeldSecurityTheNavReportValuesAtZero_isStillListed_notDroppedAsSoldOut() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
     insertPublishedNavReportSecurity(MONTH_END, INVESCO_EM, "0");
 
@@ -292,7 +307,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aMonthCountsAsChecked_onlyOnceItsOwnershipEventIsStored() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
 
     var before = service.everyFundIsChecked(SEPTEMBER);
@@ -310,7 +325,7 @@ class OwnershipLimitCheckIT {
     service.checkMonthEnd(SEPTEMBER);
     var afterTheIncompleteRun = service.everyFundIsChecked(SEPTEMBER);
 
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     service.checkMonthEnd(SEPTEMBER);
 
     assertThat(afterTheIncompleteRun).isFalse();
@@ -320,7 +335,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aFundSizeWithoutAnEodhdUpdateDate_isUnverified_ratherThanTakenAsCurrent() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", null));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, null));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -340,7 +355,7 @@ class OwnershipLimitCheckIT {
   @Test
   void theMonthsLastPositionDate_isChecked_notALaterOne() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END.minusDays(1), INVESCO_EM, "1000000");
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
     insertSecurity(TKF100.name(), MONTH_END.plusDays(1), INVESCO_EM, "30000000");
@@ -357,9 +372,9 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
-  void aFundSizeReportedInUsd_isConvertedAtTheEurUsdRateBeforeComparing() {
-    givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "USD", EODHD_UPDATED));
+  void aFundSizeOfAUsdFund_isConvertedFromItsFundCurrency_althoughItsXetraListingTradesInEur() {
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), EODHD_UPDATED));
     given(fundValueProvider.getLatestValue(EODHD_EUR_USD_STORAGE_KEY, LocalDate.of(2026, 10, 6)))
         .willReturn(
             Optional.of(
@@ -378,6 +393,8 @@ class OwnershipLimitCheckIT {
         .satisfies(
             holding -> {
               assertThat(holding.underlyingFundSize()).isEqualByComparingTo(HUNDRED_MILLION);
+              assertThat(holding.reportedFundSize()).isEqualByComparingTo("116000000");
+              assertThat(holding.reportedCurrency()).isEqualTo("USD");
               assertThat(holding.severity()).isEqualTo(SOFT);
             });
   }
@@ -401,9 +418,90 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
-  void aFundSizeInUsdWithoutAStoredEurUsdRate_isUnverified() {
+  void theIsharesDevelopedWorldIndexFund_isLeftOutByDesign_andTheMonthIsCoveredWithoutItsSize() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), "USD", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
+    given(instrumentReferenceService.findByIsin(ISHARES_DEVELOPED_WORLD))
+        .willReturn(
+            Optional.of(
+                instrument(ISHARES_DEVELOPED_WORLD)
+                    .displayName("iShares Developed World Screened Index Fund")
+                    .eodhdTicker("IE00BFG1TM61.EUFUND")
+                    .build()));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+    insertSecurity(TKF100.name(), MONTH_END, ISHARES_DEVELOPED_WORLD, "40000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    var result = run.results().getFirst();
+    assertThat(result.holdings()).extracting(OwnershipBreach::isin).containsExactly(INVESCO_EM);
+    assertThat(result.unverified()).isEmpty();
+    assertThat(result.leftOut())
+        .singleElement()
+        .satisfies(
+            holding -> {
+              assertThat(holding.isin()).isEqualTo(ISHARES_DEVELOPED_WORLD);
+              assertThat(holding.name()).isEqualTo("iShares Developed World Screened Index Fund");
+              assertThat(holding.holdingValue()).isEqualByComparingTo("40000000");
+              assertThat(holding.reason()).contains("EODHD has no total assets");
+            });
+    assertThat(run.coveredEveryHolding()).isTrue();
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+    then(fundSizeClient).should().fetch(INVESCO_EM_TICKER);
+    then(fundSizeClient).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aFundSizeEodhdLeftUnchangedSinceTheMonthBefore_isFlaggedStale_andTheMonthStillCompletes() {
+    givenAugustChecked(HUNDRED_MILLION);
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .singleElement()
+        .satisfies(
+            stale -> {
+              assertThat(stale.isin()).isEqualTo(INVESCO_EM);
+              assertThat(stale.name()).isEqualTo("Invesco MSCI EM Universal Screened");
+              assertThat(stale.reportedFundSize()).isEqualByComparingTo(HUNDRED_MILLION);
+              assertThat(stale.reportedCurrency()).isEqualTo("EUR");
+              assertThat(stale.unchangedSince()).isEqualTo(AUGUST_END);
+            });
+    assertThat(run.results().getFirst().holdings())
+        .extracting(OwnershipBreach::isin)
+        .containsExactly(INVESCO_EM);
+    assertThat(run.coveredEveryHolding()).isTrue();
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+  }
+
+  @Test
+  void aFundSizeThatChangedSinceTheMonthBefore_isNotStale() {
+    givenAugustChecked(new BigDecimal("90000000"));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes()).isEmpty();
+  }
+
+  @Test
+  void aFundSizeWithNoCheckTheMonthBefore_isNotStale() {
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes()).isEmpty();
+    assertThat(storedOwnershipEvent().getResult().get("sizesComparedWithTheMonthBefore"))
+        .isEqualTo(true);
+  }
+
+  @Test
+  void aFundSizeOfAUsdFundWithoutAStoredEurUsdRate_isUnverified() {
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(new BigDecimal("116000000"), EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -416,9 +514,23 @@ class OwnershipLimitCheckIT {
   }
 
   @Test
+  void aHoldingWhoseInstrumentHasNoFundCurrency_isUnverified_withoutAskingEodhd() {
+    givenInvescoEmInstrument(null);
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().unverified())
+        .singleElement()
+        .satisfies(
+            holding -> assertThat(holding.reason()).isEqualTo("no fund currency in instruments"));
+    then(fundSizeClient).shouldHaveNoInteractions();
+  }
+
+  @Test
   void aFundSizeInACurrencyWithoutAnEurRate_isUnverified() {
-    givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "GBP", EODHD_UPDATED));
+    givenInvescoEmInstrument("GBP");
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "21000000");
 
     var run = service.checkMonthEnd(SEPTEMBER);
@@ -458,7 +570,7 @@ class OwnershipLimitCheckIT {
   @Test
   void aSoldOutRowWithNoValue_isNeitherCheckedNorReportedUnverified() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
     insertSecurity(TKF100.name(), MONTH_END, XTRACKERS_CANADA, "0");
 
@@ -498,7 +610,7 @@ class OwnershipLimitCheckIT {
   @Test
   void theOwnershipEvent_doesNotCountAsADayTheDailyLimitCheckRan() {
     givenInvescoEmInstrument();
-    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, "EUR", EODHD_UPDATED));
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
     insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
 
     service.checkMonthEnd(SEPTEMBER);
@@ -508,14 +620,218 @@ class OwnershipLimitCheckIT {
         .isEmpty();
   }
 
+  @Test
+  void
+      anotherFundUnderAnOwnershipLimit_hasTheIsharesIndexFundChecked_becauseOnlyTkf100LeavesItOut() {
+    insertOwnershipLimit(TUK75, SEPTEMBER.atDay(1), "20", "25");
+    givenIsharesDevelopedWorldInstrument();
+    given(fundSizeClient.fetch("IE00BFG1TM61.EUFUND"))
+        .willReturn(new FundSize.Unavailable("EODHD has no total assets"));
+    insertSecurity(TUK75.name(), MONTH_END, ISHARES_DEVELOPED_WORLD, "300000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results())
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.fund()).isEqualTo(TUK75);
+              assertThat(result.leftOut()).isEmpty();
+              assertThat(result.unverified())
+                  .extracting(UnverifiedHolding::isin, UnverifiedHolding::reason)
+                  .containsExactly(tuple(ISHARES_DEVELOPED_WORLD, "EODHD has no total assets"));
+            });
+    assertThat(run.coveredEveryHolding()).isFalse();
+  }
+
+  @Test
+  void aFundWhoseOnlyHoldingIsLeftOutByDesign_countsAsCheckedInFull() {
+    givenIsharesDevelopedWorldInstrument();
+    insertSecurity(TKF100.name(), MONTH_END, ISHARES_DEVELOPED_WORLD, "40000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().leftOut())
+        .extracting(LeftOutHolding::isin)
+        .containsExactly(ISHARES_DEVELOPED_WORLD);
+    assertThat(run.leftAFundWhollyUnchecked()).isFalse();
+    assertThat(run.coveredEveryHolding()).isTrue();
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+  }
+
+  @Test
+  void aFundSizeWithMoreDigitsThanADoubleHolds_isStillFlaggedStale_whenEodhdLeftItUnchanged() {
+    var sizeBeyondDoublePrecision = new BigDecimal("1234567890123.456789");
+    givenAlreadyCheckedAndStored(AUGUST, sizeBeyondDoublePrecision);
+    givenFundSize(new FundSize.Reported(sizeBeyondDoublePrecision, EODHD_UPDATED));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .extracting(StaleFundSize::isin)
+        .containsExactly(INVESCO_EM);
+  }
+
+  @Test
+  void aFundSizeEodhdLeftUnchangedForTwoMonths_isStaleSinceTheFirstMonthItWasSeen() {
+    givenAlreadyCheckedAndStored(JULY, HUNDRED_MILLION);
+    givenAlreadyCheckedAndStored(AUGUST, HUNDRED_MILLION);
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .extracting(StaleFundSize::unchangedSince)
+        .containsExactly(JULY_END);
+  }
+
+  @Test
+  void
+      aSizeStoredInTheShapeOfTheFirstProductionRun_isComparedWith_soAnUnchangedOneIsFlaggedStale() {
+    var sizeEodhdReported = new BigDecimal("47729608.00");
+    insertOwnershipLimit(AUGUST.atDay(1), "20", "25");
+    storeEventInTheShapeOfTheFirstProductionRun(AUGUST_END, sizeEodhdReported);
+    givenInvescoEmInstrument("USD");
+    givenFundSize(new FundSize.Reported(sizeEodhdReported, EODHD_UPDATED));
+    given(fundValueProvider.getLatestValue(EODHD_EUR_USD_STORAGE_KEY, LocalDate.of(2026, 10, 6)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    EODHD_EUR_USD_STORAGE_KEY,
+                    MONTH_END,
+                    new BigDecimal("1.12"),
+                    "EODHD",
+                    Instant.parse("2026-10-01T05:00:00Z"))));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "2000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.results().getFirst().staleSizes())
+        .singleElement()
+        .satisfies(
+            stale -> {
+              assertThat(stale.isin()).isEqualTo(INVESCO_EM);
+              assertThat(stale.reportedCurrency()).isEqualTo("USD");
+              assertThat(stale.unchangedSince()).isEqualTo(AUGUST_END);
+            });
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isTrue();
+  }
+
+  @Test
+  void aMonthBeforeWhoseEventCannotBeRead_leavesTheFundsResultIntact_saysSo_andIsRetried() {
+    insertUnreadableOwnershipEvent(AUGUST_END);
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
+    insertSecurity(TKF100.name(), MONTH_END, INVESCO_EM, "1000000");
+
+    var run = service.checkMonthEnd(SEPTEMBER);
+
+    assertThat(run.fundsNotChecked()).isEmpty();
+    assertThat(run.results())
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.holdings())
+                  .extracting(OwnershipBreach::isin)
+                  .containsExactly(INVESCO_EM);
+              assertThat(result.staleSizes()).isEmpty();
+              assertThat(result.sizesNotComparedWithTheMonthBefore()).isNotNull();
+            });
+    assertThat(storedOwnershipEvent().getResult().get("sizesComparedWithTheMonthBefore"))
+        .isEqualTo(false);
+    assertThat(service.everyFundIsChecked(SEPTEMBER)).isFalse();
+  }
+
+  private void givenIsharesDevelopedWorldInstrument() {
+    given(instrumentReferenceService.findByIsin(ISHARES_DEVELOPED_WORLD))
+        .willReturn(
+            Optional.of(
+                instrument(ISHARES_DEVELOPED_WORLD)
+                    .displayName("iShares Developed World Screened Index Fund")
+                    .eodhdTicker("IE00BFG1TM61.EUFUND")
+                    .fundCurrency("EUR")
+                    .build()));
+  }
+
+  private void storeEventInTheShapeOfTheFirstProductionRun(
+      LocalDate checkDate, BigDecimal reportedFundSize) {
+    limitCheckEventRepository.save(
+        LimitCheckEvent.builder()
+            .fund(TKF100)
+            .checkDate(checkDate)
+            .checkType(OWNERSHIP)
+            .breachesFound(false)
+            .result(
+                Map.of(
+                    "holdings",
+                    List.of(
+                        new OwnershipBreach(
+                            INVESCO_EM,
+                            "Invesco MSCI EM Universal Screened",
+                            new BigDecimal("2022014.20000000"),
+                            reportedFundSize,
+                            reportedFundSize,
+                            "EUR",
+                            LocalDate.of(2026, 10, 10),
+                            new BigDecimal("4.2364"),
+                            new BigDecimal("20.00000000"),
+                            new BigDecimal("25.00000000"),
+                            OK)),
+                    "unverified",
+                    List.of(
+                        new UnverifiedHolding(
+                            ISHARES_DEVELOPED_WORLD,
+                            "iShares Developed World Screened Index Fund",
+                            new BigDecimal("3440000.00"),
+                            "EODHD has no total assets")),
+                    "coveredEveryHolding",
+                    false))
+            .build());
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  private void insertUnreadableOwnershipEvent(LocalDate checkDate) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_limit_check_event (fund_code, check_date, check_type, result)
+            VALUES ('TKF100', :checkDate, 'OWNERSHIP', '[1]')
+            """)
+        .param("checkDate", checkDate)
+        .update();
+  }
+
   private void givenInvescoEmInstrument() {
+    givenInvescoEmInstrument("EUR");
+  }
+
+  private void givenInvescoEmInstrument(@Nullable String fundCurrency) {
     given(instrumentReferenceService.findByIsin(INVESCO_EM))
         .willReturn(
             Optional.of(
                 instrument(INVESCO_EM)
                     .displayName("Invesco MSCI EM Universal Screened")
                     .eodhdTicker(INVESCO_EM_TICKER)
+                    .fundCurrency(fundCurrency)
                     .build()));
+  }
+
+  private void givenAugustChecked(BigDecimal augustFundSize) {
+    givenAlreadyCheckedAndStored(AUGUST, augustFundSize);
+    givenFundSize(new FundSize.Reported(HUNDRED_MILLION, EODHD_UPDATED));
+  }
+
+  private void givenAlreadyCheckedAndStored(YearMonth month, BigDecimal fundSize) {
+    insertOwnershipLimit(month.atDay(1), "20", "25");
+    givenInvescoEmInstrument();
+    givenFundSize(new FundSize.Reported(fundSize, EODHD_UPDATED));
+    insertSecurity(TKF100.name(), month.atEndOfMonth(), INVESCO_EM, "1000000");
+    service.checkMonthEnd(month);
+    entityManager.flush();
+    entityManager.clear();
   }
 
   private void givenFundSize(FundSize fundSize) {
@@ -571,14 +887,20 @@ class OwnershipLimitCheckIT {
   }
 
   private void insertOwnershipLimit(LocalDate effectiveDate, String soft, String hard) {
+    insertOwnershipLimit(TKF100, effectiveDate, soft, hard);
+  }
+
+  private void insertOwnershipLimit(
+      TulevaFund fund, LocalDate effectiveDate, String soft, String hard) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_ownership_limit
               (effective_date, fund_code, soft_limit_percent, hard_limit_percent)
-            VALUES (:effectiveDate, 'TKF100', :soft, :hard)
+            VALUES (:effectiveDate, :fund, :soft, :hard)
             """)
         .param("effectiveDate", effectiveDate)
+        .param("fund", fund.name())
         .param("soft", new BigDecimal(soft))
         .param("hard", new BigDecimal(hard))
         .update();

@@ -2,14 +2,15 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -17,7 +18,6 @@ import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -103,7 +103,7 @@ class BankOperationProcessorTest {
   @Test
   void processBankOperation_skipsAlreadyRecordedEntry() {
     var entry = createBankOperationEntry("INTR", new BigDecimal("5.00"));
-    when(fundBankLedger.hasLedgerEntry(any(UUID.class), eq(INTEREST_RECEIVED))).thenReturn(true);
+    given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
 
     processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
@@ -125,14 +125,19 @@ class BankOperationProcessorTest {
             eq(LocalDate.of(2025, 10, 1)),
             eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
     verify(fundBankLedger, never()).recordBankAdjustment(any(), any(), any(), any(), any());
+    verify(paymentCheckService)
+        .record(
+            eq(UNCLASSIFIED_BANK_OPERATION),
+            eq(WARNING),
+            any(String.class),
+            eq(
+                "cash parked in suspense, fund=TKF100, subFamilyCode=UNKN, reason=unknown subFamilyCode"));
   }
 
   @Test
   void processBankOperation_skipsAlreadyParkedUnknownSubFamilyCode() {
     var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
-    when(fundBankLedger.hasLedgerEntry(
-            any(UUID.class), eq(LedgerTransaction.TransactionType.UNCLASSIFIED_BANK_ENTRY)))
-        .thenReturn(true);
+    given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
 
     processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
@@ -198,8 +203,7 @@ class BankOperationProcessorTest {
     var entry =
         createBankOperationEntry(
             "BOOK", new BigDecimal("4370.58"), "Management fee kickback VP68168 02/2026");
-    when(fundBankLedger.hasLedgerEntry(any(UUID.class), eq(MANAGEMENT_FEE_REBATE)))
-        .thenReturn(true);
+    given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
@@ -288,6 +292,29 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
             eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
+  }
+
+  @Test
+  void
+      processBankOperation_leavesAParkedTradeToTheReclassifier_whenItsStatementArrivesAgainOnceTheInstrumentIsKnown() {
+    var amount = new BigDecimal("-209080.26");
+    var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+    given(fundBankLedger.existsForExternalReference(any(UUID.class))).willReturn(true);
+    lenient()
+        .when(tradeSettlementParser.parse(remittanceInfo))
+        .thenReturn(
+            java.util.Optional.of(
+                new TradeSettlementParser.TradeSettlementInfo(
+                    "LU1291102447",
+                    "EJAP",
+                    "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                    new BigDecimal("11704"))));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger, never())
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -391,7 +418,8 @@ class BankOperationProcessorTest {
             null,
             null,
             "OTHR",
-            Instant.parse("2025-10-01T20:59:59.999999Z"));
+            Instant.parse("2025-10-01T20:59:59.999999Z"),
+            true);
 
     assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
         .isInstanceOf(IllegalStateException.class)
@@ -411,7 +439,8 @@ class BankOperationProcessorTest {
             "bank-op-ref",
             null,
             "INTR",
-            null);
+            null,
+            true);
 
     assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
         .isInstanceOf(IllegalStateException.class)
@@ -429,7 +458,8 @@ class BankOperationProcessorTest {
         "test-ref",
         null,
         null,
-        null);
+        null,
+        true);
   }
 
   private BankStatementEntry createBankOperationEntry(String subFamilyCode, BigDecimal amount) {
@@ -447,6 +477,7 @@ class BankOperationProcessorTest {
         "bank-op-ref",
         null,
         subFamilyCode,
-        Instant.parse("2025-10-01T20:59:59.999999Z"));
+        Instant.parse("2025-10-01T20:59:59.999999Z"),
+        true);
   }
 }

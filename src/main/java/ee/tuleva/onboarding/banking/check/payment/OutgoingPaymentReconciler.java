@@ -5,39 +5,48 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMEN
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_NOT_EXECUTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBriefJob.BRIEF_CRON;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @Profile({"production", "staging"})
 public class OutgoingPaymentReconciler {
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final CronExpression BRIEF = CronExpression.parse(BRIEF_CRON);
+
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final PaymentCheckService paymentCheckService;
+  private final PublicHolidays publicHolidays;
   private final Clock clock;
-  private final Duration executionDeadline;
   private final Duration inFlightGrace;
 
   public OutgoingPaymentReconciler(
       OutgoingPaymentRepository outgoingPaymentRepository,
       PaymentCheckService paymentCheckService,
+      PublicHolidays publicHolidays,
       Clock clock,
-      @Value("${banking.payment.execution-deadline:PT24H}") Duration executionDeadline,
       @Value("${banking.payment.in-flight-grace:PT15M}") Duration inFlightGrace) {
     this.outgoingPaymentRepository = outgoingPaymentRepository;
     this.paymentCheckService = paymentCheckService;
+    this.publicHolidays = publicHolidays;
     this.clock = clock;
-    this.executionDeadline = executionDeadline;
     this.inFlightGrace = inFlightGrace;
   }
 
@@ -45,14 +54,22 @@ public class OutgoingPaymentReconciler {
   @SchedulerLock(name = "OutgoingPaymentReconciler", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void reconcile() {
     var now = Instant.now(clock);
+    var today = now.atZone(TALLINN).toLocalDate();
 
-    outgoingPaymentRepository
-        .findByStatusAndAttemptedAtBefore(SUBMITTED, now.minus(executionDeadline))
-        .forEach(this::reportNotExecuted);
+    if (publicHolidays.isWorkingDay(today)) {
+      outgoingPaymentRepository
+          .findByStatusAndAttemptedAtBefore(SUBMITTED, briefOnTheWorkingDayBefore(today))
+          .forEach(this::reportNotExecuted);
+    }
 
     outgoingPaymentRepository
         .findByStatusAndAttemptedAtBefore(ATTEMPTED, now.minus(inFlightGrace))
         .forEach(this::reportIndeterminate);
+  }
+
+  private Instant briefOnTheWorkingDayBefore(LocalDate today) {
+    var previousWorkingDay = publicHolidays.previousWorkingDay(today);
+    return requireNonNull(BRIEF.next(previousWorkingDay.atStartOfDay(TALLINN))).toInstant();
   }
 
   private void reportNotExecuted(OutgoingPayment payment) {

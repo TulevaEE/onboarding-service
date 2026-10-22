@@ -52,6 +52,12 @@ public class BankOperationProcessor {
     var externalReference =
         UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
 
+    if (fundBankLedger.existsForExternalReference(externalReference)) {
+      log.debug(
+          "Ledger entry already exists: account={}, externalRef={}", account, externalReference);
+      return;
+    }
+
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = account.ledgerAccount();
     var subFamilyCode = entry.subFamilyCode();
@@ -65,14 +71,6 @@ public class BankOperationProcessor {
         mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
-      return;
-    }
-
-    if (fundBankLedger.hasLedgerEntry(externalReference, transactionType)) {
-      log.debug(
-          "Ledger entry already exists: subFamilyCode={}, externalRef={}",
-          subFamilyCode,
-          externalReference);
       return;
     }
 
@@ -116,7 +114,7 @@ public class BankOperationProcessor {
           return;
         }
         var settlement = tradeInfo.get();
-        var units = signedUnits(settlement.units(), amount);
+        var units = settlement.signedUnits(amount);
         log.info(
             "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
@@ -178,10 +176,6 @@ public class BankOperationProcessor {
       UUID externalReference,
       BigDecimal amount,
       String reason) {
-    if (fundBankLedger.hasLedgerEntry(externalReference, UNCLASSIFIED_BANK_ENTRY)) {
-      log.debug("Suspense entry already exists: externalRef={}", externalReference);
-      return;
-    }
     log.error(
         "Unclassified bank operation: account={}, externalId={}, amount={}, subFamilyCode={}, reason={}",
         account,
@@ -193,8 +187,8 @@ public class BankOperationProcessor {
         UNCLASSIFIED_BANK_OPERATION,
         WARNING,
         externalReference.toString(),
-        "cash parked in suspense, subFamilyCode=%s, reason=%s"
-            .formatted(entry.subFamilyCode(), reason));
+        "cash parked in suspense, fund=%s, subFamilyCode=%s, reason=%s"
+            .formatted(account.fund().getCode(), entry.subFamilyCode(), reason));
     fundBankLedger.recordUnclassifiedBankEntry(
         account.fund(),
         amount,
@@ -203,11 +197,6 @@ public class BankOperationProcessor {
         bookingDate(entry),
         new FundBankLedger.UnclassifiedEntryDetails(
             null, null, entry.remittanceInformation(), entry.subFamilyCode()));
-  }
-
-  private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {
-    var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
-    return amount.signum() > 0 ? scaled.negate() : scaled;
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry) {

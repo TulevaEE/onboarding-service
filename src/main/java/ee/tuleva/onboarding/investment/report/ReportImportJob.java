@@ -1,22 +1,27 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_IMPORT;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunReportImportRequested;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineRun;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +29,7 @@ import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -35,6 +41,7 @@ import org.springframework.stereotype.Component;
 public class ReportImportJob {
 
   static final int LOOKBACK_DAYS = 7;
+  private static final String CSV_FINGERPRINT = "csvSha256";
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final List<ReportSource> sources;
@@ -43,6 +50,7 @@ public class ReportImportJob {
   private final ApplicationEventPublisher eventPublisher;
   private final PipelineTracker pipelineTracker;
   private final PipelineNotifier pipelineNotifier;
+  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
   @SchedulerLock(name = "ReportImportJob", lockAtMostFor = "55m", lockAtLeastFor = "4m")
@@ -86,8 +94,23 @@ public class ReportImportJob {
 
     for (ReportSource source : sources) {
       for (ReportType reportType : source.getSupportedReportTypes()) {
-        importReport(source, reportType, date);
+        importReportWithoutStoppingTheOthers(source, reportType, date);
       }
+    }
+  }
+
+  private void importReportWithoutStoppingTheOthers(
+      ReportSource source, ReportType reportType, LocalDate date) {
+    try {
+      importReport(source, reportType, date);
+    } catch (RuntimeException e) {
+      log.error(
+          "Report import failed, continuing with the next report: provider={}, reportType={},"
+              + " date={}",
+          source.getProvider(),
+          reportType,
+          date,
+          e);
     }
   }
 
@@ -122,7 +145,7 @@ public class ReportImportJob {
     if (stream.isEmpty()) {
       return;
     }
-    saveReport(source, reportType, date, stream.get());
+    saveReport(source, reportType, date, readCsv(source, reportType, date, stream.get()));
   }
 
   private void importReport(ReportSource source, ReportType reportType, LocalDate date) {
@@ -140,60 +163,106 @@ public class ReportImportJob {
       return;
     }
 
-    saveReport(source, reportType, date, stream.get());
+    byte[] csvBytes = readCsv(source, reportType, date, stream.get());
+    existing.ifPresent(
+        stored ->
+            notifyResend(
+                source,
+                reportType,
+                date,
+                comparedWithStored(
+                    stored.getMetadata().get(CSV_FINGERPRINT), fingerprintOf(csvBytes))));
+    saveReport(source, reportType, date, csvBytes);
   }
 
-  private void saveReport(
-      ReportSource source, ReportType reportType, LocalDate date, InputStream csvStream) {
-    ReportProvider provider = source.getProvider();
-    try (csvStream) {
-      byte[] csvBytes = csvStream.readAllBytes();
-
-      Map<String, Object> metadata = new HashMap<>();
-      metadata.put("s3Bucket", source.getBucket());
-      metadata.put("s3Key", source.getKey(reportType, date));
-      metadata.put("importTimestamp", clock.instant().toString());
-      source
-          .getLastModified(reportType, date)
-          .ifPresent(instant -> metadata.put("s3LastModified", instant.toString()));
-      metadata.putAll(source.extractCsvMetadata(csvBytes));
-
-      InvestmentReport report =
-          reportService.saveReport(
-              provider,
-              reportType,
-              date,
-              new ByteArrayInputStream(csvBytes),
-              source.getCsvDelimiter(),
-              source.getHeaderRowIndex(),
-              metadata);
-
-      int rowCount = report.getRawData().size();
-      log.info(
-          "Report import completed: provider={}, reportType={}, date={}, rowCount={}",
-          provider,
+  private void notifyResend(
+      ReportSource source, ReportType reportType, LocalDate date, String comparison) {
+    try {
+      notificationService.sendMessage(
+          "%s re-sent %s: %s"
+              .formatted(source.getProvider(), source.getKey(reportType, date), comparison),
+          INVESTMENT);
+    } catch (RuntimeException e) {
+      log.error(
+          "Report resend notice failed: provider={}, reportType={}, date={}",
+          source.getProvider(),
           reportType,
           date,
-          rowCount);
+          e);
+    }
+  }
 
-      eventPublisher.publishEvent(new ReportImportCompleted(provider, reportType, date, rowCount));
+  private static String comparedWithStored(@Nullable Object storedFingerprint, String fingerprint) {
+    if (storedFingerprint == null) {
+      return "the stored file has no fingerprint to compare with";
+    }
+    return storedFingerprint.equals(fingerprint)
+        ? "identical to the stored file"
+        : "it differs from the stored file";
+  }
 
+  private static String fingerprintOf(byte[] csvBytes) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(csvBytes));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is not available", e);
+    }
+  }
+
+  private byte[] readCsv(
+      ReportSource source, ReportType reportType, LocalDate date, InputStream csvStream) {
+    try (csvStream) {
+      return csvStream.readAllBytes();
     } catch (IOException e) {
       log.error(
           "Report import failed: provider={}, reportType={}, date={}",
-          provider,
+          source.getProvider(),
           reportType,
           date,
           e);
       throw new RuntimeException(
           "Report import failed: provider="
-              + provider
+              + source.getProvider()
               + ", reportType="
               + reportType
               + ", date="
               + date,
           e);
     }
+  }
+
+  private void saveReport(
+      ReportSource source, ReportType reportType, LocalDate date, byte[] csvBytes) {
+    ReportProvider provider = source.getProvider();
+    Map<String, Object> metadata = new HashMap<>();
+    metadata.put(CSV_FINGERPRINT, fingerprintOf(csvBytes));
+    metadata.put("s3Bucket", source.getBucket());
+    metadata.put("s3Key", source.getKey(reportType, date));
+    metadata.put("importTimestamp", clock.instant().toString());
+    source
+        .getLastModified(reportType, date)
+        .ifPresent(instant -> metadata.put("s3LastModified", instant.toString()));
+    metadata.putAll(source.extractCsvMetadata(csvBytes));
+
+    InvestmentReport report =
+        reportService.saveReport(
+            provider,
+            reportType,
+            date,
+            new ByteArrayInputStream(csvBytes),
+            source.getCsvDelimiter(),
+            source.getHeaderRowIndex(),
+            metadata);
+
+    int rowCount = report.getRawData().size();
+    log.info(
+        "Report import completed: provider={}, reportType={}, date={}, rowCount={}",
+        provider,
+        reportType,
+        date,
+        rowCount);
+
+    eventPublisher.publishEvent(new ReportImportCompleted(provider, reportType, date, rowCount));
   }
 
   private boolean shouldRefresh(

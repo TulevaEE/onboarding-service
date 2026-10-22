@@ -193,6 +193,8 @@ class FeeCheckIntegrationTest {
         .isEqualTo("PASS");
     assertThat(findEvent(TUK75, "INSTRUMENT_RATE_COVERAGE", "ALL").get("severity"))
         .isEqualTo("PASS");
+    assertThat(findEvent(TUK75, "BLACKROCK_ADJUSTMENT_AFTER_REBATE", "ALL").get("severity"))
+        .isEqualTo("PASS");
     verifyNoInteractions(notificationService);
   }
 

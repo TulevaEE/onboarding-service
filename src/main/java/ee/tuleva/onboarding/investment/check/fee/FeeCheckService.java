@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_AFTER_REBATE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -34,11 +35,12 @@ import org.springframework.transaction.annotation.Transactional;
 class FeeCheckService {
 
   private static final List<FeeCheckScope> PER_FEE_TYPE = List.of(MANAGEMENT, DEPOT);
+  private static final Set<FeeCheckType> CHECK_TYPES_STILL_RUN = Set.of(FeeCheckType.values());
 
   private final LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   private final FeeBaseCompletenessChecker feeBaseCompletenessChecker;
   private final CustodianCompletenessChecker custodianCompletenessChecker;
-  private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
+  private final BlackrockAdjustmentAfterRebateChecker blackrockAdjustmentAfterRebateChecker;
   private final SettlementCompletenessChecker settlementCompletenessChecker;
   private final CashSettlementChecker cashSettlementChecker;
   private final InstrumentRateCoverageChecker instrumentRateCoverageChecker;
@@ -51,7 +53,7 @@ class FeeCheckService {
       LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker,
       FeeBaseCompletenessChecker feeBaseCompletenessChecker,
       CustodianCompletenessChecker custodianCompletenessChecker,
-      BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
+      BlackrockAdjustmentAfterRebateChecker blackrockAdjustmentAfterRebateChecker,
       SettlementCompletenessChecker settlementCompletenessChecker,
       CashSettlementChecker cashSettlementChecker,
       InstrumentRateCoverageChecker instrumentRateCoverageChecker,
@@ -62,7 +64,7 @@ class FeeCheckService {
     this.ledgerAccrualConsistencyChecker = ledgerAccrualConsistencyChecker;
     this.feeBaseCompletenessChecker = feeBaseCompletenessChecker;
     this.custodianCompletenessChecker = custodianCompletenessChecker;
-    this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
+    this.blackrockAdjustmentAfterRebateChecker = blackrockAdjustmentAfterRebateChecker;
     this.settlementCompletenessChecker = settlementCompletenessChecker;
     this.cashSettlementChecker = cashSettlementChecker;
     this.instrumentRateCoverageChecker = instrumentRateCoverageChecker;
@@ -86,7 +88,7 @@ class FeeCheckService {
   private LocalDate windowStartCoveringUnresolvedDeviations(TulevaFund fund, LocalDate checkDate) {
     var rollingWindowStart = checkDate.minusDays(lookbackDays);
     return eventRepository
-        .findOldestUnresolvedDailyDeviationDate(fund)
+        .findOldestUnresolvedDailyDeviationDate(fund, CHECK_TYPES_STILL_RUN)
         .map(firstSeen -> firstSeen.minusDays(lookbackDays))
         .filter(rollingWindowStart::isAfter)
         .orElse(rollingWindowStart);
@@ -180,9 +182,9 @@ class FeeCheckService {
     findings.addAll(
         runChecker(
             fund,
-            BLACKROCK_ADJUSTMENT_FRESHNESS,
+            BLACKROCK_ADJUSTMENT_AFTER_REBATE,
             List.of(ALL),
-            () -> blackrockAdjustmentFreshnessChecker.check(fund, checkDate)));
+            () -> blackrockAdjustmentAfterRebateChecker.check(fund, checkDate)));
     findings.addAll(
         runChecker(
             fund,

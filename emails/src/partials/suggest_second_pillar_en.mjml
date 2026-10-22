@@ -1,9 +1,9 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
 <mj-text>
   You are saving your second pillar in high-fee funds (*|secondPillarFeePercent|*% per year).
-  This year you will pay *|secondPillarFeeAmount|*&nbsp;€ in fees, and in the Tuleva fund you
-  would pay *|tulevaFeeAmount|*&nbsp;€. You would save *|secondPillarSavingsAmount|*&nbsp;€ per
-  year.
+  On your current assets you pay *|secondPillarFeeAmount|*&nbsp;€ a year in fees, and in the
+  Tuleva fund you would pay *|tulevaFeeAmount|*&nbsp;€. You would save
+  *|secondPillarSavingsAmount|*&nbsp;€ per year.
 </mj-text>
 <mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
   <tr>
@@ -19,6 +19,12 @@
     <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|secondPillarFeeAmount|*&nbsp;€</td>
   </tr>
 </mj-table>
+<mj-text font-size="13px" color="#6C757D">
+  Based on your second pillar assets (*|secondPillarAssetsAmount|*&nbsp;€ as of
+  *|feeComparisonDate|*) and the funds' ongoing charges: a weighted average of
+  *|secondPillarFeePercent|*% for your current funds and *|tulevaFeePercent|*% per year for
+  Tuleva World Stocks Pension Fund. Assumes the value of your assets stays the same for a year.
+</mj-text>
 <mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?language=en&utm_content=nudge_second_pillar">Learn more</mj-button>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>

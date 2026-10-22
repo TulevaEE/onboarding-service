@@ -101,6 +101,19 @@ public class MandateBatchService {
                         authenticatedPerson, mandateDto, mandateBatch))
             .collect(toList());
 
+    if (mandateBatchDto.isWithdrawalBatch()) {
+      announceWithdrawalBatch(authenticatedPerson, mandateBatchDto, mandateBatch);
+    }
+
+    savedMandateBatch.setMandates(mandates);
+
+    return mandateBatchRepository.save(mandateBatch);
+  }
+
+  private void announceWithdrawalBatch(
+      AuthenticatedPerson authenticatedPerson,
+      MandateBatchDto mandateBatchDto,
+      MandateBatch mandateBatch) {
     try {
       int age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
 
@@ -122,10 +135,6 @@ public class MandateBatchService {
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);
     }
-
-    savedMandateBatch.setMandates(mandates);
-
-    return mandateBatchRepository.save(mandateBatch);
   }
 
   public List<SignatureFile> getMandateBatchContentFiles(Long mandateBatchId, User user) {
@@ -146,7 +155,9 @@ public class MandateBatchService {
       return processingStatus(mandateBatch);
     }
 
-    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
+    var signedFile =
+        Optional.ofNullable(
+            signService.getSignedFile(session, signableMandateBatch(mandateBatchId)));
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
@@ -159,7 +170,9 @@ public class MandateBatchService {
       return processingStatus(mandateBatch);
     }
 
-    var signedFile = Optional.ofNullable(signService.getSignedFile(session));
+    var signedFile =
+        Optional.ofNullable(
+            signService.getSignedFile(session, signableMandateBatch(mandateBatchId)));
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 

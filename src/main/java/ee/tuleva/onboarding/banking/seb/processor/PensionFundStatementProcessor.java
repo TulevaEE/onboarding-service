@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
+import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -38,13 +40,44 @@ public class PensionFundStatementProcessor {
         account,
         statement.getType(),
         statement.getEntries().size());
+    if (statement.getType() == INTRA_DAY_REPORT) {
+      processIntradayReport(statement, account);
+      return;
+    }
     seedOpeningBalance(statement, account);
     statement.getEntries().forEach(entry -> processEntry(entry, account));
+  }
+
+  private void processIntradayReport(BankStatement report, BankAccount account) {
+    if (bookingWouldPreemptTheFirstStatementsOpeningBalance(account)) {
+      log.info(
+          "Leaving an intraday report to the account's first end-of-day statement: account={}",
+          account);
+      return;
+    }
+    report.getEntries().forEach(entry -> processIntradayEntry(entry, account));
+  }
+
+  private boolean bookingWouldPreemptTheFirstStatementsOpeningBalance(BankAccount account) {
+    return !fundBankLedger.hasBankEntries(account.fund());
+  }
+
+  private void processIntradayEntry(BankStatementEntry entry, BankAccount account) {
+    if (!entry.booked()) {
+      log.info(
+          "Leaving an entry the intraday report does not show as booked to the end-of-day"
+              + " statement: externalId={}, amount={}",
+          entry.externalId(),
+          entry.amount());
+      return;
+    }
+    processEntry(entry, account);
   }
 
   private void seedOpeningBalance(BankStatement statement, BankAccount account) {
     statement.getBalances().stream()
         .filter(balance -> balance.type() == BankStatementBalance.StatementBalanceType.OPEN)
+        .filter(balance -> balance.balance().signum() != 0)
         .findFirst()
         .ifPresent(
             opening ->
@@ -116,20 +149,16 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.OwnAccountTransfer() ->
           fundBankLedger.recordOwnAccountTransfer(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());
-      case PensionFundEntryClassifier.TradeSettlement(
-              var isin,
-              var ticker,
-              var displayName,
-              var units) ->
+      case PensionFundEntryClassifier.TradeSettlement(var trade) ->
           fundBankLedger.recordTradeSettlement(
               fund,
               amount,
-              signedUnits(units, amount),
+              trade.signedUnits(amount),
               externalReference,
               account.ledgerAccount(),
-              isin,
-              ticker,
-              displayName,
+              trade.isin(),
+              trade.ticker(),
+              trade.displayName(),
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(
@@ -140,6 +169,12 @@ public class PensionFundStatementProcessor {
             entry.subFamilyCode(),
             reason);
         recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
+        paymentCheckService.record(
+            UNCLASSIFIED_BANK_OPERATION,
+            WARNING,
+            externalReference.toString(),
+            "cash parked in suspense, fund=%s, subFamilyCode=%s, reason=%s"
+                .formatted(fund.getCode(), entry.subFamilyCode(), reason));
       }
     }
   }
@@ -181,10 +216,5 @@ public class PensionFundStatementProcessor {
       log.info("Normalized bank entry amount: original={}, normalized={}", amount, normalized);
     }
     return normalized;
-  }
-
-  private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {
-    var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
-    return amount.signum() > 0 ? scaled.negate() : scaled;
   }
 }

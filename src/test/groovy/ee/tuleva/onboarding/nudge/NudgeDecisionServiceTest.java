@@ -323,7 +323,15 @@ class NudgeDecisionServiceTest {
 
   @Test
   void theFeeComparisonTravelsWithTheSecondPillarNudge() {
-    var comparison = new FeeComparison(new BigDecimal("0.65"), 130, 56, 74);
+    var comparison =
+        new FeeComparison(
+            new BigDecimal("0.65"),
+            130,
+            56,
+            74,
+            new BigDecimal("0.28"),
+            20000,
+            LocalDate.of(2026, 10, 16));
     given(conversionService.getConversion(member)).willReturn(notConverted());
     given(feeComparisonCalculator.forSecondPillar(member, new BigDecimal("0.0051")))
         .willReturn(Optional.of(comparison));

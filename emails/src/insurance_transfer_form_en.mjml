@@ -1,0 +1,33 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Attached is your signed request to end your third pillar insurance contract and move
+          its money to Tuleva III Pillar Pension Fund.
+        </mj-text>
+        <mj-text>
+          The request reaches your insurer only when you send it on. Forward this email with its
+          attachment to your insurer, *|insurerName|*, at
+          <a href="mailto:*|insurerEmail|*">*|insurerEmail|*</a>.
+        </mj-text>
+        <mj-text>
+          If your insurer asks you for anything else, reply to them directly.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

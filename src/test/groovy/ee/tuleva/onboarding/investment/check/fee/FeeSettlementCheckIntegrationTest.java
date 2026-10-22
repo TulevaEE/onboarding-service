@@ -45,8 +45,6 @@ class FeeSettlementCheckIntegrationTest {
   private static final LocalDate LAST_DAY_OF_MAY = LocalDate.of(2026, 5, 31);
   private static final LocalDate FIRST_DAY_OF_JUNE = LocalDate.of(2026, 6, 1);
   private static final LocalDate THIRD_BUSINESS_DAY_OF_JUNE = LocalDate.of(2026, 6, 3);
-  private static final LocalDate JUNE = LocalDate.of(2026, 6, 1);
-  private static final LocalDate THIRD_BUSINESS_DAY_OF_JULY = LocalDate.of(2026, 7, 3);
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
   private static final BigDecimal CORRECTION = new BigDecimal("13.32");
   private static final List<TulevaFund> PENSION_FUNDS = List.of(TUK75, TUK00, TUV100);
@@ -156,18 +154,49 @@ class FeeSettlementCheckIntegrationTest {
         .isEqualTo(MAY.toString());
   }
 
-  // Absence of data is not a deviation. The pension funds have no bank statement ingestion, so the
-  // cash leg must stay blind about them rather than report a missing payment every month. Every run
-  // stamps a fresh cashMonth, so the previous month's row is never found as a baseline and the same
-  // permanent PASS -> NOT_RUN transition was reported for all three funds every single month, with
-  // no way to ever clear it. Ops learn to skim a message that is mostly noise, and then miss the
-  // month it carries a real failure.
   @Test
-  void theCashLegSaysNothingAboutFundsItCanNeverObserve() {
-    feeCheckService.runMonthlyChecks(PENSION_FUNDS, MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
-    feeCheckService.runMonthlyChecks(PENSION_FUNDS, JUNE, MAY, THIRD_BUSINESS_DAY_OF_JULY);
+  void everyPensionFundsPaymentMatchingWhatWasSettledPasses() {
+    PENSION_FUNDS.forEach(
+        fund -> {
+          settleAprilFor(fund);
+          insertManagementFeePayment(fund, PAYMENT_DATE, settledFor(fund));
+        });
 
-    assertThat(severities("CASH_SETTLEMENT_OBSERVED")).isEmpty();
+    feeCheckService.runMonthlyChecks(PENSION_FUNDS, MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+
+    assertThat(PENSION_FUNDS)
+        .extracting(fund -> severityOf(fund, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT"))
+        .containsOnly("PASS");
+  }
+
+  @Test
+  void aPensionFundsPaymentWithNoSettlementBehindItIsReported() {
+    insertSystemAccount("MANAGEMENT_FEE:TUV100", "EXPENSE");
+    insertManagementFeePayment(TUV100, PAYMENT_DATE, new BigDecimal("100.00"));
+
+    runCashChecksFor(TUV100);
+
+    assertThat(severityOf(TUV100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
+  }
+
+  @Test
+  void aPaymentFiveCentsAwayFromWhatWasSettledStillPasses() {
+    settleAprilFor(TUK75);
+    insertManagementFeePayment(TUK75, PAYMENT_DATE, settledFor(TUK75).add(new BigDecimal("0.05")));
+
+    runCashChecksFor(TUK75);
+
+    assertThat(severityOf(TUK75, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
+  }
+
+  @Test
+  void aPaymentSixCentsAwayFromWhatWasSettledIsReported() {
+    settleAprilFor(TUK75);
+    insertManagementFeePayment(TUK75, PAYMENT_DATE, settledFor(TUK75).add(new BigDecimal("0.06")));
+
+    runCashChecksFor(TUK75);
+
+    assertThat(severityOf(TUK75, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
   }
 
   // A deviation is announced once. The second run, with identical state, must produce no transition
@@ -196,29 +225,30 @@ class FeeSettlementCheckIntegrationTest {
 
   @Test
   void aPaymentMatchingWhatWasSettledPasses() {
-    settleAprilForTkf100();
-    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100());
+    settleAprilFor(TKF100);
+    insertManagementFeePayment(TKF100, PAYMENT_DATE, settledFor(TKF100));
 
-    runTkf100Checks();
+    runCashChecksFor(TKF100);
 
     assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("PASS");
   }
 
   @Test
   void aPaymentThatDoesNotMatchWhatWasSettledIsReported() {
-    settleAprilForTkf100();
-    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100().add(new BigDecimal("50.00")));
+    settleAprilFor(TKF100);
+    insertManagementFeePayment(
+        TKF100, PAYMENT_DATE, settledFor(TKF100).add(new BigDecimal("50.00")));
 
-    runTkf100Checks();
+    runCashChecksFor(TKF100);
 
     assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
   }
 
   @Test
   void aSettlementWithNoPaymentOnceTheWindowClosedIsReported() {
-    settleAprilForTkf100();
+    settleAprilFor(TKF100);
 
-    runTkf100Checks();
+    runCashChecksFor(TKF100);
 
     assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
   }
@@ -227,23 +257,23 @@ class FeeSettlementCheckIntegrationTest {
   // attributed to a month - reported rather than summed, even when the sum would have matched.
   @Test
   void twoPaymentsSummingToTheSettledAmountAreStillReported() {
-    settleAprilForTkf100();
-    var half = settledForTkf100().divide(new BigDecimal("2"), 2, RoundingMode.DOWN);
-    insertManagementFeePayment(PAYMENT_DATE, half);
-    insertManagementFeePayment(PAYMENT_DATE, settledForTkf100().subtract(half));
+    settleAprilFor(TKF100);
+    var half = settledFor(TKF100).divide(new BigDecimal("2"), 2, RoundingMode.DOWN);
+    insertManagementFeePayment(TKF100, PAYMENT_DATE, half);
+    insertManagementFeePayment(TKF100, PAYMENT_DATE, settledFor(TKF100).subtract(half));
 
-    runTkf100Checks();
+    runCashChecksFor(TKF100);
 
     assertThat(severityOf(TKF100, "CASH_SETTLEMENT_OBSERVED", "MANAGEMENT")).isEqualTo("WARNING");
   }
 
-  private void settleAprilForTkf100() {
-    accrueFor(TKF100, LAST_DAY_OF_APRIL);
-    accrueFor(TKF100, FIRST_DAY_OF_MAY);
-    insertSystemAccount("MANAGEMENT_FEE:TKF100", "EXPENSE");
+  private void settleAprilFor(TulevaFund fund) {
+    accrueFor(fund, LAST_DAY_OF_APRIL);
+    accrueFor(fund, FIRST_DAY_OF_MAY);
+    insertSystemAccount("MANAGEMENT_FEE:" + fund.name(), "EXPENSE");
   }
 
-  private BigDecimal settledForTkf100() {
+  private BigDecimal settledFor(TulevaFund fund) {
     return jdbcClient
         .sql(
             """
@@ -251,14 +281,15 @@ class FeeSettlementCheckIntegrationTest {
             FROM ledger.entry e
             JOIN ledger.account a ON e.account_id = a.id
             JOIN ledger.transaction t ON e.transaction_id = t.id
-            WHERE a.name = 'MANAGEMENT_FEE_ACCRUAL:TKF100'
+            WHERE a.name = :accountName
               AND t.transaction_type = CAST('FEE_SETTLEMENT' AS ledger.transaction_type)
             """)
+        .param("accountName", "MANAGEMENT_FEE_ACCRUAL:" + fund.name())
         .query(BigDecimal.class)
         .single();
   }
 
-  private void insertManagementFeePayment(LocalDate date, BigDecimal amount) {
+  private void insertManagementFeePayment(TulevaFund fund, LocalDate date, BigDecimal amount) {
     var transactionId = UUID.randomUUID();
     jdbcClient
         .sql(
@@ -270,7 +301,7 @@ class FeeSettlementCheckIntegrationTest {
         .param("id", transactionId)
         .param("date", Timestamp.from(instantAt(date)))
         .update();
-    insertEntry(transactionId, accountId("MANAGEMENT_FEE:TKF100"), amount);
+    insertEntry(transactionId, accountId("MANAGEMENT_FEE:" + fund.name()), amount);
   }
 
   private void insertSystemAccount(String name, String accountType) {
@@ -287,8 +318,8 @@ class FeeSettlementCheckIntegrationTest {
         .update();
   }
 
-  private void runTkf100Checks() {
-    feeCheckService.runMonthlyChecks(List.of(TKF100), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+  private void runCashChecksFor(TulevaFund fund) {
+    feeCheckService.runMonthlyChecks(List.of(fund), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
   }
 
   private String severityOf(TulevaFund fund, String checkType, String feeScope) {
@@ -309,17 +340,6 @@ class FeeSettlementCheckIntegrationTest {
 
   private void runMonthlyChecks() {
     feeCheckService.runMonthlyChecks(List.of(TUK75), MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
-  }
-
-  private List<String> severities(String checkType) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT severity FROM investment_fee_check_event WHERE check_type = :checkType
-            """)
-        .param("checkType", checkType)
-        .query(String.class)
-        .list();
   }
 
   private void accrueFor(LocalDate date) {

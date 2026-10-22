@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_AFTER_REBATE;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.INSTRUMENT_RATE_COVERAGE;
@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,11 +33,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class FeeCheckServiceTest {
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 6, 4);
+  private static final Set<FeeCheckType> CHECK_TYPES_STILL_RUN = Set.of(FeeCheckType.values());
 
   @Mock private LedgerAccrualConsistencyChecker ledgerAccrualConsistencyChecker;
   @Mock private FeeBaseCompletenessChecker feeBaseCompletenessChecker;
   @Mock private CustodianCompletenessChecker custodianCompletenessChecker;
-  @Mock private BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
+  @Mock private BlackrockAdjustmentAfterRebateChecker blackrockAdjustmentAfterRebateChecker;
   @Mock private SettlementCompletenessChecker settlementCompletenessChecker;
   @Mock private CashSettlementChecker cashSettlementChecker;
   @Mock private InstrumentRateCoverageChecker instrumentRateCoverageChecker;
@@ -53,7 +55,7 @@ class FeeCheckServiceTest {
             ledgerAccrualConsistencyChecker,
             feeBaseCompletenessChecker,
             custodianCompletenessChecker,
-            blackrockAdjustmentFreshnessChecker,
+            blackrockAdjustmentAfterRebateChecker,
             settlementCompletenessChecker,
             cashSettlementChecker,
             instrumentRateCoverageChecker,
@@ -77,7 +79,8 @@ class FeeCheckServiceTest {
             org.assertj.core.groups.Tuple.tuple(LEDGER_ACCRUAL_CONSISTENCY, FeeCheckScope.DEPOT),
             org.assertj.core.groups.Tuple.tuple(FEE_BASE_COMPLETENESS, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(CUSTODIAN_POSITION_COMPLETENESS, FeeCheckScope.ALL),
-            org.assertj.core.groups.Tuple.tuple(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL),
+            org.assertj.core.groups.Tuple.tuple(
+                BLACKROCK_ADJUSTMENT_AFTER_REBATE, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL),
             org.assertj.core.groups.Tuple.tuple(
                 PENSIONIKESKUS_MANAGEMENT_FEE, FeeCheckScope.MANAGEMENT));
@@ -99,8 +102,8 @@ class FeeCheckServiceTest {
         .check(any(), any(), any());
     givenLedgerCheckerPassesForBothFeeTypes();
     givenCustodianCheckerPasses();
-    given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
-        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
+    given(blackrockAdjustmentAfterRebateChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_AFTER_REBATE, FeeCheckScope.ALL)));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
 
@@ -122,8 +125,8 @@ class FeeCheckServiceTest {
         .check(any(), any(), any());
     givenLedgerCheckerPassesForBothFeeTypes();
     givenCustodianCheckerPasses();
-    given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
-        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
+    given(blackrockAdjustmentAfterRebateChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_AFTER_REBATE, FeeCheckScope.ALL)));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
 
@@ -158,7 +161,7 @@ class FeeCheckServiceTest {
   void theDailyWindowStillCoversADeviationThatWasNeverFixed() {
     givenAllCheckersPass();
     var firstSeen = LocalDate.of(2026, 5, 1);
-    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .willReturn(Optional.of(firstSeen));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
@@ -169,7 +172,7 @@ class FeeCheckServiceTest {
   @Test
   void aDeviationNewerThanTheRollingWindowDoesNotShrinkIt() {
     givenAllCheckersPass();
-    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75, CHECK_TYPES_STILL_RUN))
         .willReturn(Optional.of(CHECK_DATE));
 
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
@@ -182,8 +185,8 @@ class FeeCheckServiceTest {
     given(feeBaseCompletenessChecker.check(any(), any(), any()))
         .willReturn(List.of(passFinding(FEE_BASE_COMPLETENESS, FeeCheckScope.ALL)));
     givenCustodianCheckerPasses();
-    given(blackrockAdjustmentFreshnessChecker.check(any(), any()))
-        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_FRESHNESS, FeeCheckScope.ALL)));
+    given(blackrockAdjustmentAfterRebateChecker.check(any(), any()))
+        .willReturn(List.of(passFinding(BLACKROCK_ADJUSTMENT_AFTER_REBATE, FeeCheckScope.ALL)));
     given(instrumentRateCoverageChecker.check(any(), any()))
         .willReturn(List.of(passFinding(INSTRUMENT_RATE_COVERAGE, FeeCheckScope.ALL)));
     given(pensionikeskusManagementFeeChecker.check(any(), any()))

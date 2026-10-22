@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb.screener;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_REGISTERED_IN_ESTONIA;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyb.*;
@@ -62,10 +63,11 @@ class CompanyRegisteredInEstoniaScreenerTest {
   private KybCompanyData companyWith(String countryCode, String fullAddress) {
     var person = boardMemberOwner("38501010002", 100.0).build();
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
         new PersonalCode("38501010002"),
         R,
         List.of(person),
+        totalOwnershipOf(List.of(person)),
         new SelfCertification(true, true, true),
         countryCode,
         fullAddress,

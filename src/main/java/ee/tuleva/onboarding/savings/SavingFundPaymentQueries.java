@@ -37,11 +37,8 @@ public class SavingFundPaymentQueries {
     return savingFundPaymentRepository.findRecentPayments(description);
   }
 
-  public UUID savePaymentData(SavingFundPayment payment) {
-    return savingFundPaymentRepository.savePaymentData(payment);
-  }
-
-  public void attachParty(UUID paymentId, PartyId partyId) {
-    savingFundPaymentRepository.attachParty(paymentId, partyId);
+  public boolean savePaymentDataOnce(
+      UUID internalReference, SavingFundPayment payment, PartyId partyId) {
+    return savingFundPaymentRepository.savePaymentDataOnce(internalReference, payment, partyId);
   }
 }

@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.payment;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 public record IncomingSavingsPayment(
+    UUID internalReference,
     @Nullable String remitterName,
     @Nullable String remitterIban,
     String description,

@@ -25,6 +25,13 @@ const PENSION_PILLAR_NUDGE_FLAGS = [
   'suggestThirdPillarRaise',
 ];
 
+const FEE_COMPARISON_BASIS = [
+  'secondPillarAssetsAmount',
+  'feeComparisonDate',
+  'secondPillarFeePercent',
+  'tulevaFeePercent',
+];
+
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
   .map((f) => basename(f, '.html'));
@@ -78,6 +85,25 @@ for (const name of distTemplates.filter((template) =>
     for (const [variant, vars] of Object.entries(fixture.variants)) {
       const showsPensionPillarNudge = PENSION_PILLAR_NUDGE_FLAGS.some((flag) => Boolean(vars[flag]));
       assert.equal(Boolean(vars.anyPillarSuggestion), showsPensionPillarNudge, `variant "${variant}"`);
+    }
+  });
+}
+
+for (const name of distTemplates.filter((template) =>
+  readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:hasFeeComparison|*'),
+)) {
+  test(`${name}: the fee comparison states the assets, both fee rates and the date it is calculated from`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const start = html.indexOf('*|IF:hasFeeComparison|*');
+    const branch = html.slice(start, html.indexOf('*|ELSE:|*', start));
+    for (const variable of FEE_COMPARISON_BASIS) {
+      assert.ok(branch.includes(`*|${variable}|*`), `the fee comparison does not show *|${variable}|*`);
+    }
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants).filter(([, vars]) => vars.hasFeeComparison)) {
+      for (const variable of FEE_COMPARISON_BASIS) {
+        assert.ok(vars[variable] !== undefined, `variant "${variant}" has no ${variable}`);
+      }
     }
   });
 }

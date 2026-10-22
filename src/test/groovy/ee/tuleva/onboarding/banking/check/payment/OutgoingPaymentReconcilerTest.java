@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -31,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class OutgoingPaymentReconcilerTest {
 
   private static final Instant NOW = Instant.parse("2026-04-10T12:00:00Z");
-  private static final Duration EXECUTION_DEADLINE = Duration.ofHours(24);
+  private static final Instant THURSDAYS_BRIEF = Instant.parse("2026-04-09T13:10:00Z");
   private static final Duration IN_FLIGHT_GRACE = Duration.ofMinutes(15);
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
@@ -41,13 +42,16 @@ class OutgoingPaymentReconcilerTest {
 
   private OutgoingPaymentReconciler reconciler() {
     return new OutgoingPaymentReconciler(
-        outgoingPaymentRepository, paymentCheckService, clock, EXECUTION_DEADLINE, IN_FLIGHT_GRACE);
+        outgoingPaymentRepository,
+        paymentCheckService,
+        new PublicHolidays(),
+        clock,
+        IN_FLIGHT_GRACE);
   }
 
-  // A payment we submitted that the bank never executed is usually nobody having approved it.
   @Test
   void aSubmittedPaymentPastItsDeadlineIsReportedAsNotExecuted() {
-    givenOverdue(SUBMITTED, List.of(payment("E2E-NOT-EXECUTED", SUBMITTED)));
+    givenBothQueriesFindOnlyThe(SUBMITTED, List.of(payment("E2E-NOT-EXECUTED", SUBMITTED)));
 
     reconciler().reconcile();
 
@@ -56,11 +60,9 @@ class OutgoingPaymentReconcilerTest {
         .record(eq(PAYMENT_NOT_EXECUTED), eq(WARNING), eq("E2E-NOT-EXECUTED"), anyString());
   }
 
-  // Worse than unexecuted: the call never returned a verdict, so the payment may or may not have
-  // reached the bank, and nobody may resend it without checking.
   @Test
   void anAttemptedPaymentPastTheGraceIsReportedAsIndeterminate() {
-    givenOverdue(ATTEMPTED, List.of(payment("E2E-IN-FLIGHT", ATTEMPTED)));
+    givenBothQueriesFindOnlyThe(ATTEMPTED, List.of(payment("E2E-IN-FLIGHT", ATTEMPTED)));
 
     reconciler().reconcile();
 
@@ -69,15 +71,14 @@ class OutgoingPaymentReconcilerTest {
         .record(eq(PAYMENT_INDETERMINATE), eq(WARNING), eq("E2E-IN-FLIGHT"), anyString());
   }
 
-  // The two statuses get different windows on purpose: a submitted payment has all day to execute,
-  // an in-flight one is alarming within minutes.
   @Test
-  void eachStatusIsMeasuredAgainstItsOwnWindow() {
+  void
+      onAWorkingDayASubmittedPaymentIsDueByThePreviousWorkingDaysBriefAndAnAttemptedOneByTheGrace() {
     reconciler().reconcile();
 
     then(outgoingPaymentRepository)
         .should()
-        .findByStatusAndAttemptedAtBefore(SUBMITTED, NOW.minus(EXECUTION_DEADLINE));
+        .findByStatusAndAttemptedAtBefore(SUBMITTED, THURSDAYS_BRIEF);
     then(outgoingPaymentRepository)
         .should()
         .findByStatusAndAttemptedAtBefore(ATTEMPTED, NOW.minus(IN_FLIGHT_GRACE));
@@ -90,11 +91,9 @@ class OutgoingPaymentReconcilerTest {
     then(paymentCheckService).should(never()).record(any(), any(), anyString(), anyString());
   }
 
-  /** Both queries are stubbed every time: reconcile() always makes both, whatever is overdue. */
-  private void givenOverdue(OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
-    given(
-            outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(
-                SUBMITTED, NOW.minus(EXECUTION_DEADLINE)))
+  private void givenBothQueriesFindOnlyThe(
+      OutgoingPaymentStatus overdueStatus, List<OutgoingPayment> overdue) {
+    given(outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(SUBMITTED, THURSDAYS_BRIEF))
         .willReturn(overdueStatus == SUBMITTED ? overdue : List.of());
     given(
             outgoingPaymentRepository.findByStatusAndAttemptedAtBefore(

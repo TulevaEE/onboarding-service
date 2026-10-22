@@ -142,12 +142,17 @@ class TransactionAdminServiceTest {
   }
 
   @Test
-  void createAndProcess_withCashOverride_persistsCashOnCommand() {
+  void createAndProcess_withCashOverride_persistsCashAndItsCommentOnCommand() {
     given(preparationService.processCommand(any()))
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     service.createAndProcess(
-        TUK75, REBALANCE, AS_OF_DATE, null, "operator-9", new BigDecimal("40000.00"));
+        TUK75,
+        REBALANCE,
+        AS_OF_DATE,
+        null,
+        "operator-9",
+        new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
 
     then(commandRepository)
         .should()
@@ -158,9 +163,34 @@ class TransactionAdminServiceTest {
                 .asOfDate(AS_OF_DATE)
                 .manualAdjustments(Map.of())
                 .cash(new BigDecimal("40000.00"))
+                .cashComment("Gateway balance at 10:15")
                 .actor("operator-9")
                 .status(PROCESSING)
                 .build());
+  }
+
+  @Test
+  void createAndProcess_failedProcessingStillReturnsTheCashOverrideAndItsComment() {
+    willAnswer(
+            invocation -> {
+              TransactionCommand command = invocation.getArgument(0);
+              command.setStatus(FAILED);
+              return null;
+            })
+        .given(preparationService)
+        .processCommand(any());
+
+    TransactionCommandResponse response =
+        service.createAndProcess(
+            TUK75,
+            REBALANCE,
+            AS_OF_DATE,
+            null,
+            "admin",
+            new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
+
+    assertThat(response.cash()).isEqualByComparingTo("40000.00");
+    assertThat(response.cashComment()).isEqualTo("Gateway balance at 10:15");
   }
 
   @Test
@@ -217,7 +247,7 @@ class TransactionAdminServiceTest {
         REBALANCE,
         AS_OF_DATE,
         "admin",
-        Map.of(TUK75, new BigDecimal("40000")));
+        Map.of(TUK75, new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15")));
 
     then(commandRepository)
         .should()
@@ -225,7 +255,8 @@ class TransactionAdminServiceTest {
             argThat(
                 command ->
                     command.getFund() == TUK75
-                        && new BigDecimal("40000").compareTo(command.getCash()) == 0));
+                        && new BigDecimal("40000").compareTo(command.getCash()) == 0
+                        && "Gateway balance at 10:15".equals(command.getCashComment())));
     then(commandRepository)
         .should()
         .save(argThat(command -> command.getFund() == TUV100 && command.getCash() == null));
@@ -236,7 +267,11 @@ class TransactionAdminServiceTest {
     assertThatThrownBy(
             () ->
                 service.createAndProcessAll(
-                    List.of(TUK75), REBALANCE, AS_OF_DATE, "admin", Map.of(TUV100, BigDecimal.ONE)))
+                    List.of(TUK75),
+                    REBALANCE,
+                    AS_OF_DATE,
+                    "admin",
+                    Map.of(TUV100, new CashOverride(BigDecimal.ONE, "Gateway balance at 10:15"))))
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(400);

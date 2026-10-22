@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +54,40 @@ class HealthCheckNotifierTest {
     verify(notificationService)
         .sendMessage(contains("source files need to be fixed"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("[FAIL]"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aBlockedImportSaysHowToGetACorrectedFileIn() {
+    var finding = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+
+    notifier.notify(SEB, DATE, List.of(new HealthCheckResult(TUK75, DATE, List.of(finding))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "Fix: ask SEB to resend the file, or email a corrected"
+                    + " TULEVA_pos_raport_20260415_korrigeeritud.csv from funds@tuleva.ee to"
+                    + " funds@tuleva.ee only"),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void theHeaderGivesEveryFundsImportStatus() {
+    var failed = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var warned = new HealthCheckFinding(TUV100, COMPLETENESS, WARNING, "TUV100: no CASH");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(failed)),
+            new HealthCheckResult(TUV100, DATE, List.of(warned)),
+            new HealthCheckResult(TUK00, DATE, List.of())));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("Funds: TUK75 blocked, TUV100 imported with warnings, TUK00 imported"),
+            eq(INVESTMENT));
   }
 
   @Test

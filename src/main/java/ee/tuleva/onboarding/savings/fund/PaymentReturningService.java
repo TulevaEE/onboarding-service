@@ -19,6 +19,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 @RequiredArgsConstructor
 public class PaymentReturningService {
+
+  private static final int SEPA_REMITTANCE_INFORMATION_MAX_LENGTH = 140;
+  private static final String RETURN_DESCRIPTION = "Tagastus";
+  private static final String RETURN_DESCRIPTION_PREFIX = RETURN_DESCRIPTION + ": ";
+  public static final int MAX_RETURN_REASON_LENGTH =
+      SEPA_REMITTANCE_INFORMATION_MAX_LENGTH - RETURN_DESCRIPTION_PREFIX.length();
+
   private final ApplicationEventPublisher eventPublisher;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
@@ -34,7 +41,8 @@ public class PaymentReturningService {
 
   private void sendReturnPaymentOrder(SavingFundPayment payment) {
     var returnReason = payment.getReturnReason();
-    var description = returnReason != null ? "Tagastus: " + returnReason : "Tagastus";
+    var description =
+        returnReason != null ? RETURN_DESCRIPTION_PREFIX + returnReason : RETURN_DESCRIPTION;
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(payment.getId()))
             .remitterIban(

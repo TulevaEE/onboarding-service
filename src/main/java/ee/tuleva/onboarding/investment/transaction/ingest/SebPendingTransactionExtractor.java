@@ -15,15 +15,20 @@ class SebPendingTransactionExtractor {
   // A content row that fails strict parsing is dropped from the typed rows but still counted as
   // malformed. Settlement-by-absence must not run on an incomplete report: a dropped order would
   // look "absent" and be falsely settled (see detectSettlementsByAbsence).
-  record ExtractionResult(List<SebPendingTransactionRow> rows, int malformedCount) {
+  record ExtractionResult(
+      List<SebPendingTransactionRow> rows, List<Map<String, Object>> malformedRows) {
+    int malformedCount() {
+      return malformedRows.size();
+    }
+
     boolean isComplete() {
-      return malformedCount == 0;
+      return malformedRows.isEmpty();
     }
   }
 
   ExtractionResult extractWithDiagnostics(InvestmentReport report) {
     List<SebPendingTransactionRow> rows = new ArrayList<>();
-    int malformedCount = 0;
+    List<Map<String, Object>> malformedRows = new ArrayList<>();
     for (Map<String, Object> raw : report.getRawData()) {
       if (!hasContent(raw)) {
         continue;
@@ -31,7 +36,7 @@ class SebPendingTransactionExtractor {
       try {
         rows.add(SebPendingTransactionRow.fromRawData(raw));
       } catch (RuntimeException e) {
-        malformedCount++;
+        malformedRows.add(raw);
         log.warn(
             "Skipping malformed SEB pending transaction row: clientRef={}, ourRef={}, isin={},"
                 + " reason={}",
@@ -41,7 +46,7 @@ class SebPendingTransactionExtractor {
             e.getMessage());
       }
     }
-    return new ExtractionResult(List.copyOf(rows), malformedCount);
+    return new ExtractionResult(List.copyOf(rows), List.copyOf(malformedRows));
   }
 
   List<SebPendingTransactionRow> extract(InvestmentReport report) {

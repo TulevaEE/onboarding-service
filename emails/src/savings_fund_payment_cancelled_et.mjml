@@ -7,11 +7,11 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Soovisid oma sissemakse Tuleva Kogumisfondi peatada. Me saime sinu soovi õigeaegselt
-          kätte ja saadame laekunud raha tänase päeva jooksul sinu kontole tagasi.
+          Soovisid oma sissemakse Tuleva Täiendavasse Kogumisfondi tühistada. Me saime sinu soovi õigeaegselt
+          kätte ja saadame laekunud raha tänase päeva jooksul tagasi samale kontole, kust see tuli.
         </mj-text>
-        <mj-text>Kui tahad uue sissemakse teha, siis vajuta siia.</mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Tuleva konto</mj-button>
+        <mj-text>Soovi korral tee uus sissemakse:</mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen uue sissemakse</mj-button>
       </mj-column>
     </mj-section>
 

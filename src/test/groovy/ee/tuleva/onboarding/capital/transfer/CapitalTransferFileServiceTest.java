@@ -72,7 +72,7 @@ class CapitalTransferFileServiceTest {
     // then
     assertThat(files).hasSize(1);
     SignatureFile file = files.get(0);
-    assertThat(file.getName()).isEqualTo("liikmekapital-1.bdoc");
+    assertThat(file.getName()).isEqualTo("liikmekapital-1.asice");
     assertThat(file.getMimeType()).isEqualTo("application/vnd.etsi.asic-e+zip");
     assertThat(file.getContent()).isEqualTo(signedContainer);
   }

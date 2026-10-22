@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
@@ -19,18 +20,18 @@ import org.jspecify.annotations.Nullable;
 @Builder(toBuilder = true)
 public class SavingFundPayment {
   UUID id;
-  @Nullable PartyId partyId;
+  @ToString.Exclude @Nullable PartyId partyId;
 
   BigDecimal amount;
   @Builder.Default Currency currency = EUR;
 
-  String description;
-  @Nullable String remitterIban;
-  @Nullable String remitterName;
-  @Nullable String remitterIdCode;
-  @Nullable String beneficiaryIban;
-  @Nullable String beneficiaryName;
-  @Nullable String beneficiaryIdCode;
+  @ToString.Exclude String description;
+  @ToString.Exclude @Nullable String remitterIban;
+  @ToString.Exclude @Nullable String remitterName;
+  @ToString.Exclude @Nullable String remitterIdCode;
+  @ToString.Exclude @Nullable String beneficiaryIban;
+  @ToString.Exclude @Nullable String beneficiaryName;
+  @ToString.Exclude @Nullable String beneficiaryIdCode;
 
   @Nullable String externalId;
   @Nullable String endToEndId;
@@ -43,7 +44,7 @@ public class SavingFundPayment {
   @Nullable Instant statusChangedAt;
   @Nullable Instant cancelledAt;
 
-  @Nullable String returnReason;
+  @ToString.Exclude @Nullable String returnReason;
 
   @Nullable Boolean thirdPartyDeposit;
 

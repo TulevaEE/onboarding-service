@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentCancellationService.OWNER_CANCELLATION_RETURN_REASON;
 
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -40,8 +41,10 @@ public class CancellationJob {
     if (payment.getCancelledAt() == null) return;
     var cancellationDeadline = deadlinesService.getCancellationDeadline(payment);
     if (cancellationDeadline.isAfter(clock.instant())) return;
-    log.info("Completing payment cancellation for {}", payment.getId());
+    log.info("Completing payment cancellation: paymentId={}", payment.getId());
     paymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
-    paymentRepository.addReturnReason(payment.getId(), "Kasutaja soovil");
+    if (payment.getReturnReason() == null) {
+      paymentRepository.addReturnReason(payment.getId(), OWNER_CANCELLATION_RETURN_REASON);
+    }
   }
 }

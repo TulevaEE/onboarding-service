@@ -18,6 +18,9 @@
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
       "secondPillarSavingsAmount": 74,
+      "tulevaFeePercent": "0.28",
+      "secondPillarAssetsAmount": "20,000",
+      "feeComparisonDate": "16.10.2026",
       "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {

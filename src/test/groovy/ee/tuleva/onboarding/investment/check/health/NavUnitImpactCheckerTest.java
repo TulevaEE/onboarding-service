@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,6 +13,26 @@ import org.junit.jupiter.api.Test;
 class NavUnitImpactCheckerTest {
 
   private final NavUnitImpactChecker checker = new NavUnitImpactChecker();
+
+  @Test
+  void aFailureNamesBothUnitCountsSoTheSideThatBrokeIsVisible() {
+    var findings =
+        checker.check(
+            TUK00,
+            new BigDecimal("18895375.177"),
+            new BigDecimal("18914177.072"),
+            new BigDecimal("11421366.17"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK00,
+                NAV_UNIT_IMPACT,
+                FAIL,
+                "NAV_SEB=0.60445 vs NAV_EPIS=0.60385 = 0.099400% NAV difference:"
+                    + " unitsSeb=18895375.177, unitsEpis=18914177.072,"
+                    + " unitsDifference=-18801.895"));
+  }
 
   @Test
   void noFindingWhenDifferenceBelowThreshold() {

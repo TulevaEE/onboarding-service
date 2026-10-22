@@ -61,7 +61,8 @@ class NavUnitImpactChecker {
               fund,
               NAV_UNIT_IMPACT,
               FAIL,
-              "NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
+              ("NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference: unitsSeb=%s, unitsEpis=%s,"
+                      + " unitsDifference=%s")
                   .formatted(
                       navWithReported.toPlainString(),
                       navWithAuthoritative.toPlainString(),
@@ -69,8 +70,15 @@ class NavUnitImpactChecker {
                           .subtract(navWithAuthoritative)
                           .divide(navWithAuthoritative, 6, HALF_UP)
                           .multiply(new BigDecimal("100"))
-                          .toPlainString())));
+                          .toPlainString(),
+                      units(reportedUnits),
+                      units(authoritativeUnits),
+                      units(reportedUnits.subtract(authoritativeUnits)))));
     }
     return List.of();
+  }
+
+  private static String units(BigDecimal units) {
+    return units.stripTrailingZeros().toPlainString();
   }
 }

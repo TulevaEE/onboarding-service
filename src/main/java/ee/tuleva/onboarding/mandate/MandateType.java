@@ -13,6 +13,7 @@ public enum MandateType {
   PARTIAL_WITHDRAWAL(PartialWithdrawalMandateDetails.class),
   PAYMENT_RATE_CHANGE(PaymentRateChangeMandateDetails.class),
   SELECTION(SelectionMandateDetails.class),
+  REJOIN(RejoinMandateDetails.class),
   /*TRANSFER,
   PAYMENT,*/
   UNKNOWN(null);

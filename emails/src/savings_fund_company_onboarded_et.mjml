@@ -9,8 +9,18 @@
         <mj-text>
           Sinu ettevõtte *|RECIPIENTNAME|* Tuleva Täiendava Kogumisfondi konto on nüüd avatud.
         </mj-text>
-        <mj-text><strong>Esimese sissemakse saad teha mugavalt ettevõtte pangakontolt:</strong></mj-text>
+        <mj-text>
+          Esimese sissemakse saad teha mugavalt ettevõtte pangakontolt. Alustada võid endale sobivast
+          summast.
+        </mj-text>
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen sissemakse</mj-button>
+        <mj-text>Ettevõtte kaudu investeerimisest saad lugeda blogist rohkem:</mj-text>
+        <mj-text>
+          <ul style="margin:0;padding-left:20px;">
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/taiendav-kogumisfond/kuidas-teha-raamatupidamist-kui-su-ou-on-taiendavasse-kogumisfondi-investeerinud/">Kuidas teha raamatupidamist, kui su OÜ on Täiendavasse Kogumisfondi investeerinud</a></li>
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/lood/treener-janet-ettevotte-raha-investeerimine/">Treener Janet: ettevõtte raha investeerimine on lihtsam, kui ma aastaid arvasin</a></li>
+          </ul>
+        </mj-text>
       </mj-column>
     </mj-section>
 
@@ -23,7 +33,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/disclaimer_savings_company_et.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

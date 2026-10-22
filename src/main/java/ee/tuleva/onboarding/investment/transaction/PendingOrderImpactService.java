@@ -26,7 +26,24 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class PendingOrderImpactService {
 
-  private static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
+  private record ClassifiedFill(TransactionExecution execution, InPositionReport inPositionReport) {
+
+    BigDecimal unreportedConsideration() {
+      return notYetShown() ? absOrZero(execution.getTotalConsideration()) : ZERO;
+    }
+
+    BigDecimal unreportedQuantity() {
+      return notYetShown() ? absOrZero(execution.getExecutedQuantity()) : ZERO;
+    }
+
+    BigDecimal cashTheOrderCarries(TransactionOrder order) {
+      return inPositionReport.cashToCount(order, absOrZero(execution.getTotalConsideration()));
+    }
+
+    private boolean notYetShown() {
+      return inPositionReport == InPositionReport.NOT_YET_SHOWN_SO_THE_ORDER_CARRIES_ITS_CASH;
+    }
+  }
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
@@ -49,21 +66,21 @@ class PendingOrderImpactService {
       List<TransactionExecution> executions =
           executionsByOrder.getOrDefault(order.getId(), List.of());
       ExecutedTotals executed = ExecutedTotals.of(executions);
-      BigDecimal cashImpact = expectedConsideration(order, executed, asOfDate);
-      if (order.getTransactionType() == BUY) {
-        pendingBuys = pendingBuys.add(cashImpact);
-      } else {
-        pendingSells = pendingSells.add(cashImpact);
-      }
-
+      List<ClassifiedFill> fills = classifyAgainstPositionReport(order, executions, positionDate);
+      BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
       addUnreportedPositions(
-          order,
-          executions,
-          executed,
-          positionDate,
-          asOfDate,
-          unreportedValues,
-          unreportedQuantities);
+          order, fills, executed, unfilledValue, unreportedValues, unreportedQuantities);
+      BigDecimal cash =
+          cashTheOrderStillCarries(
+              order,
+              fills,
+              unfilledValue,
+              InPositionReport.ofUnfilledRemainder(order, positionDate));
+      if (order.getTransactionType() == BUY) {
+        pendingBuys = pendingBuys.add(cash);
+      } else {
+        pendingSells = pendingSells.add(cash);
+      }
     }
 
     log.info(
@@ -80,30 +97,35 @@ class PendingOrderImpactService {
         pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
   }
 
-  private void addUnreportedPositions(
+  private static List<ClassifiedFill> classifyAgainstPositionReport(
+      TransactionOrder order, List<TransactionExecution> executions, LocalDate positionDate) {
+    return executions.stream()
+        .map(
+            execution ->
+                new ClassifiedFill(
+                    execution, InPositionReport.ofFill(order, execution, positionDate)))
+        .toList();
+  }
+
+  private static void addUnreportedPositions(
       TransactionOrder order,
-      List<TransactionExecution> executions,
+      List<ClassifiedFill> fills,
       ExecutedTotals executed,
-      LocalDate positionDate,
-      LocalDate asOfDate,
+      BigDecimal unfilledValue,
       Map<String, BigDecimal> unreportedValues,
       Map<String, BigDecimal> unreportedQuantities) {
     String isin = order.getInstrumentIsin();
-    for (TransactionExecution execution : executions) {
-      if (!isMissingFromPositionReport(execution, positionDate)) {
-        continue;
-      }
-      BigDecimal consideration = absOrZero(execution.getTotalConsideration());
+    for (ClassifiedFill fill : fills) {
+      BigDecimal consideration = fill.unreportedConsideration();
       if (consideration.signum() != 0) {
         unreportedValues.merge(isin, signed(order, consideration), BigDecimal::add);
       }
-      BigDecimal quantity = absOrZero(execution.getExecutedQuantity());
+      BigDecimal quantity = fill.unreportedQuantity();
       if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
         unreportedQuantities.merge(isin, signed(order, quantity), BigDecimal::add);
       }
     }
 
-    BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
     if (unfilledValue.signum() == 0) {
       return;
     }
@@ -111,6 +133,16 @@ class PendingOrderImpactService {
     if (order.getTransactionType() == SELL) {
       addUnfilledQuantity(order, executed, isin, unreportedQuantities);
     }
+  }
+
+  private static BigDecimal cashTheOrderStillCarries(
+      TransactionOrder order,
+      List<ClassifiedFill> fills,
+      BigDecimal unfilledValue,
+      InPositionReport unfilledRemainderInPositionReport) {
+    BigDecimal fillsCash =
+        fills.stream().map(fill -> fill.cashTheOrderCarries(order)).reduce(ZERO, BigDecimal::add);
+    return fillsCash.add(unfilledRemainderInPositionReport.cashToCount(order, unfilledValue));
   }
 
   private static void addUnfilledQuantity(
@@ -129,24 +161,6 @@ class PendingOrderImpactService {
     return orderQuantity == null
         ? ZERO
         : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
-  }
-
-  private static boolean isMissingFromPositionReport(
-      TransactionExecution execution, LocalDate positionDate) {
-    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
-      return false;
-    }
-    LocalDate reportedDate = execution.getReportedDate();
-    if (reportedDate == null) {
-      log.warn(
-          "Execution carries no reported date, leaving its position to the custodian report:"
-              + " executionId={}, orderId={}, positionDate={}",
-          execution.getId(),
-          execution.getOrderId(),
-          positionDate);
-      return false;
-    }
-    return reportedDate.isAfter(positionDate);
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {
@@ -177,11 +191,6 @@ class PendingOrderImpactService {
         orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
     return executionRepository.findByOrderIdIn(orderIds).stream()
         .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
-  }
-
-  private BigDecimal expectedConsideration(
-      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
-    return executed.consideration().add(unfilledValue(order, executed, asOfDate));
   }
 
   private BigDecimal unfilledValue(

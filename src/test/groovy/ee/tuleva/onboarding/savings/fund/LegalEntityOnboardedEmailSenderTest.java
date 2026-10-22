@@ -42,7 +42,7 @@ class LegalEntityOnboardedEmailSenderTest {
           emailService, emailPersistenceService, userService, latestKybSurveyInputs);
 
   private final CompanyDto company =
-      new CompanyDto(new RegistryCode("12345678"), "Mesila OÜ", "62011", LegalForm.OÜ);
+      new CompanyDto(new RegistryCode("12345678"), "Mesila OÜ", List.of("62011"), LegalForm.OÜ);
 
   private final User applicant =
       sampleUserNonMember().personalCode("38888888888").email("mari@example.com").build();

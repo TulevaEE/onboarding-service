@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -123,6 +126,8 @@ public class HealthCheckNotifier {
       List<Transition> cleared) {
     var message = new StringBuilder();
     message.append(header(provider, date, results, active));
+    message.append(fundStatuses(results));
+    correctionSteps(provider, date, results).ifPresent(message::append);
 
     for (var transition : active) {
       for (var finding : transition.result.findings()) {
@@ -172,6 +177,27 @@ public class HealthCheckNotifier {
       return "Import check could not run: %s %s\n".formatted(provider, date);
     }
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
+  }
+
+  private String fundStatuses(List<HealthCheckResult> results) {
+    return "Funds: %s\n"
+        .formatted(
+            results.stream()
+                .map(result -> result.fund().getCode() + " " + result.importStatus())
+                .collect(joining(", ")));
+  }
+
+  private static Optional<String> correctionSteps(
+      ReportProvider provider, LocalDate date, List<HealthCheckResult> results) {
+    if (provider != SEB || HealthCheckResult.blockedFunds(results).isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        ("Fix: ask SEB to resend the file, or email a corrected"
+                + " TULEVA_pos_raport_%s_korrigeeritud.csv from funds@tuleva.ee to"
+                + " funds@tuleva.ee only; a report up to 7 days old is picked up within 10 minutes"
+                + " between 08:00 and 18:00, an older one needs /admin/reimport-positions\n")
+            .formatted(date.format(BASIC_ISO_DATE)));
   }
 
   private String severityEmoji(HealthCheckSeverity severity) {

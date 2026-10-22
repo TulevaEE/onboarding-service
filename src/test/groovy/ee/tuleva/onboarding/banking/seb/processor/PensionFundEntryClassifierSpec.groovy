@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
+import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.BankAdjustment
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.BankFee
@@ -101,8 +102,8 @@ class PensionFundEntryClassifierSpec extends Specification {
   }
 
   static TradeSettlement developedWorldSettlement(BigDecimal units) {
-    new TradeSettlement("IE00BFG1TM61", "BDWTEIA",
-        "iShares Developed World Screened Index Fund", units)
+    new TradeSettlement(new TradeSettlementInfo("IE00BFG1TM61", "BDWTEIA",
+        "iShares Developed World Screened Index Fund", units))
   }
 
   static BankStatementEntry entry(
@@ -120,6 +121,6 @@ class PensionFundEntryClassifierSpec extends Specification {
         "entry-ref",
         null,
         subFamilyCode,
-        null)
+        null, true)
   }
 }

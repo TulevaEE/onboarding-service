@@ -40,7 +40,8 @@ public class MandateBatchSignatureService {
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     SmartIdSignatureSession signatureSession =
-        signService.startSmartIdSign(files, authenticatedPerson);
+        signService.startSmartIdSign(
+            MandateBatchService.signableMandateBatch(mandateBatchId), files, authenticatedPerson);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -129,7 +130,11 @@ public class MandateBatchSignatureService {
             "Missing phone number for mobile ID signing: personalCode="
                 + authenticatedPerson.getPersonalCode());
     MobileIdSignatureSession signatureSession =
-        signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
+        signService.startMobileIdSign(
+            MandateBatchService.signableMandateBatch(mandateBatchId),
+            files,
+            user.getPersonalCode(),
+            phoneNumber);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

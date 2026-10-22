@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.joining;
 
 import java.text.Normalizer;
 import java.util.Arrays;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -25,20 +26,26 @@ public class NameMatcher {
     return normalized1.equals(normalized2);
   }
 
+  public boolean looksLikeACompany(@Nullable String name) {
+    return name != null && normalizedTokens(name).anyMatch(OSAUHING_ABBREVIATION::equals);
+  }
+
   private boolean isMissingDistinguishingName(String normalizedName) {
     return normalizedName.isEmpty() || normalizedName.equals(OSAUHING_ABBREVIATION);
   }
 
   private String normalize(String name) {
+    return normalizedTokens(name).sorted().collect(joining(" "));
+  }
+
+  private Stream<String> normalizedTokens(String name) {
     return Arrays.stream(splitIntoWords(name))
         .map(String::strip)
         .filter(token -> !token.isEmpty())
         .map(String::toUpperCase)
         .map(token -> Normalizer.normalize(token, NFKD).replaceAll("\\p{M}", ""))
         .filter(token -> !token.equals(FIE))
-        .map(token -> token.equals(OSAUHING) ? OSAUHING_ABBREVIATION : token)
-        .sorted()
-        .collect(joining(" "));
+        .map(token -> token.equals(OSAUHING) ? OSAUHING_ABBREVIATION : token);
   }
 
   private String[] splitIntoWords(String name) {

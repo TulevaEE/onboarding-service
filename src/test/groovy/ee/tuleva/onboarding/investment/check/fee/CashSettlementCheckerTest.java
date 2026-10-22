@@ -8,10 +8,12 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANA
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -44,19 +46,23 @@ class CashSettlementCheckerTest {
 
   @BeforeEach
   void setUp() {
-    checker =
-        new CashSettlementChecker(
-            navLedgerRepository, new FeeCashIngestionCoverage(), new BigDecimal("0.02"), 20);
+    checker = new CashSettlementChecker(navLedgerRepository, new BigDecimal("0.05"), 20);
   }
 
-  // A fund with no bank statement ingestion is not something this check observed and could not
-  // see - it is something the check has nothing to say about at all, permanently. Reporting that
-  // as a monthly NOT_RUN observation makes a static fact about the system look like a finding.
   @Test
-  void aFundWithoutBankStatementIngestionYieldsNoFindingAtAll() {
+  void aPensionFundsPaymentIsCheckedAgainstItsOwnSettlement() {
+    givenSettled(SETTLED);
+    givenPayments(SETTLED.subtract(new BigDecimal("50.00")));
+
     var findings = checker.check(TUK75, FEE_MONTH, WINDOW_ELAPSED);
 
-    assertThat(findings).isEmpty();
+    assertThat(findings)
+        .extracting(FeeCheckFinding::fund, FeeCheckFinding::severity)
+        .containsExactly(tuple(TUK75, WARNING));
+    then(navLedgerRepository)
+        .should()
+        .findEntriesByTransactionTypeBetween(
+            eq("MANAGEMENT_FEE:TUK75"), eq(MANAGEMENT_FEE_PAYMENT), any(), any());
   }
 
   @Test
@@ -70,7 +76,7 @@ class CashSettlementCheckerTest {
   @Test
   void aPaymentWithinToleranceStillPasses() {
     givenSettled(SETTLED);
-    givenPayments(SETTLED.add(new BigDecimal("0.02")));
+    givenPayments(SETTLED.add(new BigDecimal("0.05")));
 
     assertThat(check(WINDOW_ELAPSED).getFirst().severity()).isEqualTo(PASS);
   }

@@ -31,4 +31,8 @@ public class ThirdPillarAnalytics {
   public List<AnalyticsThirdPillarTransaction> findTransactionsReportedOnOrAfter(LocalDate cutoff) {
     return transactionRepository.findByReportingDateGreaterThanEqual(cutoff);
   }
+
+  public List<ThirdPillarContribution> ownContributionsSince(String personalCode, LocalDate from) {
+    return transactionRepository.findOwnContributionsSince(personalCode, from);
+  }
 }

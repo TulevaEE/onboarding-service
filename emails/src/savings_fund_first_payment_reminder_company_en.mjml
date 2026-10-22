@@ -1,0 +1,49 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          You have opened a Tuleva Additional Investment Fund account for your company, but you have not
+          made your first contribution yet.
+        </mj-text>
+        <mj-text>
+          You can start with as little as 1&nbsp;euro. The fund's fee is *|savingsFundFee|*%&nbsp;per year
+          and there are no other fees.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">Make a contribution</mj-button>
+        <mj-text>
+          Two things companies often ask us: <strong>you do not need an LEI code</strong> to invest
+          in the fund, and you can easily get <strong>the statement needed for the annual report</strong>
+          from your Tuleva account by choosing the company role.
+        </mj-text>
+        <mj-text>If you would like to learn more:</mj-text>
+        <mj-text>
+          <ul style="margin:0;padding-left:20px;">
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/en/additional-investment-fund/where-does-the-tuleva-additional-investment-fund-invest/">Where does the Tuleva Additional Investment Fund invest?</a></li>
+            <li style="margin:0 0 6px 0;"><a href="https://tuleva.ee/taiendav-kogumisfond/kuidas-teha-raamatupidamist-kui-su-ou-on-taiendavasse-kogumisfondi-investeerinud/">How to do the bookkeeping when your company has invested in the Additional Investment Fund (in Estonian)</a></li>
+          </ul>
+        </mj-text>
+        <mj-text>
+          Should you have any questions, write to
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or call
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager at Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_company_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

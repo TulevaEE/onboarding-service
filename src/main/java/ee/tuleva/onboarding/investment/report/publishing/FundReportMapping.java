@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static java.lang.Integer.parseInt;
+
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public enum FundReportMapping {
@@ -37,6 +42,10 @@ public enum FundReportMapping {
   private static final Map<TulevaFund, FundReportMapping> BY_FUND =
       Arrays.stream(values())
           .collect(Collectors.toMap(FundReportMapping::fund, Function.identity()));
+
+  private static final String REPORT_TITLE = " investeeringute aruanne ";
+  private static final Pattern REPORT_PERIOD_AT_THE_END_OF_AN_UPLOADED_NAME =
+      Pattern.compile("-(\\d{4})-(0[1-9]|1[0-2])(?:-\\d+)?\\.pdf$");
 
   private static final String[] ESTONIAN_MONTHS = {
     "jaanuar", "veebruar", "märts", "aprill", "mai", "juuni",
@@ -101,9 +110,23 @@ public enum FundReportMapping {
     return ESTONIAN_MONTHS[month - 1];
   }
 
+  public Optional<YearMonth> reportPeriodNamedBy(String filename) {
+    var uploadedName = WordPressSlug.of(filename);
+    var period = REPORT_PERIOD_AT_THE_END_OF_AN_UPLOADED_NAME.matcher(uploadedName);
+    if (!period.find()) {
+      return Optional.empty();
+    }
+    var month = YearMonth.of(parseInt(period.group(1)), parseInt(period.group(2)));
+    var nameWithoutWordPressDuplicateSuffix =
+        uploadedName.substring(0, period.start()) + "-%s.pdf".formatted(month);
+    return nameWithoutWordPressDuplicateSuffix.equals(WordPressSlug.of(buildPdfFilename(month)))
+        ? Optional.of(month)
+        : Optional.empty();
+  }
+
   public String buildPdfFilename(YearMonth month) {
     return titleGenitive
-        + " investeeringute aruanne "
+        + REPORT_TITLE
         + month.getYear()
         + "-"
         + String.format("%02d", month.getMonthValue())

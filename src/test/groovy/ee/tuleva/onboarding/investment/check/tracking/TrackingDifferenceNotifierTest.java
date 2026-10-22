@@ -11,6 +11,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -67,6 +68,36 @@ class TrackingDifferenceNotifierTest {
     notifier.notify(List.of(result));
 
     then(notificationService).should().sendMessage(contains("TD BREACH DETECTED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aBreachOnADayWithNoBeginningOfDayPositionsStillShowsCashFeeAndResidual() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("-0.0065"))
+            .fundReturn(new BigDecimal("0.0035"))
+            .benchmarkReturn(new BigDecimal("0.0100"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .securityAttributions(List.of())
+            .cashDrag(new BigDecimal("-0.0010"))
+            .feeDrag(new BigDecimal("-0.0005"))
+            .residual(new BigDecimal("-0.0050"))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .contains("Cash drag: -0.10%", "Fee drag: -0.05%", "Residual: -0.50%")),
+            eq(INVESTMENT));
   }
 
   @Test

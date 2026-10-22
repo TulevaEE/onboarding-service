@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixt
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.ThirdPillarContribution;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -18,6 +20,9 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
 @DataJpaTest
 class AnalyticsThirdPillarTransactionRepositoryTest {
+
+  private static final String OWN_SOURCE = "Osakute väljalase isikult laekumiste alusel";
+  private static final String EMPLOYER_SOURCE = "Osakute väljalase tööandjalt laekumiste alusel";
 
   @Autowired AnalyticsThirdPillarTransactionRepository repository;
 
@@ -178,39 +183,116 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
   }
 
   @Test
-  void countOwnContributionMonthsSince_countsDistinctMonthsOfOwnPaymentsOnly() {
-    var ownSource = "Osakute väljalase isikult laekumiste alusel";
+  void countContributionMonthsSince_countsMonthsAnEmployerPaidFromSalary() {
     repository.saveAll(
         List.of(
             exampleTransactionBuilder()
                 .personalId("38888888888")
-                .transactionSource(ownSource)
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 6, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 7, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 8, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("49999999999")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 9, 10))
+                .build()));
+
+    int months = repository.countContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
+
+    assertThat(months).isEqualTo(3);
+  }
+
+  @Test
+  void countContributionMonthsSince_countsAMixedMonthOnceAndSkipsInsuranceTransfers() {
+    repository.saveAll(
+        List.of(
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
                 .reportingDate(LocalDate.of(2026, 6, 5))
                 .build(),
             exampleTransactionBuilder()
                 .personalId("38888888888")
-                .transactionSource(ownSource)
+                .transactionSource(OWN_SOURCE)
                 .reportingDate(LocalDate.of(2026, 6, 20))
                 .build(),
             exampleTransactionBuilder()
                 .personalId("38888888888")
-                .transactionSource(ownSource)
+                .transactionSource(OWN_SOURCE)
                 .reportingDate(LocalDate.of(2026, 7, 5))
                 .build(),
             exampleTransactionBuilder()
                 .personalId("38888888888")
-                .transactionSource("Osakute väljalase tööandjalt laekumiste alusel")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 7, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource("Osakute väljalase kindlustuslepingust laekumiste alusel")
                 .reportingDate(LocalDate.of(2026, 8, 5))
                 .build(),
             exampleTransactionBuilder()
                 .personalId("38888888888")
-                .transactionSource(ownSource)
+                .transactionSource(OWN_SOURCE)
                 .reportingDate(LocalDate.of(2026, 4, 5))
                 .build()));
 
-    int months =
-        repository.countOwnContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
+    int months = repository.countContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
 
     assertThat(months).isEqualTo(2);
+  }
+
+  @Test
+  void findOwnContributionsSince_returnsOnlyTheSaversOwnPaymentsInReportingOrder() {
+    repository.saveAll(
+        List.of(
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 7, 10))
+                .transactionValue(new BigDecimal("100.00"))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 5, 1))
+                .transactionValue(new BigDecimal("50.00"))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 4, 30))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 6, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("49999999999")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 6, 10))
+                .build()));
+
+    List<ThirdPillarContribution> contributions =
+        repository.findOwnContributionsSince("38888888888", LocalDate.of(2026, 5, 1));
+
+    assertThat(contributions)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new ThirdPillarContribution(LocalDate.of(2026, 5, 1), new BigDecimal("50.00")),
+                new ThirdPillarContribution(LocalDate.of(2026, 7, 10), new BigDecimal("100.00"))));
   }
 }

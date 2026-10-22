@@ -29,7 +29,6 @@ class EODHDFundSizeClient {
 
   private static final String PROVIDER_SUFFIX = ".EODHD";
   private static final String NOT_AVAILABLE = "NA";
-  private static final String LISTING_CURRENCY = "General::CurrencyCode";
   private static final String UPDATED_AT = "General::UpdatedAt";
   private static final String ETF_TOTAL_ASSETS = "ETF_Data::TotalAssets";
   private static final String FUND_NET_ASSETS = "MutualFund_Data::Portfolio_Net_Assets";
@@ -89,9 +88,7 @@ class EODHDFundSizeClient {
       return new FundSize.Unavailable("EODHD has no total assets");
     }
     var updatedAt = text(response.path(UPDATED_AT)).flatMap(EODHDFundSizeClient::date).orElse(null);
-    return text(response.path(LISTING_CURRENCY))
-        .<FundSize>map(currency -> new FundSize.Reported(amount.get(), currency, updatedAt))
-        .orElseGet(() -> new FundSize.Unavailable("EODHD has no listing currency"));
+    return new FundSize.Reported(amount.get(), updatedAt);
   }
 
   private static String reasonWithoutTheTokenBearingRequestUrl(Exception e) {
@@ -139,17 +136,14 @@ class EODHDFundSizeClient {
     return UriComponentsBuilder.fromUriString("https://eodhd.com/api/fundamentals/{ticker}")
         .queryParam("api_token", apiToken)
         .queryParam("fmt", "json")
-        .queryParam(
-            "filter",
-            String.join(",", LISTING_CURRENCY, UPDATED_AT, ETF_TOTAL_ASSETS, FUND_NET_ASSETS))
+        .queryParam("filter", String.join(",", UPDATED_AT, ETF_TOTAL_ASSETS, FUND_NET_ASSETS))
         .buildAndExpand(ticker)
         .toUriString();
   }
 
   sealed interface FundSize {
 
-    record Reported(BigDecimal amount, String listingCurrency, @Nullable LocalDate updatedAt)
-        implements FundSize {}
+    record Reported(BigDecimal amount, @Nullable LocalDate updatedAt) implements FundSize {}
 
     record Unavailable(String reason) implements FundSize {}
   }

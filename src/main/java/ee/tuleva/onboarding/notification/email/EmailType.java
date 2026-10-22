@@ -7,6 +7,7 @@ public enum EmailType {
   SECOND_PILLAR_WITHDRAWAL_CANCELLATION("second_pillar_withdrawal_cancellation"),
   SECOND_PILLAR_TRANSFER_CANCELLATION("second_pillar_transfer_cancellation"),
   SECOND_PILLAR_PAYMENT_RATE("second_pillar_payment_rate"),
+  SECOND_PILLAR_REJOIN("second_pillar_rejoin"),
 
   SECOND_PILLAR_LEAVERS("second_pillar_leavers"),
   SECOND_PILLAR_EARLY_WITHDRAWAL("second_pillar_early_withdrawal"),
@@ -38,6 +39,7 @@ public enum EmailType {
   SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON("savings_fund_first_payment_reminder_person"),
   SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD("savings_fund_first_payment_reminder_child"),
   SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD("savings_fund_onboarding_abandonment_child"),
+  SAVINGS_FUND_ONBOARDING_ABANDONMENT_PERSON("savings_fund_onboarding_abandonment_person"),
   SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON("savings_fund_onboarding_completed_person"),
   SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD("savings_fund_onboarding_completed_child"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
@@ -47,6 +49,8 @@ public enum EmailType {
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
 
   HACKATHON_REGISTRATION("hackathon_registration"),
+
+  INSURANCE_TRANSFER_FORM("insurance_transfer_form"),
   ;
 
   private final String templateName;

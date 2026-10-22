@@ -39,6 +39,14 @@ else
     echo "⚠️  Warning: JWT_KEYSTORE_P12 not set"
 fi
 
+if [ -n "$OAUTH_SIGNING_KEY_PEM" ]; then
+    echo "📝 Writing OAuth token signing key..."
+    echo "$OAUTH_SIGNING_KEY_PEM" | base64 -d > "/oauth-signing-key.pem"
+    chmod 444 "/oauth-signing-key.pem"
+    export OAUTH_SIGNINGKEY="file:/oauth-signing-key.pem"
+    echo "✅ Written: /oauth-signing-key.pem"
+fi
+
 if [ -n "$SWEDBANK_GATEWAY_P12" ]; then
     echo "📝 Writing Swedbank Gateway client certificate..."
     echo "$SWEDBANK_GATEWAY_P12" | base64 -d > "/swedbank-gateway.p12"

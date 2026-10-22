@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -117,24 +116,32 @@ public class NavLedgerRepository {
         .list();
   }
 
-  public Optional<Instant> findLatestTransactionDateByType(
-      String accountName, LedgerTransaction.TransactionType transactionType) {
+  public boolean existsTransactionRecordedAfter(
+      String accountName,
+      LedgerTransaction.TransactionType transactionType,
+      UUID earlierTransactionId,
+      Instant datedFrom) {
     return jdbcClient
-        .sql(
-            """
-            SELECT MAX(t.transaction_date) AS latest
-            FROM ledger.entry e
-            JOIN ledger.account a ON e.account_id = a.id
-            JOIN ledger.transaction t ON e.transaction_id = t.id
-            WHERE a.name = :accountName
-              AND a.purpose = 'SYSTEM_ACCOUNT'
-              AND t.transaction_type = CAST(:transactionType AS ledger.transaction_type)
-            """)
-        .param("accountName", accountName)
-        .param("transactionType", transactionType.name())
-        .query((rs, rowNum) -> rs.getTimestamp("latest"))
-        .optional()
-        .map(Timestamp::toInstant);
+            .sql(
+                """
+                SELECT COUNT(*)
+                FROM ledger.entry e
+                JOIN ledger.account a ON e.account_id = a.id
+                JOIN ledger.transaction t ON e.transaction_id = t.id
+                JOIN ledger.transaction earlier ON earlier.id = :earlierTransactionId
+                WHERE a.name = :accountName
+                  AND a.purpose = 'SYSTEM_ACCOUNT'
+                  AND t.transaction_type = CAST(:transactionType AS ledger.transaction_type)
+                  AND t.transaction_date >= :datedFrom
+                  AND t.created_at > earlier.created_at
+                """)
+            .param("accountName", accountName)
+            .param("transactionType", transactionType.name())
+            .param("earlierTransactionId", earlierTransactionId)
+            .param("datedFrom", Timestamp.from(datedFrom))
+            .query(Long.class)
+            .single()
+        > 0;
   }
 
   public Map<String, BigDecimal> getSecuritiesUnitBalances(TulevaFund fund) {

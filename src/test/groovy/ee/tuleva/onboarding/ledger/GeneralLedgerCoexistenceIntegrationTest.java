@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,10 @@ class GeneralLedgerCoexistenceIntegrationTest {
 
     assertThat(savingsFundLedger.findHolderAccountIdsInDebit()).isEmpty();
     assertThat(savingsFundLedger.findPayoutIdsBookedToAnotherPartyThanPriced()).isEmpty();
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).isZero();
+    assertThat(
+            fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                TKF100, Instant.parse("2100-01-01T00:00:00Z")))
+        .isZero();
   }
 
   @Test

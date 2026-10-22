@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
@@ -37,6 +38,7 @@ import org.springframework.context.annotation.Import;
 class FundBankLedgerTest {
 
   private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 5, 28);
+  private static final Instant AFTER_EVERY_BOOKING = Instant.parse("2100-01-01T00:00:00Z");
 
   @Autowired LedgerService ledgerService;
   @Autowired LedgerAccountService ledgerAccountService;
@@ -515,15 +517,14 @@ class FundBankLedgerTest {
   }
 
   @Test
-  void seedOpeningBalanceIfFirstStatement_skipsAZeroOpeningBalance() {
-    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+  void hasBankEntries_turnsTrueWithTheCashAccountsFirstEntry() {
+    assertThat(fundBankLedger.hasBankEntries(TUK75)).isFalse();
 
-    fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, ZERO, LocalDate.of(2026, 1, 31));
+    fundBankLedger.recordBankFee(
+        TUK75, new BigDecimal("-1.00"), randomUUID(), FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE);
 
-    assertThat(
-            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
-        .isEqualByComparingTo(ZERO);
-    assertThat(fundBankLedger.existsForExternalReference(randomUUID())).isFalse();
+    assertThat(fundBankLedger.hasBankEntries(TUK75)).isTrue();
+    assertThat(fundBankLedger.hasBankEntries(TUK00)).isFalse();
   }
 
   @Test
@@ -576,8 +577,37 @@ class FundBankLedgerTest {
 
     assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(ZERO);
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(2);
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).isZero();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(2);
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TKF100, AFTER_EVERY_BOOKING))
+        .isZero();
+  }
+
+  @Test
+  void countUnresolvedUnclassifiedEntriesBefore_leavesOutEntriesBookedAfterTheCutoff() {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("100.00"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, "on the reconciled day", "OTHR"));
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("200.00"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE.plusDays(1),
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, "the day after", "OTHR"));
+
+    assertThat(
+            fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                TUK75, startOfDay(BOOKING_DATE.plusDays(1))))
+        .isEqualTo(1);
+    assertThat(
+            fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                TUK75, startOfDay(BOOKING_DATE.plusDays(2))))
+        .isEqualTo(2);
   }
 
   @Test
@@ -615,12 +645,14 @@ class FundBankLedgerTest {
         new FundBankLedger.UnclassifiedEntryDetails(
             "AS Pensionikeskus", "EE001234567890123477", "laekumine", null));
 
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(1);
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isEqualTo(1);
 
     fundBankLedger.recordRegistrarContribution(
         TUK75, ZERO, externalReference, BOOKING_DATE, "reclassified from suspense");
 
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isZero();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
   }
 
   @Test
@@ -659,7 +691,8 @@ class FundBankLedgerTest {
             deltaSince(
                 registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
-    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isZero();
+    assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
+        .isZero();
 
     var replay =
         fundBankLedger.reclassifySuspenseEntry(
@@ -743,5 +776,9 @@ class FundBankLedgerTest {
             .reduce(ZERO, BigDecimal::add);
 
     assertThat(totalDebits.compareTo(totalCredits)).isEqualTo(0);
+  }
+
+  private static Instant startOfDay(LocalDate day) {
+    return day.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
   }
 }

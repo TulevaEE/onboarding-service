@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -52,10 +54,20 @@ public class FundPositionImportJob {
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
-    if (event.reportType() != POSITIONS) {
-      return;
+    if (event.reportType() == POSITIONS || correctsTradesOfStoredPositions(event)) {
+      runImportPipeline();
     }
-    runImportPipeline();
+  }
+
+  private boolean correctsTradesOfStoredPositions(ReportImportCompleted event) {
+    if (event.provider() != SEB || event.reportType() != PENDING_TRANSACTIONS) {
+      return false;
+    }
+    return reportService
+        .getReport(SEB, PENDING_TRANSACTIONS, event.reportDate())
+        .map(SebReportHeaders::asOfDate)
+        .flatMap(asOf -> reportService.getReport(SEB, POSITIONS, asOf))
+        .isPresent();
   }
 
   @EventListener(RunFundPositionImportRequested.class)

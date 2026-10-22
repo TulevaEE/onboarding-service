@@ -9,20 +9,17 @@
           Membership number&nbsp;*|memberNumber|*
         </mj-text>
         <mj-text>
-          <strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
-          was accepted as a member of Tulundusühistu Tuleva on&nbsp;*|memberDate|*.
+          <strong>*|FNAME|*&nbsp;*|LNAME|*</strong>,<br />
+          you were accepted as a member of Tulundusühistu Tuleva on&nbsp;*|memberDate|*.
         </mj-text>
         <mj-text>
-          We welcome you as a member.<br />
-          You are now a member of Tuleva and we communicate daily in a closed
+          We welcome you as a member!           You are now a member of Tuleva and we communicate daily in a closed
           <a href="https://www.facebook.com/groups/tuleva.ee">Facebook group</a>. There, we share
           information and engage in discussions and you can also have a say in Tuleva's
           activities. Don't worry if you don't have Facebook. We will always send you important
           updates via email as well.
         </mj-text>
 
-        <mj-include path="./partials/suggest_chain_open_en.mjml" />
-        <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
 
@@ -34,7 +31,6 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_pension_en.mjml" />
     <mj-include path="./partials/footer_bottom_coop.mjml" />
   </mj-body>
 </mjml>

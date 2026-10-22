@@ -22,6 +22,7 @@ import ee.sk.smartid.signature.SignableData;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import java.security.cert.CertificateEncodingException;
@@ -47,8 +48,9 @@ public class SmartIdSigner {
   private final GenericSessionStore sessionStore;
   private final DigiDocFacade digiDocFacade;
 
-  public SmartIdSignatureSession startSign(List<SignatureFile> files, AuthenticatedPerson signer) {
-    var session = new SmartIdSignatureSession(signer.getPersonalCode(), files);
+  public SmartIdSignatureSession startSign(
+      SignableEntity entity, List<SignatureFile> files, AuthenticatedPerson signer) {
+    var session = new SmartIdSignatureSession(entity, signer.getPersonalCode(), files);
     String documentNumber = signer.getSmartIdDocumentNumber().orElse(null);
     if (documentNumber != null) {
       startSigning(session, signingCertificate(documentNumber), documentNumber);

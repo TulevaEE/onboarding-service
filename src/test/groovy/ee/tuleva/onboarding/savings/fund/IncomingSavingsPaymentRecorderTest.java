@@ -28,8 +28,11 @@ class IncomingSavingsPaymentRecorderTest {
 
   private final PartyId recipient = new PartyId(PERSON, "38812121215");
 
+  private final UUID internalReference = UUID.randomUUID();
+
   private final IncomingSavingsPayment incomingPayment =
       new IncomingSavingsPayment(
+          internalReference,
           "First Last",
           "EE111111111111111111",
           "description",
@@ -37,36 +40,54 @@ class IncomingSavingsPaymentRecorderTest {
           EUR,
           recipient);
 
+  private final SavingFundPayment expectedPayment =
+      SavingFundPayment.builder()
+          .remitterName("First Last")
+          .remitterIban("EE111111111111111111")
+          .description("description")
+          .amount(new BigDecimal("10"))
+          .currency(EUR)
+          .build();
+
   @Test
-  void savesAndAttachesPartyWhenNoRecentPaymentExists() {
+  void savesThePaymentWithItsPartyOncePerPaymentLinkWhenNoRecentPaymentExists() {
     given(savingFundPaymentQueries.findRecentPayments("description")).willReturn(List.of());
-    var paymentId = UUID.randomUUID();
-    var expectedPayment =
-        SavingFundPayment.builder()
-            .remitterName("First Last")
-            .remitterIban("EE111111111111111111")
-            .description("description")
-            .amount(new BigDecimal("10"))
-            .currency(EUR)
-            .build();
-    given(savingFundPaymentQueries.savePaymentData(expectedPayment)).willReturn(paymentId);
+    given(
+            savingFundPaymentQueries.savePaymentDataOnce(
+                internalReference, expectedPayment, recipient))
+        .willReturn(true);
 
     var recorded = recorder.recordIncoming(incomingPayment);
 
     assertThat(recorded).isTrue();
-    verify(savingFundPaymentQueries).attachParty(paymentId, recipient);
   }
 
   @Test
-  void doesNotSaveWhenARecentPaymentAlreadyExists() {
-    var existingPayment = SavingFundPayment.builder().description("description").build();
-    given(savingFundPaymentQueries.findRecentPayments("description"))
-        .willReturn(List.of(existingPayment));
+  void recordsNothingWhenTheOtherCallbackForTheSamePaymentLinkSavedItFirst() {
+    given(savingFundPaymentQueries.findRecentPayments("description")).willReturn(List.of());
+    given(
+            savingFundPaymentQueries.savePaymentDataOnce(
+                internalReference, expectedPayment, recipient))
+        .willReturn(false);
 
     var recorded = recorder.recordIncoming(incomingPayment);
 
     assertThat(recorded).isFalse();
-    verify(savingFundPaymentQueries, never()).savePaymentData(any());
-    verify(savingFundPaymentQueries, never()).attachParty(any(), any());
+  }
+
+  @Test
+  void doesNotSaveACallbackArrivingAfterTheBankStatementAlreadyRecordedThePayment() {
+    var bankStatementPayment =
+        SavingFundPayment.builder()
+            .description("description")
+            .externalId("statement-entry")
+            .build();
+    given(savingFundPaymentQueries.findRecentPayments("description"))
+        .willReturn(List.of(bankStatementPayment));
+
+    var recorded = recorder.recordIncoming(incomingPayment);
+
+    assertThat(recorded).isFalse();
+    verify(savingFundPaymentQueries, never()).savePaymentDataOnce(any(), any(), any());
   }
 }

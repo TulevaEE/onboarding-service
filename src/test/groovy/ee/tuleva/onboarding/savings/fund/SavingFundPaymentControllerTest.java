@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -43,7 +44,7 @@ class SavingFundPaymentControllerTest {
   @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
   @MockitoBean private IbanWhitelistService ibanWhitelistService;
-  @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  @MockitoBean private SavingFundPaymentCancellationService savingFundPaymentCancellationService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
 
   @MockitoBean
@@ -65,7 +66,7 @@ class SavingFundPaymentControllerTest {
     when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
-        .when(savingFundPaymentUpsertionService)
+        .when(savingFundPaymentCancellationService)
         .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
@@ -85,11 +86,31 @@ class SavingFundPaymentControllerTest {
     when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
     when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     doNothing()
-        .when(savingFundPaymentUpsertionService)
+        .when(savingFundPaymentCancellationService)
         .cancelPayment(eq(PartyId.from(person.getRole())), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void cancelSavingsFundPayment_whenCancellationRefused_returnsConflictWithoutPublishingEvent()
+      throws Exception {
+    UUID paymentId = UUID.randomUUID();
+    var person = sampleAuthenticatedPersonAndMember().build();
+
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    willThrow(new PaymentCancellationRefusedException("Payment cancellation deadline has passed"))
+        .given(savingFundPaymentCancellationService)
+        .cancelPayment(PartyId.from(person.getRole()), paymentId);
+
+    mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
+        .andExpect(status().isConflict());
+
+    verifyNoInteractions(applicationEventPublisher);
   }
 
   @Test

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.fund.PaymentReturningService.MAX_RETURN_REASON_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -170,6 +171,26 @@ class PaymentReturningServiceTest {
     verify(eventPublisher).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().paymentRequest()).isEqualTo(expectedPaymentRequest);
     verify(savingFundPaymentRepository).changeStatus(originalPayment.getId(), RETURNED);
+  }
+
+  @Test
+  void createReturn_withLongestAllowedReason_fillsSepaRemittanceInformationExactly() {
+    var originalPayment =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal(60))
+            .remitterName("John Doe")
+            .remitterIban("IBAN-11")
+            .beneficiaryName("Tuleva")
+            .beneficiaryIban("IBAN-22")
+            .returnReason("x".repeat(MAX_RETURN_REASON_LENGTH))
+            .build();
+
+    service.createReturn(originalPayment);
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().paymentRequest().description()).hasSize(140);
   }
 
   @Test

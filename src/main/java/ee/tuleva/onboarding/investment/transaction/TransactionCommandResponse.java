@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,8 @@ public record TransactionCommandResponse(
     CommandStatus status,
     @Nullable String errorMessage,
     @Nullable Long batchId,
+    @Nullable BigDecimal cash,
+    @Nullable String cashComment,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -31,6 +34,8 @@ public record TransactionCommandResponse(
         command.getStatus(),
         command.getErrorMessage(),
         command.getBatchId(),
+        command.getCash(),
+        command.getCashComment(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

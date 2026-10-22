@@ -124,6 +124,18 @@ class JobRunScheduleTest {
             });
   }
 
+  @Test
+  void investmentReportPublicationCheck_firesEveryMorningIncludingWeekends() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-10-12T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(
+            JobRunSchedule.INVESTMENT_REPORT_PUBLICATION_CHECK, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(7);
+    assertThat(fires)
+        .allSatisfy(fire -> assertThat(fire.toLocalTime()).isEqualTo(LocalTime.of(9, 0)));
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
@@ -144,6 +156,8 @@ class JobRunScheduleTest {
     R16_FLOW_RECALC(JobRunSchedule.R16_FLOW_RECALC, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     RISK_INDICATOR_DAILY(
         JobRunSchedule.RISK_INDICATOR_DAILY, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
+    INVESTMENT_REPORT_PUBLICATION_CHECK(
+        JobRunSchedule.INVESTMENT_REPORT_PUBLICATION_CHECK, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     CASH_BUFFER_REVIEW_BEFORE_THE_MORNING_IMPORTS(
         JobRunSchedule.CASH_BUFFER_REVIEW_BEFORE_THE_MORNING_IMPORTS,
         STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),

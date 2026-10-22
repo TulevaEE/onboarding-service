@@ -1,15 +1,12 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -17,7 +14,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -28,71 +24,9 @@ import org.mockito.ArgumentCaptor;
 class SavingFundPaymentUpsertionServiceTest {
 
   SavingFundPaymentRepository repository = mock(SavingFundPaymentRepository.class);
-  SavingFundDeadlinesService deadlinesService = mock(SavingFundDeadlinesService.class);
 
   SavingFundPaymentUpsertionService service =
-      new SavingFundPaymentUpsertionService(
-          repository, deadlinesService, new NameMatcher(), Clock.systemUTC());
-
-  @Test
-  void cancelPayment_successful() {
-    var party = new PartyId(PERSON, "38501010000");
-    var paymentId = UUID.randomUUID();
-    var payment =
-        SavingFundPayment.builder().id(paymentId).partyId(party).amount(BigDecimal.TEN).build();
-
-    when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
-    when(deadlinesService.getCancellationDeadline(payment))
-        .thenReturn(Instant.now().plusSeconds(3600));
-
-    service.cancelPayment(party, paymentId);
-
-    verify(repository).cancel(paymentId);
-  }
-
-  @Test
-  void cancelPayment_wrongUser_throwsException() {
-    var paymentId = UUID.randomUUID();
-    var payment =
-        SavingFundPayment.builder()
-            .id(paymentId)
-            .partyId(new PartyId(PERSON, "38501010000"))
-            .amount(BigDecimal.TEN)
-            .build();
-
-    when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
-
-    assertThrows(
-        NoSuchElementException.class,
-        () -> service.cancelPayment(new PartyId(PERSON, "49901010000"), paymentId));
-    verify(repository, never()).cancel(any());
-  }
-
-  @Test
-  void cancelPayment_deadlinePassed_throwsException() {
-    var party = new PartyId(PERSON, "38501010000");
-    var paymentId = UUID.randomUUID();
-    var payment =
-        SavingFundPayment.builder().id(paymentId).partyId(party).amount(BigDecimal.TEN).build();
-
-    when(repository.findById(paymentId)).thenReturn(Optional.of(payment));
-    when(deadlinesService.getCancellationDeadline(payment))
-        .thenReturn(Instant.now().minusSeconds(3600));
-
-    assertThrows(IllegalStateException.class, () -> service.cancelPayment(party, paymentId));
-    verify(repository, never()).cancel(any());
-  }
-
-  @Test
-  void cancelPayment_paymentNotFound_throwsException() {
-    var party = new PartyId(PERSON, "38501010000");
-    var paymentId = UUID.randomUUID();
-
-    when(repository.findById(paymentId)).thenReturn(Optional.empty());
-
-    assertThrows(NoSuchElementException.class, () -> service.cancelPayment(party, paymentId));
-    verify(repository, never()).cancel(any());
-  }
+      new SavingFundPaymentUpsertionService(repository, new NameMatcher(), Clock.systemUTC());
 
   @Test
   void upsert_mergesPaymentWithFlexibleNameMatching() {
@@ -706,7 +640,6 @@ class SavingFundPaymentUpsertionServiceTest {
     var clockedService =
         new SavingFundPaymentUpsertionService(
             repository,
-            deadlinesService,
             new NameMatcher(),
             Clock.fixed(CALLBACK_CREATED_AT.plus(Duration.ofDays(8)), ZoneOffset.UTC));
     given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());

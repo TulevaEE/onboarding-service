@@ -83,10 +83,9 @@ class LedgerTransactionService {
     return ledgerTransactionRepository.countEntriesForAccountName(accountName) > 0;
   }
 
-  public long countUnresolvedByTransactionTypeAndAccountName(
-      TransactionType transactionType, String accountName) {
-    return ledgerTransactionRepository.countUnresolvedByTransactionTypeAndAccountName(
-        transactionType, accountName);
+  public long countUnresolvedBefore(
+      TransactionType transactionType, String accountName, Instant before) {
+    return ledgerTransactionRepository.countUnresolvedBefore(transactionType, accountName, before);
   }
 
   public List<LedgerTransaction> findUnresolvedByTransactionTypeAndAccountName(

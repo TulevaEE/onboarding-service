@@ -17,8 +17,6 @@ import static java.util.stream.Collectors.toSet;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
-import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
-import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.Checked;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NeverCheckable;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NotCheckable;
@@ -98,9 +96,7 @@ class TrackingDifferenceService {
       try {
         var check = checkFund(fund, checkDate);
         results.addAll(check.results());
-        check.checksNotMeasured().stream()
-            .map(NoHoldingMeasured::describe)
-            .forEach(incompleteChecks::add);
+        check.checksNotMeasured().forEach(n -> incompleteChecks.add(n.describe()));
       } catch (IncompletePriceDataException e) {
         log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
         incompleteChecks.add(e.getMessage());
@@ -201,12 +197,7 @@ class TrackingDifferenceService {
             GapFailure.inWindow(
                 fund, checkDate, window, notCheckable.reason(), MISSING_NAV, publicHolidays));
       }
-      check.checksNotMeasured().stream()
-          .map(
-              notMeasured ->
-                  GapFailure.inWindow(
-                      fund, checkDate, window, notMeasured.reason(), MISSING_PRICE, publicHolidays))
-          .forEach(failures::add);
+      failures.addAll(GapFailure.notMeasured(check.checksNotMeasured(), window, publicHolidays));
       return check.results();
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
@@ -412,17 +403,13 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    var checksNotMeasured = new ArrayList<NoHoldingMeasured>();
-    switch (benchmarkCheckBuilder.buildBenchmarkModelCheck(fund, checkDate, securities)) {
-      case Measured(var result) -> {
-        saveEvent(result);
-        results.add(result);
-      }
-      case NoHoldingMeasured noHoldingMeasured -> checksNotMeasured.add(noHoldingMeasured);
-      case NothingToMeasure() -> {}
+    var modelCheck = benchmarkCheckBuilder.buildBenchmarkModelCheck(fund, checkDate, securities);
+    if (modelCheck instanceof Measured(var result)) {
+      saveEvent(result);
+      results.add(result);
     }
 
-    return new Checked(results, List.copyOf(checksNotMeasured));
+    return new Checked(results, modelCheck.checksNotMeasured());
   }
 
   private BigDecimal accruedFeeFraction(

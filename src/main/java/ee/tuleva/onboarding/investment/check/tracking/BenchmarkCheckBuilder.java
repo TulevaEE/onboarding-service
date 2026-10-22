@@ -220,9 +220,7 @@ class BenchmarkCheckBuilder {
             s.isin(),
             benchmarkKey);
         holdingsReportedAsBenchmarkGap.add(s);
-        if (s.actualWeight().signum() > 0) {
-          holdingsWithoutBenchmarkPrices.add(s);
-        }
+        holdingsWithoutBenchmarkPrices.add(s);
         continue;
       }
       var secReturn =
@@ -243,9 +241,7 @@ class BenchmarkCheckBuilder {
     }
 
     if (totalWeight.signum() == 0) {
-      return holdingsWithoutBenchmarkPrices.isEmpty()
-          ? new NothingToMeasure()
-          : new NoHoldingMeasured(fund, checkDate, isins(holdingsWithoutBenchmarkPrices));
+      return outcomeWithNoHoldingMeasured(fund, checkDate, holdingsWithoutBenchmarkPrices);
     }
 
     var benchmarkReturn =
@@ -301,6 +297,15 @@ class BenchmarkCheckBuilder {
             .benchmarkGapIsins(isins(holdingsReportedAsBenchmarkGap))
             .benchmarkGapWeight(totalActualWeight(holdingsReportedAsBenchmarkGap))
             .build());
+  }
+
+  private static BenchmarkModelCheck outcomeWithNoHoldingMeasured(
+      TulevaFund fund, LocalDate checkDate, List<SecurityData> holdingsWithoutBenchmarkPrices) {
+    var heldWithoutBenchmarkPrices =
+        holdingsWithoutBenchmarkPrices.stream().filter(s -> s.actualWeight().signum() > 0).toList();
+    return heldWithoutBenchmarkPrices.isEmpty()
+        ? new NothingToMeasure()
+        : new NoHoldingMeasured(fund, checkDate, isins(heldWithoutBenchmarkPrices));
   }
 
   private static List<String> isins(List<SecurityData> holdings) {

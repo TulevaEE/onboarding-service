@@ -1201,7 +1201,7 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue())
         .contains("TD check RAN ONLY IN PART")
         .contains("TUK75: IE00MISSING")
-        .contains("a whole fund, or the one check it names");
+        .contains("a whole fund or one check");
   }
 
   @Test

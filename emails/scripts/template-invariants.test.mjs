@@ -87,6 +87,16 @@ for (const name of distTemplates.filter((template) =>
       assert.equal(Boolean(vars.anyPillarSuggestion), showsPensionPillarNudge, `variant "${variant}"`);
     }
   });
+
+  test(`${name}: a variant with a nudge shows exactly one nudge button, and a variant without one shows none`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants)) {
+      const nudgeFlags = Object.keys(vars).filter((key) => key.startsWith('suggest') && vars[key]);
+      const nudgeLinks = renderMergeLanguage(html, vars).match(/utm_content=nudge_\w+/g) ?? [];
+      assert.equal(nudgeLinks.length, nudgeFlags.length > 0 ? 1 : 0, `variant "${variant}": ${nudgeLinks.join(', ')}`);
+    }
+  });
 }
 
 for (const name of distTemplates.filter((template) =>

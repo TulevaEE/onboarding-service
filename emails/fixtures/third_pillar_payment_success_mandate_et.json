@@ -71,6 +71,12 @@
       "recipientPersonalCode": "38888888888",
       "suggestPaymentRate": true,
       "anyPillarSuggestion": true
+    },
+    "kingitus, kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

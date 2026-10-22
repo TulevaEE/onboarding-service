@@ -41,7 +41,13 @@
           teadlikult oma tuleviku heaks.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|END:IF|*</mj-raw>
 
+        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
+        <mj-raw>*|IF:gift|*</mj-raw>
+        <mj-include path="./partials/suggest_savings_fund_recurring_self_et.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
 
         <mj-raw>*|END:IF|*</mj-raw>

@@ -33,17 +33,5 @@
   Olemasoleva püsimakse summat saad igal ajal oma internetipangas muuta.
 </mj-text>
 <mj-raw>*|ELSE:|*</mj-raw>
-<mj-text>
-  Täiendavasse Kogumisfondi saad koguda ka püsimaksega. Nii jõuab sissemakse sinu kontole iga
-  kuu, ilma et peaksid sellele eraldi mõtlema.
-</mj-text>
-<mj-text>
-  <strong>Kui püsimakset veel ei ole, saad selle seadistada Tuleva kontol:</strong>
-</mj-text>
-<mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&utm_content=nudge_savings_fund_recurring">
-  Seadistan püsimakse
-</mj-button>
-<mj-text>
-  Olemasoleva püsimakse summat saad igal ajal oma internetipangas muuta.
-</mj-text>
+<mj-include path="./suggest_savings_fund_recurring_self_et.mjml" />
 <mj-raw>*|END:IF|*</mj-raw>

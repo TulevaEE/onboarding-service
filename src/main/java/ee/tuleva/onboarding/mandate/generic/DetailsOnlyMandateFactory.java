@@ -6,16 +6,15 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentRateChangeMandateFactory
-    extends MandateFactory<PaymentRateChangeMandateDetails> {
+public class DetailsOnlyMandateFactory extends MandateFactory<MandateDetails> {
 
-  public PaymentRateChangeMandateFactory(
+  public DetailsOnlyMandateFactory(
       UserService userService,
       MandateContacts mandateContacts,
       UserConversionService conversionService,
@@ -31,18 +30,12 @@ public class PaymentRateChangeMandateFactory
 
   @Override
   Mandate createMandate(
-      AuthenticatedPerson authenticatedPerson,
-      MandateDto<PaymentRateChangeMandateDetails> mandateCreationDto) {
-    Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
-    PaymentRateChangeMandateDetails details = mandateCreationDto.getDetails();
-
-    // TODO legacy field
-
-    return mandate;
+      AuthenticatedPerson authenticatedPerson, MandateDto<MandateDetails> mandateCreationDto) {
+    return setupMandate(authenticatedPerson, mandateCreationDto);
   }
 
   @Override
   public boolean supports(MandateType mandateType) {
-    return mandateType == MandateType.PAYMENT_RATE_CHANGE;
+    return mandateType == MandateType.PAYMENT_RATE_CHANGE || mandateType == MandateType.REJOIN;
   }
 }

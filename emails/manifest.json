@@ -190,6 +190,11 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_onboarding_abandonment_person_en": {
+      "subject": "Continue opening your account",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_onboarding_completed_child_en": {
       "subject": "Your child's fund account is open",
       "from_email": "tuleva@tuleva.ee",
@@ -277,6 +282,16 @@
     },
     "second_pillar_payment_rate_et": {
       "subject": "Sinu II samba sissemakse suurus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_rejoin_en": {
+      "subject": "Your II pillar applications",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_rejoin_et": {
+      "subject": "Sinu II samba avaldused",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -371,6 +386,7 @@
     "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",
     "second_pillar_mandate": "Sent right after signing a second pillar fund transfer or fund selection application, with the signed application attached.",
     "second_pillar_payment_rate": "Sent right after signing a second pillar contribution rate change application, with the signed application attached.",
+    "second_pillar_rejoin": "Sent right after signing the II pillar rejoin (the application to make contributions, the contribution rate and the fund selection), with the signed applications attached and when contributions start.",
     "second_pillar_transfer_cancellation": "Sent right after signing an application that cancels a pending second pillar fund transfer, with the signed application attached.",
     "second_pillar_withdrawal_cancellation": "Sent right after signing an application that cancels a pending second pillar withdrawal, with the signed application attached.",
     "third_pillar_payment_arrived": "Sent by the daily noon job to people whose first ever own contribution has reached the third pillar fund, including payers who have never logged in. Each person gets it once; capped at 200 recipients per day.",
@@ -380,7 +396,7 @@
     "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
     "savings_fund_onboarding_completed_person": "Sent once, at 9:00 Tallinn time the morning after an adult’s savings fund account opens, to the account holder. The first payment call and button show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button takes their place. Sent in English to holders who prefer English in the latest registry snapshot. Adults who still have an active guardian are left out.",
     "savings_fund_onboarding_completed_child": "Sent once, at 9:00 Tallinn time the morning after a minor’s savings fund account opens, to the parent who started it (the earliest active parent link, ahead of any ops-created guardian link). The first payment call and its button to the child’s payment page show only while no payment has arrived (awaitingFirstPayment); once one has, a standing order button to the child’s recurring payment page takes their place. When a co-parent captured from the population register is still waiting to confirm, it also tells the parent how to bring them in (hasCoParent). Sent in English to parents who prefer English in the latest registry snapshot.",
-    "savings_fund_onboarding_abandonment_person": "Planned: sent to a person who started opening a savings fund account but stopped. No signal exists yet for adults who abandon before submitting the KYC survey.",
+    "savings_fund_onboarding_abandonment_person": "Sent by a daily job at 12:45 Europe/Tallinn to an adult who opened the savings fund survey (/savings-fund/onboarding/person) and never submitted it, 3 to 30 days after their last visit to it. People with a savings fund account in any status, a submitted personal KYC survey or an active guardian are left out. Once per person. In Estonian or English by the saver’s language preference.",
     "savings_fund_onboarding_abandonment_child": "Sent by a daily job at 12:30 Europe/Tallinn to the parent who started opening a child’s account but never submitted the KYC survey (PENDING row without kyc_survey), 3 to 30 days after starting. Once per attempt: a parent is reminded again only about a child account started after their last reminder. In Estonian or English by the parent’s language preference.",
     "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. Since the company-waits flow, PENDING means waiting for related persons to verify, not abandonment, so this trigger needs its own definition before wiring.",
     "savings_fund_first_payment_reminder_person": "Sent by a daily job at 12:00 Europe/Tallinn to a person whose own savings fund account was opened 7 to 30 days ago with no contribution yet, once per account, in Estonian or English by the saver’s language preference. Minors, children with a guardian link and board members of a company that has already paid are left out.",

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.mandate.details.RejoinMandateDetails
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
@@ -32,5 +33,13 @@ class MandateEmailTypeSpec extends Specification {
 
     then:
     thrown(IllegalArgumentException)
+  }
+
+  def "emailTypeFor(MandateBatch) sends the rejoin email for a batch that rejoins the II pillar"() {
+    given:
+    def rejoinMandate = sampleMandate().tap { details = new RejoinMandateDetails() }
+
+    expect:
+    MandateEmailType.emailTypeFor(aSavedMandateBatch([rejoinMandate, sampleMandateWithPaymentRate()])) == SECOND_PILLAR_REJOIN
   }
 }

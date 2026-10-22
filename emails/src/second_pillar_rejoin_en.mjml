@@ -1,0 +1,35 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Your II&nbsp;pillar applications have been submitted.</mj-text>
+        <mj-text>
+          Contributions to your II&nbsp;pillar will start again, and you get the tax win again.
+        </mj-text>
+        <mj-text><strong>Submitted applications:</strong></mj-text>
+        <mj-text>Application to make contributions</mj-text>
+        <mj-text>Contribution rate change application</mj-text>
+        <mj-text>Fund selection application</mj-text>
+        <mj-text>
+          If you applied by 30&nbsp;November, contributions start in May next year.
+        </mj-text>
+        <mj-text>
+          A copy of your applications, as sent to Pensionikeskus, is attached to this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

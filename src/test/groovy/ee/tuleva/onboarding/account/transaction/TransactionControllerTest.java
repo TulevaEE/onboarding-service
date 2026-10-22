@@ -1,17 +1,21 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,6 +24,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -64,6 +70,44 @@ class TransactionControllerTest {
               "nav": 1.0000
             }]
             """));
+  }
+
+  @Test
+  void aConnectedAppGetsOnlyTheSavingsFundTransactionsOfThePerson() throws Exception {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38812121215")
+            .firstName("Jordan")
+            .lastName("Valdma")
+            .build();
+    var savingsFundTransaction =
+        Transaction.builder()
+            .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440002"))
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2025-02-01T10:00:00Z"))
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("1.0000"))
+            .build();
+    given(transactionService.getTransactionsSharedWithApps(person))
+        .willReturn(List.of(savingsFundTransaction));
+
+    mockMvc
+        .perform(
+            get("/v1/transactions")
+                .with(
+                    authentication(
+                        UsernamePasswordAuthenticationToken.authenticated(
+                            person,
+                            null,
+                            List.of(
+                                new SimpleGrantedAuthority(CONNECTED_APP),
+                                new SimpleGrantedAuthority("SCOPE_transactions:read"))))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].id").value("550e8400-e29b-41d4-a716-446655440002"));
   }
 
   @Test

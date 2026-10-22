@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.oauth.server;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP_ACCESS_TOKEN_TYPE;
 import static java.util.Objects.requireNonNull;
 import static org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.ES384;
 import static org.springframework.security.oauth2.server.authorization.OAuth2TokenType.ACCESS_TOKEN;
@@ -15,18 +16,21 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class AccessTokenClaims implements OAuth2TokenCustomizer<JwtEncodingContext> {
 
-  static final String CONNECT_API_PATH = "/connect/v1";
   static final String GRANT_ID_CLAIM = "grant_id";
 
   private final AuthorizationServerSettings settings;
 
+  static String audienceOf(String issuer) {
+    return issuer + "/v1";
+  }
+
   @Override
   public void customize(JwtEncodingContext context) {
     if (ACCESS_TOKEN.equals(context.getTokenType())) {
-      context.getJwsHeader().algorithm(ES384);
+      context.getJwsHeader().algorithm(ES384).type(CONNECTED_APP_ACCESS_TOKEN_TYPE);
       context
           .getClaims()
-          .audience(List.of(requireNonNull(settings.getIssuer()) + CONNECT_API_PATH))
+          .audience(List.of(audienceOf(requireNonNull(settings.getIssuer()))))
           .claim(GRANT_ID_CLAIM, requireNonNull(context.getAuthorization()).getId());
     }
   }

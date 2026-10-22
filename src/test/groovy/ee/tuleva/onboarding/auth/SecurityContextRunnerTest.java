@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.auth.authority.Authority.CONNECTED_APP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -115,5 +118,29 @@ class SecurityContextRunnerTest {
         .isInstanceOf(IllegalStateException.class);
 
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
+
+  @Test
+  void neverMintsAWebLoginInsideTheRequestOfAConnectedApp() {
+    User user = sampleUser().build();
+    AuthenticatedPerson person =
+        AuthenticatedPerson.builder()
+            .personalCode("38888888888")
+            .firstName("First")
+            .lastName("Last")
+            .userId(1L)
+            .build();
+    Authentication connectedApp =
+        UsernamePasswordAuthenticationToken.authenticated(
+            person, null, List.of(new SimpleGrantedAuthority(CONNECTED_APP)));
+    SecurityContextHolder.getContext().setAuthentication(connectedApp);
+
+    assertThatThrownBy(() -> securityContextRunner.runAs(user, () -> {}))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> securityContextRunner.callAs(user, () -> "result"))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> securityContextRunner.runAs(person, "web-login-token", () -> {}))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isEqualTo(connectedApp);
   }
 }

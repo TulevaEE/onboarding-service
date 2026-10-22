@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.isConnectedAppAccessToken;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER;
 
@@ -35,7 +36,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     if (Strings.CS.startsWith(requestTokenHeader, "Bearer ")) {
       final var accessToken = requestTokenHeader.substring(7);
       // Frontend sends null when token is missing, remove if fixed
-      if (accessToken.equals("null")) {
+      if (accessToken.equals("null") || isConnectedAppAccessToken(accessToken)) {
         filterChain.doFilter(request, response);
         return;
       }

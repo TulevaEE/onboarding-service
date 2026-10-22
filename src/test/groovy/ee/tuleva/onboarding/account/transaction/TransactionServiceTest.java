@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.*;
 import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,8 @@ import ee.tuleva.onboarding.auth.role.Role;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +31,41 @@ class TransactionServiceTest {
   @Mock private SavingsTransactions savingsTransactions;
 
   @InjectMocks private TransactionService service;
+
+  @Test
+  void
+      appsGetTheSavingsFundTransactionsWithoutAskingPensionikeskusEvenForAPersonActingAsThemselves() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var savingsTransaction = savingsFundPaymentFrom(null);
+    given(savingsTransactions.getTransactions(person)).willReturn(List.of(savingsTransaction));
+
+    assertThat(service.getTransactionsSharedWithApps(person)).containsExactly(savingsTransaction);
+    verifyNoInteractions(cashFlowService);
+  }
+
+  @Test
+  void appsGetNoBankAccountNumberOfWhoeverPaidOrReceivedTheMoney() {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    given(savingsTransactions.getTransactions(person))
+        .willReturn(List.of(savingsFundPaymentFrom("EE001010220000000000")));
+
+    assertThat(service.getTransactionsSharedWithApps(person))
+        .containsExactly(savingsFundPaymentFrom(null));
+  }
+
+  private static Transaction savingsFundPaymentFrom(@Nullable String counterpartyIban) {
+    return Transaction.builder()
+        .id(UUID.fromString("9c3f5a7b-1d2e-4f6a-8b9c-0d1e2f3a4b5c"))
+        .amount(new BigDecimal("100.00"))
+        .currency(EUR)
+        .time(Instant.parse("2026-10-02T14:00:00Z"))
+        .counterpartyIban(counterpartyIban)
+        .isin("EE0000003283")
+        .type(CONTRIBUTION_CASH)
+        .units(new BigDecimal("8.13008"))
+        .nav(new BigDecimal("12.3000"))
+        .build();
+  }
 
   @Test
   void filtersContributionsAndSubtractionsFromEpis() {

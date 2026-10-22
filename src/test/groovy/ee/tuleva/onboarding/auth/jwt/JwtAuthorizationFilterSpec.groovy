@@ -93,6 +93,29 @@ class JwtAuthorizationFilterSpec extends Specification {
     1 * filterChain.doFilter(request, response)
   }
 
+  def "leaves the access token of a connected app alone without trying to read it"() {
+    given:
+    def jwtTokenUtilThatMustNotBeAsked = Mock(JwtTokenUtil)
+    def webLoginFilter = new JwtAuthorizationFilter(jwtTokenUtilThatMustNotBeAsked, principalService)
+    def encoder = Base64.urlEncoder.withoutPadding()
+    def appAccessToken = encoder.encodeToString('{"alg":"ES384","typ":"at+jwt"}'.bytes) + "." +
+        encoder.encodeToString('{"sub":"0b9a7c55-7f4e-4a59-8a7b-3c2d1e0f9a88"}'.bytes) + "." +
+        encoder.encodeToString("signature".bytes)
+    def request = new MockHttpServletRequest()
+    request.addHeader("Authorization", "Bearer " + appAccessToken)
+    def response = new MockHttpServletResponse()
+    def filterChain = Mock(FilterChain)
+
+    when:
+    webLoginFilter.doFilterInternal(request, response, filterChain)
+
+    then:
+    SecurityContextHolder.context.authentication == null
+    0 * jwtTokenUtilThatMustNotBeAsked._
+    0 * principalService._
+    1 * filterChain.doFilter(request, response)
+  }
+
   def "passes the request through unauthenticated when the frontend sends the literal string null as the token"() {
     given:
     def request = new MockHttpServletRequest()

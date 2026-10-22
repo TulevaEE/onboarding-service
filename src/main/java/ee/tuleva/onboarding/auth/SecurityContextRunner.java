@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.isConnectedApp;
+
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -22,6 +24,7 @@ public class SecurityContextRunner {
   private final JwtTokenUtil jwtTokenUtil;
 
   public void runAs(Person person, Runnable action) {
+    refuseInsideAConnectedAppRequest();
     try {
       setupSecurityContext(person);
       action.run();
@@ -31,6 +34,7 @@ public class SecurityContextRunner {
   }
 
   public <T> T callAs(Person person, Supplier<T> action) {
+    refuseInsideAConnectedAppRequest();
     Authentication previous = SecurityContextHolder.getContext().getAuthentication();
     try {
       setupSecurityContext(person);
@@ -44,6 +48,7 @@ public class SecurityContextRunner {
   }
 
   public void runAs(AuthenticatedPerson person, String accessToken, Runnable action) {
+    refuseInsideAConnectedAppRequest();
     try {
       final var authorities = grantedAuthorityFactory.from(person);
       SecurityContextHolder.getContext()
@@ -52,6 +57,12 @@ public class SecurityContextRunner {
       action.run();
     } finally {
       SecurityContextHolder.clearContext();
+    }
+  }
+
+  private static void refuseInsideAConnectedAppRequest() {
+    if (isConnectedApp(SecurityContextHolder.getContext().getAuthentication())) {
+      throw new IllegalStateException("Refusing to act as a person inside a connected app request");
     }
   }
 

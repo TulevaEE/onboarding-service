@@ -28,7 +28,8 @@ public enum TrackableEventType {
   MINOR_DEPOSIT_VERIFIED(false),
   MINOR_REDEMPTION(false),
   RECURRING_PAYMENT_CONFIRMED(false),
-  APP_CONNECTED(false);
+  APP_CONNECTED(false),
+  APP_DATA_READ(false);
 
   private final boolean clientPublishable;
 

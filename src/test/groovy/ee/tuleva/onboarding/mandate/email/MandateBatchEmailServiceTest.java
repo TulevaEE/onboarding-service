@@ -72,7 +72,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027")),
+            eq(rejoinMergeVars(user, "1. mai 2027", false, false)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -91,7 +91,45 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_en"),
-            eq(rejoinMergeVars(user, "September 1, 2027")),
+            eq(rejoinMergeVars(user, "September 1, 2027", false, false)),
+            eq(List.of("mandate_batch")),
+            any());
+  }
+
+  @Test
+  void rejoinWithAFundSelectionListsTheSelectionApplicationAmongTheFiledOnes() {
+    var rejoin = sampleRejoinMandate();
+    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
+    var mandateBatch = aSignedBatch(rejoin, sampleSelectionMandate());
+    var user = sampleUser().build();
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.of("et"));
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(user.getEmail()),
+            eq("second_pillar_rejoin_et"),
+            eq(rejoinMergeVars(user, "1. mai 2027", false, true)),
+            eq(List.of("mandate_batch")),
+            any());
+  }
+
+  @Test
+  void rejoinWithAPaymentRateChangeListsTheRateApplicationAmongTheFiledOnes() {
+    var rejoin = sampleRejoinMandate();
+    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
+    var mandateBatch = aSignedBatch(rejoin, sampleMandateWithPaymentRate());
+    var user = sampleUser().build();
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.of("et"));
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(user.getEmail()),
+            eq("second_pillar_rejoin_et"),
+            eq(rejoinMergeVars(user, "1. mai 2027", true, false)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -102,7 +140,8 @@ class MandateBatchEmailServiceTest {
     return mandateBatch;
   }
 
-  private static Map<String, Object> rejoinMergeVars(User user, String contributionStartDate) {
+  private static Map<String, Object> rejoinMergeVars(
+      User user, String contributionStartDate, boolean paymentRateChange, boolean fundSelection) {
     return Map.ofEntries(
         Map.entry("fname", user.getFirstName()),
         Map.entry("lname", user.getLastName()),
@@ -110,7 +149,9 @@ class MandateBatchEmailServiceTest {
         Map.entry("fundPensionThirdPillar", false),
         Map.entry("partialWithdrawalSecondPillar", false),
         Map.entry("partialWithdrawalThirdPillar", false),
-        Map.entry("contributionStartDate", contributionStartDate));
+        Map.entry("contributionStartDate", contributionStartDate),
+        Map.entry("paymentRateChange", paymentRateChange),
+        Map.entry("fundSelection", fundSelection));
   }
 
   @Test

@@ -1,6 +1,7 @@
 package db.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,15 +13,16 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 
-class V1_321RemoveRetiredTuk00IndexGroupLimitsTest {
+class V1_321RemoveIndexGroupLimitsAndRequireIsinTest {
 
   private static final String URL =
-      "jdbc:h2:mem:retiredindexgroupmigration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
+      "jdbc:h2:mem:indexgrouplimitremoval;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
           + ";DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE;DB_CLOSE_DELAY=-1";
   private static final String[] FLYWAY_LOCATIONS = {
     "classpath:/db/migration", "classpath:/db/dev", "classpath:/db/h2"
@@ -28,7 +30,7 @@ class V1_321RemoveRetiredTuk00IndexGroupLimitsTest {
   private static final String JUST_BEFORE_THE_REMOVAL_EVEN_IF_NO_MIGRATION_HOLDS_IT = "1.320?";
   private static final String THE_REMOVAL = "1.321";
 
-  private static final String FUND_WITH_RETIRED_GROUPS = "TUK00";
+  private static final String FUND_WITH_GROUPS = "TUK00";
   private static final String OTHER_FUND = "TUK75";
   private static final String GROUP_A = "Group A";
   private static final String GROUP_B = "Group B";
@@ -55,11 +57,12 @@ class V1_321RemoveRetiredTuk00IndexGroupLimitsTest {
   }
 
   @Test
-  void everyVersionOfTheFundsGroupRowsIsDeletedSoNoEarlierVersionComesBackIntoForce() {
-    givenGroupLimit(FUND_WITH_RETIRED_GROUPS, GROUP_A, FIRST_VERSION);
-    givenGroupLimit(FUND_WITH_RETIRED_GROUPS, GROUP_A, RETIRED_VERSION);
-    givenGroupLimit(FUND_WITH_RETIRED_GROUPS, GROUP_B, FIRST_VERSION);
-    givenGroupLimit(FUND_WITH_RETIRED_GROUPS, GROUP_B, RETIRED_VERSION);
+  void everyVersionOfEveryFundsGroupRowsIsDeletedSoNoEarlierVersionComesBackIntoForce() {
+    givenGroupLimit(FUND_WITH_GROUPS, GROUP_A, FIRST_VERSION);
+    givenGroupLimit(FUND_WITH_GROUPS, GROUP_A, RETIRED_VERSION);
+    givenGroupLimit(FUND_WITH_GROUPS, GROUP_B, FIRST_VERSION);
+    givenGroupLimit(FUND_WITH_GROUPS, GROUP_B, RETIRED_VERSION);
+    givenGroupLimit(OTHER_FUND, GROUP_A, RETIRED_VERSION);
 
     migrateTo(THE_REMOVAL);
 
@@ -67,30 +70,23 @@ class V1_321RemoveRetiredTuk00IndexGroupLimitsTest {
   }
 
   @Test
-  void theFundsPerIsinLimitsAndAnotherFundsGroupRowAreKept() {
-    var kept =
-        List.of(
-            givenMemberLimit(FUND_WITH_RETIRED_GROUPS, MEMBER_ISIN, GROUP_A, FIRST_VERSION),
-            givenMemberLimit(FUND_WITH_RETIRED_GROUPS, MEMBER_ISIN, GROUP_A, RETIRED_VERSION),
-            givenPlainLimit(FUND_WITH_RETIRED_GROUPS, PLAIN_ISIN, RETIRED_VERSION),
-            givenGroupLimit(OTHER_FUND, GROUP_A, RETIRED_VERSION));
-    givenGroupLimit(FUND_WITH_RETIRED_GROUPS, GROUP_A, RETIRED_VERSION);
+  void perIsinLimitsAreKeptUnchangedIncludingTheGroupTheyOnceBelongedTo() {
+    var formerMember = givenMemberLimit(FUND_WITH_GROUPS, MEMBER_ISIN, GROUP_A, RETIRED_VERSION);
+    var plain = givenPlainLimit(FUND_WITH_GROUPS, PLAIN_ISIN, RETIRED_VERSION);
+    givenGroupLimit(FUND_WITH_GROUPS, GROUP_A, RETIRED_VERSION);
 
     migrateTo(THE_REMOVAL);
 
-    assertThat(remainingLimitIds()).containsExactlyElementsOf(kept);
+    assertThat(remainingLimitIds()).containsExactly(formerMember, plain);
+    assertThat(groupNameOf(formerMember)).contains(GROUP_A);
   }
 
   @Test
-  void theFundsPerIsinRowsNoLongerNameAGroupSoNoGroupRowCanBringTheMembershipBack() {
-    var formerMember =
-        givenMemberLimit(FUND_WITH_RETIRED_GROUPS, MEMBER_ISIN, GROUP_A, RETIRED_VERSION);
-    var otherFundsMember = givenMemberLimit(OTHER_FUND, MEMBER_ISIN, GROUP_A, RETIRED_VERSION);
-
+  void aLimitWithoutAnIsinCanNoLongerBeStored() {
     migrateTo(THE_REMOVAL);
 
-    assertThat(groupNameOf(formerMember)).isEmpty();
-    assertThat(groupNameOf(otherFundsMember)).contains(GROUP_A);
+    assertThatThrownBy(() -> givenGroupLimit(FUND_WITH_GROUPS, GROUP_A, RETIRED_VERSION))
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   private void migrateTo(String version) {

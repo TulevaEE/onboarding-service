@@ -41,10 +41,11 @@ import org.mockito.quality.Strictness;
 class TrackingDifferenceNotifierTest {
 
   private static final NoHoldingMeasured NO_HOLDING_MEASURED =
-      new NoHoldingMeasured(TUK75, LocalDate.of(2026, 4, 3), List.of("IE00B4L5Y983"));
+      new NoHoldingMeasured(TUK75, LocalDate.of(2026, 4, 3), List.of("IE00B4L5Y983 (MSCI_WORLD)"));
   private static final String NO_HOLDING_MEASURED_LINE =
       "\n  ⚠️ fund=TUK75, checkDate=2026-04-03, BENCHMARK_MODEL measured no holding for want of a"
-          + " benchmark price (insert it, then backfill the date): holdings=IE00B4L5Y983";
+          + " benchmark price (insert it, then backfill the date):"
+          + " holdings=IE00B4L5Y983 (MSCI_WORLD)";
 
   @Mock OperationsNotificationService notificationService;
   @Mock TrackingDifferenceCalculator calculator;

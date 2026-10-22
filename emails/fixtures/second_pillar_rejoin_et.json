@@ -2,7 +2,21 @@
   "variants": {
     "taasliitumine": {
       "FNAME": "Mari",
-      "contributionStartDate": "1. mai 2027"
+      "contributionStartDate": "1. mai 2027",
+      "paymentRateChange": true,
+      "fundSelection": true
+    },
+    "juba-tuleva-aktsiafondis": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "paymentRateChange": true,
+      "fundSelection": false
+    },
+    "maksemaar-ja-fond-juba-paigas": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "paymentRateChange": false,
+      "fundSelection": false
     }
   }
 }

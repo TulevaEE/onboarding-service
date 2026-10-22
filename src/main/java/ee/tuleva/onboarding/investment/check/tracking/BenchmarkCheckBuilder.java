@@ -198,7 +198,7 @@ class BenchmarkCheckBuilder {
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
     var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
-    var holdingsWithoutBenchmarkPrices = new ArrayList<SecurityData>();
+    var benchmarksWithoutPrices = new ArrayList<Map.Entry<SecurityData, String>>();
 
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
@@ -220,7 +220,7 @@ class BenchmarkCheckBuilder {
             s.isin(),
             benchmarkKey);
         holdingsReportedAsBenchmarkGap.add(s);
-        holdingsWithoutBenchmarkPrices.add(s);
+        benchmarksWithoutPrices.add(Map.entry(s, benchmarkKey));
         continue;
       }
       var secReturn =
@@ -241,7 +241,7 @@ class BenchmarkCheckBuilder {
     }
 
     if (totalWeight.signum() == 0) {
-      return outcomeWithNoHoldingMeasured(fund, checkDate, holdingsWithoutBenchmarkPrices);
+      return outcomeWithNoHoldingMeasured(fund, checkDate, benchmarksWithoutPrices);
     }
 
     var benchmarkReturn =
@@ -300,12 +300,17 @@ class BenchmarkCheckBuilder {
   }
 
   private static BenchmarkModelCheck outcomeWithNoHoldingMeasured(
-      TulevaFund fund, LocalDate checkDate, List<SecurityData> holdingsWithoutBenchmarkPrices) {
+      TulevaFund fund,
+      LocalDate checkDate,
+      List<Map.Entry<SecurityData, String>> benchmarksWithoutPrices) {
     var heldWithoutBenchmarkPrices =
-        holdingsWithoutBenchmarkPrices.stream().filter(s -> s.actualWeight().signum() > 0).toList();
+        benchmarksWithoutPrices.stream()
+            .filter(holding -> holding.getKey().actualWeight().signum() > 0)
+            .map(holding -> "%s (%s)".formatted(holding.getKey().isin(), holding.getValue()))
+            .toList();
     return heldWithoutBenchmarkPrices.isEmpty()
         ? new NothingToMeasure()
-        : new NoHoldingMeasured(fund, checkDate, isins(heldWithoutBenchmarkPrices));
+        : new NoHoldingMeasured(fund, checkDate, heldWithoutBenchmarkPrices);
   }
 
   private static List<String> isins(List<SecurityData> holdings) {

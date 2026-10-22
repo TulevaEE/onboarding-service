@@ -177,7 +177,8 @@ class TrackingDifferenceServiceGapFillIT {
                 THURSDAY,
                 "fund=TUK75, BENCHMARK_MODEL measured no holding for want of a benchmark price"
                     + " (insert it, then backfill the date): holdings="
-                    + HELD_ISIN,
+                    + HELD_ISIN
+                    + " (MSCI_WORLD)",
                 MISSING_PRICE,
                 1,
                 LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW));
@@ -230,7 +231,9 @@ class TrackingDifferenceServiceGapFillIT {
                     assertThat(results)
                         .extracting(TrackingDifferenceResult::checkType)
                         .containsExactly(MODEL_PORTFOLIO)),
-            eq(List.of(new NoHoldingMeasured(TUK75, THURSDAY, List.of(HELD_ISIN)))));
+            eq(
+                List.of(
+                    new NoHoldingMeasured(TUK75, THURSDAY, List.of(HELD_ISIN + " (MSCI_WORLD)")))));
   }
 
   @Test

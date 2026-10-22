@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 @Builder(toBuilder = true)
 record NudgeInputs(
-    boolean actingForCompany,
+    ActingFor actingFor,
     boolean adult,
     boolean reachedRetirementAge,
     boolean member,

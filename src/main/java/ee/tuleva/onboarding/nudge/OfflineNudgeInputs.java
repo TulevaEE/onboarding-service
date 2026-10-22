@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
+import static ee.tuleva.onboarding.nudge.ActingFor.SELF;
+
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,7 +22,7 @@ class OfflineNudgeInputs {
     Known savingsFundRecurring = lookups.savingsFundRecurring(self);
     Known savingsFundSaver = lookups.savesFor(self);
     return NudgeInputs.builder()
-        .actingForCompany(self.isLegalEntity())
+        .actingFor(SELF)
         .adult(saver.adult())
         .reachedRetirementAge(saver.reachedRetirementAge())
         .member(saver.member())

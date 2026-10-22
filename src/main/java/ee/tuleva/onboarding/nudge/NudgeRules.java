@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
+import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY;
 import static ee.tuleva.onboarding.nudge.NudgeDecision.of;
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
 import static ee.tuleva.onboarding.nudge.NudgeKey.NONE;
@@ -25,7 +26,7 @@ final class NudgeRules {
   }
 
   private static boolean isCompanyPayment(NudgeInputs in, NudgeContext context) {
-    return in.actingForCompany() && context.impliesSavingsFundSaver();
+    return in.actingFor() == COMPANY && context.impliesSavingsFundSaver();
   }
 
   private static Optional<NudgeDecision> standingOrderForTheProductJustPaid(

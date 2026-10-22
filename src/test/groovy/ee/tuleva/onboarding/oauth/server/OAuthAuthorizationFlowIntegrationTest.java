@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.oauth.server.Grants.RevocationReason.KILL_SWITCH;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -63,6 +64,7 @@ import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.oauth.server.Grants.RevocationReason;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
@@ -157,7 +159,8 @@ class OAuthAuthorizationFlowIntegrationTest {
       "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
   private static final String BROWSER_ADDRESS = "203.0.113.7";
   private static final String BROWSER = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)";
-  private static final Path KILL_SWITCH = Path.of("docs/runbooks/oauth-kill-switch-portfellow.sql");
+  private static final Path KILL_SWITCH_RUNBOOK =
+      Path.of("docs/runbooks/oauth-kill-switch-portfellow.sql");
   private static final String SYNTHETIC_IBAN = "EE001010220000000000";
   private static final String APP_SERVER_ADDRESS = "198.51.100.20";
 
@@ -243,6 +246,7 @@ class OAuthAuthorizationFlowIntegrationTest {
   @Autowired private DataSource dataSource;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EventLogRepository eventLogRepository;
+  @Autowired private Grants grants;
   @Autowired private FilterChainProxy filterChainProxy;
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
@@ -611,12 +615,14 @@ class OAuthAuthorizationFlowIntegrationTest {
   }
 
   @Test
-  void theKillSwitchEndsEveryGrantOfTheClientAndRefusesItUntilLifted() throws Exception {
+  void theKillSwitchRevokesEveryGrantOfTheClientTheWayTheServiceDoesAndRefusesItUntilLifted()
+      throws Exception {
     var portfellowTokens = connect(PORTFELLOW, PORTFELLOW_CALLBACK, "balances:read");
     var otherTokens = connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read");
 
-    new ResourceDatabasePopulator(new FileSystemResource(KILL_SWITCH)).execute(dataSource);
+    new ResourceDatabasePopulator(new FileSystemResource(KILL_SWITCH_RUNBOOK)).execute(dataSource);
 
+    assertThat(revocationOf(grantIdOf(portfellowTokens))).isEqualTo(revokedInCode(KILL_SWITCH));
     refreshExpectingInvalidClient(PORTFELLOW, portfellowTokens.get("refresh_token").asString());
     mockMvc
         .perform(
@@ -1600,6 +1606,32 @@ class OAuthAuthorizationFlowIntegrationTest {
         claimsOf(tokens.get("access_token").asString()).get("grant_id").asString());
   }
 
+  private Revocation revokedInCode(RevocationReason reason) throws Exception {
+    var grantId = grantIdOf(connect(OTHER_CLIENT, OTHER_CALLBACK, "balances:read"));
+    grants.revoke(grantId, reason);
+    return revocationOf(grantId);
+  }
+
+  private Revocation revocationOf(UUID grantId) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT revoked_at IS NOT NULL AS revoked, revocation_reason, authorization_code_hash,
+              access_token_hash, refresh_token_hash
+            FROM oauth_grant WHERE id = :id
+            """)
+        .param("id", grantId)
+        .query(
+            (resultSet, rowNum) ->
+                new Revocation(
+                    resultSet.getBoolean("revoked"),
+                    RevocationReason.valueOf(resultSet.getString("revocation_reason")),
+                    resultSet.getString("authorization_code_hash"),
+                    resultSet.getString("access_token_hash"),
+                    resultSet.getString("refresh_token_hash")))
+        .single();
+  }
+
   private String revocationReasonOf(UUID grantId) {
     return jdbcClient
         .sql("SELECT revocation_reason FROM oauth_grant WHERE id = :id")
@@ -1625,6 +1657,13 @@ class OAuthAuthorizationFlowIntegrationTest {
       Instant expiresAt) {}
 
   private record ConnectRequest(String id, Cookie cookie) {}
+
+  private record Revocation(
+      boolean revoked,
+      RevocationReason reason,
+      @Nullable String authorizationCodeHash,
+      @Nullable String accessTokenHash,
+      @Nullable String refreshTokenHash) {}
 
   private record Pkce(String verifier, String challenge) {
     static Pkce generate() throws Exception {

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -8,6 +9,7 @@ import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
 import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
@@ -104,6 +106,11 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public Optional<Instant> getAuthTime() {
     return Optional.ofNullable(attributes.get(AUTH_TIME)).map(Instant::parse);
+  }
+
+  @JsonIgnore
+  public Optional<GrantType> getGrantType() {
+    return Optional.ofNullable(attributes.get(GRANT_TYPE)).map(GrantType::valueOf);
   }
 
   public @Nullable String getAttribute(String attribute) {

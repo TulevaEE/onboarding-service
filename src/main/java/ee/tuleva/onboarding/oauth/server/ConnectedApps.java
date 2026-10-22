@@ -2,10 +2,8 @@ package ee.tuleva.onboarding.oauth.server;
 
 import ee.tuleva.onboarding.oauth.server.Grants.RevocationReason;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,13 +11,14 @@ import org.springframework.stereotype.Component;
 class ConnectedApps {
 
   private final Grants grants;
-  private final RegisteredClientRepository clients;
+  private final ConfiguredClients clients;
 
   List<ConnectedAppResponse> of(String personalCode) {
     return grants.liveOf(personalCode).stream()
         .flatMap(
             grant ->
-                Optional.ofNullable(clients.findByClientId(grant.clientId()))
+                clients
+                    .find(grant.clientId())
                     .map(client -> ConnectedAppResponse.of(grant, client))
                     .stream())
         .toList();

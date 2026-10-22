@@ -7,4 +7,11 @@ public enum GrantType {
   PARTNER;
 
   public static final String GRANT_TYPE = "grantType";
+
+  public boolean isStrongLogin() {
+    return switch (this) {
+      case ID_CARD, MOBILE_ID, SMART_ID -> true;
+      case PARTNER -> false;
+    };
+  }
 }

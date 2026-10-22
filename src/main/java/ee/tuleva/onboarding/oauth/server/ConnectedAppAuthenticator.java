@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,6 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +25,9 @@ import org.springframework.stereotype.Component;
 class ConnectedAppAuthenticator {
 
   private final Grants grants;
-  private final RegisteredClientRepository clients;
+  private final ConfiguredClients clients;
   private final UserService users;
+  private final Clock clock;
 
   AbstractAuthenticationToken authenticate(Jwt accessToken) {
     var grant = liveGrantOf(accessToken);
@@ -55,13 +56,12 @@ class ConnectedAppAuthenticator {
                 accessToken.getClaimAsString(GRANT_ID_CLAIM), "Access token without a grant"));
     return grants
         .byId(grantId)
-        .filter(grants::isLive)
+        .filter(grant -> grant.isLiveAt(clock.instant()))
         .orElseThrow(ConnectedAppAuthenticator::connectionEnded);
   }
 
   private RegisteredClient registeredClientOf(GrantRow grant) {
-    return Optional.ofNullable(clients.findByClientId(grant.clientId()))
-        .orElseThrow(ConnectedAppAuthenticator::connectionEnded);
+    return clients.find(grant.clientId()).orElseThrow(ConnectedAppAuthenticator::connectionEnded);
   }
 
   private Optional<AuthenticatedPerson> actingAsThemselves(String personalCode) {

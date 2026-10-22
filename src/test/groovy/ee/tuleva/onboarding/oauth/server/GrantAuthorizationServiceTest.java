@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.oauth.server;
 
 import static ee.tuleva.onboarding.oauth.server.Grants.RevocationReason.REFRESH_TOKEN_REUSED;
+import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,6 +11,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
@@ -19,7 +21,6 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 
 class GrantAuthorizationServiceTest {
@@ -31,8 +32,9 @@ class GrantAuthorizationServiceTest {
   private final GrantAuthorizationService service =
       new GrantAuthorizationService(
           grants,
-          mock(RegisteredClientRepository.class),
-          AuthorizationServerSettings.builder().issuer("http://localhost:9000").build());
+          mock(ConfiguredClients.class),
+          AuthorizationServerSettings.builder().issuer("http://localhost:9000").build(),
+          Clock.fixed(NOW, UTC));
 
   private final RegisteredClient client =
       RegisteredClient.withId("portfellow")

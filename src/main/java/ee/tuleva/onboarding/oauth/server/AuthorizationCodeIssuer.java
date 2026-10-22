@@ -47,7 +47,8 @@ class AuthorizationCodeIssuer {
                 CODE_CHALLENGE_METHOD, request.codeChallengeMethod()));
     AuthorizationServerContextHolder.setContext(authorizationServerContext());
     try {
-      var issued = (OAuth2AuthorizationCodeRequestAuthenticationToken) provider.authenticate(codeRequest);
+      var issued =
+          (OAuth2AuthorizationCodeRequestAuthenticationToken) provider.authenticate(codeRequest);
       return requireNonNull(issued.getAuthorizationCode()).getTokenValue();
     } finally {
       AuthorizationServerContextHolder.resetContext();

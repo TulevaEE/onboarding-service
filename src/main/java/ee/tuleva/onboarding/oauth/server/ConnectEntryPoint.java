@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 class ConnectEntryPoint implements AuthenticationEntryPoint {
 
   static final String BROWSER_BINDING_COOKIE = "oauth_connect";
-  static final String BROWSER_BINDING_COOKIE_PATH = "/v1/connect";
 
   private final PendingAuthorizations pendingAuthorizations;
 
@@ -43,7 +42,7 @@ class ConnectEntryPoint implements AuthenticationEntryPoint {
             .httpOnly(true)
             .secure(true)
             .sameSite("Strict")
-            .path(BROWSER_BINDING_COOKIE_PATH)
+            .path(ConnectController.PATH)
             .maxAge(PendingAuthorizations.LIFETIME)
             .build()
             .toString());

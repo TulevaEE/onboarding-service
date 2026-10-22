@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/connect")
+@RequestMapping(ConnectController.PATH)
 @RequiredArgsConstructor
 class ConnectController {
+
+  static final String PATH = "/v1/connect";
 
   private final ConnectService connectService;
 

@@ -2,11 +2,14 @@ package ee.tuleva.onboarding.auth.principal;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
+import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
+import static ee.tuleva.onboarding.auth.GrantType.MOBILE_ID;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.role.Role;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -169,5 +172,33 @@ class AuthenticatedPersonTest {
     var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
 
     assertThat(person.isLegalEntity()).isFalse();
+  }
+
+  @Test
+  void grantTypeIsTheLoginMethodTheSessionWasStartedWith() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode("38501010002")
+            .attributes(Map.of(GRANT_TYPE, "MOBILE_ID"))
+            .build();
+
+    assertThat(person.getGrantType()).contains(MOBILE_ID);
+  }
+
+  @Test
+  void grantTypeIsEmptyWhenTheSessionDoesNotRecordTheLoginMethod() {
+    var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
+
+    assertThat(person.getGrantType()).isEmpty();
+  }
+
+  @Test
+  void theGrantTypeStaysOutOfThePrincipalTheWebAppReads() {
+    var person =
+        sampleAuthenticatedPersonAndMember().attributes(Map.of(GRANT_TYPE, "SMART_ID")).build();
+
+    var json = JsonMapper.builder().build().valueToTree(person);
+
+    assertThat(json.has("grantType")).isFalse();
   }
 }

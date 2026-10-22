@@ -52,10 +52,7 @@ class AuthorizationServerConfiguration {
                                   .map(
                                       OAuth2AuthorizationCodeRequestAuthenticationProvider.class
                                           ::cast)
-                                  .forEach(
-                                      provider ->
-                                          provider.setAuthenticationValidator(
-                                              AuthorizationRequestRules.VALIDATOR))));
+                                  .forEach(AuthorizationRequestRules::enforceOn)));
               authorizationServer.authorizationServerMetadataEndpoint(
                   metadata ->
                       metadata.authorizationServerMetadataCustomizer(

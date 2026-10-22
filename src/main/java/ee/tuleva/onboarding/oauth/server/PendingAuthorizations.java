@@ -8,6 +8,7 @@ import java.security.SecureRandom;
 import java.sql.Types;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
@@ -90,6 +91,13 @@ class PendingAuthorizations {
             .param("id", id)
             .update()
         == 1;
+  }
+
+  int purgeCreatedBefore(Instant cutoff) {
+    return jdbcClient
+        .sql("DELETE FROM oauth_pending_authorization WHERE created_at < :cutoff")
+        .param("cutoff", Timestamps.of(cutoff))
+        .update();
   }
 
   private static String randomSecret() {

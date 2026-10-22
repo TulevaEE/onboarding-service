@@ -8,7 +8,7 @@ Run it as one transaction against production:
 psql --single-transaction -f docs/runbooks/oauth-kill-switch-portfellow.sql
 ```
 
-`OAuthAuthorizationFlowIntegrationTest` runs this exact file, so a schema change that breaks it fails the build.
+`OAuthAuthorizationFlowIntegrationTest` runs this exact file, so a schema change that breaks it fails the build, and so does a grant it revokes that reads differently from one the service revokes itself.
 
 The revoked grants stay revoked. To let the client back in, delete its row from `oauth_client_suspension`; people then connect it again from scratch.
 

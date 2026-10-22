@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.oauth.server;
 import java.sql.Types;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -61,6 +64,7 @@ class Grants {
   }
 
   List<GrantRow> liveOf(String personalCode) {
+    var now = clock.instant();
     return jdbcClient
         .sql(
             """
@@ -71,11 +75,11 @@ class Grants {
             ORDER BY granted_at DESC
             """)
         .param("personalCode", personalCode)
-        .param("now", Timestamps.of(clock.instant()))
+        .param("now", Timestamps.of(now))
         .query(GrantRow::map)
         .list()
         .stream()
-        .filter(this::isLive)
+        .filter(grant -> grant.isLiveAt(now))
         .toList();
   }
 
@@ -182,9 +186,27 @@ class Grants {
     }
   }
 
-  boolean isLive(GrantRow row) {
-    return row.revokedAt() == null
-        && GrantLifetime.isLive(row.expiresAt(), row.lastRefreshedAt(), clock.instant());
+  int purgeSpentRefreshTokensOfEndedGrants(Instant now) {
+    var endedGrants =
+        jdbcClient
+            .sql(
+                """
+                SELECT * FROM oauth_grant
+                WHERE id IN (SELECT grant_id FROM oauth_spent_refresh_token)
+                """)
+            .query(GrantRow::map)
+            .list()
+            .stream()
+            .filter(grant -> !grant.isLiveAt(now))
+            .map(GrantRow::id)
+            .toList();
+    if (endedGrants.isEmpty()) {
+      return 0;
+    }
+    return jdbcClient
+        .sql("DELETE FROM oauth_spent_refresh_token WHERE grant_id IN (:grantIds)")
+        .param("grantIds", endedGrants)
+        .update();
   }
 
   record NewGrant(
@@ -202,14 +224,22 @@ class Grants {
       @Nullable Instant codeExpiresAt) {}
 
   enum TokenColumn {
-    AUTHORIZATION_CODE("authorization_code_hash"),
-    ACCESS_TOKEN("access_token_hash"),
-    REFRESH_TOKEN("refresh_token_hash");
+    AUTHORIZATION_CODE(new OAuth2TokenType(OAuth2ParameterNames.CODE), "authorization_code_hash"),
+    ACCESS_TOKEN(OAuth2TokenType.ACCESS_TOKEN, "access_token_hash"),
+    REFRESH_TOKEN(OAuth2TokenType.REFRESH_TOKEN, "refresh_token_hash");
 
+    private final OAuth2TokenType tokenType;
     private final String hashColumn;
 
-    TokenColumn(String hashColumn) {
+    TokenColumn(OAuth2TokenType tokenType, String hashColumn) {
+      this.tokenType = tokenType;
       this.hashColumn = hashColumn;
+    }
+
+    static List<TokenColumn> holding(@Nullable OAuth2TokenType tokenType) {
+      return Arrays.stream(values())
+          .filter(column -> tokenType == null || column.tokenType.equals(tokenType))
+          .toList();
     }
 
     String hashColumn() {
@@ -221,6 +251,7 @@ class Grants {
     REMOVED,
     TOKEN_INVALIDATED,
     REFRESH_TOKEN_REUSED,
-    PERSON
+    PERSON,
+    KILL_SWITCH
   }
 }

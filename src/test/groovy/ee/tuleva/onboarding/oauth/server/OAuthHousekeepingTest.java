@@ -21,7 +21,12 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 @JdbcTest
-@Import({OAuthHousekeeping.class, OAuthHousekeepingTest.FixedClockConfig.class})
+@Import({
+  OAuthHousekeeping.class,
+  PendingAuthorizations.class,
+  Grants.class,
+  OAuthHousekeepingTest.FixedClockConfig.class
+})
 @Transactional
 class OAuthHousekeepingTest {
 

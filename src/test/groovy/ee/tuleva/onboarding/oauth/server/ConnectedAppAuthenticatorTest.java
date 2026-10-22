@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.oauth.server;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +24,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 
 class ConnectedAppAuthenticatorTest {
@@ -40,12 +41,10 @@ class ConnectedAppAuthenticatorTest {
           .build();
 
   private final Grants grants = mock(Grants.class);
-  private final RegisteredClientRepository clients = mock(RegisteredClientRepository.class);
+  private final ConfiguredClients clients = mock(ConfiguredClients.class);
   private final UserService users = mock(UserService.class);
   private final ConnectedAppAuthenticator authenticator =
-      new ConnectedAppAuthenticator(grants, clients, users);
-
-  private final GrantRow grant = grantOf(Set.of("balances:read", "transactions:read"));
+      new ConnectedAppAuthenticator(grants, clients, users, Clock.fixed(NOW, UTC));
 
   @Test
   void aLiveGrantAuthenticatesThePersonBehindItWithNoCredentialsAndOnlyTheScopesOfTheToken() {
@@ -59,7 +58,8 @@ class ConnectedAppAuthenticatorTest {
   @Test
   void aScopeTulevaNoLongerAllowsTheAppOpensNothingWhileTheGrantStillHoldsIt() {
     givenALiveGrantOfARegisteredAppForAnActiveUser();
-    given(clients.findByClientId("portfellow")).willReturn(registeredClientWith("balances:read"));
+    given(clients.find("portfellow"))
+        .willReturn(Optional.of(registeredClientWith("balances:read")));
 
     var authentication =
         authenticator.authenticate(accessToken(List.of("balances:read", "transactions:read")));
@@ -70,7 +70,7 @@ class ConnectedAppAuthenticatorTest {
   @Test
   void aGrantThatHasEndedAuthenticatesNobody() {
     givenALiveGrantOfARegisteredAppForAnActiveUser();
-    given(grants.isLive(grant)).willReturn(false);
+    given(grants.byId(GRANT_ID)).willReturn(Optional.of(grantLastRefreshedAt(NOW.minus(30, DAYS))));
 
     assertThatThrownBy(() -> authenticator.authenticate(accessToken(List.of("balances:read"))))
         .isInstanceOf(InvalidBearerTokenException.class);
@@ -88,7 +88,7 @@ class ConnectedAppAuthenticatorTest {
   @Test
   void aGrantOfASuspendedAppAuthenticatesNobody() {
     givenALiveGrantOfARegisteredAppForAnActiveUser();
-    given(clients.findByClientId("portfellow")).willReturn(null);
+    given(clients.find("portfellow")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> authenticator.authenticate(accessToken(List.of("balances:read"))))
         .isInstanceOf(InvalidBearerTokenException.class);
@@ -124,10 +124,9 @@ class ConnectedAppAuthenticatorTest {
   }
 
   private void givenALiveGrantOfARegisteredAppForAnActiveUser() {
-    given(grants.byId(GRANT_ID)).willReturn(Optional.of(grant));
-    given(grants.isLive(grant)).willReturn(true);
-    given(clients.findByClientId("portfellow"))
-        .willReturn(registeredClientWith("balances:read", "transactions:read"));
+    given(grants.byId(GRANT_ID)).willReturn(Optional.of(grantLastRefreshedAt(NOW.minus(1, DAYS))));
+    given(clients.find("portfellow"))
+        .willReturn(Optional.of(registeredClientWith("balances:read", "transactions:read")));
     given(users.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(storedUser().build()));
   }
 
@@ -170,20 +169,20 @@ class ConnectedAppAuthenticatorTest {
         .build();
   }
 
-  private static GrantRow grantOf(Set<String> scopes) {
+  private static GrantRow grantLastRefreshedAt(Instant lastRefreshedAt) {
     return new GrantRow(
         GRANT_ID,
         "portfellow",
         UUID.fromString("0b9a7c55-7f4e-4a59-8a7b-3c2d1e0f9a88"),
         PERSONAL_CODE,
-        scopes,
+        Set.of("balances:read", "transactions:read"),
         "https://app.example/callback",
         "client-state",
         "challenge",
         "S256",
-        NOW.minus(10, DAYS),
-        NOW.plus(170, DAYS),
-        NOW.minus(1, DAYS),
+        NOW.minus(40, DAYS),
+        NOW.plus(140, DAYS),
+        lastRefreshedAt,
         null,
         null,
         null,

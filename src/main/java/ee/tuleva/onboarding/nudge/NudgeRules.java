@@ -11,6 +11,9 @@ final class NudgeRules {
   private NudgeRules() {}
 
   static NudgeDecision decide(NudgeInputs in, NudgeContext context) {
+    if (isCompanyPayment(in, context)) {
+      return standingOrderForTheProductJustPaid(in, context).orElse(of(NONE));
+    }
     NudgeDecision decision =
         PensionNudges.pillarChoices(in, context)
             .or(() -> standingOrderForTheProductJustPaid(in, context))
@@ -19,6 +22,10 @@ final class NudgeRules {
             .or(() -> membership(in, context))
             .orElse(of(NONE));
     return withSeason(decision, in, context);
+  }
+
+  private static boolean isCompanyPayment(NudgeInputs in, NudgeContext context) {
+    return in.actingForCompany() && context.impliesSavingsFundSaver();
   }
 
   private static Optional<NudgeDecision> standingOrderForTheProductJustPaid(

@@ -71,12 +71,32 @@ class NudgeRulesSpec extends Specification {
     NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
   }
 
-  def "a company payer goes through the same chain as everyone else"() {
+  def "a company payment suggests only the company standing order: #description"() {
     given:
-    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
+    def inputs = everythingSorted()
+        .actingForCompany(true)
+        .secondPillarActive(false)
+        .thirdPillarActive(false)
+        .member(false)
+        .savingsFundRecurring(recurring)
+        .build()
 
     expect:
-    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == expected
+
+    where:
+    description                     | recurring || expected
+    "no standing order yet"         | NO        || NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    "already has a standing order"  | YES       || NudgeDecision.of(NONE)
+    "standing order unknown"        | UNKNOWN   || NudgeDecision.of(NONE)
+  }
+
+  def "acting for a company outside a savings fund payment goes through the usual chain"() {
+    given:
+    def inputs = everythingSorted().actingForCompany(true).secondPillarActive(false).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_START)
   }
 
   def "second pillar start: #description"() {

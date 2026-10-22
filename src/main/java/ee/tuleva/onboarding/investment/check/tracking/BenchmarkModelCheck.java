@@ -9,7 +9,9 @@ import java.util.List;
 sealed interface BenchmarkModelCheck {
 
   default List<NoHoldingMeasured> checksNotMeasured() {
-    return List.of();
+    return this instanceof NoHoldingMeasured noHoldingMeasured
+        ? List.of(noHoldingMeasured)
+        : List.of();
   }
 
   record Measured(TrackingDifferenceResult result) implements BenchmarkModelCheck {}
@@ -17,11 +19,6 @@ sealed interface BenchmarkModelCheck {
   record NoHoldingMeasured(
       TulevaFund fund, LocalDate checkDate, List<String> holdingsWithoutBenchmarkPrices)
       implements BenchmarkModelCheck {
-
-    @Override
-    public List<NoHoldingMeasured> checksNotMeasured() {
-      return List.of(this);
-    }
 
     String reason() {
       return BENCHMARK_MODEL

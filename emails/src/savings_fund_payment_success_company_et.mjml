@@ -17,8 +17,8 @@
 
     <mj-section padding="0 24px">
       <mj-column>
-
-        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
+        <mj-include path="./partials/suggest_savings_fund_recurring_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
@@ -42,12 +42,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-raw>*|IF:anyPillarSuggestion|*</mj-raw>
-    <mj-include path="./partials/disclaimer_savings_et.mjml" />
-    <mj-raw>*|ELSE:|*</mj-raw>
     <mj-include path="./partials/disclaimer_savings_company_et.mjml" />
-    <mj-raw>*|END:IF|*</mj-raw>
-    <mj-include path="./partials/disclaimer_social_tax_et.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

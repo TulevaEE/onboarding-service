@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.nudge
 
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.nudge.ActingFor.CHILD
 import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY
 import static ee.tuleva.onboarding.nudge.Known.NO
 import static ee.tuleva.onboarding.nudge.Known.UNKNOWN
@@ -92,12 +93,36 @@ class NudgeRulesSpec extends Specification {
     "standing order unknown"        | UNKNOWN   || NudgeDecision.of(NONE)
   }
 
-  def "acting for a company outside a savings fund payment goes through the usual chain"() {
+  def "a child payment suggests the child's standing order before the parent's own pillars"() {
     given:
-    def inputs = everythingSorted().actingFor(COMPANY).secondPillarActive(false).build()
+    def inputs = everythingSorted().actingFor(CHILD).secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+  }
+
+  def "a child payment goes on to the parent's own nudges when the child's standing order is #description"() {
+    given:
+    def inputs = everythingSorted().actingFor(CHILD).secondPillarActive(false).savingsFundRecurring(recurring).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+
+    where:
+    description      | recurring
+    "already set up" | YES
+    "unknown"        | UNKNOWN
+  }
+
+  def "acting for a #actingFor outside a savings fund payment goes through the usual chain"() {
+    given:
+    def inputs = everythingSorted().actingFor(actingFor).secondPillarActive(false).savingsFundRecurring(NO).build()
 
     expect:
     NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_START)
+
+    where:
+    actingFor << [CHILD, COMPANY]
   }
 
   def "second pillar start: #description"() {

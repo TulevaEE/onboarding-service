@@ -278,6 +278,15 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
+  void aChildPaymentSuggestsTheChildsStandingOrderBeforeTheParentsOwnPillars() {
+    given(recurringStatus.savingsFund(child)).willReturn(false);
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false, false));
+
+    assertThat(service.decide(member, child, SAVINGS_FUND_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
+  }
+
+  @Test
   void aCompanyPaymentNeverSuggestsThePayersOwnPensionOrMembership() {
     User nonMember = sampleUser().member(null).build();
     given(pillarStatus.of(nonMember)).willReturn(new PillarActivity(false, false, false));

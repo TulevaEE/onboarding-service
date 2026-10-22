@@ -59,6 +59,17 @@ class PositionLimitCheckerTest {
   }
 
   @Test
+  void aPositionExactlyAtItsHardLimitIsSoftBecauseOnlyExceedingTheHardLimitIsHard() {
+    var position = position("IE00B4L5Y983", new BigDecimal("200000"));
+    var limit = positionLimit("IE00B4L5Y983", "iShares MSCI World", 15, 20);
+
+    var breaches =
+        checker.check(TUK75, List.of(position), new BigDecimal("1000000"), List.of(limit));
+
+    assertThat(breaches).singleElement().satisfies(b -> assertThat(b.severity()).isEqualTo(SOFT));
+  }
+
+  @Test
   void noMatchingLimitSkipsPosition() {
     var position = position("IE00UNKNOWN", new BigDecimal("500000"));
     var limit = positionLimit("IE00B4L5Y983", "iShares MSCI World", 15, 20);
@@ -80,99 +91,27 @@ class PositionLimitCheckerTest {
   }
 
   @Test
-  void indexGroupAggregateWithinLimits() {
-    var position1 = position("LU0826455353", new BigDecimal("50000"));
-    var position2 = position("IE0031080751", new BigDecimal("40000"));
-    var totalNav = new BigDecimal("1000000");
-
-    var isinLimit1 =
+  void aLimitRowWithoutAnIsinMeasuresNothingAndTheIsinLimitsStillApply() {
+    var position = position("IE00B4L5Y983", new BigDecimal("100000"));
+    var isinLimit = positionLimit("IE00B4L5Y983", "iShares MSCI World", 15, 20);
+    var rowWithoutIsin =
         PositionLimit.builder()
-            .isin("LU0826455353")
-            .label("Euro Agg 1")
-            .indexGroup("Euro Aggregate indeks")
+            .label("Aggregate")
             .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(5))
-            .hardLimitPercent(BigDecimal.valueOf(8))
-            .build();
-    var isinLimit2 =
-        PositionLimit.builder()
-            .isin("IE0031080751")
-            .label("Euro Agg 2")
-            .indexGroup("Euro Aggregate indeks")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(5))
-            .hardLimitPercent(BigDecimal.valueOf(8))
-            .build();
-    var indexLimit =
-        PositionLimit.builder()
-            .isin(null)
-            .label("Euro Aggregate indeks")
-            .indexGroup("Euro Aggregate indeks")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(10))
-            .hardLimitPercent(BigDecimal.valueOf(15))
+            .softLimitPercent(BigDecimal.ONE)
+            .hardLimitPercent(BigDecimal.ONE)
             .build();
 
     var breaches =
         checker.check(
             TUK75,
-            List.of(position1, position2),
-            totalNav,
-            List.of(isinLimit1, isinLimit2, indexLimit));
+            List.of(position),
+            new BigDecimal("1000000"),
+            List.of(isinLimit, rowWithoutIsin));
 
-    var indexBreach =
-        breaches.stream().filter(b -> b.isin().equals("Euro Aggregate indeks")).findFirst();
-    assertThat(indexBreach).isPresent();
-    assertThat(indexBreach.get().severity()).isEqualTo(OK);
-    assertThat(indexBreach.get().actualPercent()).isEqualByComparingTo(new BigDecimal("9"));
-  }
-
-  @Test
-  void indexGroupAggregateExceedsSoftLimit() {
-    var position1 = position("LU0826455353", new BigDecimal("60000"));
-    var position2 = position("IE0031080751", new BigDecimal("50000"));
-    var totalNav = new BigDecimal("1000000");
-
-    var isinLimit1 =
-        PositionLimit.builder()
-            .isin("LU0826455353")
-            .label("Euro Agg 1")
-            .indexGroup("Euro Aggregate indeks")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(15))
-            .hardLimitPercent(BigDecimal.valueOf(20))
-            .build();
-    var isinLimit2 =
-        PositionLimit.builder()
-            .isin("IE0031080751")
-            .label("Euro Agg 2")
-            .indexGroup("Euro Aggregate indeks")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(15))
-            .hardLimitPercent(BigDecimal.valueOf(20))
-            .build();
-    var indexLimit =
-        PositionLimit.builder()
-            .isin(null)
-            .label("Euro Aggregate indeks")
-            .indexGroup("Euro Aggregate indeks")
-            .fund(TUK75)
-            .softLimitPercent(BigDecimal.valueOf(10))
-            .hardLimitPercent(BigDecimal.valueOf(15))
-            .build();
-
-    var breaches =
-        checker.check(
-            TUK75,
-            List.of(position1, position2),
-            totalNav,
-            List.of(isinLimit1, isinLimit2, indexLimit));
-
-    var indexBreach =
-        breaches.stream().filter(b -> b.isin().equals("Euro Aggregate indeks")).findFirst();
-    assertThat(indexBreach).isPresent();
-    assertThat(indexBreach.get().severity()).isEqualTo(SOFT);
-    assertThat(indexBreach.get().actualPercent()).isEqualByComparingTo(new BigDecimal("11"));
+    assertThat(breaches)
+        .singleElement()
+        .satisfies(b -> assertThat(b.isin()).isEqualTo("IE00B4L5Y983"));
   }
 
   private FundPosition position(String isin, BigDecimal marketValue) {

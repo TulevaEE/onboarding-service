@@ -47,8 +47,6 @@ public class PositionLimit {
 
   @Nullable private String label;
 
-  @Nullable private String indexGroup;
-
   @Enumerated(STRING)
   @Nullable
   private Provider provider;

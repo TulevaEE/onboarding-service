@@ -39,7 +39,7 @@ class NudgeInputsAssembler {
             : lookups.savesForAnyRepresentedParty(
                 user.getPersonalCode(), lookups.savesFor(NudgeAccount.self(user)));
     return NudgeInputs.builder()
-        .actingForCompany(actingParty.isLegalEntity())
+        .actingFor(actingParty.actingFor(user))
         .adult(user.getAge() >= 18)
         .reachedRetirementAge(user.hasReachedRetirementAge())
         .member(user.isMember())

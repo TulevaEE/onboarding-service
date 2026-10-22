@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.nudge
 
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY
 import static ee.tuleva.onboarding.nudge.Known.NO
 import static ee.tuleva.onboarding.nudge.Known.UNKNOWN
 import static ee.tuleva.onboarding.nudge.Known.YES
@@ -74,7 +75,7 @@ class NudgeRulesSpec extends Specification {
   def "a company payment suggests only the company standing order: #description"() {
     given:
     def inputs = everythingSorted()
-        .actingForCompany(true)
+        .actingFor(COMPANY)
         .secondPillarActive(false)
         .thirdPillarActive(false)
         .member(false)
@@ -93,7 +94,7 @@ class NudgeRulesSpec extends Specification {
 
   def "acting for a company outside a savings fund payment goes through the usual chain"() {
     given:
-    def inputs = everythingSorted().actingForCompany(true).secondPillarActive(false).build()
+    def inputs = everythingSorted().actingFor(COMPANY).secondPillarActive(false).build()
 
     expect:
     NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_START)

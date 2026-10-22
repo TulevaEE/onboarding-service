@@ -498,6 +498,17 @@ class MandateBatchIntegrationTest {
                                 person.getPersonalCode().equals(samplePerson().getPersonalCode())),
                         any(),
                         eq(SECOND_PILLAR_REJOIN.getTemplateName(Locale.ENGLISH))));
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            any(),
+            eq(SECOND_PILLAR_REJOIN.getTemplateName(Locale.ENGLISH)),
+            argThat(
+                mergeVars ->
+                    String.valueOf(mergeVars.get("contributionStartDate"))
+                        .matches("(January|May|September) 1, \\d{4}")),
+            any(),
+            any());
     assertThat(applicationsSentToEpis)
         .containsExactlyInAnyOrder(REJOIN, PAYMENT_RATE_CHANGE, SELECTION);
     then(notificationService).shouldHaveNoInteractions();

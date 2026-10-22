@@ -86,6 +86,18 @@ public class MandateDeadlines {
   }
 
   public LocalDate getSecondPillarContributionEndDate() {
+    return secondPillarContributionChangeDate();
+  }
+
+  public Instant getSecondPillarRejoinDeadline() {
+    return getPeriodEnding();
+  }
+
+  public LocalDate getSecondPillarRejoinContributionStartDate() {
+    return secondPillarContributionChangeDate();
+  }
+
+  private LocalDate secondPillarContributionChangeDate() {
     return periodEnding().plusMonths(5).plusDays(1).toLocalDate();
   }
 

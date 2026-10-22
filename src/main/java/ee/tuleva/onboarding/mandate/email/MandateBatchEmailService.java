@@ -3,13 +3,17 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.MandateType.REJOIN;
 import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
@@ -19,6 +23,8 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +39,7 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   public void sendMandateBatch(User user, MandateBatch mandateBatch, Locale locale) {
     Long mandateBatchId = mandateBatchIdOf(mandateBatch);
@@ -46,11 +53,15 @@ public class MandateBatchEmailService {
 
     EmailType emailType = MandateEmailType.emailTypeFor(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
+    Map<String, Object> mergeVars = getMergeVars(user, mandateBatch);
+    if (emailType == SECOND_PILLAR_REJOIN) {
+      mergeVars.put("contributionStartDate", contributionStartDate(mandateBatch, locale));
+    }
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch),
+            mergeVars,
             getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService
@@ -103,6 +114,35 @@ public class MandateBatchEmailService {
     map.putAll(getWithdrawalMandateMergeVars(batch));
 
     return map;
+  }
+
+  private String contributionStartDate(MandateBatch mandateBatch, Locale locale) {
+    return mandateDeadlinesService
+        .getDeadlines(dateSentToPensionikeskus(rejoinMandateOf(mandateBatch)))
+        .getSecondPillarRejoinContributionStartDate()
+        .format(dateFormatIn(locale));
+  }
+
+  private static Mandate rejoinMandateOf(MandateBatch mandateBatch) {
+    return mandateBatch.getMandates().stream()
+        .filter(mandate -> mandate.getMandateType() == REJOIN)
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Rejoin batch has no rejoin mandate: mandateBatchId=" + mandateBatch.getId()));
+  }
+
+  private static Instant dateSentToPensionikeskus(Mandate rejoin) {
+    return requireNonNull(
+        rejoin.getCreatedDate(),
+        "Rejoin mandate has no document date: mandateId=" + rejoin.getId());
+  }
+
+  private static DateTimeFormatter dateFormatIn(Locale locale) {
+    return "et".equals(locale.getLanguage())
+        ? DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.of("et"))
+        : DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
   }
 
   private Map<String, Object> getFailedBatchMergeVars(MandateBatch mandateBatch) {

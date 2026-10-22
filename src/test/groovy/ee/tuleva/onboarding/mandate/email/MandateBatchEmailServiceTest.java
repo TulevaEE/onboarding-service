@@ -3,11 +3,15 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
@@ -16,14 +20,18 @@ import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.user.User;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,7 +44,74 @@ class MandateBatchEmailServiceTest {
 
   @Mock private MandateProcessorService mandateProcessorService;
 
-  @InjectMocks private MandateBatchEmailService mandateBatchEmailService;
+  private MandateBatchEmailService mandateBatchEmailService;
+
+  @BeforeEach
+  void setUp() {
+    var estonianClock =
+        Clock.fixed(Instant.parse("2026-10-22T09:00:00Z"), ZoneId.of("Europe/Tallinn"));
+    mandateBatchEmailService =
+        new MandateBatchEmailService(
+            emailService,
+            emailPersistenceService,
+            mandateProcessorService,
+            new MandateDeadlinesService(estonianClock, new PublicHolidays()));
+  }
+
+  @Test
+  void rejoinDatedByTheEndOfThirtiethNovemberTellsInEstonianThatContributionsStartInMay() {
+    var rejoin = sampleRejoinMandate();
+    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
+    var mandateBatch = aSignedBatch(rejoin);
+    var user = sampleUser().build();
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.of("et"));
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(user.getEmail()),
+            eq("second_pillar_rejoin_et"),
+            eq(rejoinMergeVars(user, "1. mai 2027")),
+            eq(List.of("mandate_batch")),
+            any());
+  }
+
+  @Test
+  void rejoinDatedOnFirstDecemberTellsInEnglishThatContributionsStartInSeptember() {
+    var rejoin = sampleRejoinMandate();
+    rejoin.setCreatedDate(Instant.parse("2026-11-30T22:00:30Z"));
+    var mandateBatch = aSignedBatch(rejoin);
+    var user = sampleUser().build();
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.ENGLISH);
+
+    then(emailService)
+        .should()
+        .newMandrillMessage(
+            eq(user.getEmail()),
+            eq("second_pillar_rejoin_en"),
+            eq(rejoinMergeVars(user, "September 1, 2027")),
+            eq(List.of("mandate_batch")),
+            any());
+  }
+
+  private static MandateBatch aSignedBatch(Mandate... mandates) {
+    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandates), SIGNED);
+    mandateBatch.setFile("1234".getBytes());
+    return mandateBatch;
+  }
+
+  private static Map<String, Object> rejoinMergeVars(User user, String contributionStartDate) {
+    return Map.ofEntries(
+        Map.entry("fname", user.getFirstName()),
+        Map.entry("lname", user.getLastName()),
+        Map.entry("fundPensionSecondPillar", false),
+        Map.entry("fundPensionThirdPillar", false),
+        Map.entry("partialWithdrawalSecondPillar", false),
+        Map.entry("partialWithdrawalThirdPillar", false),
+        Map.entry("contributionStartDate", contributionStartDate));
+  }
 
   @Test
   @DisplayName("sends email for withdrawal mandate batch")

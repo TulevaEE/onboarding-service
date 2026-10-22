@@ -34,5 +34,7 @@ class MandateDeadlinesControllerSpec extends BaseControllerSpec {
       .andExpect(jsonPath('$.earlyWithdrawalFulfillmentDate', is("2021-09-01")))
       .andExpect(jsonPath('$.withdrawalCancellationDeadline', is("2021-03-31T20:59:59.999999999Z")))
       .andExpect(jsonPath('$.withdrawalFulfillmentDate', is("2021-04-16")))
+      .andExpect(jsonPath('$.secondPillarRejoinDeadline', is("2021-03-31T20:59:59.999999999Z")))
+      .andExpect(jsonPath('$.secondPillarRejoinContributionStartDate', is("2021-09-01")))
   }
 }

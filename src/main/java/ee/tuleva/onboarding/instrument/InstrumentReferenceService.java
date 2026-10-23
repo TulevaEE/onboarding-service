@@ -34,7 +34,7 @@ public class InstrumentReferenceService {
   private volatile Map<String, InstrumentReference> byEodhdTicker = Map.of();
   private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
   private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
-  private volatile Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding = Map.of();
+  private volatile BenchmarkProxyPeriods pastProxies = BenchmarkProxyPeriods.NONE;
   private volatile List<InstrumentDataFinding> dataFindings = List.of();
   private volatile @Nullable Instant lastRefreshedAt;
 
@@ -108,7 +108,7 @@ public class InstrumentReferenceService {
     byEodhdTicker = snapshot.byEodhdTicker();
     byShortTicker = snapshot.byShortTicker();
     proxyByCategory = snapshot.proxyByCategory();
-    pastProxiesByHolding = snapshot.pastProxiesByHolding();
+    pastProxies = snapshot.pastProxies();
     dataFindings = snapshot.findings();
     lastRefreshedAt = clock.instant();
 
@@ -197,30 +197,25 @@ public class InstrumentReferenceService {
     return findByIsin(holdingIsin)
         .flatMap(
             holding ->
-                pastProxy(holdingIsin, date)
+                pastProxies
+                    .proxyIsinOn(holdingIsin, date)
                     .map(
-                        period ->
+                        proxyIsin ->
                             proxyInstrument(
                                 holding.getBenchmarkCategory(),
                                 ProxyRole.PAST_PROXY_ISIN,
-                                period.proxyIsin()))
+                                proxyIsin))
                     .or(
                         () ->
-                            resolveBenchmarkProxy(
-                                holding.getBenchmarkCategory(), holding.isExchangeTraded())));
-  }
-
-  private Optional<BenchmarkProxyPeriod> pastProxy(String holdingIsin, LocalDate date) {
-    return pastProxiesByHolding.getOrDefault(holdingIsin, List.of()).stream()
-        .filter(period -> period.covers(date))
-        .findFirst();
+                            Optional.ofNullable(holding.getBenchmarkCategory())
+                                .flatMap(
+                                    category ->
+                                        resolveBenchmarkProxy(
+                                            category, holding.isExchangeTraded()))));
   }
 
   public Optional<BenchmarkProxy> resolveBenchmarkProxy(
-      @Nullable String benchmarkCategory, boolean exchangeTraded) {
-    if (benchmarkCategory == null) {
-      return Optional.empty();
-    }
+      String benchmarkCategory, boolean exchangeTraded) {
     var proxy = proxyByCategory.get(benchmarkCategory);
     if (proxy == null) {
       throw new UnresolvableBenchmarkProxyException(

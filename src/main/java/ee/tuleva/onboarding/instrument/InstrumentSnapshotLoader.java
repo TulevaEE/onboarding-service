@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.instrument;
 
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toUnmodifiableList;
-
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.InactiveBenchmarkProxy;
@@ -92,7 +89,7 @@ class InstrumentSnapshotLoader {
         Map.copyOf(newByEodhdTicker),
         Map.copyOf(newByShortTicker),
         Map.copyOf(newProxyByCategory),
-        pastProxiesByHolding(pastProxies),
+        BenchmarkProxyPeriods.ofOrderedByValidUntil(pastProxies),
         List.copyOf(findings));
   }
 
@@ -103,20 +100,13 @@ class InstrumentSnapshotLoader {
       Map<String, InstrumentReference> byEodhdTicker,
       Map<String, InstrumentReference> byShortTicker,
       Map<String, BenchmarkCategoryProxy> proxyByCategory,
-      Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding,
+      BenchmarkProxyPeriods pastProxies,
       List<InstrumentDataFinding> findings) {}
 
   private static boolean hasNoPriceSeries(
       Map<String, InstrumentReference> byIsin, String proxyIsin) {
     var proxy = byIsin.get(proxyIsin);
     return proxy == null || proxy.getExchangeStorageKey().isEmpty();
-  }
-
-  private static Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding(
-      List<BenchmarkProxyPeriod> pastProxies) {
-    return Map.copyOf(
-        pastProxies.stream()
-            .collect(groupingBy(BenchmarkProxyPeriod::holdingIsin, toUnmodifiableList())));
   }
 
   private static void flagInactiveProxy(

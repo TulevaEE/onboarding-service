@@ -42,7 +42,7 @@
   "testIntegrationShare": 5.5,
   "testSliceShare": 15.5,
   "testUnitShare": 79.1,
-  "top15ClassLines": 6278,
+  "top15ClassLines": 6276,
   "totalPackages": 241,
   "unmarkedPackages": 0
 }

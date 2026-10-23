@@ -20,6 +20,7 @@ public class CacheConfiguration {
 
   public static final String FUND_TABLE_CACHE = "fundTable";
   public static final String INVESTOR_COUNT_CACHE = "investorCount";
+  public static final String FUND_INVESTOR_COUNTS_CACHE = "fundInvestorCounts";
 
   private static final Duration TTL = Duration.ofMinutes(15);
 
@@ -38,7 +39,8 @@ public class CacheConfiguration {
       return new NoOpCacheManager();
     }
     CaffeineCacheManager cacheManager =
-        new CaffeineCacheManager(FUND_TABLE_CACHE, INVESTOR_COUNT_CACHE);
+        new CaffeineCacheManager(
+            FUND_TABLE_CACHE, INVESTOR_COUNT_CACHE, FUND_INVESTOR_COUNTS_CACHE);
     cacheManager.setCaffeine(Caffeine.newBuilder().expireAfterWrite(TTL).maximumSize(1_000));
     return cacheManager;
   }

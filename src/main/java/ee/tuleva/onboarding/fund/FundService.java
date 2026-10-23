@@ -17,12 +17,14 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -37,23 +39,43 @@ class FundService {
   private final LocaleService localeService;
   private final SavingsFundUnitStats savingsFundUnitStats;
   private final SavingsFundNav savingsFundNav;
+  private final FundInvestorsInRegister fundInvestorsInRegister;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
+    Map<String, Integer> holdersInRegister = holdersInRegister();
     return stream(fundsBy(fundManagerName).spliterator(), false)
         .sorted()
         .map(
             fund ->
                 new ExtendedApiFundResponse(
-                    fund, getStatistics(fund), localeService.getCurrentLocale()))
+                    fund, getStatistics(fund, holdersInRegister), localeService.getCurrentLocale()))
         .toList();
   }
 
-  private PensionFundStatistics getStatistics(Fund fund) {
+  private Map<String, Integer> holdersInRegister() {
+    try {
+      return fundInvestorsInRegister.latestInvestorCounts();
+    } catch (RuntimeException e) {
+      log.error("Fund holders not read from the register, listing funds without them", e);
+      return Map.of();
+    }
+  }
+
+  private PensionFundStatistics getStatistics(Fund fund, Map<String, Integer> holdersInRegister) {
     List<PensionFundStatistics> statistics = pensionFundStatisticsService.getCachedStatistics();
-    return statistics.stream()
-        .filter(statistic -> Objects.equals(statistic.getIsin(), fund.getIsin()))
-        .findFirst()
-        .orElseGet(() -> fallbackNavStatistics(fund));
+    PensionFundStatistics statistic =
+        statistics.stream()
+            .filter(feedStatistic -> Objects.equals(feedStatistic.getIsin(), fund.getIsin()))
+            .findFirst()
+            .orElseGet(() -> fallbackNavStatistics(fund));
+    return fund.isThirdPillar()
+        ? withHolders(statistic, holdersInRegister.get(fund.getIsin()))
+        : statistic;
+  }
+
+  private static PensionFundStatistics withHolders(
+      PensionFundStatistics statistic, @Nullable Integer holders) {
+    return holders == null ? statistic : statistic.withActiveCount(holders);
   }
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {

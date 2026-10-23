@@ -48,7 +48,9 @@ class CacheConfigurationTest {
     assertThat(cacheManager).isInstanceOf(CaffeineCacheManager.class);
     assertThat(cacheManager.getCacheNames())
         .containsExactlyInAnyOrder(
-            CacheConfiguration.FUND_TABLE_CACHE, CacheConfiguration.INVESTOR_COUNT_CACHE);
+            CacheConfiguration.FUND_TABLE_CACHE,
+            CacheConfiguration.INVESTOR_COUNT_CACHE,
+            CacheConfiguration.FUND_INVESTOR_COUNTS_CACHE);
   }
 
   @Test

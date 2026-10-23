@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.instrument;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toUnmodifiableList;
+
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.InactiveBenchmarkProxy;
@@ -17,6 +20,7 @@ class InstrumentSnapshotLoader {
 
   private final InstrumentReferenceRepository instrumentReferenceRepository;
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
+  private final BenchmarkProxyPeriodRepository benchmarkProxyPeriodRepository;
 
   Snapshot loadSnapshot() {
     var orderedInstruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
@@ -78,6 +82,7 @@ class InstrumentSnapshotLoader {
         Map.copyOf(newByEodhdTicker),
         Map.copyOf(newByShortTicker),
         Map.copyOf(newProxyByCategory),
+        pastProxiesByHolding(),
         List.copyOf(findings));
   }
 
@@ -88,7 +93,14 @@ class InstrumentSnapshotLoader {
       Map<String, InstrumentReference> byEodhdTicker,
       Map<String, InstrumentReference> byShortTicker,
       Map<String, BenchmarkCategoryProxy> proxyByCategory,
+      Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding,
       List<InstrumentDataFinding> findings) {}
+
+  private Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding() {
+    return Map.copyOf(
+        benchmarkProxyPeriodRepository.findAllOrderedByValidUntil().stream()
+            .collect(groupingBy(BenchmarkProxyPeriod::holdingIsin, toUnmodifiableList())));
+  }
 
   private static void flagInactiveProxy(
       Map<String, InstrumentReference> byIsin,

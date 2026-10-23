@@ -201,7 +201,7 @@ class BenchmarkCheckBuilder {
     var benchmarksWithoutPrices = new ArrayList<Map.Entry<SecurityData, String>>();
 
     for (var s : validSecurities) {
-      var benchmarkKey = resolveBenchmarkKey(s.isin());
+      var benchmarkKey = resolveBenchmarkKey(s.isin(), checkDate);
       if (benchmarkKey == null) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
         holdingsReportedAsBenchmarkGap.add(s);
@@ -321,8 +321,11 @@ class BenchmarkCheckBuilder {
     return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
   }
 
-  private @Nullable String resolveBenchmarkKey(String isin) {
-    return benchmarkLegResolver.resolve(isin).map(BenchmarkProxy::storageKey).orElse(null);
+  private @Nullable String resolveBenchmarkKey(String isin, LocalDate checkDate) {
+    return benchmarkLegResolver
+        .resolve(isin, checkDate)
+        .map(BenchmarkProxy::storageKey)
+        .orElse(null);
   }
 
   private Optional<BigDecimal> lookupReturn(

@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.PastProxy;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
@@ -83,6 +84,57 @@ class BenchmarkCheckBuilderTest {
     lenient()
         .when(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, PREVIOUS_DATE))
         .thenReturn(Optional.of(indexValue(PREVIOUS_DATE)));
+  }
+
+  @Test
+  void aHoldingIsMeasuredAgainstTheProxyInEffectOnTheCheckDate() {
+    var pastProxyKey = "IE00B4L5Y983.XETR";
+    given(fundValueProvider.getLatestValue(pastProxyKey, CHECK_DATE))
+        .willReturn(Optional.of(price(pastProxyKey, CHECK_DATE, "22.00")));
+    given(fundValueProvider.getLatestValue(pastProxyKey, PREVIOUS_DATE))
+        .willReturn(Optional.of(price(pastProxyKey, PREVIOUS_DATE, FLAT_PRICE)));
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(streakOf(0, 0, 0));
+    var builderWithAPastProxy =
+        new BenchmarkCheckBuilder(
+            new TrackingDifferenceCalculator(parameterRepository),
+            fundValueProvider,
+            priorityPriceProvider,
+            new BenchmarkLegResolver(
+                instrumentReferenceService(
+                    List.of(
+                        tracked(EMERGING_MARKETS_ISIN, "IE00BKPTWY98.EUFUND", "EQUITY_EM"),
+                        tracked(DEVELOPED_MARKETS_ISIN, "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
+                        tracked("IE00B4L5YC18", "EUNM.XETRA", null),
+                        tracked("IE00B4L5Y983", "EUNL.XETRA", null)),
+                    List.of(
+                        new BenchmarkCategoryProxy(
+                            1L, "EQUITY_EM", "IE00B4L5YC18", null, EMERGING_MARKETS_INDEX),
+                        new BenchmarkCategoryProxy(
+                            2L, "EQUITY_DM", "IE00B4L5Y983", null, DEVELOPED_MARKETS_INDEX)),
+                    List.of(
+                        new PastProxy(DEVELOPED_MARKETS_ISIN, "IE00B4L5YC18", PREVIOUS_DATE),
+                        new PastProxy(DEVELOPED_MARKETS_ISIN, "IE00B4L5Y983", CHECK_DATE)))),
+            consecutiveBreachTracker);
+
+    var result =
+        measured(
+            builderWithAPastProxy.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
+                    flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.50")))));
+
+    assertThat(result.securityAttributions())
+        .filteredOn(attribution -> attribution.isin().equals(DEVELOPED_MARKETS_ISIN))
+        .singleElement()
+        .extracting(SecurityAttribution::benchmarkReturn)
+        .satisfies(benchmarkReturn -> assertThat(benchmarkReturn).isEqualByComparingTo("0.1"));
+  }
+
+  private static FundValue price(String key, LocalDate date, String value) {
+    return new FundValue(key, date, new BigDecimal(value), "TEST", Instant.EPOCH);
   }
 
   @Test

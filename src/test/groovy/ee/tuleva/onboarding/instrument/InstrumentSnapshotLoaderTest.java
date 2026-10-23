@@ -17,7 +17,10 @@ class InstrumentSnapshotLoaderTest {
       mock(BenchmarkCategoryProxyRepository.class);
 
   private final InstrumentSnapshotLoader loader =
-      new InstrumentSnapshotLoader(instrumentReferenceRepository, benchmarkCategoryProxyRepository);
+      new InstrumentSnapshotLoader(
+          instrumentReferenceRepository,
+          benchmarkCategoryProxyRepository,
+          mock(BenchmarkProxyPeriodRepository.class));
 
   @Test
   void aCollidingLookupKeyResolvesToTheFirstRowAndIsReported() {

@@ -322,6 +322,11 @@ investment:
     s3:
       access-key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
       secret-key: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
+  past-performance:
+    benchmarks:
+      TKF100: MSCI_ACWI
+      TUK75: MSCI_ACWI
+      TUV100: MSCI_ACWI
 
 ledger:
   unit-balance-guard:

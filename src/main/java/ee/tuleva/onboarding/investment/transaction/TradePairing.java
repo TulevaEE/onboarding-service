@@ -2,11 +2,10 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsFirst;
-import static java.util.stream.Collectors.toSet;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 final class TradePairing {
@@ -38,11 +37,10 @@ final class TradePairing {
                         .toArray())
             .toArray(long[][]::new);
     var laterOfEarlier = MaximumWeightAssignment.columnsOfRows(weights, sortedLater.size());
-    var pairedLater =
-        Arrays.stream(laterOfEarlier).filter(index -> index >= 0).boxed().collect(toSet());
+    var pairedLater = Set.copyOf(laterOfEarlier.values());
     return new OpenTrades.Difference(
         IntStream.range(0, sortedEarlier.size())
-            .filter(index -> laterOfEarlier[index] < 0)
+            .filter(index -> !laterOfEarlier.containsKey(index))
             .mapToObj(sortedEarlier::get)
             .toList(),
         IntStream.range(0, sortedLater.size())

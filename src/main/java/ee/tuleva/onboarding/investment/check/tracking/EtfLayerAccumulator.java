@@ -21,6 +21,7 @@ final class EtfLayerAccumulator {
   private static final int SCALE = TdAttributionCalculator.SCALE;
   private final BenchmarkLegResolver benchmarkLegResolver;
   private final TulevaFund fund;
+  private final LocalDate periodEnd;
   private final Set<String> measuredIsins;
   private final Map<String, BigDecimal> rateByIsin;
 
@@ -34,10 +35,12 @@ final class EtfLayerAccumulator {
   EtfLayerAccumulator(
       BenchmarkLegResolver benchmarkLegResolver,
       TulevaFund fund,
+      LocalDate periodEnd,
       Set<String> measuredIsins,
       Map<String, BigDecimal> rateByIsin) {
     this.benchmarkLegResolver = benchmarkLegResolver;
     this.fund = fund;
+    this.periodEnd = periodEnd;
     this.measuredIsins = measuredIsins;
     this.rateByIsin = rateByIsin;
   }
@@ -67,7 +70,9 @@ final class EtfLayerAccumulator {
   private void accumulateProxyOcf(@Nullable String isin, BigDecimal weight) {
     var proxyInstrument =
         benchmarkLegResolver
-            .resolve(Objects.requireNonNull(isin, "Measured allocation missing isin: fund=" + fund))
+            .resolve(
+                Objects.requireNonNull(isin, "Measured allocation missing isin: fund=" + fund),
+                periodEnd)
             .map(BenchmarkProxy::proxyInstrument)
             .orElse(null);
     if (proxyInstrument == null) {
@@ -83,7 +88,7 @@ final class EtfLayerAccumulator {
     proxyOcf = proxyOcf.add(weight.multiply(proxyRate));
   }
 
-  void logWarnings(LocalDate periodEnd) {
+  void logWarnings() {
     if (!unpricedIsins.isEmpty()) {
       log.warn(
           "No OCF rate for model instruments, their cost is missing from etf_ocf_drag and falls into the residual: fund={}, asOf={}, isins={}",

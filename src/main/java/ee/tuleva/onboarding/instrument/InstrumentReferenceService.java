@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toSet;
 import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,6 +34,7 @@ public class InstrumentReferenceService {
   private volatile Map<String, InstrumentReference> byEodhdTicker = Map.of();
   private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
   private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
+  private volatile Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding = Map.of();
   private volatile List<InstrumentDataFinding> dataFindings = List.of();
   private volatile @Nullable Instant lastRefreshedAt;
 
@@ -106,6 +108,7 @@ public class InstrumentReferenceService {
     byEodhdTicker = snapshot.byEodhdTicker();
     byShortTicker = snapshot.byShortTicker();
     proxyByCategory = snapshot.proxyByCategory();
+    pastProxiesByHolding = snapshot.pastProxiesByHolding();
     dataFindings = snapshot.findings();
     lastRefreshedAt = clock.instant();
 
@@ -190,6 +193,29 @@ public class InstrumentReferenceService {
     return activeInstruments().stream().filter(i -> i.getMorningstarId() != null).toList();
   }
 
+  public Optional<BenchmarkProxy> resolveBenchmarkProxy(String holdingIsin, LocalDate date) {
+    return findByIsin(holdingIsin)
+        .flatMap(
+            holding ->
+                pastProxy(holdingIsin, date)
+                    .map(
+                        period ->
+                            proxyInstrument(
+                                holding.getBenchmarkCategory(),
+                                ProxyRole.PAST_PROXY_ISIN,
+                                period.proxyIsin()))
+                    .or(
+                        () ->
+                            resolveBenchmarkProxy(
+                                holding.getBenchmarkCategory(), holding.isExchangeTraded())));
+  }
+
+  private Optional<BenchmarkProxyPeriod> pastProxy(String holdingIsin, LocalDate date) {
+    return pastProxiesByHolding.getOrDefault(holdingIsin, List.of()).stream()
+        .filter(period -> period.covers(date))
+        .findFirst();
+  }
+
   public Optional<BenchmarkProxy> resolveBenchmarkProxy(
       @Nullable String benchmarkCategory, boolean exchangeTraded) {
     if (benchmarkCategory == null) {
@@ -220,7 +246,8 @@ public class InstrumentReferenceService {
         proxyInstrument(benchmarkCategory, ProxyRole.INDEX_PROXY_ISIN, indexProxyIsin));
   }
 
-  private BenchmarkProxy proxyInstrument(String benchmarkCategory, ProxyRole role, String isin) {
+  private BenchmarkProxy proxyInstrument(
+      @Nullable String benchmarkCategory, ProxyRole role, String isin) {
     var instrument =
         findByIsin(isin)
             .orElseThrow(
@@ -242,7 +269,8 @@ public class InstrumentReferenceService {
 
   private enum ProxyRole {
     ETF_PROXY_ISIN("etfProxyIsin"),
-    INDEX_PROXY_ISIN("indexProxyIsin");
+    INDEX_PROXY_ISIN("indexProxyIsin"),
+    PAST_PROXY_ISIN("benchmarkProxyPeriod.proxyIsin");
 
     private final String fieldName;
 

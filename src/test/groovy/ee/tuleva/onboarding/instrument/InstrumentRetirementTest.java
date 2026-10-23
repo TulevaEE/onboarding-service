@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
   InstrumentReferenceService.class,
   InstrumentSnapshotLoader.class,
   BenchmarkCategoryProxyRepository.class,
+  BenchmarkProxyPeriodRepository.class,
   ClockConfig.class
 })
 @Transactional(propagation = NOT_SUPPORTED)

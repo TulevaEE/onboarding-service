@@ -1195,7 +1195,7 @@ class TrackingDifferenceNotifierTest {
 
   @Test
   void aRunThatCoveredOnlySomeFundsNamesTheOnesItSkipped() {
-    notifier.notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING");
+    notifier.notifyRunIncomplete("TD check", "Incomplete price data:\nTUK75: IE00MISSING");
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));

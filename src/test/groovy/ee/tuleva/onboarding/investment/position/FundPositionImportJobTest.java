@@ -388,10 +388,10 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     var importedAt = Instant.parse("2026-01-06T07:10:00Z");
     var results = List.of(isinMatchFail(TUK75, date));
-    when(reportService.getReport(SEB, POSITIONS, date))
-        .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(anyList())).thenReturn(results);
-    when(repository.findLastImportedAt(TUK75, date)).thenReturn(Optional.of(importedAt));
+    given(reportService.getReport(SEB, POSITIONS, date))
+        .willReturn(Optional.of(createSebReport(date)));
+    given(healthCheckService.check(anyList())).willReturn(results);
+    given(repository.findLastImportedAt(TUK75, date)).willReturn(Optional.of(importedAt));
 
     job.importForProviderAndDate(SEB, date);
 

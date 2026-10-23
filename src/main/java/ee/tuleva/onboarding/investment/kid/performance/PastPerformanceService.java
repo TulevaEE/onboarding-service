@@ -83,7 +83,7 @@ class PastPerformanceService {
   }
 
   private static @Nullable BigDecimal benchmarkReturn(@Nullable CalendarYearReturn benchmark) {
-    return benchmark == null ? null : rate(benchmark);
+    return benchmark == null || benchmark.partialYear() ? null : rate(benchmark);
   }
 
   private static BigDecimal rate(CalendarYearReturn calendarYearReturn) {

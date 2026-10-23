@@ -15,6 +15,14 @@ final class CalendarYearReturns {
 
   static Map<Integer, CalendarYearReturn> of(List<FundValue> values, LocalDate seriesStart) {
     var sorted = values.stream().sorted(comparing(FundValue::date)).toList();
+    sorted.stream()
+        .filter(value -> value.value().signum() <= 0)
+        .findFirst()
+        .ifPresent(
+            value -> {
+              throw new PastPerformanceRefusedException(
+                  "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
+            });
     var yearEnds = new TreeMap<Integer, Double>();
     sorted.forEach(value -> yearEnds.put(value.date().getYear(), value.value().doubleValue()));
 

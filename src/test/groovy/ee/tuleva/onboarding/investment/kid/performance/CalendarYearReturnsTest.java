@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.kid.performance;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.time.LocalDate;
@@ -56,6 +57,14 @@ class CalendarYearReturnsTest {
             Map.of(
                 2017, new CalendarYearReturn(0.5, true),
                 2020, new CalendarYearReturn(0.5, false)));
+  }
+
+  @Test
+  void refusesASeriesWithAValueThatIsNotPositive() {
+    var values = List.of(close("2024-12-31", 100), close("2025-06-30", 0), close("2025-12-31", 99));
+
+    assertThatThrownBy(() -> CalendarYearReturns.of(values, LocalDate.of(2020, 1, 2)))
+        .isInstanceOf(PastPerformanceRefusedException.class);
   }
 
   private static FundValue close(String date, double value) {

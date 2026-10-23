@@ -1267,7 +1267,7 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
-  void aCleanDayEndsWithTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+  void aCleanDayWithAnUnmeasuredModelCheckOpensWithAWarningAndEndsWithTheHoldings() {
     notifier.notify(List.of(withinLimitsResult(TUK75)), List.of(NO_HOLDING_MEASURED));
 
     then(notificationService)
@@ -1276,8 +1276,26 @@ class TrackingDifferenceNotifierTest {
             assertArg(
                 message ->
                     assertThat(message)
-                        .startsWith("✅ TUK75 TD check completed: within limits")
+                        .startsWith("⚠️ TUK75 TD check completed: within limits")
                         .endsWith(NO_HOLDING_MEASURED_LINE)),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void onlyTheFundWithAnUnmeasuredModelCheckLosesItsAllClear() {
+    notifier.notify(
+        List.of(withinLimitsResult(TUK00), withinLimitsResult(TUK75)),
+        List.of(NO_HOLDING_MEASURED));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .contains("✅ TUK00 TD check completed: within limits")
+                        .contains("⚠️ TUK75 TD check completed: within limits")
+                        .doesNotContain("✅ TUK75")),
             eq(INVESTMENT));
   }
 

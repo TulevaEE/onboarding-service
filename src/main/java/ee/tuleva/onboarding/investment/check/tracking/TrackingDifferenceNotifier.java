@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.check.tracking.EscalationRule.Verdict;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -268,7 +270,9 @@ class TrackingDifferenceNotifier {
               .toList();
       if (verdicts.stream().noneMatch(Verdict::alerts)) {
         notificationService.sendMessage(
-            formatAllWithinLimits(alertableResults) + notMeasured, INVESTMENT);
+            formatAllWithinLimits(alertableResults, fundCodesNotMeasured(checksNotMeasured))
+                + notMeasured,
+            INVESTMENT);
         return;
       }
       notificationService.sendMessage(formatAlerts(verdicts) + notMeasured, INVESTMENT);
@@ -277,7 +281,12 @@ class TrackingDifferenceNotifier {
     }
   }
 
-  private static String formatAllWithinLimits(List<TrackingDifferenceResult> alertableResults) {
+  private static Set<String> fundCodesNotMeasured(List<NoHoldingMeasured> checksNotMeasured) {
+    return checksNotMeasured.stream().map(n -> n.fund().getCode()).collect(toSet());
+  }
+
+  private static String formatAllWithinLimits(
+      List<TrackingDifferenceResult> alertableResults, Set<String> fundCodesNotMeasured) {
     var byFund =
         alertableResults.stream()
             .collect(
@@ -288,7 +297,8 @@ class TrackingDifferenceNotifier {
           if (message.length() > 0) {
             message.append("\n");
           }
-          message.append("✅ %s TD check completed: within limits".formatted(fundCode));
+          var icon = fundCodesNotMeasured.contains(fundCode) ? "⚠️" : "✅";
+          message.append("%s %s TD check completed: within limits".formatted(icon, fundCode));
           fundResults.stream()
               .sorted(Comparator.comparing(r -> r.checkType().name()))
               .forEach(

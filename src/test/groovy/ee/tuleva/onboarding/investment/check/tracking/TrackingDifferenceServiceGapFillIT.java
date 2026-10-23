@@ -15,7 +15,6 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -408,7 +407,7 @@ class TrackingDifferenceServiceGapFillIT {
   private void givenABenchmarkWithoutPricesFor(String isin) {
     given(instrumentReferenceService.findByIsin(isin))
         .willReturn(Optional.of(instrument(isin).benchmarkCategory("EQUITY_DM").build()));
-    given(instrumentReferenceService.resolveBenchmarkProxy(eq("EQUITY_DM"), anyBoolean()))
+    given(instrumentReferenceService.resolveBenchmarkProxy(eq(isin), any(LocalDate.class)))
         .willReturn(Optional.of(new BenchmarkProxy(null, "MSCI_WORLD")));
   }
 

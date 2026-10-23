@@ -225,11 +225,6 @@ class InstrumentReferenceServiceSpec extends Specification {
     thrown(InstrumentReferenceService.UnresolvableBenchmarkProxyException)
   }
 
-  def "resolveBenchmarkProxy returns empty for null category"() {
-    expect:
-    service.resolveBenchmarkProxy(null, true).isEmpty()
-  }
-
   def "resolveBenchmarkProxy derives the index storage key when the index proxy is the ETF itself"() {
     expect:
     proxyStorageKey("BOND_EURO", true) == Optional.of("FR0013209921.XPAR")

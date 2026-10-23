@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
@@ -237,6 +238,28 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   @Test
+  void insertingTheMissingBenchmarkPriceClearsTheNameAndSavesTheModelCheckOnTheNextRun() {
+    storeACheckableThursday();
+    givenTheHoldingsBenchmarkHasNoPrices();
+    gate.check(TUK75, THURSDAY);
+
+    givenBenchmarkPrice(WEDNESDAY, "200.00");
+    givenBenchmarkPrice(THURSDAY, "202.00");
+    gate.check(TUK75, THURSDAY);
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
+    assertThat(
+            jdbcClient
+                .sql(
+                    "SELECT COUNT(*) FROM investment_tracking_difference_event"
+                        + " WHERE check_type = 'BENCHMARK_MODEL' AND check_date = :checkDate")
+                .param("checkDate", THURSDAY)
+                .query(Long.class)
+                .single())
+        .isEqualTo(1L);
+  }
+
+  @Test
   void theNavGateNamesNothingWhenOnlyAnUnheldModelAllocationLacksABenchmarkPrice() {
     storeModelPortfolio(HELD_ISIN, new BigDecimal("0.50"));
     storeModelPortfolio(UNHELD_ISIN, new BigDecimal("0.50"));
@@ -387,6 +410,18 @@ class TrackingDifferenceServiceGapFillIT {
         .willReturn(Optional.of(instrument(isin).benchmarkCategory("EQUITY_DM").build()));
     given(instrumentReferenceService.resolveBenchmarkProxy(eq("EQUITY_DM"), anyBoolean()))
         .willReturn(Optional.of(new BenchmarkProxy(null, "MSCI_WORLD")));
+  }
+
+  private void givenBenchmarkPrice(LocalDate priceDate, String price) {
+    given(fundValueProvider.getLatestValue("MSCI_WORLD", priceDate))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "MSCI_WORLD",
+                    priceDate,
+                    new BigDecimal(price),
+                    "TEST",
+                    Instant.parse("2026-04-10T16:00:00Z"))));
   }
 
   private void storeModelPortfolio() {

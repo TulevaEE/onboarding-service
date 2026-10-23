@@ -67,6 +67,17 @@ class SriCalculatorTest {
   }
 
   @Test
+  void theRoundedCornishFisherCoefficientsAreTheGeneralExpansionTheKidStressScenarioUses() {
+    var z = SriCalculator.Z;
+
+    assertThat(SriCalculator.SKEW_COEFFICIENT).isCloseTo((z * z - 1) / 6, within(1e-8));
+    assertThat(SriCalculator.KURTOSIS_COEFFICIENT)
+        .isCloseTo((z * z * z - 3 * z) / 24, within(1e-8));
+    assertThat(SriCalculator.SKEW_SQUARED_COEFFICIENT)
+        .isCloseTo((2 * z * z * z - 5 * z) / 36, within(1e-8));
+  }
+
+  @Test
   void aWindowTooShortToStandBehindReportsItsVolatilityWithoutAClass() {
     var prices = pricesFrom(deterministicReturns(500), LocalDate.of(2024, 1, 1));
     var evalDate = prices.getLast().date();

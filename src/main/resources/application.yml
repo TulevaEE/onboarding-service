@@ -318,6 +318,11 @@ payment:
   member-fee-test-personal-code: ${MEMBER_FEE_TEST_PERSONAL_CODE:38000000000}
 
 investment:
+  kid:
+    funds:
+      TKF100:
+        series-key: MSCI_ACWI
+        recommended-holding-period-years: 5
   reports:
     s3:
       access-key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}

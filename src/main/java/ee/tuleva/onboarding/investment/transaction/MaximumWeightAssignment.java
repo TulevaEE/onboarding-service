@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 final class MaximumWeightAssignment {
-
-  private static final int UNASSIGNED = -1;
 
   private final long[][] weights;
   private final int rows;
@@ -26,7 +26,7 @@ final class MaximumWeightAssignment {
     this.previousColumn = new int[size + 1];
   }
 
-  static int[] columnsOfRows(long[][] weights, int columns) {
+  static Map<Integer, Integer> columnsOfRows(long[][] weights, int columns) {
     var assignment = new MaximumWeightAssignment(weights, columns);
     for (var row = 1; row <= assignment.size; row++) {
       assignment.assign(row);
@@ -97,15 +97,14 @@ final class MaximumWeightAssignment {
     return row <= rows && column <= columns;
   }
 
-  private int[] positiveWeightColumnsOfRows() {
-    var columnOfRow = new int[rows];
-    Arrays.fill(columnOfRow, UNASSIGNED);
+  private Map<Integer, Integer> positiveWeightColumnsOfRows() {
+    var columnOfRow = new HashMap<Integer, Integer>();
     for (var column = 1; column <= size; column++) {
       var row = rowOfColumn[column];
       if (isReal(row, column) && weights[row - 1][column - 1] > 0) {
-        columnOfRow[row - 1] = column - 1;
+        columnOfRow.put(row - 1, column - 1);
       }
     }
-    return columnOfRow;
+    return Map.copyOf(columnOfRow);
   }
 }

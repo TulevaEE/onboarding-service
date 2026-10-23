@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.kid;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
+import static java.time.DayOfWeek.FRIDAY;
+import static java.time.DayOfWeek.MONDAY;
+import static java.time.DayOfWeek.WEDNESDAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -170,6 +173,22 @@ class ScenarioPeriodTest {
             .toList();
 
     assertThatThrownBy(() -> period.dailyCloses(wednesdays))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
+  void refusesDailyClosesThatSkipTwoWeekdaysEveryWeek() {
+    var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 3, 31));
+    var mondaysWednesdaysAndFridays =
+        Stream.iterate(
+                LocalDate.of(2025, 1, 31),
+                day -> !day.isAfter(LocalDate.of(2025, 3, 31)),
+                day -> day.plusDays(1))
+            .filter(day -> Set.of(MONDAY, WEDNESDAY, FRIDAY).contains(day.getDayOfWeek()))
+            .map(day -> close(day.toString(), 100))
+            .toList();
+
+    assertThatThrownBy(() -> period.dailyCloses(mondaysWednesdaysAndFridays))
         .isInstanceOf(KidCalculationRefusedException.class);
   }
 

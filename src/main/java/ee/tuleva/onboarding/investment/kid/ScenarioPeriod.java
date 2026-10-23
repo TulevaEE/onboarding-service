@@ -17,7 +17,7 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
 
   private static final int ANNEX_IV_P6_PERIOD_YEARS = 10;
   private static final int CLOSE_STALE_AFTER_DAYS = 7;
-  private static final double DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS = 0.5;
+  private static final double DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS = 0.7;
 
   static ScenarioPeriod endingWithLastCompleteMonth(LocalDate lastPriceDate, LocalDate today) {
     var lastMonthTheSeriesCloses = lastMonthTheSeriesCloses(lastPriceDate);

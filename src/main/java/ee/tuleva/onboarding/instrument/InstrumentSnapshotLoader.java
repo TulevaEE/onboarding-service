@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.InactiveBenchmarkProxy;
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding.PastBenchmarkProxyWithoutPrices;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,7 @@ class InstrumentSnapshotLoader {
   Snapshot loadSnapshot() {
     var orderedInstruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
     var proxies = benchmarkCategoryProxyRepository.findAll();
+    var pastProxies = benchmarkProxyPeriodRepository.findAllOrderedByValidUntil();
 
     var findings = new ArrayList<InstrumentDataFinding>();
     var newByIsin = new HashMap<String, InstrumentReference>();
@@ -75,6 +77,14 @@ class InstrumentSnapshotLoader {
       flagInactiveProxy(newByIsin, proxy, "indexProxyIsin", proxy.indexProxyIsin(), findings);
     }
 
+    pastProxies.stream()
+        .filter(period -> hasNoPriceSeries(newByIsin, period.proxyIsin()))
+        .map(
+            period ->
+                new PastBenchmarkProxyWithoutPrices(
+                    period.holdingIsin(), period.proxyIsin(), period.validUntil()))
+        .forEach(findings::add);
+
     return new Snapshot(
         List.copyOf(orderedInstruments),
         Map.copyOf(newByIsin),
@@ -82,7 +92,7 @@ class InstrumentSnapshotLoader {
         Map.copyOf(newByEodhdTicker),
         Map.copyOf(newByShortTicker),
         Map.copyOf(newProxyByCategory),
-        pastProxiesByHolding(),
+        pastProxiesByHolding(pastProxies),
         List.copyOf(findings));
   }
 
@@ -96,9 +106,16 @@ class InstrumentSnapshotLoader {
       Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding,
       List<InstrumentDataFinding> findings) {}
 
-  private Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding() {
+  private static boolean hasNoPriceSeries(
+      Map<String, InstrumentReference> byIsin, String proxyIsin) {
+    var proxy = byIsin.get(proxyIsin);
+    return proxy == null || proxy.getExchangeStorageKey().isEmpty();
+  }
+
+  private static Map<String, List<BenchmarkProxyPeriod>> pastProxiesByHolding(
+      List<BenchmarkProxyPeriod> pastProxies) {
     return Map.copyOf(
-        benchmarkProxyPeriodRepository.findAllOrderedByValidUntil().stream()
+        pastProxies.stream()
             .collect(groupingBy(BenchmarkProxyPeriod::holdingIsin, toUnmodifiableList())));
   }
 

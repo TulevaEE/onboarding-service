@@ -270,7 +270,9 @@ class TrackingDifferenceNotifier {
               .toList();
       if (verdicts.stream().noneMatch(Verdict::alerts)) {
         notificationService.sendMessage(
-            formatAllWithinLimits(alertableResults, fundCodesNotMeasured(checksNotMeasured))
+            formatAllWithinLimits(
+                    alertableResults,
+                    checksNotMeasured.stream().map(n -> n.fund().getCode()).collect(toSet()))
                 + notMeasured,
             INVESTMENT);
         return;
@@ -279,10 +281,6 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
-  }
-
-  private static Set<String> fundCodesNotMeasured(List<NoHoldingMeasured> checksNotMeasured) {
-    return checksNotMeasured.stream().map(n -> n.fund().getCode()).collect(toSet());
   }
 
   private static String formatAllWithinLimits(

@@ -90,6 +90,48 @@ class NavUnitImpactCheckerTest {
   }
 
   @Test
+  void aFailureNamesASideWhenTheCashIsExactlyATenthOfTheGapFromIt() {
+    var findings =
+        checker.check(
+            TUK00,
+            new BigDecimal("990000"),
+            new BigDecimal("1000000"),
+            new BigDecimal("2000000.00"),
+            new BigDecimal("999000.000"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK00,
+                NAV_UNIT_IMPACT,
+                FAIL,
+                "NAV_SEB=2.02020 vs NAV_EPIS=2.00000 = 1.010000% NAV difference:"
+                    + " unitsSeb=990000, unitsEpis=1000000, unitsDifference=-10000,"
+                    + " unitsFromCash=999000 (closer to EPIS)"));
+  }
+
+  @Test
+  void aFailureNamesNeitherSideWhenTheCashIsJustOverATenthOfTheGapFromTheNearerOne() {
+    var findings =
+        checker.check(
+            TUK00,
+            new BigDecimal("990000"),
+            new BigDecimal("1000000"),
+            new BigDecimal("2000000.00"),
+            new BigDecimal("998999.000"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK00,
+                NAV_UNIT_IMPACT,
+                FAIL,
+                "NAV_SEB=2.02020 vs NAV_EPIS=2.00000 = 1.010000% NAV difference:"
+                    + " unitsSeb=990000, unitsEpis=1000000, unitsDifference=-10000,"
+                    + " unitsFromCash=998999"));
+  }
+
+  @Test
   void aFailureNamesNeitherSideWhenTheCashIsAsFarFromEither() {
     var findings =
         checker.check(

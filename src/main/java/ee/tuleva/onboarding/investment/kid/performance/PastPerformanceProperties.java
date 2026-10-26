@@ -23,11 +23,8 @@ record PastPerformanceProperties(
     }
   }
 
-  @Nullable String benchmarkFor(TulevaFund fund) {
-    return benchmarks.get(fund);
-  }
-
-  @Nullable EquityCap equityCapFor(TulevaFund fund) {
-    return equityCaps.get(fund);
+  @Nullable Benchmark benchmarkFor(TulevaFund fund) {
+    var key = benchmarks.get(fund);
+    return key == null ? null : new Benchmark(key, equityCaps.get(fund));
   }
 }

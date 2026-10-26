@@ -30,7 +30,8 @@ class PastPerformanceService {
 
   PastPerformance pastPerformance(TulevaFund fund) {
     var fundKey = fund.getIsin();
-    var benchmarkKey = properties.benchmarkFor(fund);
+    var benchmark = properties.benchmarkFor(fund);
+    var benchmarkKey = benchmark == null ? null : benchmark.key();
     var today = LocalDate.now(clock);
     var asOf = asOf(fundKey, benchmarkKey, today);
     var openYear = openYear(asOf);
@@ -40,7 +41,8 @@ class PastPerformanceService {
     var fundReturns =
         CalendarYearReturns.of(
             fundValues(fundKey, benchmarkKey, firstYearShown, asOf), fundStart, openYear);
-    var equityCap = equityCapHeldInAYearShown(fund, firstYearShown, fundStart);
+    var equityCap =
+        benchmark == null ? null : benchmark.equityCapHeldInAYearFrom(firstYearShown, fundStart);
     var plainBenchmarkValues =
         benchmarkKey == null ? List.<FundValue>of() : values(benchmarkKey, firstYearShown, asOf);
     var benchmarkValues =
@@ -116,14 +118,6 @@ class PastPerformanceService {
               .formatted(fundKey, benchmarkKey, asOf));
     }
     return values;
-  }
-
-  private @Nullable EquityCap equityCapHeldInAYearShown(
-      TulevaFund fund, int firstYearShown, LocalDate fundStart) {
-    var equityCap = properties.equityCapFor(fund);
-    return equityCap != null && equityCap.heldInAYearFrom(firstYearShown, fundStart)
-        ? equityCap
-        : null;
   }
 
   private List<FundValue> values(String key, int firstYearShown, LocalDate asOf) {

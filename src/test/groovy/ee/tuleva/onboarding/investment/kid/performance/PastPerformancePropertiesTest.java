@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.kid.performance;
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,10 +44,13 @@ class PastPerformancePropertiesTest {
   }
 
   @Test
-  void bindsAFundsEquityCapAndAFundLeftOutOfTheCapsHasNone() {
+  void bindsAFundsEquityCapToItsBenchmark() {
+    var equityCap =
+        new EquityCap("EURO_AGGREGATE_BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2));
     contextRunner
         .withPropertyValues(
             "investment.past-performance.benchmarks.TUK75=MSCI_ACWI",
+            "investment.past-performance.benchmarks.TKF100=MSCI_ACWI",
             "investment.past-performance.equity-caps.TUK75.bond-key=EURO_AGGREGATE_BOND",
             "investment.past-performance.equity-caps.TUK75.equity-weight=0.75",
             "investment.past-performance.equity-caps.TUK75.lifted-on=2019-09-02")
@@ -54,17 +58,10 @@ class PastPerformancePropertiesTest {
             context -> {
               var properties = context.getBean(PastPerformanceProperties.class);
 
-              assertThat(properties)
-                  .isEqualTo(
-                      new PastPerformanceProperties(
-                          Map.of(TUK75, "MSCI_ACWI"),
-                          Map.of(
-                              TUK75,
-                              new EquityCap(
-                                  "EURO_AGGREGATE_BOND",
-                                  new BigDecimal("0.75"),
-                                  LocalDate.of(2019, 9, 2)))));
-              assertThat(properties.equityCapFor(TUK00)).isNull();
+              assertThat(properties.benchmarkFor(TUK75))
+                  .isEqualTo(new Benchmark("MSCI_ACWI", equityCap));
+              assertThat(properties.benchmarkFor(TKF100))
+                  .isEqualTo(new Benchmark("MSCI_ACWI", null));
             });
   }
 

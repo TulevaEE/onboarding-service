@@ -46,7 +46,7 @@ class KidFiguresServiceIT {
   @Autowired private JdbcFundValueRepository fundValues;
 
   @Test
-  void calculatesTheFiguresTheTeamsSqlGivesOnTheSameSeriesWhenItFollowsThePlansReading() {
+  void calculatesTheTeamsSqlFiguresExceptTheStressWhichMeasuresOnlyTheLastFiveYears() {
     fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
 
     var figures = service.figures(TKF100, ONGOING_CHARGES);
@@ -65,10 +65,10 @@ class KidFiguresServiceIT {
                     new KidScenario(
                         1,
                         STRESS,
-                        new BigDecimal("6550"),
-                        new BigDecimal("-0.34480156"),
-                        LocalDate.of(2022, 6, 16),
-                        LocalDate.of(2022, 7, 14),
+                        new BigDecimal("6620"),
+                        new BigDecimal("-0.33830406"),
+                        LocalDate.of(2022, 4, 22),
+                        LocalDate.of(2022, 5, 20),
                         STRESSED_VOLATILITY,
                         null),
                     new KidScenario(
@@ -101,10 +101,10 @@ class KidFiguresServiceIT {
                     new KidScenario(
                         5,
                         STRESS,
-                        new BigDecimal("5260"),
-                        new BigDecimal("-0.12047284"),
-                        LocalDate.of(2018, 4, 25),
-                        LocalDate.of(2018, 7, 20),
+                        new BigDecimal("5290"),
+                        new BigDecimal("-0.11955089"),
+                        LocalDate.of(2022, 8, 1),
+                        LocalDate.of(2022, 10, 26),
                         STRESSED_VOLATILITY,
                         null),
                     new KidScenario(

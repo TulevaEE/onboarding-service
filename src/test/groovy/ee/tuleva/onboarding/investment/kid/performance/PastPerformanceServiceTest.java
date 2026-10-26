@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.kid.performance;
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -234,6 +235,22 @@ class PastPerformanceServiceTest {
                 List.of(
                     new YearReturn(2027, new BigDecimal("0.10000000"), null, false, false),
                     new YearReturn(2028, new BigDecimal("0.02000000"), null, false, true))));
+  }
+
+  @Test
+  void refusesWhenTheBenchmarkStopsBeforeTheFundsFirstValueRatherThanShowingNoHistory() {
+    var fund =
+        List.of(
+            aFundValue("EE3600109435", LocalDate.of(2026, 2, 2), 1.0),
+            aFundValue("EE3600109435", LocalDate.of(2026, 2, 9), 1.01));
+    var benchmark =
+        List.of(
+            aFundValue("MSCI_ACWI", LocalDate.of(2025, 12, 31), 100.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 1, 15), 101.0));
+    givenTheSeries(fund, LocalDate.of(2026, 2, 2), benchmark, LocalDate.of(2015, 12, 31));
+
+    assertThatThrownBy(() -> service.pastPerformance(TUK75))
+        .isInstanceOf(PastPerformanceRefusedException.class);
   }
 
   private PastPerformanceService januaryService() {

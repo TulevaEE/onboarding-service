@@ -8,6 +8,6 @@ import org.springframework.stereotype.Service;
 class RejoinMandateFileCreator extends ApplicantOnlyMandateFileCreator {
 
   RejoinMandateFileCreator(MandateContentService mandateContentService) {
-    super(mandateContentService, REJOIN, "maksete_tegemise_avaldus", "second_pillar_rejoin");
+    super(mandateContentService, REJOIN, "sissemaksete_tasumise_avaldus", "second_pillar_rejoin");
   }
 }

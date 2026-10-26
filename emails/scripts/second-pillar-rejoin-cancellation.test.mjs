@@ -9,9 +9,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const languages = {
   et: {
     required: [
-      'Tühistasid oma II&nbsp;sambaga taasliitumise avalduse. Sinu eest ei hakata II&nbsp;samba sissemakseid tegema.',
+      'Tühistasid oma II&nbsp;samba sissemaksete tasumise avalduse. Sinu eest ei hakata II&nbsp;samba sissemakseid tegema.',
       'Kui soovid hiljem siiski uuesti koguma hakata, saad uue avalduse esitada Tuleva kaudu.',
-      'Kirjale on lisatud koopia sinu tehtud avaldusest, mis on saadetud Pensionikeskusesse.',
+      'Tühistamiseks esitasid II&nbsp;samba sissemaksete tasumisest vabastamise avalduse. Selle koopia, mis on saadetud Pensionikeskusesse, on kirjale lisatud.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
     ],
@@ -19,9 +19,9 @@ const languages = {
   },
   en: {
     required: [
-      'You canceled your application to rejoin the II&nbsp;pillar. Contributions to your II&nbsp;pillar will not start.',
+      'You canceled your II&nbsp;pillar application for making contributions. Contributions to your II&nbsp;pillar will not start.',
       'If you want to start saving again later, you can file a new application through Tuleva.',
-      'A copy of the application you signed, which was sent to Pensionikeskus, is attached to this email.',
+      'To cancel it, you filed a II&nbsp;pillar application for exemption from contributions. A copy of it, as sent to Pensionikeskus, is attached to this email.',
       'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
       'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar.',
     ],

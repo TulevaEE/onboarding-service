@@ -11,7 +11,7 @@
           Sinu eest hakatakse taas tegema II&nbsp;samba sissemakseid ja saad jälle maksuvõitu.
         </mj-text>
         <mj-text><strong>Sinu esitatud avaldused:</strong></mj-text>
-        <mj-text>Maksete tegemise avaldus</mj-text>
+        <mj-text>Sissemaksete tasumise avaldus</mj-text>
         <mj-raw>*|IF:paymentRateChange|*</mj-raw>
         <mj-text>Sissemakse määra muutmise avaldus</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>

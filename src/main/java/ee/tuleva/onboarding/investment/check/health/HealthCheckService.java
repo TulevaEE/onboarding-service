@@ -52,6 +52,7 @@ public class HealthCheckService {
   private final ExitMarkResolver exitMarkResolver;
   private final OpenTradeSource openTradeSource;
   private final UnsettledTradesChecker unsettledTradesChecker;
+  private final BankBalanceChecker bankBalanceChecker;
 
   private @Nullable BigDecimal navFlowThreshold(LocalDate navDate) {
     return investmentParameterRepository
@@ -169,6 +170,7 @@ public class HealthCheckService {
         unsettledTradesChecker.check(
             fund, navDate, liabilities, receivables, tradeList, previousTradeList));
     findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
+    findings.addAll(bankBalanceChecker.check(fund, navDate, filterByType(positions, CASH)));
     findings.addAll(
         quantityChangeChecker.check(fund, securities, previousSecurities, tradeChanges));
     findings.addAll(

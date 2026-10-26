@@ -99,6 +99,35 @@ class BankingMessageRepositoryTest {
   }
 
   @Test
+  void latestProcessedStatementEndingOn_isTheLastStatementOfTheAccountThatClosesThatDay() {
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T01:00:33Z", PROCESSED);
+    var refetched =
+        store(IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T03:00:33Z", PROCESSED);
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T04:00:33Z", UNPROCESSED);
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T05:00:33Z", FAILED);
+    store(IBAN, INTRA_DAY_REPORT, "2026-09-22", "2026-09-23T06:00:33Z", PROCESSED);
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-23", "2026-09-24T01:00:33Z", PROCESSED);
+    store(OTHER_IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T07:00:33Z", PROCESSED);
+    save(SWEDBANK, HISTORIC_STATEMENT, IBAN, period("2026-09-22", "2026-09-22"), PROCESSED_AT);
+
+    assertThat(
+            repository.findLatestProcessedStatementEndingOn(SEB, IBAN, LocalDate.of(2026, 9, 22)))
+        .hasValueSatisfying(message -> assertThat(message.getId()).isEqualTo(refetched));
+  }
+
+  @Test
+  void latestProcessedStatementEndingOn_countsAStatementCoveringSeveralDaysForItsLastDayOnly() {
+    save(SEB, HISTORIC_STATEMENT, IBAN, period("2026-09-21", "2026-09-22"), PROCESSED_AT);
+
+    assertThat(
+            repository.findLatestProcessedStatementEndingOn(SEB, IBAN, LocalDate.of(2026, 9, 22)))
+        .isPresent();
+    assertThat(
+            repository.findLatestProcessedStatementEndingOn(SEB, IBAN, LocalDate.of(2026, 9, 21)))
+        .isEmpty();
+  }
+
+  @Test
   void latestProcessedStatement_isAbsentUntilOneHasBeenProcessed() {
     store(IBAN, INTRA_DAY_REPORT, null, "2026-09-23T13:00:05Z", UNPROCESSED);
 

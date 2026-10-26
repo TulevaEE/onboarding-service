@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.BANK_BALANCE;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.LIABILITY_RECOGNITION;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
@@ -65,6 +66,7 @@ class HealthCheckServiceTest {
   @Mock ExitMarkResolver exitMarkResolver;
   @Mock OpenTradeSource openTradeSource;
   @Mock UnsettledTradesChecker unsettledTradesChecker;
+  @Mock BankBalanceChecker bankBalanceChecker;
 
   @InjectMocks HealthCheckService healthCheckService;
 
@@ -236,6 +238,24 @@ class HealthCheckServiceTest {
     assertThat(results.getFirst().findings()).contains(finding);
     verify(navFlowConsistencyChecker)
         .check(TUK75, positions, previousPositions, threshold, Map.of());
+  }
+
+  @Test
+  void comparesTodaysCashRowsWithTheBankAndReportsWhatItFinds() {
+    var cash = cashPosition(TUK75, new BigDecimal("50000"));
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")), cash);
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
+
+    var finding = new HealthCheckFinding(TUK75, BANK_BALANCE, WARNING, "cash differs from bank");
+    given(bankBalanceChecker.check(TUK75, NAV_DATE, List.of(cash))).willReturn(List.of(finding));
+
+    var results = healthCheckService.check(positions);
+
+    assertThat(results.getFirst().findings()).contains(finding);
   }
 
   @Test

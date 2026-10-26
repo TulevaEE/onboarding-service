@@ -5,6 +5,8 @@ import static org.mockito.BDDMockito.given;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +39,29 @@ class FundBalanceUnitCountsTest {
     var result = fundUnitCounts.totalUnitsAsOf("EE3600109435", DATE);
 
     assertThat(result).contains(new BigDecimal("9000123.45"));
+  }
+
+  @Test
+  void countsEachFundsInvestorsOnTheLatestDayInTheRegister() {
+    given(fundBalanceRepository.findAllOnLatestRequestDate())
+        .willReturn(
+            List.of(
+                FundBalance.builder().isin("EE3600109435").countInvestors(40983).build(),
+                FundBalance.builder().isin("EE3600001707").countInvestors(74292).build()));
+
+    assertThat(fundUnitCounts.latestInvestorCounts())
+        .isEqualTo(Map.of("EE3600109435", 40983, "EE3600001707", 74292));
+  }
+
+  @Test
+  void countsAFundOnceWhenTwoSynchronizationsStoredTheSameDayTwice() {
+    given(fundBalanceRepository.findAllOnLatestRequestDate())
+        .willReturn(
+            List.of(
+                FundBalance.builder().isin("EE3600001707").countInvestors(74292).build(),
+                FundBalance.builder().isin("EE3600001707").countInvestors(74292).build()));
+
+    assertThat(fundUnitCounts.latestInvestorCounts()).isEqualTo(Map.of("EE3600001707", 74292));
   }
 
   @Test

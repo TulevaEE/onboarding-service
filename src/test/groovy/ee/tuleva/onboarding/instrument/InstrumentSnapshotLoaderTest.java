@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
@@ -16,8 +17,38 @@ class InstrumentSnapshotLoaderTest {
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository =
       mock(BenchmarkCategoryProxyRepository.class);
 
+  private final BenchmarkProxyPeriodRepository benchmarkProxyPeriodRepository =
+      mock(BenchmarkProxyPeriodRepository.class);
+
   private final InstrumentSnapshotLoader loader =
-      new InstrumentSnapshotLoader(instrumentReferenceRepository, benchmarkCategoryProxyRepository);
+      new InstrumentSnapshotLoader(
+          instrumentReferenceRepository,
+          benchmarkCategoryProxyRepository,
+          benchmarkProxyPeriodRepository);
+
+  @Test
+  void aPastProxyWithNoPriceSeriesIsReportedBeforeACheckFailsOnIt() {
+    var holding = instrument("LU00HOLDING", "HOLD.F", "LU00HOLDING.EUFUND", true);
+    var pricedProxy = instrument("IE00PRICED1", "PRICED.DE", "PRICED.XETRA", true);
+    var unpricedProxy = instrument("IE00NOPRICE", "NOPRICE.F", "IE00NOPRICE.EUFUND", true);
+    given(instrumentReferenceRepository.findAllByOrderByIdAsc())
+        .willReturn(List.of(holding, pricedProxy, unpricedProxy));
+    given(benchmarkCategoryProxyRepository.findAll()).willReturn(List.of());
+    given(benchmarkProxyPeriodRepository.findAllOrderedByValidUntil())
+        .willReturn(
+            List.of(
+                new BenchmarkProxyPeriod(
+                    "LU00HOLDING", "IE00PRICED1", LocalDate.parse("2026-08-24")),
+                new BenchmarkProxyPeriod(
+                    "LU00HOLDING", "IE00NOPRICE", LocalDate.parse("2026-10-21"))));
+
+    var snapshot = loader.loadSnapshot();
+
+    assertThat(snapshot.findings())
+        .containsExactly(
+            new InstrumentDataFinding.PastBenchmarkProxyWithoutPrices(
+                "LU00HOLDING", "IE00NOPRICE", LocalDate.parse("2026-10-21")));
+  }
 
   @Test
   void aCollidingLookupKeyResolvesToTheFirstRowAndIsReported() {

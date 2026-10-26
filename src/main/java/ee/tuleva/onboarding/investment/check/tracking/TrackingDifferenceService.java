@@ -16,6 +16,7 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.Checked;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NeverCheckable;
 import ee.tuleva.onboarding.investment.check.tracking.FundCheck.NotCheckable;
@@ -93,7 +94,9 @@ class TrackingDifferenceService {
       }
 
       try {
-        checkFund(fund, checkDate).forEach(results::add);
+        var check = checkFund(fund, checkDate);
+        results.addAll(check.results());
+        check.checksNotMeasured().forEach(n -> incompleteChecks.add(n.describe()));
       } catch (IncompletePriceDataException e) {
         log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
         incompleteChecks.add(e.getMessage());
@@ -102,7 +105,7 @@ class TrackingDifferenceService {
 
     if (!incompleteChecks.isEmpty()) {
       throw new IncompletePriceDataException(
-          "Incomplete security price data:\n" + String.join("\n", incompleteChecks), results);
+          "Incomplete price data:\n" + String.join("\n", incompleteChecks), results);
     }
 
     return results;
@@ -188,12 +191,13 @@ class TrackingDifferenceService {
   private List<TrackingDifferenceResult> checkOrRecordFailure(
       TulevaFund fund, LocalDate checkDate, GapWindow window, List<GapFailure> failures) {
     try {
-      var check = checkFundOrSayWhyNot(fund, checkDate);
+      var check = checkFund(fund, checkDate);
       if (check instanceof NotCheckable notCheckable) {
         failures.add(
             GapFailure.inWindow(
                 fund, checkDate, window, notCheckable.reason(), MISSING_NAV, publicHolidays));
       }
+      failures.addAll(GapFailure.notMeasured(check.checksNotMeasured(), window, publicHolidays));
       return check.results();
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
@@ -232,11 +236,7 @@ class TrackingDifferenceService {
         || security.previous().price().signum() == 0;
   }
 
-  List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
-    return checkFundOrSayWhyNot(fund, checkDate).results();
-  }
-
-  private FundCheck checkFundOrSayWhyNot(TulevaFund fund, LocalDate checkDate) {
+  FundCheck checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var previousDate = publicHolidays.previousWorkingDay(checkDate);
@@ -403,15 +403,13 @@ class TrackingDifferenceService {
               results.add(result);
             });
 
-    benchmarkCheckBuilder
-        .buildBenchmarkModelCheck(fund, checkDate, securities)
-        .ifPresent(
-            result -> {
-              saveEvent(result);
-              results.add(result);
-            });
+    var modelCheck = benchmarkCheckBuilder.buildBenchmarkModelCheck(fund, checkDate, securities);
+    if (modelCheck instanceof Measured(var result)) {
+      saveEvent(result);
+      results.add(result);
+    }
 
-    return new Checked(results);
+    return new Checked(results, modelCheck.checksNotMeasured());
   }
 
   private BigDecimal accruedFeeFraction(

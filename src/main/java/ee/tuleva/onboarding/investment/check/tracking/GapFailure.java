@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +30,21 @@ record GapFailure(
         cause,
         DAYS.between(checkDate, window.today()),
         lastAttemptDate(checkDate, window.lookbackDays(), publicHolidays));
+  }
+
+  static List<GapFailure> notMeasured(
+      List<NoHoldingMeasured> checksNotMeasured, GapWindow window, PublicHolidays publicHolidays) {
+    return checksNotMeasured.stream()
+        .map(
+            notMeasured ->
+                inWindow(
+                    notMeasured.fund(),
+                    notMeasured.checkDate(),
+                    window,
+                    notMeasured.reason(),
+                    MISSING_PRICE,
+                    publicHolidays))
+        .toList();
   }
 
   private static LocalDate lastAttemptDate(

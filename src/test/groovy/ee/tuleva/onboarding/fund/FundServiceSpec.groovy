@@ -13,6 +13,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
+import static ee.tuleva.onboarding.fund.FundFixture.lhv3rdPillarFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 
@@ -24,9 +27,10 @@ class FundServiceSpec extends Specification {
   def localeService = Mock(LocaleService)
   def savingsFundUnitStats = Mock(SavingsFundUnitStats)
   def savingsFundNav = Stub(SavingsFundNav) { isSavingsFund("EE0000003283") >> true }
+  def fundInvestorsInRegister = Stub(FundInvestorsInRegister)
 
   def fundService = new FundService(fundRepository, pensionFundStatisticsService,
-      fundNavValues, localeService, savingsFundUnitStats, savingsFundNav)
+      fundNavValues, localeService, savingsFundUnitStats, savingsFundNav, fundInvestorsInRegister)
 
   def "can get funds and statistics"() {
     given:
@@ -54,6 +58,75 @@ class FundServiceSpec extends Specification {
     fund.nav == nav
     fund.peopleCount == peopleCount
     response.size() == 2
+  }
+
+  def "counts the people holding a III pillar fund's units in our register, as the Pensionikeskus feed counts no III pillar savers"() {
+    given:
+    def tulevaThirdPillarFund = tuleva3rdPillarFund()
+    def otherThirdPillarFund = lhv3rdPillarFund()
+    fundRepository.findAll() >> [tulevaThirdPillarFund, otherThirdPillarFund]
+    pensionFundStatisticsService.getCachedStatistics() >> [
+        new PensionFundStatistics(tulevaThirdPillarFund.isin, 604_852_355.82, 1.4635, 0),
+        new PensionFundStatistics(otherThirdPillarFund.isin, 1_000_000.0, 1.1, 0)]
+    fundInvestorsInRegister.latestInvestorCounts() >> [(tulevaThirdPillarFund.isin): 74_292]
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
+
+    when:
+    def response = fundService.getFunds(Optional.empty())
+
+    then:
+    response.collectEntries { [it.isin, [it.volume, it.nav, it.peopleCount]] } == [
+        (tulevaThirdPillarFund.isin): [604_852_355.82, 1.4635, 74_292],
+        (otherThirdPillarFund.isin) : [1_000_000.0, 1.1, 0]]
+  }
+
+  def "counts the III pillar fund's holders from our register also on a day the Pensionikeskus feed cannot be read"() {
+    given:
+    def tulevaThirdPillarFund = tuleva3rdPillarFund()
+    fundRepository.findAll() >> [tulevaThirdPillarFund]
+    pensionFundStatisticsService.getCachedStatistics() >> []
+    fundNavValues.lastValue(tulevaThirdPillarFund.isin) >> Optional.of(
+        new FundNavValues.NavPoint(LocalDate.parse("2026-10-22"), 1.4635))
+    fundInvestorsInRegister.latestInvestorCounts() >> [(tulevaThirdPillarFund.isin): 74_292]
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
+
+    when:
+    def response = fundService.getFunds(Optional.empty())
+
+    then:
+    response.collect { [it.nav, it.peopleCount] } == [[1.4635, 74_292]]
+  }
+
+  def "keeps listing the funds with the feed's counts when the register cannot be read"() {
+    given:
+    def tulevaThirdPillarFund = tuleva3rdPillarFund()
+    fundRepository.findAll() >> [tulevaThirdPillarFund]
+    pensionFundStatisticsService.getCachedStatistics() >> [
+        new PensionFundStatistics(tulevaThirdPillarFund.isin, 604_852_355.82, 1.4635, 0)]
+    fundInvestorsInRegister.latestInvestorCounts() >> { throw new IllegalStateException("register unavailable") }
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
+
+    when:
+    def response = fundService.getFunds(Optional.empty())
+
+    then:
+    response.collect { [it.volume, it.nav, it.peopleCount] } == [[604_852_355.82, 1.4635, 0]]
+  }
+
+  def "keeps the active savers the Pensionikeskus feed counts for a II pillar fund, even though our register counts its holders"() {
+    given:
+    def secondPillarFund = tuleva2ndPillarStockFund()
+    fundRepository.findAll() >> [secondPillarFund]
+    pensionFundStatisticsService.getCachedStatistics() >> [
+        new PensionFundStatistics(secondPillarFund.isin, 1_177_727_624.14, 1.63021, 37_737)]
+    fundInvestorsInRegister.latestInvestorCounts() >> [(secondPillarFund.isin): 40_983]
+    localeService.getCurrentLocale() >> DEFAULT_LOCALE
+
+    when:
+    def response = fundService.getFunds(Optional.empty())
+
+    then:
+    response*.peopleCount == [37_737]
   }
 
   def "can get funds with names in given language"() {

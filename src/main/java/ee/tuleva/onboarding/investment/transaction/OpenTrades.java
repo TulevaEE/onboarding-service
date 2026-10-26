@@ -28,4 +28,10 @@ public record OpenTrades(
         .map(OpenTrade::total)
         .reduce(ZERO, BigDecimal::add);
   }
+
+  public Difference comparedWith(OpenTrades later, TulevaFund fund) {
+    return TradePairing.unpaired(of(fund), later.of(fund));
+  }
+
+  public record Difference(List<OpenTrade> onlyEarlier, List<OpenTrade> onlyLater) {}
 }

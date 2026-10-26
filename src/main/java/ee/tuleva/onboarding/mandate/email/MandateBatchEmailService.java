@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.MandateType.PAYMENT_RATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.MandateType.REJOIN;
+import static ee.tuleva.onboarding.mandate.MandateType.SELECTION;
 import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
@@ -14,6 +16,7 @@ import static java.util.stream.Stream.concat;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
@@ -56,6 +59,8 @@ public class MandateBatchEmailService {
     Map<String, Object> mergeVars = getMergeVars(user, mandateBatch);
     if (emailType == SECOND_PILLAR_REJOIN) {
       mergeVars.put("contributionStartDate", contributionStartDate(mandateBatch, locale));
+      mergeVars.put("paymentRateChange", contains(mandateBatch, PAYMENT_RATE_CHANGE));
+      mergeVars.put("fundSelection", contains(mandateBatch, SELECTION));
     }
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -121,6 +126,11 @@ public class MandateBatchEmailService {
         .getDeadlines(dateSentToPensionikeskus(rejoinMandateOf(mandateBatch)))
         .getSecondPillarRejoinContributionStartDate()
         .format(dateFormatIn(locale));
+  }
+
+  private static boolean contains(MandateBatch mandateBatch, MandateType mandateType) {
+    return mandateBatch.getMandates().stream()
+        .anyMatch(mandate -> mandate.getMandateType() == mandateType);
   }
 
   private static Mandate rejoinMandateOf(MandateBatch mandateBatch) {

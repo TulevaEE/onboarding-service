@@ -25,7 +25,7 @@ class UnitReconciliationCheckerTest {
     var authoritative = new BigDecimal("100000.00000");
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold);
+    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold, null);
 
     assertThat(findings).isEmpty();
   }
@@ -36,7 +36,7 @@ class UnitReconciliationCheckerTest {
     var authoritative = new BigDecimal("100000.10000");
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold);
+    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold, null);
 
     assertThat(findings)
         .singleElement()
@@ -58,7 +58,7 @@ class UnitReconciliationCheckerTest {
     var authoritative = new BigDecimal("100005.00000");
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold);
+    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold, null);
 
     assertThat(findings)
         .singleElement()
@@ -75,7 +75,7 @@ class UnitReconciliationCheckerTest {
     var authoritative = new BigDecimal("100000.00000");
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold);
+    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, threshold, null);
 
     assertThat(findings)
         .singleElement()
@@ -88,7 +88,7 @@ class UnitReconciliationCheckerTest {
     var authoritative = new BigDecimal("1000050.00000");
     var threshold = threshold(TUK75, "0", null);
 
-    var findings = checker.check(TUK75, NAV_DATE, positions, authoritative, threshold);
+    var findings = checker.check(TUK75, NAV_DATE, positions, authoritative, threshold, null);
 
     assertThat(findings)
         .singleElement()
@@ -100,7 +100,7 @@ class UnitReconciliationCheckerTest {
     var positions = List.of(unitsPosition(TKF100, new BigDecimal("100000")));
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, null, threshold);
+    var findings = checker.check(TKF100, NAV_DATE, positions, null, threshold, null);
 
     assertThat(findings)
         .singleElement()
@@ -112,11 +112,47 @@ class UnitReconciliationCheckerTest {
   }
 
   @Test
+  void aMissingAuthoritativeCountShowsSebsUnitsBesideTheUnitsFromCash() {
+    var positions = List.of(unitsPosition(TKF100, new BigDecimal("100000")));
+    var threshold = threshold(TKF100, "0.02", "0.5");
+
+    var findings =
+        checker.check(TKF100, NAV_DATE, positions, null, threshold, new BigDecimal("99000.000"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TKF100,
+                UNIT_RECONCILIATION,
+                WARNING,
+                "Unit reconciliation authoritative units unavailable: fund=TKF100,"
+                    + " navDate=2026-04-15, reported=100000, unitsFromCash=99000"));
+  }
+
+  @Test
+  void aMissingAuthoritativeCountShowsNoUnitsFromCashWhileSebsUnitRowHasNoQuantity() {
+    var positions = List.of(unitsPosition(TKF100, null));
+    var threshold = threshold(TKF100, "0.02", "0.5");
+
+    var findings =
+        checker.check(TKF100, NAV_DATE, positions, null, threshold, new BigDecimal("99000.000"));
+
+    assertThat(findings)
+        .containsExactly(
+            new HealthCheckFinding(
+                TKF100,
+                UNIT_RECONCILIATION,
+                WARNING,
+                "Unit reconciliation authoritative units unavailable: fund=TKF100,"
+                    + " navDate=2026-04-15"));
+  }
+
+  @Test
   void warningWhenThresholdRowIsMissing() {
     var positions = List.of(unitsPosition(TKF100, new BigDecimal("100000")));
     var authoritative = new BigDecimal("100000");
 
-    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, null);
+    var findings = checker.check(TKF100, NAV_DATE, positions, authoritative, null, null);
 
     assertThat(findings)
         .singleElement()
@@ -131,7 +167,8 @@ class UnitReconciliationCheckerTest {
   void noFindingWhenUnitsPositionListIsEmpty() {
     var threshold = threshold(TKF100, "0.02", "0.5");
 
-    var findings = checker.check(TKF100, NAV_DATE, List.of(), new BigDecimal("100000"), threshold);
+    var findings =
+        checker.check(TKF100, NAV_DATE, List.of(), new BigDecimal("100000"), threshold, null);
 
     assertThat(findings).isEmpty();
   }

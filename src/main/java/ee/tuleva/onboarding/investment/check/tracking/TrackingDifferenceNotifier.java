@@ -6,7 +6,9 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.check.tracking.EscalationRule.Verdict;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -16,6 +18,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +37,7 @@ class TrackingDifferenceNotifier {
   private static final String BACKFILL_INCOMPLETE_HEADER =
       """
       ⚠️ TD BACKFILL INCOMPLETE: daysBack=%d
-        The check dates named in the message above were not re-run and keep their old \
+        The checks named in the message above were not re-run and keep their old \
       events, and the breach streaks counted after them still run through those events. \
       Rerun the backfill once their prices are in.
       """;
@@ -70,8 +73,8 @@ class TrackingDifferenceNotifier {
       notificationService.sendMessage(
           """
           ⚠️ %s RAN ONLY IN PART: %s
-            Those funds were skipped, so nothing on this channel says whether their tracking
-            difference is within limits today. The result that follows covers the rest."""
+            What each line names was skipped (a whole fund or one check), so nothing on this
+            channel says whether it is within limits today. The result below covers the rest."""
               .formatted(run, reason),
           INVESTMENT);
     } catch (Exception e) {
@@ -243,14 +246,21 @@ class TrackingDifferenceNotifier {
   }
 
   void notify(List<TrackingDifferenceResult> results) {
+    notify(results, List.of());
+  }
+
+  void notify(List<TrackingDifferenceResult> results, List<NoHoldingMeasured> checksNotMeasured) {
     try {
+      var notMeasured =
+          checksNotMeasured.stream().map(n -> "\n  ⚠️ " + n.describe()).collect(joining());
       var alertableResults = alertableResults(results);
       if (alertableResults.isEmpty()) {
         notificationService.sendMessage(
             """
             ⚠️ TD RUN produced no tracking difference results to alert on
               Nothing actionable was checked: every fund was skipped, or only the suppressed ACWI
-              benchmark ran. The reason per fund is in the logs; the daily series is unchanged.""",
+              benchmark ran. The reason per fund is in the logs; the daily series is unchanged."""
+                + notMeasured,
             INVESTMENT);
         return;
       }
@@ -259,16 +269,22 @@ class TrackingDifferenceNotifier {
               .map(result -> EscalationRule.on(result.checkDate(), calculator).judge(result))
               .toList();
       if (verdicts.stream().noneMatch(Verdict::alerts)) {
-        notificationService.sendMessage(formatAllWithinLimits(alertableResults), INVESTMENT);
+        notificationService.sendMessage(
+            formatAllWithinLimits(
+                    alertableResults,
+                    checksNotMeasured.stream().map(n -> n.fund().getCode()).collect(toSet()))
+                + notMeasured,
+            INVESTMENT);
         return;
       }
-      notificationService.sendMessage(formatAlerts(verdicts), INVESTMENT);
+      notificationService.sendMessage(formatAlerts(verdicts) + notMeasured, INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
   }
 
-  private static String formatAllWithinLimits(List<TrackingDifferenceResult> alertableResults) {
+  private static String formatAllWithinLimits(
+      List<TrackingDifferenceResult> alertableResults, Set<String> fundCodesNotMeasured) {
     var byFund =
         alertableResults.stream()
             .collect(
@@ -279,7 +295,8 @@ class TrackingDifferenceNotifier {
           if (message.length() > 0) {
             message.append("\n");
           }
-          message.append("✅ %s TD check completed: within limits".formatted(fundCode));
+          var icon = fundCodesNotMeasured.contains(fundCode) ? "⚠️" : "✅";
+          message.append("%s %s TD check completed: within limits".formatted(icon, fundCode));
           fundResults.stream()
               .sorted(Comparator.comparing(r -> r.checkType().name()))
               .forEach(

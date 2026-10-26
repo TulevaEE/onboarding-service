@@ -59,7 +59,15 @@ class SebOpenTradeSource implements OpenTradeSource {
         fund,
         clientName(clientName),
         Optional.of(
-            new OpenTrade(fund, side, total, row.ourRef(), row.isin(), row.settlementDate())));
+            new OpenTrade(
+                fund,
+                side,
+                total,
+                row.ourRef(),
+                row.isin(),
+                row.settlementDate(),
+                row.quantity(),
+                row.tradeDate())));
   }
 
   private ReadRow readMalformed(Map<String, Object> raw) {

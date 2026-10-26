@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { renderMergeLanguage } from './merge-language.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DISCLAIMER_TEXT_COLOR = '#212529';
@@ -19,6 +20,11 @@ const languages = {
       'Vaata II&nbsp;samba mõju I&nbsp;sambale',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
+    alwaysFiled: 'Maksete tegemise avaldus',
+    filedWhenChanged: {
+      paymentRateChange: 'Sissemakse määra muutmise avaldus',
+      fundSelection: 'Valikuavaldus',
+    },
   },
   en: {
     sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
@@ -31,6 +37,11 @@ const languages = {
       'See how the II&nbsp;pillar affects your I&nbsp;pillar at',
     ],
     forbidden: ['30&nbsp;November', 'Past performance', 'tax return'],
+    alwaysFiled: 'Application to make contributions',
+    filedWhenChanged: {
+      paymentRateChange: 'Contribution rate change application',
+      fundSelection: 'Fund selection application',
+    },
   },
 };
 
@@ -59,6 +70,16 @@ for (const [language, copy] of Object.entries(languages)) {
     assert.equal(links.length, 1, `expected one link to ${copy.sotsmaksHref}`);
     assert.match(links[0], new RegExp(`style="[^"]*color: ${DISCLAIMER_TEXT_COLOR}`));
     assert.ok(html.includes(`href="${copy.sotsmaksHref}">${copy.sotsmaksText}</a>`), 'link text matches where it goes');
+  });
+
+  test(`${name}: lists the rate and fund applications only when they were filed`, () => {
+    const filed = (vars) => text(renderMergeLanguage(html, vars));
+    const nothingChanged = filed({ paymentRateChange: false, fundSelection: false });
+    assert.ok(nothingChanged.includes(copy.alwaysFiled), `missing: ${copy.alwaysFiled}`);
+    for (const [variable, application] of Object.entries(copy.filedWhenChanged)) {
+      assert.ok(filed({ [variable]: true }).includes(application), `missing: ${application}`);
+      assert.ok(!nothingChanged.includes(application), `must not list: ${application}`);
+    }
   });
 
   test(`${name}: every fixture variant fills the contribution start date`, () => {

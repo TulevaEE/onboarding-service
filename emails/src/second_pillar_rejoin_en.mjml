@@ -12,8 +12,12 @@
         </mj-text>
         <mj-text><strong>Submitted applications:</strong></mj-text>
         <mj-text>Application to make contributions</mj-text>
+        <mj-raw>*|IF:paymentRateChange|*</mj-raw>
         <mj-text>Contribution rate change application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:fundSelection|*</mj-raw>
         <mj-text>Fund selection application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>Contributions start on *|contributionStartDate|*.</mj-text>
         <mj-text>
           You can use the money from age 60. After rejoining, you can't stop contributions again

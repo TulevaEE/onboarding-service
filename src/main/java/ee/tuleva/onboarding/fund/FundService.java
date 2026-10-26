@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
 import static java.math.RoundingMode.HALF_UP;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -9,20 +8,16 @@ import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -37,23 +32,43 @@ class FundService {
   private final LocaleService localeService;
   private final SavingsFundUnitStats savingsFundUnitStats;
   private final SavingsFundNav savingsFundNav;
+  private final FundInvestorsInRegister fundInvestorsInRegister;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
+    Map<String, Integer> holdersInRegister = holdersInRegister();
     return stream(fundsBy(fundManagerName).spliterator(), false)
         .sorted()
         .map(
             fund ->
                 new ExtendedApiFundResponse(
-                    fund, getStatistics(fund), localeService.getCurrentLocale()))
+                    fund, getStatistics(fund, holdersInRegister), localeService.getCurrentLocale()))
         .toList();
   }
 
-  private PensionFundStatistics getStatistics(Fund fund) {
+  private Map<String, Integer> holdersInRegister() {
+    try {
+      return fundInvestorsInRegister.latestInvestorCounts();
+    } catch (RuntimeException e) {
+      log.error("Fund holders not read from the register, listing funds without them", e);
+      return Map.of();
+    }
+  }
+
+  private PensionFundStatistics getStatistics(Fund fund, Map<String, Integer> holdersInRegister) {
     List<PensionFundStatistics> statistics = pensionFundStatisticsService.getCachedStatistics();
-    return statistics.stream()
-        .filter(statistic -> Objects.equals(statistic.getIsin(), fund.getIsin()))
-        .findFirst()
-        .orElseGet(() -> fallbackNavStatistics(fund));
+    PensionFundStatistics statistic =
+        statistics.stream()
+            .filter(feedStatistic -> Objects.equals(feedStatistic.getIsin(), fund.getIsin()))
+            .findFirst()
+            .orElseGet(() -> fallbackNavStatistics(fund));
+    return fund.isThirdPillar()
+        ? withHolders(statistic, holdersInRegister.get(fund.getIsin()))
+        : statistic;
+  }
+
+  private static PensionFundStatistics withHolders(
+      PensionFundStatistics statistic, @Nullable Integer holders) {
+    return holders == null ? statistic : statistic.withActiveCount(holders);
   }
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
@@ -111,9 +126,6 @@ class FundService {
         .orElse(nav);
   }
 
-  private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-  private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-
   List<NavValueResponse> getNavHistory(String isin, LocalDate startDate, LocalDate endDate) {
     Fund fund = fundRepository.findByIsin(isin);
     if (fund == null) {
@@ -151,21 +163,7 @@ class FundService {
   }
 
   byte[] getNavHistoryCsv(String isin, LocalDate startDate, LocalDate endDate) {
-    List<NavValueResponse> navHistory = getNavHistory(isin, startDate, endDate);
-    try (var outputStream = new ByteArrayOutputStream();
-        var writer = new OutputStreamWriter(outputStream, UTF_8)) {
-      outputStream.write(UTF8_BOM);
-      var csvFormat =
-          CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader("Kuupäev", "NAV (EUR)").get();
-      try (var printer = new CSVPrinter(writer, csvFormat)) {
-        for (var row : navHistory) {
-          printer.printRecord(ESTONIAN_DATE.format(row.date()), row.value().toPlainString());
-        }
-      }
-      return outputStream.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to generate NAV history CSV: isin=" + isin, e);
-    }
+    return new NavHistoryCsv(isin, getNavHistory(isin, startDate, endDate)).toBytes();
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

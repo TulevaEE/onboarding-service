@@ -12,8 +12,12 @@
         </mj-text>
         <mj-text><strong>Sinu esitatud avaldused:</strong></mj-text>
         <mj-text>Maksete tegemise avaldus</mj-text>
+        <mj-raw>*|IF:paymentRateChange|*</mj-raw>
         <mj-text>Sissemakse määra muutmise avaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:fundSelection|*</mj-raw>
         <mj-text>Valikuavaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>Sissemaksed algavad *|contributionStartDate|*.</mj-text>
         <mj-text>
           Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid

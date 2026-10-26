@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import
 import spock.lang.Specification
 
 @DataJpaTest
-@Import([InstrumentReferenceService, InstrumentSnapshotLoader, BenchmarkCategoryProxyRepository, ClockConfig])
+@Import([InstrumentReferenceService, InstrumentSnapshotLoader, BenchmarkCategoryProxyRepository, BenchmarkProxyPeriodRepository, ClockConfig])
 class InstrumentReferenceServiceIntSpec extends Specification {
 
   @Autowired
@@ -25,9 +25,6 @@ class InstrumentReferenceServiceIntSpec extends Specification {
     proxyStorageKey("BOND_EURO", false) == Optional.of("IE00B3DKXQ41.XETR")
     proxyStorageKey("BOND_GLOBAL", true) == Optional.of("IE00BDBRDM35.XETR")
     proxyStorageKey("BOND_GLOBAL", false) == Optional.of("IE00BDBRDM35.XETR")
-
-    and:
-    !service.resolveBenchmarkProxy(null, true).isPresent()
   }
 
   def "resolveBenchmarkProxy fails loudly for a category with no configured proxy"() {

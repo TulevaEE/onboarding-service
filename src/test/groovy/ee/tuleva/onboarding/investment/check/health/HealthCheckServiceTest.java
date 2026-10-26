@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.LIABI
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_FLOW_CONSISTENCY_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -17,10 +18,12 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.OpenTrade;
 import ee.tuleva.onboarding.investment.transaction.OpenTradeSource;
 import ee.tuleva.onboarding.investment.transaction.OpenTrades;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +52,6 @@ class HealthCheckServiceTest {
   @Mock AuthoritativeUnitsSource authoritativeUnitsSource;
   @Mock ReceivablesChecker receivablesChecker;
   @Mock QuantityChangeChecker quantityChangeChecker;
-  @Mock TradedQuantitySource tradedQuantitySource;
   @Mock PayablesChecker payablesChecker;
   @Mock NavFlowConsistencyChecker navFlowConsistencyChecker;
   @Mock LiabilityRecognitionChecker liabilityRecognitionChecker;
@@ -366,29 +368,37 @@ class HealthCheckServiceTest {
   }
 
   @Test
-  void checksQuantityChangesAgainstOurOwnExecutedTransactions() {
+  void checksQuantityChangesAgainstTheTradesNewOnSebsTradeList() {
     var previousDate = NAV_DATE.minusDays(1);
-    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1100")));
     var previousSecurities = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
-    var traded = Map.of("IE001", new TradedQuantity(BigDecimal.ZERO, new BigDecimal("100")));
-
-    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
-        .willReturn(List.of());
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+    var newTrade =
+        new OpenTrade(
+            TUK75,
+            BUY,
+            new BigDecimal("1000.00"),
+            "DLA1",
+            "IE001",
+            NAV_DATE.plusDays(2),
+            new BigDecimal("100"),
+            Instant.parse("2026-04-14T09:37:55Z"));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousDate))
         .willReturn(Optional.of(previousDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, TUK75, SECURITY))
         .willReturn(previousSecurities);
-    given(tradedQuantitySource.resolve(TUK75, previousDate, NAV_DATE)).willReturn(traded);
-
-    given(completenessChecker.check(any(), any(), any())).willReturn(List.of());
-    given(isinMatchChecker.check(any(), any(), any(), any())).willReturn(List.of());
-    given(outstandingUnitsChecker.check(any(), any(), any())).willReturn(List.of());
-    given(quantityChangeChecker.check(eq(TUK75), any(), eq(previousSecurities), eq(traded)))
-        .willReturn(List.of());
+    given(openTradeSource.openTrades(previousDate))
+        .willReturn(Optional.of(new OpenTrades(List.of(), Set.of(), List.of())));
+    given(openTradeSource.openTrades(NAV_DATE))
+        .willReturn(Optional.of(new OpenTrades(List.of(newTrade), Set.of(), List.of())));
 
     healthCheckService.check(positions);
 
-    verify(quantityChangeChecker).check(eq(TUK75), any(), eq(previousSecurities), eq(traded));
+    verify(quantityChangeChecker)
+        .check(
+            eq(TUK75),
+            any(),
+            eq(previousSecurities),
+            eq(new OpenTradeChanges(null, List.of(newTrade), List.of(), List.of())));
   }
 
   @Test
@@ -447,7 +457,7 @@ class HealthCheckServiceTest {
     healthCheckService.check(positions);
 
     verify(unitReconciliationChecker)
-        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(authoritative), eq(threshold));
+        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(authoritative), eq(threshold), isNull());
   }
 
   @Test
@@ -464,7 +474,56 @@ class HealthCheckServiceTest {
     healthCheckService.check(positions);
 
     verify(unitReconciliationChecker)
-        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(null), eq(null));
+        .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(null), eq(null), isNull());
+  }
+
+  @Test
+  void givesBothUnitChecksTheUnitCountTheCashForUnitsAccountsFor() {
+    var previousDate = NAV_DATE.minusDays(1);
+    var positions =
+        List.of(
+            unitsPosition(TUK75, new BigDecimal("1010000")),
+            cashPosition(TUK75, new BigDecimal("130000.00")),
+            netAssetsPosition(NAV_DATE, "2020000.00"));
+    var previousPositions =
+        List.of(
+            FundPosition.builder()
+                .navDate(previousDate)
+                .fund(TUK75)
+                .accountType(UNITS)
+                .accountName("Total outstanding units")
+                .quantity(new BigDecimal("1000000"))
+                .build(),
+            FundPosition.builder()
+                .navDate(previousDate)
+                .fund(TUK75)
+                .accountType(CASH)
+                .accountName("Cash account in SEB Pank")
+                .marketValue(new BigDecimal("110000.00"))
+                .build(),
+            netAssetsPosition(previousDate, "2000000.00"));
+    var emptyTradeList = Optional.of(new OpenTrades(List.of(), Set.of(), List.of()));
+    var episUnits = new BigDecimal("1010000");
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousDate))
+        .willReturn(Optional.of(previousDate));
+    given(fundPositionRepository.findByNavDateAndFund(previousDate, TUK75))
+        .willReturn(previousPositions);
+    given(openTradeSource.openTrades(NAV_DATE)).willReturn(emptyTradeList);
+    given(openTradeSource.openTrades(previousDate)).willReturn(emptyTradeList);
+    given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.of(episUnits));
+
+    healthCheckService.check(positions);
+
+    var unitsFromCash = new BigDecimal("1010000.000");
+    verify(navUnitImpactChecker)
+        .check(
+            TUK75,
+            new BigDecimal("1010000"),
+            episUnits,
+            new BigDecimal("2020000.00"),
+            unitsFromCash);
+    verify(unitReconciliationChecker)
+        .check(eq(TUK75), eq(NAV_DATE), any(), eq(episUnits), isNull(), eq(unitsFromCash));
   }
 
   private FundPosition securityPosition(TulevaFund fund, String isin, BigDecimal quantity) {
@@ -515,6 +574,16 @@ class HealthCheckServiceTest {
         .accountType(RECEIVABLES)
         .accountName("Receivables of outstanding units")
         .marketValue(marketValue)
+        .build();
+  }
+
+  private FundPosition netAssetsPosition(LocalDate navDate, String marketValue) {
+    return FundPosition.builder()
+        .navDate(navDate)
+        .fund(TUK75)
+        .accountType(NAV)
+        .accountName("Total")
+        .marketValue(new BigDecimal(marketValue))
         .build();
   }
 

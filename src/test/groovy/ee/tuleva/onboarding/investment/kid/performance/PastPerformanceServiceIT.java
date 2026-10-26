@@ -84,14 +84,14 @@ class PastPerformanceServiceIT {
                 AS_OF,
                 true,
                 List.of(
-                    year(2017, "0.06507857", null, true, false),
-                    year(2018, "0.01125643", null, false, false),
-                    year(2021, "0.07407765", null, false, false),
-                    year(2022, "0.02005797", null, false, false),
-                    year(2023, "0.06520227", null, false, false),
-                    year(2024, "0.15722669", null, false, false),
-                    year(2025, "0.05085999", null, false, false),
-                    year(2026, "0.05700563", null, false, true))));
+                    year(2017, "0.06507857", true, false),
+                    year(2018, "0.01125643", false, false),
+                    year(2021, "0.07407765", false, false),
+                    year(2022, "0.02005797", false, false),
+                    year(2023, "0.06520227", false, false),
+                    year(2024, "0.15722669", false, false),
+                    year(2025, "0.05085999", false, false),
+                    year(2026, "0.05700563", false, true))));
   }
 
   @Test
@@ -116,11 +116,11 @@ class PastPerformanceServiceIT {
   private static YearReturn year(
       int year, String fund, String benchmark, boolean partialYear, boolean yearToDate) {
     return new YearReturn(
-        year,
-        new BigDecimal(fund),
-        benchmark == null ? null : new BigDecimal(benchmark),
-        partialYear,
-        yearToDate);
+        year, new BigDecimal(fund), new BigDecimal(benchmark), partialYear, yearToDate);
+  }
+
+  private static YearReturn year(int year, String fund, boolean partialYear, boolean yearToDate) {
+    return new YearReturn(year, new BigDecimal(fund), null, partialYear, yearToDate);
   }
 
   @TestConfiguration

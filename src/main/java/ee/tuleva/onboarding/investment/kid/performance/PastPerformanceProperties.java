@@ -9,7 +9,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 record PastPerformanceProperties(Map<TulevaFund, String> benchmarks) {
 
   PastPerformanceProperties {
-    benchmarks = benchmarks == null ? Map.of() : Map.copyOf(benchmarks);
+    if (benchmarks == null) {
+      throw new IllegalStateException(
+          "Past-performance benchmarks not configured: prefix=investment.past-performance");
+    }
+    benchmarks = Map.copyOf(benchmarks);
   }
 
   @Nullable String benchmarkFor(TulevaFund fund) {

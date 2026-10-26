@@ -12,11 +12,9 @@ import org.springframework.stereotype.Component;
 @Component
 class StressScenarioCalculator {
 
-  private static final int ANNEX_II_P9_RISK_HISTORY_YEARS = 5;
-
   StressScenario stress(List<FundValue> dailyCloses, LocalDate periodEnd, int horizonYears) {
     var setting = StressSetting.forHorizon(horizonYears);
-    var returns = logReturns(riskHistory(dailyCloses, periodEnd));
+    var returns = logReturns(dailyCloses);
     var volatilities = rollingVolatilities(returns, setting.windowReturns());
     var stressedVolatility =
         ContinuousPercentile.of(
@@ -68,19 +66,6 @@ class StressScenarioCalculator {
         dailyCloses.stream()
             .filter(close -> close.date().isAfter(horizonStart) && !close.date().isAfter(periodEnd))
             .count();
-  }
-
-  private static List<FundValue> riskHistory(List<FundValue> dailyCloses, LocalDate periodEnd) {
-    var historyStart = periodEnd.minusYears(ANNEX_II_P9_RISK_HISTORY_YEARS);
-    return dailyCloses.stream()
-        .filter(close -> !close.date().isAfter(historyStart))
-        .max(comparing(FundValue::date))
-        .map(
-            firstReturnsBase ->
-                dailyCloses.stream()
-                    .filter(close -> !close.date().isBefore(firstReturnsBase.date()))
-                    .toList())
-        .orElse(dailyCloses);
   }
 
   private static List<DatedReturn> logReturns(List<FundValue> dailyCloses) {

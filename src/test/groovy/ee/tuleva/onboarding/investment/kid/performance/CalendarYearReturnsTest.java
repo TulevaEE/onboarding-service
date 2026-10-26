@@ -60,6 +60,50 @@ class CalendarYearReturnsTest {
   }
 
   @Test
+  void aYearWhoseClosesStopLongBeforeItsEndIsLeftOutWithTheYearMeasuredFromIt() {
+    var values =
+        List.of(
+            close("2018-12-31", 100),
+            close("2019-06-28", 110),
+            close("2020-03-02", 90),
+            close("2020-12-31", 120),
+            close("2021-12-31", 132),
+            close("2022-03-31", 140));
+
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+
+    assertThat(returns)
+        .isEqualTo(
+            Map.of(
+                2021, new CalendarYearReturn(132.0 / 120 - 1, false),
+                2022, new CalendarYearReturn(140.0 / 132 - 1, false)));
+  }
+
+  @Test
+  void aCloseAWeekBeforeTheThirtyFirstOfDecemberStillEndsTheYear() {
+    var values =
+        List.of(close("2023-12-24", 100), close("2024-12-24", 110), close("2025-01-31", 121));
+
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+
+    assertThat(returns)
+        .isEqualTo(
+            Map.of(
+                2024, new CalendarYearReturn(110.0 / 100 - 1, false),
+                2025, new CalendarYearReturn(121.0 / 110 - 1, false)));
+  }
+
+  @Test
+  void aCloseMoreThanAWeekBeforeTheThirtyFirstOfDecemberDoesNotEndTheYear() {
+    var values =
+        List.of(close("2023-12-23", 100), close("2024-12-31", 110), close("2025-01-31", 121));
+
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+
+    assertThat(returns).isEqualTo(Map.of(2025, new CalendarYearReturn(121.0 / 110 - 1, false)));
+  }
+
+  @Test
   void refusesASeriesWithAValueThatIsNotPositive() {
     var values = List.of(close("2024-12-31", 100), close("2025-06-30", 0), close("2025-12-31", 99));
 

@@ -105,11 +105,12 @@ class CalendarYearReturnsTest {
 
   @Test
   void aYearWhoseClosesStopBeforeItsEndIsLeftOutEvenWhenTheyAreTheLastBeforeTheOpenYear() {
-    var values = List.of(close("2026-12-31", 100), close("2027-12-15", 110));
+    var values =
+        List.of(close("2025-12-31", 90), close("2026-12-31", 100), close("2027-12-15", 110));
 
     var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2), 2028);
 
-    assertThat(returns).isEmpty();
+    assertThat(returns).isEqualTo(Map.of(2026, new CalendarYearReturn(100.0 / 90 - 1, false)));
   }
 
   @Test

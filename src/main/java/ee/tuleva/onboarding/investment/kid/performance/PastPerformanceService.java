@@ -38,7 +38,8 @@ class PastPerformanceService {
 
     var fundStart = seriesStart(fundKey);
     var fundReturns =
-        CalendarYearReturns.of(fundValues(fundKey, firstYearShown, asOf), fundStart, openYear);
+        CalendarYearReturns.of(
+            fundValues(fundKey, benchmarkKey, firstYearShown, asOf), fundStart, openYear);
     var benchmarkValues =
         benchmarkKey == null ? List.<FundValue>of() : values(benchmarkKey, firstYearShown, asOf);
     var benchmarkReturns =
@@ -96,11 +97,13 @@ class PastPerformanceService {
             () -> new PastPerformanceRefusedException("No values in the series: key=" + key));
   }
 
-  private List<FundValue> fundValues(String fundKey, int firstYearShown, LocalDate asOf) {
+  private List<FundValue> fundValues(
+      String fundKey, @Nullable String benchmarkKey, int firstYearShown, LocalDate asOf) {
     var values = values(fundKey, firstYearShown, asOf);
     if (values.isEmpty()) {
       throw new PastPerformanceRefusedException(
-          "No fund values up to the as-of date: key=%s, asOf=%s".formatted(fundKey, asOf));
+          "Benchmark ends before the fund's first value: fundKey=%s, benchmarkKey=%s, asOf=%s"
+              .formatted(fundKey, benchmarkKey, asOf));
     }
     return values;
   }

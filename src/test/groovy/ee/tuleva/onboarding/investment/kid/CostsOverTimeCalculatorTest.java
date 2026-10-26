@@ -12,15 +12,16 @@ class CostsOverTimeCalculatorTest {
   private final CostsOverTimeCalculator calculator = new CostsOverTimeCalculator();
 
   @Test
-  void theFirstYearAssumesTheInvestorGetsBackWhatTheyInvestedAfterCosts() {
+  void
+      theFirstYearAssumesTheInvestorGetsBackWhatTheyInvestedAfterCostsInWholeEurosAndTenthsOfAPercent() {
     assertThat(calculator.firstYearAtZeroNetReturn(0.005))
         .isEqualTo(
             new KidCost(
                 1,
-                new BigDecimal("50.25"),
-                new BigDecimal("0.00502513"),
-                new BigDecimal("0.00502513"),
-                new BigDecimal("0.00000000")));
+                new BigDecimal("50"),
+                new BigDecimal("0.005"),
+                new BigDecimal("0.005"),
+                new BigDecimal("0.000")));
   }
 
   @Test
@@ -37,10 +38,10 @@ class CostsOverTimeCalculatorTest {
         .isEqualTo(
             new KidCost(
                 5,
-                new BigDecimal("273.23"),
-                new BigDecimal("0.00516621"),
-                new BigDecimal("0.03324129"),
-                new BigDecimal("0.02807509")));
+                new BigDecimal("273"),
+                new BigDecimal("0.005"),
+                new BigDecimal("0.033"),
+                new BigDecimal("0.028")));
   }
 
   @Test
@@ -57,9 +58,9 @@ class CostsOverTimeCalculatorTest {
         .isEqualTo(
             new KidCost(
                 5,
-                new BigDecimal("349.61"),
-                new BigDecimal("0.00558900"),
-                new BigDecimal("0.11780000"),
-                new BigDecimal("0.11221100")));
+                new BigDecimal("350"),
+                new BigDecimal("0.006"),
+                new BigDecimal("0.118"),
+                new BigDecimal("0.112")));
   }
 }

@@ -5,6 +5,8 @@ import org.springframework.context.i18n.LocaleContextHolder
 import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.mandate.MandateContacts
 import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
@@ -20,6 +22,7 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
+import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.signature.SignableEntity
@@ -33,18 +36,28 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
+import spock.lang.Unroll
+
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.samplePendingRejoinApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE
+import static ee.tuleva.onboarding.time.TestClockHolder.now
 import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {
+
+  static final Instant REJOIN_FILING_WINDOW_CLOSES = Instant.parse("2021-03-31T20:59:59.999999999Z")
 
   MandateRepository mandateRepository = Mock()
   SignatureService signService = Mock()
@@ -62,8 +75,7 @@ class MandateServiceSpec extends Specification {
   MandateValidator mandateValidator = Mock()
   CancellationMandateBuilder cancellationMandateBuilder = Mock()
 
-  MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor, cancellationMandateBuilder,
-      mandateFileService, userService, mandateContacts, eventPublisher, conversionService, mandateValidator, new LocaleService())
+  MandateService service = serviceAt(now)
 
   Long sampleMandateId = 1L
   User sampleUser = sampleUser()
@@ -156,6 +168,28 @@ class MandateServiceSpec extends Specification {
     result == savedMandate
   }
 
+  def "save: saves a mandate that cancels a pending rejoin"() {
+    given:
+    def user = sampleUser
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def applicationToCancel = samplePendingRejoinApplicationDto()
+    def mandate = sampleRejoinCancellationMandate()
+    def savedMandate = sampleRejoinCancellationMandate()
+
+    1 * conversionService.getConversion(user) >> conversion
+    1 * mandateContacts.getContactDetails(user) >> contactDetails
+    1 * cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails) >> mandate
+
+    when:
+    def result = service.saveCancellation(person, applicationToCancel)
+
+    then:
+    1 * mandateRepository.save(mandate) >> savedMandate
+    result == savedMandate
+  }
+
   def "save: validates application type to cancel before saving"() {
     given:
     def user = sampleUser
@@ -174,8 +208,10 @@ class MandateServiceSpec extends Specification {
     given:
     def user = sampleUser()
     def signatureSession = MobileIdSignatureSession.builder().build()
+    def mandate = sampleMandate()
 
-    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
+    1 * mandateRepository.findByIdAndUserId(sampleMandateId, user.id) >> mandate
+    1 * mandateFileService.getMandateFiles(mandate) >> sampleFiles()
     1 * signService.startMobileIdSign(new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
         signatureSession
 
@@ -191,8 +227,10 @@ class MandateServiceSpec extends Specification {
     def user = sampleUser()
     def authenticatedPerson = authenticatedPersonFromUser(user).build()
     def signatureSession = new SmartIdSignatureSession(null, null, null)
+    def mandate = sampleMandate()
 
-    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
+    1 * mandateRepository.findByIdAndUserId(sampleMandateId, user.id) >> mandate
+    1 * mandateFileService.getMandateFiles(mandate) >> sampleFiles()
     1 * signService.startSmartIdSign(new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, authenticatedPerson) >>
         signatureSession
 
@@ -201,6 +239,69 @@ class MandateServiceSpec extends Specification {
 
     then:
     session == signatureSession
+  }
+
+  @Unroll
+  def "#signingMethod: refuses to start signing a rejoin cancellation once the rejoin's filing window has closed, as Pensionikeskus would take it for a new leave application"() {
+    given:
+    def service = serviceAt(REJOIN_FILING_WINDOW_CLOSES.plusNanos(1))
+    mandateRepository.findByIdAndUserId(sampleMandateId, sampleUser.id) >> sampleRejoinCancellationMandate()
+
+    when:
+    startSigning(service, sampleMandateId, sampleUser)
+
+    then:
+    def refusal = thrown(InvalidMandateException)
+    refusal.errorsResponse == InvalidMandateException.rejoinCancellationDeadlinePassed().errorsResponse
+    0 * signService._
+
+    where:
+    signingMethod | startSigning
+    "Mobile-ID"   | { MandateService mandateService, Long mandateId, User user -> mandateService.mobileIdSign(mandateId, user.id, user.phoneNumber) }
+    "Smart-ID"    | { MandateService mandateService, Long mandateId, User user -> mandateService.smartIdSign(mandateId, authenticatedPersonFromUser(user).build()) }
+    "ID card"     | { MandateService mandateService, Long mandateId, User user -> mandateService.idCardSign(mandateId, user.id, sampleStartIdCardSignCommand("signingCertificate")) }
+  }
+
+  @Unroll
+  def "#signingMethod: starts signing a rejoin cancellation at the last instant of the rejoin's filing window"() {
+    given:
+    def service = serviceAt(REJOIN_FILING_WINDOW_CLOSES)
+    def cancellation = sampleRejoinCancellationMandate()
+    mandateRepository.findByIdAndUserId(sampleMandateId, sampleUser.id) >> cancellation
+    mandateFileService.getMandateFiles(cancellation) >> sampleFiles()
+
+    when:
+    startSigning(service, sampleMandateId, sampleUser)
+
+    then:
+    1 * signService._
+
+    where:
+    signingMethod | startSigning
+    "Mobile-ID"   | { MandateService mandateService, Long mandateId, User user -> mandateService.mobileIdSign(mandateId, user.id, user.phoneNumber) }
+    "Smart-ID"    | { MandateService mandateService, Long mandateId, User user -> mandateService.smartIdSign(mandateId, authenticatedPersonFromUser(user).build()) }
+    "ID card"     | { MandateService mandateService, Long mandateId, User user -> mandateService.idCardSign(mandateId, user.id, sampleStartIdCardSignCommand("signingCertificate")) }
+  }
+
+  @Unroll
+  def "#signingMethod: starts signing a mandate other than a rejoin cancellation however long after it was drafted"() {
+    given:
+    def service = serviceAt(REJOIN_FILING_WINDOW_CLOSES.plus(Duration.ofDays(365)))
+    def transfer = sampleMandate()
+    mandateRepository.findByIdAndUserId(sampleMandateId, sampleUser.id) >> transfer
+    mandateFileService.getMandateFiles(transfer) >> sampleFiles()
+
+    when:
+    startSigning(service, sampleMandateId, sampleUser)
+
+    then:
+    1 * signService._
+
+    where:
+    signingMethod | startSigning
+    "Mobile-ID"   | { MandateService mandateService, Long mandateId, User user -> mandateService.mobileIdSign(mandateId, user.id, user.phoneNumber) }
+    "Smart-ID"    | { MandateService mandateService, Long mandateId, User user -> mandateService.smartIdSign(mandateId, authenticatedPersonFromUser(user).build()) }
+    "ID card"     | { MandateService mandateService, Long mandateId, User user -> mandateService.idCardSign(mandateId, user.id, sampleStartIdCardSignCommand("signingCertificate")) }
   }
 
   def "finalizeSmartIdSignature: get correct status if currently signing mandate"() {
@@ -412,8 +513,10 @@ class MandateServiceSpec extends Specification {
   def "id card signing works"() {
     given:
     def signatureSession = IdCardSignatureSession.builder().build()
+    def mandate = sampleMandate()
 
-    1 * mandateFileService.getMandateFiles(sampleMandateId, sampleUser.id) >> sampleFiles()
+    1 * mandateRepository.findByIdAndUserId(sampleMandateId, sampleUser.id) >> mandate
+    1 * mandateFileService.getMandateFiles(mandate) >> sampleFiles()
     1 * signService.startIdCardSign(
         new SignableEntity("Mandate", sampleMandateId), _ as List<SignatureFile>, "signingCertificate", ["SHA-256"], sampleUser.personalCode) >> signatureSession
 
@@ -569,6 +672,13 @@ class MandateServiceSpec extends Specification {
 
   private List<MandateContentFile> sampleFiles() {
     return [new MandateContentFile("file",  "file".getBytes())]
+  }
+
+  private MandateService serviceAt(Instant instant) {
+    def estonianClock = Clock.fixed(instant, ZoneId.of("Europe/Tallinn"))
+    return new MandateService(mandateRepository, signService, converter, mandateProcessor, cancellationMandateBuilder,
+        mandateFileService, userService, mandateContacts, eventPublisher, conversionService, mandateValidator, new LocaleService(),
+        new MandateDeadlinesService(estonianClock, new PublicHolidays()), estonianClock)
   }
 
 }

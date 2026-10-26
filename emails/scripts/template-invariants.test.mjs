@@ -169,6 +169,15 @@ test('manifest entries have sources, dist output, and fixtures', () => {
   }
 });
 
+test('every source template is in the manifest, because CI publishes only manifest entries', () => {
+  const sources = readdirSync(join(root, 'src'))
+    .filter((file) => file.endsWith('.mjml'))
+    .map((file) => basename(file, '.mjml'));
+  for (const name of sources) {
+    assert.ok(manifest.templates[name], `${name}: src template has no manifest entry`);
+  }
+});
+
 test('every template family has a description and no description is orphaned', () => {
   const families = new Set(
     Object.keys(manifest.templates).map((name) => name.replace(/_(et|en)$/, '')),

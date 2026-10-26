@@ -24,7 +24,6 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -47,8 +46,7 @@ public class DetailsOnlyMandateFactoryTest {
   @InjectMocks private DetailsOnlyMandateFactory detailsOnlyMandateFactory;
 
   @Test
-  @DisplayName("delegates mandate creation to mandate factory and fetches payment rates")
-  void testDelegateToMandateFactory() {
+  void delegatesMandateCreationToMandateFactoryAndFetchesPaymentRates() {
     var anUser = sampleUser().build();
     var aContactDetails = contactDetailsFixture();
     var authenticatedPerson =
@@ -89,8 +87,7 @@ public class DetailsOnlyMandateFactoryTest {
   }
 
   @Test
-  @DisplayName("supports PAYMENT_RATE_CHANGE and REJOIN mandates")
-  void testSupports() {
+  void supportsPaymentRateChangeAndRejoinMandates() {
     assertThat(detailsOnlyMandateFactory.supports(PAYMENT_RATE_CHANGE)).isTrue();
     assertThat(detailsOnlyMandateFactory.supports(REJOIN)).isTrue();
     assertThat(detailsOnlyMandateFactory.supports(WITHDRAWAL_CANCELLATION)).isFalse();

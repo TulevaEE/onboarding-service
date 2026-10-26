@@ -14,6 +14,7 @@ const languages = {
     sotsmaksText: 'tuleva.ee/sotsmaks',
     required: [
       'Sissemaksed algavad *|contributionStartDate|*.',
+      'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
       'Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid uuesti lõpetada ega raha teist korda välja võtta.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
@@ -31,6 +32,7 @@ const languages = {
     sotsmaksText: 'tuleva.ee/en/sotsmaks',
     required: [
       'Contributions start on *|contributionStartDate|*.',
+      'If you change your mind, you can cancel the application in your Tuleva account until *|cancellationDeadline|*.',
       'You can use the money from age 60. After rejoining, you can\'t stop contributions again or withdraw the money a second time.',
       'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
       'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar.',
@@ -51,7 +53,7 @@ for (const [language, copy] of Object.entries(languages)) {
   const name = `second_pillar_rejoin_${language}`;
   const html = readFileSync(join(root, 'dist', `${name}.html`), 'utf8');
 
-  test(`${name}: says when contributions start, what rejoining commits to, and how it affects the I pillar`, () => {
+  test(`${name}: says when contributions start, until when the application can be canceled, what rejoining commits to, and how it affects the I pillar`, () => {
     for (const sentence of copy.required) {
       assert.ok(text(html).includes(sentence), `missing: ${sentence}`);
     }
@@ -82,10 +84,11 @@ for (const [language, copy] of Object.entries(languages)) {
     }
   });
 
-  test(`${name}: every fixture variant fills the contribution start date`, () => {
+  test(`${name}: every fixture variant fills the contribution start date and the cancellation deadline`, () => {
     const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
     for (const [variant, vars] of Object.entries(fixture.variants)) {
       assert.ok(vars.contributionStartDate, `variant "${variant}" has no contributionStartDate`);
+      assert.ok(vars.cancellationDeadline, `variant "${variant}" has no cancellationDeadline`);
     }
   });
 }

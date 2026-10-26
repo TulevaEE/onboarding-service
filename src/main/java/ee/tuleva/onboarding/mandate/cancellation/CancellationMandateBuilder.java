@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.cancellation;
 
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.REJOIN;
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.mandate.details.RejoinCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -59,6 +61,9 @@ public class CancellationMandateBuilder {
       return buildEarlyWithdrawalCancellationMandate(mandate);
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);
+    } else if (applicationToCancel.getType() == REJOIN) {
+      mandate.setDetails(new RejoinCancellationMandateDetails());
+      return mandate;
     }
     throw new IllegalArgumentException(
         "Cannot cancel application: type=" + applicationToCancel.getType());

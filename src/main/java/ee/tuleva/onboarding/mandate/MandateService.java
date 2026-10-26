@@ -4,11 +4,13 @@ import static ee.tuleva.onboarding.applicationtype.ApplicationType.*;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
@@ -19,6 +21,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
@@ -32,6 +35,7 @@ import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +61,8 @@ public class MandateService {
   private final UserConversionService conversionService;
   private final MandateValidator mandateValidator;
   private final LocaleService localeService;
+  private final MandateDeadlinesService mandateDeadlinesService;
+  private final Clock clock;
 
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
@@ -74,7 +80,7 @@ public class MandateService {
   public Mandate saveCancellation(
       AuthenticatedPerson authenticatedPerson, ApplicationSnapshot applicationToCancel) {
     ApplicationType applicationTypeToCancel = applicationToCancel.getType();
-    if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL, TRANSFER).contains(applicationTypeToCancel)) {
+    if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL, TRANSFER, REJOIN).contains(applicationTypeToCancel)) {
       throw new InvalidApplicationTypeException(
           "Invalid application type: " + applicationTypeToCancel);
     }
@@ -97,16 +103,33 @@ public class MandateService {
 
   public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {
     User user = userService.getById(userId).orElseThrow();
-    List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
+    List<SignatureFile> files = filesToSign(mandateId, userId);
     return signService.startMobileIdSign(
         signableMandate(mandateId), files, user.getPersonalCode(), phoneNumber);
   }
 
   public SmartIdSignatureSession smartIdSign(
       Long mandateId, AuthenticatedPerson authenticatedPerson) {
-    List<SignatureFile> files =
-        mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserIdOrThrow());
+    List<SignatureFile> files = filesToSign(mandateId, authenticatedPerson.getUserIdOrThrow());
     return signService.startSmartIdSign(signableMandate(mandateId), files, authenticatedPerson);
+  }
+
+  private List<SignatureFile> filesToSign(Long mandateId, Long userId) {
+    Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
+    if (mandate.isRejoinCancellation() && rejoinFilingWindowHasClosed(mandate)) {
+      throw InvalidMandateException.rejoinCancellationDeadlinePassed();
+    }
+    return mandateFileService.getMandateFiles(mandate);
+  }
+
+  private boolean rejoinFilingWindowHasClosed(Mandate rejoinCancellation) {
+    var draftedAt =
+        requireNonNull(
+            rejoinCancellation.getCreatedDate(),
+            "Rejoin cancellation has no created date: mandateId=" + rejoinCancellation.getId());
+    var rejoinDeadline =
+        mandateDeadlinesService.getDeadlines(draftedAt).getSecondPillarRejoinDeadline();
+    return clock.instant().isAfter(rejoinDeadline);
   }
 
   public SignatureStatus finalizeSmartIdSignature(
@@ -145,7 +168,7 @@ public class MandateService {
   public IdCardSignatureSession idCardSign(
       Long mandateId, Long userId, StartIdCardSignCommand signCommand) {
     User user = userService.getById(userId).orElseThrow();
-    List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
+    List<SignatureFile> files = filesToSign(mandateId, userId);
     return signService.startIdCardSign(
         signableMandate(mandateId),
         files,

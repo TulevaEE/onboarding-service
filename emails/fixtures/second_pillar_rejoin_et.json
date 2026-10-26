@@ -3,18 +3,21 @@
     "taasliitumine": {
       "FNAME": "Mari",
       "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
       "paymentRateChange": true,
       "fundSelection": true
     },
     "juba-tuleva-aktsiafondis": {
       "FNAME": "Mari",
       "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
       "paymentRateChange": true,
       "fundSelection": false
     },
     "maksemaar-ja-fond-juba-paigas": {
       "FNAME": "Mari",
       "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
       "paymentRateChange": false,
       "fundSelection": false
     }

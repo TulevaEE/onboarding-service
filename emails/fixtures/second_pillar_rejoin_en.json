@@ -3,18 +3,21 @@
     "rejoin": {
       "FNAME": "Mari",
       "contributionStartDate": "May 1, 2027",
+      "cancellationDeadline": "November 30, 2026",
       "paymentRateChange": true,
       "fundSelection": true
     },
     "already-in-tuleva-stocks": {
       "FNAME": "Mari",
       "contributionStartDate": "May 1, 2027",
+      "cancellationDeadline": "November 30, 2026",
       "paymentRateChange": true,
       "fundSelection": false
     },
     "rate-and-fund-already-in-place": {
       "FNAME": "Mari",
       "contributionStartDate": "May 1, 2027",
+      "cancellationDeadline": "November 30, 2026",
       "paymentRateChange": false,
       "fundSelection": false
     }

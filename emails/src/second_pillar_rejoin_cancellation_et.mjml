@@ -1,0 +1,31 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Tühistasid oma II&nbsp;sambaga taasliitumise avalduse. Sinu eest ei hakata II&nbsp;samba
+          sissemakseid tegema.
+        </mj-text>
+        <mj-text>
+          Kui soovid hiljem siiski uuesti koguma hakata, saad uue avalduse esitada Tuleva kaudu.
+        </mj-text>
+        <mj-text>
+          Kirjale on lisatud koopia sinu tehtud avaldusest, mis on saadetud Pensionikeskusesse.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_second_pillar_rejoin_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

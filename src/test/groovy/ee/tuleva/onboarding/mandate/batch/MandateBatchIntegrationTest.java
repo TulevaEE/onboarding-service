@@ -7,13 +7,16 @@ import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.MandateType.PAYMENT_RATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.MandateType.REJOIN;
+import static ee.tuleva.onboarding.mandate.MandateType.REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.mandate.MandateType.SELECTION;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.ContactDetails;
@@ -36,10 +40,15 @@ import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateProcessResult.MandateProcessOutcome;
 import ee.tuleva.onboarding.mandate.MandateRepository;
+import ee.tuleva.onboarding.mandate.MandateService;
 import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.application.ApplicationCancellationResponse;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
+import ee.tuleva.onboarding.mandate.details.RejoinCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.RejoinMandateDetails;
 import ee.tuleva.onboarding.mandate.details.SelectionMandateDetails;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
@@ -48,12 +57,16 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +78,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -81,6 +96,8 @@ class MandateBatchIntegrationTest {
   @Autowired private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Autowired private MandateBatchService mandateBatchService;
   @Autowired private MandateProcessRepository mandateProcessRepository;
+  @Autowired private MandateService mandateService;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
@@ -94,6 +111,7 @@ class MandateBatchIntegrationTest {
   // database and collides with every later test that inserts the same personal code.
   @AfterEach
   void cleanup() {
+    ClockHolder.setDefaultClock();
     mandateProcessRepository.deleteAll();
     mandateRepository.deleteAll();
     mandateBatchRepository.deleteAll();
@@ -512,6 +530,240 @@ class MandateBatchIntegrationTest {
     assertThat(applicationsSentToEpis)
         .containsExactlyInAnyOrder(REJOIN, PAYMENT_RATE_CHANGE, SELECTION);
     then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void
+      aListedPendingRejoinIsCanceledByFilingTheLeaveApplicationAndIsThenNeitherListedNorCancelableAgain() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-03-02T10:00:00Z"), UTC));
+    given(episService.getApplications(any()))
+        .willReturn(List.of(pendingRejoinFiledOn(Instant.parse("2026-03-01T22:00:00Z"))));
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(invocation -> invocation.getArgument(1));
+    var applicationsSentToEpis = new CopyOnWriteArrayList<MandateType>();
+    given(episService.sendMandateV2(any()))
+        .willAnswer(
+            invocation -> {
+              MandateSubmissionCommand<?> command = invocation.getArgument(0);
+              applicationsSentToEpis.add(command.submission().getMandateType());
+              return new MandateProcessResult(
+                  List.of(new MandateProcessOutcome(command.processId(), true, null)));
+            });
+
+    restTestClient
+        .get()
+        .uri("/v1/applications?status=PENDING")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$[?(@.type == 'REJOIN')]")
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "id", 321,
+                    "type", "REJOIN",
+                    "status", "PENDING",
+                    "creationTime", "2026-03-01T22:00:00Z",
+                    "details",
+                        Map.of(
+                            "cancellationDeadline", "2026-03-31T20:59:59.999999999Z",
+                            "fulfillmentDate", "2026-09-01"))));
+    var mandateId = draftRejoinCancellation();
+
+    signWithMobileId(mandateId);
+
+    assertThat(applicationsSentToEpis).containsExactly(REJOIN_CANCELLATION);
+    then(emailService)
+        .should()
+        .send(
+            argThat(person -> person.getPersonalCode().equals(samplePerson().getPersonalCode())),
+            argThat(
+                message ->
+                    message
+                        .getAttachments()
+                        .getFirst()
+                        .getName()
+                        .endsWith("_avaldus_" + mandateId + ".asice")),
+            eq(SECOND_PILLAR_REJOIN_CANCELLATION.getTemplateName(Locale.ENGLISH)));
+    restTestClient
+        .get()
+        .uri("/v1/applications?status=PENDING")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$[?(@.type == 'REJOIN')]")
+        .isEmpty();
+    restTestClient
+        .post()
+        .uri("/v1/applications/321/cancellations")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isBadRequest();
+  }
+
+  @Test
+  void aRejoinWhoseFilingWindowHasClosedCannotBeCanceled() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-04-01T10:00:00Z"), UTC));
+    given(episService.getApplications(any()))
+        .willReturn(List.of(pendingRejoinFiledOn(Instant.parse("2026-03-01T22:00:00Z"))));
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+
+    restTestClient
+        .post()
+        .uri("/v1/applications/321/cancellations")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isBadRequest();
+
+    assertThat(mandateRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void aBatchRefusesTheLeaveApplicationThatCancelsARejoinAsAnUnsupportedMandateType() {
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .body(
+            MandateBatchDto.builder()
+                .mandates(
+                    List.of(
+                        MandateDto.builder()
+                            .details(new RejoinCancellationMandateDetails())
+                            .build()))
+                .build())
+        .exchange()
+        .expectStatus()
+        .isBadRequest();
+
+    assertThat(mandateRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void aRejoinPensionikeskusNoLongerReportsAsPendingIsListedAndFoundEvenThoughItWasCanceled() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-03-02T10:00:00Z"), UTC));
+    var rejoinDate = Instant.parse("2026-03-01T22:00:00Z");
+    given(episService.getApplications(any())).willReturn(List.of(pendingRejoinFiledOn(rejoinDate)));
+    stubEpisAcceptingTheCancellation();
+    signWithMobileId(draftRejoinCancellation());
+    given(episService.getApplications(any()))
+        .willReturn(List.of(rejoinFiledOn(rejoinDate, ApplicationStatus.COMPLETE)));
+
+    restTestClient
+        .get()
+        .uri("/v1/applications?status=COMPLETE")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$[?(@.type == 'REJOIN')].id")
+        .isEqualTo(List.of(321));
+    restTestClient
+        .get()
+        .uri("/v1/applications/321")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody()
+        .jsonPath("$.status")
+        .isEqualTo("COMPLETE");
+  }
+
+  @Test
+  void aRejoinCancellationDraftedBeforeTheFilingWindowClosedCannotStartSigningAfterIt() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-03-31T20:58:00Z"), UTC));
+    given(episService.getApplications(any()))
+        .willReturn(List.of(pendingRejoinFiledOn(Instant.parse("2026-03-01T22:00:00Z"))));
+    stubEpisAcceptingTheCancellation();
+    var mandateId = draftRejoinCancellation();
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-03-31T21:00:30Z"), UTC));
+
+    restTestClient
+        .put()
+        .uri("/v1/mandates/" + mandateId + "/signature/smart-id")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isBadRequest();
+
+    then(signatureService).shouldHaveNoInteractions();
+  }
+
+  private void stubEpisAcceptingTheCancellation() {
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(invocation -> invocation.getArgument(1));
+    given(episService.sendMandateV2(any()))
+        .willAnswer(
+            invocation -> {
+              MandateSubmissionCommand<?> command = invocation.getArgument(0);
+              return new MandateProcessResult(
+                  List.of(new MandateProcessOutcome(command.processId(), true, null)));
+            });
+  }
+
+  private Long draftRejoinCancellation() {
+    return restTestClient
+        .post()
+        .uri("/v1/applications/321/cancellations")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody(ApplicationCancellationResponse.class)
+        .returnResult()
+        .getResponseBody()
+        .getMandateId();
+  }
+
+  private void signWithMobileId(Long mandateId) {
+    var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
+    signer.setEmail("rejoiner@example.com");
+    signer.setPhoneNumber("+37255555555");
+    userRepository.save(signer);
+    given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
+        .willReturn(new byte[] {1, 2, 3});
+
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            transaction ->
+                mandateService.finalizeMobileIdSignature(
+                    signer.getId(),
+                    mandateId,
+                    mock(MobileIdSignatureSession.class),
+                    Locale.ENGLISH));
+  }
+
+  private static ApplicationSnapshot pendingRejoinFiledOn(Instant date) {
+    return rejoinFiledOn(date, ApplicationStatus.PENDING);
+  }
+
+  private static ApplicationSnapshot rejoinFiledOn(Instant date, ApplicationStatus status) {
+    return ApplicationSnapshot.builder()
+        .id(321L)
+        .date(date)
+        .documentNumber("654")
+        .status(status)
+        .type(ApplicationType.REJOIN)
+        .fundTransferExchanges(List.of())
+        .build();
   }
 
   private static String authenticatedPersonalCode() {

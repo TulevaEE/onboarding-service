@@ -31,12 +31,30 @@ class ScenarioPeriodTest {
   }
 
   @Test
-  void endsWithTheLastMonthThePricesReachWhenTheSeriesStoppedEarlier() {
+  void endsWithTheMonthBeforeWhileTheSeriesLagsAFewDaysIntoANewMonth() {
     var period =
         ScenarioPeriod.endingWithLastCompleteMonth(
-            LocalDate.of(2026, 8, 14), LocalDate.of(2026, 10, 22));
+            LocalDate.of(2026, 10, 29), LocalDate.of(2026, 11, 2));
 
-    assertThat(period.end()).isEqualTo(LocalDate.of(2026, 7, 31));
+    assertThat(period.end()).isEqualTo(LocalDate.of(2026, 9, 30));
+  }
+
+  @Test
+  void acceptsALastPriceExactlyTenDaysOld() {
+    var period =
+        ScenarioPeriod.endingWithLastCompleteMonth(
+            LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 22));
+
+    assertThat(period.end()).isEqualTo(LocalDate.of(2026, 9, 30));
+  }
+
+  @Test
+  void refusesASeriesWhoseLastPriceIsMoreThanTenDaysOldSoAStalledFeedGivesNoFigures() {
+    assertThatThrownBy(
+            () ->
+                ScenarioPeriod.endingWithLastCompleteMonth(
+                    LocalDate.of(2026, 10, 11), LocalDate.of(2026, 10, 22)))
+        .isInstanceOf(KidCalculationRefusedException.class);
   }
 
   @Test

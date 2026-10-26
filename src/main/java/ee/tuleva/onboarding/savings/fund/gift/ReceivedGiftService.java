@@ -43,8 +43,12 @@ public class ReceivedGiftService {
     if (!parentChildLinks.isActiveRepresentation(parentPersonalCode, childPersonalCode)) {
       throw new NotAllowedToGiftForException(parentPersonalCode, childPersonalCode);
     }
+    return giftsTo(childPersonalCode);
+  }
+
+  List<ReceivedGift> giftsTo(String recipientPersonalCode) {
     var arrived =
-        payments.findPayments(new PartyId(PERSON, childPersonalCode)).stream()
+        payments.findPayments(new PartyId(PERSON, recipientPersonalCode)).stream()
             .filter(payment -> payment.getStatus() != TO_BE_RETURNED)
             .filter(payment -> payment.getStatus() != RETURNED)
             .toList();
@@ -54,7 +58,7 @@ public class ReceivedGiftService {
     var messages = unambiguousMessages(recorded);
 
     return arrived.stream()
-        .filter(payment -> isAGift(payment, startedThroughALink, childPersonalCode))
+        .filter(payment -> isAGift(payment, startedThroughALink, recipientPersonalCode))
         .map(
             payment ->
                 new ReceivedGift(

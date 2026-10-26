@@ -35,7 +35,9 @@ public record Transaction(
     CashFlow.Type type,
     BigDecimal units,
     @Nullable BigDecimal nav,
-    @JsonInclude(NON_NULL) @Nullable BigDecimal acquisitionCost)
+    @JsonInclude(NON_NULL) @Nullable BigDecimal acquisitionCost,
+    @JsonInclude(NON_NULL) @Nullable String remitterName,
+    @JsonInclude(NON_NULL) @Nullable Boolean paidFromOwnAccount)
     implements Comparable<Transaction> {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");

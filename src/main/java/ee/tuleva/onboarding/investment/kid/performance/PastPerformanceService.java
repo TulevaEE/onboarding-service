@@ -31,7 +31,8 @@ class PastPerformanceService {
     var benchmarkKey = properties.benchmarkFor(fund);
     var today = LocalDate.now(clock);
     var asOf = asOf(fundKey, benchmarkKey, today);
-    var firstYearShown = asOf.getYear() - CALENDAR_YEARS_SHOWN;
+    var openYear = openYear(asOf);
+    var firstYearShown = openYear - CALENDAR_YEARS_SHOWN;
 
     var fundStart = seriesStart(fundKey);
     var fundReturns = CalendarYearReturns.of(values(fundKey, firstYearShown, asOf), fundStart);
@@ -56,7 +57,7 @@ class PastPerformanceService {
                                 benchmarkValues, fundStart, year.getKey())
                             : benchmarkReturn(benchmarkReturns.get(year.getKey())),
                         year.getValue().partialYear(),
-                        year.getKey() == asOf.getYear()))
+                        year.getKey() == openYear))
             .toList();
     return new PastPerformance(
         fund,
@@ -71,6 +72,10 @@ class PastPerformanceService {
     var fundLast = lastDate(fundKey);
     var benchmarkLast = benchmarkKey == null ? fundLast : lastDate(benchmarkKey);
     return Stream.of(fundLast, benchmarkLast, today).min(LocalDate::compareTo).orElseThrow();
+  }
+
+  private static int openYear(LocalDate asOf) {
+    return asOf.plusDays(1).getYear();
   }
 
   private LocalDate lastDate(String key) {

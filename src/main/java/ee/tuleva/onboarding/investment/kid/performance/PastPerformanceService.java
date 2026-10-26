@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.kid.performance;
 
 import static java.math.RoundingMode.HALF_UP;
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
@@ -76,7 +78,14 @@ class PastPerformanceService {
   }
 
   private static int openYear(LocalDate asOf) {
-    return asOf.plusDays(1).getYear();
+    return asOf.isBefore(lastWeekdayOf(asOf.getYear())) ? asOf.getYear() : asOf.getYear() + 1;
+  }
+
+  private static LocalDate lastWeekdayOf(int year) {
+    return Stream.iterate(LocalDate.of(year, 12, 31), day -> day.minusDays(1))
+        .filter(day -> day.getDayOfWeek() != SATURDAY && day.getDayOfWeek() != SUNDAY)
+        .findFirst()
+        .orElseThrow();
   }
 
   private LocalDate lastDate(String key) {

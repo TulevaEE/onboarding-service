@@ -101,7 +101,7 @@ class PastPerformanceServiceTest {
             .toList();
     givenTheSeries(fund, LocalDate.of(2016, 3, 28), benchmark, LocalDate.of(2015, 12, 31));
 
-    assertThat(januaryService().pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2028, 1, 4)).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -151,7 +151,7 @@ class PastPerformanceServiceTest {
             .toList();
     givenTheSeries(fund, LocalDate.of(2016, 3, 28), benchmark, LocalDate.of(2015, 12, 31));
 
-    assertThat(januaryService().pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2028, 1, 4)).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -186,7 +186,7 @@ class PastPerformanceServiceTest {
             aFundValue("MSCI_ACWI", LocalDate.of(2027, 12, 31), 110.25));
     givenTheSeries(fund, LocalDate.of(2026, 3, 2), benchmark, LocalDate.of(2025, 12, 31));
 
-    assertThat(januaryService().pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2028, 1, 4)).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -210,6 +210,44 @@ class PastPerformanceServiceTest {
   }
 
   @Test
+  void aYearEndingOnASundayIsCompleteInJanuaryOnceBothSeriesReachItsLastFriday() {
+    var fund =
+        List.of(
+            aFundValue("EE3600109435", LocalDate.of(2027, 3, 1), 1.0),
+            aFundValue("EE3600109435", LocalDate.of(2027, 12, 31), 1.05),
+            aFundValue("EE3600109435", LocalDate.of(2028, 12, 29), 1.155));
+    var benchmark =
+        List.of(
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 12, 31), 100.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2027, 3, 1), 102.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2027, 12, 31), 105.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2028, 12, 29), 110.25));
+    givenTheSeries(fund, LocalDate.of(2027, 3, 1), benchmark, LocalDate.of(2026, 12, 31));
+
+    assertThat(serviceOn(LocalDate.of(2029, 1, 2)).pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                LocalDate.of(2028, 12, 29),
+                true,
+                List.of(
+                    new YearReturn(
+                        2027,
+                        new BigDecimal("0.05000000"),
+                        new BigDecimal("0.02941176"),
+                        true,
+                        false),
+                    new YearReturn(
+                        2028,
+                        new BigDecimal("0.10000000"),
+                        new BigDecimal("0.05000000"),
+                        false,
+                        false))));
+  }
+
+  @Test
   void
       leavesOutABenchmarkYearWhoseClosesStopInMidDecemberEvenWhenTheyAreItsLastBeforeTheAsOfDate() {
     var fund =
@@ -224,7 +262,7 @@ class PastPerformanceServiceTest {
             aFundValue("MSCI_ACWI", LocalDate.of(2028, 1, 4), 106.0));
     givenTheSeries(fund, LocalDate.of(2020, 1, 2), benchmark, LocalDate.of(2015, 12, 31));
 
-    assertThat(januaryService().pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2028, 1, 4)).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -253,11 +291,12 @@ class PastPerformanceServiceTest {
         .isInstanceOf(PastPerformanceRefusedException.class);
   }
 
-  private PastPerformanceService januaryService() {
+  private PastPerformanceService serviceOn(LocalDate today) {
+    var tallinn = ZoneId.of("Europe/Tallinn");
     return new PastPerformanceService(
         new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),
         fundValueQueries,
-        Clock.fixed(Instant.parse("2028-01-04T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
+        Clock.fixed(today.atTime(11, 0).atZone(tallinn).toInstant(), tallinn));
   }
 
   private void givenTheSeries(

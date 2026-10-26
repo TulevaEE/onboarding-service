@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Stream;
@@ -17,6 +18,7 @@ class StressScenarioCalculatorTest {
   private static final ScenarioPeriod PERIOD =
       new ScenarioPeriod(LocalDate.of(2016, 9, 30), LocalDate.of(2026, 9, 30));
   private static final double Z_AT_FIVE_PERCENT = -1.6448536269514729;
+  private static final LocalDate FIVE_YEARS_BEFORE_THE_PERIOD_END = LocalDate.of(2021, 9, 30);
 
   private final StressScenarioCalculator calculator = new StressScenarioCalculator();
 
@@ -44,6 +46,24 @@ class StressScenarioCalculatorTest {
     var stress = calculator.stress(closes, PERIOD.end(), 5);
 
     assertThat(returnsBetween(closes, stress)).isEqualTo(63);
+  }
+
+  @Test
+  void pricesBeforeTheLastFiveYearsChangeNeitherStressHorizon() {
+    var closes = PERIOD.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
+    var turbulentBeforeTheLastFiveYears =
+        closes.stream()
+            .map(
+                close ->
+                    close.date().isBefore(FIVE_YEARS_BEFORE_THE_PERIOD_END)
+                        ? aFundValue(KEY, close.date(), swing(close))
+                        : close)
+            .toList();
+
+    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 1))
+        .isEqualTo(calculator.stress(closes, PERIOD.end(), 1));
+    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 5))
+        .isEqualTo(calculator.stress(closes, PERIOD.end(), 5));
   }
 
   @Test
@@ -80,6 +100,12 @@ class StressScenarioCalculatorTest {
         .filter(close -> !close.date().isBefore(stress.start()))
         .filter(close -> !close.date().isAfter(stress.end()))
         .count();
+  }
+
+  private static BigDecimal swing(FundValue close) {
+    return close
+        .value()
+        .multiply(new BigDecimal(close.date().getDayOfMonth() % 2 == 0 ? "1.05" : "0.95"));
   }
 
   private static FundValue close(String date, double value) {

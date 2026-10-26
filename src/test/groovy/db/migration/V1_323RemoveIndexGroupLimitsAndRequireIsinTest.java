@@ -19,7 +19,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 
-class V1_321RemoveIndexGroupLimitsAndRequireIsinTest {
+class V1_323RemoveIndexGroupLimitsAndRequireIsinTest {
 
   private static final String URL =
       "jdbc:h2:mem:indexgrouplimitremoval;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
@@ -27,8 +27,8 @@ class V1_321RemoveIndexGroupLimitsAndRequireIsinTest {
   private static final String[] FLYWAY_LOCATIONS = {
     "classpath:/db/migration", "classpath:/db/dev", "classpath:/db/h2"
   };
-  private static final String JUST_BEFORE_THE_REMOVAL_EVEN_IF_NO_MIGRATION_HOLDS_IT = "1.320?";
-  private static final String THE_REMOVAL = "1.321";
+  private static final String JUST_BEFORE_THE_REMOVAL_EVEN_IF_NO_MIGRATION_HOLDS_IT = "1.322?";
+  private static final String THE_REMOVAL = "1.323";
 
   private static final String FUND_WITH_GROUPS = "TUK00";
   private static final String OTHER_FUND = "TUK75";

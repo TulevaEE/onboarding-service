@@ -51,7 +51,7 @@ class PastPerformanceServiceIT {
   }
 
   @Test
-  void givesAPensionFundsCalendarYearsBesideItsBenchmarkAsTheMetabaseQueryDoes() {
+  void givesAPensionFundsCalendarYearsBesideItsBenchmarkOverTheSameDaysInItsFirstYear() {
     assertThat(service.pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
@@ -61,7 +61,7 @@ class PastPerformanceServiceIT {
                 AS_OF,
                 true,
                 List.of(
-                    year(2017, "0.07788623", "0.33041028", true, false),
+                    year(2017, "0.07788623", "0.27317708", true, false),
                     year(2018, "0.13557655", "0.23646244", false, false),
                     year(2019, "0.10857463", "0.26440311", false, false),
                     year(2020, "0.05761761", "-0.18833953", false, false),
@@ -95,7 +95,7 @@ class PastPerformanceServiceIT {
   }
 
   @Test
-  void measuresTheSavingsFundsFirstYearFromItsIssuePriceAndSaysItHasNoFullYearYet() {
+  void measuresTheSavingsFundsFirstYearAndItsBenchmarkFromTheIssueDayAndSaysItHasNoFullYearYet() {
     assertThat(service.pastPerformance(TKF100))
         .isEqualTo(
             new PastPerformance(
@@ -104,7 +104,7 @@ class PastPerformanceServiceIT {
                 "MSCI_ACWI",
                 AS_OF,
                 false,
-                List.of(year(2026, "0.01731000", "0.01282657", true, true))));
+                List.of(year(2026, "0.01731000", "0.02964196", true, true))));
   }
 
   @Test

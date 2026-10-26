@@ -68,6 +68,55 @@ class FirstPaymentReminderJobTest {
   }
 
   @Test
+  void remindsCompanyApplicantsInTheSameRun() {
+    var afterTheCompanyCutoff = Clock.fixed(Instant.parse("2026-12-15T12:00:00Z"), ZoneOffset.UTC);
+    var openedFrom = Instant.parse("2026-11-15T12:00:00Z");
+    var openedUntil = Instant.parse("2026-12-08T12:00:00Z");
+    var adult = reminder("38812121215");
+    var companyApplicant = reminder("38001085718");
+    given(repository.fetchForAdults(openedFrom, openedUntil)).willReturn(List.of(adult));
+    given(repository.fetchForCompanies(openedFrom, openedUntil))
+        .willReturn(List.of(companyApplicant));
+
+    new FirstPaymentReminderJob(afterTheCompanyCutoff, repository, sender, notificationService)
+        .sendReminders();
+
+    verify(sender).send(adult);
+    verify(sender).send(companyApplicant);
+  }
+
+  @Test
+  void doesNotReachBackToCompaniesAlreadyFollowedUpByHand() {
+    var justAfterTheCompanyCutoff =
+        Clock.fixed(Instant.parse("2026-11-10T12:00:00Z"), ZoneOffset.UTC);
+    var companyCutoff = Instant.parse("2026-10-26T22:00:00Z");
+    var openedUntil = Instant.parse("2026-11-03T12:00:00Z");
+    var companyApplicant = reminder("38001085718");
+    given(repository.fetchForCompanies(companyCutoff, openedUntil))
+        .willReturn(List.of(companyApplicant));
+
+    new FirstPaymentReminderJob(justAfterTheCompanyCutoff, repository, sender, notificationService)
+        .sendReminders();
+
+    verify(sender).send(companyApplicant);
+  }
+
+  @Test
+  void tellsOperationsWhenTheCompanySegmentTripsTheCap() {
+    var afterTheCompanyCutoff = Clock.fixed(Instant.parse("2026-12-15T12:00:00Z"), ZoneOffset.UTC);
+    given(
+            repository.fetchForCompanies(
+                Instant.parse("2026-11-15T12:00:00Z"), Instant.parse("2026-12-08T12:00:00Z")))
+        .willReturn(reminders(51));
+
+    new FirstPaymentReminderJob(afterTheCompanyCutoff, repository, sender, notificationService)
+        .sendReminders();
+
+    verify(notificationService).sendMessage(contains("companies"), eq(SAVINGS), eq(ERROR));
+    verifyNoInteractions(sender);
+  }
+
+  @Test
   void sendsNothingWhenThereAreSuspiciouslyManyRecipients() {
     given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(51));
 

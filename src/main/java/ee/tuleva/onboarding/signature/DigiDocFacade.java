@@ -70,9 +70,19 @@ public class DigiDocFacade {
   @SneakyThrows
   public byte[] addSignatureToContainer(
       byte[] signatureValue, DataToSign dataToSign, Container container) {
-    Signature signature = dataToSign.finalize(signatureValue);
+    Signature signature = finalizeSignature(signatureValue, dataToSign);
     container.addSignature(signature);
     InputStream containerStream = container.saveAsStream();
     return IOUtils.toByteArray(containerStream);
+  }
+
+  private static Signature finalizeSignature(byte[] signatureValue, DataToSign dataToSign) {
+    try {
+      return dataToSign.finalize(signatureValue);
+    } catch (RuntimeException failure) {
+      throw SigningServiceOutage.in(failure)
+          .<RuntimeException>map(outage -> new SigningServiceUnavailableException(failure, outage))
+          .orElse(failure);
+    }
   }
 }

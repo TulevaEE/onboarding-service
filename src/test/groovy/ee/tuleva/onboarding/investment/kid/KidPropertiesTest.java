@@ -29,7 +29,7 @@ class KidPropertiesTest {
   }
 
   @Test
-  void refusesAHoldingPeriodLongerThanFiveYearsWhoseLongerPeriodAndHalfwayRowsAreNotBuilt() {
+  void refusesAHoldingPeriodLongerThanFiveYearsWhoseLongerScenarioPeriodIsNotBuilt() {
     assertThatThrownBy(() -> new FundSettings("MSCI_ACWI", 6))
         .isInstanceOf(IllegalArgumentException.class);
   }

@@ -76,7 +76,13 @@ class StressScenarioCalculatorTest {
 
   @Test
   void refusesASeriesTooShortForOneFullVolatilityWindow() {
-    var closes = SyntheticIndexSeries.weekdayCloses(KEY).subList(0, 60);
+    var closesUpToThePeriodEnd =
+        SyntheticIndexSeries.weekdayCloses(KEY).stream()
+            .filter(close -> !close.date().isAfter(PERIOD.end()))
+            .toList();
+    var closes =
+        closesUpToThePeriodEnd.subList(
+            closesUpToThePeriodEnd.size() - 60, closesUpToThePeriodEnd.size());
 
     assertThatThrownBy(() -> calculator.stress(closes, PERIOD.end(), 5))
         .isInstanceOf(KidCalculationRefusedException.class);

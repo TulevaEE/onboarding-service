@@ -34,8 +34,8 @@ record KidProperties(Map<TulevaFund, FundSettings> funds) {
       if (recommendedHoldingPeriodYears
           > ANNEX_IV_P6_TEN_YEAR_PERIOD_HOLDS_HOLDING_PERIODS_UP_TO_YEARS) {
         throw new IllegalArgumentException(
-            "Recommended holding period longer than five years needs its own period and halfway"
-                + " rows, which are not built: recommendedHoldingPeriodYears="
+            "Recommended holding period longer than five years needs a period of the holding"
+                + " period plus five years, which is not built: recommendedHoldingPeriodYears="
                 + recommendedHoldingPeriodYears);
       }
     }

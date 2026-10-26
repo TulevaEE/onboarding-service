@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.kid.performance;
 
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -61,6 +62,28 @@ class PastPerformanceAdminControllerTest {
         .andExpect(jsonPath("$.years[0].fundReturn").value(0.01731))
         .andExpect(jsonPath("$.years[0].partialYear").value(true))
         .andExpect(jsonPath("$.years[0].yearToDate").value(true));
+  }
+
+  @Test
+  void servesTheEquityCapTheBenchmarkWasHeldAt() throws Exception {
+    given(pastPerformanceService.pastPerformance(TUK75))
+        .willReturn(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                new EquityCap(
+                    "EURO_AGGREGATE_BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2)),
+                LocalDate.of(2026, 10, 21),
+                true,
+                List.of()));
+
+    mockMvc
+        .perform(get("/admin/kid/TUK75/past-performance").header("X-Admin-Token", "ops-token"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.benchmarkEquityCap.bondKey").value("EURO_AGGREGATE_BOND"))
+        .andExpect(jsonPath("$.benchmarkEquityCap.equityWeight").value(0.75))
+        .andExpect(jsonPath("$.benchmarkEquityCap.liftedOn").value("2019-09-02"));
   }
 
   @Test

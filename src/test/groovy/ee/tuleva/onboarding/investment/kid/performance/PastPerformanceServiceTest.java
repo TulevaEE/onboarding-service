@@ -296,10 +296,57 @@ class PastPerformanceServiceTest {
         .isInstanceOf(PastPerformanceRefusedException.class);
   }
 
+  @Test
+  void leavesTheEquityCapOutOnceNoYearShownWasHeldAtIt() {
+    var fund =
+        IntStream.rangeClosed(2019, 2030)
+            .mapToObj(
+                year ->
+                    aFundValue(
+                        "EE3600109435", LocalDate.of(year, 12, 31), Math.pow(1.1, year - 2019)))
+            .toList();
+    var benchmark =
+        IntStream.rangeClosed(2019, 2030)
+            .mapToObj(
+                year ->
+                    aFundValue(
+                        "MSCI_ACWI", LocalDate.of(year, 12, 31), 100 * Math.pow(1.05, year - 2019)))
+            .toList();
+    givenTheSeries(fund, LocalDate.of(2017, 3, 28), benchmark, LocalDate.of(2015, 1, 2));
+    var properties =
+        new PastPerformanceProperties(
+            Map.of(TUK75, "MSCI_ACWI"),
+            Map.of(TUK75, new EquityCap("BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2))));
+
+    assertThat(serviceOn(LocalDate.of(2031, 1, 6), properties).pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                null,
+                LocalDate.of(2030, 12, 31),
+                true,
+                IntStream.rangeClosed(2021, 2030)
+                    .mapToObj(
+                        year ->
+                            new YearReturn(
+                                year,
+                                new BigDecimal("0.10000000"),
+                                new BigDecimal("0.05000000"),
+                                false,
+                                false))
+                    .toList()));
+  }
+
   private PastPerformanceService serviceOn(LocalDate today) {
+    return serviceOn(today, new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()));
+  }
+
+  private PastPerformanceService serviceOn(LocalDate today, PastPerformanceProperties properties) {
     var tallinn = ZoneId.of("Europe/Tallinn");
     return new PastPerformanceService(
-        new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()),
+        properties,
         fundValueQueries,
         Clock.fixed(today.atTime(11, 0).atZone(tallinn).toInstant(), tallinn));
   }
@@ -320,7 +367,9 @@ class PastPerformanceServiceTest {
     given(fundValueQueries.findValuesBetweenDates(any(), any(), any()))
         .willAnswer(
             invocation -> {
-              var series = "MSCI_ACWI".equals(invocation.getArgument(0)) ? benchmark : fund;
+              var series =
+                  Map.of("EE3600109435", fund, "MSCI_ACWI", benchmark)
+                      .getOrDefault(invocation.<String>getArgument(0), List.of());
               LocalDate from = invocation.getArgument(1);
               LocalDate to = invocation.getArgument(2);
               return series.stream()

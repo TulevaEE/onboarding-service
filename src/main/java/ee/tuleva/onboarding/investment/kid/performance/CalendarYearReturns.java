@@ -18,15 +18,8 @@ final class CalendarYearReturns {
 
   static Map<Integer, CalendarYearReturn> of(
       List<FundValue> values, LocalDate seriesStart, int openYear) {
+    refuseANonPositiveValue(values);
     var sorted = values.stream().sorted(comparing(FundValue::date)).toList();
-    sorted.stream()
-        .filter(value -> value.value().signum() <= 0)
-        .findFirst()
-        .ifPresent(
-            value -> {
-              throw new PastPerformanceRefusedException(
-                  "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
-            });
     var yearEnds = new HashMap<Integer, FundValue>();
     sorted.forEach(value -> yearEnds.put(value.date().getYear(), value));
 
@@ -44,6 +37,17 @@ final class CalendarYearReturns {
           }
         });
     return Map.copyOf(returns);
+  }
+
+  static void refuseANonPositiveValue(List<FundValue> values) {
+    values.stream()
+        .filter(value -> value.value().signum() <= 0)
+        .min(comparing(FundValue::date))
+        .ifPresent(
+            value -> {
+              throw new PastPerformanceRefusedException(
+                  "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
+            });
   }
 
   static OptionalDouble growthSince(

@@ -9,6 +9,7 @@ record PastPerformance(
     TulevaFund fund,
     String fundKey,
     @Nullable String benchmarkKey,
+    @Nullable EquityCap benchmarkEquityCap,
     LocalDate asOf,
     boolean enoughHistory,
     List<YearReturn> years) {}

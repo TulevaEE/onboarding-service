@@ -41,6 +41,7 @@ class PastPerformanceAdminControllerTest {
                 TKF100,
                 "EE0000003283",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2026, 10, 21),
                 false,
                 List.of(

@@ -30,6 +30,27 @@ class SyntheticNavSeries {
     return values;
   }
 
+  static List<FundValue> bond(String key) {
+    var values = new ArrayList<FundValue>();
+    long seed = 7;
+    var price = new BigDecimal("50.00000");
+    for (var day = LocalDate.of(2016, 6, 1);
+        !day.isAfter(LocalDate.of(2019, 9, 9));
+        day = day.plusDays(1)) {
+      if (isWeekend(day)) {
+        continue;
+      }
+      seed = next(seed);
+      var dailyReturn =
+          BigDecimal.valueOf(seed % 601 - 300)
+              .divide(BigDecimal.valueOf(100000))
+              .add(new BigDecimal("0.0001"));
+      price = price.multiply(BigDecimal.ONE.add(dailyReturn)).setScale(5, HALF_UP);
+      values.add(aFundValue(key, day, price));
+    }
+    return values;
+  }
+
   static List<FundValue> nav(String key, LocalDate first, String startPrice, long seed) {
     return nav(key, first, startPrice, seed, 0);
   }

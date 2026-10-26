@@ -169,7 +169,8 @@ class MandateContentService {
     return templateEngine.process("payment_rate_change", ctx);
   }
 
-  String getRejoinHtml(User user, Mandate mandate, MandateContactDetails contactDetails) {
+  String getApplicantOnlyHtml(
+      String template, User user, Mandate mandate, MandateContactDetails contactDetails) {
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
@@ -180,7 +181,7 @@ class MandateContentService {
             .documentNumber(mandate.getIdOrThrow().toString())
             .build();
 
-    return templateEngine.process("second_pillar_rejoin", ctx);
+    return templateEngine.process(template, ctx);
   }
 
   private static Country requireAddress(Mandate mandate) {

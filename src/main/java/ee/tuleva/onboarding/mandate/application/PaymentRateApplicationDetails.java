@@ -11,7 +11,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class PaymentRateApplicationDetails implements ApplicationDetails {
+public class PaymentRateApplicationDetails implements SecondPillarApplicationDetails {
 
   private BigDecimal paymentRate;
   private final Instant cancellationDeadline;
@@ -34,10 +34,5 @@ public class PaymentRateApplicationDetails implements ApplicationDetails {
     if (type != PAYMENT_RATE) {
       throw new IllegalArgumentException("Invalid ApplicationType: type=" + type);
     }
-  }
-
-  @Override
-  public Integer getPillar() {
-    return 2;
   }
 }

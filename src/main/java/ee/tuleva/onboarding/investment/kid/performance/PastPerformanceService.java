@@ -69,7 +69,7 @@ class PastPerformanceService {
         fund,
         fundKey,
         benchmarkKey,
-        benchmarkKey == null ? null : properties.equityCapFor(fund),
+        equityCapHeldInAYearShown(fund, firstYearShown, fundStart),
         asOf,
         years.stream().anyMatch(year -> !year.partialYear() && !year.yearToDate()),
         years);
@@ -109,6 +109,14 @@ class PastPerformanceService {
               .formatted(fundKey, benchmarkKey, asOf));
     }
     return values;
+  }
+
+  private @Nullable EquityCap equityCapHeldInAYearShown(
+      TulevaFund fund, int firstYearShown, LocalDate fundStart) {
+    var equityCap = properties.equityCapFor(fund);
+    return equityCap != null && equityCap.heldInAYearFrom(firstYearShown, fundStart)
+        ? equityCap
+        : null;
   }
 
   private List<FundValue> benchmarkValues(

@@ -16,6 +16,11 @@ record PastPerformanceProperties(
     }
     benchmarks = Map.copyOf(benchmarks);
     equityCaps = equityCaps == null ? Map.of() : Map.copyOf(equityCaps);
+    if (!benchmarks.keySet().containsAll(equityCaps.keySet())) {
+      throw new IllegalStateException(
+          "Equity cap for a fund without a benchmark: cappedFunds=%s, benchmarkedFunds=%s"
+              .formatted(equityCaps.keySet(), benchmarks.keySet()));
+    }
   }
 
   @Nullable String benchmarkFor(TulevaFund fund) {

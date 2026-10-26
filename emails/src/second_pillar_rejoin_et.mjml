@@ -20,6 +20,10 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>Sissemaksed algavad *|contributionStartDate|*.</mj-text>
         <mj-text>
+          Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on
+          *|cancellationDeadline|*.
+        </mj-text>
+        <mj-text>
           Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid
           uuesti lõpetada ega raha teist korda välja võtta.
         </mj-text>

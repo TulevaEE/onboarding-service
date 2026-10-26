@@ -53,6 +53,15 @@ class ApplicationSnapshotFixture {
         .build()
   }
 
+  static ApplicationSnapshot samplePendingRejoinApplicationDto() {
+    return ApplicationSnapshot.builder()
+        .date(now)
+        .type(REJOIN)
+        .status(PENDING)
+        .id(123L)
+        .build()
+  }
+
   static ApplicationSnapshot sampleFundPensionOpeningApplicationDto() {
     return ApplicationSnapshot.builder()
         .date(now)

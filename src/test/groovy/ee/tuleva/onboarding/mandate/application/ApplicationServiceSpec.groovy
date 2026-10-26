@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.auth.role.Role
+import ee.tuleva.onboarding.deadline.MandateDeadlines
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.error.NotFoundException
 import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.fund.FundRepository
@@ -11,10 +13,13 @@ import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
+import spock.lang.Unroll
 
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
@@ -27,6 +32,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
@@ -40,9 +46,10 @@ class ApplicationServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   PaymentApplications paymentApplicationService = Mock()
   SavingsApplications savingsApplications = Mock()
+  RejoinCancellations rejoinCancellations = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(mandateGateway, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingsApplications)
+      new ApplicationService(mandateGateway, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingsApplications, rejoinCancellations)
 
   def "gets applications"() {
     given:
@@ -233,6 +240,81 @@ class ApplicationServiceSpec extends Specification {
         applications.size() == 1
   }
 
+
+  def "lists a pending rejoin the person has not canceled through us, with the deadline to cancel it and the date contributions start, both from the day it was filed"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def rejoinApplication = samplePendingRejoinApplicationDto()
+    def estonianClock = Clock.fixed(Instant.parse("2020-06-01T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+    mandateGateway.getApplications(person) >> [rejoinApplication]
+    mandateDeadlinesService.getDeadlines(rejoinApplication.date) >>
+        new MandateDeadlines(estonianClock, new PublicHolidays(), rejoinApplication.date)
+    rejoinCancellations.isCanceled(person, rejoinApplication) >> false
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    def applications = applicationService.getAllApplications(person)
+
+    then:
+    applications == [
+        Application.<RejoinApplicationDetails> builder()
+            .id(123L)
+            .creationTime(TestClockHolder.now)
+            .status(PENDING)
+            .details(new RejoinApplicationDetails(
+                Instant.parse("2020-03-31T20:59:59.999999999Z"), LocalDate.parse("2020-09-01")))
+            .build()
+    ]
+  }
+
+  def "hides a rejoin the person has canceled through us, which Pensionikeskus may still list as pending"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def rejoinApplication = samplePendingRejoinApplicationDto()
+    mandateGateway.getApplications(person) >> [rejoinApplication]
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    rejoinCancellations.isCanceled(person, rejoinApplication) >> true
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    def applications = applicationService.getAllApplications(person)
+
+    then:
+    applications == []
+  }
+
+  @Unroll
+  def "lists a #status rejoin even when the person canceled it through us, since only a pending one can be withdrawn"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def rejoinApplication = samplePendingRejoinApplicationDto()
+    rejoinApplication.status = status
+    def deadlines = sampleDeadlines()
+    mandateGateway.getApplications(person) >> [rejoinApplication]
+    mandateDeadlinesService.getDeadlines(rejoinApplication.date) >> deadlines
+    rejoinCancellations.isCanceled(person, rejoinApplication) >> true
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    def applications = applicationService.getAllApplications(person)
+
+    then:
+    applications == [
+        Application.<RejoinApplicationDetails> builder()
+            .id(123L)
+            .creationTime(TestClockHolder.now)
+            .status(status)
+            .details(new RejoinApplicationDetails(
+                deadlines.getCancellationDeadline(REJOIN), deadlines.getFulfillmentDate(REJOIN)))
+            .build()
+    ]
+
+    where:
+    status << [COMPLETE, FAILED]
+  }
 
   def "gets withdrawals applications"() {
     given:

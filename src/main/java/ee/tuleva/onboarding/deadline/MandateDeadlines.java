@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.deadline;
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 import static java.util.Objects.requireNonNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.time.Clock;
 import java.time.Instant;
@@ -91,6 +92,11 @@ public class MandateDeadlines {
 
   public Instant getSecondPillarRejoinDeadline() {
     return getPeriodEnding();
+  }
+
+  @JsonIgnore
+  public LocalDate getSecondPillarRejoinDeadlineDate() {
+    return periodEnding().toLocalDate();
   }
 
   public LocalDate getSecondPillarRejoinContributionStartDate() {
@@ -185,6 +191,7 @@ public class MandateDeadlines {
       case WITHDRAWAL_THIRD_PILLAR -> getThirdPillarWithdrawalFulfillmentDate();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalFulfillmentDate();
       case PAYMENT_RATE -> getPaymentRateFulfillmentDate();
+      case REJOIN -> getSecondPillarRejoinContributionStartDate();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
   }
@@ -203,6 +210,7 @@ public class MandateDeadlines {
       case WITHDRAWAL_THIRD_PILLAR -> getNonCancellableApplicationDeadline();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
       case PAYMENT_RATE -> getPaymentRateDeadline();
+      case REJOIN -> getSecondPillarRejoinDeadline();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
   }

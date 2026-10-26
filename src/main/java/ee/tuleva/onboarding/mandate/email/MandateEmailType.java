@@ -19,6 +19,9 @@ public final class MandateEmailType {
     if (mandate.isTransferCancellation()) {
       return SECOND_PILLAR_TRANSFER_CANCELLATION;
     }
+    if (mandate.isRejoinCancellation()) {
+      return SECOND_PILLAR_REJOIN_CANCELLATION;
+    }
     if (mandate.isThirdPillar()) {
       return THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
     }

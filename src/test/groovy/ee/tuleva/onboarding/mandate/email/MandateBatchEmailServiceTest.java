@@ -59,7 +59,8 @@ class MandateBatchEmailServiceTest {
   }
 
   @Test
-  void rejoinDatedByTheEndOfThirtiethNovemberTellsInEstonianThatContributionsStartInMay() {
+  void
+      rejoinDatedByTheEndOfThirtiethNovemberTellsInEstonianItCanBeCancelledThatDayAndContributionsStartInMay() {
     var rejoin = sampleRejoinMandate();
     rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
     var mandateBatch = aSignedBatch(rejoin);
@@ -72,13 +73,14 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", false, false)),
+            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", false, false)),
             eq(List.of("mandate_batch")),
             any());
   }
 
   @Test
-  void rejoinDatedOnFirstDecemberTellsInEnglishThatContributionsStartInSeptember() {
+  void
+      rejoinDatedOnFirstDecemberTellsInEnglishItCanBeCancelledUntilMarchAndContributionsStartInSeptember() {
     var rejoin = sampleRejoinMandate();
     rejoin.setCreatedDate(Instant.parse("2026-11-30T22:00:30Z"));
     var mandateBatch = aSignedBatch(rejoin);
@@ -91,7 +93,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_en"),
-            eq(rejoinMergeVars(user, "September 1, 2027", false, false)),
+            eq(rejoinMergeVars(user, "September 1, 2027", "March 31, 2027", false, false)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -110,7 +112,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", false, true)),
+            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", false, true)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -129,7 +131,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", true, false)),
+            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", true, false)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -141,7 +143,11 @@ class MandateBatchEmailServiceTest {
   }
 
   private static Map<String, Object> rejoinMergeVars(
-      User user, String contributionStartDate, boolean paymentRateChange, boolean fundSelection) {
+      User user,
+      String contributionStartDate,
+      String cancellationDeadline,
+      boolean paymentRateChange,
+      boolean fundSelection) {
     return Map.ofEntries(
         Map.entry("fname", user.getFirstName()),
         Map.entry("lname", user.getLastName()),
@@ -150,6 +156,7 @@ class MandateBatchEmailServiceTest {
         Map.entry("partialWithdrawalSecondPillar", false),
         Map.entry("partialWithdrawalThirdPillar", false),
         Map.entry("contributionStartDate", contributionStartDate),
+        Map.entry("cancellationDeadline", cancellationDeadline),
         Map.entry("paymentRateChange", paymentRateChange),
         Map.entry("fundSelection", fundSelection));
   }

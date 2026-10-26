@@ -31,7 +31,8 @@ public abstract class MandateDetails implements Serializable {
           WITHDRAWAL_CANCELLATION,
           EARLY_WITHDRAWAL_CANCELLATION,
           PAYMENT_RATE_CHANGE,
-          REJOIN ->
+          REJOIN,
+          REJOIN_CANCELLATION ->
           Pillar.SECOND;
       default ->
           throw new IllegalStateException("Pillar undefined for mandate type: type=" + mandateType);

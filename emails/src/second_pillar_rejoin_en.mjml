@@ -20,6 +20,10 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>Contributions start on *|contributionStartDate|*.</mj-text>
         <mj-text>
+          If you change your mind, you can cancel the application in your Tuleva account until
+          *|cancellationDeadline|*.
+        </mj-text>
+        <mj-text>
           You can use the money from age 60. After rejoining, you can't stop contributions again
           or withdraw the money a second time.
         </mj-text>

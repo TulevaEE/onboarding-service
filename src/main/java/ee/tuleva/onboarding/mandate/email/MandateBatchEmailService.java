@@ -58,9 +58,7 @@ public class MandateBatchEmailService {
     String templateName = emailType.getTemplateName(locale);
     Map<String, Object> mergeVars = getMergeVars(user, mandateBatch);
     if (emailType == SECOND_PILLAR_REJOIN) {
-      mergeVars.put("contributionStartDate", contributionStartDate(mandateBatch, locale));
-      mergeVars.put("paymentRateChange", contains(mandateBatch, PAYMENT_RATE_CHANGE));
-      mergeVars.put("fundSelection", contains(mandateBatch, SELECTION));
+      mergeVars.putAll(getRejoinMergeVars(mandateBatch, locale));
     }
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -121,11 +119,20 @@ public class MandateBatchEmailService {
     return map;
   }
 
-  private String contributionStartDate(MandateBatch mandateBatch, Locale locale) {
-    return mandateDeadlinesService
-        .getDeadlines(dateSentToPensionikeskus(rejoinMandateOf(mandateBatch)))
-        .getSecondPillarRejoinContributionStartDate()
-        .format(dateFormatIn(locale));
+  private Map<String, Object> getRejoinMergeVars(MandateBatch mandateBatch, Locale locale) {
+    var deadlines =
+        mandateDeadlinesService.getDeadlines(
+            dateSentToPensionikeskus(rejoinMandateOf(mandateBatch)));
+    var dateFormat = dateFormatIn(locale);
+    return Map.of(
+        "contributionStartDate",
+        deadlines.getSecondPillarRejoinContributionStartDate().format(dateFormat),
+        "cancellationDeadline",
+        deadlines.getSecondPillarRejoinDeadlineDate().format(dateFormat),
+        "paymentRateChange",
+        contains(mandateBatch, PAYMENT_RATE_CHANGE),
+        "fundSelection",
+        contains(mandateBatch, SELECTION));
   }
 
   private static boolean contains(MandateBatch mandateBatch, MandateType mandateType) {

@@ -8,6 +8,7 @@ public enum EmailType {
   SECOND_PILLAR_TRANSFER_CANCELLATION("second_pillar_transfer_cancellation"),
   SECOND_PILLAR_PAYMENT_RATE("second_pillar_payment_rate"),
   SECOND_PILLAR_REJOIN("second_pillar_rejoin"),
+  SECOND_PILLAR_REJOIN_CANCELLATION("second_pillar_rejoin_cancellation"),
 
   SECOND_PILLAR_LEAVERS("second_pillar_leavers"),
   SECOND_PILLAR_EARLY_WITHDRAWAL("second_pillar_early_withdrawal"),

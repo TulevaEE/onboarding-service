@@ -301,30 +301,24 @@ public class MandateDeadlinesTest {
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
 
-    assertEquals(
-        deadlines.getTransferMandateFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.TRANSFER));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.PARTIAL_WITHDRAWAL));
-    assertEquals(
-        deadlines.getThirdPillarWithdrawalFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getEarlyWithdrawalFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.EARLY_WITHDRAWAL));
-    assertEquals(
-        deadlines.getPaymentRateFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.PAYMENT_RATE));
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.TRANSFER))
+        .isEqualTo(deadlines.getTransferMandateFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.PARTIAL_WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL_THIRD_PILLAR))
+        .isEqualTo(deadlines.getThirdPillarWithdrawalFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.EARLY_WITHDRAWAL))
+        .isEqualTo(deadlines.getEarlyWithdrawalFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.PAYMENT_RATE))
+        .isEqualTo(deadlines.getPaymentRateFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.REJOIN))
+        .isEqualTo(deadlines.getSecondPillarRejoinContributionStartDate());
   }
 
   @Test
@@ -333,30 +327,24 @@ public class MandateDeadlinesTest {
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
 
-    assertEquals(
-        deadlines.getTransferMandateCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.TRANSFER));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.PARTIAL_WITHDRAWAL));
-    assertEquals(
-        deadlines.getNonCancellableApplicationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getEarlyWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.EARLY_WITHDRAWAL));
-    assertEquals(
-        deadlines.getPaymentRateDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.PAYMENT_RATE));
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.TRANSFER))
+        .isEqualTo(deadlines.getTransferMandateCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.PARTIAL_WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL_THIRD_PILLAR))
+        .isEqualTo(deadlines.getNonCancellableApplicationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.EARLY_WITHDRAWAL))
+        .isEqualTo(deadlines.getEarlyWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.PAYMENT_RATE))
+        .isEqualTo(deadlines.getPaymentRateDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.REJOIN))
+        .isEqualTo(deadlines.getSecondPillarRejoinDeadline());
   }
 
   @Test
@@ -498,6 +486,8 @@ public class MandateDeadlinesTest {
             Clock.fixed(applicationDate, TALLINN), publicHolidays, applicationDate);
 
     assertThat(deadlines.getSecondPillarRejoinDeadline()).isEqualTo(inTallinn(deadlineInTallinn));
+    assertThat(deadlines.getSecondPillarRejoinDeadlineDate())
+        .isEqualTo(LocalDateTime.parse(deadlineInTallinn).toLocalDate());
     assertThat(deadlines.getSecondPillarRejoinContributionStartDate())
         .isEqualTo(LocalDate.parse(contributionStartDate));
   }

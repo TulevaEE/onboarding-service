@@ -10,6 +10,7 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleEarlyWithdrawalCancellationMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleRejoinCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
@@ -67,6 +68,7 @@ class MandateEmailSenderSpec extends Specification {
     "transfer cancellation"         | sampleTransferCancellationMandate()
     "withdrawal cancellation"       | sampleWithdrawalCancellationMandate()
     "early withdrawal cancellation" | sampleEarlyWithdrawalCancellationMandate()
+    "rejoin cancellation"           | sampleRejoinCancellationMandate()
   }
 
   def "does not send a separate email for a mandate that is part of a batch"() {

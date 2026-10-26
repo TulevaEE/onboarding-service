@@ -32,4 +32,17 @@ class MandateDtoDeserializerSpec extends Specification {
     then:
     dto.id == null
   }
+
+  def "deserialize refuses the leave application that cancels a rejoin, which only canceling a pending rejoin creates"() {
+    given:
+    def json = '''
+        {"details": {"mandateType": "REJOIN_CANCELLATION"}}
+        '''
+
+    when:
+    jsonMapper.readValue(json, MandateDto)
+
+    then:
+    thrown(IllegalArgumentException)
+  }
 }

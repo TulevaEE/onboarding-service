@@ -38,6 +38,7 @@ public class ApplicationService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentApplications paymentApplications;
   private final SavingsApplications savingsApplications;
+  private final RejoinCancellations rejoinCancellations;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -67,6 +68,7 @@ public class ApplicationService {
     applications.addAll(getWithdrawalApplications(person));
     applications.addAll(paymentApplications.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
+    applications.addAll(getRejoinApplications(person));
     applications.addAll(getFundPensionOpeningApplications(person));
     return applications;
   }
@@ -89,6 +91,20 @@ public class ApplicationService {
         person,
         entry -> entry.getKey().isPaymentRate(),
         entry -> entry.getValue().stream().map(this::convertPaymentRate));
+  }
+
+  private List<Application<RejoinApplicationDetails>> getRejoinApplications(
+      AuthenticatedPerson person) {
+    return getApplications(
+        person,
+        entry -> entry.getKey() == ApplicationType.REJOIN,
+        entry ->
+            entry.getValue().stream()
+                .filter(
+                    rejoin ->
+                        !(rejoin.getStatus().isPending()
+                            && rejoinCancellations.isCanceled(person, rejoin)))
+                .map(this::convertRejoin));
   }
 
   private List<Application<TransferApplicationDetails>> getTransferApplications(Person person) {
@@ -236,6 +252,20 @@ public class ApplicationService {
             .cancellationDeadline(deadlines.getCancellationDeadline(applicationSnapshot.getType()))
             .build());
     return applicationBuilder.build();
+  }
+
+  private Application<RejoinApplicationDetails> convertRejoin(
+      ApplicationSnapshot applicationSnapshot) {
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationSnapshot.getDate());
+    return Application.<RejoinApplicationDetails>builder()
+        .creationTime(applicationSnapshot.getDate())
+        .status(applicationSnapshot.getStatus())
+        .id(applicationSnapshot.getId())
+        .details(
+            new RejoinApplicationDetails(
+                deadlines.getCancellationDeadline(applicationSnapshot.getType()),
+                deadlines.getFulfillmentDate(applicationSnapshot.getType())))
+        .build();
   }
 
   private Application<FundPensionOpeningApplicationDetails> convertFundPensionOpening(

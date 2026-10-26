@@ -41,7 +41,8 @@ public class MandateEmailSender {
   private static boolean carriesNoNudge(Mandate mandate) {
     return mandate.isTransferCancellation()
         || mandate.isWithdrawalCancellation()
-        || mandate.isEarlyWithdrawalCancellation();
+        || mandate.isEarlyWithdrawalCancellation()
+        || mandate.isRejoinCancellation();
   }
 
   static NudgeContext contextFor(Mandate mandate) {

@@ -242,6 +242,11 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
+  public boolean isRejoinCancellation() {
+    return getMandateType() == REJOIN_CANCELLATION;
+  }
+
+  @JsonIgnore
   public String getEmail() {
     return requireNonNull(user.getEmail(), "User missing email: mandateId=" + id);
   }

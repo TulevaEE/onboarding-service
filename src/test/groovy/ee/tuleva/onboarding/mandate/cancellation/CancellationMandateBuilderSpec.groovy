@@ -15,6 +15,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleEarlyWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.samplePendingRejoinApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleWithdrawalApplicationDto
 
@@ -80,6 +81,38 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
     mandate.toSubmission().getMandateType() == MandateType.EARLY_WITHDRAWAL_CANCELLATION
+    mandate.metadata == [
+        isSecondPillarActive            : contactDetails.secondPillarActive,
+        isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+        isThirdPillarActive             : contactDetails.thirdPillarActive,
+        isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+        isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+        isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+        secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+        thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
+        authAttributes                  : [:]
+    ]
+  }
+
+  def "can build mandates that cancel a pending rejoin by filing the 2nd pillar leave application"() {
+    given:
+    def applicationToCancel = samplePendingRejoinApplicationDto()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    Mandate mandate = cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails)
+
+    then:
+    mandate.pillar == 2
+    mandate.user == user
+    mandate.address == contactDetails.address
+    mandate.futureContributionFundIsin == Optional.empty()
+    mandate.fundTransferExchanges == null
+    mandate.toSubmission().getMandateType() == MandateType.REJOIN_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,

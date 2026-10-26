@@ -12,7 +12,8 @@ import java.util.TreeMap;
 
 final class CalendarYearReturns {
 
-  private static final int CLOSE_STALE_AFTER_DAYS = 7;
+  private static final int YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST = 7;
+  private static final int FIRST_DAY_BASE_CLOSE_AT_MOST_DAYS_OLD = 7;
 
   private CalendarYearReturns() {}
 
@@ -55,7 +56,9 @@ final class CalendarYearReturns {
         sorted.stream()
             .filter(value -> !value.date().isAfter(from))
             .reduce((earlier, later) -> later)
-            .filter(value -> !value.date().isBefore(from.minusDays(CLOSE_STALE_AFTER_DAYS)));
+            .filter(
+                value ->
+                    !value.date().isBefore(from.minusDays(FIRST_DAY_BASE_CLOSE_AT_MOST_DAYS_OLD)));
     var yearEnd =
         sorted.stream()
             .filter(value -> value.date().getYear() == year)
@@ -68,7 +71,9 @@ final class CalendarYearReturns {
 
   private static boolean endsItsYear(FundValue close) {
     var thirtyFirst = LocalDate.of(close.date().getYear(), 12, 31);
-    return !close.date().isBefore(thirtyFirst.minusDays(CLOSE_STALE_AFTER_DAYS));
+    return !close
+        .date()
+        .isBefore(thirtyFirst.minusDays(YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST));
   }
 
   private static double growth(FundValue from, FundValue to) {

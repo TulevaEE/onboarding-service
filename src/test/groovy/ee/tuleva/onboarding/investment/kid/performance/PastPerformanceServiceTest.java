@@ -59,16 +59,11 @@ class PastPerformanceServiceTest {
         .containsExactly(
             new YearReturn(2024, new BigDecimal("0.10000000"), null, false, false),
             new YearReturn(
-                2025, new BigDecimal("0.10000000"), new BigDecimal("0.10000000"), false, true));
+                2025, new BigDecimal("0.10000000"), new BigDecimal("0.10000000"), false, false));
   }
 
   @Test
   void aYearTheBenchmarkHasNotClosedYetStaysTheYearToDateInJanuaryAfterTenFullYears() {
-    var januaryService =
-        new PastPerformanceService(
-            new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),
-            fundValueQueries,
-            Clock.fixed(Instant.parse("2028-01-04T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
     var fund =
         Stream.of(
                 Stream.of(aFundValue("EE3600109435", LocalDate.of(2016, 3, 28), 1.0)),
@@ -105,7 +100,7 @@ class PastPerformanceServiceTest {
             .toList();
     givenTheSeries(fund, LocalDate.of(2016, 3, 28), benchmark, LocalDate.of(2015, 12, 31));
 
-    assertThat(januaryService.pastPerformance(TUK75))
+    assertThat(januaryService().pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -131,6 +126,93 @@ class PastPerformanceServiceTest {
                                 false,
                                 true)))
                     .toList()));
+  }
+
+  @Test
+  void aYearBothSeriesCloseOnTheThirtyFirstIsCompleteInJanuaryAndEndsTheTenYearsShown() {
+    var fund =
+        Stream.concat(
+                Stream.of(aFundValue("EE3600109435", LocalDate.of(2016, 3, 28), 1.0)),
+                IntStream.rangeClosed(2016, 2027)
+                    .mapToObj(
+                        year ->
+                            aFundValue(
+                                "EE3600109435",
+                                LocalDate.of(year, 12, 31),
+                                1.05 * Math.pow(1.1, year - 2016))))
+            .toList();
+    var benchmark =
+        IntStream.rangeClosed(2015, 2027)
+            .mapToObj(
+                year ->
+                    aFundValue(
+                        "MSCI_ACWI", LocalDate.of(year, 12, 31), 100 * Math.pow(1.05, year - 2015)))
+            .toList();
+    givenTheSeries(fund, LocalDate.of(2016, 3, 28), benchmark, LocalDate.of(2015, 12, 31));
+
+    assertThat(januaryService().pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                LocalDate.of(2027, 12, 31),
+                true,
+                IntStream.rangeClosed(2018, 2027)
+                    .mapToObj(
+                        year ->
+                            new YearReturn(
+                                year,
+                                new BigDecimal("0.10000000"),
+                                new BigDecimal("0.05000000"),
+                                false,
+                                false))
+                    .toList()));
+  }
+
+  @Test
+  void aFundHasEnoughHistoryInJanuaryOnceItsFirstFullYearClosesOnTheThirtyFirst() {
+    var fund =
+        List.of(
+            aFundValue("EE3600109435", LocalDate.of(2026, 3, 2), 1.0),
+            aFundValue("EE3600109435", LocalDate.of(2026, 12, 31), 1.05),
+            aFundValue("EE3600109435", LocalDate.of(2027, 12, 31), 1.155));
+    var benchmark =
+        List.of(
+            aFundValue("MSCI_ACWI", LocalDate.of(2025, 12, 31), 100.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 3, 2), 102.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 12, 31), 105.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2027, 12, 31), 110.25));
+    givenTheSeries(fund, LocalDate.of(2026, 3, 2), benchmark, LocalDate.of(2025, 12, 31));
+
+    assertThat(januaryService().pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                LocalDate.of(2027, 12, 31),
+                true,
+                List.of(
+                    new YearReturn(
+                        2026,
+                        new BigDecimal("0.05000000"),
+                        new BigDecimal("0.02941176"),
+                        true,
+                        false),
+                    new YearReturn(
+                        2027,
+                        new BigDecimal("0.10000000"),
+                        new BigDecimal("0.05000000"),
+                        false,
+                        false))));
+  }
+
+  private PastPerformanceService januaryService() {
+    return new PastPerformanceService(
+        new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),
+        fundValueQueries,
+        Clock.fixed(Instant.parse("2028-01-04T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
   }
 
   private void givenTheSeries(

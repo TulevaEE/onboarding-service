@@ -40,10 +40,17 @@ class PastPerformanceService {
     var fundReturns =
         CalendarYearReturns.of(
             fundValues(fundKey, benchmarkKey, firstYearShown, asOf), fundStart, openYear);
+    var equityCap = equityCapHeldInAYearShown(fund, firstYearShown, fundStart);
+    var plainBenchmarkValues =
+        benchmarkKey == null ? List.<FundValue>of() : values(benchmarkKey, firstYearShown, asOf);
     var benchmarkValues =
-        benchmarkKey == null
-            ? List.<FundValue>of()
-            : benchmarkValues(fund, benchmarkKey, firstYearShown, asOf, fundStart);
+        equityCap == null
+            ? plainBenchmarkValues
+            : EquityCappedSeries.of(
+                plainBenchmarkValues,
+                values(equityCap.bondKey(), firstYearShown, asOf),
+                equityCap,
+                fundStart);
     var benchmarkReturns =
         benchmarkKey == null
             ? Map.<Integer, CalendarYearReturn>of()
@@ -69,7 +76,7 @@ class PastPerformanceService {
         fund,
         fundKey,
         benchmarkKey,
-        equityCapHeldInAYearShown(fund, firstYearShown, fundStart),
+        equityCap,
         asOf,
         years.stream().anyMatch(year -> !year.partialYear() && !year.yearToDate()),
         years);
@@ -117,20 +124,6 @@ class PastPerformanceService {
     return equityCap != null && equityCap.heldInAYearFrom(firstYearShown, fundStart)
         ? equityCap
         : null;
-  }
-
-  private List<FundValue> benchmarkValues(
-      TulevaFund fund,
-      String benchmarkKey,
-      int firstYearShown,
-      LocalDate asOf,
-      LocalDate fundStart) {
-    var values = values(benchmarkKey, firstYearShown, asOf);
-    var equityCap = properties.equityCapFor(fund);
-    return equityCap == null
-        ? values
-        : EquityCappedSeries.of(
-            values, values(equityCap.bondKey(), firstYearShown, asOf), equityCap, fundStart);
   }
 
   private List<FundValue> values(String key, int firstYearShown, LocalDate asOf) {

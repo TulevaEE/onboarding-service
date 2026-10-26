@@ -25,6 +25,6 @@ record EquityCap(String bondKey, BigDecimal equityWeight, LocalDate liftedOn) {
   }
 
   boolean heldInAYearFrom(int firstYear, LocalDate fundStart) {
-    return firstYear <= liftedOn.getYear() && holdsOn(fundStart);
+    return firstYear <= liftedOn.getYear() && fundStart.isBefore(liftedOn);
   }
 }

@@ -25,6 +25,18 @@ class CostsOverTimeCalculatorTest {
   }
 
   @Test
+  void theFirstYearChargesTheGrossValueNotTheAmountInvested() {
+    assertThat(calculator.firstYearAtZeroNetReturn(0.04))
+        .isEqualTo(
+            new KidCost(
+                1,
+                new BigDecimal("417"),
+                new BigDecimal("0.042"),
+                new BigDecimal("0.042"),
+                new BigDecimal("0.000")));
+  }
+
+  @Test
   void theHoldingPeriodFollowsTheModerateWindowsOwnGrowthBeforeCosts() {
     var moderate =
         new ScenarioWindow(

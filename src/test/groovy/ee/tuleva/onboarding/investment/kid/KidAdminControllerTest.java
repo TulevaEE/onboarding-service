@@ -56,7 +56,7 @@ class KidAdminControllerTest {
         .andExpect(jsonPath("$.scenarios[0].amountEur").value(8620))
         .andExpect(jsonPath("$.scenarios[0].periodStart").value("2025-09-30"))
         .andExpect(jsonPath("$.scenarios[0].window").value("SHORTER"))
-        .andExpect(jsonPath("$.costs[0].totalCostsEur").value(50.25));
+        .andExpect(jsonPath("$.costs[0].totalCostsEur").value(50));
   }
 
   @Test
@@ -145,9 +145,9 @@ class KidAdminControllerTest {
         List.of(
             new KidCost(
                 1,
-                new BigDecimal("50.25"),
-                new BigDecimal("0.00502513"),
-                new BigDecimal("0.00502513"),
-                new BigDecimal("0.00000000"))));
+                new BigDecimal("50"),
+                new BigDecimal("0.005"),
+                new BigDecimal("0.005"),
+                new BigDecimal("0.000"))));
   }
 }

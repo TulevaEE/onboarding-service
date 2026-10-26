@@ -206,6 +206,18 @@ class SecurityConfigurationSpec extends Specification {
         .andExpect(status().isBadRequest())
   }
 
+  def "the load balancer and container health checks reach the probes without a token, and only readiness waits for the trust list"() {
+    expect:
+    mvc.perform(get(url))
+        .andExpect(status)
+
+    where:
+    url                          | status
+    "/actuator/health"           | status().isOk()
+    "/actuator/health/liveness"  | status().isOk()
+    "/actuator/health/readiness" | status().isServiceUnavailable()
+  }
+
   def "logging out returns 200"() {
     expect:
     mvc.perform(get("/v1/logout")

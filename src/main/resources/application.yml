@@ -217,6 +217,11 @@ partner:
   clientId: "TULEVA"
 
 management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,trustList
   tracing:
     sampling:
       probability: 1.0

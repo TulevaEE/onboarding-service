@@ -7,15 +7,15 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You canceled your application to rejoin the II&nbsp;pillar. Contributions to your
-          II&nbsp;pillar will not start.
+          You canceled your II&nbsp;pillar application for making contributions. Contributions to
+          your II&nbsp;pillar will not start.
         </mj-text>
         <mj-text>
           If you want to start saving again later, you can file a new application through Tuleva.
         </mj-text>
         <mj-text>
-          A copy of the application you signed, which was sent to Pensionikeskus, is attached to
-          this email.
+          To cancel it, you filed a II&nbsp;pillar application for exemption from contributions. A copy
+          of it, as sent to Pensionikeskus, is attached to this email.
         </mj-text>
       </mj-column>
     </mj-section>

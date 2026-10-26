@@ -21,7 +21,7 @@ const languages = {
       'Vaata II&nbsp;samba mõju I&nbsp;sambale',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
-    alwaysFiled: 'Maksete tegemise avaldus',
+    alwaysFiled: 'Sissemaksete tasumise avaldus',
     filedWhenChanged: {
       paymentRateChange: 'Sissemakse määra muutmise avaldus',
       fundSelection: 'Valikuavaldus',
@@ -39,7 +39,7 @@ const languages = {
       'See how the II&nbsp;pillar affects your I&nbsp;pillar at',
     ],
     forbidden: ['30&nbsp;November', 'Past performance', 'tax return'],
-    alwaysFiled: 'Application to make contributions',
+    alwaysFiled: 'Application for making contributions',
     filedWhenChanged: {
       paymentRateChange: 'Contribution rate change application',
       fundSelection: 'Fund selection application',

@@ -11,7 +11,7 @@ class RejoinCancellationMandateFileCreator extends ApplicantOnlyMandateFileCreat
     super(
         mandateContentService,
         REJOIN_CANCELLATION,
-        "maksete_mittetegemise_avaldus",
+        "sissemaksete_tasumisest_vabastamise_avaldus",
         "second_pillar_rejoin_cancellation");
   }
 }

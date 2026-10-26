@@ -11,7 +11,7 @@
           Contributions to your II&nbsp;pillar will start again, and you get the tax win again.
         </mj-text>
         <mj-text><strong>Submitted applications:</strong></mj-text>
-        <mj-text>Application to make contributions</mj-text>
+        <mj-text>Application for making contributions</mj-text>
         <mj-raw>*|IF:paymentRateChange|*</mj-raw>
         <mj-text>Contribution rate change application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>

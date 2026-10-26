@@ -22,14 +22,14 @@ class RejoinCancellationMandateFileCreatorTest {
   @InjectMocks private RejoinCancellationMandateFileCreator rejoinCancellationMandateFileCreator;
 
   @Test
-  void namesTheSignedFileAfterTheLeaveApplicationItFiles() {
+  void namesTheSignedFileAfterTheApplicationForExemptionFromContributions() {
     var user = sampleUser().build();
     var contactDetails = contactDetailsFixture();
     var mandate = sampleRejoinCancellationMandate();
     given(
             mandateContentService.getApplicantOnlyHtml(
                 "second_pillar_rejoin_cancellation", user, mandate, contactDetails))
-        .willReturn("leaveApplicationContent");
+        .willReturn("applicationForExemptionFromContributionsContent");
 
     var files = rejoinCancellationMandateFileCreator.getContentFiles(user, mandate, contactDetails);
 
@@ -37,8 +37,8 @@ class RejoinCancellationMandateFileCreatorTest {
         .usingRecursiveFieldByFieldElementComparator()
         .containsExactly(
             MandateContentFile.builder()
-                .name("maksete_mittetegemise_avaldus_123.html")
-                .content("leaveApplicationContent".getBytes())
+                .name("sissemaksete_tasumisest_vabastamise_avaldus_123.html")
+                .content("applicationForExemptionFromContributionsContent".getBytes())
                 .build());
   }
 

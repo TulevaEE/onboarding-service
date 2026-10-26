@@ -7,14 +7,15 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Tühistasid oma II&nbsp;sambaga taasliitumise avalduse. Sinu eest ei hakata II&nbsp;samba
+          Tühistasid oma II&nbsp;samba sissemaksete tasumise avalduse. Sinu eest ei hakata II&nbsp;samba
           sissemakseid tegema.
         </mj-text>
         <mj-text>
           Kui soovid hiljem siiski uuesti koguma hakata, saad uue avalduse esitada Tuleva kaudu.
         </mj-text>
         <mj-text>
-          Kirjale on lisatud koopia sinu tehtud avaldusest, mis on saadetud Pensionikeskusesse.
+          Tühistamiseks esitasid II&nbsp;samba sissemaksete tasumisest vabastamise avalduse. Selle koopia,
+          mis on saadetud Pensionikeskusesse, on kirjale lisatud.
         </mj-text>
       </mj-column>
     </mj-section>

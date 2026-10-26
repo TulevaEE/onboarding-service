@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -32,11 +33,14 @@ class PastPerformanceService {
     var asOf = asOf(fundKey, benchmarkKey, today);
     var firstYearShown = asOf.getYear() - CALENDAR_YEARS_SHOWN;
 
-    var fundReturns = calendarYearReturns(fundKey, firstYearShown, asOf);
+    var fundStart = seriesStart(fundKey);
+    var fundReturns = CalendarYearReturns.of(values(fundKey, firstYearShown, asOf), fundStart);
+    var benchmarkValues =
+        benchmarkKey == null ? List.<FundValue>of() : values(benchmarkKey, firstYearShown, asOf);
     var benchmarkReturns =
         benchmarkKey == null
             ? Map.<Integer, CalendarYearReturn>of()
-            : calendarYearReturns(benchmarkKey, firstYearShown, asOf);
+            : CalendarYearReturns.of(benchmarkValues, seriesStart(benchmarkKey));
 
     var years =
         fundReturns.entrySet().stream()
@@ -46,8 +50,11 @@ class PastPerformanceService {
                 year ->
                     new YearReturn(
                         year.getKey(),
-                        rate(year.getValue()),
-                        benchmarkReturn(benchmarkReturns.get(year.getKey())),
+                        rate(year.getValue().value()),
+                        year.getValue().partialYear()
+                            ? benchmarkSinceTheFundStarted(
+                                benchmarkValues, fundStart, year.getKey())
+                            : benchmarkReturn(benchmarkReturns.get(year.getKey())),
                         year.getValue().partialYear(),
                         year.getKey() == asOf.getYear()))
             .toList();
@@ -74,19 +81,26 @@ class PastPerformanceService {
             () -> new PastPerformanceRefusedException("No values in the series: key=" + key));
   }
 
-  private Map<Integer, CalendarYearReturn> calendarYearReturns(
-      String key, int firstYearShown, LocalDate asOf) {
-    var seriesStart = fundValueQueries.findEarliestDateForKey(key).orElseThrow();
-    var values =
-        fundValueQueries.findValuesBetweenDates(key, LocalDate.of(firstYearShown - 1, 1, 1), asOf);
-    return CalendarYearReturns.of(values, seriesStart);
+  private List<FundValue> values(String key, int firstYearShown, LocalDate asOf) {
+    return fundValueQueries.findValuesBetweenDates(
+        key, LocalDate.of(firstYearShown - 1, 1, 1), asOf);
+  }
+
+  private LocalDate seriesStart(String key) {
+    return fundValueQueries.findEarliestDateForKey(key).orElseThrow();
+  }
+
+  private static @Nullable BigDecimal benchmarkSinceTheFundStarted(
+      List<FundValue> benchmark, LocalDate fundStart, int year) {
+    var growth = CalendarYearReturns.growthSince(benchmark, fundStart, year);
+    return growth.isPresent() ? rate(growth.getAsDouble()) : null;
   }
 
   private static @Nullable BigDecimal benchmarkReturn(@Nullable CalendarYearReturn benchmark) {
-    return benchmark == null || benchmark.partialYear() ? null : rate(benchmark);
+    return benchmark == null || benchmark.partialYear() ? null : rate(benchmark.value());
   }
 
-  private static BigDecimal rate(CalendarYearReturn calendarYearReturn) {
-    return BigDecimal.valueOf(calendarYearReturn.value()).setScale(RETURN_SCALE, HALF_UP);
+  private static BigDecimal rate(double value) {
+    return BigDecimal.valueOf(value).setScale(RETURN_SCALE, HALF_UP);
   }
 }

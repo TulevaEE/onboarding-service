@@ -7,11 +7,12 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.TreeMap;
 
 final class CalendarYearReturns {
 
-  private static final int YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST = 7;
+  private static final int CLOSE_STALE_AFTER_DAYS = 7;
 
   private CalendarYearReturns() {}
 
@@ -48,11 +49,26 @@ final class CalendarYearReturns {
     return Map.copyOf(returns);
   }
 
+  static OptionalDouble growthSince(List<FundValue> values, LocalDate from, int year) {
+    var sorted = values.stream().sorted(comparing(FundValue::date)).toList();
+    var base =
+        sorted.stream()
+            .filter(value -> !value.date().isAfter(from))
+            .reduce((earlier, later) -> later)
+            .filter(value -> !value.date().isBefore(from.minusDays(CLOSE_STALE_AFTER_DAYS)));
+    var yearEnd =
+        sorted.stream()
+            .filter(value -> value.date().getYear() == year)
+            .reduce((earlier, later) -> later)
+            .filter(value -> year == sorted.getLast().date().getYear() || endsItsYear(value));
+    return base.isPresent() && yearEnd.isPresent()
+        ? OptionalDouble.of(growth(base.get(), yearEnd.get()))
+        : OptionalDouble.empty();
+  }
+
   private static boolean endsItsYear(FundValue close) {
     var thirtyFirst = LocalDate.of(close.date().getYear(), 12, 31);
-    return !close
-        .date()
-        .isBefore(thirtyFirst.minusDays(YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST));
+    return !close.date().isBefore(thirtyFirst.minusDays(CLOSE_STALE_AFTER_DAYS));
   }
 
   private static double growth(FundValue from, FundValue to) {

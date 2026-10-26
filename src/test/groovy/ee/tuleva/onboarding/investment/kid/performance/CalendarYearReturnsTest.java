@@ -104,6 +104,22 @@ class CalendarYearReturnsTest {
   }
 
   @Test
+  void growthSinceADayRunsFromTheLastCloseOnOrBeforeItToTheYearsLastClose() {
+    var values =
+        List.of(close("2026-01-30", 100), close("2026-02-02", 101), close("2026-06-30", 110));
+
+    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026))
+        .hasValue(110.0 / 100 - 1);
+  }
+
+  @Test
+  void hasNoGrowthSinceADayWhoseLastEarlierCloseIsMoreThanAWeekOld() {
+    var values = List.of(close("2026-01-20", 100), close("2026-06-30", 110));
+
+    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026)).isEmpty();
+  }
+
+  @Test
   void refusesASeriesWithAValueThatIsNotPositive() {
     var values = List.of(close("2024-12-31", 100), close("2025-06-30", 0), close("2025-12-31", 99));
 

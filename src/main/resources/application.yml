@@ -327,6 +327,11 @@ investment:
       TKF100: MSCI_ACWI
       TUK75: MSCI_ACWI
       TUV100: MSCI_ACWI
+    equity-caps:
+      TUK75:
+        bond-key: EURO_AGGREGATE_BOND
+        equity-weight: 0.75
+        lifted-on: 2019-09-02
 
 ledger:
   unit-balance-guard:

@@ -40,6 +40,7 @@ class PastPerformanceServiceIT {
   @BeforeEach
   void storeTheSeries() {
     fundValues.saveAll(SyntheticNavSeries.benchmark("MSCI_ACWI"));
+    fundValues.saveAll(SyntheticNavSeries.bond("EURO_AGGREGATE_BOND"));
     fundValues.saveAll(
         SyntheticNavSeries.nav("EE3600109435", LocalDate.of(2017, 3, 28), "0.64000", 7));
     fundValues.saveAll(
@@ -51,19 +52,21 @@ class PastPerformanceServiceIT {
   }
 
   @Test
-  void givesAPensionFundsCalendarYearsBesideItsBenchmarkOverTheSameDaysInItsFirstYear() {
+  void givesAPensionFundsYearsBesideItsBenchmarkHeldAtTheEquityCapUntilItWasLifted() {
     assertThat(service.pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                new EquityCap(
+                    "EURO_AGGREGATE_BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2)),
                 AS_OF,
                 true,
                 List.of(
-                    year(2017, "0.07788623", "0.27317708", true, false),
-                    year(2018, "0.13557655", "0.23646244", false, false),
-                    year(2019, "0.10857463", "0.26440311", false, false),
+                    year(2017, "0.07788623", "0.21001151", true, false),
+                    year(2018, "0.13557655", "0.18204845", false, false),
+                    year(2019, "0.10857463", "0.18889511", false, false),
                     year(2020, "0.05761761", "-0.18833953", false, false),
                     year(2021, "0.10918554", "0.09291543", false, false),
                     year(2022, "0.02188372", "0.15006590", false, false),
@@ -80,6 +83,7 @@ class PastPerformanceServiceIT {
             new PastPerformance(
                 TUK00,
                 "EE3600109443",
+                null,
                 null,
                 AS_OF,
                 true,
@@ -102,6 +106,7 @@ class PastPerformanceServiceIT {
                 TKF100,
                 "EE0000003283",
                 "MSCI_ACWI",
+                null,
                 AS_OF,
                 false,
                 List.of(year(2026, "0.01731000", "0.02964196", true, true))));

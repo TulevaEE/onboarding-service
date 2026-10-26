@@ -27,7 +27,7 @@ class PastPerformanceServiceTest {
   private final FundValueQueries fundValueQueries = mock(FundValueQueries.class);
   private final PastPerformanceService service =
       new PastPerformanceService(
-          new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),
+          new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()),
           fundValueQueries,
           Clock.fixed(Instant.parse("2026-02-10T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
 
@@ -107,6 +107,7 @@ class PastPerformanceServiceTest {
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2027, 12, 29),
                 true,
                 Stream.concat(
@@ -157,6 +158,7 @@ class PastPerformanceServiceTest {
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2027, 12, 31),
                 true,
                 IntStream.rangeClosed(2018, 2027)
@@ -192,6 +194,7 @@ class PastPerformanceServiceTest {
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2027, 12, 31),
                 true,
                 List.of(
@@ -230,6 +233,7 @@ class PastPerformanceServiceTest {
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2028, 12, 29),
                 true,
                 List.of(
@@ -268,6 +272,7 @@ class PastPerformanceServiceTest {
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
+                null,
                 LocalDate.of(2028, 1, 3),
                 true,
                 List.of(
@@ -294,7 +299,7 @@ class PastPerformanceServiceTest {
   private PastPerformanceService serviceOn(LocalDate today) {
     var tallinn = ZoneId.of("Europe/Tallinn");
     return new PastPerformanceService(
-        new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),
+        new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()),
         fundValueQueries,
         Clock.fixed(today.atTime(11, 0).atZone(tallinn).toInstant(), tallinn));
   }

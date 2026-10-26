@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.TreeMap;
 
 final class CalendarYearReturns {
 
@@ -17,7 +16,8 @@ final class CalendarYearReturns {
 
   private CalendarYearReturns() {}
 
-  static Map<Integer, CalendarYearReturn> of(List<FundValue> values, LocalDate seriesStart) {
+  static Map<Integer, CalendarYearReturn> of(
+      List<FundValue> values, LocalDate seriesStart, int openYear) {
     var sorted = values.stream().sorted(comparing(FundValue::date)).toList();
     sorted.stream()
         .filter(value -> value.value().signum() <= 0)
@@ -27,12 +27,8 @@ final class CalendarYearReturns {
               throw new PastPerformanceRefusedException(
                   "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
             });
-    var yearEnds = new TreeMap<Integer, FundValue>();
+    var yearEnds = new HashMap<Integer, FundValue>();
     sorted.forEach(value -> yearEnds.put(value.date().getYear(), value));
-    if (yearEnds.isEmpty()) {
-      return Map.of();
-    }
-    int openYear = yearEnds.lastKey();
 
     var returns = new HashMap<Integer, CalendarYearReturn>();
     yearEnds.forEach(
@@ -50,7 +46,8 @@ final class CalendarYearReturns {
     return Map.copyOf(returns);
   }
 
-  static OptionalDouble growthSince(List<FundValue> values, LocalDate from, int year) {
+  static OptionalDouble growthSince(
+      List<FundValue> values, LocalDate from, int year, int openYear) {
     var sorted = values.stream().sorted(comparing(FundValue::date)).toList();
     var base =
         sorted.stream()
@@ -63,7 +60,7 @@ final class CalendarYearReturns {
         sorted.stream()
             .filter(value -> value.date().getYear() == year)
             .reduce((earlier, later) -> later)
-            .filter(value -> year == sorted.getLast().date().getYear() || endsItsYear(value));
+            .filter(value -> year == openYear || endsItsYear(value));
     return base.isPresent() && yearEnd.isPresent()
         ? OptionalDouble.of(growth(base.get(), yearEnd.get()))
         : OptionalDouble.empty();

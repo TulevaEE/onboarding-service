@@ -23,7 +23,7 @@ class CalendarYearReturnsTest {
             close("2024-12-31", 110),
             close("2025-12-31", 99));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2020, 1, 2));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2020, 1, 2), 2026);
 
     assertThat(returns)
         .isEqualTo(
@@ -36,7 +36,7 @@ class CalendarYearReturnsTest {
   void theFundsFirstYearRunsFromItsFirstValueAndIsMarkedPartial() {
     var values = List.of(close("2026-02-01", 1), close("2026-06-30", 1.25));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2026, 2, 1));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2026, 2, 1), 2026);
 
     assertThat(returns).isEqualTo(Map.of(2026, new CalendarYearReturn(0.25, true)));
   }
@@ -50,7 +50,7 @@ class CalendarYearReturnsTest {
             close("2019-12-31", 2),
             close("2020-12-31", 3));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2017, 3, 28));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2017, 3, 28), 2021);
 
     assertThat(returns)
         .isEqualTo(
@@ -70,7 +70,7 @@ class CalendarYearReturnsTest {
             close("2021-12-31", 132),
             close("2022-03-31", 140));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2), 2022);
 
     assertThat(returns)
         .isEqualTo(
@@ -84,7 +84,7 @@ class CalendarYearReturnsTest {
     var values =
         List.of(close("2023-12-24", 100), close("2024-12-24", 110), close("2025-01-31", 121));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2), 2025);
 
     assertThat(returns)
         .isEqualTo(
@@ -98,9 +98,18 @@ class CalendarYearReturnsTest {
     var values =
         List.of(close("2023-12-23", 100), close("2024-12-31", 110), close("2025-01-31", 121));
 
-    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2));
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2), 2025);
 
     assertThat(returns).isEqualTo(Map.of(2025, new CalendarYearReturn(121.0 / 110 - 1, false)));
+  }
+
+  @Test
+  void aYearWhoseClosesStopBeforeItsEndIsLeftOutEvenWhenTheyAreTheLastBeforeTheOpenYear() {
+    var values = List.of(close("2026-12-31", 100), close("2027-12-15", 110));
+
+    var returns = CalendarYearReturns.of(values, LocalDate.of(2015, 1, 2), 2028);
+
+    assertThat(returns).isEmpty();
   }
 
   @Test
@@ -108,7 +117,7 @@ class CalendarYearReturnsTest {
     var values =
         List.of(close("2026-01-30", 100), close("2026-02-02", 101), close("2026-06-30", 110));
 
-    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026))
+    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026, 2026))
         .hasValue(110.0 / 100 - 1);
   }
 
@@ -116,14 +125,23 @@ class CalendarYearReturnsTest {
   void hasNoGrowthSinceADayWhoseLastEarlierCloseIsMoreThanAWeekOld() {
     var values = List.of(close("2026-01-20", 100), close("2026-06-30", 110));
 
-    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026)).isEmpty();
+    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026, 2026))
+        .isEmpty();
+  }
+
+  @Test
+  void hasNoGrowthSinceADayToAYearWhoseClosesStopBeforeItsEndAndBeforeTheOpenYear() {
+    var values = List.of(close("2026-01-30", 100), close("2026-12-15", 110));
+
+    assertThat(CalendarYearReturns.growthSince(values, LocalDate.of(2026, 2, 1), 2026, 2027))
+        .isEmpty();
   }
 
   @Test
   void refusesASeriesWithAValueThatIsNotPositive() {
     var values = List.of(close("2024-12-31", 100), close("2025-06-30", 0), close("2025-12-31", 99));
 
-    assertThatThrownBy(() -> CalendarYearReturns.of(values, LocalDate.of(2020, 1, 2)))
+    assertThatThrownBy(() -> CalendarYearReturns.of(values, LocalDate.of(2020, 1, 2), 2026))
         .isInstanceOf(PastPerformanceRefusedException.class);
   }
 

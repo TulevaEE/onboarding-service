@@ -208,6 +208,34 @@ class PastPerformanceServiceTest {
                         false))));
   }
 
+  @Test
+  void
+      leavesOutABenchmarkYearWhoseClosesStopInMidDecemberEvenWhenTheyAreItsLastBeforeTheAsOfDate() {
+    var fund =
+        List.of(
+            aFundValue("EE3600109435", LocalDate.of(2026, 12, 31), 1.0),
+            aFundValue("EE3600109435", LocalDate.of(2027, 12, 31), 1.1),
+            aFundValue("EE3600109435", LocalDate.of(2028, 1, 3), 1.122));
+    var benchmark =
+        List.of(
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 12, 31), 100.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2027, 12, 15), 104.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2028, 1, 4), 106.0));
+    givenTheSeries(fund, LocalDate.of(2020, 1, 2), benchmark, LocalDate.of(2015, 12, 31));
+
+    assertThat(januaryService().pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                LocalDate.of(2028, 1, 3),
+                true,
+                List.of(
+                    new YearReturn(2027, new BigDecimal("0.10000000"), null, false, false),
+                    new YearReturn(2028, new BigDecimal("0.02000000"), null, false, true))));
+  }
+
   private PastPerformanceService januaryService() {
     return new PastPerformanceService(
         new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI")),

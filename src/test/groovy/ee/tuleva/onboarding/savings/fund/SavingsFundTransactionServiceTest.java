@@ -229,6 +229,69 @@ class SavingsFundTransactionServiceTest {
   }
 
   @Test
+  void carriesWhoPaidEachContributionAndWhetherItCameFromTheOwnersOwnAccount() {
+    UUID fromGrandparent = UUID.randomUUID();
+    UUID fromOwnAccount = UUID.randomUUID();
+    UUID fromUnknownPayer = UUID.randomUUID();
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("30.00"),
+                        Instant.parse("2025-03-03T10:00:00Z"),
+                        new BigDecimal("3.0"),
+                        fromGrandparent),
+                    new EntryFixture(
+                        new BigDecimal("20.00"),
+                        Instant.parse("2025-03-02T10:00:00Z"),
+                        new BigDecimal("2.0"),
+                        fromOwnAccount),
+                    new EntryFixture(
+                        new BigDecimal("10.00"),
+                        Instant.parse("2025-03-01T10:00:00Z"),
+                        new BigDecimal("1.0"),
+                        fromUnknownPayer))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+    when(savingFundPaymentRepository.findAllById(
+            Set.of(fromGrandparent, fromOwnAccount, fromUnknownPayer)))
+        .thenReturn(
+            List.of(
+                SavingFundPayment.builder()
+                    .id(fromGrandparent)
+                    .partyId(PartyId.from(person))
+                    .remitterName("Leida Tamm")
+                    .remitterIdCode("38888888888")
+                    .thirdPartyDeposit(true)
+                    .build(),
+                SavingFundPayment.builder()
+                    .id(fromOwnAccount)
+                    .partyId(PartyId.from(person))
+                    .remitterName(person.getFullName())
+                    .remitterIdCode(personalCode)
+                    .thirdPartyDeposit(false)
+                    .build(),
+                SavingFundPayment.builder()
+                    .id(fromUnknownPayer)
+                    .partyId(PartyId.from(person))
+                    .remitterName("Wise Europe SA")
+                    .build()));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions)
+        .extracting(Transaction::amount, Transaction::remitterName, Transaction::paidFromOwnAccount)
+        .containsExactly(
+            tuple(new BigDecimal("30.00"), "Leida Tamm", false),
+            tuple(new BigDecimal("20.00"), person.getFullName(), true),
+            tuple(new BigDecimal("10.00"), "Wise Europe SA", null));
+  }
+
+  @Test
   void leavesOutTheAccountOfAPaymentBelongingToAnotherParty() {
     UUID paymentId = UUID.randomUUID();
     Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
@@ -257,7 +320,12 @@ class SavingsFundTransactionServiceTest {
 
     List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(transactions).extracting(Transaction::counterpartyIban).containsOnlyNulls();
+    assertThat(transactions)
+        .extracting(
+            Transaction::counterpartyIban,
+            Transaction::remitterName,
+            Transaction::paidFromOwnAccount)
+        .containsExactly(tuple(null, null, null));
   }
 
   @Test

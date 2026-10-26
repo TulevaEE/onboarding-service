@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.investment.kid;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static java.math.RoundingMode.HALF_UP;
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,6 @@ class SyntheticIndexSeries {
   }
 
   private static boolean isWeekend(LocalDate day) {
-    return day.getDayOfWeek() == DayOfWeek.SATURDAY || day.getDayOfWeek() == DayOfWeek.SUNDAY;
+    return day.getDayOfWeek() == SATURDAY || day.getDayOfWeek() == SUNDAY;
   }
 }

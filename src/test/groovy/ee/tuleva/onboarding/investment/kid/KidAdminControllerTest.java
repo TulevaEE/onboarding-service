@@ -17,6 +17,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -81,18 +83,30 @@ class KidAdminControllerTest {
     verify(kidFiguresService, never()).figures(any(), any());
   }
 
-  @Test
-  void rejectsOngoingChargesThatAreNegativeOrLookLikeAPercentTypedAsAFraction() throws Exception {
-    for (var charges : List.of("-0.0001", "0.05", "0.28", "0.99999999999999999")) {
-      mockMvc
-          .perform(
-              get("/admin/kid/TKF100")
-                  .header("X-Admin-Token", "ops-token")
-                  .param("ongoingCharges", charges))
-          .andExpect(status().isBadRequest());
-    }
+  @ParameterizedTest
+  @ValueSource(strings = {"-0.0001", "0.05", "0.28", "0.99999999999999999"})
+  void rejectsOngoingChargesThatAreNegativeOrLookLikeAPercentTypedAsAFraction(String charges)
+      throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/kid/TKF100")
+                .header("X-Admin-Token", "ops-token")
+                .param("ongoingCharges", charges))
+        .andExpect(status().isBadRequest());
 
     verify(kidFiguresService, never()).figures(any(), any());
+  }
+
+  @Test
+  void acceptsOngoingChargesOfZero() throws Exception {
+    given(kidFiguresService.figures(TKF100, BigDecimal.ZERO)).willReturn(figures());
+
+    mockMvc
+        .perform(
+            get("/admin/kid/TKF100")
+                .header("X-Admin-Token", "ops-token")
+                .param("ongoingCharges", "0"))
+        .andExpect(status().isOk());
   }
 
   @Test

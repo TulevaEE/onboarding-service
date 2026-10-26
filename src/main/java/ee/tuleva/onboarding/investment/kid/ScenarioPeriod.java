@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.investment.kid;
 
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -132,6 +133,6 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
   }
 
   private static boolean isWeekday(LocalDate date) {
-    return date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY;
+    return date.getDayOfWeek() != SATURDAY && date.getDayOfWeek() != SUNDAY;
   }
 }

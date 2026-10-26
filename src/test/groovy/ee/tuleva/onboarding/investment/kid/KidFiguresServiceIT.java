@@ -171,6 +171,17 @@ class KidFiguresServiceIT {
   }
 
   @Test
+  void refusesAFeedThatStoppedRatherThanGivingAnOlderPeriodsFigures() {
+    fundValues.saveAll(
+        SyntheticIndexSeries.weekdayCloses("MSCI_ACWI").stream()
+            .filter(close -> !close.date().isAfter(LocalDate.of(2026, 3, 13)))
+            .toList());
+
+    assertThatThrownBy(() -> service.figures(TKF100, ONGOING_CHARGES))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
   void refusesAFundWithNoKidSeriesConfigured() {
     fundValues.saveAll(SyntheticIndexSeries.weekdayCloses("MSCI_ACWI"));
 

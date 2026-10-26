@@ -18,9 +18,15 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
 
   private static final int ANNEX_IV_P6_PERIOD_YEARS = 10;
   private static final int CLOSE_STALE_AFTER_DAYS = 7;
+  private static final int SERIES_STALLED_AFTER_DAYS_WITHOUT_A_PRICE = 10;
   private static final double DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS = 0.7;
 
   static ScenarioPeriod endingWithLastCompleteMonth(LocalDate lastPriceDate, LocalDate today) {
+    if (lastPriceDate.plusDays(SERIES_STALLED_AFTER_DAYS_WITHOUT_A_PRICE).isBefore(today)) {
+      throw new KidCalculationRefusedException(
+          "Series stopped, no figures for an older period: lastPriceDate=%s, today=%s"
+              .formatted(lastPriceDate, today));
+    }
     var lastMonthTheSeriesCloses = lastMonthTheSeriesCloses(lastPriceDate);
     var lastCalendarMonthEnded = YearMonth.from(today).minusMonths(1);
     var end =

@@ -15,6 +15,23 @@ record FirstPaymentReminder(
     @Nullable String accountHolderName)
     implements Person {
 
+  FirstPaymentReminder(
+      String accountCode,
+      String recipientFirstName,
+      String recipientLastName,
+      String recipientEmail,
+      Locale locale,
+      EmailType emailType) {
+    this(
+        accountCode,
+        recipientFirstName,
+        recipientLastName,
+        recipientEmail,
+        locale,
+        emailType,
+        null);
+  }
+
   @Override
   public String getPersonalCode() {
     return accountCode;

@@ -53,7 +53,13 @@ class CostsOverTimeCalculatorTest {
             60,
             Math.pow(1.1178, 5));
 
-    assertThat(calculator.holdingPeriod(5, moderate, 0.005).totalCostsEur())
-        .isEqualTo(new BigDecimal("349.61"));
+    assertThat(calculator.holdingPeriod(5, moderate, 0.005))
+        .isEqualTo(
+            new KidCost(
+                5,
+                new BigDecimal("349.61"),
+                new BigDecimal("0.00558900"),
+                new BigDecimal("0.11780000"),
+                new BigDecimal("0.11221100")));
   }
 }

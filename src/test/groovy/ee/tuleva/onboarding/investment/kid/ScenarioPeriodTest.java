@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.kid;
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static java.time.DayOfWeek.FRIDAY;
 import static java.time.DayOfWeek.MONDAY;
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 import static java.time.DayOfWeek.WEDNESDAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -149,7 +151,7 @@ class ScenarioPeriodTest {
     var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 2, 7));
     var prices = List.of(close("2025-01-31", 100), close("2025-02-07", 101));
 
-    assertThat(period.dailyCloses(prices)).hasSize(2);
+    assertThat(period.dailyCloses(prices)).isEqualTo(prices);
   }
 
   @Test
@@ -206,11 +208,61 @@ class ScenarioPeriodTest {
                 LocalDate.of(2025, 11, 28),
                 day -> !day.isAfter(LocalDate.of(2025, 12, 31)),
                 day -> day.plusDays(1))
+            .filter(day -> !Set.of(SATURDAY, SUNDAY).contains(day.getDayOfWeek()))
             .filter(day -> !holidays.contains(day))
             .map(day -> close(day.toString(), 100))
             .toList();
 
-    assertThat(period.dailyCloses(closesOutsideTheHolidays)).hasSize(19);
+    assertThat(period.dailyCloses(closesOutsideTheHolidays))
+        .isEqualTo(
+            closesOutsideTheHolidays.stream()
+                .filter(close -> close.date().isAfter(LocalDate.of(2025, 11, 30)))
+                .toList());
+  }
+
+  @Test
+  void acceptsAMonthWithClosesOnExactlySeventyPercentOfItsWeekdays() {
+    var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 2, 28));
+    var fourteenOfTwentyWeekdays =
+        februaryWeekdaysExcept(
+            Set.of(
+                LocalDate.of(2025, 2, 5),
+                LocalDate.of(2025, 2, 7),
+                LocalDate.of(2025, 2, 12),
+                LocalDate.of(2025, 2, 14),
+                LocalDate.of(2025, 2, 19),
+                LocalDate.of(2025, 2, 26)));
+
+    assertThat(period.dailyCloses(fourteenOfTwentyWeekdays)).isEqualTo(fourteenOfTwentyWeekdays);
+  }
+
+  @Test
+  void refusesAMonthWithClosesOnFewerThanSeventyPercentOfItsWeekdays() {
+    var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 2, 28));
+    var thirteenOfTwentyWeekdays =
+        februaryWeekdaysExcept(
+            Set.of(
+                LocalDate.of(2025, 2, 5),
+                LocalDate.of(2025, 2, 7),
+                LocalDate.of(2025, 2, 12),
+                LocalDate.of(2025, 2, 14),
+                LocalDate.of(2025, 2, 19),
+                LocalDate.of(2025, 2, 21),
+                LocalDate.of(2025, 2, 26)));
+
+    assertThatThrownBy(() -> period.dailyCloses(thirteenOfTwentyWeekdays))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  private static List<FundValue> februaryWeekdaysExcept(Set<LocalDate> skipped) {
+    return Stream.iterate(
+            LocalDate.of(2025, 1, 31),
+            day -> !day.isAfter(LocalDate.of(2025, 2, 28)),
+            day -> day.plusDays(1))
+        .filter(day -> !Set.of(SATURDAY, SUNDAY).contains(day.getDayOfWeek()))
+        .filter(day -> !skipped.contains(day))
+        .map(day -> close(day.toString(), 100))
+        .toList();
   }
 
   private static FundValue close(String date, double value) {

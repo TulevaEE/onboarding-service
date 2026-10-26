@@ -105,7 +105,17 @@ class ScenarioPresentationTest {
             stress,
             0);
 
-    assertThat(scenarios.getFirst().window()).isEqualTo(STRESSED_VOLATILITY);
+    assertThat(scenarios.getFirst())
+        .isEqualTo(
+            new KidScenario(
+                5,
+                STRESS,
+                new BigDecimal("9000"),
+                new BigDecimal("-0.02085164"),
+                date("2020-02-21"),
+                date("2020-05-20"),
+                STRESSED_VOLATILITY,
+                null));
   }
 
   @Test
@@ -114,10 +124,26 @@ class ScenarioPresentationTest {
 
     var scenarios = presentation.present(5, PERFORMANCE, stress, 0.01);
 
-    assertThat(scenarios.get(0).amountEur()).isEqualTo(new BigDecimal("4750"));
-    assertThat(scenarios.get(0).averageReturnPerYear()).isEqualTo(new BigDecimal("-0.13815494"));
-    assertThat(scenarios.get(1).amountEur()).isEqualTo(new BigDecimal("8910"));
-    assertThat(scenarios.get(1).averageReturnPerYear()).isEqualTo(new BigDecimal("-0.02281781"));
+    assertThat(scenarios.subList(0, 2))
+        .containsExactly(
+            new KidScenario(
+                5,
+                STRESS,
+                new BigDecimal("4750"),
+                new BigDecimal("-0.13815494"),
+                date("2020-02-21"),
+                date("2020-05-20"),
+                STRESSED_VOLATILITY,
+                null),
+            new KidScenario(
+                5,
+                UNFAVOURABLE,
+                new BigDecimal("8910"),
+                new BigDecimal("-0.02281781"),
+                date("2024-12-31"),
+                date("2025-12-31"),
+                SHORTER,
+                12));
   }
 
   @Test

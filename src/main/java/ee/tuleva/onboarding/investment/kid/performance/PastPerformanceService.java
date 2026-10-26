@@ -49,7 +49,7 @@ class PastPerformanceService {
                         rate(year.getValue()),
                         benchmarkReturn(benchmarkReturns.get(year.getKey())),
                         year.getValue().partialYear(),
-                        year.getKey() == today.getYear()))
+                        year.getKey() == asOf.getYear()))
             .toList();
     return new PastPerformance(
         fund,

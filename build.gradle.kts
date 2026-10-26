@@ -194,7 +194,7 @@ dependencies {
     implementation("org.apache.commons:commons-csv:1.14.1")
     // commons-csv references this at compile time (annotation-only, no runtime impact)
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
-    implementation("org.apache.poi:poi-ooxml:5.5.1")
+    implementation("org.apache.poi:poi-ooxml:6.0.0")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.

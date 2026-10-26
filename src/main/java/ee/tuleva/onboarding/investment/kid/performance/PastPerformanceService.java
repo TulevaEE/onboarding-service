@@ -35,13 +35,14 @@ class PastPerformanceService {
     var firstYearShown = openYear - CALENDAR_YEARS_SHOWN;
 
     var fundStart = seriesStart(fundKey);
-    var fundReturns = CalendarYearReturns.of(values(fundKey, firstYearShown, asOf), fundStart);
+    var fundReturns =
+        CalendarYearReturns.of(values(fundKey, firstYearShown, asOf), fundStart, openYear);
     var benchmarkValues =
         benchmarkKey == null ? List.<FundValue>of() : values(benchmarkKey, firstYearShown, asOf);
     var benchmarkReturns =
         benchmarkKey == null
             ? Map.<Integer, CalendarYearReturn>of()
-            : CalendarYearReturns.of(benchmarkValues, seriesStart(benchmarkKey));
+            : CalendarYearReturns.of(benchmarkValues, seriesStart(benchmarkKey), openYear);
 
     var years =
         fundReturns.entrySet().stream()
@@ -54,7 +55,7 @@ class PastPerformanceService {
                         rate(year.getValue().value()),
                         year.getValue().partialYear()
                             ? benchmarkSinceTheFundStarted(
-                                benchmarkValues, fundStart, year.getKey())
+                                benchmarkValues, fundStart, year.getKey(), openYear)
                             : benchmarkReturn(benchmarkReturns.get(year.getKey())),
                         year.getValue().partialYear(),
                         year.getKey() == openYear))
@@ -96,8 +97,8 @@ class PastPerformanceService {
   }
 
   private static @Nullable BigDecimal benchmarkSinceTheFundStarted(
-      List<FundValue> benchmark, LocalDate fundStart, int year) {
-    var growth = CalendarYearReturns.growthSince(benchmark, fundStart, year);
+      List<FundValue> benchmark, LocalDate fundStart, int year, int openYear) {
+    var growth = CalendarYearReturns.growthSince(benchmark, fundStart, year, openYear);
     return growth.isPresent() ? rate(growth.getAsDouble()) : null;
   }
 

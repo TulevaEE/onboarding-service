@@ -11,6 +11,8 @@ import java.util.TreeMap;
 
 final class CalendarYearReturns {
 
+  private static final int YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST = 7;
+
   private CalendarYearReturns() {}
 
   static Map<Integer, CalendarYearReturn> of(List<FundValue> values, LocalDate seriesStart) {
@@ -23,21 +25,38 @@ final class CalendarYearReturns {
               throw new PastPerformanceRefusedException(
                   "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
             });
-    var yearEnds = new TreeMap<Integer, Double>();
-    sorted.forEach(value -> yearEnds.put(value.date().getYear(), value.value().doubleValue()));
+    var yearEnds = new TreeMap<Integer, FundValue>();
+    sorted.forEach(value -> yearEnds.put(value.date().getYear(), value));
+    if (yearEnds.isEmpty()) {
+      return Map.of();
+    }
+    int openYear = yearEnds.lastKey();
 
     var returns = new HashMap<Integer, CalendarYearReturn>();
     yearEnds.forEach(
         (year, yearEnd) -> {
+          if (year != openYear && !endsItsYear(yearEnd)) {
+            return;
+          }
           var previousYearEnd = yearEnds.get(year - 1);
-          if (previousYearEnd != null) {
-            returns.put(year, new CalendarYearReturn(yearEnd / previousYearEnd - 1, false));
+          if (previousYearEnd != null && endsItsYear(previousYearEnd)) {
+            returns.put(year, new CalendarYearReturn(growth(previousYearEnd, yearEnd), false));
           } else if (seriesStartsIn(sorted, seriesStart, year)) {
-            var firstValue = sorted.getFirst().value().doubleValue();
-            returns.put(year, new CalendarYearReturn(yearEnd / firstValue - 1, true));
+            returns.put(year, new CalendarYearReturn(growth(sorted.getFirst(), yearEnd), true));
           }
         });
     return Map.copyOf(returns);
+  }
+
+  private static boolean endsItsYear(FundValue close) {
+    var thirtyFirst = LocalDate.of(close.date().getYear(), 12, 31);
+    return !close
+        .date()
+        .isBefore(thirtyFirst.minusDays(YEAR_END_CLOSE_AT_MOST_DAYS_BEFORE_THE_THIRTY_FIRST));
+  }
+
+  private static double growth(FundValue from, FundValue to) {
+    return to.value().doubleValue() / from.value().doubleValue() - 1;
   }
 
   private static boolean seriesStartsIn(List<FundValue> sorted, LocalDate seriesStart, int year) {

@@ -21,17 +21,17 @@ import org.jspecify.annotations.Nullable;
 
 final class EquityCappedSeries {
 
-  private static final int RESTART_BOND_CLOSE_AT_MOST_DAYS_OLD = 7;
+  private static final int RESTART_CLOSE_AT_MOST_DAYS_OLD = 7;
 
   private final EquityCap cap;
   private final NavigableMap<LocalDate, FundValue> bondCloses;
-  private final Optional<LocalDate> lift;
+  private final @Nullable LocalDate lift;
   private final Set<LocalDate> restarts;
 
   private EquityCappedSeries(
       EquityCap cap,
       NavigableMap<LocalDate, FundValue> bondCloses,
-      Optional<LocalDate> lift,
+      @Nullable LocalDate lift,
       Set<LocalDate> restarts) {
     this.cap = cap;
     this.bondCloses = bondCloses;
@@ -53,8 +53,13 @@ final class EquityCappedSeries {
             .toList();
     var lift =
         closes.stream().anyMatch(close -> !cap.holdsOn(close.date()))
-            ? lastOnOrBefore(closes, cap.liftedOn())
-            : Optional.<LocalDate>empty();
+            ? lastOnOrBefore(closes, cap.liftedOn()).orElse(null)
+            : null;
+    if (lift != null && lift.isBefore(cap.liftedOn().minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
+      throw new PastPerformanceRefusedException(
+          "Equity close too old at the equity cap's lift: liftedOn=%s, equityClose=%s"
+              .formatted(cap.liftedOn(), lift));
+    }
     var series = new EquityCappedSeries(cap, bondCloses, lift, restarts(closes, fundStart, lift));
     return series.levels(closes.stream().map(series::day).toList());
   }
@@ -83,26 +88,26 @@ final class EquityCappedSeries {
   }
 
   private FundValue bondCloseFor(LocalDate day) {
-    var valuedOn = lift.filter(day::equals).map(liftDay -> cap.liftedOn()).orElse(day);
+    var valuedOn = day.equals(lift) ? cap.liftedOn() : day;
     var bondClose = requireNonNull(bondCloses.floorEntry(valuedOn)).getValue();
     if (restarts.contains(day)
-        && bondClose.date().isBefore(valuedOn.minusDays(RESTART_BOND_CLOSE_AT_MOST_DAYS_OLD))) {
+        && bondClose.date().isBefore(valuedOn.minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
       throw new PastPerformanceRefusedException(
-          "Bond close too old on a day the equity-capped blend restarts: bondKey=%s, day=%s, bondClose=%s"
-              .formatted(cap.bondKey(), valuedOn, bondClose.date()));
+          "Bond close too old on a day the equity-capped blend restarts: bondKey=%s, day=%s, valuedOn=%s, bondClose=%s"
+              .formatted(cap.bondKey(), day, valuedOn, bondClose.date()));
     }
     return bondClose;
   }
 
   private static Set<LocalDate> restarts(
-      List<FundValue> closes, LocalDate fundStart, Optional<LocalDate> lift) {
+      List<FundValue> closes, LocalDate fundStart, @Nullable LocalDate lift) {
     var yearEnds =
         closes.stream()
             .collect(toMap(close -> close.date().getYear(), FundValue::date, maxBy(naturalOrder())))
             .values()
             .stream();
     var fundStartAndLift =
-        Stream.of(lastOnOrBefore(closes, fundStart), lift).flatMap(Optional::stream);
+        Stream.concat(lastOnOrBefore(closes, fundStart).stream(), Stream.ofNullable(lift));
     return Stream.concat(yearEnds, fundStartAndLift).collect(toSet());
   }
 

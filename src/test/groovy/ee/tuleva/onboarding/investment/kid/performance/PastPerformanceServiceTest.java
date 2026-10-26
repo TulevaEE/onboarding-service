@@ -5,7 +5,9 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -297,37 +299,46 @@ class PastPerformanceServiceTest {
   }
 
   @Test
-  void leavesTheEquityCapOutOnceNoYearShownWasHeldAtIt() {
+  void neitherAppliesNorNamesTheEquityCapOnceNoYearShownWasHeldAtIt() {
     var fund =
-        IntStream.rangeClosed(2019, 2030)
+        IntStream.rangeClosed(2019, 2029)
             .mapToObj(
                 year ->
                     aFundValue(
                         "EE3600109435", LocalDate.of(year, 12, 31), Math.pow(1.1, year - 2019)))
             .toList();
     var benchmark =
-        IntStream.rangeClosed(2019, 2030)
-            .mapToObj(
-                year ->
-                    aFundValue(
-                        "MSCI_ACWI", LocalDate.of(year, 12, 31), 100 * Math.pow(1.05, year - 2019)))
+        Stream.concat(
+                Stream.of(
+                    aFundValue("MSCI_ACWI", LocalDate.of(2019, 8, 16), 102.0),
+                    aFundValue("MSCI_ACWI", LocalDate.of(2019, 9, 2), 103.0)),
+                IntStream.rangeClosed(2018, 2029)
+                    .mapToObj(
+                        year ->
+                            aFundValue(
+                                "MSCI_ACWI",
+                                LocalDate.of(year, 12, 31),
+                                100 * Math.pow(1.05, year - 2018))))
             .toList();
     givenTheSeries(fund, LocalDate.of(2017, 3, 28), benchmark, LocalDate.of(2015, 1, 2));
+    willReturn(List.of(aFundValue("BOND", LocalDate.of(2019, 8, 16), 50.0)))
+        .given(fundValueQueries)
+        .findValuesBetweenDates(eq("BOND"), any(), any());
     var properties =
         new PastPerformanceProperties(
             Map.of(TUK75, "MSCI_ACWI"),
             Map.of(TUK75, new EquityCap("BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2))));
 
-    assertThat(serviceOn(LocalDate.of(2031, 1, 6), properties).pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2030, 1, 7), properties).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
                 "EE3600109435",
                 "MSCI_ACWI",
                 null,
-                LocalDate.of(2030, 12, 31),
+                LocalDate.of(2029, 12, 31),
                 true,
-                IntStream.rangeClosed(2021, 2030)
+                IntStream.rangeClosed(2020, 2029)
                     .mapToObj(
                         year ->
                             new YearReturn(

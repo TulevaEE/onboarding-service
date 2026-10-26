@@ -107,6 +107,21 @@ class EquityCappedSeriesTest {
 
     assertThat(growth(series, "2016-12-30", "2017-12-29"))
         .isCloseTo(0.75 * 110 / 100 + 0.25 * 52 / 50, within(1e-12));
+    assertThat(series).extracting(FundValue::date).contains(LocalDate.of(2017, 6, 30));
+  }
+
+  @Test
+  void acceptsABondCloseAWeekBeforeAYearEnd() {
+    var series =
+        EquityCappedSeries.of(
+            List.of(
+                equity("2016-12-30", 100), equity("2017-12-29", 110), equity("2018-01-02", 111)),
+            List.of(bond("2016-12-30", 50), bond("2017-12-22", 51), bond("2018-01-02", 52)),
+            CAP,
+            FUND_STARTED_LONG_BEFORE);
+
+    assertThat(growth(series, "2016-12-30", "2017-12-29"))
+        .isCloseTo(0.75 * 110 / 100 + 0.25 * 51 / 50, within(1e-12));
   }
 
   @Test
@@ -117,7 +132,7 @@ class EquityCappedSeriesTest {
             equity("2017-06-30", 105),
             equity("2017-12-29", 110),
             equity("2018-01-02", 111));
-    var bond = List.of(bond("2016-12-30", 50), bond("2017-12-20", 51), bond("2018-01-02", 52));
+    var bond = List.of(bond("2016-12-30", 50), bond("2017-12-21", 51), bond("2018-01-02", 52));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(PastPerformanceRefusedException.class);
@@ -150,8 +165,29 @@ class EquityCappedSeriesTest {
 
   @Test
   void refusesWhenTheBondStopsMoreThanAWeekBeforeTheLift() {
-    var equity = List.of(equity("2019-08-01", 100), equity("2019-09-02", 101));
+    var equity =
+        List.of(equity("2019-08-01", 100), equity("2019-09-02", 101), equity("2019-09-03", 102));
     var bond = List.of(bond("2019-08-01", 50));
+
+    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+        .isInstanceOf(PastPerformanceRefusedException.class);
+  }
+
+  @Test
+  void measuresTheBondCloseAtTheLiftFromTheLiftDateNotFromTheEquitysLastClose() {
+    var equity =
+        List.of(equity("2018-12-31", 100), equity("2019-08-30", 100), equity("2019-09-03", 101));
+    var bond = List.of(bond("2018-12-31", 50), bond("2019-08-23", 51));
+
+    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+        .isInstanceOf(PastPerformanceRefusedException.class);
+  }
+
+  @Test
+  void refusesWhenTheEquityHasNoCloseInTheWeekBeforeTheLift() {
+    var equity =
+        List.of(equity("2018-12-31", 100), equity("2019-08-01", 100), equity("2019-12-31", 110));
+    var bond = List.of(bond("2018-12-31", 100), bond("2019-08-01", 100), bond("2019-09-02", 120));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(PastPerformanceRefusedException.class);

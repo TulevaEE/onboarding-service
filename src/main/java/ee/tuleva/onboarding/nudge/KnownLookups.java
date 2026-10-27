@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.nudge;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.SecondPillarContributions;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserContacts;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -22,6 +24,8 @@ class KnownLookups {
   private final TaxHeadroom taxHeadroom;
   private final ActingParties actingParties;
   private final SavingsFundFeeRate savingsFundFeeRate;
+  private final UserContacts userContacts;
+  private final SecondPillarContributions secondPillarContributions;
 
   Known leftSecondPillar(String personalCode) {
     return known("leftSecondPillar", () -> leaverStatus.hasLeft(personalCode));
@@ -29,6 +33,14 @@ class KnownLookups {
 
   Known completedEarlyWithdrawal(Person person) {
     return known("completedEarlyWithdrawal", () -> earlyWithdrawals.hasCompleted(person));
+  }
+
+  Known mayRejoinSecondPillar(Person person) {
+    return known(
+        "mayRejoinSecondPillar",
+        () ->
+            secondPillarContributions.mayRejoinToday(
+                userContacts.forPerson(person).secondPillarContributionPeriods()));
   }
 
   Known thirdPillarRecurring(String personalCode) {

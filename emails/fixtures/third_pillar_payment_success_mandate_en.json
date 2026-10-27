@@ -1,5 +1,11 @@
 {
   "variants": {
+    "second pillar rejoin suggestion": {
+      "FNAME": "Mari",
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "November 30, 2026",
+      "anyPillarSuggestion": true
+    },
     "second pillar start suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillarStart": true,

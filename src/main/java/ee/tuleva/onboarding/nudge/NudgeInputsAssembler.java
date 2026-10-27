@@ -25,6 +25,7 @@ class NudgeInputsAssembler {
   private final FeeComparisonCalculator feeComparisonCalculator;
   private final KnownLookups lookups;
   private final PaymentRateSeasons paymentRateSeasons;
+  private final SecondPillarRejoinWindows secondPillarRejoinWindows;
 
   NudgeInputs assemble(User user, NudgeAccount actingParty, NudgeContext context) {
     PillarActivity pillars = pillarStatus.of(user);
@@ -55,7 +56,9 @@ class NudgeInputsAssembler {
         .pendingSecondPillarTransfer(
             !pendingApplications.getPendingExchanges(SECOND, user).isEmpty())
         .pendingSecondPillarWithdrawal(pendingApplications.hasPendingWithdrawals(user, SECOND))
+        .pendingSecondPillarRejoin(pendingApplications.hasPendingRejoin(user))
         .leftSecondPillar(leftOrInactiveSecondPillar(user, pillars))
+        .mayRejoinSecondPillar(lookups.mayRejoinSecondPillar(user))
         .thirdPillarRecurring(
             pillars.thirdPillarActive()
                 ? lookups.thirdPillarRecurring(user.getPersonalCode())
@@ -67,6 +70,7 @@ class NudgeInputsAssembler {
         .feeComparison(feeComparison(user, conversion))
         .savingsFundFeePercent(lookups.savingsFundFeePercent())
         .paymentRateSeason(paymentRateSeasons.current())
+        .secondPillarRejoinWindow(secondPillarRejoinWindows.current())
         .build();
   }
 

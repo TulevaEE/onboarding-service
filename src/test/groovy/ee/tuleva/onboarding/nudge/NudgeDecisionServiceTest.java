@@ -7,6 +7,10 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.nudge.NudgeContext.SAVINGS_FUND_PAYMENT;
 import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_PAYMENT;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.user.SecondPillarContributionPeriod.Status.CONTRIBUTING;
+import static ee.tuleva.onboarding.user.SecondPillarContributionPeriod.Status.NOT_CONTRIBUTING;
+import static ee.tuleva.onboarding.user.UserContactsFixture.contactSummaryWithContributionPeriods;
+import static ee.tuleva.onboarding.user.UserContactsFixture.contributionPeriod;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,7 +28,9 @@ import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.user.SecondPillarContributions;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserContacts;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -55,6 +61,7 @@ class NudgeDecisionServiceTest {
   @Mock private ActingParties actingParties;
   @Mock private SecurityContextRunner securityContextRunner;
   @Mock private OfflineNudgeInputs offlineInputs;
+  @Mock private UserContacts userContacts;
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
@@ -68,6 +75,8 @@ class NudgeDecisionServiceTest {
   private NudgeDecisionService serviceOn(String date) {
     Clock clock =
         Clock.fixed(LocalDateTime.parse(date + "T09:00:00").atZone(TALLINN).toInstant(), TALLINN);
+    MandateDeadlinesService mandateDeadlinesService =
+        new MandateDeadlinesService(clock, new PublicHolidays());
     return new NudgeDecisionService(
         new NudgeInputsAssembler(
             pillarStatus,
@@ -82,9 +91,11 @@ class NudgeDecisionServiceTest {
                 saverStatus,
                 taxHeadroom,
                 actingParties,
-                savingsFundFeeRate),
-            new PaymentRateSeasons(
-                clock, new MandateDeadlinesService(clock, new PublicHolidays()))),
+                savingsFundFeeRate,
+                userContacts,
+                new SecondPillarContributions(clock)),
+            new PaymentRateSeasons(clock, mandateDeadlinesService),
+            new SecondPillarRejoinWindows(clock, mandateDeadlinesService)),
         offlineInputs,
         securityContextRunner);
   }
@@ -111,6 +122,50 @@ class NudgeDecisionServiceTest {
         .when(feeComparisonCalculator.forSecondPillar(any(), any()))
         .thenReturn(Optional.empty());
     lenient().when(actingParties.representedBy(any())).thenReturn(List.of());
+    lenient()
+        .when(userContacts.forPerson(any()))
+        .thenReturn(
+            contactSummaryWithContributionPeriods(
+                List.of(contributionPeriod(CONTRIBUTING, "2002-07-01"))));
+    lenient().when(pendingApplications.hasPendingRejoin(any())).thenReturn(false);
+  }
+
+  private void givenALeaverWhoStoppedContributionsIn2012() {
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(false, true, true));
+    given(userContacts.forPerson(member))
+        .willReturn(
+            contactSummaryWithContributionPeriods(
+                List.of(
+                    contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
+                    contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"))));
+  }
+
+  @Test
+  void aLeaverWhoseRejoinDateHasComeIsAskedToRejoinOnlyInTheMonthOfTheFilingDeadline() {
+    givenALeaverWhoStoppedContributionsIn2012();
+
+    assertThat(serviceOn("2026-11-20").decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30)));
+    assertThat(serviceOn("2026-10-31").decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aLeaverWithARejoinAlreadyFiledIsNotAskedAgain() {
+    givenALeaverWhoStoppedContributionsIn2012();
+    given(pendingApplications.hasPendingRejoin(member)).willReturn(true);
+
+    assertThat(serviceOn("2026-11-20").decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void aFailedContributionLookupSkipsTheRejoinNudgeInsteadOfFailing() {
+    givenALeaverWhoStoppedContributionsIn2012();
+    given(userContacts.forPerson(member)).willThrow(new IllegalStateException("epis down"));
+
+    assertThat(serviceOn("2026-11-20").decide(member, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
   }
 
   @Test
@@ -148,7 +203,12 @@ class NudgeDecisionServiceTest {
     assertThat(service.decideOffline(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .isEqualTo(NudgeDecision.of(NudgeKey.MEMBERSHIP));
     org.mockito.Mockito.verifyNoInteractions(
-        securityContextRunner, pillarStatus, conversionService, paymentRateService, taxHeadroom);
+        securityContextRunner,
+        pillarStatus,
+        conversionService,
+        paymentRateService,
+        taxHeadroom,
+        userContacts);
   }
 
   @Test

@@ -29,4 +29,9 @@ class MandatePendingApplications implements PendingMandateApplications {
   public boolean hasPendingWithdrawals(Person person, Pillar pillar) {
     return applicationService.hasPendingWithdrawals(person, pillar);
   }
+
+  @Override
+  public boolean hasPendingRejoin(Person person) {
+    return applicationService.hasPendingRejoin(person);
+  }
 }

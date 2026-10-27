@@ -1,5 +1,13 @@
 {
   "variants": {
+    "second pillar rejoin suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "November 30, 2026",
+      "anyPillarSuggestion": true
+    },
     "second pillar start suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",

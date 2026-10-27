@@ -21,7 +21,9 @@ record NudgeInputs(
     boolean canIncreasePaymentRate,
     boolean pendingSecondPillarTransfer,
     boolean pendingSecondPillarWithdrawal,
+    boolean pendingSecondPillarRejoin,
     Known leftSecondPillar,
+    Known mayRejoinSecondPillar,
     Known thirdPillarRecurring,
     Known savingsFundRecurring,
     Known savesInSavingsFund,
@@ -29,4 +31,5 @@ record NudgeInputs(
     Known taxHeadroom,
     @Nullable FeeComparison feeComparison,
     @Nullable BigDecimal savingsFundFeePercent,
-    PaymentRateSeason paymentRateSeason) {}
+    PaymentRateSeason paymentRateSeason,
+    SecondPillarRejoinWindow secondPillarRejoinWindow) {}

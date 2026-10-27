@@ -1,0 +1,6 @@
+<mj-text>
+  For example, with a gross salary of 2000&nbsp;€, 94&nbsp;€ a month goes into your II&nbsp;pillar from your net salary and a tax win of 106&nbsp;€ is added on top.
+  The last day to file the application is *|secondPillarRejoinDeadline|*. After rejoining you can no longer leave the II&nbsp;pillar.
+</mj-text>
+<mj-text><strong>Get the tax win again</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/2nd-pillar-rejoin?language=en&utm_content=nudge_second_pillar_rejoin">Start saving again</mj-button>

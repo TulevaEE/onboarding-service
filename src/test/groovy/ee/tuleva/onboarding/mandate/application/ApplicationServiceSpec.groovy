@@ -316,6 +316,46 @@ class ApplicationServiceSpec extends Specification {
     status << [COMPLETE, FAILED]
   }
 
+  @Unroll
+  def "has a pending rejoin only while Pensionikeskus lists a rejoin as pending: #status"() {
+    given:
+    def person = samplePerson()
+    def rejoinApplication = samplePendingRejoinApplicationDto()
+    rejoinApplication.status = status
+    mandateGateway.getApplications(person) >> [rejoinApplication, sampleTransferApplicationDto()]
+
+    expect:
+    applicationService.hasPendingRejoin(person) == pendingRejoin
+
+    where:
+    status   || pendingRejoin
+    PENDING  || true
+    COMPLETE || false
+    FAILED   || false
+  }
+
+  def "a rejoin canceled through us still counts as pending, so a leaver who has just changed their mind is not asked to rejoin again"() {
+    given:
+    def person = samplePerson()
+    mandateGateway.getApplications(person) >> [samplePendingRejoinApplicationDto()]
+
+    when:
+    def pendingRejoin = applicationService.hasPendingRejoin(person)
+
+    then:
+    pendingRejoin
+    0 * rejoinCancellations.isCanceled(_, _)
+  }
+
+  def "a pending application of another type is no pending rejoin"() {
+    given:
+    def person = samplePerson()
+    mandateGateway.getApplications(person) >> [sampleTransferApplicationDto()]
+
+    expect:
+    !applicationService.hasPendingRejoin(person)
+  }
+
   def "gets withdrawals applications"() {
     given:
     def person = sampleAuthenticatedPersonAndMember().build()

@@ -5,30 +5,29 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>Sinu II&nbsp;samba avaldused on esitatud.</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
         <mj-text>
-          Sinu eest hakatakse taas tegema II&nbsp;samba sissemakseid ja saad jälle maksuvõitu.
+          Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Alates
+          *|contributionStartDate|* hakkavad sissemaksed toimuma automaatselt sinu palgast.
         </mj-text>
-        <mj-text><strong>Sinu esitatud avaldused:</strong></mj-text>
-        <mj-text>Sissemaksete tasumise avaldus</mj-text>
-        <mj-raw>*|IF:paymentRateChange|*</mj-raw>
-        <mj-text>Sissemakse määra muutmise avaldus</mj-text>
-        <mj-raw>*|END:IF|*</mj-raw>
-        <mj-raw>*|IF:fundSelection|*</mj-raw>
-        <mj-text>Valikuavaldus</mj-text>
-        <mj-raw>*|END:IF|*</mj-raw>
-        <mj-text>Sissemaksed algavad *|contributionStartDate|*.</mj-text>
         <mj-text>
-          Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on
+          Tore, et otsustasid uuesti koguma hakata! Nüüd saad taas kasutada II&nbsp;samba
+          maksueeliseid ja kasvatada järjekindlalt oma tulevikuvara, ilma et peaksid iga kuu
+          sellele mõtlema.
+        </mj-text>
+        <mj-text>Veel paar olulist asja:</mj-text>
+        <mj-text>
+          Kui mõtled ümber, saad avalduse
+          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a> tühistada kuni
           *|cancellationDeadline|*.
         </mj-text>
         <mj-text>
-          Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid
-          uuesti lõpetada ega raha teist korda välja võtta.
+          II&nbsp;sammas aitab koguda vara ajaks, mil töötamine pole enam vajalik või võimalik.
+          Kogutud raha saad kasutama hakata kuni viis aastat enne vanaduspensioniiga. Pärast
+          taasliitumist saad raha välja võtta alles siis, kui tekib õigus väljamaksetele.
         </mj-text>
         <mj-text>
-          Kirjale on lisatud koopia sinu tehtud avaldustest, mis on saadetud Pensionikeskusesse.
+          Avaldus on edastatud Pensionikeskusele ja koopia leiad selle kirja manusest.
         </mj-text>
       </mj-column>
     </mj-section>
@@ -36,7 +35,11 @@
     <mj-include path="./partials/contact_et.mjml" />
     <mj-section padding="0 24px">
       <mj-column>
-        <mj-text padding-top="12px">Tuleva</mj-text>
+        <mj-text padding-top="12px">Head kogumist!</mj-text>
+        <mj-text>
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
       </mj-column>
     </mj-section>
     <mj-include path="./partials/disclaimer_second_pillar_rejoin_et.mjml" />

@@ -9,9 +9,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const languages = {
   et: {
     required: [
-      'Tühistasid oma II&nbsp;samba sissemaksete tasumise avalduse. Sinu eest ei hakata II&nbsp;samba sissemakseid tegema.',
-      'Kui soovid hiljem siiski uuesti koguma hakata, saad uue avalduse esitada Tuleva kaudu.',
-      'Tühistamiseks esitasid II&nbsp;samba sissemaksete tasumisest vabastamise avalduse. Selle koopia, mis on saadetud Pensionikeskusesse, on kirjale lisatud.',
+      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on tühistatud. Selle alusel sissemaksed ei alga ja praegu ei pea sa rohkem midagi tegema.',
+      'Kui otsustad siiski uuesti II&nbsp;sambas koguma hakata, saad esitada uue avalduse oma Tuleva kontol',
+      'Sissemaksed algavad siis uue avalduse esitamise tähtajast sõltuvalt.',
+      'Tühistamise avaldus on edastatud Pensionikeskusele ja selle koopia leiad kirja manusest.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
     ],

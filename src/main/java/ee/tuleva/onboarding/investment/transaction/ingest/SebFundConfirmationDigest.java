@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -46,19 +45,13 @@ class SebFundConfirmationDigest {
     List<NewFindings> newFindings =
         outcomes.stream()
             .filter(outcome -> outcome.result().isActionable())
-            .map(outcome -> new NewFindings(outcome, unalertedFindings(outcome)))
+            .map(outcome -> new NewFindings(outcome, auditRecorder.unalertedFindings(outcome)))
             .filter(found -> !found.findings().isEmpty())
             .toList();
     List<MissingSebFundConfirmation> newMissing =
-        missing.stream()
-            .filter(
-                trade ->
-                    !alreadyAlerted(trade.tradeReference(), auditRecorder::alreadyAlerted, trade))
-            .toList();
+        missing.stream().filter(trade -> !auditRecorder.alreadyAlerted(trade)).toList();
     List<UnreadableSebFundConfirmation> newUnreadable =
-        unreadable.stream()
-            .filter(file -> !alreadyAlerted(file.key(), auditRecorder::alreadyAlerted, file))
-            .toList();
+        unreadable.stream().filter(file -> !auditRecorder.alreadyAlerted(file)).toList();
 
     List<String> blocks = new ArrayList<>();
     newFindings.forEach(found -> blocks.addAll(blocks(found.outcome(), found.findings())));
@@ -78,34 +71,6 @@ class SebFundConfirmationDigest {
           "SEB fund confirmation alerts sent but not recorded, they may repeat: error={}",
           e.getMessage(),
           e);
-    }
-  }
-
-  private List<String> unalertedFindings(SebFundConfirmationOutcome outcome) {
-    try {
-      return auditRecorder.unalertedFindings(outcome);
-    } catch (RuntimeException e) {
-      log.error(
-          "SEB fund confirmation alert history unreadable, alerting again: tradeReference={},"
-              + " error={}",
-          outcome.confirmation().tradeReference(),
-          e.getMessage(),
-          e);
-      return outcome.result().findings();
-    }
-  }
-
-  private static <T> boolean alreadyAlerted(
-      String reference, Predicate<T> alertHistory, T finding) {
-    try {
-      return alertHistory.test(finding);
-    } catch (RuntimeException e) {
-      log.error(
-          "SEB fund confirmation alert history unreadable, alerting again: reference={}, error={}",
-          reference,
-          e.getMessage(),
-          e);
-      return false;
     }
   }
 

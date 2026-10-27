@@ -13,9 +13,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class SebFundConfirmationAuditRecorder {
@@ -45,15 +47,20 @@ class SebFundConfirmationAuditRecorder {
   }
 
   List<String> unalertedFindings(SebFundConfirmationOutcome outcome) {
-    Set<String> alerted =
-        auditEventRepository
-            .findByEventTypeAndDedupKey(ALERTED, outcome.confirmation().tradeReference())
-            .stream()
-            .map(event -> event.getPayload().get(FINDINGS))
-            .filter(List.class::isInstance)
-            .flatMap(findings -> ((List<?>) findings).stream())
-            .map(String::valueOf)
-            .collect(toSet());
+    String reference = outcome.confirmation().tradeReference();
+    Set<String> alerted;
+    try {
+      alerted =
+          auditEventRepository.findByEventTypeAndDedupKey(ALERTED, reference).stream()
+              .map(event -> event.getPayload().get(FINDINGS))
+              .filter(List.class::isInstance)
+              .flatMap(findings -> ((List<?>) findings).stream())
+              .map(String::valueOf)
+              .collect(toSet());
+    } catch (RuntimeException e) {
+      logUnreadableAlertHistory(reference, e);
+      return outcome.result().findings();
+    }
     return outcome.result().findings().stream()
         .filter(finding -> !alerted.contains(finding))
         .toList();
@@ -66,9 +73,7 @@ class SebFundConfirmationAuditRecorder {
   }
 
   boolean alreadyAlerted(MissingSebFundConfirmation missing) {
-    return !auditEventRepository
-        .findByEventTypeAndDedupKey(MISSING_ALERTED, missing.tradeReference())
-        .isEmpty();
+    return hasAlerted(MISSING_ALERTED, missing.tradeReference());
   }
 
   void recordAlerted(MissingSebFundConfirmation missing) {
@@ -82,9 +87,24 @@ class SebFundConfirmationAuditRecorder {
   }
 
   boolean alreadyAlerted(UnreadableSebFundConfirmation unreadable) {
-    return !auditEventRepository
-        .findByEventTypeAndDedupKey(UNREADABLE_ALERTED, unreadable.key())
-        .isEmpty();
+    return hasAlerted(UNREADABLE_ALERTED, unreadable.key());
+  }
+
+  private boolean hasAlerted(String eventType, String dedupKey) {
+    try {
+      return !auditEventRepository.findByEventTypeAndDedupKey(eventType, dedupKey).isEmpty();
+    } catch (RuntimeException e) {
+      logUnreadableAlertHistory(dedupKey, e);
+      return false;
+    }
+  }
+
+  private static void logUnreadableAlertHistory(String dedupKey, RuntimeException e) {
+    log.error(
+        "SEB fund confirmation alert history unreadable, alerting again: dedupKey={}, error={}",
+        dedupKey,
+        e.getMessage(),
+        e);
   }
 
   void recordAlerted(UnreadableSebFundConfirmation unreadable) {

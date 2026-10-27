@@ -253,20 +253,6 @@ class SebFundConfirmationDigestTest {
   }
 
   @Test
-  void publish_stillPostsAFindingWhenItCannotTellWhetherItWasAlertedBefore() {
-    SebFundConfirmationOutcome outcome =
-        outcome(
-            new SebFundConfirmationResult(
-                NOT_FOUND, List.of(), WITHIN_TOLERANCE, null, null, ON_TIME, 1));
-    given(auditRecorder.unalertedFindings(outcome))
-        .willThrow(new IllegalStateException("audit store down"));
-
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
-
-    then(notificationService).should().sendMessage(any(), any());
-  }
-
-  @Test
   void publish_doesNotRepeatAnAlreadyAlertedFinding() {
     SebFundConfirmationOutcome outcome =
         outcome(

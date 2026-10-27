@@ -9,7 +9,8 @@
     "second pillar start suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillarStart": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "second pillar suggestion": {
       "FNAME": "Mari",
@@ -32,18 +33,23 @@
     "payment rate increase suggestion": {
       "FNAME": "Mari",
       "suggestPaymentRate": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
       "suggestThirdPillar": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true,
+      "taxRefundSuggestion": true
     },
     "third pillar fees suggestion": {
       "FNAME": "Mari",
       "suggestThirdPillar": true,
       "thirdPillarActive": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true,
+      "taxRefundSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
@@ -53,7 +59,9 @@
     "third pillar raise suggestion": {
       "FNAME": "Mari",
       "suggestThirdPillarRaise": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true,
+      "taxRefundSuggestion": true
     },
     "savings fund suggestion (cannot occur)": {
       "FNAME": "Mari",

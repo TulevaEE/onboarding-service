@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.WISE;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS_RECURRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -166,6 +167,14 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
+  void buildsWiseScheduledTransferUrl() {
+    var link = prefilledLink(WISE);
+
+    assertThat(link.url()).isEqualTo("https://wise.com/send#/?isScheduledTransfer=true");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
   void returnsNullUrlWhenPaymentChannelIsMissing() {
     var link = prefilledLink(null);
 
@@ -174,7 +183,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @ParameterizedTest
-  @EnumSource(names = {"CITADELE", "REVOLUT", "WISE", "N26", "BIGBANK", "TULUNDUSUHISTU"})
+  @EnumSource(names = {"CITADELE", "REVOLUT", "N26", "BIGBANK", "TULUNDUSUHISTU"})
   void rejectsChannelsWithNoStandingOrderFormOfTheirOwn(PaymentChannel channel) {
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData(channel), person()))
         .isInstanceOf(ErrorsResponseException.class)

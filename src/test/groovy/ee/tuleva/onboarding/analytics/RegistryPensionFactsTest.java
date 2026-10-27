@@ -92,6 +92,15 @@ class RegistryPensionFactsTest {
   }
 
   @Test
+  void aLeaverWithNoFundOnFileSendsContributionsNowhere() {
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(Optional.of(owner().p2choice(null).p2ravaStatus("R").build()));
+
+    assertThat(registry.snapshotFor(PERSONAL_CODE))
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, false));
+  }
+
+  @Test
   void theMaximumRateCannotBeRaisedAndAPendingMaximumCountsAsReached() {
     given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
         .willReturn(Optional.of(owner().p2rate(2).p2nextRate(6).build()));

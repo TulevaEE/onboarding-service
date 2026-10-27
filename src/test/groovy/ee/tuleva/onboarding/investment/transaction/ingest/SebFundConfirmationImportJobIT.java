@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -65,6 +67,7 @@ class SebFundConfirmationImportJobIT {
   @Autowired private Target2Calendar calendar;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private TestEntityManager entityManager;
 
   private final S3Client s3Client = mock(S3Client.class);
   private final OperationsNotificationService notificationService =
@@ -137,7 +140,7 @@ class SebFundConfirmationImportJobIT {
     seedTwoTradesAndANavBelowTheConfirmedPrice();
 
     job.run();
-    job.run();
+    runAgainFromWhatTheDatabaseHolds();
 
     then(notificationService).should(times(1)).sendMessage(any(), any());
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001")).hasSize(1);
@@ -152,7 +155,7 @@ class SebFundConfirmationImportJobIT {
 
     job.run();
     saveReport(LocalDate.of(2026, 1, 7), List.of(pendingRow("DLA0000001", "12.40000000")));
-    job.run();
+    runAgainFromWhatTheDatabaseHolds();
 
     then(notificationService).should(times(1)).sendMessage(any(), any());
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
@@ -177,7 +180,7 @@ class SebFundConfirmationImportJobIT {
         .param("key", NAV_STORAGE_KEY)
         .param("date", LocalDate.of(2026, 1, 6))
         .update();
-    job.run();
+    runAgainFromWhatTheDatabaseHolds();
 
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
         .extracting(event -> event.getPayload().get("nav"))
@@ -221,6 +224,12 @@ class SebFundConfirmationImportJobIT {
                     .containsEntry("status", "[MATCH, WITHIN_TOLERANCE, ON_TIME]"));
   }
 
+  private void runAgainFromWhatTheDatabaseHolds() {
+    entityManager.flush();
+    entityManager.clear();
+    job.run();
+  }
+
   private void seedTwoTradesAndANavBelowTheConfirmedPrice() {
     insertNav(LocalDate.of(2026, 1, 6), "12.3000");
     saveReport(
@@ -258,7 +267,7 @@ class SebFundConfirmationImportJobIT {
         .param("key", NAV_STORAGE_KEY)
         .param("date", date)
         .param("value", new BigDecimal(value))
-        .param("updatedAt", NOW.minusSeconds(86_400))
+        .param("updatedAt", Timestamp.from(NOW.minusSeconds(86_400)))
         .update();
   }
 

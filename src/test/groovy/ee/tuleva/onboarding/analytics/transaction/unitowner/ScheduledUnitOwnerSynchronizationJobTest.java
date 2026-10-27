@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.unitowner;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -83,7 +84,7 @@ class ScheduledUnitOwnerSynchronizationJobTest {
 
   private static LocalDate fixClockAfterPruningFloor() {
     ClockHolder.setClock(
-        Clock.fixed(Instant.parse("2026-12-01T10:00:00Z"), ZoneId.of("Europe/Tallinn")));
+        Clock.fixed(Instant.parse("2027-06-01T10:00:00Z"), ZoneId.of("Europe/Tallinn")));
     return LocalDate.now(ClockHolder.clock());
   }
 
@@ -108,6 +109,19 @@ class ScheduledUnitOwnerSynchronizationJobTest {
     LocalDate historicNonKeptWednesday = LocalDate.of(2026, 8, 19);
     when(unitOwnerRepository.findDistinctSnapshotDates())
         .thenReturn(List.of(historicNonKeptWednesday));
+
+    job.runDailySync();
+
+    verify(unitOwnerRepository, never()).deleteBySnapshotDateIn(any());
+  }
+
+  @Test
+  void runDailySync_keepsTheDailySnapshotsOfThe2026PaymentRateExperiment() {
+    fixClockAfterPruningFloor();
+    LocalDate experimentTuesday = LocalDate.of(2026, 9, 22);
+    LocalDate fridayBeforeTheRateDeadline = LocalDate.of(2026, 11, 27);
+    given(unitOwnerRepository.findDistinctSnapshotDates())
+        .willReturn(List.of(experimentTuesday, fridayBeforeTheRateDeadline));
 
     job.runDailySync();
 

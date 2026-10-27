@@ -67,7 +67,7 @@ class OfflineNudgeInputsTest {
   @Test
   void readsThePensionFactsFromTheRegistrySnapshotAndLeavesEpisOnlyFactsUnknown() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true)));
+        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, false)));
     given(recurringStatus.thirdPillar(user.getPersonalCode())).willReturn(false);
 
     NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
@@ -100,7 +100,8 @@ class OfflineNudgeInputsTest {
   @Test
   void aRegistryOnlyPersonIsNeverAMemberAndIsAgedFromThePersonalCode() {
     given(pensionRegistry.snapshotFor(any()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, false, false, true, true)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(true, false, false, true, true, false)));
     given(recurringStatus.thirdPillar(any())).willReturn(true);
 
     NudgeInputs adult =
@@ -140,7 +141,8 @@ class OfflineNudgeInputsTest {
   @Test
   void aLeaverIsMarkedFromTheRegistry() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, false, true, false, false)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(false, false, true, false, false, false)));
 
     NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
@@ -151,7 +153,7 @@ class OfflineNudgeInputsTest {
   @Test
   void theOfflineInputsCarryTheSameSeasonSoDecemberSuppressionReachesScheduledEmails() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true)));
+        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, false)));
 
     assertThat(
             offlineInputsOn("2026-11-10")

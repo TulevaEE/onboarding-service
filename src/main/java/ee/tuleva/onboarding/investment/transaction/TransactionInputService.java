@@ -1,26 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
-import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
-import static java.math.RoundingMode.CEILING;
 
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
-import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
-import ee.tuleva.onboarding.investment.epis.R16FundFlow;
-import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -55,7 +46,6 @@ import org.springframework.stereotype.Service;
 public class TransactionInputService {
 
   private static final Set<TulevaFund> PEVA_RAVA_FUNDS = Set.of(TUK75, TUK00);
-  private static final Set<TulevaFund> R16_FUNDS = Set.of(TUK75, TUK00, TUV100);
 
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -65,9 +55,7 @@ public class TransactionInputService {
   private final PevaRavaPeriodService pevaRavaPeriodService;
   private final PevaRavaFlowService pevaRavaFlowService;
   private final R45ReportService r45ReportService;
-  private final R16FlowCalculationService r16FlowCalculationService;
-  private final R16PhaseCalculator r16PhaseCalculator;
-  private final InvestmentParameterRepository investmentParameterRepository;
+  private final R16OutflowReader r16OutflowReader;
   private final PendingOrderImpactService pendingOrderImpactService;
   private final PositionAssembler positionAssembler;
   private final UnsettledTradeReader unsettledTradeReader;
@@ -122,7 +110,7 @@ public class TransactionInputService {
 
     BigDecimal pevaRava = getPevaRavaLiquidity(fund, asOfDate);
     liabilities = liabilities.add(pevaRava);
-    BigDecimal r16 = getR16Outflow(fund, asOfDate);
+    BigDecimal r16 = r16OutflowReader.read(fund, asOfDate);
     liabilities = liabilities.add(r16);
 
     BigDecimal r45Net = getR45Net(fund);
@@ -299,41 +287,6 @@ public class TransactionInputService {
       return ZERO;
     }
     return timeline.sellByReached() ? flows.tradeBufferedLiquidity() : flows.liquidityRequired();
-  }
-
-  private BigDecimal getR16Outflow(TulevaFund fund, LocalDate asOfDate) {
-    if (!R16_FUNDS.contains(fund)) {
-      return ZERO;
-    }
-    Optional<R16FundFlow> flow = r16FlowCalculationService.calculateFlows(fund, asOfDate);
-    if (flow.isEmpty()) {
-      return ZERO;
-    }
-    return getR16Outflow(flow.get(), asOfDate);
-  }
-
-  private BigDecimal getR16Outflow(R16FundFlow flow, LocalDate asOfDate) {
-    return switch (r16PhaseCalculator.phaseFor(flow, asOfDate)) {
-      case ACTIVE -> flow.totalOutflowEur().abs();
-      case BUFFERED -> bufferedR16Outflow(flow.totalOutflowEur(), asOfDate);
-      case IGNORE, VISIBLE -> ZERO;
-    };
-  }
-
-  private BigDecimal bufferedR16Outflow(BigDecimal totalOutflowEur, LocalDate asOfDate) {
-    BigDecimal bufferPercent =
-        investmentParameterRepository.findLatestValue(R16_BUFFER_PERCENT, asOfDate);
-    BigDecimal step = investmentParameterRepository.findLatestValue(R16_ROUNDING_STEP, asOfDate);
-    if (step.signum() <= 0) {
-      throw new IllegalStateException(
-          "Invalid investment parameter: parameter=R16_ROUNDING_STEP, value="
-              + step.toPlainString());
-    }
-    return totalOutflowEur
-        .abs()
-        .multiply(ONE.add(bufferPercent))
-        .divide(step, 0, CEILING)
-        .multiply(step);
   }
 
   private BigDecimal getR45Net(TulevaFund fund) {

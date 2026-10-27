@@ -109,9 +109,8 @@ class TransactionInputServiceTest {
             pevaRavaPeriodService,
             pevaRavaFlowService,
             r45ReportService,
-            r16FlowCalculationService,
-            r16PhaseCalculator,
-            investmentParameterRepository,
+            new R16OutflowReader(
+                r16FlowCalculationService, r16PhaseCalculator, investmentParameterRepository),
             pendingOrderImpactService,
             new PositionAssembler(fundPositionRepository),
             new UnsettledTradeReader(fundPositionRepository),

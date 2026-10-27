@@ -259,6 +259,11 @@ transaction-registry:
     # How far back the daily settlement check scans SENT/EXECUTED orders. Bounds the
     # scan because orders never transition to SETTLED, so the EXECUTED backlog grows.
     scan-lookback-days: 60
+  seb-fund-confirmation:
+    nav-tolerance-percent: 0.5
+    max-nav-dates-after-receipt: 2
+    business-days-to-wait: 3
+    missing-confirmations-from: 2026-11-02
   ft-confirmation:
     # Whether onboarding-service is the authoritative FT-verification pipeline yet. While
     # false (parallel run with GAS), the FT check runs in shadow mode: confirmations are

@@ -8,6 +8,8 @@ public final class JobRunSchedule {
 
   public static final String IMPORT_BUSINESS_HOURS = "0 */5 8-17 * * *";
 
+  public static final String SEB_FUND_CONFIRMATION_CHECK = "0 40 7,19 * * MON-FRI";
+
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
 
   public static final String TRACKING_DIFFERENCE_GAP_FILL = "0 0 19 * * MON-FRI";

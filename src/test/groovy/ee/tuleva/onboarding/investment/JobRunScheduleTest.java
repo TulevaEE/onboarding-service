@@ -136,9 +136,26 @@ class JobRunScheduleTest {
         .allSatisfy(fire -> assertThat(fire.toLocalTime()).isEqualTo(LocalTime.of(9, 0)));
   }
 
+  @Test
+  void sebFundConfirmationCheck_firesBeforeAndAfterTheImportsOnEachBusinessDay() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-10-12T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(JobRunSchedule.SEB_FUND_CONFIRMATION_CHECK, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(10);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+              assertThat(fire.toLocalTime()).isIn(LocalTime.of(7, 40), LocalTime.of(19, 40));
+            });
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
+    SEB_FUND_CONFIRMATION_CHECK(
+        JobRunSchedule.SEB_FUND_CONFIRMATION_CHECK, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     TRACKING_DIFFERENCE_GAP_FILL(
         JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     FEE_ACCRUAL_POSITION_BACKFILL(

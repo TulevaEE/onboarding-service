@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import java.math.BigDecimal;
 import java.util.List;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.Test;
 
 class PositionLimitCheckerTest {
@@ -66,7 +67,20 @@ class PositionLimitCheckerTest {
     var breaches =
         checker.check(TUK75, List.of(position), new BigDecimal("1000000"), List.of(limit));
 
-    assertThat(breaches).singleElement().satisfies(b -> assertThat(b.severity()).isEqualTo(SOFT));
+    assertThat(breaches)
+        .usingRecursiveFieldByFieldElementComparator(
+            RecursiveComparisonConfiguration.builder()
+                .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+                .build())
+        .containsExactly(
+            new PositionBreach(
+                TUK75,
+                "IE00B4L5Y983",
+                "iShares MSCI World",
+                new BigDecimal("20"),
+                new BigDecimal("15"),
+                new BigDecimal("20"),
+                SOFT));
   }
 
   @Test

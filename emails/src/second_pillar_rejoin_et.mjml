@@ -8,7 +8,7 @@
         <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
         <mj-text>
           Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad
-          laekuma automaatselt. Esimene sissemakse tehakse *|contributionStartDate|* palgast.
+          laekuma automaatselt ja nende alguskuupäev on *|contributionStartDate|*.
         </mj-text>
         <mj-text>
           Tore, et otsustasid uuesti koguma hakata! Nüüd saad taas kasutada II&nbsp;samba

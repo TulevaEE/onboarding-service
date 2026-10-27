@@ -35,6 +35,17 @@ describe("getSourceForSender", () => {
       expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.FT);
     });
   });
+  test("matches each configured SEB trade confirmation sender", () => {
+    expect(SOURCES.SEB_CONFIRMATION.senders).not.toHaveLength(0);
+    SOURCES.SEB_CONFIRMATION.senders.forEach((s) => {
+      expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.SEB_CONFIRMATION);
+    });
+  });
+  test("keeps the SEB trade confirmation sender apart from the SEB report senders", () => {
+    SOURCES.SEB_CONFIRMATION.senders.forEach((s) => {
+      expect(SOURCES.SEB.senders).not.toContain(s);
+    });
+  });
   test("rejects an arbitrary @tuleva.ee address that is not on the allowlist", () => {
     expect(getSourceForSender("Random Internal <random.person@tuleva.ee>")).toBeNull();
   });
@@ -166,6 +177,29 @@ describe("getFileConfigAndDate — S3 key regression (CSV feeds stay date-based)
     const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
     expect(s3Key).toBe("ft-confirmations/MID9BlFbos-00.pdf");
   });
+  test("SEB trade confirmation filename produces the trade-reference-based key", () => {
+    const result = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf");
+    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+    expect(s3Key).toBe("seb-confirmations/DLA1234567-001.pdf");
+  });
+});
+
+describe("getFileConfigAndDate — SEB trade confirmation filenames", () => {
+  test("matches a trade confirmation PDF and keeps the trade reference as the key stem", () => {
+    const result = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf");
+    expect(result.keyStem).toBe("DLA1234567-001");
+  });
+  test("matches regardless of the extension's letter case", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.PDF")).not.toBeNull();
+  });
+  test("rejects a PDF that is not named after a trade reference", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "random.pdf")).toBeNull();
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567.pdf")).toBeNull();
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "MID9BlFbos-00.pdf")).toBeNull();
+  });
+  test("rejects SEB report files", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "TULEVA_pos_raport_20260409.csv")).toBeNull();
+  });
 });
 
 describe("isBinaryFileConfig / resolveContentType — attachment content selection", () => {
@@ -183,6 +217,11 @@ describe("isBinaryFileConfig / resolveContentType — attachment content selecti
     const swedbankFileConfig = getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv").fileConfig;
     expect(isBinaryFileConfig(swedbankFileConfig)).toBe(false);
     expect(resolveContentType(swedbankFileConfig)).toBe("text/csv");
+  });
+  test("SEB trade confirmation config reads as binary bytes with a PDF content-type", () => {
+    const fileConfig = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf").fileConfig;
+    expect(isBinaryFileConfig(fileConfig)).toBe(true);
+    expect(resolveContentType(fileConfig)).toBe("application/pdf");
   });
 });
 

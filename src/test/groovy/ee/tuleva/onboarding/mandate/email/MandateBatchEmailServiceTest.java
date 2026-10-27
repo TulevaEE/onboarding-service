@@ -74,9 +74,10 @@ class MandateBatchEmailServiceTest {
             emailService,
             emailPersistenceService,
             mandateProcessorService,
-            new MandateDeadlinesService(estonianClock, new PublicHolidays()),
-            fundRepository,
-            pensionRegistry);
+            new SecondPillarRejoinMergeVars(
+                new MandateDeadlinesService(estonianClock, new PublicHolidays()),
+                fundRepository,
+                pensionRegistry));
   }
 
   @Test

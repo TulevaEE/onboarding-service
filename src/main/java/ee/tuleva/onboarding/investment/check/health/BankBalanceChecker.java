@@ -48,13 +48,20 @@ class BankBalanceChecker {
       return bankStatementBalances
           .closingBalance(account, navDate)
           .map(balance -> compare(fund, navDate, reportCash, balance))
-          .orElseGet(
-              () -> List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate))));
+          .orElseGet(() -> withoutAClosingBalance(fund, navDate, account));
     } catch (RuntimeException e) {
       log.error("Bank statement could not be read: fund={}, navDate={}", fund, navDate, e);
       return List.of(
           finding(fund, NOT_RUN, "Bank statement for %s could not be read".formatted(navDate)));
     }
+  }
+
+  private List<HealthCheckFinding> withoutAClosingBalance(
+      TulevaFund fund, LocalDate navDate, BankAccount account) {
+    if (bankStatementBalances.isInsideAStatementClosingLater(account, navDate)) {
+      return List.of();
+    }
+    return List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate)));
   }
 
   private List<HealthCheckFinding> compare(

@@ -7,8 +7,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.json.JsonCompareMode.STRICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
@@ -56,12 +57,29 @@ class PastPerformanceAdminControllerTest {
     mockMvc
         .perform(get("/admin/kid/TKF100/past-performance").header("X-Admin-Token", "ops-token"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.enoughHistory").value(false))
-        .andExpect(jsonPath("$.asOf").value("2026-10-21"))
-        .andExpect(jsonPath("$.years[0].year").value(2026))
-        .andExpect(jsonPath("$.years[0].fundReturn").value(0.01731))
-        .andExpect(jsonPath("$.years[0].partialYear").value(true))
-        .andExpect(jsonPath("$.years[0].yearToDate").value(true));
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {
+                      "fund": "TKF100",
+                      "fundKey": "EE0000003283",
+                      "benchmarkKey": "MSCI_ACWI",
+                      "benchmarkEquityCap": null,
+                      "asOf": "2026-10-21",
+                      "enoughHistory": false,
+                      "years": [
+                        {
+                          "year": 2026,
+                          "fundReturn": 0.01731000,
+                          "benchmarkReturn": 0.01282657,
+                          "partialYear": true,
+                          "yearToDate": true
+                        }
+                      ]
+                    }
+                    """,
+                    STRICT));
   }
 
   @Test
@@ -81,9 +99,25 @@ class PastPerformanceAdminControllerTest {
     mockMvc
         .perform(get("/admin/kid/TUK75/past-performance").header("X-Admin-Token", "ops-token"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.benchmarkEquityCap.bondKey").value("EURO_AGGREGATE_BOND"))
-        .andExpect(jsonPath("$.benchmarkEquityCap.equityWeight").value(0.75))
-        .andExpect(jsonPath("$.benchmarkEquityCap.liftedOn").value("2019-09-02"));
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {
+                      "fund": "TUK75",
+                      "fundKey": "EE3600109435",
+                      "benchmarkKey": "MSCI_ACWI",
+                      "benchmarkEquityCap": {
+                        "bondKey": "EURO_AGGREGATE_BOND",
+                        "equityWeight": 0.75,
+                        "liftedOn": "2019-09-02"
+                      },
+                      "asOf": "2026-10-21",
+                      "enoughHistory": true,
+                      "years": []
+                    }
+                    """,
+                    STRICT));
   }
 
   @Test

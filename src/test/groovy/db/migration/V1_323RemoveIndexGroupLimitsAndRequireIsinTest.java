@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import org.flywaydb.core.Flyway;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -73,12 +73,13 @@ class V1_323RemoveIndexGroupLimitsAndRequireIsinTest {
   void perIsinLimitsAreKeptUnchangedIncludingTheGroupTheyOnceBelongedTo() {
     var formerMember = givenMemberLimit(FUND_WITH_GROUPS, MEMBER_ISIN, GROUP_A, RETIRED_VERSION);
     var plain = givenPlainLimit(FUND_WITH_GROUPS, PLAIN_ISIN, RETIRED_VERSION);
+    var isinRowsBefore = limitRows();
     givenGroupLimit(FUND_WITH_GROUPS, GROUP_A, RETIRED_VERSION);
 
     migrateTo(THE_REMOVAL);
 
     assertThat(remainingLimitIds()).containsExactly(formerMember, plain);
-    assertThat(groupNameOf(formerMember)).contains(GROUP_A);
+    assertThat(limitRows()).isEqualTo(isinRowsBefore);
   }
 
   @Test
@@ -140,11 +141,10 @@ class V1_323RemoveIndexGroupLimitsAndRequireIsinTest {
         .list();
   }
 
-  private Optional<String> groupNameOf(long id) {
+  private List<Map<String, Object>> limitRows() {
     return jdbcClient
-        .sql("SELECT index_group FROM investment_position_limit WHERE id = :id")
-        .param("id", id)
-        .query(String.class)
-        .optional();
+        .sql("SELECT * FROM investment_position_limit ORDER BY id")
+        .query()
+        .listOfRows();
   }
 }

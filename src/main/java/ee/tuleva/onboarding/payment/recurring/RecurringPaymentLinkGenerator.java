@@ -101,7 +101,7 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
         validateAmountIfPresent(paymentData);
         yield coopPankPaymentLinkGenerator.getPaymentLink(paymentData, person);
       }
-      case TULUNDUSUHISTU ->
+      case CITADELE, REVOLUT, WISE, N26, BIGBANK, TULUNDUSUHISTU ->
           throw new ErrorsResponseException(
               ErrorsResponse.ofSingleError(
                   "payment.channel.not.supported",

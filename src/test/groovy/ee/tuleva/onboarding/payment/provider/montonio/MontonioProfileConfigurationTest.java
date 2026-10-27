@@ -1,11 +1,17 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.BIGBANK;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.CITADELE;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.N26;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.REVOLUT;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.WISE;
+import static java.util.Map.entry;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.core.env.StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME;
@@ -33,14 +39,22 @@ class MontonioProfileConfigurationTest {
 
   private static final String SANDBOX_URL = "https://sandbox-stargate.montonio.com/api";
 
+  private static final String SANDBOX_COOP_STORE = "5aa7cf67-4a11-472f-a42e-aa7a5a389100";
+  private static final String PRODUCTION_COOP_STORE = "f5cd942d-5b23-4467-80ce-95cd67186c6f";
+
   private static final Map<PaymentChannel, Channel> SANDBOX_CHANNELS =
-      Map.of(
-          LUMINOR, new Channel("0be260f2-1966-4d18-bb9d-1f0909a663f7", "RIKOEE22"),
-          SEB, new Channel("25f6018a-d93e-4f2a-b235-58ab79c47235", "EEUHEE2X"),
-          SWEDBANK, new Channel("e343cf15-09ea-466d-91bd-b805bbed034a", "HABAEE2X"),
-          LHV, new Channel("070e9cae-9f0c-423e-9345-70d624a05578", "LHVBEE22"),
-          COOP, new Channel("5aa7cf67-4a11-472f-a42e-aa7a5a389100", "EKRDEE22"),
-          TULUNDUSUHISTU, new Channel("912e0403-62ad-4b0c-a91c-129f64f7a3ea", null));
+      Map.ofEntries(
+          entry(LUMINOR, new Channel("0be260f2-1966-4d18-bb9d-1f0909a663f7", "RIKOEE22")),
+          entry(SEB, new Channel("25f6018a-d93e-4f2a-b235-58ab79c47235", "EEUHEE2X")),
+          entry(SWEDBANK, new Channel("e343cf15-09ea-466d-91bd-b805bbed034a", "HABAEE2X")),
+          entry(LHV, new Channel("070e9cae-9f0c-423e-9345-70d624a05578", "LHVBEE22")),
+          entry(COOP, new Channel(SANDBOX_COOP_STORE, "EKRDEE22")),
+          entry(CITADELE, new Channel(SANDBOX_COOP_STORE, "PARXEE22")),
+          entry(REVOLUT, new Channel(SANDBOX_COOP_STORE, "RVUALT2V")),
+          entry(WISE, new Channel(SANDBOX_COOP_STORE, "TRWIGB2L")),
+          entry(N26, new Channel(SANDBOX_COOP_STORE, "NTSBDEB1")),
+          entry(BIGBANK, new Channel(SANDBOX_COOP_STORE, "BIGKEE2B")),
+          entry(TULUNDUSUHISTU, new Channel("912e0403-62ad-4b0c-a91c-129f64f7a3ea", null)));
 
   private static final String SANDBOX_SAVINGS_ACCESS_KEY = "a7dca9bf-1b5a-4252-a4d9-39e9836f0f4e";
 
@@ -79,13 +93,20 @@ class MontonioProfileConfigurationTest {
             new MontonioSettings(
                 "https://stargate.montonio.com/api",
                 false,
-                Map.of(
-                    LUMINOR, new Channel("fb673dc3-d898-4592-844f-83491aa430cc", "RIKOEE22"),
-                    SEB, new Channel("bec7e2ff-df2b-4342-829e-d131706a7858", "EEUHEE2X"),
-                    SWEDBANK, new Channel("0741a0c4-39c2-4d28-a692-0ab66d4c9c7c", "HABAEE2X"),
-                    LHV, new Channel("955bc96c-aa71-4ff3-bea9-c8a429168c1d", "LHVBEE22"),
-                    COOP, new Channel("f5cd942d-5b23-4467-80ce-95cd67186c6f", "EKRDEE22"),
-                    TULUNDUSUHISTU, new Channel("02f596e6-d6b6-43a8-83ac-53d33cc1f13d", null)),
+                Map.ofEntries(
+                    entry(LUMINOR, new Channel("fb673dc3-d898-4592-844f-83491aa430cc", "RIKOEE22")),
+                    entry(SEB, new Channel("bec7e2ff-df2b-4342-829e-d131706a7858", "EEUHEE2X")),
+                    entry(
+                        SWEDBANK, new Channel("0741a0c4-39c2-4d28-a692-0ab66d4c9c7c", "HABAEE2X")),
+                    entry(LHV, new Channel("955bc96c-aa71-4ff3-bea9-c8a429168c1d", "LHVBEE22")),
+                    entry(COOP, new Channel(PRODUCTION_COOP_STORE, "EKRDEE22")),
+                    entry(CITADELE, new Channel(PRODUCTION_COOP_STORE, "PARXEE22")),
+                    entry(REVOLUT, new Channel(PRODUCTION_COOP_STORE, "RVUALT2V")),
+                    entry(WISE, new Channel(PRODUCTION_COOP_STORE, "TRWIGB2L")),
+                    entry(N26, new Channel(PRODUCTION_COOP_STORE, "NTSBDEB1")),
+                    entry(BIGBANK, new Channel(PRODUCTION_COOP_STORE, "BIGKEE2B")),
+                    entry(
+                        TULUNDUSUHISTU, new Channel("02f596e6-d6b6-43a8-83ac-53d33cc1f13d", null))),
                 "38ca14da-8b07-43af-9f43-e052b5d2a8c1",
                 "https://onboarding-service.tuleva.ee/v1/payments/savings/notifications"));
   }
@@ -108,13 +129,7 @@ class MontonioProfileConfigurationTest {
     return new MontonioSettings(
         binder.bind("payment-provider.url", String.class).get(),
         binder.bind("payment-provider.use-fake-notification-url", Boolean.class).get(),
-        binder
-            .bind(
-                "payment-provider.payment-channels",
-                Bindable.mapOf(PaymentChannel.class, MontonioPaymentChannel.class))
-            .get()
-            .entrySet()
-            .stream()
+        channelsIn(environment).entrySet().stream()
             .collect(
                 toMap(
                     Entry::getKey,
@@ -122,6 +137,15 @@ class MontonioProfileConfigurationTest {
                         new Channel(entry.getValue().getAccessKey(), entry.getValue().getBic()))),
         binder.bind("payment-provider.savings-channel.access-key", String.class).get(),
         binder.bind("payment-provider.savings-channel.notification-url", String.class).get());
+  }
+
+  private static Map<PaymentChannel, MontonioPaymentChannel> channelsIn(
+      ConfigurableEnvironment environment) {
+    return Binder.get(environment)
+        .bind(
+            "payment-provider.payment-channels",
+            Bindable.mapOf(PaymentChannel.class, MontonioPaymentChannel.class))
+        .get();
   }
 
   private static ConfigurableEnvironment environmentFor(List<String> profiles) {

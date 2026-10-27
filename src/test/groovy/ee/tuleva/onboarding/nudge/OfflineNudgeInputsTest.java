@@ -6,11 +6,14 @@ import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_PAYMENT_ARRIV
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.user.SecondPillarContributions;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserContacts;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -34,6 +37,7 @@ class OfflineNudgeInputsTest {
   @Mock private TaxHeadroom taxHeadroom;
   @Mock private ActingParties actingParties;
   @Mock private SavingsFundFeeRate savingsFundFeeRate;
+  @Mock private UserContacts userContacts;
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
@@ -43,6 +47,8 @@ class OfflineNudgeInputsTest {
   private OfflineNudgeInputs offlineInputsOn(String date) {
     Clock clock =
         Clock.fixed(LocalDateTime.parse(date + "T09:00:00").atZone(TALLINN).toInstant(), TALLINN);
+    MandateDeadlinesService mandateDeadlinesService =
+        new MandateDeadlinesService(clock, new PublicHolidays());
     return new OfflineNudgeInputs(
         pensionRegistry,
         new KnownLookups(
@@ -52,8 +58,11 @@ class OfflineNudgeInputsTest {
             saverStatus,
             taxHeadroom,
             actingParties,
-            savingsFundFeeRate),
-        new PaymentRateSeasons(clock, new MandateDeadlinesService(clock, new PublicHolidays())));
+            savingsFundFeeRate,
+            userContacts,
+            new SecondPillarContributions(clock)),
+        new PaymentRateSeasons(clock, mandateDeadlinesService),
+        new SecondPillarRejoinWindows(clock, mandateDeadlinesService));
   }
 
   @BeforeEach
@@ -83,6 +92,9 @@ class OfflineNudgeInputsTest {
     assertThat(inputs.feeComparison()).isNull();
     assertThat(inputs.pendingSecondPillarTransfer()).isFalse();
     assertThat(inputs.pendingSecondPillarWithdrawal()).isFalse();
+    assertThat(inputs.mayRejoinSecondPillar()).isEqualTo(Known.UNKNOWN);
+    assertThat(inputs.pendingSecondPillarRejoin()).isFalse();
+    verifyNoInteractions(userContacts);
   }
 
   @Test

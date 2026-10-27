@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
@@ -31,6 +32,7 @@ class NudgeDecisionSerializationTest {
 
   private static List<NudgeDecision> everyDecisionShape() {
     var decisions = new ArrayList<NudgeDecision>();
+    decisions.add(NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30)));
     decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     decisions.add(
         NudgeDecision.secondPillarTransfer(
@@ -100,6 +102,7 @@ class NudgeDecisionSerializationTest {
         NudgeDecision.of(NudgeKey.THIRD_PILLAR_RECURRING).mergeVars(Locale.ENGLISH);
 
     assertThat(vars)
+        .containsEntry("suggestSecondPillarRejoin", false)
         .containsEntry("suggestSecondPillarStart", false)
         .containsEntry("suggestSecondPillar", false)
         .containsEntry("suggestPaymentRate", false)
@@ -117,7 +120,8 @@ class NudgeDecisionSerializationTest {
             "secondPillarFeePercent",
             "tulevaFeePercent",
             "secondPillarAssetsAmount",
-            "feeComparisonDate");
+            "feeComparisonDate",
+            "secondPillarRejoinDeadline");
   }
 
   @Test
@@ -132,6 +136,7 @@ class NudgeDecisionSerializationTest {
 
     assertThat(flagged)
         .containsExactly(
+            SECOND_PILLAR_REJOIN,
             SECOND_PILLAR_START,
             SECOND_PILLAR_TRANSFER,
             SECOND_PILLAR_PAYMENT_RATE,
@@ -197,5 +202,17 @@ class NudgeDecisionSerializationTest {
         .containsEntry("feeComparisonDate", "16.10.2026");
     assertThat(savingsFund.mergeVars(Locale.of("et"))).containsEntry("savingsFundFee", "0,28");
     assertThat(savingsFund.mergeVars(Locale.ENGLISH)).containsEntry("savingsFundFee", "0.28");
+  }
+
+  @Test
+  void theRejoinNudgeRaisesItsFlagAndCarriesTheFilingDeadlineFormattedForTheLocale() {
+    NudgeDecision rejoin = NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30));
+
+    assertThat(rejoin.mergeVars(Locale.of("et")))
+        .containsEntry("suggestSecondPillarRejoin", true)
+        .containsEntry("anyPillarSuggestion", true)
+        .containsEntry("secondPillarRejoinDeadline", "30. november 2026");
+    assertThat(rejoin.mergeVars(Locale.ENGLISH))
+        .containsEntry("secondPillarRejoinDeadline", "November 30, 2026");
   }
 }

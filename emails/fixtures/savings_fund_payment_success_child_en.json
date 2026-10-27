@@ -1,5 +1,14 @@
 {
   "variants": {
+    "second pillar rejoin suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "recipientIsChild": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "November 30, 2026",
+      "anyPillarSuggestion": true
+    },
     "second pillar start suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",

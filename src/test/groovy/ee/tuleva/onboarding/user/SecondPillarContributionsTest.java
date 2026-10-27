@@ -214,6 +214,37 @@ class SecondPillarContributionsTest {
     assertThat(contributionsOn27October2026.statusOf(periods)).isNull();
   }
 
+  @Test
+  void aLeaverMayRejoinTodayOnlyOnceTheRejoinDateHasComeAndNoRestartIsComing() {
+    var stoppedIn2012 =
+        List.of(
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
+            contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"));
+    var rejoinedFromMay2027 =
+        List.of(
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
+            contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"),
+            contributionPeriod(CONTRIBUTING, "2027-05-01"));
+    var stoppedIn2023 =
+        List.of(
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"),
+            contributionPeriod(NOT_CONTRIBUTING, "2023-09-01"));
+    var contributing = List.of(contributionPeriod(CONTRIBUTING, "2002-07-01"));
+    var on10November2026 = on("2026-11-10T10:00:00Z");
+
+    assertThat(
+            Stream.of(
+                    stoppedIn2012,
+                    rejoinedFromMay2027,
+                    stoppedIn2023,
+                    contributing,
+                    List.<SecondPillarContributionPeriod>of())
+                .map(on10November2026::mayRejoinToday)
+                .toList())
+        .containsExactly(true, false, false, false, false);
+    assertThat(contributionsOn27October2026.mayRejoinToday(stoppedIn2012)).isFalse();
+  }
+
   private static SecondPillarContributions on(String instant) {
     return new SecondPillarContributions(Clock.fixed(Instant.parse(instant), UTC));
   }

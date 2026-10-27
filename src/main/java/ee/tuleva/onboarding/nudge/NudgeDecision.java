@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.nudge.NudgeKey.NONE;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
@@ -18,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -27,27 +29,40 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 @JsonInclude(NON_NULL)
-@JsonPropertyOrder({"key", "tag", "feeComparison", "savingsFundFeePercent", "paymentRateSeason"})
+@JsonPropertyOrder({
+  "key",
+  "tag",
+  "feeComparison",
+  "savingsFundFeePercent",
+  "secondPillarRejoinDeadline",
+  "paymentRateSeason"
+})
 public record NudgeDecision(
     NudgeKey key,
     @Nullable FeeComparison feeComparison,
     @Nullable BigDecimal savingsFundFeePercent,
+    @Nullable LocalDate secondPillarRejoinDeadline,
     @Nullable PaymentRateSeason paymentRateSeason) {
 
   public static NudgeDecision of(NudgeKey key) {
-    return new NudgeDecision(key, null, null, null);
+    return new NudgeDecision(key, null, null, null, null);
   }
 
   public static NudgeDecision secondPillarTransfer(@Nullable FeeComparison feeComparison) {
-    return new NudgeDecision(SECOND_PILLAR_TRANSFER, feeComparison, null, null);
+    return new NudgeDecision(SECOND_PILLAR_TRANSFER, feeComparison, null, null, null);
   }
 
   public static NudgeDecision savingsFund(BigDecimal feePercent) {
-    return new NudgeDecision(SAVINGS_FUND, null, feePercent, null);
+    return new NudgeDecision(SAVINGS_FUND, null, feePercent, null, null);
+  }
+
+  public static NudgeDecision secondPillarRejoin(LocalDate filingDeadline) {
+    return new NudgeDecision(SECOND_PILLAR_REJOIN, null, null, filingDeadline, null);
   }
 
   public NudgeDecision withPaymentRateSeason(PaymentRateSeason season) {
-    return new NudgeDecision(key, feeComparison, savingsFundFeePercent, season);
+    return new NudgeDecision(
+        key, feeComparison, savingsFundFeePercent, secondPillarRejoinDeadline, season);
   }
 
   @JsonProperty
@@ -65,6 +80,7 @@ public record NudgeDecision(
 
   public Map<String, Object> mergeVars(Locale locale) {
     Map<String, Object> vars = new HashMap<>();
+    vars.put("suggestSecondPillarRejoin", key == SECOND_PILLAR_REJOIN);
     vars.put("suggestSecondPillarStart", key == SECOND_PILLAR_START);
     vars.put("suggestSecondPillar", key == SECOND_PILLAR_TRANSFER);
     vars.put("suggestPaymentRate", key == SECOND_PILLAR_PAYMENT_RATE);
@@ -93,12 +109,16 @@ public record NudgeDecision(
     if (savingsFundFeePercent != null) {
       vars.put("savingsFundFee", percent(savingsFundFeePercent, locale));
     }
+    if (secondPillarRejoinDeadline != null) {
+      vars.put("secondPillarRejoinDeadline", longDate(secondPillarRejoinDeadline, locale));
+    }
     return vars;
   }
 
   private boolean suggestsPensionPillar() {
     return switch (key) {
-      case SECOND_PILLAR_START,
+      case SECOND_PILLAR_REJOIN,
+          SECOND_PILLAR_START,
           SECOND_PILLAR_TRANSFER,
           SECOND_PILLAR_PAYMENT_RATE,
           THIRD_PILLAR_START,
@@ -108,6 +128,14 @@ public record NudgeDecision(
           true;
       case SAVINGS_FUND, SAVINGS_FUND_RECURRING, MEMBERSHIP, NONE -> false;
     };
+  }
+
+  private static String longDate(LocalDate date, Locale locale) {
+    DateTimeFormatter format =
+        "et".equals(locale.getLanguage())
+            ? DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.of("et"))
+            : DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
+    return date.format(format);
   }
 
   private static String percent(BigDecimal percent, Locale locale) {

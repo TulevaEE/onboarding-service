@@ -14,4 +14,7 @@ public record LiabilityBreakdown(
     BigDecimal unsettledTradeReceivables,
     BigDecimal unreconciledBankReceipts,
     BigDecimal fundUnitsReservedValue,
-    BigDecimal incomingPaymentsClearing) {}
+    BigDecimal incomingPaymentsClearing,
+    BigDecimal unitReceivable,
+    BigDecimal unitReceivableReported,
+    BigDecimal unitReceivableReceived) {}

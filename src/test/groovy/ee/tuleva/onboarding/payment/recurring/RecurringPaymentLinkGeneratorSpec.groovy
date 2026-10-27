@@ -213,6 +213,11 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
         (COOP)         : REQUIRED_AMOUNT,
         (COOP_WEB)     : OPTIONAL_AMOUNT,
         (PARTNER)      : OPTIONAL_AMOUNT,
+        (CITADELE)     : UNSUPPORTED_CHANNEL,
+        (REVOLUT)      : UNSUPPORTED_CHANNEL,
+        (WISE)         : UNSUPPORTED_CHANNEL,
+        (N26)          : UNSUPPORTED_CHANNEL,
+        (BIGBANK)      : UNSUPPORTED_CHANNEL,
         (TULUNDUSUHISTU): UNSUPPORTED_CHANNEL,
     ]
   }

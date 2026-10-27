@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SEB;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.SWEDBANK;
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS_RECURRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +28,8 @@ import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 
 class SavingsFundRecurringPaymentLinkGeneratorTest {
@@ -172,9 +173,10 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
     assertCommonRecipientFields(link);
   }
 
-  @Test
-  void throwsForUnsupportedChannel() {
-    assertThatThrownBy(() -> generator.getPaymentLink(paymentData(TULUNDUSUHISTU), person()))
+  @ParameterizedTest
+  @EnumSource(names = {"CITADELE", "REVOLUT", "WISE", "N26", "BIGBANK", "TULUNDUSUHISTU"})
+  void rejectsChannelsWithNoStandingOrderFormOfTheirOwn(PaymentChannel channel) {
+    assertThatThrownBy(() -> generator.getPaymentLink(paymentData(channel), person()))
         .isInstanceOf(ErrorsResponseException.class)
         .extracting(ex -> ((ErrorsResponseException) ex).getErrorsResponse().getErrors().get(0))
         .extracting(ErrorResponse::getCode)

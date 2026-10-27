@@ -55,7 +55,7 @@ public class SavingsFundRecurringPaymentLinkGenerator implements PaymentLinkGene
               case SWEDBANK -> buildSwedbankUrl(description, amount, firstPaymentDate);
               case SEB -> "https://e.seb.ee/ib/p/payments/new-standing-order";
               case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
-              case TULUNDUSUHISTU ->
+              case CITADELE, REVOLUT, WISE, N26, BIGBANK, TULUNDUSUHISTU ->
                   throw new ErrorsResponseException(
                       ErrorsResponse.ofSingleError(
                           "payment.channel.not.supported",

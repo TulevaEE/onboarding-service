@@ -335,8 +335,9 @@ public class TransactionInputService {
               + fund
               + ", reason=unvalued R45 rows missing NAV, action=supply NAV and reprocess R45");
     }
-    R45Result result = r45ReportService.getLatestFlows().get(fund);
-    return result == null ? ZERO : result.netEur();
+    return Optional.ofNullable(r45ReportService.getLatestFlows().get(fund))
+        .map(R45Result::netEur)
+        .orElse(ZERO);
   }
 
   private BigDecimal getAdjustment(Map<String, Object> adjustments, String key) {

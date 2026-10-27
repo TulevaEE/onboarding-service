@@ -24,13 +24,13 @@ class PastPerformanceService {
   private static final int CALENDAR_YEARS_SHOWN = 10;
   private static final int RETURN_SCALE = 8;
 
-  private final PastPerformanceProperties properties;
+  private final FundBenchmarks fundBenchmarks;
   private final FundValueQueries fundValueQueries;
   private final Clock clock;
 
   PastPerformance pastPerformance(TulevaFund fund) {
     var fundKey = fund.getIsin();
-    var benchmark = properties.benchmarkFor(fund);
+    var benchmark = fundBenchmarks.benchmarkFor(fund);
     var benchmarkKey = benchmark == null ? null : benchmark.key();
     var today = LocalDate.now(clock);
     var asOf = asOf(fundKey, benchmarkKey, today);

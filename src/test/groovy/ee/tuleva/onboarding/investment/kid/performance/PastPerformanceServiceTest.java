@@ -29,7 +29,7 @@ class PastPerformanceServiceTest {
   private final FundValueQueries fundValueQueries = mock(FundValueQueries.class);
   private final PastPerformanceService service =
       new PastPerformanceService(
-          new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()),
+          new FundBenchmarks(Map.of(TUK75, new Benchmark("MSCI_ACWI", null))),
           fundValueQueries,
           Clock.fixed(Instant.parse("2026-02-10T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
 
@@ -363,12 +363,15 @@ class PastPerformanceServiceTest {
     willReturn(List.of(aFundValue("BOND", LocalDate.of(2019, 8, 16), 50.0)))
         .given(fundValueQueries)
         .findValuesBetweenDates(eq("BOND"), any(), any());
-    var properties =
-        new PastPerformanceProperties(
-            Map.of(TUK75, "MSCI_ACWI"),
-            Map.of(TUK75, new EquityCap("BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2))));
+    var benchmarks =
+        new FundBenchmarks(
+            Map.of(
+                TUK75,
+                new Benchmark(
+                    "MSCI_ACWI",
+                    new EquityCap("BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2)))));
 
-    assertThat(serviceOn(LocalDate.of(2030, 1, 7), properties).pastPerformance(TUK75))
+    assertThat(serviceOn(LocalDate.of(2030, 1, 7), benchmarks).pastPerformance(TUK75))
         .isEqualTo(
             new PastPerformance(
                 TUK75,
@@ -390,13 +393,13 @@ class PastPerformanceServiceTest {
   }
 
   private PastPerformanceService serviceOn(LocalDate today) {
-    return serviceOn(today, new PastPerformanceProperties(Map.of(TUK75, "MSCI_ACWI"), Map.of()));
+    return serviceOn(today, new FundBenchmarks(Map.of(TUK75, new Benchmark("MSCI_ACWI", null))));
   }
 
-  private PastPerformanceService serviceOn(LocalDate today, PastPerformanceProperties properties) {
+  private PastPerformanceService serviceOn(LocalDate today, FundBenchmarks fundBenchmarks) {
     var tallinn = ZoneId.of("Europe/Tallinn");
     return new PastPerformanceService(
-        properties,
+        fundBenchmarks,
         fundValueQueries,
         Clock.fixed(today.atTime(11, 0).atZone(tallinn).toInstant(), tallinn));
   }

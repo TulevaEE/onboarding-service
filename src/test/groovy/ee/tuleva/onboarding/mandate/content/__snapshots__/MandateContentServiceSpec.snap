@@ -905,7 +905,7 @@ tingimustega.</span>
       kohustusliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
 
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen nõus, et AS Pensionikeskus kogub ja
+    <p class="c14"><span class="c3">Olen teadlik, et AS Pensionikeskus kogub ja
                     töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses
                     sätestatud ulatuses Euroopa Liidu piires.
     </span></p>
@@ -945,6 +945,11 @@ tingimustega.</span>
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c15">
       <tbody>
+        <tr class="c34">
+          <td class="c22" colspan="3" rowspan="1">
+            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+          </td>
+        </tr>
         <tr class="c1">
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -1950,7 +1955,7 @@ fund_transfer_3rd_pillar=[
     </div>
     <p class="c0"><span class="c3"></span></p>
     <p>
-      Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+      Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
       väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
       NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
       Pensionikeskus veebilehel.
@@ -1986,7 +1991,7 @@ fund_transfer_3rd_pillar=[
       <tbody>
         <tr class="c34">
           <td class="c22" colspan="3" rowspan="1">
-            <p class="c14"><span class="c3">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
+            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
           </td>
         </tr>
         <tr class="c1">
@@ -2591,7 +2596,7 @@ future_contributions_2nd_pillar=[
     <p class="c5"><span class="c0">Olen teadlik asjaolust, et käesoleva valikuavalduse esitamisega hakkavad minu kohustusliku kogumispensioni sissemaksed laekuma avaldusega valitud kohustuslikku pensionifondi või pensioni investeerimiskontole. Esitatud valiku muutmiseks tuleb esitada uus valikuavaldus.</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires. NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.</span>
+    <p class="c5"><span class="c0">Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires. NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
     <p class="c5 c8"><span class="c0"></span></p>
@@ -2602,6 +2607,11 @@ future_contributions_2nd_pillar=[
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c25">
       <tbody>
+        <tr class="c13">
+          <td class="c32" colspan="3" rowspan="1">
+            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+          </td>
+        </tr>
         <tr class="c12">
           <td class="c7" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0"></span></p>
@@ -3203,7 +3213,7 @@ future_contributions_3rd_pillar=[
     <p class="c5"><span class="c0">Olen teadlik, et vabatahtliku pensionifondi valikuavaldusega saab jaotada sissemakse summa ühe või mitme erineva vabatahtliku pensionifondi vahel.</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+    <p class="c5"><span class="c0">Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
 väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
 NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
 Pensionikeskus veebilehel.</span>
@@ -3240,7 +3250,7 @@ Pensionikeskus veebilehel.</span>
       <tbody>
         <tr class="c13">
           <td class="c32" colspan="3" rowspan="1">
-            <p class="c5"><span class="c0">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
+            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
           </td>
         </tr>
         <tr class="c12">
@@ -3773,7 +3783,7 @@ mandate_cancellation=[
       <p class="c0"><span class="c3"></span></p>
     </div>
     <p class="c3">
-      Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+      Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
       väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
       NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
       Pensionikeskus veebilehel.
@@ -4348,7 +4358,7 @@ jaanuarist.</span></p>
 </div>
 <p class="c0"><span class="c3"></span></p>
 <p class="c3">
-  Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+  Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
   väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
   NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
   Pensionikeskus veebilehel.

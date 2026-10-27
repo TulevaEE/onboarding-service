@@ -453,7 +453,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       <p class="c0"><span class="c3"></span></p>
     </div>
     <p class="c3">
-      Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+      Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
       väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
       NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
       Pensionikeskus veebilehel.
@@ -1261,7 +1261,7 @@ jaanuarist.</span></p>
 </div>
 <p class="c0"><span class="c3"></span></p>
 <p class="c3">
-  Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+  Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
   väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
   NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
   Pensionikeskus veebilehel.
@@ -1802,13 +1802,13 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
             <p class="c14"><span class="c3">Olen teadlik, et:</span></p>
             <p class="c0"><span class="c3"></span></p>
             <div style="padding-left: 20px">
-                <p class="c14"><span class="c3">1) käesolev avaldus tuleb esitada vähemalt viis kuud ette ja vastavalt sellele peatub minu kohustusliku kogumispensioni maksete tasumise kohustus alates kogumispensionide seaduses sätestatud tähtajast, vastavalt kas 1. jaanuarist, 1. maist või 1. septembrist. Makse tasumise saan soovi korral taastada viie aasta möödumisel makse tasumise lõppemisest. Selleks esitan kohustusliku kogumispensioni sissemaksete tasumise avalduse.</span></p>
+                <p class="c14"><span class="c3">1) käesolev avaldus tuleb esitada vähemalt viis kuud ette ja vastavalt sellele peatub minu kohustusliku kogumispensioni maksete tasumise kohustus alates kogumispensionide seaduses sätestatud tähtajast, vastavalt kas 1. jaanuarist, 1. maist või 1. septembrist. Makse tasumise saan soovi korral taastada 5 aasta möödumisel makse tasumise lõppemisest. Selleks esitan kohustusliku kogumispensioni sissemaksete tasumise avalduse.</span></p>
                 <p class="c0"><span class="c3"></span></p>
                 <p class="c14"><span class="c3">2) esitatud avaldust saab tühistada vastavalt kogumispensionide seaduses sätestatud avalduse esitamise perioodi lõpuni. Detsembrist märtsini esitatud avaldust saab muuta kuni 31. märtsini, aprillist juulini esitatud avaldust kuni 31. juulini ja augustist novembrini esitatud avaldust kuni 30. novembrini. Selleks esitan maksete tasumise avalduse.</span></p>
             </div>
 <p class="c0"><span class="c3"></span></p>
 <p class="c3">
-  Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+  Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
   väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
   NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
   Pensionikeskus veebilehel.
@@ -1843,7 +1843,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   <tbody>
   <tr class="c34">
     <td class="c22" colspan="3" rowspan="1">
-      <p class="c14"><span class="c3">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
+      <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
     </td>
   </tr>
   <tr class="c1">
@@ -2349,13 +2349,13 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
             <p class="c14"><span class="c3">Olen teadlik, et:</span></p>
             <p class="c0"><span class="c3"></span></p>
             <div style="padding-left: 20px">
-                <p class="c14"><span class="c3">1) käesolev avaldus tuleb esitada vähemalt viis kuud ette. Avalduse esitamisega kohustun tasuma kohustusliku kogumispensioni makset alates kogumispensionide seaduses sätestatud tähtajast, vastavalt kas 1. jaanuarist, 1. maist või 1. septembrist, sama seaduse §-s 7 sätestatud tasudelt. Pärast makse tasumise kohustuse uuesti tekkimist ei ole mul enam õigust esitada kohustusliku kogumispensioni sissemaksete tasumisest vabastamise avaldust.</span></p>
+                <p class="c14"><span class="c3">1) käesolev avaldus tuleb esitada vähemalt viis kuud ette. Avalduse esitamisega kohustun tasuma kohustusliku kogumispensioni makset alates kogumispensionide seaduses sätestatud tähtajast, vastavalt kas 1. jaanuarist, 1. maist või 1. septembrist, sama seaduse §-s 7 sätestatud tasudelt.</span></p>
                 <p class="c0"><span class="c3"></span></p>
                 <p class="c14"><span class="c3">2) esitatud avaldust saab tühistada vastavalt kogumispensionide seaduses sätestatud avalduse esitamise perioodi lõpuni. Detsembrist märtsini esitatud avaldust saab muuta kuni 31. märtsini, aprillist juulini esitatud avaldust kuni 31. juulini ja augustist novembrini esitatud avaldust kuni 30. novembrini. Selleks esitan maksete tasumisest vabastamise avalduse.</span></p>
             </div>
 <p class="c0"><span class="c3"></span></p>
 <p class="c3">
-  Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+  Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
   väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
   NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
   Pensionikeskus veebilehel.
@@ -2390,7 +2390,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   <tbody>
   <tr class="c34">
     <td class="c22" colspan="3" rowspan="1">
-      <p class="c14"><span class="c3">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
+      <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
     </td>
   </tr>
   <tr class="c1">
@@ -2946,7 +2946,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <p class="c5"><span class="c0">Olen teadlik asjaolust, et käesoleva valikuavalduse esitamisega hakkavad minu kohustusliku kogumispensioni sissemaksed laekuma avaldusega valitud kohustuslikku pensionifondi või pensioni investeerimiskontole. Esitatud valiku muutmiseks tuleb esitada uus valikuavaldus.</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires. NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.</span>
+    <p class="c5"><span class="c0">Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires. NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
     <p class="c5 c8"><span class="c0"></span></p>
@@ -2957,6 +2957,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c25">
       <tbody>
+        <tr class="c13">
+          <td class="c32" colspan="3" rowspan="1">
+            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+          </td>
+        </tr>
         <tr class="c12">
           <td class="c7" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0"></span></p>
@@ -4894,7 +4899,7 @@ tingimustega.</span>
       kohustusliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
 
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen nõus, et AS Pensionikeskus kogub ja
+    <p class="c14"><span class="c3">Olen teadlik, et AS Pensionikeskus kogub ja
                     töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses
                     sätestatud ulatuses Euroopa Liidu piires.
     </span></p>
@@ -4934,6 +4939,11 @@ tingimustega.</span>
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c15">
       <tbody>
+        <tr class="c34">
+          <td class="c22" colspan="3" rowspan="1">
+            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+          </td>
+        </tr>
         <tr class="c1">
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -5469,7 +5479,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       <p class="c0"><span class="c3"></span></p>
     </div>
     <p class="c3">
-      Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+      Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
       väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
       NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
       Pensionikeskus veebilehel.
@@ -6479,7 +6489,7 @@ tingimustega.</span>
       kohustusliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
 
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen nõus, et AS Pensionikeskus kogub ja
+    <p class="c14"><span class="c3">Olen teadlik, et AS Pensionikeskus kogub ja
                     töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses
                     sätestatud ulatuses Euroopa Liidu piires.
     </span></p>
@@ -6519,6 +6529,11 @@ tingimustega.</span>
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c15">
       <tbody>
+        <tr class="c34">
+          <td class="c22" colspan="3" rowspan="1">
+            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+          </td>
+        </tr>
         <tr class="c1">
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>

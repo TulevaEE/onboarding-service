@@ -12,7 +12,7 @@ const languages = {
   et: {
     link: 'https://pension.tuleva.ee/2nd-pillar-rejoin?utm_content=nudge_second_pillar_rejoin',
     required: [
-      'iga kuu netopalgast 94&nbsp;€ ja sellele lisandub maksuvõit 106&nbsp;€.',
+      '94&nbsp;€ netopalgast ja 106&nbsp;€ maksudest. Sotsiaalmaksu osa vähendab veidi I&nbsp;sammast.',
       'Viimane päev avalduse esitamiseks on 30. november 2026.',
       'Pärast taasliitumist II&nbsp;sambast enam lahkuda ei saa.',
     ],
@@ -20,7 +20,7 @@ const languages = {
   en: {
     link: 'https://pension.tuleva.ee/2nd-pillar-rejoin?language=en&utm_content=nudge_second_pillar_rejoin',
     required: [
-      'from your net salary and a tax win of 106&nbsp;€ is added on top.',
+      '106&nbsp;€ from taxes. The social tax part slightly reduces your I&nbsp;pillar.',
       'The last day to file the application is November 30, 2026.',
       'After rejoining you can no longer leave the II&nbsp;pillar.',
     ],

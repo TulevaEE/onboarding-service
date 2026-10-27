@@ -92,6 +92,8 @@ public record NudgeDecision(
     vars.put("suggestSavingsFundRecurringPayment", key == SAVINGS_FUND_RECURRING);
     vars.put("suggestMembership", key == MEMBERSHIP);
     vars.put("anyPillarSuggestion", suggestsPensionPillar());
+    vars.put("taxBenefitSuggestion", suggestsTaxBenefit());
+    vars.put("taxRefundSuggestion", suggestsTaxRefund());
     vars.put("hasFeeComparison", feeComparison != null);
     if (feeComparison != null) {
       vars.put("secondPillarFeePercent", percent(feeComparison.currentFeePercent(), locale));
@@ -136,6 +138,41 @@ public record NudgeDecision(
             ? DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.of("et"))
             : DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
     return date.format(format);
+  }
+
+  private boolean suggestsTaxBenefit() {
+    return switch (key) {
+      case SECOND_PILLAR_REJOIN,
+          SECOND_PILLAR_START,
+          SECOND_PILLAR_PAYMENT_RATE,
+          THIRD_PILLAR_START,
+          THIRD_PILLAR_FEES,
+          THIRD_PILLAR_RAISE ->
+          true;
+      case SECOND_PILLAR_TRANSFER,
+          THIRD_PILLAR_RECURRING,
+          SAVINGS_FUND,
+          SAVINGS_FUND_RECURRING,
+          MEMBERSHIP,
+          NONE ->
+          false;
+    };
+  }
+
+  private boolean suggestsTaxRefund() {
+    return switch (key) {
+      case THIRD_PILLAR_START, THIRD_PILLAR_FEES, THIRD_PILLAR_RAISE -> true;
+      case SECOND_PILLAR_REJOIN,
+          SECOND_PILLAR_START,
+          SECOND_PILLAR_TRANSFER,
+          SECOND_PILLAR_PAYMENT_RATE,
+          THIRD_PILLAR_RECURRING,
+          SAVINGS_FUND,
+          SAVINGS_FUND_RECURRING,
+          MEMBERSHIP,
+          NONE ->
+          false;
+    };
   }
 
   private static String percent(BigDecimal percent, Locale locale) {

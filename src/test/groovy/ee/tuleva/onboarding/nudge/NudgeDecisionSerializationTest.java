@@ -115,6 +115,8 @@ class NudgeDecisionSerializationTest {
         .containsEntry("suggestMembership", false)
         .containsEntry("hasFeeComparison", false)
         .containsEntry("anyPillarSuggestion", true)
+        .containsEntry("taxBenefitSuggestion", false)
+        .containsEntry("taxRefundSuggestion", false)
         .doesNotContainKeys(
             "savingsFundFee",
             "secondPillarFeePercent",
@@ -144,6 +146,42 @@ class NudgeDecisionSerializationTest {
             THIRD_PILLAR_FEES,
             THIRD_PILLAR_RECURRING,
             THIRD_PILLAR_RAISE);
+  }
+
+  @Test
+  void taxBenefitSuggestionIsRaisedOnlyForNudgesWhoseEmailTextClaimsATaxBenefit() {
+    List<NudgeKey> flagged =
+        stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key)
+                            .mergeVars(Locale.ENGLISH)
+                            .get("taxBenefitSuggestion")))
+            .toList();
+
+    assertThat(flagged)
+        .containsExactly(
+            SECOND_PILLAR_REJOIN,
+            SECOND_PILLAR_START,
+            SECOND_PILLAR_PAYMENT_RATE,
+            THIRD_PILLAR_START,
+            THIRD_PILLAR_FEES,
+            THIRD_PILLAR_RAISE);
+  }
+
+  @Test
+  void
+      taxRefundSuggestionIsRaisedOnlyForThirdPillarNudgesBecauseOnlyTheirTaxBenefitNeedsATaxReturn() {
+    List<NudgeKey> flagged =
+        stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key).mergeVars(Locale.ENGLISH).get("taxRefundSuggestion")))
+            .toList();
+
+    assertThat(flagged).containsExactly(THIRD_PILLAR_START, THIRD_PILLAR_FEES, THIRD_PILLAR_RAISE);
   }
 
   @Test

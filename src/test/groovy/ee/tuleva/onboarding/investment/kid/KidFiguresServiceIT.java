@@ -156,12 +156,12 @@ class KidFiguresServiceIT {
   }
 
   @Test
-  void refusesASeriesWithAPriceThatIsNotPositiveRatherThanShowingAQuietlyWrongStress() {
+  void refusesANonPositivePriceInTheWeekLoadedBeforeThePeriodStartWhereNoDailyReturnReadsIt() {
     fundValues.saveAll(
         SyntheticIndexSeries.weekdayCloses("MSCI_ACWI").stream()
             .map(
                 close ->
-                    close.date().equals(LocalDate.of(2021, 6, 15))
+                    close.date().equals(LocalDate.of(2016, 9, 26))
                         ? aFundValue("MSCI_ACWI", close.date(), BigDecimal.ZERO)
                         : close)
             .toList());

@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_BATCH_NOT_SETTLED;
@@ -15,17 +12,12 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.SUBSCRIPTION_TRANSFER;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.banking.BankAccount;
-import ee.tuleva.onboarding.banking.BankAccountType;
-import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.PaymentSettlementCheck.Closing;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -58,7 +50,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({
   PaymentSettlementCheck.class,
   LedgerTies.class,
-  PaymentAccounts.class,
   BriefedBatches.class,
   PublicHolidays.class,
   PaymentCheckService.class,
@@ -126,7 +117,6 @@ class PaymentSettlementCheckIT {
   @Autowired PaymentCheckService paymentCheckService;
   @Autowired OutgoingPaymentRepository outgoingPaymentRepository;
   @Autowired FakeLedgerExpectations ledger;
-  @MockitoBean BankAccounts bankAccounts;
   @MockitoBean OperationsNotificationService notificationService;
 
   @AfterEach
@@ -135,11 +125,8 @@ class PaymentSettlementCheckIT {
   }
 
   @BeforeEach
-  void theAccountsAreOursAndTheLedgerIsEmpty() {
+  void theLedgerIsEmpty() {
     ledger.clear();
-    ours(DEPOSIT_IBAN, DEPOSIT_EUR);
-    ours(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    ours(WITHDRAWAL_IBAN, WITHDRAWAL_EUR);
   }
 
   @Test
@@ -163,12 +150,6 @@ class PaymentSettlementCheckIT {
                 TODAY.toString(),
                 """
                 ✅ TKF100 — all 4 payments of the approval brief executed as sent and as the ledger expects
-
-                  DEPOSIT_EUR  2 payments  1,050.00 EUR
-                  FUND_INVESTMENT_EUR  1 payment  250.00 EUR
-                  WITHDRAWAL_EUR  1 payment  250.00 EUR
-
-                  TOTAL  4 payments  1,550.00 EUR
 
                   Checks:
                       ✅ each debit matches the amount and account we sent
@@ -416,6 +397,30 @@ class PaymentSettlementCheckIT {
   }
 
   @Test
+  void countsAPaymentFromAnEarlierBriefInTheConfirmationOnceTheBankExecutesIt() {
+    executedPayoutThatTheLedgerPriced("250.00");
+    var redemption = randomUUID();
+    ledger.pricedRedemptions.put(redemption, new BigDecimal("80.00"));
+    store(
+        PAYOUT,
+        WITHDRAWAL_IBAN,
+        "80.00",
+        EXECUTED,
+        redemption,
+        PREVIOUS_BRIEF.minus(Duration.ofHours(2)),
+        BRIEF.plus(Duration.ofMinutes(20)));
+
+    assertThat(closing().map(Closing::message))
+        .contains(
+            """
+            ✅ TKF100 — all 2 payments of the approval brief executed as sent and as the ledger expects
+
+              Checks:
+                  ✅ each debit matches the amount and account we sent
+                  ✅ payouts == ledger pricing""");
+  }
+
+  @Test
   void leavesATransferToTheFundAccountFromAnEarlierBriefOutOfTodaysSubscriptionTotal() {
     store(
         SUBSCRIPTION_TRANSFER,
@@ -514,11 +519,6 @@ class PaymentSettlementCheckIT {
     var redemption = randomUUID();
     ledger.pricedRedemptions.put(redemption, new BigDecimal(amount));
     return store(PAYOUT, WITHDRAWAL_IBAN, amount, EXECUTED, redemption);
-  }
-
-  private void ours(String iban, BankAccountType type) {
-    given(bankAccounts.find(iban))
-        .willReturn(Optional.of(new BankAccount(iban, type, TKF100, "client")));
   }
 
   private OutgoingPayment store(

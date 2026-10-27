@@ -166,7 +166,6 @@ class NudgeDecisionSerializationTest {
             SECOND_PILLAR_START,
             SECOND_PILLAR_PAYMENT_RATE,
             THIRD_PILLAR_START,
-            THIRD_PILLAR_FEES,
             THIRD_PILLAR_RAISE);
   }
 
@@ -181,7 +180,7 @@ class NudgeDecisionSerializationTest {
                         NudgeDecision.of(key).mergeVars(Locale.ENGLISH).get("taxRefundSuggestion")))
             .toList();
 
-    assertThat(flagged).containsExactly(THIRD_PILLAR_START, THIRD_PILLAR_FEES, THIRD_PILLAR_RAISE);
+    assertThat(flagged).containsExactly(THIRD_PILLAR_START, THIRD_PILLAR_RAISE);
   }
 
   @Test

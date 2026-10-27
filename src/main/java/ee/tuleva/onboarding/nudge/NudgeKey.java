@@ -14,7 +14,7 @@ public enum NudgeKey {
   SECOND_PILLAR_TRANSFER("nudge_second_pillar", NO_TAX_CLAIM),
   SECOND_PILLAR_PAYMENT_RATE("nudge_payment_rate", TAX_BENEFIT_AT_SOURCE),
   THIRD_PILLAR_START("nudge_third_pillar", TAX_REFUND_ON_TAX_RETURN),
-  THIRD_PILLAR_FEES("nudge_third_pillar", TAX_REFUND_ON_TAX_RETURN),
+  THIRD_PILLAR_FEES("nudge_third_pillar", NO_TAX_CLAIM),
   THIRD_PILLAR_RECURRING("nudge_third_pillar_recurring", NO_TAX_CLAIM),
   THIRD_PILLAR_RAISE("nudge_third_pillar_raise", TAX_REFUND_ON_TAX_RETURN),
   SAVINGS_FUND("nudge_savings_fund", NO_TAX_CLAIM),

@@ -44,18 +44,17 @@ class BankBalanceChecker {
 
   private List<HealthCheckFinding> check(
       TulevaFund fund, LocalDate navDate, BigDecimal reportCash, BankAccount account) {
-    Optional<BigDecimal> closingBalance;
     try {
-      closingBalance = bankStatementBalances.closingBalance(account, navDate);
+      return bankStatementBalances
+          .closingBalance(account, navDate)
+          .map(balance -> compare(fund, navDate, reportCash, balance))
+          .orElseGet(
+              () -> List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate))));
     } catch (RuntimeException e) {
       log.error("Bank statement could not be read: fund={}, navDate={}", fund, navDate, e);
       return List.of(
           finding(fund, NOT_RUN, "Bank statement for %s could not be read".formatted(navDate)));
     }
-    return closingBalance
-        .map(balance -> compare(fund, navDate, reportCash, balance))
-        .orElseGet(
-            () -> List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate))));
   }
 
   private List<HealthCheckFinding> compare(
@@ -68,14 +67,14 @@ class BankBalanceChecker {
         finding(
             fund,
             WARNING,
-            "Report cash %s, bank closing balance %s on %s, difference %s, NAV too %s. Have SEB"
-                    .formatted(
-                        euros(reportCash),
-                        euros(closingBalance),
-                        navDate,
-                        euros(difference),
-                        difference.signum() < 0 ? "low" : "high")
-                + " correct the report's cash before the NAV"));
+            ("Report cash %s, bank closing balance %s on %s, difference %s, NAV too %s."
+                    + " Have SEB correct the report's cash before the NAV")
+                .formatted(
+                    euros(reportCash),
+                    euros(closingBalance),
+                    navDate,
+                    euros(difference),
+                    difference.signum() < 0 ? "low" : "high")));
   }
 
   private static String euros(BigDecimal amount) {

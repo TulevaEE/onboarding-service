@@ -255,7 +255,7 @@ class HealthCheckServiceTest {
 
     var results = healthCheckService.check(positions);
 
-    assertThat(results.getFirst().findings()).contains(finding);
+    assertThat(results.getFirst().findings()).containsExactly(finding);
   }
 
   @Test

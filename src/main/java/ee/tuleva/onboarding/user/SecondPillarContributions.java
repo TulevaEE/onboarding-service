@@ -65,11 +65,18 @@ class SecondPillarContributions {
       LocalDate day, List<SecondPillarContributionPeriod> periods) {
     final Period FUNDED_PENSIONS_ACT_27_2_LG_1_LEAVER_REJOINS_AFTER_CONTRIBUTIONS_ENDED =
         Period.ofYears(5);
+    final LocalDate FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM =
+        LocalDate.of(2026, 11, 1);
     return stopStartDate(day, periods)
         .map(
             stopStart ->
                 stopStart.plus(
                     FUNDED_PENSIONS_ACT_27_2_LG_1_LEAVER_REJOINS_AFTER_CONTRIBUTIONS_ENDED))
+        .map(
+            fiveYearsLater ->
+                fiveYearsLater.isAfter(FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
+                    ? fiveYearsLater
+                    : FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
         .orElse(null);
   }
 

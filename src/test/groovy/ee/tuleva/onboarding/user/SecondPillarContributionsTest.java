@@ -23,16 +23,27 @@ class SecondPillarContributionsTest {
   void aLeaverWhoStoppedContributionsMayRejoinFiveYearsAfterTheStopBegan() {
     var periods =
         List.of(
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"),
+            contributionPeriod(NOT_CONTRIBUTING, "2023-09-01"));
+
+    assertThat(contributionsOn27October2026.statusOf(periods))
+        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
+  }
+
+  @Test
+  void aLeaverWhoseFiveYearsPassedBeforeTheRuleTookEffectMayRejoinFromTheDayItTakesEffect() {
+    var periods =
+        List.of(
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
             contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2017-01-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2026-11-01"));
   }
 
   @Test
   void
-      aSaverWhoTookTheMoneyOutIn2021MayRejoinFiveYearsAfterTheStopAlthoughAPauseOverlapsTheLastSaving() {
+      aSaverWhoTookTheMoneyOutIn2021MayRejoinFromTheDayTheFiveYearRuleTakesEffectAlthoughAPauseOverlapsTheLastSaving() {
     var periods =
         List.of(
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2021-08-31"),
@@ -40,26 +51,26 @@ class SecondPillarContributionsTest {
             contributionPeriod(NOT_CONTRIBUTING, "2021-09-01"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2026-09-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2026-11-01"));
   }
 
   @Test
   void aLeaverWhoseLastPeriodHasEndedMayRejoinFiveYearsAfterTheDayAfterTheLastContribution() {
-    var periods = List.of(contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"));
+    var periods = List.of(contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2017-01-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
   }
 
   @Test
   void aLeaverWhoseContributionsEndedTwiceMayRejoinFiveYearsAfterTheLaterEnd() {
     var periods =
         List.of(
-            contributionPeriod(CONTRIBUTING_WITHOUT_ACCOUNT, "2015-01-01", "2019-04-30"),
+            contributionPeriod(CONTRIBUTING_WITHOUT_ACCOUNT, "2015-01-01", "2024-04-30"),
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2024-05-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2029-05-01"));
   }
 
   @Test
@@ -67,12 +78,12 @@ class SecondPillarContributionsTest {
       anUpcomingContributionThatAStopOverlaysDoesNotMoveTheRejoinDateOfALeaverWithNoPeriodInEffect() {
     var periods =
         List.of(
-            contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"),
             contributionPeriod(CONTRIBUTING, "2027-05-01", "2027-08-31"),
             contributionPeriod(NOT_CONTRIBUTING, "2027-05-01", "2027-08-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2017-01-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
   }
 
   @Test

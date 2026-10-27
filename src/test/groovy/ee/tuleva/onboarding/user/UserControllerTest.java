@@ -74,7 +74,7 @@ class UserControllerTest {
                 .json(
                     """
                     {"secondPillarContributions": {
-                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2017-01-01"}}
+                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2026-11-01"}}
                     """));
   }
 
@@ -89,12 +89,13 @@ class UserControllerTest {
                 .json(
                     """
                     {"secondPillarContributions": {
-                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2017-01-01"}}
+                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2026-11-01"}}
                     """));
   }
 
   @Test
-  void me_tellsASaverWhoTookTheMoneyOutIn2021ThatTheyMayAlreadyRejoin() throws Exception {
+  void me_tellsASaverWhoTookTheMoneyOutIn2021ThatTheyMayRejoinFromTheDayTheFiveYearRuleTakesEffect()
+      throws Exception {
     var withdrawer =
         List.of(
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2021-08-31"),
@@ -108,7 +109,7 @@ class UserControllerTest {
                 .json(
                     """
                     {"secondPillarContributions": {
-                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2026-09-01"}}
+                      "contributing": false, "restartDate": null, "rejoinPossibleFrom": "2026-11-01"}}
                     """));
   }
 

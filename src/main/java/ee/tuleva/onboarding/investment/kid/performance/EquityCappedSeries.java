@@ -43,6 +43,7 @@ final class EquityCappedSeries {
       List<FundValue> equity, List<FundValue> bond, EquityCap cap, LocalDate fundStart) {
     CalendarYearReturns.refuseANonPositiveValue(equity);
     CalendarYearReturns.refuseANonPositiveValue(bond);
+    refuseAMissingBondUnderTheCap(equity, bond, cap);
     var bondCloses = new TreeMap<LocalDate, FundValue>();
     bond.forEach(close -> bondCloses.put(close.date(), close));
     var closes =
@@ -62,6 +63,14 @@ final class EquityCappedSeries {
     }
     var series = new EquityCappedSeries(cap, bondCloses, lift, restarts(closes, fundStart, lift));
     return series.levels(closes.stream().map(series::day).toList());
+  }
+
+  private static void refuseAMissingBondUnderTheCap(
+      List<FundValue> equity, List<FundValue> bond, EquityCap cap) {
+    if (bond.isEmpty() && equity.stream().anyMatch(close -> cap.holdsOn(close.date()))) {
+      throw new PastPerformanceRefusedException(
+          "No bond series for the equity cap: bondKey=%s".formatted(cap.bondKey()));
+    }
   }
 
   private List<FundValue> levels(List<Day> days) {

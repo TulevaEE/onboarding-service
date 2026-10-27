@@ -164,6 +164,16 @@ class EquityCappedSeriesTest {
   }
 
   @Test
+  void refusesWhenTheBondSeriesIsEmptyRatherThanDroppingTheYearsHeldAtTheCap() {
+    var equity =
+        List.of(equity("2017-12-29", 100), equity("2018-12-31", 105), equity("2019-12-31", 110));
+
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, List.of(), CAP, FUND_STARTED_LONG_BEFORE))
+        .isInstanceOf(PastPerformanceRefusedException.class);
+  }
+
+  @Test
   void refusesWhenTheBondStopsMoreThanAWeekBeforeTheLift() {
     var equity =
         List.of(equity("2019-08-01", 100), equity("2019-09-02", 101), equity("2019-09-03", 102));

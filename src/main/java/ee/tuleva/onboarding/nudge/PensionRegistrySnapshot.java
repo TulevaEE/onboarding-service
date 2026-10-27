@@ -5,8 +5,9 @@ public record PensionRegistrySnapshot(
     boolean secondPillarAtTuleva,
     boolean leftSecondPillar,
     boolean canIncreasePaymentRate,
-    boolean thirdPillarActive) {
+    boolean thirdPillarActive,
+    boolean secondPillarContributionsToTuleva) {
 
   public static final PensionRegistrySnapshot UNKNOWN_PERSON =
-      new PensionRegistrySnapshot(false, false, false, false, false);
+      new PensionRegistrySnapshot(false, false, false, false, false, false);
 }

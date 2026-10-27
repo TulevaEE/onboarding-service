@@ -42,7 +42,8 @@ public class RegistryPensionFacts implements PensionRegistry {
         new PaymentRates(owner.getP2rate(), owner.getP2nextRate()).canIncrease(),
         owner.getP3identifier() != null
             || owner.getP3identificationDate() != null
-            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS));
+            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS),
+        TULEVA_SECOND_PILLAR_FUNDS.contains(owner.getP2choice()));
   }
 
   private static boolean holdsAnyOf(UnitOwner owner, Set<String> fundCodes) {

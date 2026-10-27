@@ -13,14 +13,29 @@ const languages = {
     sotsmaksHref: 'https://tuleva.ee/sotsmaks',
     sotsmaksText: 'tuleva.ee/sotsmaks',
     required: [
-      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Alates *|contributionStartDate|* hakkavad sissemaksed toimuma automaatselt sinu palgast.',
-      'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada kuni *|cancellationDeadline|*.',
-      'Kogutud raha saad kasutama hakata kuni viis aastat enne vanaduspensioniiga. Pärast taasliitumist saad raha välja võtta alles siis, kui tekib õigus väljamaksetele.',
+      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad laekuma automaatselt. Esimene sissemakse tehakse *|contributionStartDate|* palgast.',
+      'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
+      'Kogutud raha saad kasutada alates eelpensionieast ehk viis aastat enne vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Pärast taasliitumist ei saa sa raha enne seda teist korda välja võtta.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
       'Vaata II&nbsp;samba mõju I&nbsp;sambale',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
+    fundBranches: {
+      stock: 'Sinu sissemaksed lähevad Tuleva Maailma Aktsiate Pensionifondi .',
+      bond: 'Sinu sissemaksed lähevad Tuleva Maailma Võlakirjade Pensionifondi .',
+      other: 'Sinu sissemaksed lähevad fondi LHV',
+      keptTuleva: 'Sinu sissemaksed lähevad edasi Tuleva fondi, milles kogusid ka varem.',
+      keptOther: 'Sinu sissemaksed lähevad fondi, milles kogusid ka varem.',
+    },
+    fundBranchByVariant: {
+      'aktsiafond-6': 'stock',
+      'volakirjafond-4': 'bond',
+      'muu-fond-korge-tasuga': 'other',
+      'muu-fond-madala-tasuga': 'other',
+      'jai-tuleva-fondi': 'keptTuleva',
+      'jai-vanasse-fondi-2': 'keptOther',
+    },
   },
   en: {
     sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
@@ -78,6 +93,37 @@ for (const [language, copy] of Object.entries(languages)) {
         assert.ok(filed({ [variable]: true }).includes(application), `missing: ${application}`);
         assert.ok(!nothingChanged.includes(application), `must not list: ${application}`);
       }
+    });
+  }
+
+  if (copy.fundBranches) {
+    test(`${name}: names exactly one destination fund, the one the saver chose or kept`, () => {
+      const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+      const sentences = Object.values(copy.fundBranches);
+      for (const [variant, expected] of Object.entries(copy.fundBranchByVariant)) {
+        const rendered = text(renderMergeLanguage(html, fixture.variants[variant]));
+        for (const sentence of sentences) {
+          const shown = rendered.includes(sentence);
+          assert.equal(shown, sentence === copy.fundBranches[expected], `variant "${variant}": ${sentence}`);
+        }
+      }
+    });
+
+    test(`${name}: names the payment rate and calls 6% the maximum tax benefit only at 6%`, () => {
+      const rendered = (vars) => text(renderMergeLanguage(html, vars));
+      const atSix = rendered({ paymentRate: 6, maxPaymentRate: true });
+      const atTwo = rendered({ paymentRate: 2, maxPaymentRate: false });
+      assert.ok(atSix.includes('Valisid II&nbsp;samba sissemaksete suuruseks 6% oma brutopalgast. See tähendab, et kasutad II&nbsp;samba maksuvõitu maksimaalselt.'));
+      assert.ok(atTwo.includes('Valisid II&nbsp;samba sissemaksete suuruseks 2% oma brutopalgast. Oma sissemakse suurust saad vajadusel muuta kord aastas.'));
+      assert.ok(!atTwo.includes('maksuvõitu maksimaalselt'));
+    });
+
+    test(`${name}: states the fee of another manager's fund only when it is high`, () => {
+      const rendered = (vars) => text(renderMergeLanguage(html, vars));
+      const other = { selectedOtherFund: true, selectedFundName: 'Fond X' };
+      const fee = 'jooksvad tasud on 1,1% aastas';
+      assert.ok(rendered({ ...other, selectedHighFeeFund: true, selectedFundFee: '1,1' }).includes(fee));
+      assert.ok(!rendered(other).includes('jooksvad tasud'));
     });
   }
 

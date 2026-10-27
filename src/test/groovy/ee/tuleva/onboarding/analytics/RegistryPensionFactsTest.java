@@ -44,7 +44,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(true, false, false, true, false));
+        .contains(new PensionRegistrySnapshot(true, false, false, true, false, false));
   }
 
   @Test
@@ -63,12 +63,32 @@ class RegistryPensionFactsTest {
   }
 
   @Test
+  void onlyATulevaFundChoiceSendsContributionsToTulevaNotTulevaUnitsAlone() {
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(Optional.of(owner().p2choice("TUK00").build()));
+    assertThat(
+            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionsToTuleva())
+        .isTrue();
+
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(
+            Optional.of(
+                owner()
+                    .p2choice("LXK75")
+                    .balances(List.of(unitOwnerBalanceEmbeddableBuilder("TUK75", "Tuleva").build()))
+                    .build()));
+    assertThat(
+            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionsToTuleva())
+        .isFalse();
+  }
+
+  @Test
   void aLeaverIsNeitherActiveNorNudgeable() {
     given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
         .willReturn(Optional.of(owner().p2ravaStatus("R").build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(false, false, true, true, false));
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, false));
   }
 
   @Test

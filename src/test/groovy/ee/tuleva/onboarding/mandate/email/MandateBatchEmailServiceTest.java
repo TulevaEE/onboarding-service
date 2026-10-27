@@ -1,10 +1,16 @@
 package ee.tuleva.onboarding.mandate.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund;
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund;
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
+import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.FOUR;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
@@ -13,17 +19,26 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
+import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
+import ee.tuleva.onboarding.mandate.details.SelectionMandateDetails;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.nudge.PensionRegistry;
+import ee.tuleva.onboarding.nudge.PensionRegistrySnapshot;
 import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +59,10 @@ class MandateBatchEmailServiceTest {
 
   @Mock private MandateProcessorService mandateProcessorService;
 
+  @Mock private FundRepository fundRepository;
+
+  @Mock private PensionRegistry pensionRegistry;
+
   private MandateBatchEmailService mandateBatchEmailService;
 
   @BeforeEach
@@ -55,7 +74,9 @@ class MandateBatchEmailServiceTest {
             emailService,
             emailPersistenceService,
             mandateProcessorService,
-            new MandateDeadlinesService(estonianClock, new PublicHolidays()));
+            new MandateDeadlinesService(estonianClock, new PublicHolidays()),
+            fundRepository,
+            pensionRegistry);
   }
 
   @Test
@@ -73,7 +94,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", false, false)),
+            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", nothingChanged())),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -93,47 +114,162 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_en"),
-            eq(rejoinMergeVars(user, "September 1, 2027", "March 31, 2027", false, false)),
+            eq(rejoinMergeVars(user, "September 1, 2027", "March 31, 2027", nothingChanged())),
             eq(List.of("mandate_batch")),
             any());
   }
 
   @Test
-  void rejoinWithAFundSelectionListsTheSelectionApplicationAmongTheFiledOnes() {
-    var rejoin = sampleRejoinMandate();
-    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
-    var mandateBatch = aSignedBatch(rejoin, sampleSelectionMandate());
+  void rejoinSelectingTheTulevaStockFundNamesItAsWhereContributionsGo() {
+    var stockFund = tuleva2ndPillarStockFund();
+    given(fundRepository.findByIsin(stockFund.getIsin())).willReturn(stockFund);
+
+    sendEstonianRejoin(sampleRejoinMandate(), selectionOf(stockFund));
+
+    shouldSendEstonianRejoin(with(fundSelected(), Map.of("selectedTulevaStockFund", true)));
+  }
+
+  @Test
+  void rejoinSelectingTheTulevaBondFundNamesItAsWhereContributionsGo() {
+    var bondFund = tuleva2ndPillarBondFund();
+    given(fundRepository.findByIsin(bondFund.getIsin())).willReturn(bondFund);
+
+    sendEstonianRejoin(sampleRejoinMandate(), selectionOf(bondFund));
+
+    shouldSendEstonianRejoin(with(fundSelected(), Map.of("selectedTulevaBondFund", true)));
+  }
+
+  @Test
+  void rejoinSelectingAnotherManagersHighFeeFundNamesItAndItsFee() {
+    var lhvFund = lhv2ndPillarFund();
+    given(fundRepository.findByIsin(lhvFund.getIsin())).willReturn(lhvFund);
+
+    sendEstonianRejoin(sampleRejoinMandate(), selectionOf(lhvFund));
+
+    shouldSendEstonianRejoin(
+        with(
+            fundSelected(),
+            Map.of(
+                "selectedOtherFund",
+                true,
+                "selectedFundName",
+                "LHV XL",
+                "selectedHighFeeFund",
+                true,
+                "selectedFundFee",
+                "1")));
+  }
+
+  @Test
+  void rejoinSelectingAnotherManagersLowFeeFundNamesItWithoutAFee() {
+    var lowFeeFund = lhv2ndPillarFund();
+    lowFeeFund.setOngoingChargesFigure(new BigDecimal("0.0029"));
+    given(fundRepository.findByIsin(lowFeeFund.getIsin())).willReturn(lowFeeFund);
+
+    sendEstonianRejoin(sampleRejoinMandate(), selectionOf(lowFeeFund));
+
+    shouldSendEstonianRejoin(
+        with(fundSelected(), Map.of("selectedOtherFund", true, "selectedFundName", "LHV XL")));
+  }
+
+  @Test
+  void rejoinKeepingATulevaFundOnFileSaysContributionsContinueThere() {
     var user = sampleUser().build();
+    given(pensionRegistry.snapshotFor(user.getPersonalCode()))
+        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, true)));
 
-    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.of("et"));
+    sendEstonianRejoin(sampleRejoinMandate());
 
+    shouldSendEstonianRejoin(with(nothingChanged(), Map.of("keptTulevaFund", true)));
+  }
+
+  @Test
+  void rejoinHoldingTulevaUnitsButContributingElsewhereSaysContributionsGoToTheOldFund() {
+    var user = sampleUser().build();
+    given(pensionRegistry.snapshotFor(user.getPersonalCode()))
+        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, false)));
+
+    sendEstonianRejoin(sampleRejoinMandate());
+
+    shouldSendEstonianRejoin(nothingChanged());
+  }
+
+  @Test
+  void rejoinSelectingAFundMissingFromTheFundListFailsInsteadOfNamingTheOldFund() {
+    var selection = selectionOf(lhv2ndPillarFund());
+
+    assertThatThrownBy(() -> sendEstonianRejoin(sampleRejoinMandate(), selection))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void rejoinRaisingTheRateToSixPercentSaysTheTaxBenefitIsUsedToTheMaximum() {
+    sendEstonianRejoin(sampleRejoinMandate(), sampleMandateWithPaymentRate());
+
+    shouldSendEstonianRejoin(
+        with(
+            nothingChanged(),
+            Map.of("paymentRateChange", true, "paymentRate", 6, "maxPaymentRate", true)));
+  }
+
+  @Test
+  void rejoinRaisingTheRateToFourPercentNamesTheRate() {
+    sendEstonianRejoin(
+        sampleRejoinMandate(),
+        sampleMandateWithPaymentRate(new PaymentRateChangeMandateDetails(FOUR)));
+
+    shouldSendEstonianRejoin(
+        with(nothingChanged(), Map.of("paymentRateChange", true, "paymentRate", 4)));
+  }
+
+  private void sendEstonianRejoin(Mandate rejoin, Mandate... alongside) {
+    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
+    var mandates = new ArrayList<Mandate>(List.of(rejoin));
+    mandates.addAll(List.of(alongside));
+    mandateBatchEmailService.sendMandateBatch(
+        sampleUser().build(), aSignedBatch(mandates.toArray(Mandate[]::new)), Locale.of("et"));
+  }
+
+  private void shouldSendEstonianRejoin(Map<String, Object> rejoinChoices) {
+    var user = sampleUser().build();
     then(emailService)
         .should()
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", false, true)),
+            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", rejoinChoices)),
             eq(List.of("mandate_batch")),
             any());
   }
 
-  @Test
-  void rejoinWithAPaymentRateChangeListsTheRateApplicationAmongTheFiledOnes() {
-    var rejoin = sampleRejoinMandate();
-    rejoin.setCreatedDate(Instant.parse("2026-11-30T21:59:59Z"));
-    var mandateBatch = aSignedBatch(rejoin, sampleMandateWithPaymentRate());
-    var user = sampleUser().build();
+  private static Mandate selectionOf(Fund fund) {
+    var selection = sampleSelectionMandate();
+    selection.setFutureContributionFundIsin(fund.getIsin());
+    selection.setDetails(new SelectionMandateDetails(fund.getIsin()));
+    return selection;
+  }
 
-    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, Locale.of("et"));
+  private static Map<String, Object> nothingChanged() {
+    return Map.ofEntries(
+        Map.entry("paymentRateChange", false),
+        Map.entry("fundSelection", false),
+        Map.entry("selectedTulevaStockFund", false),
+        Map.entry("selectedTulevaBondFund", false),
+        Map.entry("selectedOtherFund", false),
+        Map.entry("selectedHighFeeFund", false),
+        Map.entry("keptTulevaFund", false),
+        Map.entry("paymentRate", 2),
+        Map.entry("maxPaymentRate", false));
+  }
 
-    then(emailService)
-        .should()
-        .newMandrillMessage(
-            eq(user.getEmail()),
-            eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", true, false)),
-            eq(List.of("mandate_batch")),
-            any());
+  private static Map<String, Object> fundSelected() {
+    return with(nothingChanged(), Map.of("fundSelection", true));
+  }
+
+  private static Map<String, Object> with(Map<String, Object> base, Map<String, Object> overrides) {
+    var merged = new HashMap<>(base);
+    merged.putAll(overrides);
+    return merged;
   }
 
   private static MandateBatch aSignedBatch(Mandate... mandates) {
@@ -146,19 +282,20 @@ class MandateBatchEmailServiceTest {
       User user,
       String contributionStartDate,
       String cancellationDeadline,
-      boolean paymentRateChange,
-      boolean fundSelection) {
-    return Map.ofEntries(
-        Map.entry("fname", user.getFirstName()),
-        Map.entry("lname", user.getLastName()),
-        Map.entry("fundPensionSecondPillar", false),
-        Map.entry("fundPensionThirdPillar", false),
-        Map.entry("partialWithdrawalSecondPillar", false),
-        Map.entry("partialWithdrawalThirdPillar", false),
-        Map.entry("contributionStartDate", contributionStartDate),
-        Map.entry("cancellationDeadline", cancellationDeadline),
-        Map.entry("paymentRateChange", paymentRateChange),
-        Map.entry("fundSelection", fundSelection));
+      Map<String, Object> rejoinChoices) {
+    var mergeVars =
+        new HashMap<String, Object>(
+            Map.ofEntries(
+                Map.entry("fname", user.getFirstName()),
+                Map.entry("lname", user.getLastName()),
+                Map.entry("fundPensionSecondPillar", false),
+                Map.entry("fundPensionThirdPillar", false),
+                Map.entry("partialWithdrawalSecondPillar", false),
+                Map.entry("partialWithdrawalThirdPillar", false),
+                Map.entry("contributionStartDate", contributionStartDate),
+                Map.entry("cancellationDeadline", cancellationDeadline)));
+    mergeVars.putAll(rejoinChoices);
+    return mergeVars;
   }
 
   @Test

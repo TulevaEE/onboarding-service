@@ -29,6 +29,12 @@ class KidPropertiesTest {
   }
 
   @Test
+  void refusesAFundWithoutASeriesKeyAtStartupRatherThanOnItsFirstRequest() {
+    assertThatThrownBy(() -> new FundSettings(null, 5))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void refusesAHoldingPeriodLongerThanFiveYearsWhoseLongerScenarioPeriodIsNotBuilt() {
     assertThatThrownBy(() -> new FundSettings("MSCI_ACWI", 6))
         .isInstanceOf(IllegalArgumentException.class);

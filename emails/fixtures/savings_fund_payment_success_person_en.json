@@ -47,9 +47,7 @@
       "FNAME": "Mari",
       "suggestThirdPillar": true,
       "thirdPillarActive": true,
-      "anyPillarSuggestion": true,
-      "taxBenefitSuggestion": true,
-      "taxRefundSuggestion": true
+      "anyPillarSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",

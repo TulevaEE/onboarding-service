@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.payment.savings.recurring;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.BIGBANK;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.CITADELE;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LUMINOR;
@@ -175,6 +177,22 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @Test
+  void buildsCitadeleLandingUrl() {
+    var link = prefilledLink(CITADELE);
+
+    assertThat(link.url()).isEqualTo("https://online.citadele.lv/ibbf/et_ee");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
+  void buildsBigbankLandingUrl() {
+    var link = prefilledLink(BIGBANK);
+
+    assertThat(link.url()).isEqualTo("https://auth.bigbank.eu/");
+    assertCommonRecipientFields(link);
+  }
+
+  @Test
   void returnsNullUrlWhenPaymentChannelIsMissing() {
     var link = prefilledLink(null);
 
@@ -183,7 +201,7 @@ class SavingsFundRecurringPaymentLinkGeneratorTest {
   }
 
   @ParameterizedTest
-  @EnumSource(names = {"CITADELE", "REVOLUT", "N26", "BIGBANK", "TULUNDUSUHISTU"})
+  @EnumSource(names = {"REVOLUT", "N26", "TULUNDUSUHISTU"})
   void rejectsChannelsWithNoStandingOrderFormOfTheirOwn(PaymentChannel channel) {
     assertThatThrownBy(() -> generator.getPaymentLink(paymentData(channel), person()))
         .isInstanceOf(ErrorsResponseException.class)

@@ -61,6 +61,8 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
         "AS%20Pensionikeskus&selgitus=30101119828%2C%20EE3600001707&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR        | RedirectLink  | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
     WISE           | RedirectLink  | "https://wise.com/send#/?isScheduledTransfer=true"
+    CITADELE       | RedirectLink  | "https://online.citadele.lv/ibbf/et_ee"
+    BIGBANK        | RedirectLink  | "https://auth.bigbank.eu/"
     COOP           | PrefilledLink | "https://i.cooppank.ee/i/standing-orders/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&amt=12.34&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&date=10.01.2020&freq=2&lang=en"
     COOP_WEB       | PrefilledLink | "i/standing-orders/new?bname=AS%20Pensionikeskus&bacc=EE362200221067235244&amt=12.34&cur=EUR&desc=30101119828%2C%20EE3600001707&ref=993432432&date=10.01.2020&freq=2&lang=en"
     PARTNER        | PrefilledLink | """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":12.34,"currency":"EUR","description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
@@ -214,11 +216,11 @@ class RecurringPaymentLinkGeneratorSpec extends Specification {
         (COOP)         : REQUIRED_AMOUNT,
         (COOP_WEB)     : OPTIONAL_AMOUNT,
         (PARTNER)      : OPTIONAL_AMOUNT,
-        (CITADELE)     : UNSUPPORTED_CHANNEL,
+        (CITADELE)     : OPTIONAL_AMOUNT,
         (REVOLUT)      : UNSUPPORTED_CHANNEL,
         (WISE)         : OPTIONAL_AMOUNT,
         (N26)          : UNSUPPORTED_CHANNEL,
-        (BIGBANK)      : UNSUPPORTED_CHANNEL,
+        (BIGBANK)      : OPTIONAL_AMOUNT,
         (TULUNDUSUHISTU): UNSUPPORTED_CHANNEL,
     ]
   }

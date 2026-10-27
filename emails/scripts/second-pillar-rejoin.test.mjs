@@ -13,7 +13,7 @@ const languages = {
     sotsmaksHref: 'https://tuleva.ee/sotsmaks',
     sotsmaksText: 'tuleva.ee/sotsmaks',
     required: [
-      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad laekuma automaatselt. Esimene sissemakse tehakse *|contributionStartDate|* palgast.',
+      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad laekuma automaatselt ja nende alguskuupäev on *|contributionStartDate|*.',
       'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
       'Kogutud raha saad kasutada alates eelpensionieast ehk viis aastat enne vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Pärast taasliitumist ei saa sa raha enne seda teist korda välja võtta.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',

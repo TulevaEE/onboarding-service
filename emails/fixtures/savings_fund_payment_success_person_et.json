@@ -4,7 +4,8 @@
       "FNAME": "Mari",
       "suggestSecondPillarRejoin": true,
       "secondPillarRejoinDeadline": "30. november 2026",
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "II samba avamise soovitus": {
       "FNAME": "Mari",

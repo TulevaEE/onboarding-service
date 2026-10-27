@@ -25,6 +25,11 @@ record KidProperties(Map<TulevaFund, FundSettings> funds) {
     private static final int ANNEX_IV_P6_TEN_YEAR_PERIOD_HOLDS_HOLDING_PERIODS_UP_TO_YEARS = 5;
 
     FundSettings {
+      if (seriesKey == null) {
+        throw new IllegalArgumentException(
+            "KID fund settings need a series key: recommendedHoldingPeriodYears="
+                + recommendedHoldingPeriodYears);
+      }
       if (recommendedHoldingPeriodYears <= ANNEX_IV_P32_INTERMEDIATE_PERIOD_YEARS) {
         throw new IllegalArgumentException(
             "Recommended holding period must be longer than the one-year period:"

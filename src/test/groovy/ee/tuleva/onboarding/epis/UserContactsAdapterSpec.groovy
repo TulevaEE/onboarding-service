@@ -1,8 +1,13 @@
 package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.country.Country
+import ee.tuleva.onboarding.epis.ContactDetails.ContributionPeriod
+import ee.tuleva.onboarding.epis.ContactDetails.ContributionStatus
+import ee.tuleva.onboarding.user.SecondPillarContributionPeriod
 import ee.tuleva.onboarding.user.UserContacts.ContactSummary
 import spock.lang.Specification
+
+import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
@@ -35,7 +40,45 @@ class UserContactsAdapterSpec extends Specification {
     def result = adapter.forPerson(person)
 
     then:
-    result == new ContactSummary(null, null, null, null, null, false, false, null, null, null)
+    result == new ContactSummary(null, null, null, null, null, false, false, null, null, null, [])
+  }
+
+  def "reads contact details from a registry that reports no contribution periods as having none"() {
+    given:
+    def person = samplePerson()
+    def contactDetails = ContactDetails.builder().secondPillarContributionPeriods(null).build()
+    1 * contactDetailsService.getContactDetails(person) >> contactDetails
+
+    when:
+    def result = adapter.forPerson(person)
+
+    then:
+    result.secondPillarContributionPeriods() == []
+  }
+
+  def "maps the second pillar contribution periods with their #status status"() {
+    given:
+    def person = samplePerson()
+    def contactDetails = ContactDetails.builder()
+        .secondPillarContributionPeriods([
+            new ContributionPeriod(status, LocalDate.parse("2012-01-01"), LocalDate.parse("2021-08-31"))])
+        .build()
+    1 * contactDetailsService.getContactDetails(person) >> contactDetails
+
+    when:
+    def result = adapter.forPerson(person)
+
+    then:
+    result.secondPillarContributionPeriods() == [
+        new SecondPillarContributionPeriod(
+            expectedStatus, LocalDate.parse("2012-01-01"), LocalDate.parse("2021-08-31"))]
+
+    where:
+    status                                           || expectedStatus
+    ContributionStatus.CONTRIBUTING                  || SecondPillarContributionPeriod.Status.CONTRIBUTING
+    ContributionStatus.CONTRIBUTING_WITHOUT_ACCOUNT  || SecondPillarContributionPeriod.Status.CONTRIBUTING_WITHOUT_ACCOUNT
+    ContributionStatus.NOT_CONTRIBUTING              || SecondPillarContributionPeriod.Status.NOT_CONTRIBUTING
+    ContributionStatus.PAUSED                        || SecondPillarContributionPeriod.Status.PAUSED
   }
 
   def "fetches contact details using the given jwt token"() {
@@ -78,6 +121,8 @@ class UserContactsAdapterSpec extends Specification {
         contactDetails.thirdPillarActive,
         contactDetails.secondPillarOpenDate,
         contactDetails.thirdPillarInitDate,
-        contactDetails.lastUpdateDate)
+        contactDetails.lastUpdateDate,
+        [new SecondPillarContributionPeriod(
+            SecondPillarContributionPeriod.Status.CONTRIBUTING, LocalDate.parse("2019-10-01"), null)])
   }
 }

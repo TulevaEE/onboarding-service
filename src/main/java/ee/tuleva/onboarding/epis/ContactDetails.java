@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,6 +43,8 @@ public class ContactDetails implements Person {
   private Instant thirdPillarInitDate;
   @Nullable private PaymentRates secondPillarPaymentRates;
 
+  @Nullable private List<ContributionPeriod> secondPillarContributionPeriods;
+
   public boolean hasJoinedSecondPillar() {
     return isSecondPillarActive || secondPillarJoinDate != null;
   }
@@ -71,6 +74,16 @@ public class ContactDetails implements Person {
   public static class PaymentRates {
     @Nullable private Integer current;
     @Nullable private Integer pending;
+  }
+
+  public record ContributionPeriod(
+      ContributionStatus status, LocalDate startDate, @Nullable LocalDate endDate) {}
+
+  public enum ContributionStatus {
+    CONTRIBUTING,
+    CONTRIBUTING_WITHOUT_ACCOUNT,
+    NOT_CONTRIBUTING,
+    PAUSED
   }
 
   @Data

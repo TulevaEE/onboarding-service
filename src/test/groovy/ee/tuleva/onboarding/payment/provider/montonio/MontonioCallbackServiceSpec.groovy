@@ -23,7 +23,6 @@ class MontonioCallbackServiceSpec extends Specification {
   ApplicationEventPublisher eventPublisher = Mock(ApplicationEventPublisher)
 
   MontonioCallbackService service = new MontonioCallbackService(
-      montonioPaymentChannelConfiguration,
       userService,
       paymentRepository,
       objectMapper,

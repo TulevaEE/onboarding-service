@@ -8,8 +8,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.json.JsonCompareMode.STRICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
@@ -49,14 +50,42 @@ class KidAdminControllerTest {
                 .header("X-Admin-Token", "ops-token")
                 .param("ongoingCharges", "0.005"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.fund").value("TKF100"))
-        .andExpect(jsonPath("$.periodEnd").value("2026-09-30"))
-        .andExpect(jsonPath("$.ongoingCharges").value(0.005))
-        .andExpect(jsonPath("$.scenarios[0].kind").value("UNFAVOURABLE"))
-        .andExpect(jsonPath("$.scenarios[0].amountEur").value(8620))
-        .andExpect(jsonPath("$.scenarios[0].periodStart").value("2025-09-30"))
-        .andExpect(jsonPath("$.scenarios[0].window").value("SHORTER"))
-        .andExpect(jsonPath("$.costs[0].totalCostsEur").value(50));
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {
+                      "fund": "TKF100",
+                      "seriesKey": "MSCI_ACWI",
+                      "periodStart": "2016-09-30",
+                      "periodEnd": "2026-09-30",
+                      "ongoingCharges": 0.005,
+                      "recommendedHoldingPeriodYears": 5,
+                      "exampleInvestmentEur": 10000,
+                      "scenarios": [
+                        {
+                          "horizonYears": 5,
+                          "kind": "UNFAVOURABLE",
+                          "amountEur": 8620,
+                          "averageReturnPerYear": -0.02929577,
+                          "periodStart": "2025-09-30",
+                          "periodEnd": "2026-09-30",
+                          "window": "SHORTER",
+                          "windowMonths": 12
+                        }
+                      ],
+                      "costs": [
+                        {
+                          "horizonYears": 1,
+                          "totalCostsEur": 50,
+                          "annualCostImpact": 0.005,
+                          "returnPerYearBeforeCosts": 0.005,
+                          "returnPerYearAfterCosts": 0.000
+                        }
+                      ]
+                    }
+                    """,
+                    STRICT));
   }
 
   @Test

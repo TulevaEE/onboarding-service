@@ -215,6 +215,45 @@ class PastPerformanceServiceTest {
   }
 
   @Test
+  void aFundWhoseOnlyClosedYearIsItsPartialFirstYearHasNotEnoughHistory() {
+    var fund =
+        List.of(
+            aFundValue("EE3600109435", LocalDate.of(2026, 3, 2), 1.0),
+            aFundValue("EE3600109435", LocalDate.of(2026, 12, 31), 1.05),
+            aFundValue("EE3600109435", LocalDate.of(2027, 6, 30), 1.1));
+    var benchmark =
+        List.of(
+            aFundValue("MSCI_ACWI", LocalDate.of(2025, 12, 31), 100.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 3, 2), 102.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2026, 12, 31), 105.0),
+            aFundValue("MSCI_ACWI", LocalDate.of(2027, 6, 30), 107.1));
+    givenTheSeries(fund, LocalDate.of(2026, 3, 2), benchmark, LocalDate.of(2025, 12, 31));
+
+    assertThat(serviceOn(LocalDate.of(2027, 7, 1)).pastPerformance(TUK75))
+        .isEqualTo(
+            new PastPerformance(
+                TUK75,
+                "EE3600109435",
+                "MSCI_ACWI",
+                null,
+                LocalDate.of(2027, 6, 30),
+                false,
+                List.of(
+                    new YearReturn(
+                        2026,
+                        new BigDecimal("0.05000000"),
+                        new BigDecimal("0.02941176"),
+                        true,
+                        false),
+                    new YearReturn(
+                        2027,
+                        new BigDecimal("0.04761905"),
+                        new BigDecimal("0.02000000"),
+                        false,
+                        true))));
+  }
+
+  @Test
   void aYearEndingOnASundayIsCompleteInJanuaryOnceBothSeriesReachItsLastFriday() {
     var fund =
         List.of(

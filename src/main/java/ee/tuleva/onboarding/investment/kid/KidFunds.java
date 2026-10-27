@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.investment.kid;
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.Map;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "investment.kid")
-record KidProperties(Map<TulevaFund, FundSettings> funds) {
+record KidFunds(Map<TulevaFund, FundSettings> funds) {
 
-  KidProperties {
-    funds = funds == null ? Map.of() : Map.copyOf(funds);
+  static final KidFunds TULEVA_FUNDS =
+      new KidFunds(Map.of(TKF100, new FundSettings("MSCI_ACWI", 5)));
+
+  KidFunds {
+    funds = Map.copyOf(funds);
   }
 
   FundSettings settingsFor(TulevaFund fund) {
@@ -25,11 +28,6 @@ record KidProperties(Map<TulevaFund, FundSettings> funds) {
     private static final int ANNEX_IV_P6_TEN_YEAR_PERIOD_HOLDS_HOLDING_PERIODS_UP_TO_YEARS = 5;
 
     FundSettings {
-      if (seriesKey == null) {
-        throw new IllegalArgumentException(
-            "KID fund settings need a series key: recommendedHoldingPeriodYears="
-                + recommendedHoldingPeriodYears);
-      }
       if (recommendedHoldingPeriodYears <= ANNEX_IV_P32_INTERMEDIATE_PERIOD_YEARS) {
         throw new IllegalArgumentException(
             "Recommended holding period must be longer than the one-year period:"

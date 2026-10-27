@@ -4,16 +4,17 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.investment.kid.KidProperties.FundSettings;
+import ee.tuleva.onboarding.investment.kid.KidFunds.FundSettings;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class KidPropertiesTest {
+class KidFundsTest {
 
   @Test
-  void refusesEveryFundWhenNoKidFundsAreConfigured() {
-    var properties = new KidProperties(null);
+  void refusesAFundWithoutKidSettings() {
+    var funds = new KidFunds(Map.of());
 
-    assertThatThrownBy(() -> properties.settingsFor(TKF100))
+    assertThatThrownBy(() -> funds.settingsFor(TKF100))
         .isInstanceOf(KidCalculationRefusedException.class);
   }
 
@@ -26,12 +27,6 @@ class KidPropertiesTest {
   @Test
   void acceptsAFiveYearHoldingPeriod() {
     assertThatCode(() -> new FundSettings("MSCI_ACWI", 5)).doesNotThrowAnyException();
-  }
-
-  @Test
-  void refusesAFundWithoutASeriesKeyAtStartupRatherThanOnItsFirstRequest() {
-    assertThatThrownBy(() -> new FundSettings(null, 5))
-        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

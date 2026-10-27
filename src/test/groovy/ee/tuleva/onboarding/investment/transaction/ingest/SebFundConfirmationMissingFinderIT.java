@@ -54,8 +54,7 @@ class SebFundConfirmationMissingFinderIT {
             fundResolver,
             calendar,
             Clock.fixed(TODAY.atTime(10, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC),
-            new SebFundConfirmationProperties(
-                new BigDecimal("0.5"), 2, 2, MISSING_CONFIRMATIONS_FROM));
+            new SebFundConfirmationProperties(2, 2, MISSING_CONFIRMATIONS_FROM));
   }
 
   @Test

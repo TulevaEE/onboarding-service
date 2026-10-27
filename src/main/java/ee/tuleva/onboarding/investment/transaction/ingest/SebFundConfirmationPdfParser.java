@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ class SebFundConfirmationPdfParser {
 
   static final String ARIAL_GLYPH_TABLE = "investment/seb-fund-confirmation/arial-glyphs.tsv";
 
+  private static final Pattern CURRENCY_AFTER_THE_AMOUNT = Pattern.compile("\\s+[A-Z]{3}$");
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yy");
   private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
   private static final Map<String, TransactionType> SIDE_BY_TRADE_TYPE_CODE =
@@ -152,7 +154,8 @@ class SebFundConfirmationPdfParser {
 
   private static BigDecimal amount(String value, String tradeReference) {
     try {
-      return new BigDecimal(value.replace(",", ""));
+      return new BigDecimal(
+          CURRENCY_AFTER_THE_AMOUNT.matcher(value).replaceFirst("").replace(",", ""));
     } catch (NumberFormatException e) {
       throw new SebFundConfirmationPdfParseException(
           "SEB fund confirmation has malformed amount: tradeReference="

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.SEB_FUND_CONFIRMATION_NAV_TOLERANCE;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmation.SEB_TIME_ZONE;
@@ -17,6 +18,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirma
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.NavStatus;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.ReportStatus;
@@ -43,6 +45,7 @@ class SebFundConfirmationVerificationService {
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;
   private final PositionPriceResolver priceResolver;
+  private final InvestmentParameterRepository parameterRepository;
   private final Clock clock;
   private final SebFundConfirmationProperties properties;
 
@@ -50,11 +53,13 @@ class SebFundConfirmationVerificationService {
       InvestmentReportService reportService,
       SebPendingTransactionExtractor extractor,
       PositionPriceResolver priceResolver,
+      InvestmentParameterRepository parameterRepository,
       Clock clock,
       SebFundConfirmationProperties properties) {
     this.reportService = reportService;
     this.extractor = extractor;
     this.priceResolver = priceResolver;
+    this.parameterRepository = parameterRepository;
     this.clock = clock;
     this.properties = properties;
   }
@@ -190,9 +195,15 @@ class SebFundConfirmationVerificationService {
           ? NOT_PUBLISHED
           : NOT_PUBLISHED_YET;
     }
-    return deviation.abs().compareTo(properties.navTolerancePercent()) > 0
+    return deviation.abs().compareTo(navTolerancePercent(pricingDate)) > 0
         ? FAR_FROM_NAV
         : WITHIN_TOLERANCE;
+  }
+
+  private BigDecimal navTolerancePercent(LocalDate pricingDate) {
+    return parameterRepository
+        .findLatestValue(SEB_FUND_CONFIRMATION_NAV_TOLERANCE, pricingDate)
+        .multiply(HUNDRED);
   }
 
   private LocalDate today() {

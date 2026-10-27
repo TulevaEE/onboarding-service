@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.SEB_FUND_CONFIRMATION_NAV_TOLERANCE;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
@@ -23,6 +24,7 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import java.math.BigDecimal;
@@ -54,6 +56,7 @@ class SebFundConfirmationVerificationServiceTest {
 
   @Mock private InvestmentReportService reportService;
   @Mock private PositionPriceResolver priceResolver;
+  @Mock private InvestmentParameterRepository parameterRepository;
 
   private SebFundConfirmationVerificationService service;
 
@@ -63,6 +66,8 @@ class SebFundConfirmationVerificationServiceTest {
     given(reportService.getReport(eq(SEB), eq(PENDING_TRANSACTIONS), any()))
         .willReturn(Optional.empty());
     given(priceResolver.resolve(eq(ISIN), any())).willReturn(Optional.of(noPrice()));
+    given(parameterRepository.findLatestValue(eq(SEB_FUND_CONFIRMATION_NAV_TOLERANCE), any()))
+        .willReturn(new BigDecimal("0.004"));
   }
 
   @Test
@@ -144,6 +149,19 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   @Test
+  void verify_judgesThePriceAgainstTheToleranceInForceOnThePricingDate() {
+    reportOn(PRICING, pendingRow("1000", "12.34567890", "12345.68", VALUE));
+    navOn(PRICING, "12.2456");
+    given(parameterRepository.findLatestValue(SEB_FUND_CONFIRMATION_NAV_TOLERANCE, PRICING))
+        .willReturn(new BigDecimal("0.009"));
+
+    SebFundConfirmationResult result = service.verify(confirmation("12.345678901"));
+
+    assertThat(result.navStatus()).isEqualTo(WITHIN_TOLERANCE);
+    assertThat(result.deviationPercent()).isEqualByComparingTo("0.8173");
+  }
+
+  @Test
   void verify_doesNotJudgeThePriceWhileTheNavForThePricingDateCanStillArrive() {
     reportOn(PRICING, pendingRow("1000", "12.34567890", "12345.68", VALUE));
     navOn(PRICING.minusDays(1), "11.0000");
@@ -188,8 +206,9 @@ class SebFundConfirmationVerificationServiceTest {
         reportService,
         new SebPendingTransactionExtractor(),
         priceResolver,
+        parameterRepository,
         Clock.fixed(today.atTime(12, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC),
-        new SebFundConfirmationProperties(new BigDecimal("0.5"), 2, 2, LocalDate.of(2026, 1, 5)));
+        new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5)));
   }
 
   private static SebFundConfirmation confirmation(String price) {

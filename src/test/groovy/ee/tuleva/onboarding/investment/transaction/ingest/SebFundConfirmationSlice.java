@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.JdbcFundValueRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -24,7 +25,8 @@ import org.springframework.context.annotation.Import;
   Target2Calendar.class,
   PositionPriceResolver.class,
   PriorityPriceProvider.class,
-  JdbcFundValueRepository.class
+  JdbcFundValueRepository.class,
+  InvestmentParameterRepository.class
 })
 @ComponentScan(
     basePackageClasses = InstrumentReferenceService.class,

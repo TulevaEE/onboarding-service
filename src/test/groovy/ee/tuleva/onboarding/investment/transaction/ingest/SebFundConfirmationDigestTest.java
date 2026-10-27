@@ -18,7 +18,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -48,8 +47,7 @@ class SebFundConfirmationDigestTest {
         new SebFundConfirmationDigest(
             notificationService,
             auditRecorder,
-            new SebFundConfirmationProperties(
-                new BigDecimal("0.5"), 2, 2, LocalDate.of(2026, 1, 5)));
+            new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5)));
     given(auditRecorder.unalertedFindings(any()))
         .willAnswer(
             invocation ->
@@ -84,7 +82,7 @@ class SebFundConfirmationDigestTest {
             """
             SEB fonditehingute kinnitused
 
-            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81% (piir 0.5%)
+            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81%
             Tehing DLA1234567, SEB sai korralduse 05.01.2026 11:48
             Kontrolli hinda SEB-lt ja fondivalitseja lehelt""",
             INVESTMENT);
@@ -213,15 +211,14 @@ class SebFundConfirmationDigestTest {
   }
 
   @Test
-  void publish_saysWhichPartOfTheCheckCouldNotRunOnEveryRunUntilItRunsAgain() {
+  void publish_saysWhichPartOfTheCheckCouldNotRunAndRecordsItForTheDay() {
     SebFundConfirmationCheckFailure failure =
         new SebFundConfirmationCheckFailure("puuduvate kinnituste otsing", "report store down");
 
     digest.publish(List.of(), List.of(), List.of(), List.of(failure));
-    digest.publish(List.of(), List.of(), List.of(), List.of(failure));
 
     then(notificationService)
-        .should(times(2))
+        .should()
         .sendMessage(
             """
             SEB fonditehingute kinnitused
@@ -230,6 +227,18 @@ class SebFundConfirmationDigestTest {
             Põhjus: report store down
             Teavita IT-d ja kontrolli seda osa seni käsitsi""",
             INVESTMENT);
+    then(auditRecorder).should().recordAlerted(failure);
+  }
+
+  @Test
+  void publish_doesNotRepeatAPartThatCouldNotRunOnTheSameDay() {
+    SebFundConfirmationCheckFailure failure =
+        new SebFundConfirmationCheckFailure("puuduvate kinnituste otsing", "report store down");
+    given(auditRecorder.alreadyAlertedToday(failure)).willReturn(true);
+
+    digest.publish(List.of(), List.of(), List.of(), List.of(failure));
+
+    then(notificationService).should(never()).sendMessage(any(), any());
   }
 
   @Test

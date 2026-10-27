@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.SEB_FUND_CONFIRMATION_CHECK;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.IMPORT_BUSINESS_HOURS;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
@@ -36,7 +36,7 @@ class SebFundConfirmationImportJob {
   private final SebFundConfirmationAuditRecorder auditRecorder;
   private final SebFundConfirmationDigest digest;
 
-  @Scheduled(cron = SEB_FUND_CONFIRMATION_CHECK, zone = TIMEZONE)
+  @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
   @SchedulerLock(
       name = "SebFundConfirmationImportJob",
       lockAtMostFor = "15m",

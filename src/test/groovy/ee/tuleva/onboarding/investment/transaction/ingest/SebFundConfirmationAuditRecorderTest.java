@@ -78,6 +78,14 @@ class SebFundConfirmationAuditRecorderTest {
   }
 
   @Test
+  void alreadyAlertedToday_treatsACheckFailureAsNotAlertedWhenTheAlertHistoryCannotBeRead() {
+    assertThat(
+            recorder.alreadyAlertedToday(
+                new SebFundConfirmationCheckFailure("puuduvate kinnituste otsing", "down")))
+        .isFalse();
+  }
+
+  @Test
   void alreadyAlerted_treatsAnUnreadablePdfAsNotAlertedWhenTheAlertHistoryCannotBeRead() {
     UnreadableSebFundConfirmation unreadable =
         new UnreadableSebFundConfirmation(

@@ -57,7 +57,9 @@ class SebFundConfirmationDigest {
     newFindings.forEach(found -> blocks.addAll(blocks(found.outcome(), found.findings())));
     newMissing.forEach(trade -> blocks.add(block(trade)));
     newUnreadable.forEach(file -> blocks.add(block(file)));
-    failures.forEach(failure -> blocks.add(block(failure)));
+    List<SebFundConfirmationCheckFailure> newFailures =
+        failures.stream().filter(failure -> !auditRecorder.alreadyAlertedToday(failure)).toList();
+    newFailures.forEach(failure -> blocks.add(block(failure)));
     if (blocks.isEmpty()
         || !send(HEADER + BLOCK_SEPARATOR + String.join(BLOCK_SEPARATOR, blocks))) {
       return;
@@ -66,6 +68,7 @@ class SebFundConfirmationDigest {
       newFindings.forEach(found -> auditRecorder.recordAlerted(found.outcome(), found.findings()));
       newMissing.forEach(auditRecorder::recordAlerted);
       newUnreadable.forEach(auditRecorder::recordAlerted);
+      newFailures.forEach(auditRecorder::recordAlerted);
     } catch (RuntimeException e) {
       log.error(
           "SEB fund confirmation alerts sent but not recorded, they may repeat: error={}",
@@ -114,10 +117,7 @@ class SebFundConfirmationDigest {
                   + " erineb fondi NAV-ist "
                   + plain(result.nav())
                   + " "
-                  + signedPercent(result.deviationPercent())
-                  + " (piir "
-                  + properties.navTolerancePercent().toPlainString()
-                  + "%)",
+                  + signedPercent(result.deviationPercent()),
               received(confirmation),
               "Kontrolli hinda SEB-lt ja fondivalitseja lehelt"));
     }

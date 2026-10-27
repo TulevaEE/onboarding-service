@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmation.SEB_TIME_ZONE;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 
@@ -7,6 +8,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ class SebFundConfirmationAuditRecorder {
   static final String ALERTED = "SEB_FUND_CONFIRMATION_ALERTED";
   static final String MISSING_ALERTED = "SEB_FUND_CONFIRMATION_MISSING_ALERTED";
   static final String UNREADABLE_ALERTED = "SEB_FUND_CONFIRMATION_UNREADABLE_ALERTED";
+  static final String CHECK_FAILURE_ALERTED = "SEB_FUND_CONFIRMATION_CHECK_FAILURE_ALERTED";
   private static final String SYSTEM_ACTOR = "system";
   private static final String STATUS = "status";
   private static final String FINDINGS = "findings";
@@ -88,6 +91,22 @@ class SebFundConfirmationAuditRecorder {
 
   boolean alreadyAlerted(UnreadableSebFundConfirmation unreadable) {
     return hasAlerted(UNREADABLE_ALERTED, unreadable.key());
+  }
+
+  boolean alreadyAlertedToday(SebFundConfirmationCheckFailure failure) {
+    return hasAlerted(CHECK_FAILURE_ALERTED, todaysKey(failure));
+  }
+
+  void recordAlerted(SebFundConfirmationCheckFailure failure) {
+    save(
+        CHECK_FAILURE_ALERTED,
+        todaysKey(failure),
+        SYSTEM_ACTOR,
+        Map.of("step", failure.step(), "reason", failure.reason()));
+  }
+
+  private String todaysKey(SebFundConfirmationCheckFailure failure) {
+    return LocalDate.ofInstant(clock.instant(), SEB_TIME_ZONE) + " " + failure.step();
   }
 
   private boolean hasAlerted(String eventType, String dedupKey) {

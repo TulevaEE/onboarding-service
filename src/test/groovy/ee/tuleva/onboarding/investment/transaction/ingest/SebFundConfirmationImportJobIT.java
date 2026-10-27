@@ -19,6 +19,7 @@ import static org.mockito.Mockito.times;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -54,9 +55,10 @@ class SebFundConfirmationImportJobIT {
 
   private static final String ISIN = "IE00BKPTWY98";
   private static final String NAV_STORAGE_KEY = ISIN + ".BLACKROCK";
+  private static final String NAV_TOLERANCE = "SEB_FUND_CONFIRMATION_NAV_TOLERANCE";
   private static final Instant NOW = Instant.parse("2026-01-08T10:00:00Z");
   private static final SebFundConfirmationProperties PROPERTIES =
-      new SebFundConfirmationProperties(new BigDecimal("0.5"), 2, 2, LocalDate.of(2026, 1, 5));
+      new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5));
 
   @Autowired private InvestmentReportService reportService;
   @Autowired private InvestmentReportRepository reportRepository;
@@ -67,6 +69,7 @@ class SebFundConfirmationImportJobIT {
   @Autowired private Target2Calendar calendar;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private InvestmentParameterRepository parameterRepository;
   @Autowired private TestEntityManager entityManager;
 
   private final S3Client s3Client = mock(S3Client.class);
@@ -85,7 +88,7 @@ class SebFundConfirmationImportJobIT {
             new SebFundConfirmationS3Source(s3Client, clock),
             new SebFundConfirmationPdfParser(fundResolver, liberationSansTable()),
             new SebFundConfirmationVerificationService(
-                reportService, extractor, priceResolver, clock, PROPERTIES),
+                reportService, extractor, priceResolver, parameterRepository, clock, PROPERTIES),
             new SebFundConfirmationMissingFinder(
                 reportService,
                 extractor,
@@ -97,6 +100,20 @@ class SebFundConfirmationImportJobIT {
             auditRecorder,
             new SebFundConfirmationDigest(notificationService, auditRecorder, PROPERTIES));
 
+    jdbcClient
+        .sql("DELETE FROM investment_parameter WHERE parameter_name = :name")
+        .param("name", NAV_TOLERANCE)
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value)
+            VALUES (:name, NULL, :effectiveDate, :value)
+            """)
+        .param("name", NAV_TOLERANCE)
+        .param("effectiveDate", LocalDate.of(2026, 1, 1))
+        .param("value", new BigDecimal("0.004"))
+        .update();
     jdbcClient
         .sql("DELETE FROM index_values WHERE key = :key")
         .param("key", NAV_STORAGE_KEY)
@@ -116,7 +133,7 @@ class SebFundConfirmationImportJobIT {
             """
             SEB fonditehingute kinnitused
 
-            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81% (piir 0.5%)
+            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81%
             Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
             Kontrolli hinda SEB-lt ja fondivalitseja lehelt
 
@@ -205,6 +222,49 @@ class SebFundConfirmationImportJobIT {
             TUK75 IE00BKPTWY98 ost 05.01.2026: SEB tehingukinnitust pole 2 tööpäeva järel
             Tehing DLA0000002 on SEB ootel tehingute raportis, kogus 1000
             Kontrolli funds@ postkasti ja küsi kinnitust SEB-lt""",
+            INVESTMENT);
+  }
+
+  @Test
+  void run_saysThePriceCannotBeCheckedUntilTheNavToleranceIsSet() {
+    jdbcClient
+        .sql("DELETE FROM investment_parameter WHERE parameter_name = :name")
+        .param("name", NAV_TOLERANCE)
+        .update();
+    insertNav(LocalDate.of(2026, 1, 6), "12.4000");
+    saveReport(LocalDate.of(2026, 1, 7), List.of(pendingRow("DLA0000001", "12.40000000")));
+
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            SEB tehingukinnituste kontroll jäi pooleli: tehingu DLA0000001 kontroll
+            Põhjus: No investment parameter found: parameter=SEB_FUND_CONFIRMATION_NAV_TOLERANCE, fund=GLOBAL, asOf=2026-01-06
+            Teavita IT-d ja kontrolli seda osa seni käsitsi""",
+            INVESTMENT);
+  }
+
+  @Test
+  void run_reportsAPartOfTheCheckThatCouldNotRunOnceADay() {
+    given(s3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .willThrow(new IllegalStateException("S3 unavailable"));
+
+    job.run();
+    runAgainFromWhatTheDatabaseHolds();
+
+    then(notificationService)
+        .should(times(1))
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            SEB tehingukinnituste kontroll jäi pooleli: kinnituste nimekirja lugemine S3-st
+            Põhjus: S3 unavailable
+            Teavita IT-d ja kontrolli seda osa seni käsitsi""",
             INVESTMENT);
   }
 

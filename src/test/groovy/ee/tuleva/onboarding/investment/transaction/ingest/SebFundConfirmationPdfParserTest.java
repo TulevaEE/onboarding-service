@@ -52,6 +52,18 @@ class SebFundConfirmationPdfParserTest {
   }
 
   @Test
+  void parse_readsALargeAmountWhoseCurrencySitsTooCloseToBeItsOwnCell() {
+    Map<String, List<String>> fields = buyFields();
+    fields.put("Kokkulepitud tehingusumma", List.of("123,456,789.10 EUR"));
+    fields.put("Kogumaksumus", List.of("123,456,789.10 EUR"));
+
+    SebFundConfirmation result = parser.parse(confirmation(fields));
+
+    assertThat(result.tradeAmount()).isEqualByComparingTo("123456789.10");
+    assertThat(result.totalAmount()).isEqualByComparingTo("123456789.10");
+  }
+
+  @Test
   void parse_readsARedemptionAsASell() {
     Map<String, List<String>> fields = buyFields();
     fields.put("Tehingu liik", List.of("REDM Müük (Osakute tagasivõtmine)"));

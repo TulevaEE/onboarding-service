@@ -21,7 +21,7 @@ class KidFiguresService {
   private static final int FIRST_YEAR = 1;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private final KidProperties properties;
+  private final KidFunds kidFunds;
   private final FundValueQueries fundValueQueries;
   private final Clock clock;
   private final PerformanceScenarioCalculator performanceScenarioCalculator;
@@ -30,7 +30,7 @@ class KidFiguresService {
   private final CostsOverTimeCalculator costsOverTimeCalculator;
 
   KidFigures figures(TulevaFund fund, BigDecimal ongoingCharges) {
-    var settings = properties.settingsFor(fund);
+    var settings = kidFunds.settingsFor(fund);
     var seriesKey = settings.seriesKey();
     var holdingPeriodYears = settings.recommendedHoldingPeriodYears();
     var charges = ongoingCharges.doubleValue();

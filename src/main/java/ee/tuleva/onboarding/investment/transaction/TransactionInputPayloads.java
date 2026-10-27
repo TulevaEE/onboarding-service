@@ -69,6 +69,9 @@ final class TransactionInputPayloads {
     putIfPresent(map, "unreconciledBankReceipts", plain(breakdown.unreconciledBankReceipts()));
     putIfPresent(map, "fundUnitsReservedValue", plain(breakdown.fundUnitsReservedValue()));
     putIfPresent(map, "incomingPaymentsClearing", plain(breakdown.incomingPaymentsClearing()));
+    putIfPresent(map, "unitReceivable", plain(breakdown.unitReceivable()));
+    putIfPresent(map, "unitReceivableReported", plain(breakdown.unitReceivableReported()));
+    putIfPresent(map, "unitReceivableReceived", plain(breakdown.unitReceivableReceived()));
     return map;
   }
 

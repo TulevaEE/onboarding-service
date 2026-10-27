@@ -71,6 +71,7 @@ public class TransactionInputService {
   private final PendingOrderImpactService pendingOrderImpactService;
   private final PositionAssembler positionAssembler;
   private final UnsettledTradeReader unsettledTradeReader;
+  private final UnitReceivableReader unitReceivableReader;
   private final TransactionParameterLoader transactionParameterLoader;
 
   public FundTransactionInput gatherInput(
@@ -126,7 +127,6 @@ public class TransactionInputService {
 
     BigDecimal r45Net = getR45Net(fund);
     liabilities = liabilities.add(ZERO.max(r45Net.negate()));
-    receivables = receivables.add(ZERO.max(r45Net));
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
@@ -134,6 +134,11 @@ public class TransactionInputService {
     UnsettledTrades unsettledTrades = unsettledTradeReader.read(fund, positionDate);
     liabilities = liabilities.add(pendingOrders.pendingBuys()).add(unsettledTrades.payables());
     receivables = receivables.add(pendingOrders.pendingSells()).add(unsettledTrades.receivables());
+
+    UnitReceivable unitReceivable = unitReceivableReader.read(fund, positionDate, asOfDate);
+    BigDecimal unitReceivableDue =
+        cashOverride == null ? unitReceivable.dueOnTopOfReportCash() : ZERO;
+    receivables = receivables.add(unitReceivableDue);
 
     BigDecimal freeCash =
         appliedCash.subtract(parameters.cashBuffer()).subtract(liabilities).add(receivables);
@@ -155,7 +160,10 @@ public class TransactionInputService {
             unsettledTrades.receivables(),
             registerCash.unreconciledBankReceipts(),
             registerCash.fundUnitsReservedValue(),
-            registerCash.incomingPaymentsClearing());
+            registerCash.incomingPaymentsClearing(),
+            unitReceivableDue,
+            unitReceivable.reported(),
+            unitReceivable.receivedSinceReport());
 
     return FundTransactionInput.builder()
         .fund(fund)

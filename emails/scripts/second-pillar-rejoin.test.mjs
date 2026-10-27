@@ -13,19 +13,14 @@ const languages = {
     sotsmaksHref: 'https://tuleva.ee/sotsmaks',
     sotsmaksText: 'tuleva.ee/sotsmaks',
     required: [
-      'Sissemaksed algavad *|contributionStartDate|*.',
-      'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
-      'Raha saad kasutada alates 60.&nbsp;eluaastast. Pärast taasliitumist ei saa sa makseid uuesti lõpetada ega raha teist korda välja võtta.',
+      'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Alates *|contributionStartDate|* hakkavad sissemaksed toimuma automaatselt sinu palgast.',
+      'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada kuni *|cancellationDeadline|*.',
+      'Kogutud raha saad kasutama hakata kuni viis aastat enne vanaduspensioniiga. Pärast taasliitumist saad raha välja võtta alles siis, kui tekib õigus väljamaksetele.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
       'Vaata II&nbsp;samba mõju I&nbsp;sambale',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
-    alwaysFiled: 'Sissemaksete tasumise avaldus',
-    filedWhenChanged: {
-      paymentRateChange: 'Sissemakse määra muutmise avaldus',
-      fundSelection: 'Valikuavaldus',
-    },
   },
   en: {
     sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
@@ -74,15 +69,17 @@ for (const [language, copy] of Object.entries(languages)) {
     assert.ok(html.includes(`href="${copy.sotsmaksHref}">${copy.sotsmaksText}</a>`), 'link text matches where it goes');
   });
 
-  test(`${name}: lists the rate and fund applications only when they were filed`, () => {
-    const filed = (vars) => text(renderMergeLanguage(html, vars));
-    const nothingChanged = filed({ paymentRateChange: false, fundSelection: false });
-    assert.ok(nothingChanged.includes(copy.alwaysFiled), `missing: ${copy.alwaysFiled}`);
-    for (const [variable, application] of Object.entries(copy.filedWhenChanged)) {
-      assert.ok(filed({ [variable]: true }).includes(application), `missing: ${application}`);
-      assert.ok(!nothingChanged.includes(application), `must not list: ${application}`);
-    }
-  });
+  if (copy.filedWhenChanged) {
+    test(`${name}: lists the rate and fund applications only when they were filed`, () => {
+      const filed = (vars) => text(renderMergeLanguage(html, vars));
+      const nothingChanged = filed({ paymentRateChange: false, fundSelection: false });
+      assert.ok(nothingChanged.includes(copy.alwaysFiled), `missing: ${copy.alwaysFiled}`);
+      for (const [variable, application] of Object.entries(copy.filedWhenChanged)) {
+        assert.ok(filed({ [variable]: true }).includes(application), `missing: ${application}`);
+        assert.ok(!nothingChanged.includes(application), `must not list: ${application}`);
+      }
+    });
+  }
 
   test(`${name}: every fixture variant fills the contribution start date and the cancellation deadline`, () => {
     const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));

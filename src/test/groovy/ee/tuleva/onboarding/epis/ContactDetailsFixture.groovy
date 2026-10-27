@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.epis
 
 import java.time.Instant
+import java.time.LocalDate
 
 import static ee.tuleva.onboarding.epis.ContactDetails.*
 
@@ -23,6 +24,8 @@ class ContactDetailsFixture {
         .isThirdPillarActive(true)
         .secondPillarOpenDate(Instant.parse("2019-10-01T12:13:27.141Z"))
         .thirdPillarInitDate(Instant.parse("2019-10-01T12:13:27.141Z"))
+        .secondPillarContributionPeriods([
+            new ContributionPeriod(ContributionStatus.CONTRIBUTING, LocalDate.parse("2019-10-01"), null)])
         .build()
   }
 }

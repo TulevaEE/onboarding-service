@@ -151,6 +151,10 @@ public class MockEpisService extends EpisService {
         .isSecondPillarActive(true)
         .isThirdPillarActive(true)
         .lastUpdateDate(clock.instant().minus(2, DAYS))
+        .secondPillarContributionPeriods(
+            List.of(
+                new ContactDetails.ContributionPeriod(
+                    ContactDetails.ContributionStatus.CONTRIBUTING, parse("2017-01-01"), null)))
         .build();
   }
 

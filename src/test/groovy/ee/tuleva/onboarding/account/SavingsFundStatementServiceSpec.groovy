@@ -134,6 +134,42 @@ class SavingsFundStatementServiceSpec extends Specification {
     statement.get().subtractions == 0
   }
 
+  def "returns empty for a closed account even though its ledger accounts remain"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
+    savingsFundOnboardingService.isAccountClosed(_ as PartyId) >> true
+    ledgerService.findPartyAccount(person.personalCode, PERSON, FUND_UNITS) >> Optional.of(fundUnitsAccountWithBalance(0.0))
+
+    when:
+    def statement = service.getAccountStatement(person)
+
+    then:
+    statement.empty
+  }
+
+  def "still shows a closed account that unexpectedly holds units"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def savingsFund = additionalSavingsFund()
+
+    savingsFundOnboardingService.isOnboardingCompleted(_ as PartyId) >> false
+    savingsFundOnboardingService.isAccountClosed(_ as PartyId) >> true
+    navProvider.getDisplayNav(_ as TulevaFund) >> new BigDecimal("1.12345")
+    ledgerService.findPartyAccount(person.personalCode, PERSON, FUND_UNITS) >> Optional.of(fundUnitsAccountWithBalance(2.0))
+    ledgerService.findPartyAccount(person.personalCode, PERSON, _) >> Optional.empty()
+    savingsFundConfiguration.getIsin() >> savingsFund.isin
+    fundRepository.findByIsin(savingsFund.isin) >> savingsFund
+
+    when:
+    def statement = service.getAccountStatement(person)
+
+    then:
+    statement.present
+    statement.get().units == 2
+  }
+
   def "returns empty for a not-onboarded party without a ledger account"() {
     given:
     def person = sampleAuthenticatedPersonAndMember().build()

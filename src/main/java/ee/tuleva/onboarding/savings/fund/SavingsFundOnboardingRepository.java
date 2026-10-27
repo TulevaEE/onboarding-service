@@ -116,13 +116,18 @@ public class SavingsFundOnboardingRepository {
   }
 
   @Transactional
-  public Optional<SavingsFundOnboardingStatus> saveOnboardingStatus(
-      String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
+  public void lockOnboarding(String code) {
     jdbcClient
         .sql("SELECT pg_advisory_xact_lock(:key)")
         .param("key", (long) ("onboarding:" + code).hashCode())
         .query((rs, rowNum) -> 0)
         .optional();
+  }
+
+  @Transactional
+  public Optional<SavingsFundOnboardingStatus> saveOnboardingStatus(
+      String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
+    lockOnboarding(code);
 
     var previousStatus = findStatus(code, type);
 

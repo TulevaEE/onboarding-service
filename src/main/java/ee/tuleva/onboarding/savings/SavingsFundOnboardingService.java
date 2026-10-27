@@ -38,6 +38,13 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     return savingsFundOnboardingRepository.isOnboardingCompleted(code, type);
   }
 
+  @Override
+  public boolean isAccountClosed(PartyId partyId) {
+    return findStatus(partyId.code(), partyId.type())
+        .filter(status -> status == CLOSED)
+        .isPresent();
+  }
+
   public Optional<SavingsFundOnboardingStatus> findStatus(String code, PartyId.Type type) {
     return savingsFundOnboardingRepository.findStatus(code, type);
   }

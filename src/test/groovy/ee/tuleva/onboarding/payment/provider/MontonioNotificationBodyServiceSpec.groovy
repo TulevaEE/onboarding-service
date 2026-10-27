@@ -21,7 +21,6 @@ class MontonioNotificationBodyServiceSpec extends Specification {
 
   void setup() {
     paymentProviderCallbackService = new MontonioCallbackService(
-        aPaymentProviderConfiguration(),
         userService,
         paymentRepository,
         JsonMapper.builder().build(),

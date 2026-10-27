@@ -4,7 +4,8 @@
       "FNAME": "Mari",
       "suggestSecondPillarRejoin": true,
       "secondPillarRejoinDeadline": "November 30, 2026",
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "second pillar start suggestion": {
       "FNAME": "Mari",

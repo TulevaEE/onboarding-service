@@ -47,6 +47,12 @@ public class BookedBalanceReader implements BankStatementBalances {
         .flatMap(message -> statementOf(message).bookedBalance());
   }
 
+  @Override
+  public boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day) {
+    return bankingMessageRepository.existsProcessedStatementCoveringAndClosingAfter(
+        SEB, account.iban(), day);
+  }
+
   private static Set<String> creditedEndToEndIds(BankStatement statement) {
     return statement.getEntries().stream()
         .filter(entry -> entry.transactionType() == CREDIT)

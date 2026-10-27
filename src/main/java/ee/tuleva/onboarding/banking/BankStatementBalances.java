@@ -7,4 +7,6 @@ import java.util.Optional;
 public interface BankStatementBalances {
 
   Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day);
+
+  boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day);
 }

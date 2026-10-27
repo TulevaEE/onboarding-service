@@ -59,6 +59,21 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
 
   @Query(
       """
+      select count(m) > 0
+      from BankingMessage m
+      where m.bankType = :bankType
+        and m.accountIban = :accountIban
+        and m.messageType = ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT
+        and m.statementFrom <= :day
+        and m.statementTo > :day
+        and m.processedAt is not null
+        and m.failedAt is null
+      """)
+  boolean existsProcessedStatementCoveringAndClosingAfter(
+      BankType bankType, String accountIban, LocalDate day);
+
+  @Query(
+      """
       select min(m.statementFrom)
       from BankingMessage m
       where m.bankType = :bankType

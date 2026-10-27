@@ -130,6 +130,15 @@ class BankBalanceCheckIntegrationTest {
     assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1000000.00"))).isEmpty();
   }
 
+  @Test
+  void hasNoFindingForADayInsideACatchUpStatementWhoseClosingBalanceIsForItsLastDayOnly() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(2), NAV_DATE, "1000000.00", EARLY_MORNING);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1000000.00"))).isEmpty();
+  }
+
   private static List<FundPosition> cash(TulevaFund fund, String marketValue) {
     return List.of(
         FundPosition.builder()
@@ -159,6 +168,23 @@ class BankBalanceCheckIntegrationTest {
         null);
   }
 
+  private void storeCatchUpStatement(
+      String iban,
+      LocalDate statementFrom,
+      LocalDate statementTo,
+      String closingBooked,
+      Instant receivedAt) {
+    store(
+        iban,
+        HISTORIC_STATEMENT,
+        statementFrom,
+        statementTo,
+        receivedAt,
+        statement(iban, statementTo, closingBooked, "CRDT"),
+        receivedAt,
+        null);
+  }
+
   private void storeFailedStatement(String iban, LocalDate statementDate) {
     store(
         iban,
@@ -178,6 +204,18 @@ class BankBalanceCheckIntegrationTest {
       String rawResponse,
       @Nullable Instant processedAt,
       @Nullable Instant failedAt) {
+    store(iban, type, statementDate, statementDate, receivedAt, rawResponse, processedAt, failedAt);
+  }
+
+  private void store(
+      String iban,
+      BankMessageType type,
+      LocalDate statementFrom,
+      LocalDate statementTo,
+      Instant receivedAt,
+      String rawResponse,
+      @Nullable Instant processedAt,
+      @Nullable Instant failedAt) {
     jdbcClient
         .sql(
             """
@@ -185,14 +223,15 @@ class BankBalanceCheckIntegrationTest {
               timezone, message_type, account_iban, statement_from, statement_to, processed_at,
               failed_at, received_at)
             values (:id, 'SEB', 'request', 'tracking', :rawResponse, 'Europe/Tallinn',
-              :messageType, :iban, :statementDate, :statementDate, :processedAt, :failedAt,
+              :messageType, :iban, :statementFrom, :statementTo, :processedAt, :failedAt,
               :receivedAt)
             """)
         .param("id", UUID.randomUUID())
         .param("rawResponse", rawResponse)
         .param("messageType", type.name())
         .param("iban", iban)
-        .param("statementDate", statementDate)
+        .param("statementFrom", statementFrom)
+        .param("statementTo", statementTo)
         .param("processedAt", processedAt == null ? null : Timestamp.from(processedAt))
         .param("failedAt", failedAt == null ? null : Timestamp.from(failedAt))
         .param("receivedAt", Timestamp.from(receivedAt))

@@ -36,7 +36,7 @@
         </mj-text>
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
-          Sinu sissemaksed lähevad fondi, milles kogusid ka varem. Oma fondi näed
+          Sinu sissemaksed lähevad fondi, milles kogusid ka varem. Fondi näed
           <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>

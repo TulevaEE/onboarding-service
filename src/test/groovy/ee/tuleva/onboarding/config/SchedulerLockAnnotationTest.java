@@ -85,6 +85,7 @@ class SchedulerLockAnnotationTest {
     var scheduledJobs =
         new Class<?>[] {
           ee.tuleva.onboarding.aml.ScheduledAmlCheckJob.class,
+          ee.tuleva.onboarding.aml.risklevel.ScheduledRiskLevelCheckJob.class,
           ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.class,
           ee.tuleva.onboarding.savings.fund.issuing.IssuingJob.class,
           ee.tuleva.onboarding.accounting.GeneralLedgerSyncJob.class,

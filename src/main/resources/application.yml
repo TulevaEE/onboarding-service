@@ -71,6 +71,12 @@ opensanctions:
   connect-timeout: 5s
   read-timeout: 30s
   retry-delay: 500ms
+aml-service:
+  enabled: ${AML_SERVICE_ENABLED:false}
+  url: https://aml-service.tuleva.ee
+  api-token: ${AML_SERVICE_API_TOKEN:}
+  connect-timeout: 5s
+  read-timeout: 60s
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}

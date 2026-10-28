@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
@@ -42,6 +43,7 @@ class RiskLevelServiceTest {
 
   private AmlRiskReader amlRiskReader;
   private TkfRiskReader tkfRiskReader;
+  private AmlServiceClient amlServiceClient;
   private AmlCheckRepository amlCheckRepository;
   private ApplicationEventPublisher eventPublisher;
   private RiskLevelService riskLevelService;
@@ -52,11 +54,18 @@ class RiskLevelServiceTest {
   void setUp() {
     amlRiskReader = mock(AmlRiskReader.class);
     tkfRiskReader = mock(TkfRiskReader.class);
+    amlServiceClient = mock(AmlServiceClient.class);
     amlCheckRepository = mock(AmlCheckRepository.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
-        new RiskLevelService(amlRiskReader, tkfRiskReader, amlCheckRepository, eventPublisher);
+        new RiskLevelService(
+            amlRiskReader,
+            tkfRiskReader,
+            amlServiceClient,
+            amlCheckRepository,
+            eventPublisher,
+            TestClockHolder.clock);
 
     when(amlRiskReader.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskReader.getMediumRiskRowsSample(anyDouble())).thenReturn(Collections.emptyList());
@@ -73,7 +82,7 @@ class RiskLevelServiceTest {
   @DisplayName("Should create a new AML check for a valid high-risk row with a personal ID")
   void testRunRiskLevelCheck_createsAmlCheck_forValidNewHighRiskRow() {
     // given
-    RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("some_key", 999));
+    RiskLevelResult highRiskRow = new RiskLevelResult("38888888888", 1, Map.of("some_key", 999));
     when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(highRiskRow));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
@@ -90,7 +99,7 @@ class RiskLevelServiceTest {
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository).save(checkCaptor.capture());
     AmlCheck createdCheck = checkCaptor.getValue();
-    assertEquals("38888888880", createdCheck.getPersonalCode());
+    assertEquals("38888888888", createdCheck.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
     assertEquals(999, createdCheck.getMetadata().get("some_key"));
@@ -148,7 +157,7 @@ class RiskLevelServiceTest {
   @DisplayName("Should process both high-risk and medium-risk sample rows")
   void testRunRiskLevelCheck_processesBothHighAndMediumRisk() {
     // given
-    RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("high_key", 999));
+    RiskLevelResult highRiskRow = new RiskLevelResult("38888888888", 1, Map.of("high_key", 999));
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
 
@@ -170,7 +179,7 @@ class RiskLevelServiceTest {
 
     AmlCheck highRiskCheck =
         createdChecks.stream()
-            .filter(c -> c.getPersonalCode().equals("38888888880"))
+            .filter(c -> c.getPersonalCode().equals("38888888888"))
             .findFirst()
             .get();
     AmlCheck mediumRiskCheck =
@@ -497,6 +506,14 @@ class RiskLevelServiceTest {
     assertEquals(0, jobRunEvent.getMediumRiskRowCount());
     assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  @Test
+  void viewChecksNeverAskAmlService() {
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    verifyNoInteractions(amlServiceClient);
   }
 
   // --- TKF risk level check tests ---

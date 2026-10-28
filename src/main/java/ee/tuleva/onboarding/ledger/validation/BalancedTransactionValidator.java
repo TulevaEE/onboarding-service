@@ -16,11 +16,6 @@ public class BalancedTransactionValidator
     implements ConstraintValidator<BalancedTransaction, LedgerTransaction> {
 
   @Override
-  public void initialize(BalancedTransaction constraintAnnotation) {
-    // No initialization needed
-  }
-
-  @Override
   public boolean isValid(LedgerTransaction transaction, ConstraintValidatorContext context) {
     if (transaction == null || transaction.getEntries() == null) {
       return true; // Let @NotNull handle null cases

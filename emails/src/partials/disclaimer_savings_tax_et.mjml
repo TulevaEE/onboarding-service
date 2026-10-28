@@ -1,0 +1,11 @@
+<mj-raw>*|IF:taxBenefitSuggestion|*</mj-raw>
+<mj-section padding="0 24px">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      *|IF:taxRefundSuggestion|*Tulumaksu tagasisaamiseks tuleb esitada tuludeklaratsioon.
+      *|END:IF|*Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused
+      muutuvad ajas.
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-raw>*|END:IF|*</mj-raw>

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.digidoc4j.Configuration.Mode.TEST;
 
+import java.time.Clock;
 import org.digidoc4j.Configuration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,10 +11,11 @@ import org.junit.jupiter.api.Test;
 class DigiDocConfigurationTest {
 
   private final DigiDocConfiguration digiDocConfiguration = new DigiDocConfiguration();
+  private final Clock clock = Clock.systemUTC();
 
   @Test
   void digiDocConfigProdUsesProductionModeAndTrustsOnlyEstonia() {
-    Configuration configuration = digiDocConfiguration.digiDocConfigProd();
+    Configuration configuration = digiDocConfiguration.digiDocConfigProd(clock);
 
     assertThat(configuration).isNotNull();
     assertThat(configuration.isTest()).isFalse();
@@ -21,8 +23,24 @@ class DigiDocConfigurationTest {
   }
 
   @Test
+  void digiDocConfigProdKeepsTheLastValidTrustListWhenARefreshCannotDownload() {
+    Configuration configuration = digiDocConfiguration.digiDocConfigProd(clock);
+
+    assertThat(configuration.getTslRefreshCallback())
+        .isInstanceOf(LastValidTrustListRefreshCallback.class);
+  }
+
+  @Test
+  void digiDocConfigDevKeepsTheLastValidTrustListWhenARefreshCannotDownload() {
+    Configuration configuration = digiDocConfiguration.digiDocConfigDev(clock);
+
+    assertThat(configuration.getTslRefreshCallback())
+        .isInstanceOf(LastValidTrustListRefreshCallback.class);
+  }
+
+  @Test
   void digiDocConfigDevUsesTestModeAndTrustsEstonianTestTerritory() {
-    Configuration configuration = digiDocConfiguration.digiDocConfigDev();
+    Configuration configuration = digiDocConfiguration.digiDocConfigDev(clock);
 
     assertThat(configuration).isNotNull();
     assertThat(configuration.isTest()).isTrue();

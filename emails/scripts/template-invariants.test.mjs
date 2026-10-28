@@ -17,6 +17,7 @@ const TEMPLATE_SCOPED_VARIABLES = {
 };
 
 const PENSION_PILLAR_NUDGE_FLAGS = [
+  'suggestSecondPillarRejoin',
   'suggestSecondPillarStart',
   'suggestSecondPillar',
   'suggestPaymentRate',

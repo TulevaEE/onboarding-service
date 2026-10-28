@@ -80,6 +80,14 @@ public class ApplicationService {
         .isEmpty();
   }
 
+  public boolean hasPendingRejoin(Person person) {
+    return mandateGateway.getApplications(person).stream()
+        .anyMatch(
+            application ->
+                application.getType() == ApplicationType.REJOIN
+                    && application.getStatus().isPending());
+  }
+
   public List<Application<TransferApplicationDetails>> getTransferApplications(
       ApplicationStatus status, Person person) {
     return getTransferApplications(person).stream().filter(byStatus(status)).collect(toList());

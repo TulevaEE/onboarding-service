@@ -7,27 +7,65 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
         <mj-text>
-          Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Alates
-          *|contributionStartDate|* hakkavad sissemaksed toimuma automaatselt sinu palgast.
+          Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad
+          laekuma automaatselt ja nende alguskuupäev on *|contributionStartDate|*.
         </mj-text>
         <mj-text>
           Tore, et otsustasid uuesti koguma hakata! Nüüd saad taas kasutada II&nbsp;samba
-          maksueeliseid ja kasvatada järjekindlalt oma tulevikuvara, ilma et peaksid iga kuu
-          sellele mõtlema.
+          maksueeliseid ja kasvatada järjekindlalt oma vara, ilma et peaksid iga kuu sellele
+          mõtlema.
+        </mj-text>
+        <mj-raw>*|IF:selectedTulevaStockFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad
+          <a href="https://tuleva.ee/analuusid/millist-tootlust-on-tulevas-oodata/">Tuleva Maailma Aktsiate Pensionifondi</a>.
+          See on madalate tasudega indeksfond, mis investeerib tuhandete ettevõtete aktsiatesse
+          üle maailma.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedTulevaBondFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad
+          <a href="https://tuleva.ee/analuusid/tuleva-pensionifondid/">Tuleva Maailma Võlakirjade Pensionifondi</a>.
+          See on madala riskiga indeksfond, mille oodatav tootlus on aktsiafondist oluliselt
+          madalam, nii et see sobib sulle eelkõige siis, kui plaanid raha kasutama hakata lähema
+          viie aasta jooksul.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedOtherFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad fondi *|selectedFundName|*.*|IF:selectedHighFeeFund|* Pane
+          tähele: selle fondi jooksvad tasud on <strong>*|selectedFundFee|*% aastas</strong>.
+          <a href="https://tuleva.ee/soovitused/tootlus-voi-tasud/">Loe lähemalt</a>, miks tasud
+          mõjutavad kogumise tulemust rohkem, kui esmapilgul võiks arvata.*|END:IF|*
+        </mj-text>
+        <mj-raw>*|ELSEIF:keptTulevaFund|*</mj-raw>
+        <mj-text>Sinu sissemaksed lähevad edasi Tuleva fondi, milles kogusid ka varem.</mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad fondi, milles kogusid ka varem. Kui tahad kontrollida, kas see
+          fond sulle endiselt sobib, saad fonde võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/">pensionifondide võrdluses</a>
+          ja fondi vahetada <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          Valisid II&nbsp;samba sissemaksete suuruseks *|paymentRate|*% oma
+          brutopalgast.*|IF:maxPaymentRate|* See tähendab, et kasutad II&nbsp;samba maksuvõitu
+          maksimaalselt.*|END:IF|* Oma sissemakse suurust saad vajadusel muuta kord aastas.
         </mj-text>
         <mj-text>Veel paar olulist asja:</mj-text>
         <mj-text>
           Kui mõtled ümber, saad avalduse
-          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a> tühistada kuni
-          *|cancellationDeadline|*.
+          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a> tühistada. Viimane
+          päev selleks on *|cancellationDeadline|*.
         </mj-text>
         <mj-text>
           II&nbsp;sammas aitab koguda vara ajaks, mil töötamine pole enam vajalik või võimalik.
-          Kogutud raha saad kasutama hakata kuni viis aastat enne vanaduspensioniiga. Pärast
-          taasliitumist saad raha välja võtta alles siis, kui tekib õigus väljamaksetele.
+          Kogutud raha saad kasutada alates eelpensionieast ehk viis aastat enne
+          vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Pärast taasliitumist ei saa sa raha
+          enne seda teist korda välja võtta.
         </mj-text>
         <mj-text>
-          Avaldus on edastatud Pensionikeskusele ja koopia leiad selle kirja manusest.
+          Avaldused on edastatud Pensionikeskusele ja koopiad leiad selle kirja manusest.
         </mj-text>
       </mj-column>
     </mj-section>

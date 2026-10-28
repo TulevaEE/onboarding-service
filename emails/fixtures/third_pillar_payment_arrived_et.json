@@ -1,5 +1,13 @@
 {
   "variants": {
+    "II sambaga taasliitumise soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "30. november 2026",
+      "anyPillarSuggestion": true
+    },
     "II samba avamise soovitus": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",

@@ -15,13 +15,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class SecondPillarContributions {
+public class SecondPillarContributions {
 
   private final Clock clock;
 
+  public boolean mayRejoinToday(List<SecondPillarContributionPeriod> periods) {
+    SecondPillarContributionStatus status = statusOf(periods);
+    return status != null && status.mayRejoinOn(today());
+  }
+
   @Nullable SecondPillarContributionStatus statusOf(List<SecondPillarContributionPeriod> periods) {
-    final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
-    LocalDate today = LocalDate.now(clock.withZone(ESTONIAN_ZONE));
+    LocalDate today = today();
     if (periods.stream().noneMatch(period -> period.hasStartedBy(today))) {
       return null;
     }
@@ -33,6 +37,11 @@ class SecondPillarContributions {
       return new SecondPillarContributionStatus(false, restartDate, null);
     }
     return new SecondPillarContributionStatus(false, null, rejoinPossibleFrom(today, periods));
+  }
+
+  private LocalDate today() {
+    final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+    return LocalDate.now(clock.withZone(ESTONIAN_ZONE));
   }
 
   private static Optional<SecondPillarContributionPeriod> decidingPeriodOn(

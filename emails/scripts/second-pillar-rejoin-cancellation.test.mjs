@@ -11,7 +11,8 @@ const languages = {
     required: [
       'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on tühistatud. Selle alusel sissemaksed ei alga ja praegu ei pea sa rohkem midagi tegema.',
       'Kui otsustad siiski uuesti II&nbsp;sambas koguma hakata, saad esitada uue avalduse oma Tuleva kontol',
-      'Sissemaksed algavad siis uue avalduse esitamise tähtajast sõltuvalt.',
+      'Millal sissemaksed algavad, sõltub sellest, millal uue avalduse esitad.',
+      'Otsus on sinu ja on täiesti mõistetav, kui tahad seda veel kaaluda. Taasliitumise lehel oleme kirja pannud, mida taasliitumine sinu jaoks tähendab, nii plussid kui ka piirangud.',
       'Tühistamise avaldus on edastatud Pensionikeskusele ja selle koopia leiad kirja manusest.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',

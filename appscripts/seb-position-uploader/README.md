@@ -22,7 +22,11 @@ Tests are pure-Jest — no Apps Script runtime needed. The `module.exports` bloc
 
 ## Deploying
 
-Manual deploy via `clasp` until the CircleCI integration lands (see plan milestone M5). Always sign in to the shared `funds@tuleva.ee` account first:
+CircleCI deploys the script; merging to `master` is the deploy. `appscript-test` runs `npm test` on every branch. On `master`, `appscript-deploy` then runs `npx clasp push --force` with the shared `funds@tuleva.ee` account's clasp login, stored as `CLASPRC_JSON` in the `appscript` CircleCI context. A `master` commit that changes nothing under `appscripts/` skips the deploy.
+
+### Manual deploy (fallback)
+
+Only when the CircleCI deploy can't run, for example because the stored clasp login has expired. Afterwards, merge the same code to `master` so the repo stays the source of truth, and update `CLASPRC_JSON` if the login had expired. Always sign in to the shared `funds@tuleva.ee` account first:
 
 1. Sign out of any personal Google session in your browser (or use a fresh profile).
 2. Sign in to `funds@tuleva.ee` using credentials from the team password manager.
@@ -40,7 +44,4 @@ The script reads these from `PropertiesService.getScriptProperties()` at runtime
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` (defaults to `eu-central-1`)
-
-Future additions (per the plan):
-
-- `SLACK_WEBHOOK_URL` — incoming webhook scoped to `#tech` for error/skip alerts (added in milestone M4a/M4b).
+- `SLACK_WEBHOOK_URL` — Slack incoming webhook for error and skip alerts. When it isn't set, the script only logs the alert.

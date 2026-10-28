@@ -13,6 +13,7 @@ class OfflineNudgeInputs {
   private final PensionRegistry pensionRegistry;
   private final KnownLookups lookups;
   private final PaymentRateSeasons paymentRateSeasons;
+  private final SecondPillarRejoinWindows secondPillarRejoinWindows;
 
   NudgeInputs assemble(OfflineSaver saver, NudgeContext context) {
     Optional<PensionRegistrySnapshot> snapshot = pensionRegistry.snapshotFor(saver.personalCode());
@@ -37,8 +38,10 @@ class OfflineNudgeInputs {
         .canIncreasePaymentRate(registry.canIncreasePaymentRate())
         .pendingSecondPillarTransfer(false)
         .pendingSecondPillarWithdrawal(false)
+        .pendingSecondPillarRejoin(false)
         .leftSecondPillar(
             snapshot.map(found -> Known.of(found.leftSecondPillar())).orElse(Known.UNKNOWN))
+        .mayRejoinSecondPillar(Known.UNKNOWN)
         .thirdPillarRecurring(
             thirdPillarActive ? lookups.thirdPillarRecurring(saver.personalCode()) : Known.NO)
         .savingsFundRecurring(savingsFundRecurring)
@@ -49,6 +52,7 @@ class OfflineNudgeInputs {
         .feeComparison(null)
         .savingsFundFeePercent(lookups.savingsFundFeePercent())
         .paymentRateSeason(paymentRateSeasons.current())
+        .secondPillarRejoinWindow(secondPillarRejoinWindows.current())
         .build();
   }
 }

@@ -1,9 +1,17 @@
 {
   "variants": {
+    "II sambaga taasliitumise soovitus": {
+      "FNAME": "Mari",
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "30. november 2026",
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
+    },
     "II samba avamise soovitus": {
       "FNAME": "Mari",
       "suggestSecondPillarStart": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "II samba soovitus": {
       "FNAME": "Mari",
@@ -26,12 +34,15 @@
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "suggestPaymentRate": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillar": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true,
+      "taxRefundSuggestion": true
     },
     "III samba tasude soovitus": {
       "FNAME": "Mari",
@@ -47,7 +58,9 @@
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillarRaise": true,
-      "anyPillarSuggestion": true
+      "anyPillarSuggestion": true,
+      "taxBenefitSuggestion": true,
+      "taxRefundSuggestion": true
     },
     "kogumisfondi soovitus (ei esine)": {
       "FNAME": "Mari",

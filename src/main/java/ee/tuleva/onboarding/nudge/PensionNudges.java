@@ -16,7 +16,8 @@ final class PensionNudges {
   private PensionNudges() {}
 
   static Optional<NudgeDecision> pillarChoices(NudgeInputs in, NudgeContext context) {
-    return secondPillarStart(in, context)
+    return SecondPillarRejoinNudge.decide(in, context)
+        .or(() -> secondPillarStart(in, context))
         .or(() -> secondPillarTransfer(in, context))
         .or(() -> paymentRate(in, context))
         .or(() -> thirdPillar(in, context));

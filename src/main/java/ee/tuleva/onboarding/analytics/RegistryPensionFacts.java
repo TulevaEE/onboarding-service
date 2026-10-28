@@ -36,13 +36,18 @@ public class RegistryPensionFacts implements PensionRegistry {
     boolean hasSecondPillar = owner.getP2choice() != null || owner.getP2rate() != null;
     return new PensionRegistrySnapshot(
         hasSecondPillar && !left,
-        TULEVA_SECOND_PILLAR_FUNDS.contains(owner.getP2choice())
-            || holdsAnyOf(owner, TULEVA_SECOND_PILLAR_FUNDS),
+        choosesTulevaSecondPillarFund(owner) || holdsAnyOf(owner, TULEVA_SECOND_PILLAR_FUNDS),
         left,
         new PaymentRates(owner.getP2rate(), owner.getP2nextRate()).canIncrease(),
         owner.getP3identifier() != null
             || owner.getP3identificationDate() != null
-            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS));
+            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS),
+        choosesTulevaSecondPillarFund(owner));
+  }
+
+  private static boolean choosesTulevaSecondPillarFund(UnitOwner owner) {
+    String fundChoice = owner.getP2choice();
+    return fundChoice != null && TULEVA_SECOND_PILLAR_FUNDS.contains(fundChoice);
   }
 
   private static boolean holdsAnyOf(UnitOwner owner, Set<String> fundCodes) {

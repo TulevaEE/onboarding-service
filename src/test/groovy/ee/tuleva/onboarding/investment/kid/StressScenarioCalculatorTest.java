@@ -18,7 +18,7 @@ class StressScenarioCalculatorTest {
   private static final ScenarioPeriod PERIOD =
       new ScenarioPeriod(LocalDate.of(2016, 9, 30), LocalDate.of(2026, 9, 30));
   private static final double Z_AT_FIVE_PERCENT = -1.6448536269514729;
-  private static final LocalDate FIRST_YEAR_OF_THE_PERIOD_END = LocalDate.of(2017, 9, 30);
+  private static final LocalDate FIVE_YEARS_BEFORE_THE_PERIOD_END = LocalDate.of(2021, 9, 30);
 
   private final StressScenarioCalculator calculator = new StressScenarioCalculator();
 
@@ -49,21 +49,21 @@ class StressScenarioCalculatorTest {
   }
 
   @Test
-  void turbulenceInTheFirstYearOfTheTenYearPeriodMakesBothStressHorizonsHarsher() {
+  void pricesBeforeTheLastFiveYearsChangeNeitherStressHorizon() {
     var closes = PERIOD.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
-    var turbulentInTheFirstYear =
+    var turbulentBeforeTheLastFiveYears =
         closes.stream()
             .map(
                 close ->
-                    !close.date().isAfter(FIRST_YEAR_OF_THE_PERIOD_END)
+                    close.date().isBefore(FIVE_YEARS_BEFORE_THE_PERIOD_END)
                         ? aFundValue(KEY, close.date(), swing(close))
                         : close)
             .toList();
 
-    assertThat(calculator.stress(turbulentInTheFirstYear, PERIOD.end(), 1).logReturn())
-        .isLessThan(calculator.stress(closes, PERIOD.end(), 1).logReturn());
-    assertThat(calculator.stress(turbulentInTheFirstYear, PERIOD.end(), 5).logReturn())
-        .isLessThan(calculator.stress(closes, PERIOD.end(), 5).logReturn());
+    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 1))
+        .isEqualTo(calculator.stress(closes, PERIOD.end(), 1));
+    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 5))
+        .isEqualTo(calculator.stress(closes, PERIOD.end(), 5));
   }
 
   @Test

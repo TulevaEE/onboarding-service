@@ -69,33 +69,39 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
             .filter(price -> isWeekday(price.date()))
             .sorted(comparing(FundValue::date))
             .toList();
-    IntStream.range(1, closes.size())
-        .filter(i -> isLongerGapThanAMarketClosure(closes.get(i - 1), closes.get(i)))
+    var riskHistory = fromTheFirstReturnsBase(closes);
+    IntStream.range(1, riskHistory.size())
+        .filter(i -> isLongerGapThanAMarketClosure(riskHistory.get(i - 1), riskHistory.get(i)))
         .findFirst()
         .ifPresent(
             i -> {
               throw new KidCalculationRefusedException(
-                  "Daily closes missing: after=%s, next=%s"
-                      .formatted(closes.get(i - 1).date(), closes.get(i).date()));
+                  "Daily closes missing in the risk history: after=%s, next=%s"
+                      .formatted(riskHistory.get(i - 1).date(), riskHistory.get(i).date()));
             });
-    completeMonths()
+    completeMonthsOfTheRiskHistory()
         .filter(
             month ->
-                closesIn(closes, month)
+                closesIn(riskHistory, month)
                     < weekdaysIn(month)
                         * DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS)
         .findFirst()
         .ifPresent(
             month -> {
               throw new KidCalculationRefusedException(
-                  "Daily closes too sparse for a daily series: month=%s, closes=%s, weekdays=%s"
-                      .formatted(month, closesIn(closes, month), weekdaysIn(month)));
+                  "Daily closes too sparse in the risk history: month=%s, closes=%s, weekdays=%s"
+                      .formatted(month, closesIn(riskHistory, month), weekdaysIn(month)));
             });
-    return fromTheFirstReturnsBase(closes);
+    return riskHistory;
+  }
+
+  private LocalDate riskHistoryStart() {
+    var fiveYearsBeforeTheEnd = end.minusYears(ANNEX_II_P9_RISK_HISTORY_YEARS);
+    return fiveYearsBeforeTheEnd.isAfter(start) ? fiveYearsBeforeTheEnd : start;
   }
 
   private List<FundValue> fromTheFirstReturnsBase(List<FundValue> closes) {
-    var historyStart = end.minusYears(ANNEX_II_P9_RISK_HISTORY_YEARS);
+    var historyStart = riskHistoryStart();
     return closes.stream()
         .filter(close -> !close.date().isAfter(historyStart))
         .max(comparing(FundValue::date))
@@ -111,12 +117,14 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
     return earlier.date().plusDays(CLOSE_STALE_AFTER_DAYS).isBefore(later.date());
   }
 
-  private Stream<YearMonth> completeMonths() {
+  private Stream<YearMonth> completeMonthsOfTheRiskHistory() {
+    var historyStart = riskHistoryStart();
     return Stream.iterate(
-            YearMonth.from(start),
+            YearMonth.from(historyStart),
             month -> !month.isAfter(YearMonth.from(end)),
             month -> month.plusMonths(1))
-        .filter(month -> !month.atDay(1).isBefore(start) && !month.atEndOfMonth().isAfter(end));
+        .filter(
+            month -> !month.atDay(1).isBefore(historyStart) && !month.atEndOfMonth().isAfter(end));
   }
 
   private static long closesIn(List<FundValue> closes, YearMonth month) {

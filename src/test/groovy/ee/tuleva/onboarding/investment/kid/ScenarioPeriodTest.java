@@ -5,6 +5,8 @@ import static java.time.DayOfWeek.FRIDAY;
 import static java.time.DayOfWeek.MONDAY;
 import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
+import static java.time.DayOfWeek.THURSDAY;
+import static java.time.DayOfWeek.TUESDAY;
 import static java.time.DayOfWeek.WEDNESDAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -13,6 +15,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -290,6 +293,71 @@ class ScenarioPeriodTest {
 
     assertThat(periodEndingOnASaturday.riskHistory(prices))
         .isEqualTo(closesBetween(prices, "2021-01-29", "2026-01-31"));
+  }
+
+  @Test
+  void acceptsAGapLongerThanAWeekBeforeTheRiskHistory() {
+    var prices = syntheticWithout(between("2018-03-05", "2018-03-12"));
+
+    assertThat(TEN_YEARS.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-09-30", "2026-09-30"));
+  }
+
+  @Test
+  void refusesAGapLongerThanAWeekInsideTheRiskHistory() {
+    var prices = syntheticWithout(between("2023-03-06", "2023-03-13"));
+
+    assertThatThrownBy(() -> TEN_YEARS.riskHistory(prices))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
+  void aGapEndingOnTheFirstCloseOfTheRiskHistoryComesBeforeTheFirstReturn() {
+    var prices = syntheticWithout(between("2021-09-23", "2021-09-29"));
+
+    assertThat(TEN_YEARS.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-09-30", "2026-09-30"));
+  }
+
+  @Test
+  void refusesAGapStartingOnTheFirstCloseOfTheRiskHistoryBecauseTheFirstReturnSpansIt() {
+    var prices = syntheticWithout(between("2021-10-01", "2021-10-07"));
+
+    assertThatThrownBy(() -> TEN_YEARS.riskHistory(prices))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
+  void acceptsTooFewClosesInTheMonthTheRiskHistoryStartsAtTheEndOf() {
+    var prices = syntheticWithout(tuesdaysAndThursdaysFromUntil("2021-09-01", "2021-09-30"));
+
+    assertThat(TEN_YEARS.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-09-30", "2026-09-30"));
+  }
+
+  @Test
+  void refusesTooFewClosesInTheFirstWholeMonthOfTheRiskHistory() {
+    var prices = syntheticWithout(tuesdaysAndThursdaysFromUntil("2021-10-01", "2021-11-01"));
+
+    assertThatThrownBy(() -> TEN_YEARS.riskHistory(prices))
+        .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  private static List<FundValue> syntheticWithout(Predicate<LocalDate> skipped) {
+    return SyntheticIndexSeries.weekdayCloses(KEY).stream()
+        .filter(close -> !skipped.test(close.date()))
+        .toList();
+  }
+
+  private static Predicate<LocalDate> between(String first, String last) {
+    return day -> !day.isBefore(LocalDate.parse(first)) && !day.isAfter(LocalDate.parse(last));
+  }
+
+  private static Predicate<LocalDate> tuesdaysAndThursdaysFromUntil(String from, String until) {
+    return day ->
+        !day.isBefore(LocalDate.parse(from))
+            && day.isBefore(LocalDate.parse(until))
+            && Set.of(TUESDAY, THURSDAY).contains(day.getDayOfWeek());
   }
 
   private static List<FundValue> closesBetween(List<FundValue> prices, String first, String last) {

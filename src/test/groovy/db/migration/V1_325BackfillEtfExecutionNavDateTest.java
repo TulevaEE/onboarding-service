@@ -14,26 +14,27 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
-class V1_325ExecutionPricingDateTest {
+class V1_325BackfillEtfExecutionNavDateTest {
 
   private static final String URL =
-      "jdbc:h2:mem:executionpricingdatemigration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
+      "jdbc:h2:mem:etfexecutionnavdatemigration;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
           + ";DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE;DB_CLOSE_DELAY=-1";
   private static final String[] FLYWAY_LOCATIONS = {
     "classpath:/db/migration", "classpath:/db/dev", "classpath:/db/h2"
   };
-  private static final String JUST_BEFORE_THE_PRICING_DATE = "1.324";
-  private static final String THE_PRICING_DATE = "1.325";
+  private static final String JUST_BEFORE_THE_BACKFILL = "1.324";
+  private static final String THE_BACKFILL = "1.325";
 
-  private static final OffsetDateTime TRADED_AT = OffsetDateTime.parse("2026-05-11T10:26:04Z");
+  private static final OffsetDateTime TRADED_AT_TALLINN_MIDNIGHT =
+      OffsetDateTime.parse("2026-05-11T00:00:00+03:00");
 
   private SingleConnectionDataSource dataSource;
   private JdbcClient jdbcClient;
 
   @BeforeEach
-  void migrateAFreshDatabaseUpToJustBeforeThePricingDate() {
+  void migrateAFreshDatabaseUpToJustBeforeTheBackfill() {
     dataSource = new SingleConnectionDataSource(URL, "sa", "", true);
-    migrateTo(JUST_BEFORE_THE_PRICING_DATE);
+    migrateTo(JUST_BEFORE_THE_BACKFILL);
     jdbcClient = JdbcClient.create(dataSource);
     jdbcClient
         .sql(
@@ -49,44 +50,30 @@ class V1_325ExecutionPricingDateTest {
   }
 
   @Test
-  void anEtfFillIsPricedOnItsTradeDate() {
+  void anEtfFillGetsItsTallinnTradeDateAsItsNavDate() {
     givenExecution(1, "ETF", null);
 
-    migrateTo(THE_PRICING_DATE);
+    migrateTo(THE_BACKFILL);
 
-    assertThat(pricingDateOfExecution(1)).isEqualTo(LocalDate.of(2026, 5, 11));
+    assertThat(navDateOfExecution(1)).isEqualTo(LocalDate.of(2026, 5, 11));
   }
 
   @Test
-  void aMutualFundTradeKeepsTheNavDateItAlreadyHadAsItsPricingDate() {
-    givenExecution(2, "FUND", LocalDate.of(2026, 5, 12));
+  void anEtfFillThatAlreadyHasANavDateKeepsIt() {
+    givenExecution(2, "ETF", LocalDate.of(2026, 5, 12));
 
-    migrateTo(THE_PRICING_DATE);
+    migrateTo(THE_BACKFILL);
 
-    assertThat(pricingDateOfExecution(2)).isEqualTo(LocalDate.of(2026, 5, 12));
+    assertThat(navDateOfExecution(2)).isEqualTo(LocalDate.of(2026, 5, 12));
   }
 
   @Test
   void aMutualFundTradeWithoutANavDateWaitsForItsSebConfirmation() {
     givenExecution(3, "FUND", null);
 
-    migrateTo(THE_PRICING_DATE);
+    migrateTo(THE_BACKFILL);
 
-    assertThat(pricingDateOfExecution(3)).isNull();
-  }
-
-  @Test
-  void theRegistryViewShowsThePricingDate() {
-    givenExecution(4, "ETF", null);
-
-    migrateTo(THE_PRICING_DATE);
-
-    assertThat(
-            jdbcClient
-                .sql("SELECT pricing_date FROM v_transaction_registry WHERE execution_id = 4")
-                .query(LocalDate.class)
-                .single())
-        .isEqualTo(LocalDate.of(2026, 5, 11));
+    assertThat(navDateOfExecution(3)).isNull();
   }
 
   private void givenExecution(long id, String instrumentType, @Nullable LocalDate navDate) {
@@ -112,16 +99,16 @@ class V1_325ExecutionPricingDateTest {
             """)
         .param("id", id)
         .param("reference", "DLA000000" + id)
-        .param("tradedAt", TRADED_AT)
+        .param("tradedAt", TRADED_AT_TALLINN_MIDNIGHT)
         .param("navDate", navDate)
         .update();
   }
 
-  private @Nullable LocalDate pricingDateOfExecution(long id) {
+  private @Nullable LocalDate navDateOfExecution(long id) {
     return jdbcClient
-        .sql("SELECT pricing_date FROM investment_transaction_execution WHERE id = :id")
+        .sql("SELECT nav_date FROM investment_transaction_execution WHERE id = :id")
         .param("id", id)
-        .query((rs, rowNum) -> rs.getObject("pricing_date", LocalDate.class))
+        .query((rs, rowNum) -> rs.getObject("nav_date", LocalDate.class))
         .list()
         .getFirst();
   }

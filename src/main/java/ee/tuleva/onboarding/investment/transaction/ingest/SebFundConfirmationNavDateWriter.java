@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
-class SebFundConfirmationPricingDateWriter {
+class SebFundConfirmationNavDateWriter {
 
   private final TransactionExecutionRepository executionRepository;
   private final SebFundConfirmationAuditRecorder auditRecorder;
@@ -18,14 +18,14 @@ class SebFundConfirmationPricingDateWriter {
   void write(SebFundConfirmation confirmation) {
     executionRepository
         .findByBrokerTransactionId(confirmation.tradeReference())
-        .filter(execution -> !confirmation.pricingDate().equals(execution.getPricingDate()))
-        .ifPresent(execution -> setPricingDate(execution, confirmation));
+        .filter(execution -> !confirmation.pricingDate().equals(execution.getNavDate()))
+        .ifPresent(execution -> setNavDate(execution, confirmation));
   }
 
-  private void setPricingDate(TransactionExecution execution, SebFundConfirmation confirmation) {
-    LocalDate replaced = execution.getPricingDate();
-    execution.setPricingDate(confirmation.pricingDate());
+  private void setNavDate(TransactionExecution execution, SebFundConfirmation confirmation) {
+    LocalDate replaced = execution.getNavDate();
+    execution.setNavDate(confirmation.pricingDate());
     executionRepository.save(execution);
-    auditRecorder.recordPricingDateSet(confirmation, execution, replaced);
+    auditRecorder.recordNavDateSet(confirmation, execution, replaced);
   }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.Instant;
@@ -47,10 +48,18 @@ class TransactionExecutionMapper {
 
   private static void priceAnEtfFillOnItsTradeDate(
       TransactionExecution execution, SebPendingTransactionRow row, TransactionOrder order) {
-    Instant tradedAt = row.tradeDate();
-    if (order.getInstrumentType() == ETF && tradedAt != null) {
-      execution.setPricingDate(LocalDate.ofInstant(tradedAt, TALLINN));
+    LocalDate tradeDate = navDateOfAnEtfFill(order.getInstrumentType(), row.tradeDate());
+    if (tradeDate != null) {
+      execution.setNavDate(tradeDate);
     }
+  }
+
+  static @Nullable LocalDate navDateOfAnEtfFill(
+      InstrumentType instrumentType, @Nullable Instant tradedAt) {
+    if (instrumentType != ETF || tradedAt == null) {
+      return null;
+    }
+    return LocalDate.ofInstant(tradedAt, TALLINN);
   }
 
   private static void keepEarliestSettlementDateSebReported(

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
-import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.PRICING_DATE_SET;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.NAV_DATE_SET;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
 @DataJpaTest
-class SebFundConfirmationPricingDateWriterIT {
+class SebFundConfirmationNavDateWriterIT {
 
   private static final String REFERENCE = "DLA0000001";
   private static final LocalDate PRICING_DATE = LocalDate.of(2026, 1, 6);
@@ -39,12 +39,12 @@ class SebFundConfirmationPricingDateWriterIT {
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
 
-  private SebFundConfirmationPricingDateWriter writer;
+  private SebFundConfirmationNavDateWriter writer;
 
   @BeforeEach
   void setUp() {
     writer =
-        new SebFundConfirmationPricingDateWriter(
+        new SebFundConfirmationNavDateWriter(
             executionRepository,
             new SebFundConfirmationAuditRecorder(
                 auditEventRepository,
@@ -57,31 +57,30 @@ class SebFundConfirmationPricingDateWriterIT {
 
     writer.write(confirmation());
 
-    assertThat(reloaded(execution).getPricingDate()).isEqualTo(PRICING_DATE);
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(PRICING_DATE_SET, REFERENCE))
+    assertThat(reloaded(execution).getNavDate()).isEqualTo(PRICING_DATE);
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE))
         .singleElement()
         .satisfies(
             event -> {
               assertThat(event.getOrderId()).isEqualTo(execution.getOrderId());
               assertThat(event.getPayload())
                   .containsEntry("executionId", String.valueOf(execution.getId()))
-                  .containsEntry("pricingDate", "2026-01-06")
-                  .doesNotContainKey("previousPricingDate");
+                  .containsEntry("navDate", "2026-01-06")
+                  .doesNotContainKey("previousNavDate");
             });
   }
 
   @Test
-  void write_replacesADifferentPricingDateAndRecordsTheOneItReplaced() {
+  void write_replacesADifferentNavDateAndRecordsTheOneItReplaced() {
     TransactionExecution execution = persistExecution(LocalDate.of(2026, 1, 5));
 
     writer.write(confirmation());
 
-    assertThat(reloaded(execution).getPricingDate()).isEqualTo(PRICING_DATE);
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(PRICING_DATE_SET, REFERENCE))
+    assertThat(reloaded(execution).getNavDate()).isEqualTo(PRICING_DATE);
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE))
         .singleElement()
         .satisfies(
-            event ->
-                assertThat(event.getPayload()).containsEntry("previousPricingDate", "2026-01-05"));
+            event -> assertThat(event.getPayload()).containsEntry("previousNavDate", "2026-01-05"));
   }
 
   @Test
@@ -92,8 +91,7 @@ class SebFundConfirmationPricingDateWriterIT {
     writer.write(confirmation());
 
     assertThat(reloaded(execution).getVersion()).isEqualTo(version);
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(PRICING_DATE_SET, REFERENCE))
-        .isEmpty();
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
   }
 
   @Test
@@ -101,11 +99,10 @@ class SebFundConfirmationPricingDateWriterIT {
     writer.write(confirmation());
 
     assertThat(executionRepository.findByBrokerTransactionId(REFERENCE)).isEmpty();
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(PRICING_DATE_SET, REFERENCE))
-        .isEmpty();
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
   }
 
-  private TransactionExecution persistExecution(@Nullable LocalDate pricingDate) {
+  private TransactionExecution persistExecution(@Nullable LocalDate navDate) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
     TransactionOrder order =
@@ -126,7 +123,7 @@ class SebFundConfirmationPricingDateWriterIT {
                 .orderId(order.getId())
                 .brokerTransactionId(REFERENCE)
                 .executionTimestamp(Instant.parse("2026-01-05T12:48:00Z"))
-                .pricingDate(pricingDate)
+                .navDate(navDate)
                 .source("SEB_OOTEL")
                 .build());
     entityManager.flush();

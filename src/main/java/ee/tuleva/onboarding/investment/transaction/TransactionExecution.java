@@ -64,7 +64,7 @@ public class TransactionExecution {
 
   @Nullable private LocalDate reportedDate;
 
-  private @Nullable LocalDate pricingDate;
+  private @Nullable LocalDate navDate;
 
   private @Nullable String comment;
 

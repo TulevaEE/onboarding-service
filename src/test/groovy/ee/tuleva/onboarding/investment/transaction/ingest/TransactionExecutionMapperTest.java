@@ -54,7 +54,7 @@ class TransactionExecutionMapperTest {
   }
 
   @Test
-  void toExecution_pricesAnEtfFillOnItsTradeDate() {
+  void toExecution_givesAnEtfFillItsTradeDateAsItsNavDate() {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order =
         TransactionOrder.builder()
@@ -70,11 +70,11 @@ class TransactionExecutionMapperTest {
     TransactionExecution execution =
         mapper.toExecution(sampleRow(clientRef), order, LocalDate.of(2026, 5, 12));
 
-    assertThat(execution.getPricingDate()).isEqualTo(LocalDate.of(2026, 5, 11));
+    assertThat(execution.getNavDate()).isEqualTo(LocalDate.of(2026, 5, 11));
   }
 
   @Test
-  void applyTo_leavesAMutualFundsPricingDateToItsSebConfirmation() {
+  void applyTo_leavesAMutualFundsNavDateToItsSebConfirmation() {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order =
         TransactionOrder.builder()
@@ -87,11 +87,28 @@ class TransactionExecutionMapperTest {
             .orderUuid(clientRef)
             .build();
     TransactionExecution confirmed =
-        TransactionExecution.builder().pricingDate(LocalDate.of(2026, 5, 12)).build();
+        TransactionExecution.builder().navDate(LocalDate.of(2026, 5, 12)).build();
 
     mapper.applyTo(confirmed, sampleRow(clientRef), order);
 
-    assertThat(confirmed.getPricingDate()).isEqualTo(LocalDate.of(2026, 5, 12));
+    assertThat(confirmed.getNavDate()).isEqualTo(LocalDate.of(2026, 5, 12));
+  }
+
+  @Test
+  void navDateOfAnEtfFill_isItsTradeDateInTallinn() {
+    assertThat(
+            TransactionExecutionMapper.navDateOfAnEtfFill(
+                ETF, Instant.parse("2026-05-10T21:00:00Z")))
+        .isEqualTo(LocalDate.of(2026, 5, 11));
+  }
+
+  @Test
+  void navDateOfAnEtfFill_isUnknownForAMutualFundOrAFillWithoutATradeDate() {
+    assertThat(
+            TransactionExecutionMapper.navDateOfAnEtfFill(
+                FUND, Instant.parse("2026-05-10T21:00:00Z")))
+        .isNull();
+    assertThat(TransactionExecutionMapper.navDateOfAnEtfFill(ETF, null)).isNull();
   }
 
   @Test

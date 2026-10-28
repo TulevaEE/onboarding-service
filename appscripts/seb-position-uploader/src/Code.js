@@ -65,6 +65,21 @@ var SOURCES = {
                 keyFromCapture: true
             }
         ]
+    },
+    SEB_CONFIRMATION: {
+        senders: ["tehingukinnitus@seb.ee"],
+        files: [
+            {
+                // SEB names its mutual-fund trade confirmation after the trade reference,
+                // e.g. "DLA1234567-001.pdf" (the reference is the pending report's "Our ref").
+                pattern: /^(DLA\d+-\d+)\.pdf$/i,
+                s3Prefix: "seb-confirmations/",
+                s3Suffix: ".pdf",
+                binary: true,
+                contentType: "application/pdf",
+                keyFromCapture: true
+            }
+        ]
     }
 };
 

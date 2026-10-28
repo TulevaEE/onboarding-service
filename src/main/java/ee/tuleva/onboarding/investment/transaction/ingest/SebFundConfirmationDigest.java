@@ -60,7 +60,9 @@ class SebFundConfirmationDigest {
     newFindings.forEach(found -> blocks.addAll(blocks(found.outcome(), found.findings())));
     newMissing.forEach(trade -> blocks.add(block(trade)));
     newUnreadable.forEach(file -> blocks.add(block(file)));
-    newMisnamed.forEach(file -> blocks.add(block(file)));
+    newMisnamed.forEach(
+        file ->
+            blocks.add(misnamedBlock(file.key(), file.nameReference(), file.contentReference())));
     List<SebFundConfirmationCheckFailure> newFailures =
         failures.stream().filter(failure -> !auditRecorder.alreadyAlertedToday(failure)).toList();
     newFailures.forEach(failure -> blocks.add(block(failure)));
@@ -193,16 +195,11 @@ class SebFundConfirmationDigest {
         "Kontrolli PDF-i käsitsi");
   }
 
-  private static String block(MisnamedSebFundConfirmation misnamed) {
+  private static String misnamedBlock(String key, String nameReference, String contentReference) {
     return lines(
-        "SEB tehingukinnituse failinimi ja sisu ei klapi: " + misnamed.key(),
-        "Failinimi viitab tehingule "
-            + misnamed.nameReference()
-            + ", PDF-is on tehing "
-            + misnamed.contentReference(),
-        "Kontrolli funds@ postkastist, kas tehingu "
-            + misnamed.nameReference()
-            + " kinnitus on olemas");
+        "SEB tehingukinnituse failinimi ja sisu ei klapi: " + key,
+        "Failinimi viitab tehingule " + nameReference + ", PDF-is on tehing " + contentReference,
+        "Kontrolli funds@ postkastist, kas tehingu " + nameReference + " kinnitus on olemas");
   }
 
   private static String block(SebFundConfirmationCheckFailure failure) {

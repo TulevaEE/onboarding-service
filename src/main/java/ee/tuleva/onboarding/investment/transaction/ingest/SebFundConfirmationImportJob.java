@@ -45,10 +45,9 @@ class SebFundConfirmationImportJob {
     List<String> keys = recentKeys(failures);
     Uploads uploads = new Uploads();
     keys.forEach(key -> read(key, uploads, failures));
-    Map<String, SebFundConfirmation> latestByReference = uploads.latestByReference();
 
     List<SebFundConfirmationOutcome> outcomes =
-        latestByReference.values().stream()
+        uploads.latestByReference().values().stream()
             .map(confirmation -> verify(confirmation, failures))
             .flatMap(Optional::stream)
             .toList();
@@ -65,7 +64,7 @@ class SebFundConfirmationImportJob {
         "SEB fund confirmation check completed: objectCount={}, tradeCount={}, verifiedCount={},"
             + " unreadableCount={}, misnamedCount={}, failureCount={}",
         keys.size(),
-        latestByReference.size(),
+        uploads.latestByReference().size(),
         outcomes.size(),
         uploads.unreadable().size(),
         uploads.misnamed().size(),

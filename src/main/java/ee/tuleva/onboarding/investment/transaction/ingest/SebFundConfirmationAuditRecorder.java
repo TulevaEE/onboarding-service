@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ class SebFundConfirmationAuditRecorder {
   static final String MISSING_ALERTED = "SEB_FUND_CONFIRMATION_MISSING_ALERTED";
   static final String UNREADABLE_ALERTED = "SEB_FUND_CONFIRMATION_UNREADABLE_ALERTED";
   static final String CHECK_FAILURE_ALERTED = "SEB_FUND_CONFIRMATION_CHECK_FAILURE_ALERTED";
+  static final String NAV_DATE_SET = "SEB_FUND_CONFIRMATION_NAV_DATE_SET";
   private static final String SYSTEM_ACTOR = "system";
   private static final String STATUS = "status";
   private static final String FINDINGS = "findings";
@@ -91,6 +93,27 @@ class SebFundConfirmationAuditRecorder {
 
   boolean alreadyAlerted(UnreadableSebFundConfirmation unreadable) {
     return hasAlerted(UNREADABLE_ALERTED, unreadable.key());
+  }
+
+  void recordNavDateSet(
+      SebFundConfirmation confirmation,
+      TransactionExecution execution,
+      @Nullable LocalDate replacedNavDate) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("executionId", String.valueOf(execution.getId()));
+    payload.put("navDate", confirmation.pricingDate().toString());
+    if (replacedNavDate != null) {
+      payload.put("previousNavDate", replacedNavDate.toString());
+    }
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .eventType(NAV_DATE_SET)
+            .orderId(execution.getOrderId())
+            .actor(SYSTEM_ACTOR)
+            .dedupKey(confirmation.tradeReference())
+            .payload(payload)
+            .createdAt(clock.instant())
+            .build());
   }
 
   boolean alreadyAlertedToday(SebFundConfirmationCheckFailure failure) {

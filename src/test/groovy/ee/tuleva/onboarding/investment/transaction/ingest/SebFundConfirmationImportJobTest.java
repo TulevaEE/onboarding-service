@@ -24,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -45,6 +46,7 @@ class SebFundConfirmationImportJobTest {
   @Mock private SebFundConfirmationMissingFinder missingFinder;
   @Mock private SebFundConfirmationAuditRecorder auditRecorder;
   @Mock private SebFundConfirmationDigest digest;
+  @Mock private SebFundConfirmationNavDateWriter navDateWriter;
 
   private SebFundConfirmationImportJob job;
 
@@ -52,7 +54,13 @@ class SebFundConfirmationImportJobTest {
   void setUp() {
     job =
         new SebFundConfirmationImportJob(
-            s3Source, parser, verificationService, missingFinder, auditRecorder, digest);
+            s3Source,
+            parser,
+            verificationService,
+            missingFinder,
+            auditRecorder,
+            navDateWriter,
+            digest);
     given(s3Source.recentKeys()).willReturn(List.of(FIRST_KEY, SECOND_KEY));
     given(s3Source.get(FIRST_KEY)).willReturn(Optional.of(FIRST_PDF));
     given(s3Source.get(SECOND_KEY)).willReturn(Optional.of(SECOND_PDF));
@@ -183,6 +191,48 @@ class SebFundConfirmationImportJobTest {
             List.of(
                 new SebFundConfirmationCheckFailure(
                     "tehingu DLA0000001 tulemuse salvestamine", "audit store down")));
+  }
+
+  @Test
+  void run_writesThePricingDateOfEveryConfirmationItRead() {
+    job.run();
+
+    then(navDateWriter).should().write(confirmation("DLA0000001"));
+    then(navDateWriter).should().write(confirmation("DLA0000002"));
+  }
+
+  @Test
+  void run_reportsAPricingDateThatCouldNotBeWrittenAndStillWritesTheOthers() {
+    willThrow(new IllegalStateException("registry down"))
+        .given(navDateWriter)
+        .write(confirmation("DLA0000001"));
+
+    job.run();
+
+    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(digest)
+        .should()
+        .publish(
+            List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
+            List.of(),
+            List.of(
+                new SebFundConfirmationCheckFailure(
+                    "tehingu DLA0000001 hinnapäeva salvestamine", "registry down")));
+  }
+
+  @Test
+  void run_leavesAPricingDateForTheNextRunWhenTheExecutionChangedMeanwhile() {
+    willThrow(new OptimisticLockingFailureException("execution changed"))
+        .given(navDateWriter)
+        .write(confirmation("DLA0000001"));
+
+    job.run();
+
+    then(digest)
+        .should()
+        .publish(
+            List.of(outcome("DLA0000001"), outcome("DLA0000002")), List.of(), List.of(), List.of());
   }
 
   @Test

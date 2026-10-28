@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -69,6 +70,7 @@ class SebFundConfirmationImportJobIT {
   @Autowired private Target2Calendar calendar;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private InvestmentParameterRepository parameterRepository;
   @Autowired private TestEntityManager entityManager;
 
@@ -98,6 +100,7 @@ class SebFundConfirmationImportJobIT {
                 clock,
                 PROPERTIES),
             auditRecorder,
+            new SebFundConfirmationNavDateWriter(executionRepository, auditRecorder),
             new SebFundConfirmationDigest(notificationService, auditRecorder, PROPERTIES));
 
     jdbcClient

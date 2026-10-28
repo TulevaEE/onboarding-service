@@ -2,10 +2,8 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.IMPORT_BUSINESS_HOURS;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,13 +26,13 @@ import org.springframework.stereotype.Component;
 class SebFundConfirmationImportJob {
 
   static final String JOB_ACTOR = "seb-fund-confirmation-import-job";
-  private static final DateTimeFormatter REPORT_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
   private final SebFundConfirmationS3Source s3Source;
   private final SebFundConfirmationPdfParser parser;
   private final SebFundConfirmationVerificationService verificationService;
   private final SebFundConfirmationMissingFinder missingFinder;
   private final SebFundConfirmationAuditRecorder auditRecorder;
+  private final SebFundConfirmationNavDateWriter navDateWriter;
   private final SebFundConfirmationDigest digest;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
@@ -60,6 +59,7 @@ class SebFundConfirmationImportJob {
             .flatMap(Optional::stream)
             .toList();
     outcomes.forEach(outcome -> record(outcome, failures));
+    latestByReference.values().forEach(confirmation -> writeNavDate(confirmation, failures));
 
     digest.publish(outcomes, missing(keys, failures), unreadable, failures);
     log.info(
@@ -146,21 +146,35 @@ class SebFundConfirmationImportJob {
     }
   }
 
+  private void writeNavDate(
+      SebFundConfirmation confirmation, List<SebFundConfirmationCheckFailure> failures) {
+    String reference = confirmation.tradeReference();
+    try {
+      navDateWriter.write(confirmation);
+    } catch (OptimisticLockingFailureException e) {
+      log.info(
+          "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"
+              + " tradeReference={}",
+          reference);
+    } catch (RuntimeException e) {
+      log.error(
+          "SEB fund confirmation pricing date not written: tradeReference={}, error={}",
+          reference,
+          e.getMessage(),
+          e);
+      failures.add(
+          new SebFundConfirmationCheckFailure(
+              "tehingu " + reference + " hinnapäeva salvestamine", reason(e)));
+    }
+  }
+
   private List<MissingSebFundConfirmation> missing(
       List<String> keys, List<SebFundConfirmationCheckFailure> failures) {
     Set<String> uploadedReferences =
         keys.stream().map(SebFundConfirmationS3Source::tradeReference).collect(toSet());
     try {
       SebFundConfirmationMissingScan scan = missingFinder.find(uploadedReferences);
-      if (!scan.incompleteReportDates().isEmpty()) {
-        failures.add(
-            new SebFundConfirmationCheckFailure(
-                "SEB ootel tehingute raportite lugemine",
-                "lugemata ridu raportites "
-                    + scan.incompleteReportDates().stream()
-                        .map(REPORT_DATE::format)
-                        .collect(joining(", "))));
-      }
+      scan.incompleteReportsFailure().ifPresent(failures::add);
       return scan.missing().stream()
           .filter(trade -> !auditRecorder.wasVerified(trade.tradeReference()))
           .toList();

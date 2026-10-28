@@ -1,12 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.NAV_DATE_SET;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.NavStatus.WITHIN_TOLERANCE;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.ReportStatus.MATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.ReportStatus.MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.TimingStatus.ON_TIME;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
@@ -14,12 +20,15 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.ReportStatus;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +40,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 class SebFundConfirmationNavDateWriterIT {
 
   private static final String REFERENCE = "DLA0000001";
+  private static final String ISIN = "IE00BKPTWY98";
   private static final LocalDate PRICING_DATE = LocalDate.of(2026, 1, 6);
 
   @Autowired private TransactionExecutionRepository executionRepository;
@@ -45,6 +55,7 @@ class SebFundConfirmationNavDateWriterIT {
   void setUp() {
     writer =
         new SebFundConfirmationNavDateWriter(
+            new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
             executionRepository,
             new SebFundConfirmationAuditRecorder(
                 auditEventRepository,
@@ -55,7 +66,7 @@ class SebFundConfirmationNavDateWriterIT {
   void write_setsThePricingDateOnTheExecutionWithTheConfirmationsTradeReference() {
     TransactionExecution execution = persistExecution(null);
 
-    writer.write(confirmation());
+    writer.write(outcome(MATCH));
 
     assertThat(reloaded(execution).getNavDate()).isEqualTo(PRICING_DATE);
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE))
@@ -74,7 +85,7 @@ class SebFundConfirmationNavDateWriterIT {
   void write_replacesADifferentNavDateAndRecordsTheOneItReplaced() {
     TransactionExecution execution = persistExecution(LocalDate.of(2026, 1, 5));
 
-    writer.write(confirmation());
+    writer.write(outcome(MATCH));
 
     assertThat(reloaded(execution).getNavDate()).isEqualTo(PRICING_DATE);
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE))
@@ -88,21 +99,55 @@ class SebFundConfirmationNavDateWriterIT {
     TransactionExecution execution = persistExecution(PRICING_DATE);
     Long version = execution.getVersion();
 
-    writer.write(confirmation());
+    writer.write(outcome(MATCH));
 
     assertThat(reloaded(execution).getVersion()).isEqualTo(version);
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
   }
 
   @Test
+  void write_leavesTheNavDateAloneWhileTheConfirmationDisagreesWithTheReport() {
+    TransactionExecution execution = persistExecution(null);
+
+    writer.write(outcome(MISMATCH));
+
+    assertThat(reloaded(execution).getNavDate()).isNull();
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
+  }
+
+  @Test
+  void write_leavesTheNavDateOfAnExecutionOfAnotherInstrumentAlone() {
+    TransactionExecution execution = persistExecution(null, "IE00BFG1TM61", FUND);
+
+    writer.write(outcome(MATCH));
+
+    assertThat(reloaded(execution).getNavDate()).isNull();
+  }
+
+  @Test
+  void write_leavesTheTradeDateOfAnEtfFillWithTheSameReferenceAlone() {
+    LocalDate tradeDate = LocalDate.of(2026, 1, 5);
+    TransactionExecution execution = persistExecution(tradeDate, ISIN, ETF);
+
+    writer.write(outcome(MATCH));
+
+    assertThat(reloaded(execution).getNavDate()).isEqualTo(tradeDate);
+  }
+
+  @Test
   void write_waitsUntilTheTradeHasAnExecution() {
-    writer.write(confirmation());
+    writer.write(outcome(MATCH));
 
     assertThat(executionRepository.findByBrokerTransactionId(REFERENCE)).isEmpty();
     assertThat(auditEventRepository.findByEventTypeAndDedupKey(NAV_DATE_SET, REFERENCE)).isEmpty();
   }
 
   private TransactionExecution persistExecution(@Nullable LocalDate navDate) {
+    return persistExecution(navDate, ISIN, FUND);
+  }
+
+  private TransactionExecution persistExecution(
+      @Nullable LocalDate navDate, String isin, InstrumentType instrumentType) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
     TransactionOrder order =
@@ -110,9 +155,9 @@ class SebFundConfirmationNavDateWriterIT {
             TransactionOrder.builder()
                 .batch(batch)
                 .fund(TUK75)
-                .instrumentIsin("IE00BKPTWY98")
+                .instrumentIsin(isin)
                 .transactionType(BUY)
-                .instrumentType(FUND)
+                .instrumentType(instrumentType)
                 .orderQuantity(new BigDecimal("1000"))
                 .orderVenue(SEB)
                 .orderUuid(UUID.randomUUID())
@@ -137,6 +182,20 @@ class SebFundConfirmationNavDateWriterIT {
     return executionRepository.findById(execution.getId()).orElseThrow();
   }
 
+  private static SebFundConfirmationOutcome outcome(ReportStatus reportStatus) {
+    return new SebFundConfirmationOutcome(
+        confirmation(),
+        new SebFundConfirmationResult(
+            reportStatus,
+            List.of(),
+            RegistryComparison.NOT_IN_REGISTRY,
+            WITHIN_TOLERANCE,
+            new BigDecimal("12.4"),
+            BigDecimal.ZERO,
+            ON_TIME,
+            1));
+  }
+
   private static SebFundConfirmation confirmation() {
     return new SebFundConfirmation(
         TUK75,
@@ -144,7 +203,7 @@ class SebFundConfirmationNavDateWriterIT {
         Instant.parse("2026-01-05T09:48:17Z"),
         PRICING_DATE,
         LocalDate.of(2026, 1, 9),
-        "IE00BKPTWY98",
+        ISIN,
         BUY,
         new BigDecimal("1000.00"),
         new BigDecimal("12.4"),

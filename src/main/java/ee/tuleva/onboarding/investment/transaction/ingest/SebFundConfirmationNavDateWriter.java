@@ -11,13 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class SebFundConfirmationNavDateWriter {
 
+  private final SebFundConfirmationRegistryCheck registryCheck;
   private final TransactionExecutionRepository executionRepository;
   private final SebFundConfirmationAuditRecorder auditRecorder;
 
   @Transactional
-  void write(SebFundConfirmation confirmation) {
-    executionRepository
-        .findByBrokerTransactionId(confirmation.tradeReference())
+  void write(SebFundConfirmationOutcome outcome) {
+    if (!outcome.result().confirmsTheReportedTrade()) {
+      return;
+    }
+    SebFundConfirmation confirmation = outcome.confirmation();
+    registryCheck
+        .executionOfTheSameTrade(confirmation)
         .filter(execution -> !confirmation.pricingDate().equals(execution.getNavDate()))
         .ifPresent(execution -> setNavDate(execution, confirmation));
   }

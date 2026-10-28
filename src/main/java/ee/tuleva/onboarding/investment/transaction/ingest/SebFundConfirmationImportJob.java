@@ -53,7 +53,7 @@ class SebFundConfirmationImportJob {
             .flatMap(Optional::stream)
             .toList();
     outcomes.forEach(outcome -> record(outcome, failures));
-    latestByReference.values().forEach(confirmation -> writeNavDate(confirmation, failures));
+    outcomes.forEach(outcome -> writeNavDate(outcome, failures));
 
     digest.publish(
         outcomes,
@@ -165,10 +165,10 @@ class SebFundConfirmationImportJob {
   }
 
   private void writeNavDate(
-      SebFundConfirmation confirmation, List<SebFundConfirmationCheckFailure> failures) {
-    String reference = confirmation.tradeReference();
+      SebFundConfirmationOutcome outcome, List<SebFundConfirmationCheckFailure> failures) {
+    String reference = outcome.confirmation().tradeReference();
     try {
-      navDateWriter.write(confirmation);
+      navDateWriter.write(outcome);
     } catch (OptimisticLockingFailureException e) {
       log.info(
           "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"

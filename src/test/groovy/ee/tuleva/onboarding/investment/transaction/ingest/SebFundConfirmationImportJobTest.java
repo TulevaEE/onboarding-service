@@ -203,22 +203,34 @@ class SebFundConfirmationImportJobTest {
   }
 
   @Test
-  void run_writesThePricingDateOfEveryConfirmationItRead() {
+  void run_offersThePricingDateOfEveryVerifiedConfirmationToTheRegistry() {
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000001"));
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(navDateWriter).should().write(outcome("DLA0000001"));
+    then(navDateWriter).should().write(outcome("DLA0000002"));
+  }
+
+  @Test
+  void run_writesNoPricingDateFromAConfirmationItCouldNotVerify() {
+    willThrow(new IllegalStateException("report store down"))
+        .given(verificationService)
+        .verify(confirmation("DLA0000001"));
+
+    job.run();
+
+    then(navDateWriter).should().write(outcome("DLA0000002"));
+    then(navDateWriter).shouldHaveNoMoreInteractions();
   }
 
   @Test
   void run_reportsAPricingDateThatCouldNotBeWrittenAndStillWritesTheOthers() {
     willThrow(new IllegalStateException("registry down"))
         .given(navDateWriter)
-        .write(confirmation("DLA0000001"));
+        .write(outcome("DLA0000001"));
 
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(navDateWriter).should().write(outcome("DLA0000002"));
     then(digest)
         .should()
         .publish(
@@ -235,7 +247,7 @@ class SebFundConfirmationImportJobTest {
   void run_leavesAPricingDateForTheNextRunWhenTheExecutionChangedMeanwhile() {
     willThrow(new OptimisticLockingFailureException("execution changed"))
         .given(navDateWriter)
-        .write(confirmation("DLA0000001"));
+        .write(outcome("DLA0000001"));
 
     job.run();
 

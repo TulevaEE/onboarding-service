@@ -119,7 +119,10 @@ class SebFundConfirmationImportJobIT {
                 clock,
                 PROPERTIES),
             auditRecorder,
-            new SebFundConfirmationNavDateWriter(executionRepository, auditRecorder),
+            new SebFundConfirmationNavDateWriter(
+                new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
+                executionRepository,
+                auditRecorder),
             new SebFundConfirmationDigest(notificationService, auditRecorder, PROPERTIES));
 
     jdbcClient

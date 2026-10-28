@@ -32,7 +32,7 @@ class StressScenarioCalculatorTest {
 
   @Test
   void theOneYearStressIsRepresentedByATwentyOneDayWindow() {
-    var closes = PERIOD.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
+    var closes = PERIOD.riskHistory(SyntheticIndexSeries.weekdayCloses(KEY));
 
     var stress = calculator.stress(closes, PERIOD.end(), 1);
 
@@ -41,7 +41,7 @@ class StressScenarioCalculatorTest {
 
   @Test
   void theHoldingPeriodStressIsRepresentedByASixtyThreeDayWindow() {
-    var closes = PERIOD.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
+    var closes = PERIOD.riskHistory(SyntheticIndexSeries.weekdayCloses(KEY));
 
     var stress = calculator.stress(closes, PERIOD.end(), 5);
 
@@ -50,7 +50,7 @@ class StressScenarioCalculatorTest {
 
   @Test
   void pricesBeforeTheLastFiveYearsChangeNeitherStressHorizon() {
-    var closes = PERIOD.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
+    var closes = SyntheticIndexSeries.weekdayCloses(KEY);
     var turbulentBeforeTheLastFiveYears =
         closes.stream()
             .map(
@@ -60,26 +60,34 @@ class StressScenarioCalculatorTest {
                         : close)
             .toList();
 
-    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 1))
-        .isEqualTo(calculator.stress(closes, PERIOD.end(), 1));
-    assertThat(calculator.stress(turbulentBeforeTheLastFiveYears, PERIOD.end(), 5))
-        .isEqualTo(calculator.stress(closes, PERIOD.end(), 5));
+    assertThat(
+            calculator.stress(PERIOD.riskHistory(turbulentBeforeTheLastFiveYears), PERIOD.end(), 1))
+        .isEqualTo(calculator.stress(PERIOD.riskHistory(closes), PERIOD.end(), 1));
+    assertThat(
+            calculator.stress(PERIOD.riskHistory(turbulentBeforeTheLastFiveYears), PERIOD.end(), 5))
+        .isEqualTo(calculator.stress(PERIOD.riskHistory(closes), PERIOD.end(), 5));
   }
 
   @Test
   void aFiveYearBoundaryOnASundayStartsTheSampleFromTheFridayCloseBeforeIt() {
     var periodEndingOnASaturday =
         new ScenarioPeriod(LocalDate.of(2016, 1, 31), LocalDate.of(2026, 1, 31));
-    var closes = periodEndingOnASaturday.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
-    var stress = calculator.stress(closes, periodEndingOnASaturday.end(), 5);
+    var closes = SyntheticIndexSeries.weekdayCloses(KEY);
+    var stress =
+        calculator.stress(
+            periodEndingOnASaturday.riskHistory(closes), periodEndingOnASaturday.end(), 5);
 
     assertThat(
             calculator.stress(
-                swungOn(closes, LocalDate.of(2021, 1, 29)), periodEndingOnASaturday.end(), 5))
+                periodEndingOnASaturday.riskHistory(swungOn(closes, LocalDate.of(2021, 1, 29))),
+                periodEndingOnASaturday.end(),
+                5))
         .isNotEqualTo(stress);
     assertThat(
             calculator.stress(
-                swungOn(closes, LocalDate.of(2021, 1, 28)), periodEndingOnASaturday.end(), 5))
+                periodEndingOnASaturday.riskHistory(swungOn(closes, LocalDate.of(2021, 1, 28))),
+                periodEndingOnASaturday.end(),
+                5))
         .isEqualTo(stress);
   }
 

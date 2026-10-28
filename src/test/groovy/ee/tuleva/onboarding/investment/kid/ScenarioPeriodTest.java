@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 class ScenarioPeriodTest {
 
   private static final String KEY = "MSCI_ACWI";
+  private static final ScenarioPeriod TEN_YEARS =
+      new ScenarioPeriod(LocalDate.of(2016, 9, 30), LocalDate.of(2026, 9, 30));
 
   @Test
   void endsWithTheLastCompleteMonthAndReachesBackTenYears() {
@@ -159,7 +161,7 @@ class ScenarioPeriodTest {
             close("2025-02-07", 103),
             close("2025-02-10", 104));
 
-    assertThat(period.dailyCloses(prices))
+    assertThat(period.riskHistory(prices))
         .containsExactly(
             close("2025-01-31", 100), close("2025-02-03", 102), close("2025-02-07", 103));
   }
@@ -169,7 +171,7 @@ class ScenarioPeriodTest {
     var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 2, 7));
     var prices = List.of(close("2025-01-31", 100), close("2025-02-07", 101));
 
-    assertThat(period.dailyCloses(prices)).isEqualTo(prices);
+    assertThat(period.riskHistory(prices)).isEqualTo(prices);
   }
 
   @Test
@@ -177,7 +179,7 @@ class ScenarioPeriodTest {
     var period = new ScenarioPeriod(LocalDate.of(2025, 1, 31), LocalDate.of(2025, 2, 28));
     var prices = List.of(close("2025-01-31", 100), close("2025-02-10", 101));
 
-    assertThatThrownBy(() -> period.dailyCloses(prices))
+    assertThatThrownBy(() -> period.riskHistory(prices))
         .isInstanceOf(KidCalculationRefusedException.class);
   }
 
@@ -192,7 +194,7 @@ class ScenarioPeriodTest {
             .map(day -> close(day.toString(), 100))
             .toList();
 
-    assertThatThrownBy(() -> period.dailyCloses(wednesdays))
+    assertThatThrownBy(() -> period.riskHistory(wednesdays))
         .isInstanceOf(KidCalculationRefusedException.class);
   }
 
@@ -208,7 +210,7 @@ class ScenarioPeriodTest {
             .map(day -> close(day.toString(), 100))
             .toList();
 
-    assertThatThrownBy(() -> period.dailyCloses(mondaysWednesdaysAndFridays))
+    assertThatThrownBy(() -> period.riskHistory(mondaysWednesdaysAndFridays))
         .isInstanceOf(KidCalculationRefusedException.class);
   }
 
@@ -231,7 +233,7 @@ class ScenarioPeriodTest {
             .map(day -> close(day.toString(), 100))
             .toList();
 
-    assertThat(period.dailyCloses(closesOutsideTheHolidays))
+    assertThat(period.riskHistory(closesOutsideTheHolidays))
         .isEqualTo(
             closesOutsideTheHolidays.stream()
                 .filter(close -> close.date().isAfter(LocalDate.of(2025, 11, 30)))
@@ -251,7 +253,7 @@ class ScenarioPeriodTest {
                 LocalDate.of(2025, 2, 19),
                 LocalDate.of(2025, 2, 26)));
 
-    assertThat(period.dailyCloses(fourteenOfTwentyWeekdays)).isEqualTo(fourteenOfTwentyWeekdays);
+    assertThat(period.riskHistory(fourteenOfTwentyWeekdays)).isEqualTo(fourteenOfTwentyWeekdays);
   }
 
   @Test
@@ -268,8 +270,33 @@ class ScenarioPeriodTest {
                 LocalDate.of(2025, 2, 21),
                 LocalDate.of(2025, 2, 26)));
 
-    assertThatThrownBy(() -> period.dailyCloses(thirteenOfTwentyWeekdays))
+    assertThatThrownBy(() -> period.riskHistory(thirteenOfTwentyWeekdays))
         .isInstanceOf(KidCalculationRefusedException.class);
+  }
+
+  @Test
+  void theRiskHistoryRunsFromTheLastCloseOnOrBeforeFiveYearsBeforeThePeriodEnd() {
+    var prices = SyntheticIndexSeries.weekdayCloses(KEY);
+
+    assertThat(TEN_YEARS.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-09-30", "2026-09-30"));
+  }
+
+  @Test
+  void aFiveYearBoundaryOnASundayStartsTheRiskHistoryWithTheFridayCloseBeforeIt() {
+    var periodEndingOnASaturday =
+        new ScenarioPeriod(LocalDate.of(2016, 1, 31), LocalDate.of(2026, 1, 31));
+    var prices = SyntheticIndexSeries.weekdayCloses(KEY);
+
+    assertThat(periodEndingOnASaturday.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-01-29", "2026-01-31"));
+  }
+
+  private static List<FundValue> closesBetween(List<FundValue> prices, String first, String last) {
+    return prices.stream()
+        .filter(close -> !close.date().isBefore(LocalDate.parse(first)))
+        .filter(close -> !close.date().isAfter(LocalDate.parse(last)))
+        .toList();
   }
 
   private static List<FundValue> februaryWeekdaysExcept(Set<LocalDate> skipped) {

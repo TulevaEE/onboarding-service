@@ -42,7 +42,7 @@ class KidFiguresService {
         positive(
             fundValueQueries.findValuesBetweenDates(seriesKey, period.loadFrom(), period.end()));
     var monthEndPrices = period.monthEndPrices(prices);
-    var dailyCloses = period.dailyCloses(prices);
+    var riskHistory = period.riskHistory(prices);
 
     var firstYearScenarios =
         performanceScenarioCalculator.scenarios(monthEndPrices, FIRST_YEAR, charges);
@@ -50,10 +50,10 @@ class KidFiguresService {
         performanceScenarioCalculator.scenarios(monthEndPrices, holdingPeriodYears, charges);
     var scenarios =
         Stream.concat(
-                present(FIRST_YEAR, firstYearScenarios, dailyCloses, period.end(), charges)
+                present(FIRST_YEAR, firstYearScenarios, riskHistory, period.end(), charges)
                     .stream(),
                 present(
-                    holdingPeriodYears, holdingPeriodScenarios, dailyCloses, period.end(), charges)
+                    holdingPeriodYears, holdingPeriodScenarios, riskHistory, period.end(), charges)
                     .stream())
             .toList();
 
@@ -75,13 +75,13 @@ class KidFiguresService {
   private List<KidScenario> present(
       int years,
       PerformanceScenarios performance,
-      List<FundValue> dailyCloses,
+      List<FundValue> riskHistory,
       LocalDate periodEnd,
       double charges) {
     return scenarioPresentation.present(
         years,
         performance,
-        stressScenarioCalculator.stress(dailyCloses, periodEnd, years),
+        stressScenarioCalculator.stress(riskHistory, periodEnd, years),
         charges);
   }
 

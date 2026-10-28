@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics;
 
 import static ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerFixture.entityBuilder;
 import static ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerFixture.unitOwnerBalanceEmbeddableBuilder;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -44,7 +45,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(true, false, false, true, false, false));
+        .contains(new PensionRegistrySnapshot(true, false, false, true, false, null));
   }
 
   @Test
@@ -63,12 +64,12 @@ class RegistryPensionFactsTest {
   }
 
   @Test
-  void onlyATulevaFundChoiceSendsContributionsToTulevaNotTulevaUnitsAlone() {
+  void onlyATulevaFundChoiceNamesTheTulevaFundContributionsGoToNotTulevaUnitsAlone() {
     given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
         .willReturn(Optional.of(owner().p2choice("TUK00").build()));
     assertThat(
-            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionsToTuleva())
-        .isTrue();
+            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionTulevaFund())
+        .isEqualTo(TUK00);
 
     given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
         .willReturn(
@@ -78,8 +79,8 @@ class RegistryPensionFactsTest {
                     .balances(List.of(unitOwnerBalanceEmbeddableBuilder("TUK75", "Tuleva").build()))
                     .build()));
     assertThat(
-            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionsToTuleva())
-        .isFalse();
+            registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarContributionTulevaFund())
+        .isNull();
   }
 
   @Test
@@ -88,7 +89,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().p2ravaStatus("R").build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(false, false, true, true, false, false));
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null));
   }
 
   @Test
@@ -97,7 +98,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().p2choice(null).p2ravaStatus("R").build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(false, false, true, true, false, false));
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null));
   }
 
   @Test

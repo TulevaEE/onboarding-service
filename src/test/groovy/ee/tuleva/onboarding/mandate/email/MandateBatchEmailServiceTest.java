@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachme
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.FOUR;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -33,7 +35,6 @@ import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.nudge.PensionRegistry;
 import ee.tuleva.onboarding.nudge.PensionRegistrySnapshot;
 import ee.tuleva.onboarding.user.User;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -95,7 +96,9 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", nothingChanged())),
+            eq(
+                rejoinMergeVars(
+                    user, "1.\u00A0mai 2027", "30.\u00A0november 2026", nothingChanged())),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -141,54 +144,43 @@ class MandateBatchEmailServiceTest {
   }
 
   @Test
-  void rejoinSelectingAnotherManagersHighFeeFundNamesItAndItsFee() {
+  void rejoinSelectingAnotherManagersFundNamesIt() {
     var lhvFund = lhv2ndPillarFund();
     given(fundRepository.findByIsin(lhvFund.getIsin())).willReturn(lhvFund);
 
     sendEstonianRejoin(sampleRejoinMandate(), selectionOf(lhvFund));
 
     shouldSendEstonianRejoin(
-        with(
-            fundSelected(),
-            Map.of(
-                "selectedOtherFund",
-                true,
-                "selectedFundName",
-                "LHV XL",
-                "selectedHighFeeFund",
-                true,
-                "selectedFundFee",
-                "1")));
-  }
-
-  @Test
-  void rejoinSelectingAnotherManagersLowFeeFundNamesItWithoutAFee() {
-    var lowFeeFund = lhv2ndPillarFund();
-    lowFeeFund.setOngoingChargesFigure(new BigDecimal("0.0029"));
-    given(fundRepository.findByIsin(lowFeeFund.getIsin())).willReturn(lowFeeFund);
-
-    sendEstonianRejoin(sampleRejoinMandate(), selectionOf(lowFeeFund));
-
-    shouldSendEstonianRejoin(
         with(fundSelected(), Map.of("selectedOtherFund", true, "selectedFundName", "LHV XL")));
   }
 
   @Test
-  void rejoinKeepingATulevaFundOnFileSaysContributionsContinueThere() {
+  void rejoinKeepingTheTulevaStockFundOnFileNamesItAsWhereContributionsGoAgain() {
     var user = sampleUser().build();
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, true)));
+        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK75)));
 
     sendEstonianRejoin(sampleRejoinMandate());
 
-    shouldSendEstonianRejoin(with(nothingChanged(), Map.of("keptTulevaFund", true)));
+    shouldSendEstonianRejoin(with(nothingChanged(), Map.of("keptTulevaStockFund", true)));
+  }
+
+  @Test
+  void rejoinKeepingTheTulevaBondFundOnFileNamesItAsWhereContributionsGoAgain() {
+    var user = sampleUser().build();
+    given(pensionRegistry.snapshotFor(user.getPersonalCode()))
+        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK00)));
+
+    sendEstonianRejoin(sampleRejoinMandate());
+
+    shouldSendEstonianRejoin(with(nothingChanged(), Map.of("keptTulevaBondFund", true)));
   }
 
   @Test
   void rejoinHoldingTulevaUnitsButContributingElsewhereSaysContributionsGoToTheOldFund() {
     var user = sampleUser().build();
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, false)));
+        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, null)));
 
     sendEstonianRejoin(sampleRejoinMandate());
 
@@ -204,13 +196,11 @@ class MandateBatchEmailServiceTest {
   }
 
   @Test
-  void rejoinRaisingTheRateToSixPercentSaysTheTaxBenefitIsUsedToTheMaximum() {
+  void rejoinRaisingTheRateToSixPercentNamesTheRate() {
     sendEstonianRejoin(sampleRejoinMandate(), sampleMandateWithPaymentRate());
 
     shouldSendEstonianRejoin(
-        with(
-            nothingChanged(),
-            Map.of("paymentRateChange", true, "paymentRate", 6, "maxPaymentRate", true)));
+        with(nothingChanged(), Map.of("paymentRateChange", true, "paymentRate", 6)));
   }
 
   @Test
@@ -238,7 +228,7 @@ class MandateBatchEmailServiceTest {
         .newMandrillMessage(
             eq(user.getEmail()),
             eq("second_pillar_rejoin_et"),
-            eq(rejoinMergeVars(user, "1. mai 2027", "30. november 2026", rejoinChoices)),
+            eq(rejoinMergeVars(user, "1.\u00A0mai 2027", "30.\u00A0november 2026", rejoinChoices)),
             eq(List.of("mandate_batch")),
             any());
   }
@@ -257,10 +247,9 @@ class MandateBatchEmailServiceTest {
         Map.entry("selectedTulevaStockFund", false),
         Map.entry("selectedTulevaBondFund", false),
         Map.entry("selectedOtherFund", false),
-        Map.entry("selectedHighFeeFund", false),
-        Map.entry("keptTulevaFund", false),
-        Map.entry("paymentRate", 2),
-        Map.entry("maxPaymentRate", false));
+        Map.entry("keptTulevaStockFund", false),
+        Map.entry("keptTulevaBondFund", false),
+        Map.entry("paymentRate", 2));
   }
 
   private static Map<String, Object> fundSelected() {

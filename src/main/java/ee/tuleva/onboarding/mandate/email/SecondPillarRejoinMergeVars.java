@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
-import ee.tuleva.onboarding.nudge.FundFees;
 import ee.tuleva.onboarding.nudge.PensionRegistry;
 import ee.tuleva.onboarding.nudge.PensionRegistrySnapshot;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -35,7 +34,6 @@ import org.springframework.stereotype.Component;
 class SecondPillarRejoinMergeVars {
 
   private static final int REJOINERS_LEFT_BEFORE_HIGHER_RATES_EXISTED_SO_RATE_ON_FILE_IS_TWO = 2;
-  private static final int MAX_PAYMENT_RATE = 6;
 
   private final MandateDeadlinesService mandateDeadlinesService;
   private final FundRepository fundRepository;
@@ -70,22 +68,21 @@ class SecondPillarRejoinMergeVars {
     var mergeVars = new HashMap<String, Object>();
     var selectedFund = selectedFundOf(mandateBatch);
     var selectedOtherFund = selectedFund.filter(fund -> !fund.isOwnFund());
-    var highFee = selectedOtherFund.map(Fund::getOngoingChargesFigure).filter(FundFees::isHigh);
     mergeVars.put("selectedTulevaStockFund", selectedFund.filter(isTulevaFund(TUK75)).isPresent());
     mergeVars.put("selectedTulevaBondFund", selectedFund.filter(isTulevaFund(TUK00)).isPresent());
     mergeVars.put("selectedOtherFund", selectedOtherFund.isPresent());
-    mergeVars.put("selectedHighFeeFund", highFee.isPresent());
-    mergeVars.put("keptTulevaFund", selectedFund.isEmpty() && contributionsOnFileGoToTuleva(user));
+    var keptTulevaFund =
+        selectedFund.isPresent() ? Optional.<TulevaFund>empty() : tulevaFundOnFile(user);
+    mergeVars.put("keptTulevaStockFund", keptTulevaFund.filter(TUK75::equals).isPresent());
+    mergeVars.put("keptTulevaBondFund", keptTulevaFund.filter(TUK00::equals).isPresent());
     selectedOtherFund.ifPresent(fund -> mergeVars.put("selectedFundName", fund.getName(locale)));
-    highFee.ifPresent(fee -> mergeVars.put("selectedFundFee", percentIn(locale, fee)));
     return mergeVars;
   }
 
-  private boolean contributionsOnFileGoToTuleva(User user) {
+  private Optional<TulevaFund> tulevaFundOnFile(User user) {
     return pensionRegistry
         .snapshotFor(user.getPersonalCode())
-        .filter(PensionRegistrySnapshot::secondPillarContributionsToTuleva)
-        .isPresent();
+        .map(PensionRegistrySnapshot::secondPillarContributionTulevaFund);
   }
 
   private Optional<Fund> selectedFundOf(MandateBatch mandateBatch) {
@@ -108,12 +105,6 @@ class SecondPillarRejoinMergeVars {
     return fund -> tulevaFund.getIsin().equals(fund.getIsin());
   }
 
-  private static String percentIn(Locale locale, BigDecimal fraction) {
-    String percent =
-        fraction.multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString();
-    return "et".equals(locale.getLanguage()) ? percent.replace('.', ',') : percent;
-  }
-
   private static Map<String, Object> getRejoinPaymentRateMergeVars(MandateBatch mandateBatch) {
     int paymentRate =
         mandateBatch.getMandates().stream()
@@ -123,7 +114,7 @@ class SecondPillarRejoinMergeVars {
             .map(BigDecimal::intValueExact)
             .findFirst()
             .orElse(REJOINERS_LEFT_BEFORE_HIGHER_RATES_EXISTED_SO_RATE_ON_FILE_IS_TWO);
-    return Map.of("paymentRate", paymentRate, "maxPaymentRate", paymentRate == MAX_PAYMENT_RATE);
+    return Map.of("paymentRate", paymentRate);
   }
 
   private static boolean contains(MandateBatch mandateBatch, MandateType mandateType) {
@@ -149,7 +140,7 @@ class SecondPillarRejoinMergeVars {
 
   private static DateTimeFormatter dateFormatIn(Locale locale) {
     return "et".equals(locale.getLanguage())
-        ? DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.of("et"))
+        ? DateTimeFormatter.ofPattern("d.\u00A0MMMM yyyy", Locale.of("et"))
         : DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
   }
 }

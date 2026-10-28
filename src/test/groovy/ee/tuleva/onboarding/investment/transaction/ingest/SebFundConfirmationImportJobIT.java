@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.ALERTED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.MISNAMED_ALERTED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.MISSING_ALERTED;
@@ -10,6 +12,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirma
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationPdfs.confirmation;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationPdfs.liberationSansTable;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -24,8 +27,14 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
+import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -36,6 +45,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +82,8 @@ class SebFundConfirmationImportJobIT {
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private TransactionExecutionRepository executionRepository;
+  @Autowired private TransactionOrderRepository orderRepository;
+  @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private InvestmentParameterRepository parameterRepository;
   @Autowired private TestEntityManager entityManager;
 
@@ -91,7 +103,13 @@ class SebFundConfirmationImportJobIT {
             new SebFundConfirmationS3Source(s3Client, clock),
             new SebFundConfirmationPdfParser(fundResolver, liberationSansTable()),
             new SebFundConfirmationVerificationService(
-                reportService, extractor, priceResolver, parameterRepository, clock, PROPERTIES),
+                reportService,
+                extractor,
+                priceResolver,
+                parameterRepository,
+                new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
+                clock,
+                PROPERTIES),
             new SebFundConfirmationMissingFinder(
                 reportService,
                 extractor,
@@ -347,7 +365,8 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
-  void run_staysQuietWhenTheConfirmationAgreesWithTheReportAndTheNav() {
+  void
+      run_staysQuietWhenTheConfirmationAgreesWithTheReportAndTheNavAndTheTradeIsNotInTheRegistry() {
     insertNav(LocalDate.of(2026, 1, 6), "12.4000");
     saveReport(LocalDate.of(2026, 1, 7), List.of(pendingRow("DLA0000001", "12.40000000")));
 
@@ -359,7 +378,56 @@ class SebFundConfirmationImportJobIT {
         .satisfies(
             event ->
                 assertThat(event.getPayload())
-                    .containsEntry("status", "[MATCH, WITHIN_TOLERANCE, ON_TIME]"));
+                    .containsEntry("status", "[MATCH, WITHIN_TOLERANCE, ON_TIME]")
+                    .containsEntry("registryStatus", "NOT_IN_REGISTRY"));
+  }
+
+  @Test
+  void run_alertsWhenTheRegistryHoldsOtherFiguresThanAConfirmationTheReportAgreesWith() {
+    insertNav(LocalDate.of(2026, 1, 6), "12.4000");
+    saveReport(LocalDate.of(2026, 1, 7), List.of(pendingRow("DLA0000001", "12.40000000")));
+    registerExecution("DLA0000001", "12.30000000", "12300.00");
+
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            TUK75 IE00BKPTWY98 ost 06.01.2026: SEB tehingukinnitus ei klapi tehinguregistriga (hind 12.4 vs 12.3; kogumaksumus 12400.00 vs 12300)
+            Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
+            Kontrolli, kumb on õige, ja paranda täitmine tehinguregistris või küsi SEB-lt parandust""",
+            INVESTMENT);
+  }
+
+  private void registerExecution(String reference, String price, String total) {
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test-user").build());
+    TransactionOrder order =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TUK75)
+                .instrumentIsin(ISIN)
+                .transactionType(BUY)
+                .instrumentType(FUND)
+                .orderQuantity(new BigDecimal("1000"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(UUID.randomUUID())
+                .build());
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId(reference)
+            .executionTimestamp(Instant.parse("2026-01-05T12:48:00Z"))
+            .executedQuantity(new BigDecimal("1000"))
+            .unitPrice(new BigDecimal(price))
+            .totalConsideration(new BigDecimal(total))
+            .source("SEB_OOTEL")
+            .build());
+    entityManager.flush();
   }
 
   private void runAgainFromWhatTheDatabaseHolds() {

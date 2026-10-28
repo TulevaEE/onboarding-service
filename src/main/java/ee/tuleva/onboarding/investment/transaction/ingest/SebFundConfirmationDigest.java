@@ -98,6 +98,19 @@ class SebFundConfirmationDigest {
               received(confirmation),
               "Võrdle kinnitust ja raportit, vajadusel küsi SEB-lt parandust"));
     }
+    if (findings.contains(result.registryMismatchFinding())) {
+      blocks.add(
+          lines(
+              trade(confirmation)
+                  + " "
+                  + date(confirmation.pricingDate())
+                  + ": SEB tehingukinnitus ei klapi tehinguregistriga ("
+                  + String.join("; ", result.registry().differences())
+                  + ")",
+              received(confirmation),
+              "Kontrolli, kumb on õige, ja paranda täitmine tehinguregistris või küsi SEB-lt"
+                  + " parandust"));
+    }
     if (findings.contains(NOT_FOUND.name())) {
       blocks.add(
           lines(

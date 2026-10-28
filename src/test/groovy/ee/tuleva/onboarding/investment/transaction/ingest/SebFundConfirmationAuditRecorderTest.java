@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -59,6 +60,7 @@ class SebFundConfirmationAuditRecorderTest {
             new SebFundConfirmationResult(
                 NOT_FOUND,
                 List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
                 FAR_FROM_NAV,
                 new BigDecimal("12.3"),
                 new BigDecimal("0.8130"),

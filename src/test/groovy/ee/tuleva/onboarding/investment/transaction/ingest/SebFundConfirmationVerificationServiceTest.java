@@ -27,6 +27,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -57,6 +59,7 @@ class SebFundConfirmationVerificationServiceTest {
   @Mock private InvestmentReportService reportService;
   @Mock private PositionPriceResolver priceResolver;
   @Mock private InvestmentParameterRepository parameterRepository;
+  @Mock private SebFundConfirmationRegistryCheck registryCheck;
 
   private SebFundConfirmationVerificationService service;
 
@@ -68,6 +71,7 @@ class SebFundConfirmationVerificationServiceTest {
     given(priceResolver.resolve(eq(ISIN), any())).willReturn(Optional.of(noPrice()));
     given(parameterRepository.findLatestValue(eq(SEB_FUND_CONFIRMATION_NAV_TOLERANCE), any()))
         .willReturn(new BigDecimal("0.004"));
+    given(registryCheck.compare(any())).willReturn(RegistryComparison.NOT_IN_REGISTRY);
   }
 
   @Test
@@ -82,6 +86,7 @@ class SebFundConfirmationVerificationServiceTest {
             new SebFundConfirmationResult(
                 MATCH,
                 List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
                 WITHIN_TOLERANCE,
                 new BigDecimal("12.3456"),
                 new BigDecimal("0.0006"),
@@ -104,6 +109,32 @@ class SebFundConfirmationVerificationServiceTest {
             "kogumaksumus 12345.68 vs 12000.00",
             "väärtuspäev 2026-01-09 vs 2026-01-10");
     assertThat(result.isActionable()).isTrue();
+  }
+
+  @Test
+  void verify_comparesTheConfirmationWithItsTradeInTheRegistry() {
+    reportOn(PRICING, pendingRow("1000", "12.34567890", "12345.68", VALUE));
+    navOn(PRICING, "12.3456");
+    RegistryComparison registry =
+        new RegistryComparison(RegistryStatus.MISMATCH, List.of("hind 12.345678901 vs 12.3"));
+    given(registryCheck.compare(any())).willReturn(registry);
+
+    SebFundConfirmationResult result = service.verify(confirmation("12.345678901"));
+
+    assertThat(result.registry()).isEqualTo(registry);
+    assertThat(result.findings()).containsExactly("REGISTRY_MISMATCH hind 12.345678901 vs 12.3");
+  }
+
+  @Test
+  void verify_leavesARegistryDifferenceTheReportAlsoShowsToTheReportFinding() {
+    reportOn(PRICING, pendingRow("999", "12.34567890", "12345.68", VALUE));
+    navOn(PRICING, "12.3456");
+    given(registryCheck.compare(any()))
+        .willReturn(
+            new RegistryComparison(RegistryStatus.MISMATCH, List.of("kogus 1000.00 vs 999")));
+
+    assertThat(service.verify(confirmation("12.345678901")).findings())
+        .containsExactly("MISMATCH kogus 1000.00 vs 999");
   }
 
   @Test
@@ -207,6 +238,7 @@ class SebFundConfirmationVerificationServiceTest {
         new SebPendingTransactionExtractor(),
         priceResolver,
         parameterRepository,
+        registryCheck,
         Clock.fixed(today.atTime(12, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC),
         new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5)));
   }

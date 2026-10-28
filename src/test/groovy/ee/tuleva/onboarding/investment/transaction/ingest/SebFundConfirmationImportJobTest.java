@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -380,6 +381,13 @@ class SebFundConfirmationImportJobTest {
 
   private static SebFundConfirmationResult clean() {
     return new SebFundConfirmationResult(
-        MATCH, List.of(), WITHIN_TOLERANCE, new BigDecimal("12.4"), BigDecimal.ZERO, ON_TIME, 1);
+        MATCH,
+        List.of(),
+        RegistryComparison.NOT_IN_REGISTRY,
+        WITHIN_TOLERANCE,
+        new BigDecimal("12.4"),
+        BigDecimal.ZERO,
+        ON_TIME,
+        1);
   }
 }

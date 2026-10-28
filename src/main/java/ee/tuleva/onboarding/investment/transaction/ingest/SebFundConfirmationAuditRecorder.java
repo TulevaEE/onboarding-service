@@ -217,6 +217,8 @@ class SebFundConfirmationAuditRecorder {
     payload.putAll(figures(confirmation));
     payload.put(STATUS, result.statusSignature().toString());
     payload.put("reportDifferences", List.copyOf(result.reportDifferences()));
+    payload.put("registryStatus", result.registry().status().name());
+    payload.put("registryDifferences", List.copyOf(result.registry().differences()));
     putIfPresent(payload, "nav", result.nav());
     putIfPresent(payload, "deviationPercent", result.deviationPercent());
     payload.put("navDatesAfterReceipt", result.navDatesAfterReceipt());

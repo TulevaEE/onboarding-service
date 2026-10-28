@@ -26,9 +26,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -38,7 +36,6 @@ class SebFundConfirmationVerificationService {
 
   private static final int DAYS_A_SETTLED_TRADE_CAN_STILL_REACH_THE_REPORT = 5;
   private static final int DAYS_A_PUBLISHED_NAV_CAN_STILL_REACH_THE_PRICE_DATA = 5;
-  private static final MathContext SEB_REPORT_SIGNIFICANT_DIGITS = new MathContext(10, HALF_UP);
   private static final int PERCENT_SCALE = 4;
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
@@ -46,6 +43,7 @@ class SebFundConfirmationVerificationService {
   private final SebPendingTransactionExtractor extractor;
   private final PositionPriceResolver priceResolver;
   private final InvestmentParameterRepository parameterRepository;
+  private final SebFundConfirmationRegistryCheck registryCheck;
   private final Clock clock;
   private final SebFundConfirmationProperties properties;
 
@@ -54,12 +52,14 @@ class SebFundConfirmationVerificationService {
       SebPendingTransactionExtractor extractor,
       PositionPriceResolver priceResolver,
       InvestmentParameterRepository parameterRepository,
+      SebFundConfirmationRegistryCheck registryCheck,
       Clock clock,
       SebFundConfirmationProperties properties) {
     this.reportService = reportService;
     this.extractor = extractor;
     this.priceResolver = priceResolver;
     this.parameterRepository = parameterRepository;
+    this.registryCheck = registryCheck;
     this.clock = clock;
     this.properties = properties;
   }
@@ -76,6 +76,7 @@ class SebFundConfirmationVerificationService {
     return new SebFundConfirmationResult(
         reportStatus(confirmation, row, differences),
         differences,
+        registryCheck.compare(confirmation),
         navStatus(deviation, confirmation.pricingDate()),
         nav.orElse(null),
         deviation,
@@ -127,38 +128,14 @@ class SebFundConfirmationVerificationService {
 
   private static List<String> differences(
       SebFundConfirmation confirmation, SebPendingTransactionRow row) {
-    List<String> differences = new ArrayList<>();
-    addIfDifferent(differences, "ISIN", confirmation.isin(), row.isin());
-    addIfDifferent(differences, "suund", confirmation.side(), row.side());
-    addIfDifferentAmount(differences, "kogus", confirmation.quantity(), row.quantity());
-    addIfDifferentAmount(differences, "hind", confirmation.price(), row.price());
-    addIfDifferentAmount(differences, "kogumaksumus", confirmation.totalAmount(), row.total());
-    addIfDifferent(differences, "väärtuspäev", confirmation.valueDate(), row.settlementDate());
-    return List.copyOf(differences);
-  }
-
-  private static void addIfDifferent(
-      List<String> differences, String field, Object confirmed, @Nullable Object reported) {
-    if (!Objects.equals(confirmed, reported)) {
-      differences.add(field + " " + confirmed + " vs " + reported);
-    }
-  }
-
-  private static void addIfDifferentAmount(
-      List<String> differences, String field, BigDecimal confirmed, @Nullable BigDecimal reported) {
-    if (reported == null
-        || confirmed
-                .abs()
-                .round(SEB_REPORT_SIGNIFICANT_DIGITS)
-                .compareTo(reported.abs().round(SEB_REPORT_SIGNIFICANT_DIGITS))
-            != 0) {
-      differences.add(
-          field
-              + " "
-              + confirmed.toPlainString()
-              + " vs "
-              + (reported == null ? null : reported.toPlainString()));
-    }
+    return new SebFundConfirmationDifferences()
+        .field("ISIN", confirmation.isin(), row.isin())
+        .field("suund", confirmation.side(), row.side())
+        .amount("kogus", confirmation.quantity(), row.quantity())
+        .amount("hind", confirmation.price(), row.price())
+        .amount("kogumaksumus", confirmation.totalAmount(), row.total())
+        .field("väärtuspäev", confirmation.valueDate(), row.settlementDate())
+        .list();
   }
 
   private Optional<BigDecimal> navOn(String isin, LocalDate date) {

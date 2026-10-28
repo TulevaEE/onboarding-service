@@ -19,6 +19,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -68,6 +69,7 @@ class SebFundConfirmationDigestTest {
             new SebFundConfirmationResult(
                 MATCH,
                 List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
                 FAR_FROM_NAV,
                 new BigDecimal("12.3000"),
                 new BigDecimal("0.8130"),
@@ -96,6 +98,7 @@ class SebFundConfirmationDigestTest {
             new SebFundConfirmationResult(
                 MATCH,
                 List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
                 FAR_FROM_NAV,
                 new BigDecimal("12.3000"),
                 new BigDecimal("0.8130"),
@@ -125,6 +128,7 @@ class SebFundConfirmationDigestTest {
             new SebFundConfirmationResult(
                 MISMATCH,
                 List.of("kogus 1000.00 vs 999", "väärtuspäev 2026-01-09 vs 2026-01-10"),
+                RegistryComparison.NOT_IN_REGISTRY,
                 WITHIN_TOLERANCE,
                 new BigDecimal("12.3456"),
                 new BigDecimal("0.0006"),
@@ -156,6 +160,7 @@ class SebFundConfirmationDigestTest {
             new SebFundConfirmationResult(
                 NOT_FOUND,
                 List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
                 WITHIN_TOLERANCE,
                 new BigDecimal("12.3456"),
                 new BigDecimal("0.0006"),
@@ -245,7 +250,15 @@ class SebFundConfirmationDigestTest {
   void publish_saysThePriceCouldNotBeCheckedWhenTheNavNeverArrived() {
     SebFundConfirmationOutcome outcome =
         outcome(
-            new SebFundConfirmationResult(MATCH, List.of(), NOT_PUBLISHED, null, null, ON_TIME, 1));
+            new SebFundConfirmationResult(
+                MATCH,
+                List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
+                NOT_PUBLISHED,
+                null,
+                null,
+                ON_TIME,
+                1));
 
     digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
@@ -266,7 +279,14 @@ class SebFundConfirmationDigestTest {
     SebFundConfirmationOutcome outcome =
         outcome(
             new SebFundConfirmationResult(
-                NOT_FOUND, List.of(), WITHIN_TOLERANCE, null, null, ON_TIME, 1));
+                NOT_FOUND,
+                List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
+                WITHIN_TOLERANCE,
+                null,
+                null,
+                ON_TIME,
+                1));
     given(auditRecorder.unalertedFindings(outcome)).willReturn(List.of());
 
     digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
@@ -279,7 +299,14 @@ class SebFundConfirmationDigestTest {
     SebFundConfirmationOutcome outcome =
         outcome(
             new SebFundConfirmationResult(
-                NOT_FOUND, List.of(), WITHIN_TOLERANCE, null, null, ON_TIME, 1));
+                NOT_FOUND,
+                List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
+                WITHIN_TOLERANCE,
+                null,
+                null,
+                ON_TIME,
+                1));
     willThrow(new IllegalStateException("slack down"))
         .given(notificationService)
         .sendMessage(any(), any());
@@ -293,6 +320,7 @@ class SebFundConfirmationDigestTest {
     return new SebFundConfirmationResult(
         MATCH,
         List.of(),
+        RegistryComparison.NOT_IN_REGISTRY,
         WITHIN_TOLERANCE,
         new BigDecimal("12.3456"),
         new BigDecimal("0.0006"),

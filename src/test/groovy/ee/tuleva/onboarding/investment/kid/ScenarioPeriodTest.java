@@ -328,6 +328,14 @@ class ScenarioPeriodTest {
   }
 
   @Test
+  void acceptsTooFewClosesInAWholeMonthBeforeTheRiskHistory() {
+    var prices = syntheticWithout(tuesdaysAndThursdaysFromUntil("2018-03-01", "2018-04-01"));
+
+    assertThat(TEN_YEARS.riskHistory(prices))
+        .isEqualTo(closesBetween(prices, "2021-09-30", "2026-09-30"));
+  }
+
+  @Test
   void acceptsTooFewClosesInTheMonthTheRiskHistoryStartsAtTheEndOf() {
     var prices = syntheticWithout(tuesdaysAndThursdaysFromUntil("2021-09-01", "2021-09-30"));
 

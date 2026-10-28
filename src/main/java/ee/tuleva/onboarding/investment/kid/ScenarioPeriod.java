@@ -69,7 +69,8 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
             .filter(price -> isWeekday(price.date()))
             .sorted(comparing(FundValue::date))
             .toList();
-    var riskHistory = fromTheFirstReturnsBase(closes);
+    var historyStart = riskHistoryStart();
+    var riskHistory = fromTheFirstReturnsBase(closes, historyStart);
     IntStream.range(1, riskHistory.size())
         .filter(i -> isLongerGapThanAMarketClosure(riskHistory.get(i - 1), riskHistory.get(i)))
         .findFirst()
@@ -79,7 +80,7 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
                   "Daily closes missing in the risk history: after=%s, next=%s"
                       .formatted(riskHistory.get(i - 1).date(), riskHistory.get(i).date()));
             });
-    completeMonthsOfTheRiskHistory()
+    completeMonthsFrom(historyStart)
         .filter(
             month ->
                 closesIn(riskHistory, month)
@@ -100,8 +101,8 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
     return fiveYearsBeforeTheEnd.isAfter(start) ? fiveYearsBeforeTheEnd : start;
   }
 
-  private List<FundValue> fromTheFirstReturnsBase(List<FundValue> closes) {
-    var historyStart = riskHistoryStart();
+  private static List<FundValue> fromTheFirstReturnsBase(
+      List<FundValue> closes, LocalDate historyStart) {
     return closes.stream()
         .filter(close -> !close.date().isAfter(historyStart))
         .max(comparing(FundValue::date))
@@ -117,14 +118,12 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
     return earlier.date().plusDays(CLOSE_STALE_AFTER_DAYS).isBefore(later.date());
   }
 
-  private Stream<YearMonth> completeMonthsOfTheRiskHistory() {
-    var historyStart = riskHistoryStart();
+  private Stream<YearMonth> completeMonthsFrom(LocalDate from) {
     return Stream.iterate(
-            YearMonth.from(historyStart),
+            YearMonth.from(from),
             month -> !month.isAfter(YearMonth.from(end)),
             month -> month.plusMonths(1))
-        .filter(
-            month -> !month.atDay(1).isBefore(historyStart) && !month.atEndOfMonth().isAfter(end));
+        .filter(month -> !month.atDay(1).isBefore(from) && !month.atEndOfMonth().isAfter(end));
   }
 
   private static long closesIn(List<FundValue> closes, YearMonth month) {

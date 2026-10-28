@@ -15,25 +15,27 @@ const languages = {
     required: [
       'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad laekuma automaatselt ja nende alguskuupäev on *|contributionStartDate|*.',
       'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
-      'Kogutud raha saad kasutada alates eelpensionieast ehk viis aastat enne vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Pärast taasliitumist ei saa sa raha enne seda teist korda välja võtta.',
+      'II&nbsp;samba vara saad kasutada alates eelpensionieast ehk viis aastat enne vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Kogutud raha on sinu oma ja seda saab pärandada.',
+      'Oma sissemakse suurust saad muuta igal aastal novembri lõpuni.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
       'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
       'Vaata II&nbsp;samba mõju I&nbsp;sambale',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
     fundBranches: {
-      stock: 'Sinu sissemaksed lähevad Tuleva Maailma Aktsiate Pensionifondi .',
-      bond: 'Sinu sissemaksed lähevad Tuleva Maailma Võlakirjade Pensionifondi .',
+      stock: 'Sinu sissemaksed lähevad Tuleva Maailma Aktsiate Pensionifondi.',
+      bond: 'Sinu sissemaksed lähevad Tuleva Maailma Võlakirjade Pensionifondi.',
       other: 'Sinu sissemaksed lähevad fondi LHV',
-      keptTuleva: 'Sinu sissemaksed lähevad edasi Tuleva fondi, milles kogusid ka varem.',
+      keptStock: 'Sinu sissemaksed lähevad jälle Tuleva Maailma Aktsiate Pensionifondi.',
+      keptBond: 'Sinu sissemaksed lähevad jälle Tuleva Maailma Võlakirjade Pensionifondi.',
       keptOther: 'Sinu sissemaksed lähevad fondi, milles kogusid ka varem.',
     },
     fundBranchByVariant: {
       'aktsiafond-6': 'stock',
       'volakirjafond-4': 'bond',
-      'muu-fond-korge-tasuga': 'other',
-      'muu-fond-madala-tasuga': 'other',
-      'jai-tuleva-fondi': 'keptTuleva',
+      'muu-fond': 'other',
+      'jai-tuleva-aktsiafondi': 'keptStock',
+      'jai-tuleva-volakirjafondi': 'keptBond',
       'jai-vanasse-fondi-2': 'keptOther',
     },
   },
@@ -57,7 +59,7 @@ const languages = {
   },
 };
 
-const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const text = (html) => html.replace(/<\/?strong>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 for (const [language, copy] of Object.entries(languages)) {
   const name = `second_pillar_rejoin_${language}`;
@@ -109,21 +111,13 @@ for (const [language, copy] of Object.entries(languages)) {
       }
     });
 
-    test(`${name}: names the payment rate and calls 6% the maximum tax benefit only at 6%`, () => {
+    test(`${name}: says the saver chose the rate only when they filed a rate application`, () => {
       const rendered = (vars) => text(renderMergeLanguage(html, vars));
-      const atSix = rendered({ paymentRate: 6, maxPaymentRate: true });
-      const atTwo = rendered({ paymentRate: 2, maxPaymentRate: false });
-      assert.ok(atSix.includes('Valisid II&nbsp;samba sissemaksete suuruseks 6% oma brutopalgast. See tähendab, et kasutad II&nbsp;samba maksuvõitu maksimaalselt.'));
-      assert.ok(atTwo.includes('Valisid II&nbsp;samba sissemaksete suuruseks 2% oma brutopalgast. Oma sissemakse suurust saad vajadusel muuta kord aastas.'));
-      assert.ok(!atTwo.includes('maksuvõitu maksimaalselt'));
-    });
-
-    test(`${name}: states the fee of another manager's fund only when it is high`, () => {
-      const rendered = (vars) => text(renderMergeLanguage(html, vars));
-      const other = { selectedOtherFund: true, selectedFundName: 'Fond X' };
-      const fee = 'jooksvad tasud on 1,1% aastas';
-      assert.ok(rendered({ ...other, selectedHighFeeFund: true, selectedFundFee: '1,1' }).includes(fee));
-      assert.ok(!rendered(other).includes('jooksvad tasud'));
+      const chosen = rendered({ paymentRateChange: true, paymentRate: 6 });
+      const onFile = rendered({ paymentRateChange: false, paymentRate: 2 });
+      assert.ok(chosen.includes('Valisid II&nbsp;samba sissemaksete suuruseks 6% oma brutopalgast.'));
+      assert.ok(onFile.includes('Sinu II&nbsp;samba sissemaksete suurus on 2% brutopalgast.'));
+      assert.ok(!onFile.includes('Valisid'));
     });
   }
 

@@ -15,7 +15,7 @@ class SebFundConfirmationImportJobScheduledTest {
   @MockitoBean SebFundConfirmationMissingFinder missingFinder;
   @MockitoBean SebFundConfirmationAuditRecorder auditRecorder;
   @MockitoBean SebFundConfirmationDigest digest;
-  @MockitoBean SebFundConfirmationNavDateWriter navDateWriter;
+  @MockitoBean SebFundConfirmationPricingDateWriter pricingDateWriter;
 
   @Test
   void cronExpressionsResolve() {}

@@ -32,7 +32,7 @@ class SebFundConfirmationImportJob {
   private final SebFundConfirmationVerificationService verificationService;
   private final SebFundConfirmationMissingFinder missingFinder;
   private final SebFundConfirmationAuditRecorder auditRecorder;
-  private final SebFundConfirmationNavDateWriter navDateWriter;
+  private final SebFundConfirmationPricingDateWriter pricingDateWriter;
   private final SebFundConfirmationDigest digest;
 
   @Scheduled(cron = IMPORT_BUSINESS_HOURS, zone = TIMEZONE)
@@ -59,7 +59,7 @@ class SebFundConfirmationImportJob {
             .flatMap(Optional::stream)
             .toList();
     outcomes.forEach(outcome -> record(outcome, failures));
-    latestByReference.values().forEach(confirmation -> writeNavDate(confirmation, failures));
+    latestByReference.values().forEach(confirmation -> writePricingDate(confirmation, failures));
 
     digest.publish(outcomes, missing(keys, failures), unreadable, failures);
     log.info(
@@ -146,11 +146,11 @@ class SebFundConfirmationImportJob {
     }
   }
 
-  private void writeNavDate(
+  private void writePricingDate(
       SebFundConfirmation confirmation, List<SebFundConfirmationCheckFailure> failures) {
     String reference = confirmation.tradeReference();
     try {
-      navDateWriter.write(confirmation);
+      pricingDateWriter.write(confirmation);
     } catch (OptimisticLockingFailureException e) {
       log.info(
           "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"

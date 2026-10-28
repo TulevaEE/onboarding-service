@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -50,6 +51,47 @@ class TransactionExecutionMapperTest {
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2026-05-11T10:26:04Z"));
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
     assertThat(execution.getModifiedBy()).isEqualTo("system:seb-reconciliation");
+  }
+
+  @Test
+  void toExecution_pricesAnEtfFillOnItsTradeDate() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderVenue(SEB)
+            .orderUuid(clientRef)
+            .build();
+
+    TransactionExecution execution =
+        mapper.toExecution(sampleRow(clientRef), order, LocalDate.of(2026, 5, 12));
+
+    assertThat(execution.getPricingDate()).isEqualTo(LocalDate.of(2026, 5, 11));
+  }
+
+  @Test
+  void applyTo_leavesAMutualFundsPricingDateToItsSebConfirmation() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TUK75)
+            .instrumentIsin("IE00BKPTWY98")
+            .transactionType(BUY)
+            .instrumentType(FUND)
+            .orderVenue(SEB)
+            .orderUuid(clientRef)
+            .build();
+    TransactionExecution confirmed =
+        TransactionExecution.builder().pricingDate(LocalDate.of(2026, 5, 12)).build();
+
+    mapper.applyTo(confirmed, sampleRow(clientRef), order);
+
+    assertThat(confirmed.getPricingDate()).isEqualTo(LocalDate.of(2026, 5, 12));
   }
 
   @Test

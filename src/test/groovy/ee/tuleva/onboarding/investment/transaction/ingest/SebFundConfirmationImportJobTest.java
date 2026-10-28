@@ -46,7 +46,7 @@ class SebFundConfirmationImportJobTest {
   @Mock private SebFundConfirmationMissingFinder missingFinder;
   @Mock private SebFundConfirmationAuditRecorder auditRecorder;
   @Mock private SebFundConfirmationDigest digest;
-  @Mock private SebFundConfirmationNavDateWriter navDateWriter;
+  @Mock private SebFundConfirmationPricingDateWriter pricingDateWriter;
 
   private SebFundConfirmationImportJob job;
 
@@ -59,7 +59,7 @@ class SebFundConfirmationImportJobTest {
             verificationService,
             missingFinder,
             auditRecorder,
-            navDateWriter,
+            pricingDateWriter,
             digest);
     given(s3Source.recentKeys()).willReturn(List.of(FIRST_KEY, SECOND_KEY));
     given(s3Source.get(FIRST_KEY)).willReturn(Optional.of(FIRST_PDF));
@@ -197,19 +197,19 @@ class SebFundConfirmationImportJobTest {
   void run_writesThePricingDateOfEveryConfirmationItRead() {
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000001"));
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(pricingDateWriter).should().write(confirmation("DLA0000001"));
+    then(pricingDateWriter).should().write(confirmation("DLA0000002"));
   }
 
   @Test
   void run_reportsAPricingDateThatCouldNotBeWrittenAndStillWritesTheOthers() {
     willThrow(new IllegalStateException("registry down"))
-        .given(navDateWriter)
+        .given(pricingDateWriter)
         .write(confirmation("DLA0000001"));
 
     job.run();
 
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
+    then(pricingDateWriter).should().write(confirmation("DLA0000002"));
     then(digest)
         .should()
         .publish(
@@ -224,7 +224,7 @@ class SebFundConfirmationImportJobTest {
   @Test
   void run_leavesAPricingDateForTheNextRunWhenTheExecutionChangedMeanwhile() {
     willThrow(new OptimisticLockingFailureException("execution changed"))
-        .given(navDateWriter)
+        .given(pricingDateWriter)
         .write(confirmation("DLA0000001"));
 
     job.run();

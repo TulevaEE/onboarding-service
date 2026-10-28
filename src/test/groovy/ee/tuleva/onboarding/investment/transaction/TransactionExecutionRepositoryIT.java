@@ -47,7 +47,7 @@ class TransactionExecutionRepositoryIT {
             .netSettlementAmount(new BigDecimal("70915.58"))
             .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
             .reportedDate(LocalDate.of(2026, 5, 12))
-            .navDate(LocalDate.of(2026, 5, 12))
+            .pricingDate(LocalDate.of(2026, 5, 12))
             .comment("test execution")
             .source("SEB_OOTEL")
             .sourceFileKey("seb/2026-05-13_pending_transactions.csv")
@@ -78,7 +78,7 @@ class TransactionExecutionRepositoryIT {
     assertThat(loaded.getNetSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(loaded.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
     assertThat(loaded.getReportedDate()).isEqualTo(LocalDate.of(2026, 5, 12));
-    assertThat(loaded.getNavDate()).isEqualTo(LocalDate.of(2026, 5, 12));
+    assertThat(loaded.getPricingDate()).isEqualTo(LocalDate.of(2026, 5, 12));
     assertThat(loaded.getComment()).isEqualTo("test execution");
     assertThat(loaded.getSource()).isEqualTo("SEB_OOTEL");
     assertThat(loaded.getSourceFileKey()).isEqualTo("seb/2026-05-13_pending_transactions.csv");

@@ -30,7 +30,7 @@ class SebFundConfirmationAuditRecorder {
   static final String MISSING_ALERTED = "SEB_FUND_CONFIRMATION_MISSING_ALERTED";
   static final String UNREADABLE_ALERTED = "SEB_FUND_CONFIRMATION_UNREADABLE_ALERTED";
   static final String CHECK_FAILURE_ALERTED = "SEB_FUND_CONFIRMATION_CHECK_FAILURE_ALERTED";
-  static final String NAV_DATE_SET = "SEB_FUND_CONFIRMATION_NAV_DATE_SET";
+  static final String PRICING_DATE_SET = "SEB_FUND_CONFIRMATION_PRICING_DATE_SET";
   private static final String SYSTEM_ACTOR = "system";
   private static final String STATUS = "status";
   private static final String FINDINGS = "findings";
@@ -95,19 +95,19 @@ class SebFundConfirmationAuditRecorder {
     return hasAlerted(UNREADABLE_ALERTED, unreadable.key());
   }
 
-  void recordNavDateSet(
+  void recordPricingDateSet(
       SebFundConfirmation confirmation,
       TransactionExecution execution,
-      @Nullable LocalDate replacedNavDate) {
+      @Nullable LocalDate replacedPricingDate) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("executionId", String.valueOf(execution.getId()));
-    payload.put("navDate", confirmation.pricingDate().toString());
-    if (replacedNavDate != null) {
-      payload.put("previousNavDate", replacedNavDate.toString());
+    payload.put("pricingDate", confirmation.pricingDate().toString());
+    if (replacedPricingDate != null) {
+      payload.put("previousPricingDate", replacedPricingDate.toString());
     }
     auditEventRepository.save(
         TransactionAuditEvent.builder()
-            .eventType(NAV_DATE_SET)
+            .eventType(PRICING_DATE_SET)
             .orderId(execution.getOrderId())
             .actor(SYSTEM_ACTOR)
             .dedupKey(confirmation.tradeReference())

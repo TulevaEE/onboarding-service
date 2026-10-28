@@ -30,7 +30,8 @@ class AmlServiceConfigurationTest {
               "test-api-token-of-at-least-thirty-two-characters",
               ofMillis(500),
               ofMillis(250));
-      var restClient = configuration.amlServiceRestClient(RestClient.builder(), properties);
+      var restClient =
+          AmlServiceConfiguration.amlServiceRestClient(RestClient.builder(), properties);
 
       assertThatThrownBy(
               () -> restClient.get().uri("/v1/risk-levels/tkf").retrieve().toBodilessEntity())
@@ -43,7 +44,7 @@ class AmlServiceConfigurationTest {
     var properties =
         new AmlServiceProperties(true, "https://aml-service.test", "", ofSeconds(5), ofSeconds(60));
 
-    assertThat(configuration.amlServiceRestClient(RestClient.builder(), properties)).isNotNull();
+    assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
 
   @Test
@@ -52,6 +53,6 @@ class AmlServiceConfigurationTest {
         new AmlServiceProperties(
             false, "https://aml-service.test", "", ofSeconds(5), ofSeconds(60));
 
-    assertThat(configuration.amlServiceRestClient(RestClient.builder(), properties)).isNotNull();
+    assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
 }

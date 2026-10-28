@@ -48,6 +48,7 @@ class ScheduledRiskLevelCheckJobTest {
       new AssessedRiskLevels(Instant.parse("2026-10-28T02:15:00Z"), List.of());
 
   private final RiskLevelService riskLevelService = mock(RiskLevelService.class);
+  private final AmlServiceRiskLevels amlServiceRiskLevels = mock(AmlServiceRiskLevels.class);
   private final AmlRiskReader amlRiskReader = mock(AmlRiskReader.class);
   private final TkfRiskReader tkfRiskReader = mock(TkfRiskReader.class);
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
@@ -97,6 +98,7 @@ class ScheduledRiskLevelCheckJobTest {
     new ApplicationContextRunner()
         .withUserConfiguration(ScheduledRiskLevelCheckJob.class)
         .withBean(RiskLevelService.class, () -> riskLevelService)
+        .withBean(AmlServiceRiskLevels.class, () -> amlServiceRiskLevels)
         .withBean(AmlRiskReader.class, () -> amlRiskReader)
         .withBean(TkfRiskReader.class, () -> tkfRiskReader)
         .withBean(AmlServiceProperties.class, () -> properties(false))
@@ -110,14 +112,15 @@ class ScheduledRiskLevelCheckJobTest {
     verify(riskLevelService).runRiskLevelCheck(EXPECTED_PROBABILITY);
     verify(riskLevelService).runTkfRiskLevelCheck(EXPECTED_PROBABILITY);
     verifyNoMoreInteractions(riskLevelService);
-    verifyNoInteractions(amlRiskReader, tkfRiskReader, eventPublisher);
+    verifyNoInteractions(amlServiceRiskLevels, amlRiskReader, tkfRiskReader, eventPublisher);
   }
 
   @Test
   void withoutAmlServiceDoesNothingAtHalfPastFive() {
     job(false).runFromAmlService();
 
-    verifyNoInteractions(riskLevelService, amlRiskReader, tkfRiskReader, eventPublisher);
+    verifyNoInteractions(
+        riskLevelService, amlServiceRiskLevels, amlRiskReader, tkfRiskReader, eventPublisher);
   }
 
   @Test
@@ -129,7 +132,7 @@ class ScheduledRiskLevelCheckJobTest {
     inOrder.verify(amlRiskReader).refreshAmlRiskMetadataView();
     inOrder.verify(tkfRiskReader).refreshMaterializedView();
     verifyNoMoreInteractions(amlRiskReader, tkfRiskReader);
-    verifyNoInteractions(riskLevelService, eventPublisher);
+    verifyNoInteractions(riskLevelService, amlServiceRiskLevels, eventPublisher);
   }
 
   @Test
@@ -194,25 +197,23 @@ class ScheduledRiskLevelCheckJobTest {
 
   @Test
   void withAmlServiceWritesBothPillarsFromAmlServiceAtHalfPastFiveAndNeverTouchesTheViews() {
-    given(riskLevelService.fetchThirdPillarRiskLevels()).willReturn(THIRD_PILLAR_RUN);
-    given(riskLevelService.fetchTkfRiskLevels()).willReturn(TKF_RUN);
+    given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
+    given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
 
     job(true).runFromAmlService();
 
     verify(riskLevelService).writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
     verify(riskLevelService).writeTkfRiskLevels(TKF_RUN);
-    verify(riskLevelService).fetchThirdPillarRiskLevels();
-    verify(riskLevelService).fetchTkfRiskLevels();
     verifyNoMoreInteractions(riskLevelService);
     verifyNoInteractions(amlRiskReader, tkfRiskReader, eventPublisher);
   }
 
   @Test
   void withAmlServiceFallsBackToTheViewsFlowForTheTkfFetchThatFailed() {
-    given(riskLevelService.fetchThirdPillarRiskLevels()).willReturn(THIRD_PILLAR_RUN);
+    given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
     willThrow(new RiskLevelsRefusedException("Refusing: family=tkf"))
-        .given(riskLevelService)
-        .fetchTkfRiskLevels();
+        .given(amlServiceRiskLevels)
+        .fetchTkf();
 
     job(true).runFromAmlService();
 
@@ -229,9 +230,9 @@ class ScheduledRiskLevelCheckJobTest {
   @Test
   void withAmlServiceFallsBackToTheViewsFlowForTheThirdPillarFetchThatFailed() {
     willThrow(new RiskLevelsRefusedException("Refusing: family=third-pillar"))
-        .given(riskLevelService)
-        .fetchThirdPillarRiskLevels();
-    given(riskLevelService.fetchTkfRiskLevels()).willReturn(TKF_RUN);
+        .given(amlServiceRiskLevels)
+        .fetchThirdPillar();
+    given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
 
     job(true).runFromAmlService();
 
@@ -246,8 +247,8 @@ class ScheduledRiskLevelCheckJobTest {
 
   @Test
   void withAmlServiceAFailedWriteIsReportedAsFailedAndDoesNotFallBack() {
-    given(riskLevelService.fetchThirdPillarRiskLevels()).willReturn(THIRD_PILLAR_RUN);
-    given(riskLevelService.fetchTkfRiskLevels()).willReturn(TKF_RUN);
+    given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
+    given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
     willThrow(new IllegalStateException("database unavailable"))
         .given(riskLevelService)
         .writeTkfRiskLevels(TKF_RUN);
@@ -263,10 +264,10 @@ class ScheduledRiskLevelCheckJobTest {
 
   @Test
   void withAmlServiceReportsTheFallbacksOwnFailureWhenItFailsToo() {
-    given(riskLevelService.fetchThirdPillarRiskLevels()).willReturn(THIRD_PILLAR_RUN);
+    given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
     willThrow(new RiskLevelsRefusedException("Refusing: family=tkf"))
-        .given(riskLevelService)
-        .fetchTkfRiskLevels();
+        .given(amlServiceRiskLevels)
+        .fetchTkf();
     willThrow(new IllegalStateException("view read failed"))
         .given(riskLevelService)
         .runTkfRiskLevelCheck(anyDouble());
@@ -283,9 +284,9 @@ class ScheduledRiskLevelCheckJobTest {
   @Test
   void withAmlServiceStillFallsBackAndRunsTkfWhenTheFallbackCannotBeReported() {
     willThrow(new RiskLevelsRefusedException("Refusing: family=third-pillar"))
-        .given(riskLevelService)
-        .fetchThirdPillarRiskLevels();
-    given(riskLevelService.fetchTkfRiskLevels()).willReturn(TKF_RUN);
+        .given(amlServiceRiskLevels)
+        .fetchThirdPillar();
+    given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
     willThrow(new IllegalStateException("Slack unavailable"))
         .given(eventPublisher)
         .publishEvent(any(Object.class));
@@ -298,9 +299,7 @@ class ScheduledRiskLevelCheckJobTest {
 
   @Test
   void reportsOnlyTheStatusOfAServerErrorWhoseBodyNamesAPersonAndAToken() {
-    willThrow(errorFromAmlService(INTERNAL_SERVER_ERROR))
-        .given(riskLevelService)
-        .fetchTkfRiskLevels();
+    willThrow(errorFromAmlService(INTERNAL_SERVER_ERROR)).given(amlServiceRiskLevels).fetchTkf();
 
     job(true).runFromAmlService();
 
@@ -309,7 +308,7 @@ class ScheduledRiskLevelCheckJobTest {
 
   @Test
   void reportsOnlyTheStatusOfAClientErrorWhoseBodyNamesAPersonAndAToken() {
-    willThrow(errorFromAmlService(NOT_FOUND)).given(riskLevelService).fetchTkfRiskLevels();
+    willThrow(errorFromAmlService(NOT_FOUND)).given(amlServiceRiskLevels).fetchTkf();
 
     job(true).runFromAmlService();
 
@@ -322,8 +321,8 @@ class ScheduledRiskLevelCheckJobTest {
             new ResourceAccessException(
                 "I/O error on GET request for \"https://aml-service.test/v1/risk-levels/tkf\":"
                     + " request timed out"))
-        .given(riskLevelService)
-        .fetchTkfRiskLevels();
+        .given(amlServiceRiskLevels)
+        .fetchTkf();
 
     job(true).runFromAmlService();
 
@@ -334,8 +333,8 @@ class ScheduledRiskLevelCheckJobTest {
   @Test
   void reportsOnlyTheClassOfAnUnexpectedFailure() {
     willThrow(new IllegalStateException("anything at all"))
-        .given(riskLevelService)
-        .fetchThirdPillarRiskLevels();
+        .given(amlServiceRiskLevels)
+        .fetchThirdPillar();
 
     job(true).runFromAmlService();
 
@@ -346,6 +345,7 @@ class ScheduledRiskLevelCheckJobTest {
   private ScheduledRiskLevelCheckJob job(boolean amlServiceEnabled) {
     return new ScheduledRiskLevelCheckJob(
         riskLevelService,
+        amlServiceRiskLevels,
         amlRiskReader,
         tkfRiskReader,
         eventPublisher,

@@ -20,6 +20,7 @@ import org.springframework.web.client.RestClientResponseException;
 public class ScheduledRiskLevelCheckJob {
 
   private final RiskLevelService riskLevelService;
+  private final AmlServiceRiskLevels amlServiceRiskLevels;
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
   private final ApplicationEventPublisher eventPublisher;
@@ -68,12 +69,12 @@ public class ScheduledRiskLevelCheckJob {
     log.info("Starting AML risk level check job from aml-service");
     runFromAmlService(
         "III pillar",
-        riskLevelService::fetchThirdPillarRiskLevels,
+        amlServiceRiskLevels::fetchThirdPillar,
         riskLevelService::writeThirdPillarRiskLevels,
         () -> riskLevelService.runRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN));
     runFromAmlService(
         "TKF",
-        riskLevelService::fetchTkfRiskLevels,
+        amlServiceRiskLevels::fetchTkf,
         riskLevelService::writeTkfRiskLevels,
         () -> riskLevelService.runTkfRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN));
     log.info("Finished AML risk level check job from aml-service");

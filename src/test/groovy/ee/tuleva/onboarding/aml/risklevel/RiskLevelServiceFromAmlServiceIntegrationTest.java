@@ -37,10 +37,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.retry.RetryTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.HttpClientErrorException;
@@ -49,7 +47,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @DataJpaTest
-@Import({RiskLevelService.class, AmlServiceClient.class})
+@Import({RiskLevelService.class, AmlServiceRiskLevels.class})
 class RiskLevelServiceFromAmlServiceIntegrationTest {
 
   private static final String BASE_URL = "https://aml-service.test";
@@ -74,14 +72,13 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
       """;
 
   @Autowired RiskLevelService riskLevelService;
+  @Autowired AmlServiceRiskLevels amlServiceRiskLevels;
   @MockitoBean AmlRiskReader amlRiskReader;
   @MockitoBean TkfRiskReader tkfRiskReader;
   @Autowired AmlCheckRepository amlCheckRepository;
   @Autowired TestEntityManager entityManager;
   @Autowired MockRestServiceServer server;
   @Autowired RestClient amlServiceRestClient;
-  @Autowired RetryTemplate amlServiceRetryTemplate;
-  @Autowired ApplicationEventPublisher eventPublisher;
 
   @BeforeEach
   void setUp() {
@@ -98,7 +95,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   void storesTheThirdPillarCheckTheMaterializedViewWouldHaveGivenForTheSameValues() {
     respond("third-pillar", TODAYS_RUN, "HIGH", THIRD_PILLAR_VIEW_METADATA);
 
-    riskLevelService.writeThirdPillarRiskLevels(riskLevelService.fetchThirdPillarRiskLevels());
+    riskLevelService.writeThirdPillarRiskLevels(amlServiceRiskLevels.fetchThirdPillar());
     entityManager.flush();
     entityManager.clear();
 
@@ -121,7 +118,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   void storesTheTkfCheckTheMaterializedViewWouldHaveGivenForTheSameValues() {
     respond("tkf", TODAYS_RUN, "HIGH", TKF_VIEW_METADATA);
 
-    riskLevelService.writeTkfRiskLevels(riskLevelService.fetchTkfRiskLevels());
+    riskLevelService.writeTkfRiskLevels(amlServiceRiskLevels.fetchTkf());
     entityManager.flush();
     entityManager.clear();
 
@@ -143,7 +140,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
     persistFailedCheck(RISK_LEVEL, metadataAsReadFromTheView(THIRD_PILLAR_VIEW_METADATA, 1));
     respond("third-pillar", TODAYS_RUN, "HIGH", THIRD_PILLAR_VIEW_METADATA);
 
-    riskLevelService.writeThirdPillarRiskLevels(riskLevelService.fetchThirdPillarRiskLevels());
+    riskLevelService.writeThirdPillarRiskLevels(amlServiceRiskLevels.fetchThirdPillar());
 
     assertThat(amlCheckRepository.findAll()).hasSize(1);
     server.verify();
@@ -154,7 +151,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
     persistFailedCheck(TKF_RISK_LEVEL, metadataAsReadFromTheView(TKF_VIEW_METADATA, 1));
     respond("tkf", TODAYS_RUN, "HIGH", TKF_VIEW_METADATA);
 
-    riskLevelService.writeTkfRiskLevels(riskLevelService.fetchTkfRiskLevels());
+    riskLevelService.writeTkfRiskLevels(amlServiceRiskLevels.fetchTkf());
 
     assertThat(amlCheckRepository.findAll()).hasSize(1);
     server.verify();
@@ -168,7 +165,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
     ClockHolder.setClock(now);
     respond("tkf", TODAYS_RUN, "HIGH", TKF_VIEW_METADATA);
 
-    riskLevelService.writeTkfRiskLevels(riskLevelService.fetchTkfRiskLevels());
+    riskLevelService.writeTkfRiskLevels(amlServiceRiskLevels.fetchTkf());
 
     assertThat(amlCheckRepository.findAll()).hasSize(2);
     server.verify();
@@ -186,7 +183,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
     entityManager.clear();
     respond("tkf", TODAYS_RUN, "HIGH", TKF_VIEW_METADATA);
 
-    riskLevelService.writeTkfRiskLevels(riskLevelService.fetchTkfRiskLevels());
+    riskLevelService.writeTkfRiskLevels(amlServiceRiskLevels.fetchTkf());
 
     assertThat(amlCheckRepository.findAll()).hasSize(2);
     server.verify();
@@ -196,7 +193,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   void writesNothingFromAnotherDaysRun() {
     respond("tkf", YESTERDAYS_RUN, "HIGH", TKF_VIEW_METADATA);
 
-    assertThatThrownBy(riskLevelService::fetchTkfRiskLevels)
+    assertThatThrownBy(amlServiceRiskLevels::fetchTkf)
         .isInstanceOf(RiskLevelsRefusedException.class);
 
     assertThat(amlCheckRepository.findAll()).isEmpty();
@@ -207,7 +204,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   void writesNothingBeforeTheFamilysFirstRun() {
     server.expect(once(), requestTo(url("tkf"))).andRespond(withResourceNotFound());
 
-    assertThatThrownBy(riskLevelService::fetchTkfRiskLevels)
+    assertThatThrownBy(amlServiceRiskLevels::fetchTkf)
         .isInstanceOf(HttpClientErrorException.NotFound.class);
 
     assertThat(amlCheckRepository.findAll()).isEmpty();
@@ -218,8 +215,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   void writesNothingWhenAmlServiceFails() {
     server.expect(times(2), requestTo(url("tkf"))).andRespond(withServerError());
 
-    assertThatThrownBy(riskLevelService::fetchTkfRiskLevels)
-        .isInstanceOf(HttpServerErrorException.class);
+    assertThatThrownBy(amlServiceRiskLevels::fetchTkf).isInstanceOf(HttpServerErrorException.class);
 
     assertThat(amlCheckRepository.findAll()).isEmpty();
     server.verify();
@@ -231,8 +227,7 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
         .expect(times(2), requestTo(url("tkf")))
         .andRespond(withException(new HttpTimeoutException("request timed out")));
 
-    assertThatThrownBy(riskLevelService::fetchTkfRiskLevels)
-        .isInstanceOf(ResourceAccessException.class);
+    assertThatThrownBy(amlServiceRiskLevels::fetchTkf).isInstanceOf(ResourceAccessException.class);
 
     assertThat(amlCheckRepository.findAll()).isEmpty();
     server.verify();
@@ -241,19 +236,14 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
   @Test
   void asksNothingAndWritesNothingWithoutAnApiToken() {
     var withoutApiToken =
-        new RiskLevelService(
-            amlRiskReader,
-            tkfRiskReader,
+        new AmlServiceRiskLevels(
             new AmlServiceClient(
                 amlServiceRestClient,
-                amlServiceRetryTemplate,
+                AmlServiceConfiguration.amlServiceRetryTemplate(),
                 new AmlServiceProperties(true, BASE_URL, "", ofSeconds(5), ofSeconds(60))),
-            amlCheckRepository,
-            eventPublisher,
             TestClockHolder.clock);
 
-    assertThatThrownBy(withoutApiToken::fetchTkfRiskLevels)
-        .isInstanceOf(RiskLevelsRefusedException.class);
+    assertThatThrownBy(withoutApiToken::fetchTkf).isInstanceOf(RiskLevelsRefusedException.class);
 
     assertThat(amlCheckRepository.findAll()).isEmpty();
     server.verify();
@@ -322,13 +312,11 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
     }
 
     @Bean
-    RetryTemplate amlServiceRetryTemplate() {
-      return new AmlServiceConfiguration().amlServiceRetryTemplate();
-    }
-
-    @Bean
-    AmlServiceProperties amlServiceProperties() {
-      return new AmlServiceProperties(true, BASE_URL, API_TOKEN, ofSeconds(5), ofSeconds(60));
+    AmlServiceClient amlServiceClient(RestClient amlServiceRestClient) {
+      return new AmlServiceClient(
+          amlServiceRestClient,
+          AmlServiceConfiguration.amlServiceRetryTemplate(),
+          new AmlServiceProperties(true, BASE_URL, API_TOKEN, ofSeconds(5), ofSeconds(60)));
     }
 
     @Bean

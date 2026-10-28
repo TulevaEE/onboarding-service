@@ -10,7 +10,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
@@ -30,11 +29,8 @@ import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureJdbc;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +45,6 @@ class RiskLevelServiceIntegrationTest {
   @Autowired JdbcClient jdbcClient;
   @MockitoSpyBean AmlRiskReader amlRiskReader;
   @MockitoSpyBean TkfRiskReader tkfRiskReader;
-  @MockitoBean AmlServiceClient amlServiceClient;
 
   private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
   private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
@@ -440,22 +435,5 @@ class RiskLevelServiceIntegrationTest {
     List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
-  }
-
-  @Test
-  void viewChecksNeverAskAmlService() {
-    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
-    riskLevelService.runTkfRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
-
-    verifyNoInteractions(amlServiceClient);
-  }
-
-  @TestConfiguration
-  static class ClockConfiguration {
-
-    @Bean
-    Clock clock() {
-      return TestClockHolder.clock;
-    }
   }
 }

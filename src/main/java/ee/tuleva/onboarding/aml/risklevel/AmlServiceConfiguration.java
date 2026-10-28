@@ -21,21 +21,26 @@ import org.springframework.web.client.RestClient;
 class AmlServiceConfiguration {
 
   @Bean
-  RestClient amlServiceRestClient(RestClient.Builder builder, AmlServiceProperties properties) {
+  AmlServiceClient amlServiceClient(RestClient.Builder builder, AmlServiceProperties properties) {
     if (properties.enabled() && properties.configuredApiToken().isEmpty()) {
       log.warn(
           "aml-service API token is not configured, so the 05:30 risk level run falls back to the"
               + " materialized views each night until it is: missing=api-token"
               + " (AML_SERVICE_API_TOKEN)");
     }
+    return new AmlServiceClient(
+        amlServiceRestClient(builder, properties), amlServiceRetryTemplate(), properties);
+  }
+
+  static RestClient amlServiceRestClient(
+      RestClient.Builder builder, AmlServiceProperties properties) {
     var httpClient = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build();
     var requestFactory = new JdkClientHttpRequestFactory(httpClient);
     requestFactory.setReadTimeout(properties.readTimeout());
     return builder.baseUrl(properties.url()).requestFactory(requestFactory).build();
   }
 
-  @Bean
-  RetryTemplate amlServiceRetryTemplate() {
+  static RetryTemplate amlServiceRetryTemplate() {
     var policy =
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)

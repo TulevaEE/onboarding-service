@@ -15,7 +15,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
@@ -43,7 +42,6 @@ class RiskLevelServiceTest {
 
   private AmlRiskReader amlRiskReader;
   private TkfRiskReader tkfRiskReader;
-  private AmlServiceClient amlServiceClient;
   private AmlCheckRepository amlCheckRepository;
   private ApplicationEventPublisher eventPublisher;
   private RiskLevelService riskLevelService;
@@ -54,18 +52,11 @@ class RiskLevelServiceTest {
   void setUp() {
     amlRiskReader = mock(AmlRiskReader.class);
     tkfRiskReader = mock(TkfRiskReader.class);
-    amlServiceClient = mock(AmlServiceClient.class);
     amlCheckRepository = mock(AmlCheckRepository.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
     ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
-        new RiskLevelService(
-            amlRiskReader,
-            tkfRiskReader,
-            amlServiceClient,
-            amlCheckRepository,
-            eventPublisher,
-            TestClockHolder.clock);
+        new RiskLevelService(amlRiskReader, tkfRiskReader, amlCheckRepository, eventPublisher);
 
     when(amlRiskReader.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskReader.getMediumRiskRowsSample(anyDouble())).thenReturn(Collections.emptyList());
@@ -506,14 +497,6 @@ class RiskLevelServiceTest {
     assertEquals(0, jobRunEvent.getMediumRiskRowCount());
     assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
-  }
-
-  @Test
-  void viewChecksNeverAskAmlService() {
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
-    riskLevelService.runTkfRiskLevelCheck(SOME_TEST_PROBABILITY);
-
-    verifyNoInteractions(amlServiceClient);
   }
 
   // --- TKF risk level check tests ---

@@ -10,10 +10,7 @@ import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,20 +29,13 @@ public class RiskLevelService implements RiskLevels {
 
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
-  private final AmlServiceClient amlServiceClient;
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final Clock clock;
 
   private static final int HIGH_RISK_LEVEL = 1;
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
-  }
-
-  AssessedRiskLevels fetchThirdPillarRiskLevels() {
-    return fetchFromAmlService("third-pillar");
   }
 
   void writeThirdPillarRiskLevels(AssessedRiskLevels riskLevels) {
@@ -105,10 +95,6 @@ public class RiskLevelService implements RiskLevels {
     scorePillar("TKF", tkfRiskReader, TKF_RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
-  AssessedRiskLevels fetchTkfRiskLevels() {
-    return fetchFromAmlService("tkf");
-  }
-
   void writeTkfRiskLevels(AssessedRiskLevels riskLevels) {
     writeFromAmlService("TKF", TKF_RISK_LEVEL, riskLevels);
   }
@@ -128,13 +114,6 @@ public class RiskLevelService implements RiskLevels {
         mediumRiskSamples.size());
 
     writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
-  }
-
-  private AssessedRiskLevels fetchFromAmlService(String family) {
-    log.info("Fetching risk levels from aml-service: family={}", family);
-    AssessedRiskLevels riskLevels = amlServiceClient.riskLevels(family);
-    requireAssessedToday(family, riskLevels.assessedAt());
-    return riskLevels;
   }
 
   private void writeFromAmlService(
@@ -172,20 +151,6 @@ public class RiskLevelService implements RiskLevels {
     eventPublisher.publishEvent(
         new AmlRiskLevelJobRunEvent(
             this, label, highRiskRows.size(), mediumRiskSamples.size(), createdCount));
-  }
-
-  private void requireAssessedToday(String family, Instant assessedAt) {
-    LocalDate today = LocalDate.ofInstant(clock.instant(), TALLINN);
-    LocalDate assessedOn = LocalDate.ofInstant(assessedAt, TALLINN);
-    if (!assessedOn.equals(today)) {
-      throw new RiskLevelsRefusedException(
-          "Refusing risk levels not assessed on the job's Tallinn date: family="
-              + family
-              + ", assessedAt="
-              + assessedAt
-              + ", today="
-              + today);
-    }
   }
 
   private AmlCheck buildAmlCheck(RiskLevelResult row, AmlCheckType checkType) {

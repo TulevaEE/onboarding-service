@@ -253,7 +253,7 @@ class AmlServiceClientTest {
   private AmlServiceClient client(@Nullable String apiToken) {
     return new AmlServiceClient(
         amlServiceRestClient,
-        new AmlServiceConfiguration().amlServiceRetryTemplate(),
+        AmlServiceConfiguration.amlServiceRetryTemplate(),
         new AmlServiceProperties(true, BASE_URL, apiToken, ofSeconds(5), ofSeconds(60)));
   }
 }

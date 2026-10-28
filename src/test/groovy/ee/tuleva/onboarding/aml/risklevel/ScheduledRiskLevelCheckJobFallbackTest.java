@@ -59,16 +59,11 @@ class ScheduledRiskLevelCheckJobFallbackTest {
         publishedEvents.add(event);
       };
   private final RiskLevelService riskLevelService =
-      new RiskLevelService(
-          amlRiskReader,
-          tkfRiskReader,
-          amlServiceClient,
-          amlCheckRepository,
-          eventPublisher,
-          AT_HALF_PAST_FIVE);
+      new RiskLevelService(amlRiskReader, tkfRiskReader, amlCheckRepository, eventPublisher);
   private final ScheduledRiskLevelCheckJob job =
       new ScheduledRiskLevelCheckJob(
           riskLevelService,
+          new AmlServiceRiskLevels(amlServiceClient, AT_HALF_PAST_FIVE),
           amlRiskReader,
           tkfRiskReader,
           eventPublisher,

@@ -41,6 +41,7 @@ class SebFundConfirmationDigest {
       List<SebFundConfirmationOutcome> outcomes,
       List<MissingSebFundConfirmation> missing,
       List<UnreadableSebFundConfirmation> unreadable,
+      List<MisnamedSebFundConfirmation> misnamed,
       List<SebFundConfirmationCheckFailure> failures) {
     List<NewFindings> newFindings =
         outcomes.stream()
@@ -52,11 +53,14 @@ class SebFundConfirmationDigest {
         missing.stream().filter(trade -> !auditRecorder.alreadyAlerted(trade)).toList();
     List<UnreadableSebFundConfirmation> newUnreadable =
         unreadable.stream().filter(file -> !auditRecorder.alreadyAlerted(file)).toList();
+    List<MisnamedSebFundConfirmation> newMisnamed =
+        misnamed.stream().filter(file -> !auditRecorder.alreadyAlerted(file)).toList();
 
     List<String> blocks = new ArrayList<>();
     newFindings.forEach(found -> blocks.addAll(blocks(found.outcome(), found.findings())));
     newMissing.forEach(trade -> blocks.add(block(trade)));
     newUnreadable.forEach(file -> blocks.add(block(file)));
+    newMisnamed.forEach(file -> blocks.add(block(file)));
     List<SebFundConfirmationCheckFailure> newFailures =
         failures.stream().filter(failure -> !auditRecorder.alreadyAlertedToday(failure)).toList();
     newFailures.forEach(failure -> blocks.add(block(failure)));
@@ -68,6 +72,7 @@ class SebFundConfirmationDigest {
       newFindings.forEach(found -> auditRecorder.recordAlerted(found.outcome(), found.findings()));
       newMissing.forEach(auditRecorder::recordAlerted);
       newUnreadable.forEach(auditRecorder::recordAlerted);
+      newMisnamed.forEach(auditRecorder::recordAlerted);
       newFailures.forEach(auditRecorder::recordAlerted);
     } catch (RuntimeException e) {
       log.error(
@@ -173,6 +178,18 @@ class SebFundConfirmationDigest {
         "SEB tehingukinnitust ei õnnestunud lugeda: " + unreadable.key(),
         "Põhjus: " + unreadable.reason(),
         "Kontrolli PDF-i käsitsi");
+  }
+
+  private static String block(MisnamedSebFundConfirmation misnamed) {
+    return lines(
+        "SEB tehingukinnituse failinimi ja sisu ei klapi: " + misnamed.key(),
+        "Failinimi viitab tehingule "
+            + misnamed.nameReference()
+            + ", PDF-is on tehing "
+            + misnamed.contentReference(),
+        "Kontrolli funds@ postkastist, kas tehingu "
+            + misnamed.nameReference()
+            + " kinnitus on olemas");
   }
 
   private static String block(SebFundConfirmationCheckFailure failure) {

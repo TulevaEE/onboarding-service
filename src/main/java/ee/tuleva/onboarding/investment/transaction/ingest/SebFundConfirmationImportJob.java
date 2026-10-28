@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.IMPORT_BUSINESS_HOURS;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,15 +43,9 @@ class SebFundConfirmationImportJob {
   public void run() {
     List<SebFundConfirmationCheckFailure> failures = new ArrayList<>();
     List<String> keys = recentKeys(failures);
-    Map<String, SebFundConfirmation> latestByReference = new LinkedHashMap<>();
-    List<UnreadableSebFundConfirmation> unreadable = new ArrayList<>();
-    keys.forEach(
-        key ->
-            download(key, failures)
-                .flatMap(bytes -> parse(key, bytes, unreadable))
-                .ifPresent(
-                    confirmation ->
-                        latestByReference.put(confirmation.tradeReference(), confirmation)));
+    Uploads uploads = new Uploads();
+    keys.forEach(key -> read(key, uploads, failures));
+    Map<String, SebFundConfirmation> latestByReference = uploads.latestByReference();
 
     List<SebFundConfirmationOutcome> outcomes =
         latestByReference.values().stream()
@@ -61,15 +55,39 @@ class SebFundConfirmationImportJob {
     outcomes.forEach(outcome -> record(outcome, failures));
     latestByReference.values().forEach(confirmation -> writeNavDate(confirmation, failures));
 
-    digest.publish(outcomes, missing(keys, failures), unreadable, failures);
+    digest.publish(
+        outcomes,
+        missing(uploads.confirmedReferences(), failures),
+        uploads.unreadable(),
+        uploads.misnamed(),
+        failures);
     log.info(
         "SEB fund confirmation check completed: objectCount={}, tradeCount={}, verifiedCount={},"
-            + " unreadableCount={}, failureCount={}",
+            + " unreadableCount={}, misnamedCount={}, failureCount={}",
         keys.size(),
         latestByReference.size(),
         outcomes.size(),
-        unreadable.size(),
+        uploads.unreadable().size(),
+        uploads.misnamed().size(),
         failures.size());
+  }
+
+  private void read(String key, Uploads uploads, List<SebFundConfirmationCheckFailure> failures) {
+    String nameReference = SebFundConfirmationS3Source.tradeReference(key);
+    Optional<SebFundConfirmation> confirmation =
+        download(key, failures).flatMap(bytes -> parse(key, bytes, uploads.unreadable()));
+    uploads
+        .confirmedReferences()
+        .add(confirmation.map(SebFundConfirmation::tradeReference).orElse(nameReference));
+    confirmation.ifPresent(
+        read -> {
+          if (!nameReference.equals(read.tradeReference())) {
+            uploads
+                .misnamed()
+                .add(new MisnamedSebFundConfirmation(key, nameReference, read.tradeReference()));
+          }
+          uploads.latestByReference().put(read.tradeReference(), read);
+        });
   }
 
   private List<String> recentKeys(List<SebFundConfirmationCheckFailure> failures) {
@@ -169,11 +187,9 @@ class SebFundConfirmationImportJob {
   }
 
   private List<MissingSebFundConfirmation> missing(
-      List<String> keys, List<SebFundConfirmationCheckFailure> failures) {
-    Set<String> uploadedReferences =
-        keys.stream().map(SebFundConfirmationS3Source::tradeReference).collect(toSet());
+      Set<String> confirmedReferences, List<SebFundConfirmationCheckFailure> failures) {
     try {
-      SebFundConfirmationMissingScan scan = missingFinder.find(uploadedReferences);
+      SebFundConfirmationMissingScan scan = missingFinder.find(Set.copyOf(confirmedReferences));
       scan.incompleteReportsFailure().ifPresent(failures::add);
       return scan.missing().stream()
           .filter(trade -> !auditRecorder.wasVerified(trade.tradeReference()))
@@ -187,5 +203,16 @@ class SebFundConfirmationImportJob {
 
   private static String reason(RuntimeException e) {
     return Objects.requireNonNullElse(e.getMessage(), e.getClass().getSimpleName());
+  }
+
+  private record Uploads(
+      Map<String, SebFundConfirmation> latestByReference,
+      Set<String> confirmedReferences,
+      List<UnreadableSebFundConfirmation> unreadable,
+      List<MisnamedSebFundConfirmation> misnamed) {
+
+    Uploads() {
+      this(new LinkedHashMap<>(), new HashSet<>(), new ArrayList<>(), new ArrayList<>());
+    }
   }
 }

@@ -93,4 +93,13 @@ class SebFundConfirmationAuditRecorderTest {
 
     assertThat(recorder.alreadyAlerted(unreadable)).isFalse();
   }
+
+  @Test
+  void alreadyAlerted_treatsAMisnamedPdfAsNotAlertedWhenTheAlertHistoryCannotBeRead() {
+    MisnamedSebFundConfirmation misnamed =
+        new MisnamedSebFundConfirmation(
+            "seb-confirmations/DLA0000002-001.pdf", "DLA0000002", "DLA0000001");
+
+    assertThat(recorder.alreadyAlerted(misnamed)).isFalse();
+  }
 }

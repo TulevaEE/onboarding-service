@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.ALERTED;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.MISNAMED_ALERTED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.MISSING_ALERTED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationAuditRecorder.VERIFIED;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationPdfs.buyFields;
@@ -253,6 +254,53 @@ class SebFundConfirmationImportJobIT {
             Tehing DLA0000002 on SEB ootel tehingute raportis, kogus 1000
             Kontrolli funds@ postkasti ja küsi kinnitust SEB-lt""",
             INVESTMENT);
+  }
+
+  @Test
+  void run_countsAConfirmationForTheTradeItsPdfHoldsAndSaysWhenTheFileNameDisagrees() {
+    s3Holds("seb-confirmations/DLA0000002-001.pdf", confirmation(fieldsForFirstTrade()));
+    insertNav(LocalDate.of(2026, 1, 6), "12.4000");
+    saveReport(
+        LocalDate.of(2026, 1, 7),
+        List.of(pendingRow("DLA0000001", "12.40000000"), pendingRow("DLA0000002", "12.30000000")));
+
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            TUK75 IE00BKPTWY98 ost 05.01.2026: SEB tehingukinnitust pole 2 tööpäeva järel
+            Tehing DLA0000002 on SEB ootel tehingute raportis, kogus 1000
+            Kontrolli funds@ postkasti ja küsi kinnitust SEB-lt
+
+            SEB tehingukinnituse failinimi ja sisu ei klapi: seb-confirmations/DLA0000002-001.pdf
+            Failinimi viitab tehingule DLA0000002, PDF-is on tehing DLA0000001
+            Kontrolli funds@ postkastist, kas tehingu DLA0000002 kinnitus on olemas""",
+            INVESTMENT);
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("status", "[MATCH, WITHIN_TOLERANCE, ON_TIME]"));
+  }
+
+  @Test
+  void run_saysOnceThatAFileNameDisagreesWithItsPdf() {
+    s3Holds("seb-confirmations/DLA0000002-001.pdf", confirmation(fieldsForFirstTrade()));
+    insertNav(LocalDate.of(2026, 1, 6), "12.4000");
+
+    job.run();
+    runAgainFromWhatTheDatabaseHolds();
+
+    then(notificationService).should(times(1)).sendMessage(any(), any());
+    assertThat(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                MISNAMED_ALERTED, "seb-confirmations/DLA0000002-001.pdf"))
+        .hasSize(1);
   }
 
   @Test

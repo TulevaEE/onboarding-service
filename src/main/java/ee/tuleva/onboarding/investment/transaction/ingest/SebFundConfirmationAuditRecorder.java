@@ -29,6 +29,7 @@ class SebFundConfirmationAuditRecorder {
   static final String ALERTED = "SEB_FUND_CONFIRMATION_ALERTED";
   static final String MISSING_ALERTED = "SEB_FUND_CONFIRMATION_MISSING_ALERTED";
   static final String UNREADABLE_ALERTED = "SEB_FUND_CONFIRMATION_UNREADABLE_ALERTED";
+  static final String MISNAMED_ALERTED = "SEB_FUND_CONFIRMATION_MISNAMED_ALERTED";
   static final String CHECK_FAILURE_ALERTED = "SEB_FUND_CONFIRMATION_CHECK_FAILURE_ALERTED";
   static final String NAV_DATE_SET = "SEB_FUND_CONFIRMATION_NAV_DATE_SET";
   private static final String SYSTEM_ACTOR = "system";
@@ -154,6 +155,20 @@ class SebFundConfirmationAuditRecorder {
 
   void recordAlerted(UnreadableSebFundConfirmation unreadable) {
     save(UNREADABLE_ALERTED, unreadable.key(), SYSTEM_ACTOR, Map.of("reason", unreadable.reason()));
+  }
+
+  boolean alreadyAlerted(MisnamedSebFundConfirmation misnamed) {
+    return hasAlerted(MISNAMED_ALERTED, misnamed.key());
+  }
+
+  void recordAlerted(MisnamedSebFundConfirmation misnamed) {
+    save(
+        MISNAMED_ALERTED,
+        misnamed.key(),
+        SYSTEM_ACTOR,
+        Map.of(
+            "nameReference", misnamed.nameReference(),
+            "contentReference", misnamed.contentReference()));
   }
 
   private Optional<Map<String, Object>> lastVerifiedPayload(String reference) {

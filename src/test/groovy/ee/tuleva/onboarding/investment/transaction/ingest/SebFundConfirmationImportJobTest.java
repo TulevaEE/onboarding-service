@@ -84,6 +84,7 @@ class SebFundConfirmationImportJobTest {
             List.of(outcome("DLA0000001")),
             List.of(),
             List.of(new UnreadableSebFundConfirmation(SECOND_KEY, "Glyph not in table")),
+            List.of(),
             List.of());
   }
 
@@ -93,7 +94,9 @@ class SebFundConfirmationImportJobTest {
 
     job.run();
 
-    then(digest).should().publish(List.of(outcome("DLA0000001")), List.of(), List.of(), List.of());
+    then(digest)
+        .should()
+        .publish(List.of(outcome("DLA0000001")), List.of(), List.of(), List.of(), List.of());
   }
 
   @Test
@@ -106,6 +109,7 @@ class SebFundConfirmationImportJobTest {
         .should()
         .publish(
             List.of(outcome("DLA0000001")),
+            List.of(),
             List.of(),
             List.of(),
             List.of(
@@ -130,6 +134,7 @@ class SebFundConfirmationImportJobTest {
             List.of(outcome("DLA0000002")),
             List.of(),
             List.of(),
+            List.of(),
             List.of(
                 new SebFundConfirmationCheckFailure(
                     "tehingu DLA0000001 kontroll", "report store down")));
@@ -144,6 +149,7 @@ class SebFundConfirmationImportJobTest {
     then(digest)
         .should()
         .publish(
+            List.of(),
             List.of(),
             List.of(),
             List.of(),
@@ -171,6 +177,7 @@ class SebFundConfirmationImportJobTest {
                 outcome("DLA0000002")),
             List.of(),
             List.of(),
+            List.of(),
             List.of());
   }
 
@@ -186,6 +193,7 @@ class SebFundConfirmationImportJobTest {
         .should()
         .publish(
             List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
             List.of(),
             List.of(),
             List.of(
@@ -216,6 +224,7 @@ class SebFundConfirmationImportJobTest {
             List.of(outcome("DLA0000001"), outcome("DLA0000002")),
             List.of(),
             List.of(),
+            List.of(),
             List.of(
                 new SebFundConfirmationCheckFailure(
                     "tehingu DLA0000001 hinnapäeva salvestamine", "registry down")));
@@ -232,11 +241,43 @@ class SebFundConfirmationImportJobTest {
     then(digest)
         .should()
         .publish(
-            List.of(outcome("DLA0000001"), outcome("DLA0000002")), List.of(), List.of(), List.of());
+            List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of());
   }
 
   @Test
   void run_countsEveryUploadedPdfAsAConfirmationWhenLookingForMissingOnes() {
+    job.run();
+
+    then(missingFinder).should().find(Set.of("DLA0000001", "DLA0000002"));
+  }
+
+  @Test
+  void run_countsAPdfAsAConfirmationOfTheTradeItHoldsAndSaysWhenItsFileNameDisagrees() {
+    given(parser.parse(SECOND_PDF)).willReturn(confirmation("DLA0000003"));
+
+    job.run();
+
+    then(missingFinder).should().find(Set.of("DLA0000001", "DLA0000003"));
+    then(digest)
+        .should()
+        .publish(
+            List.of(outcome("DLA0000001"), outcome("DLA0000003")),
+            List.of(),
+            List.of(),
+            List.of(new MisnamedSebFundConfirmation(SECOND_KEY, "DLA0000002", "DLA0000003")),
+            List.of());
+  }
+
+  @Test
+  void run_countsAPdfItCouldNotReadAsAConfirmationOfTheTradeItsFileNames() {
+    willThrow(new SebFundConfirmationPdfParseException("Glyph not in table"))
+        .given(parser)
+        .parse(SECOND_PDF);
+
     job.run();
 
     then(missingFinder).should().find(Set.of("DLA0000001", "DLA0000002"));
@@ -250,7 +291,9 @@ class SebFundConfirmationImportJobTest {
 
     job.run();
 
-    then(digest).should().publish(List.of(), List.of(MISSING_TRADE), List.of(), List.of());
+    then(digest)
+        .should()
+        .publish(List.of(), List.of(MISSING_TRADE), List.of(), List.of(), List.of());
   }
 
   @Test
@@ -264,7 +307,11 @@ class SebFundConfirmationImportJobTest {
     then(digest)
         .should()
         .publish(
-            List.of(outcome("DLA0000001"), outcome("DLA0000002")), List.of(), List.of(), List.of());
+            List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of());
   }
 
   @Test
@@ -280,6 +327,7 @@ class SebFundConfirmationImportJobTest {
         .should()
         .publish(
             List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
             List.of(),
             List.of(),
             List.of(
@@ -298,6 +346,7 @@ class SebFundConfirmationImportJobTest {
         .should()
         .publish(
             List.of(outcome("DLA0000001"), outcome("DLA0000002")),
+            List.of(),
             List.of(),
             List.of(),
             List.of(

@@ -56,7 +56,7 @@ class SebFundConfirmationDigestTest {
 
   @Test
   void publish_sendsNothingWhenEveryConfirmationIsClean() {
-    digest.publish(List.of(outcome(clean())), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome(clean())), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService).should(never()).sendMessage(any(), any());
   }
@@ -74,7 +74,7 @@ class SebFundConfirmationDigestTest {
                 ON_TIME,
                 1));
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -103,7 +103,7 @@ class SebFundConfirmationDigestTest {
                 3));
     given(auditRecorder.unalertedFindings(outcome)).willReturn(List.of("LATE"));
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -131,7 +131,7 @@ class SebFundConfirmationDigestTest {
                 LATE,
                 4));
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -162,7 +162,7 @@ class SebFundConfirmationDigestTest {
                 ON_TIME,
                 1));
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -190,7 +190,7 @@ class SebFundConfirmationDigestTest {
         new UnreadableSebFundConfirmation(
             "seb-confirmations/DLA1111111-001.pdf", "Glyph not in table");
 
-    digest.publish(List.of(), List.of(missing), List.of(unreadable), List.of());
+    digest.publish(List.of(), List.of(missing), List.of(unreadable), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -215,7 +215,7 @@ class SebFundConfirmationDigestTest {
     SebFundConfirmationCheckFailure failure =
         new SebFundConfirmationCheckFailure("puuduvate kinnituste otsing", "report store down");
 
-    digest.publish(List.of(), List.of(), List.of(), List.of(failure));
+    digest.publish(List.of(), List.of(), List.of(), List.of(), List.of(failure));
 
     then(notificationService)
         .should()
@@ -236,7 +236,7 @@ class SebFundConfirmationDigestTest {
         new SebFundConfirmationCheckFailure("puuduvate kinnituste otsing", "report store down");
     given(auditRecorder.alreadyAlertedToday(failure)).willReturn(true);
 
-    digest.publish(List.of(), List.of(), List.of(), List.of(failure));
+    digest.publish(List.of(), List.of(), List.of(), List.of(), List.of(failure));
 
     then(notificationService).should(never()).sendMessage(any(), any());
   }
@@ -247,7 +247,7 @@ class SebFundConfirmationDigestTest {
         outcome(
             new SebFundConfirmationResult(MATCH, List.of(), NOT_PUBLISHED, null, null, ON_TIME, 1));
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService)
         .should()
@@ -269,7 +269,7 @@ class SebFundConfirmationDigestTest {
                 NOT_FOUND, List.of(), WITHIN_TOLERANCE, null, null, ON_TIME, 1));
     given(auditRecorder.unalertedFindings(outcome)).willReturn(List.of());
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(notificationService).should(never()).sendMessage(any(), any());
   }
@@ -284,7 +284,7 @@ class SebFundConfirmationDigestTest {
         .given(notificationService)
         .sendMessage(any(), any());
 
-    digest.publish(List.of(outcome), List.of(), List.of(), List.of());
+    digest.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
 
     then(auditRecorder).should(never()).recordAlerted(any(), any());
   }

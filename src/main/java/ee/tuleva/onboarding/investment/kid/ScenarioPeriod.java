@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 record ScenarioPeriod(LocalDate start, LocalDate end) {
 
   private static final int ANNEX_IV_P6_PERIOD_YEARS = 10;
+  private static final int ANNEX_II_P9_RISK_HISTORY_YEARS = 5;
   private static final int CLOSE_STALE_AFTER_DAYS = 7;
   private static final int SERIES_STALLED_AFTER_DAYS_WITHOUT_A_PRICE = 10;
   private static final double DAILY_SERIES_CLOSES_ON_AT_LEAST_THIS_SHARE_OF_A_MONTHS_WEEKDAYS = 0.7;
@@ -61,7 +62,7 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
     return monthEnds().stream().map(monthEnd -> monthEndPrice(closes, monthEnd)).toList();
   }
 
-  List<FundValue> dailyCloses(List<FundValue> prices) {
+  List<FundValue> riskHistory(List<FundValue> prices) {
     var closes =
         prices.stream()
             .filter(price -> !price.date().isBefore(start) && !price.date().isAfter(end))
@@ -90,7 +91,20 @@ record ScenarioPeriod(LocalDate start, LocalDate end) {
                   "Daily closes too sparse for a daily series: month=%s, closes=%s, weekdays=%s"
                       .formatted(month, closesIn(closes, month), weekdaysIn(month)));
             });
-    return closes;
+    return fromTheFirstReturnsBase(closes);
+  }
+
+  private List<FundValue> fromTheFirstReturnsBase(List<FundValue> closes) {
+    var historyStart = end.minusYears(ANNEX_II_P9_RISK_HISTORY_YEARS);
+    return closes.stream()
+        .filter(close -> !close.date().isAfter(historyStart))
+        .max(comparing(FundValue::date))
+        .map(
+            firstReturnsBase ->
+                closes.stream()
+                    .filter(close -> !close.date().isBefore(firstReturnsBase.date()))
+                    .toList())
+        .orElse(closes);
   }
 
   private static boolean isLongerGapThanAMarketClosure(FundValue earlier, FundValue later) {

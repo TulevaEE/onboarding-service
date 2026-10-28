@@ -67,6 +67,23 @@ class StressScenarioCalculatorTest {
   }
 
   @Test
+  void aFiveYearBoundaryOnASundayStartsTheSampleFromTheFridayCloseBeforeIt() {
+    var periodEndingOnASaturday =
+        new ScenarioPeriod(LocalDate.of(2016, 1, 31), LocalDate.of(2026, 1, 31));
+    var closes = periodEndingOnASaturday.dailyCloses(SyntheticIndexSeries.weekdayCloses(KEY));
+    var stress = calculator.stress(closes, periodEndingOnASaturday.end(), 5);
+
+    assertThat(
+            calculator.stress(
+                swungOn(closes, LocalDate.of(2021, 1, 29)), periodEndingOnASaturday.end(), 5))
+        .isNotEqualTo(stress);
+    assertThat(
+            calculator.stress(
+                swungOn(closes, LocalDate.of(2021, 1, 28)), periodEndingOnASaturday.end(), 5))
+        .isEqualTo(stress);
+  }
+
+  @Test
   void countsTheClosesObservedAfterTheStartOfTheLastHorizon() {
     var closes =
         List.of(close("2025-09-30", 100), close("2025-10-01", 101), close("2026-09-30", 102));
@@ -106,6 +123,12 @@ class StressScenarioCalculatorTest {
         .filter(close -> !close.date().isBefore(stress.start()))
         .filter(close -> !close.date().isAfter(stress.end()))
         .count();
+  }
+
+  private static List<FundValue> swungOn(List<FundValue> closes, LocalDate day) {
+    return closes.stream()
+        .map(close -> close.date().equals(day) ? aFundValue(KEY, day, swing(close)) : close)
+        .toList();
   }
 
   private static BigDecimal swing(FundValue close) {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
@@ -29,8 +30,11 @@ import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureJdbc;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +49,7 @@ class RiskLevelServiceIntegrationTest {
   @Autowired JdbcClient jdbcClient;
   @MockitoSpyBean AmlRiskReader amlRiskReader;
   @MockitoSpyBean TkfRiskReader tkfRiskReader;
+  @MockitoBean AmlServiceClient amlServiceClient;
 
   private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
   private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
@@ -383,7 +388,7 @@ class RiskLevelServiceIntegrationTest {
     jdbcClient
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-                + "VALUES ('37605030299', 1, "
+                + "VALUES ('38001085718', 1, "
                 + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
@@ -398,7 +403,7 @@ class RiskLevelServiceIntegrationTest {
     List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
-    assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("37605030299");
+    assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("38001085718");
     assertThat(tkfChecks.getFirst().getType()).isEqualTo(TKF_RISK_LEVEL);
     assertThat(tkfChecks.getFirst().isSuccess()).isFalse();
     assertThat(tkfChecks.getFirst().getMetadata()).containsEntry("level", 1);
@@ -410,13 +415,13 @@ class RiskLevelServiceIntegrationTest {
     jdbcClient
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-                + "VALUES ('37605030299', 1, "
+                + "VALUES ('38001085718', 1, "
                 + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
     AmlCheck existingTkfCheck =
         AmlCheck.builder()
-            .personalCode("37605030299")
+            .personalCode("38001085718")
             .type(TKF_RISK_LEVEL)
             .success(false)
             .metadata(Map.of("version", "1.3", "level", 1, "total_points", 105))
@@ -435,5 +440,22 @@ class RiskLevelServiceIntegrationTest {
     List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
+  }
+
+  @Test
+  void viewChecksNeverAskAmlService() {
+    riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+    riskLevelService.runTkfRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
+
+    verifyNoInteractions(amlServiceClient);
+  }
+
+  @TestConfiguration
+  static class ClockConfiguration {
+
+    @Bean
+    Clock clock() {
+      return TestClockHolder.clock;
+    }
   }
 }

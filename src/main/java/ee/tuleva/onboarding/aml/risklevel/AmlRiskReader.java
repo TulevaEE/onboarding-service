@@ -41,6 +41,14 @@ class AmlRiskReader implements RiskReader {
         .toList();
   }
 
+  void refreshLatestResidencyView() {
+    log.info("Start materialized view refresh: analytics.mv_third_pillar_latest_residency");
+    jdbcClient
+        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency")
+        .update();
+    log.info("Materialized view refreshed: analytics.mv_third_pillar_latest_residency");
+  }
+
   void refreshAmlRiskMetadataView() {
     log.info("Start materialized view refresh: analytics.v_aml_risk_metadata");
     jdbcClient.sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata").update();
@@ -48,12 +56,7 @@ class AmlRiskReader implements RiskReader {
   }
 
   public void refreshMaterializedView() {
-    log.info("Start materialized view refresh: analytics.mv_third_pillar_latest_residency");
-    jdbcClient
-        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency")
-        .update();
-    log.info("Materialized view refreshed: analytics.mv_third_pillar_latest_residency");
-
+    refreshLatestResidencyView();
     refreshAmlRiskMetadataView();
   }
 

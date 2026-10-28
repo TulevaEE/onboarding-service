@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -122,5 +123,22 @@ class AmlRiskReaderTest {
     verify(jdbcClient)
         .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency");
     verify(jdbcClient).sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata");
+  }
+
+  @Test
+  void refreshLatestResidencyView_refreshesOnlyTheResidencyView() {
+    reader.refreshLatestResidencyView();
+
+    verify(jdbcClient)
+        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency");
+    verifyNoMoreInteractions(jdbcClient);
+  }
+
+  @Test
+  void refreshAmlRiskMetadataView_refreshesOnlyTheMetadataView() {
+    reader.refreshAmlRiskMetadataView();
+
+    verify(jdbcClient).sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata");
+    verifyNoMoreInteractions(jdbcClient);
   }
 }

@@ -77,12 +77,8 @@ record SebFundConfirmationResult(
     return List.copyOf(findings);
   }
 
-  boolean confirmsTheReportedTrade() {
-    return reportStatus == ReportStatus.MATCH;
-  }
-
   private boolean registryDiffersWhereTheReportAgrees() {
-    return registry.status() == RegistryStatus.MISMATCH && reportStatus != ReportStatus.MISMATCH;
+    return registry.status() == RegistryStatus.MISMATCH && reportStatus == ReportStatus.MATCH;
   }
 
   String mismatchFinding() {

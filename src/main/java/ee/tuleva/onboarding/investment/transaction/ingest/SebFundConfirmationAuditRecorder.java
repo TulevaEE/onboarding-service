@@ -55,12 +55,13 @@ class SebFundConfirmationAuditRecorder {
   List<String> unalertedFindings(SebFundConfirmationOutcome outcome) {
     SebFundConfirmation confirmation = outcome.confirmation();
     String reference = confirmation.tradeReference();
+    Map<String, Object> confirmed = confirmedFields(confirmation);
     Set<String> alerted;
     try {
       alerted =
           auditEventRepository.findByEventTypeAndDedupKey(ALERTED, reference).stream()
               .map(TransactionAuditEvent::getPayload)
-              .filter(payload -> isAboutTheSameFigures(payload, confirmation))
+              .filter(payload -> isAboutTheSameConfirmation(payload, confirmed))
               .map(payload -> payload.get(FINDINGS))
               .filter(List.class::isInstance)
               .flatMap(findings -> ((List<?>) findings).stream())
@@ -188,33 +189,55 @@ class SebFundConfirmationAuditRecorder {
             .build());
   }
 
-  private static boolean isAboutTheSameFigures(
-      Map<String, Object> payload, SebFundConfirmation confirmation) {
-    return figures(confirmation).entrySet().stream()
-        .allMatch(figure -> figure.getValue().equals(payload.get(figure.getKey())));
+  private static boolean isAboutTheSameConfirmation(
+      Map<String, Object> payload, Map<String, Object> confirmed) {
+    return confirmed.entrySet().stream()
+        .allMatch(field -> isTheSameValue(field.getValue(), payload.get(field.getKey())));
   }
 
-  private static Map<String, Object> figures(SebFundConfirmation confirmation) {
-    Map<String, Object> figures = new LinkedHashMap<>();
-    figures.put("pricingDate", confirmation.pricingDate().toString());
-    figures.put("valueDate", confirmation.valueDate().toString());
-    figures.put("quantity", confirmation.quantity().toPlainString());
-    figures.put("price", confirmation.price().toPlainString());
-    figures.put("tradeAmount", confirmation.tradeAmount().toPlainString());
-    figures.put("fee", confirmation.fee().toPlainString());
-    figures.put("totalAmount", confirmation.totalAmount().toPlainString());
-    return figures;
+  private static boolean isTheSameValue(Object confirmed, @Nullable Object recorded) {
+    if (confirmed instanceof BigDecimal number) {
+      return isTheSameNumber(number, recorded);
+    }
+    return confirmed.equals(recorded);
+  }
+
+  private static boolean isTheSameNumber(BigDecimal confirmed, @Nullable Object recorded) {
+    if (recorded == null) {
+      return false;
+    }
+    try {
+      return new BigDecimal(recorded.toString()).compareTo(confirmed) == 0;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
+  private static Map<String, Object> confirmedFields(SebFundConfirmation confirmation) {
+    Map<String, Object> fields = new LinkedHashMap<>();
+    fields.put("fund", confirmation.fund().name());
+    fields.put("isin", confirmation.isin());
+    fields.put("side", confirmation.side().name());
+    fields.put("orderReceivedAt", confirmation.orderReceivedAt().toString());
+    fields.put("pricingDate", confirmation.pricingDate().toString());
+    fields.put("valueDate", confirmation.valueDate().toString());
+    fields.put("quantity", confirmation.quantity());
+    fields.put("price", confirmation.price());
+    fields.put("tradeAmount", confirmation.tradeAmount());
+    fields.put("fee", confirmation.fee());
+    fields.put("totalAmount", confirmation.totalAmount());
+    return fields;
   }
 
   private static Map<String, Object> payload(SebFundConfirmationOutcome outcome) {
     SebFundConfirmation confirmation = outcome.confirmation();
     SebFundConfirmationResult result = outcome.result();
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("fund", confirmation.fund().name());
-    payload.put("isin", confirmation.isin());
-    payload.put("side", confirmation.side().name());
-    payload.put("orderReceivedAt", confirmation.orderReceivedAt().toString());
-    payload.putAll(figures(confirmation));
+    confirmedFields(confirmation)
+        .forEach(
+            (field, value) ->
+                payload.put(
+                    field, value instanceof BigDecimal number ? number.toPlainString() : value));
     payload.put(STATUS, result.statusSignature().toString());
     payload.put("reportDifferences", List.copyOf(result.reportDifferences()));
     payload.put("registryStatus", result.registry().status().name());

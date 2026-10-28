@@ -206,8 +206,8 @@ class SebFundConfirmationImportJobTest {
   void run_offersThePricingDateOfEveryVerifiedConfirmationToTheRegistry() {
     job.run();
 
-    then(navDateWriter).should().write(outcome("DLA0000001"));
-    then(navDateWriter).should().write(outcome("DLA0000002"));
+    then(navDateWriter).should().write(confirmation("DLA0000001"));
+    then(navDateWriter).should().write(confirmation("DLA0000002"));
   }
 
   @Test
@@ -218,7 +218,7 @@ class SebFundConfirmationImportJobTest {
 
     job.run();
 
-    then(navDateWriter).should().write(outcome("DLA0000002"));
+    then(navDateWriter).should().write(confirmation("DLA0000002"));
     then(navDateWriter).shouldHaveNoMoreInteractions();
   }
 
@@ -226,11 +226,11 @@ class SebFundConfirmationImportJobTest {
   void run_reportsAPricingDateThatCouldNotBeWrittenAndStillWritesTheOthers() {
     willThrow(new IllegalStateException("registry down"))
         .given(navDateWriter)
-        .write(outcome("DLA0000001"));
+        .write(confirmation("DLA0000001"));
 
     job.run();
 
-    then(navDateWriter).should().write(outcome("DLA0000002"));
+    then(navDateWriter).should().write(confirmation("DLA0000002"));
     then(digest)
         .should()
         .publish(
@@ -247,7 +247,7 @@ class SebFundConfirmationImportJobTest {
   void run_leavesAPricingDateForTheNextRunWhenTheExecutionChangedMeanwhile() {
     willThrow(new OptimisticLockingFailureException("execution changed"))
         .given(navDateWriter)
-        .write(outcome("DLA0000001"));
+        .write(confirmation("DLA0000001"));
 
     job.run();
 

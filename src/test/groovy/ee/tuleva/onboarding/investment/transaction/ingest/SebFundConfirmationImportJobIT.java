@@ -239,6 +239,19 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
+  void run_doesNotRepeatAnAlertWhenSebResendsTheSameConfirmationWithMoreDecimals() {
+    insertNav(LocalDate.of(2026, 1, 6), "12.3000");
+
+    job.run();
+    s3Holds(
+        "seb-confirmations/DLA0000001-002.pdf",
+        confirmation(fieldsForFirstTradeAt("12.4000", "12,400.0000")));
+    runAgainFromWhatTheDatabaseHolds();
+
+    then(notificationService).should(times(1)).sendMessage(any(), any());
+  }
+
+  @Test
   void run_recordsAChangedResultEvenWhenItsStatusStaysTheSame() {
     seedTwoTradesAndANavBelowTheConfirmedPrice();
 
@@ -399,7 +412,7 @@ class SebFundConfirmationImportJobIT {
             """
             SEB fonditehingute kinnitused
 
-            TUK75 IE00BKPTWY98 ost 06.01.2026: SEB tehingukinnitus ei klapi tehinguregistriga (hind 12.4 vs 12.3; kogumaksumus 12400.00 vs 12300)
+            TUK75 IE00BKPTWY98 ost 06.01.2026: SEB tehingukinnitus ei klapi tehinguregistriga (hind 12.4 vs 12.3; kogumaksumus 12400 vs 12300)
             Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
             Kontrolli, kumb on õige, ja paranda täitmine tehinguregistris või küsi SEB-lt parandust""",
             INVESTMENT);

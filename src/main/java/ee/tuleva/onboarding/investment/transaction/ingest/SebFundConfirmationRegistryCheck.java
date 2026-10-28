@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
+import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -25,19 +26,10 @@ class SebFundConfirmationRegistryCheck {
         .map(
             trade ->
                 RegistryComparison.of(
-                    tradeDifferences(confirmation, trade.order())
-                        .amount(
-                            "kogus",
-                            confirmation.quantity(),
-                            stripped(trade.execution().getExecutedQuantity()))
-                        .amount(
-                            "hind",
-                            confirmation.price(),
-                            stripped(trade.execution().getUnitPrice()))
-                        .amount(
-                            "kogumaksumus",
-                            confirmation.totalAmount(),
-                            stripped(trade.execution().getTotalConsideration()))
+                    figureDifferences(
+                            tradeDifferences(confirmation, trade.order()),
+                            confirmation,
+                            trade.execution())
                         .list()))
         .orElse(RegistryComparison.NOT_IN_REGISTRY);
   }
@@ -69,6 +61,30 @@ class SebFundConfirmationRegistryCheck {
         .field("ISIN", confirmation.isin(), order.getInstrumentIsin())
         .field("suund", confirmation.side(), order.getTransactionType())
         .field("instrumendi liik", FUND, order.getInstrumentType());
+  }
+
+  private static SebFundConfirmationDifferences figureDifferences(
+      SebFundConfirmationDifferences differences,
+      SebFundConfirmation confirmation,
+      TransactionExecution execution) {
+    return differences
+        .amount(
+            "kogus",
+            atRegistryPrecision(confirmation.quantity(), execution.getExecutedQuantity()),
+            stripped(execution.getExecutedQuantity()))
+        .amount(
+            "hind",
+            atRegistryPrecision(confirmation.price(), execution.getUnitPrice()),
+            stripped(execution.getUnitPrice()))
+        .amount(
+            "kogumaksumus",
+            atRegistryPrecision(confirmation.totalAmount(), execution.getTotalConsideration()),
+            stripped(execution.getTotalConsideration()));
+  }
+
+  private static BigDecimal atRegistryPrecision(BigDecimal confirmed, @Nullable BigDecimal stored) {
+    BigDecimal rounded = stored == null ? confirmed : confirmed.setScale(stored.scale(), HALF_UP);
+    return rounded.stripTrailingZeros();
   }
 
   private static @Nullable BigDecimal stripped(@Nullable BigDecimal value) {

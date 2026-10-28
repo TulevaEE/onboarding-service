@@ -126,6 +126,19 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   @Test
+  void verify_holdsBackARegistryDifferenceUntilTheReportAgreesWithTheConfirmation() {
+    navOn(PRICING, "12.3456");
+    given(registryCheck.compare(any()))
+        .willReturn(
+            new RegistryComparison(RegistryStatus.MISMATCH, List.of("hind 12.345678901 vs 12.3")));
+
+    SebFundConfirmationResult result = service.verify(confirmation("12.345678901"));
+
+    assertThat(result.reportStatus()).isEqualTo(PENDING);
+    assertThat(result.findings()).isEmpty();
+  }
+
+  @Test
   void verify_leavesARegistryDifferenceTheReportAlsoShowsToTheReportFinding() {
     reportOn(PRICING, pendingRow("999", "12.34567890", "12345.68", VALUE));
     navOn(PRICING, "12.3456");

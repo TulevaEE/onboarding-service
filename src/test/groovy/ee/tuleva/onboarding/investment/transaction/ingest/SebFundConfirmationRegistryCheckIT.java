@@ -73,9 +73,15 @@ class SebFundConfirmationRegistryCheckIT {
             new RegistryComparison(
                 MISMATCH,
                 List.of(
-                    "kogus 1000.00 vs 999",
-                    "hind 12.4 vs 12.3",
-                    "kogumaksumus 12400.00 vs 12287.7")));
+                    "kogus 1000 vs 999", "hind 12.4 vs 12.3", "kogumaksumus 12400 vs 12287.7")));
+  }
+
+  @Test
+  void compare_comparesAtThePrecisionTheRegistryStores() {
+    persist(TUK75, ISIN, BUY, FUND, "1234.5679", "12.40000000", "15308.64");
+
+    assertThat(check.compare(confirmation("1234.56789", "12.4", "15308.64")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
   }
 
   @Test
@@ -159,6 +165,10 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   private static SebFundConfirmation confirmation() {
+    return confirmation("1000.00", "12.4", "12400.00");
+  }
+
+  private static SebFundConfirmation confirmation(String quantity, String price, String total) {
     return new SebFundConfirmation(
         TUK75,
         REFERENCE,
@@ -167,10 +177,10 @@ class SebFundConfirmationRegistryCheckIT {
         LocalDate.of(2026, 1, 9),
         ISIN,
         BUY,
-        new BigDecimal("1000.00"),
-        new BigDecimal("12.4"),
-        new BigDecimal("12400.00"),
+        new BigDecimal(quantity),
+        new BigDecimal(price),
+        new BigDecimal(total),
         new BigDecimal("0.00"),
-        new BigDecimal("12400.00"));
+        new BigDecimal(total));
   }
 }

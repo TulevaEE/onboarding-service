@@ -167,7 +167,7 @@ class SebFundConfirmationImportJob {
       SebFundConfirmationOutcome outcome, List<SebFundConfirmationCheckFailure> failures) {
     String reference = outcome.confirmation().tradeReference();
     try {
-      navDateWriter.write(outcome);
+      navDateWriter.write(outcome.confirmation());
     } catch (OptimisticLockingFailureException e) {
       log.info(
           "SEB fund confirmation pricing date left for the next run, execution changed meanwhile:"

@@ -16,11 +16,7 @@ class SebFundConfirmationNavDateWriter {
   private final SebFundConfirmationAuditRecorder auditRecorder;
 
   @Transactional
-  void write(SebFundConfirmationOutcome outcome) {
-    if (!outcome.result().confirmsTheReportedTrade()) {
-      return;
-    }
-    SebFundConfirmation confirmation = outcome.confirmation();
+  void write(SebFundConfirmation confirmation) {
     registryCheck
         .executionOfTheSameTrade(confirmation)
         .filter(execution -> !confirmation.pricingDate().equals(execution.getNavDate()))

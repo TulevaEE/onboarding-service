@@ -52,12 +52,15 @@ class SebFundConfirmationAuditRecorder {
   }
 
   List<String> unalertedFindings(SebFundConfirmationOutcome outcome) {
-    String reference = outcome.confirmation().tradeReference();
+    SebFundConfirmation confirmation = outcome.confirmation();
+    String reference = confirmation.tradeReference();
     Set<String> alerted;
     try {
       alerted =
           auditEventRepository.findByEventTypeAndDedupKey(ALERTED, reference).stream()
-              .map(event -> event.getPayload().get(FINDINGS))
+              .map(TransactionAuditEvent::getPayload)
+              .filter(payload -> isAboutTheSameFigures(payload, confirmation))
+              .map(payload -> payload.get(FINDINGS))
               .filter(List.class::isInstance)
               .flatMap(findings -> ((List<?>) findings).stream())
               .map(String::valueOf)
@@ -170,6 +173,24 @@ class SebFundConfirmationAuditRecorder {
             .build());
   }
 
+  private static boolean isAboutTheSameFigures(
+      Map<String, Object> payload, SebFundConfirmation confirmation) {
+    return figures(confirmation).entrySet().stream()
+        .allMatch(figure -> figure.getValue().equals(payload.get(figure.getKey())));
+  }
+
+  private static Map<String, Object> figures(SebFundConfirmation confirmation) {
+    Map<String, Object> figures = new LinkedHashMap<>();
+    figures.put("pricingDate", confirmation.pricingDate().toString());
+    figures.put("valueDate", confirmation.valueDate().toString());
+    figures.put("quantity", confirmation.quantity().toPlainString());
+    figures.put("price", confirmation.price().toPlainString());
+    figures.put("tradeAmount", confirmation.tradeAmount().toPlainString());
+    figures.put("fee", confirmation.fee().toPlainString());
+    figures.put("totalAmount", confirmation.totalAmount().toPlainString());
+    return figures;
+  }
+
   private static Map<String, Object> payload(SebFundConfirmationOutcome outcome) {
     SebFundConfirmation confirmation = outcome.confirmation();
     SebFundConfirmationResult result = outcome.result();
@@ -178,13 +199,7 @@ class SebFundConfirmationAuditRecorder {
     payload.put("isin", confirmation.isin());
     payload.put("side", confirmation.side().name());
     payload.put("orderReceivedAt", confirmation.orderReceivedAt().toString());
-    payload.put("pricingDate", confirmation.pricingDate().toString());
-    payload.put("valueDate", confirmation.valueDate().toString());
-    payload.put("quantity", confirmation.quantity().toPlainString());
-    payload.put("price", confirmation.price().toPlainString());
-    payload.put("tradeAmount", confirmation.tradeAmount().toPlainString());
-    payload.put("fee", confirmation.fee().toPlainString());
-    payload.put("totalAmount", confirmation.totalAmount().toPlainString());
+    payload.putAll(figures(confirmation));
     payload.put(STATUS, result.statusSignature().toString());
     payload.put("reportDifferences", List.copyOf(result.reportDifferences()));
     putIfPresent(payload, "nav", result.nav());

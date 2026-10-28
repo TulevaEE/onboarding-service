@@ -190,6 +190,33 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
+  void run_alertsAgainWhenACorrectedConfirmationBringsBackAFindingAnEarlierOneCleared() {
+    insertNav(LocalDate.of(2026, 1, 6), "12.3000");
+
+    job.run();
+    s3Holds(
+        "seb-confirmations/DLA0000001-002.pdf",
+        confirmation(fieldsForFirstTradeAt("12.3", "12,300.00")));
+    runAgainFromWhatTheDatabaseHolds();
+    s3Holds(
+        "seb-confirmations/DLA0000001-003.pdf",
+        confirmation(fieldsForFirstTradeAt("12.5", "12,500.00")));
+    runAgainFromWhatTheDatabaseHolds();
+
+    then(notificationService).should(times(2)).sendMessage(any(), any());
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.5 erineb fondi NAV-ist 12.3 +1.63%
+            Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
+            Kontrolli hinda SEB-lt ja fondivalitseja lehelt""",
+            INVESTMENT);
+  }
+
+  @Test
   void run_recordsAChangedResultEvenWhenItsStatusStaysTheSame() {
     seedTwoTradesAndANavBelowTheConfirmedPrice();
 
@@ -301,11 +328,15 @@ class SebFundConfirmationImportJobIT {
   }
 
   private static Map<String, List<String>> fieldsForFirstTrade() {
+    return fieldsForFirstTradeAt("12.4", "12,400.00");
+  }
+
+  private static Map<String, List<String>> fieldsForFirstTradeAt(String price, String total) {
     Map<String, List<String>> fields = buyFields();
     fields.put("Tehingu nr", List.of("DLA0000001"));
-    fields.put("Hind", List.of("12.4", "EUR"));
-    fields.put("Kokkulepitud tehingusumma", List.of("12,400.00", "EUR"));
-    fields.put("Kogumaksumus", List.of("12,400.00", "EUR"));
+    fields.put("Hind", List.of(price, "EUR"));
+    fields.put("Kokkulepitud tehingusumma", List.of(total, "EUR"));
+    fields.put("Kogumaksumus", List.of(total, "EUR"));
     return fields;
   }
 

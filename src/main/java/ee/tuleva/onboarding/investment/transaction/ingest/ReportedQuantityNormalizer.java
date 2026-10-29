@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 class ReportedQuantityNormalizer {
 
-  private static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
+  static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
   private static final BigDecimal HALF = new BigDecimal("0.5");
 
   SebPendingTransactionRow normalize(

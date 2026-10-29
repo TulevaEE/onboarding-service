@@ -133,6 +133,15 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_matchesAQuantityStoredAsSebReportedItWithoutTheNormalizer() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(redemption, REFERENCE, "18811874.1000", "1.00000000", "18811874.10");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "18811874.1046", "1", "18811874.10")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
   void compare_stillFindsAClosingFillThatTheRoundingDoesNotExplain() {
     TransactionOrder redemption = order(SELL, "18811874.1046");
     execution(redemption, FIRST_FILL, "10000000.0100", "1.00000000", "10000000.01");

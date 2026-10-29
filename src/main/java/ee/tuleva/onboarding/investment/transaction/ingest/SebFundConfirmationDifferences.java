@@ -1,17 +1,15 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReportedQuantityNormalizer.SEB_REPORTED_PRECISION;
 import static java.math.RoundingMode.HALF_UP;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 final class SebFundConfirmationDifferences {
-
-  private static final MathContext SEB_REPORT_SIGNIFICANT_DIGITS = new MathContext(10, HALF_UP);
 
   private final List<String> differences = new ArrayList<>();
 
@@ -41,8 +39,14 @@ final class SebFundConfirmationDifferences {
   }
 
   SebFundConfirmationDifferences storedAmount(
-      String name, BigDecimal confirmed, BigDecimal fromSebsReport, @Nullable BigDecimal stored) {
-    if (stored == null || !(isStoredAs(confirmed, stored) || isStoredAs(fromSebsReport, stored))) {
+      String name,
+      BigDecimal confirmed,
+      BigDecimal normalizedByTheImport,
+      @Nullable BigDecimal stored) {
+    if (stored == null
+        || !(isStoredAs(confirmed, stored)
+            || isStoredAs(inSebsReport(confirmed), stored)
+            || isStoredAs(normalizedByTheImport, stored))) {
       differences.add(
           name + " " + plain(confirmed) + " vs " + (stored == null ? null : plain(stored)));
     }
@@ -54,7 +58,7 @@ final class SebFundConfirmationDifferences {
   }
 
   static BigDecimal inSebsReport(BigDecimal confirmed) {
-    return confirmed.abs().round(SEB_REPORT_SIGNIFICANT_DIGITS);
+    return confirmed.abs().round(SEB_REPORTED_PRECISION);
   }
 
   private static boolean isStoredAs(BigDecimal value, BigDecimal stored) {
@@ -66,10 +70,6 @@ final class SebFundConfirmationDifferences {
   }
 
   private static boolean equalToSebsPrecision(BigDecimal confirmed, BigDecimal other) {
-    return confirmed
-            .abs()
-            .round(SEB_REPORT_SIGNIFICANT_DIGITS)
-            .compareTo(other.abs().round(SEB_REPORT_SIGNIFICANT_DIGITS))
-        == 0;
+    return inSebsReport(confirmed).compareTo(inSebsReport(other)) == 0;
   }
 }

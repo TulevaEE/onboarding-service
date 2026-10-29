@@ -347,8 +347,7 @@ class OcfSnapshotRepositoryTest {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
 
     repository.save(
-        snapshot(APRIL, "0.0050"),
-        List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
 
     assertThat(storedHoldings())
         .containsExactly(
@@ -365,12 +364,10 @@ class OcfSnapshotRepositoryTest {
   void aRecalculationReplacesTheWorkingVersionsHoldingsRatherThanAddingToThem() {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
     repository.save(
-        snapshot(APRIL, "0.0050"),
-        List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
 
     repository.save(
-        snapshot(APRIL, "0.0051"),
-        List.of(new OcfHolding(new BigDecimal("700000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0051"), List.of(new OcfHolding(new BigDecimal("0.7"), rate)));
 
     assertThat(storedHoldings())
         .extracting(StoredHolding::weight)
@@ -383,8 +380,7 @@ class OcfSnapshotRepositoryTest {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
     try {
       repository.save(
-          snapshot(APRIL, "0.0050"),
-          List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+          snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
       var rateNeverStored =
           new InstrumentRate(
               rate.id() + 1,
@@ -400,11 +396,7 @@ class OcfSnapshotRepositoryTest {
               () ->
                   repository.save(
                       snapshot(APRIL, "0.0051"),
-                      List.of(
-                          new OcfHolding(
-                              new BigDecimal("700000"),
-                              new BigDecimal("1000000"),
-                              rateNeverStored))))
+                      List.of(new OcfHolding(new BigDecimal("0.7"), rateNeverStored))))
           .isInstanceOf(DataIntegrityViolationException.class);
 
       assertThat(repository.findByFundAndMonth("TUK75", APRIL).orElseThrow().totalOcf())

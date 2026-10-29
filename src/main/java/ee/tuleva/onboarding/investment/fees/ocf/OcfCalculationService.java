@@ -243,15 +243,15 @@ public class OcfCalculationService {
       return new UnderlyingFundCost(
           ZERO, ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM), List.of());
     }
-    var lines = calculation.securityLines();
-    var unrated = OcfHolding.unratedIsins(lines, rates);
+    var weights = OcfHolding.weightsOf(calculation.securityLines(), aum);
+    var unrated = OcfHolding.unratedIsins(weights.keySet(), rates);
     if (!unrated.isEmpty()) {
       throw new MissingInstrumentRateException(fund, monthEnd, unrated);
     }
-    var holdings = OcfHolding.of(lines, rates, aum);
+    var holdings = OcfHolding.of(weights, rates);
     return new UnderlyingFundCost(
-        weigh(holdings, InstrumentRate::netOcf, aum),
-        weigh(holdings, InstrumentRate::publishedOcf, aum),
+        weigh(holdings, InstrumentRate::netOcf),
+        weigh(holdings, InstrumentRate::publishedOcf),
         navDate,
         calculation.id(),
         aum,
@@ -260,11 +260,11 @@ public class OcfCalculationService {
   }
 
   private static BigDecimal weigh(
-      List<OcfHolding> holdings, Function<InstrumentRate, BigDecimal> rate, BigDecimal aum) {
+      List<OcfHolding> holdings, Function<InstrumentRate, BigDecimal> rate) {
     return holdings.stream()
-        .map(holding -> holding.value().multiply(rate.apply(holding.rate())))
+        .map(holding -> holding.weight().multiply(rate.apply(holding.rate())))
         .reduce(ZERO, BigDecimal::add)
-        .divide(aum, SCALE, HALF_UP);
+        .setScale(SCALE, HALF_UP);
   }
 
   TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {

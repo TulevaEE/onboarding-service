@@ -40,6 +40,11 @@ public class PaymentData {
     SWEDBANK,
     LHV,
     COOP,
+    CITADELE,
+    REVOLUT,
+    WISE,
+    N26,
+    BIGBANK,
     COOP_WEB,
     PARTNER, // COOP_APP
     TULUNDUSUHISTU

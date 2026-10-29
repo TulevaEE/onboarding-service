@@ -14,7 +14,7 @@
           Alustada võid kasvõi 1&nbsp;eurost. Fondi tasu on *|savingsFundFee|*%&nbsp;aastas ja muid
           lisatasusid ei ole.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?utm_content=first_payment_reminder_company_payment">
           Teen sissemakse
         </mj-button>
         <mj-text>

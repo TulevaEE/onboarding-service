@@ -235,6 +235,16 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_matchesAClosingFillFromSebsReportThatHoldsTheConfirmation() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(redemption, FIRST_FILL, "10000000.0100", "1.00000000", "10000000.01");
+    execution(redemption, REFERENCE, "8811874.0954", "1.00000000", "8811874.09");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "8811874.0954", "1", "8811874.09")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
   void compare_stillFindsAClosingFillThatTheRoundingDoesNotExplain() {
     TransactionOrder redemption = order(SELL, "18811874.1046");
     execution(redemption, FIRST_FILL, "10000000.0100", "1.00000000", "10000000.01");

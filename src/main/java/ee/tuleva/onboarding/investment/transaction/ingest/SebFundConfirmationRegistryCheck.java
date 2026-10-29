@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
-import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationDifferences.inSebsReport;
+import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService.SOURCE_HISTORICAL_IMPORT;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -9,6 +10,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -70,19 +72,42 @@ class SebFundConfirmationRegistryCheck {
         .storedAmount(
             "kogus",
             confirmation.quantity(),
-            storedQuantity(confirmation, trade.order()),
+            quantitiesItsWriterStores(confirmation, trade),
             execution.getExecutedQuantity())
-        .storedAmount("hind", confirmation.price(), execution.getUnitPrice())
         .storedAmount(
-            "kogumaksumus", confirmation.totalAmount(), execution.getTotalConsideration());
+            "hind",
+            confirmation.price(),
+            figuresItsWriterStores(confirmation.price(), execution),
+            execution.getUnitPrice())
+        .storedAmount(
+            "kogumaksumus",
+            confirmation.totalAmount(),
+            figuresItsWriterStores(confirmation.totalAmount(), execution),
+            execution.getTotalConsideration());
   }
 
-  private BigDecimal storedQuantity(SebFundConfirmation confirmation, TransactionOrder order) {
-    return quantityNormalizer.storedQuantity(
-        order,
-        inSebsReport(confirmation.quantity()),
-        executionRepository.findAllByOrderId(order.getId()),
-        confirmation.tradeReference());
+  private List<BigDecimal> quantitiesItsWriterStores(
+      SebFundConfirmation confirmation, RegisteredTrade trade) {
+    if (isHistorical(trade.execution())) {
+      return figuresItsWriterStores(confirmation.quantity(), trade.execution());
+    }
+    TransactionOrder order = trade.order();
+    return List.of(
+        quantityNormalizer.storedQuantity(
+            order,
+            asSebReportsIt(confirmation.quantity().abs()),
+            executionRepository.findAllByOrderId(order.getId()),
+            confirmation.tradeReference()));
+  }
+
+  private static List<BigDecimal> figuresItsWriterStores(
+      BigDecimal confirmed, TransactionExecution execution) {
+    BigDecimal reported = asSebReportsIt(confirmed);
+    return isHistorical(execution) ? List.of(confirmed, reported) : List.of(reported);
+  }
+
+  private static boolean isHistorical(TransactionExecution execution) {
+    return SOURCE_HISTORICAL_IMPORT.equals(execution.getSource());
   }
 
   private record RegisteredTrade(TransactionExecution execution, TransactionOrder order) {}

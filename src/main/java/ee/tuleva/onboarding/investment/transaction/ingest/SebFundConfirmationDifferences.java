@@ -34,19 +34,11 @@ final class SebFundConfirmationDifferences {
   }
 
   SebFundConfirmationDifferences storedAmount(
-      String name, BigDecimal confirmed, @Nullable BigDecimal stored) {
-    return storedAmount(name, confirmed, inSebsReport(confirmed), stored);
-  }
-
-  SebFundConfirmationDifferences storedAmount(
       String name,
       BigDecimal confirmed,
-      BigDecimal normalizedByTheImport,
+      List<BigDecimal> figuresItsWriterStores,
       @Nullable BigDecimal stored) {
-    if (stored == null
-        || !(isStoredAs(confirmed, stored)
-            || isStoredAs(inSebsReport(confirmed), stored)
-            || isStoredAs(normalizedByTheImport, stored))) {
+    if (stored == null || !isOneOf(stored, figuresItsWriterStores)) {
       differences.add(
           name + " " + plain(confirmed) + " vs " + (stored == null ? null : plain(stored)));
     }
@@ -57,8 +49,8 @@ final class SebFundConfirmationDifferences {
     return List.copyOf(differences);
   }
 
-  static BigDecimal inSebsReport(BigDecimal confirmed) {
-    return asSebReportsIt(confirmed.abs());
+  private static boolean isOneOf(BigDecimal stored, List<BigDecimal> figuresItsWriterStores) {
+    return figuresItsWriterStores.stream().anyMatch(figure -> isStoredAs(figure, stored));
   }
 
   private static boolean isStoredAs(BigDecimal value, BigDecimal stored) {
@@ -70,6 +62,6 @@ final class SebFundConfirmationDifferences {
   }
 
   private static boolean equalToSebsPrecision(BigDecimal confirmed, BigDecimal other) {
-    return inSebsReport(confirmed).compareTo(inSebsReport(other)) == 0;
+    return asSebReportsIt(confirmed.abs()).compareTo(asSebReportsIt(other.abs())) == 0;
   }
 }

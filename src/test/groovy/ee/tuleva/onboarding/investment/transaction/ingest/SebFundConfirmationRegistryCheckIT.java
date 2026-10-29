@@ -5,9 +5,11 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService.SOURCE_HISTORICAL_IMPORT;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.MATCH;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.MISMATCH;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryStatus.NOT_IN_REGISTRY;
+import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.SOURCE_SEB_OOTEL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -133,11 +135,64 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
-  void compare_matchesAQuantityStoredAsSebReportedItWithoutTheNormalizer() {
+  void compare_findsAnImportedFillTheNormalizerWouldHaveCompleted() {
     TransactionOrder redemption = order(SELL, "18811874.1046");
     execution(redemption, REFERENCE, "18811874.1000", "1.00000000", "18811874.10");
 
     assertThat(check.compare(confirmation(REFERENCE, SELL, "18811874.1046", "1", "18811874.10")))
+        .isEqualTo(new RegistryComparison(MISMATCH, List.of("kogus 18811874.1046 vs 18811874.1")));
+  }
+
+  @Test
+  void compare_matchesAHistoricalQuantityStoredAsSebReportedIt() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(
+        redemption,
+        REFERENCE,
+        SOURCE_HISTORICAL_IMPORT,
+        "18811874.1000",
+        "1.00000000",
+        "18811874.10");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "18811874.1046", "1", "18811874.10")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_stillFindsAHistoricalQuantityOneStoredUnitFromSebs() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(
+        redemption,
+        REFERENCE,
+        SOURCE_HISTORICAL_IMPORT,
+        "18811874.1001",
+        "1.00000000",
+        "18811874.10");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "18811874.1046", "1", "18811874.10")))
+        .isEqualTo(
+            new RegistryComparison(MISMATCH, List.of("kogus 18811874.1046 vs 18811874.1001")));
+  }
+
+  @Test
+  void compare_findsAnImportedPriceThatOnlyTheHistoryImportWouldStore() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "1.23456789", "1234.57");
+
+    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
+        .isEqualTo(new RegistryComparison(MISMATCH, List.of("hind 1.2345678949 vs 1.23456789")));
+  }
+
+  @Test
+  void compare_matchesAHistoricalPriceAtTheStoredScale() {
+    execution(
+        order(BUY, "1000"),
+        REFERENCE,
+        SOURCE_HISTORICAL_IMPORT,
+        "1000.0000",
+        "1.23456789",
+        "1234.57");
+
+    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
         .isEqualTo(new RegistryComparison(MATCH, List.of()));
   }
 
@@ -232,6 +287,16 @@ class SebFundConfirmationRegistryCheckIT {
 
   private TransactionExecution execution(
       TransactionOrder order, String reference, String quantity, String price, String total) {
+    return execution(order, reference, SOURCE_SEB_OOTEL, quantity, price, total);
+  }
+
+  private TransactionExecution execution(
+      TransactionOrder order,
+      String reference,
+      String source,
+      String quantity,
+      String price,
+      String total) {
     TransactionExecution execution =
         executionRepository.save(
             TransactionExecution.builder()
@@ -241,7 +306,7 @@ class SebFundConfirmationRegistryCheckIT {
                 .executedQuantity(new BigDecimal(quantity))
                 .unitPrice(new BigDecimal(price))
                 .totalConsideration(new BigDecimal(total))
-                .source("SEB_OOTEL")
+                .source(source)
                 .build());
     entityManager.flush();
     entityManager.clear();

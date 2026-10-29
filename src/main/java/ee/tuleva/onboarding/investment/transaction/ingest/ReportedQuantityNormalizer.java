@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.SIGNIFICANT_DIGITS;
+
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Component;
 @Component
 class ReportedQuantityNormalizer {
 
-  static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
   private static final BigDecimal HALF = new BigDecimal("0.5");
 
   SebPendingTransactionRow normalize(
@@ -64,7 +64,7 @@ class ReportedQuantityNormalizer {
 
   private static BigDecimal halfUlpAtReportedPrecision(BigDecimal value) {
     int integerDigits = value.precision() - value.scale();
-    int ulpScale = SEB_REPORTED_PRECISION.getPrecision() - integerDigits;
+    int ulpScale = SIGNIFICANT_DIGITS.getPrecision() - integerDigits;
     return BigDecimal.ONE.movePointLeft(ulpScale).multiply(HALF);
   }
 

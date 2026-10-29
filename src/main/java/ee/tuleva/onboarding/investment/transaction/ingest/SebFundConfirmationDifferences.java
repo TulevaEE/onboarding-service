@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.ingest.ReportedQuantityNormalizer.SEB_REPORTED_PRECISION;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
 import static java.math.RoundingMode.HALF_UP;
 
 import java.math.BigDecimal;
@@ -58,7 +58,7 @@ final class SebFundConfirmationDifferences {
   }
 
   static BigDecimal inSebsReport(BigDecimal confirmed) {
-    return confirmed.abs().round(SEB_REPORTED_PRECISION);
+    return asSebReportsIt(confirmed.abs());
   }
 
   private static boolean isStoredAs(BigDecimal value, BigDecimal stored) {

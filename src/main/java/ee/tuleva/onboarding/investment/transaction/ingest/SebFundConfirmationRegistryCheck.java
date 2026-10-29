@@ -88,12 +88,12 @@ class SebFundConfirmationRegistryCheck {
 
   private List<BigDecimal> quantitiesItsWriterStores(
       SebFundConfirmation confirmation, RegisteredTrade trade) {
-    BigDecimal confirmed = confirmation.quantity();
-    BigDecimal normalized =
-        normalized(asSebReportsIt(confirmed.abs()), confirmation, trade.order());
+    BigDecimal confirmed = confirmation.quantity().abs();
+    BigDecimal reported = asSebReportsIt(confirmed);
+    BigDecimal normalized = normalized(reported, confirmation, trade.order());
     return isFromSebsReport(trade.execution())
-        ? List.of(normalized)
-        : List.of(confirmed, asSebReportsIt(confirmed), normalized);
+        ? List.of(confirmed, normalized)
+        : List.of(confirmed, reported, normalized);
   }
 
   private BigDecimal normalized(

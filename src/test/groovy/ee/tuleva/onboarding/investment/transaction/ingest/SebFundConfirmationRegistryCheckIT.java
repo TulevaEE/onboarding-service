@@ -144,6 +144,28 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_matchesAQuantityFromSebsReportThatEqualsTheConfirmation() {
+    persist(TUK75, ISIN, BUY, FUND, "12345678.1234", "1.00000000", "12345678.12");
+
+    assertThat(check.compare(confirmation("12345678.1234", "1", "12345678.12")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_matchesAQuantityEnteredByHandAsTheConfirmationShowsIt() {
+    execution(
+        order(BUY, "12345678.1234"),
+        REFERENCE,
+        "MANUAL",
+        "12345678.1234",
+        "1.00000000",
+        "12345678.12");
+
+    assertThat(check.compare(confirmation("12345678.1234", "1", "12345678.12")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
   void compare_matchesAHistoricalQuantityStoredAsSebReportedIt() {
     TransactionOrder redemption = order(SELL, "18811874.1046");
     execution(

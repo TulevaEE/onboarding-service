@@ -7,10 +7,8 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
@@ -28,6 +26,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -228,24 +227,6 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
-  void theTwoXtrackersIssuersAreCheckedSeparately() {
-    insertTkf100XtrackersData();
-
-    var results = limitCheckService.runChecks().results();
-
-    var tkf100 = results.stream().filter(r -> r.fund() == TKF100).findFirst().orElseThrow();
-
-    // Both ETFs are run by DWS Investment S.A. but issued by two umbrellas, so they are two
-    // groups. Under one provider they would be 21,00% against a 20,00% hard limit.
-    assertThat(tkf100.providerBreaches())
-        .extracting(
-            b -> b.provider().name(), ProviderBreach::actualPercent, ProviderBreach::severity)
-        .containsExactlyInAnyOrder(
-            tuple("XTRACKERS_IE", new BigDecimal("19.0000"), OK),
-            tuple("XTRACKERS_LU", new BigDecimal("2.0000"), OK));
-  }
-
-  @Test
   void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
     insertTuk75Data();
 
@@ -253,11 +234,35 @@ class LimitCheckIntegrationTest {
     limitCheckService.runChecks().results();
 
     var events = limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE);
-    assertThat(events).hasSize(4);
+    assertThat(events).hasSize(3);
+    assertThat(events)
+        .extracting(LimitCheckEvent::getCheckType)
+        .containsExactlyInAnyOrder(CheckType.POSITION, CheckType.RESERVE, CheckType.FREE_CASH);
+  }
+
+  @Test
+  void aStoredProviderResultIsKeptUnchangedByTheDailyRunTheBackfillAndTheGapFill() {
+    insertTuk75Data();
+    var stored = limitCheckEventRepository.save(storedProviderResult(TUK75, NAV_DATE));
+    entityManager.flush();
+    entityManager.clear();
+
+    limitCheckService.runChecks();
+    limitCheckService.backfillChecks(0);
+    limitCheckService.fillGaps(Map.of(TUK75, List.of(NAV_DATE)), LimitCheckJob.GAP_LOOKBACK_DAYS);
+    entityManager.flush();
+    entityManager.clear();
+
+    var events = limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE);
     assertThat(events)
         .extracting(LimitCheckEvent::getCheckType)
         .containsExactlyInAnyOrder(
             CheckType.POSITION, CheckType.PROVIDER, CheckType.RESERVE, CheckType.FREE_CASH);
+    assertThat(events)
+        .filteredOn(event -> event.getCheckType() == CheckType.PROVIDER)
+        .singleElement()
+        .usingRecursiveComparison()
+        .isEqualTo(stored);
   }
 
   @Test
@@ -335,14 +340,22 @@ class LimitCheckIntegrationTest {
 
     // Fund limits (reserve + free cash)
     insertFundLimit("TUK75", 5_000, 3_000, 10_000);
-
-    // Model portfolio allocations (all ISHARES for TUK75)
-    for (var s : securities) {
-      insertModelPortfolioAllocation("TUK75", s.isin, "ISHARES");
-    }
   }
 
   // -- Helper methods --
+
+  private LimitCheckEvent storedProviderResult(TulevaFund fund, LocalDate checkDate) {
+    return LimitCheckEvent.builder()
+        .fund(fund)
+        .checkDate(checkDate)
+        .checkType(CheckType.PROVIDER)
+        .breachesFound(true)
+        .result(
+            Map.of(
+                "breaches",
+                List.of(Map.of("fund", fund.name(), "provider", "ISHARES", "severity", "SOFT"))))
+        .build();
+  }
 
   @SuppressWarnings("unchecked")
   private Map<String, Object> storedFreeCashBreach(TulevaFund fund) {
@@ -461,58 +474,6 @@ class LimitCheckIntegrationTest {
         .param("navDate", navDate)
         .param("fund", fund)
         .param("marketValue", BigDecimal.valueOf(aum))
-        .update();
-  }
-
-  private void insertTkf100XtrackersData() {
-    record Security(String isin, String provider, long marketValue) {}
-
-    var securities =
-        new Security[] {
-          new Security("IE00BJZ2DC62", "XTRACKERS_IE", 1_900_000),
-          new Security("LU0476289540", "XTRACKERS_LU", 200_000),
-        };
-
-    for (var s : securities) {
-      insertFundPosition("TKF100", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionLimit("TKF100", s.isin, s.isin, 19.65, 20.0);
-      insertModelPortfolioAllocation("TKF100", s.isin, s.provider);
-      insertProviderLimit("TKF100", s.provider, 19.65, 20.0);
-    }
-
-    insertNavReportUnits("TKF100", NAV_DATE, 10_000_000);
-    insertFundLimit("TKF100", 5_000, 3_000, 10_000);
-  }
-
-  private void insertProviderLimit(
-      String fund, String provider, double softPercent, double hardPercent) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO investment_provider_limit
-            (effective_date, fund_code, provider, soft_limit_percent, hard_limit_percent)
-            VALUES (:effectiveDate, :fund, :provider, :soft, :hard)
-            """)
-        .param("effectiveDate", LocalDate.of(2025, 6, 30))
-        .param("fund", fund)
-        .param("provider", provider)
-        .param("soft", BigDecimal.valueOf(softPercent))
-        .param("hard", BigDecimal.valueOf(hardPercent))
-        .update();
-  }
-
-  private void insertModelPortfolioAllocation(String fund, String isin, String provider) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO investment_model_portfolio_allocation
-            (effective_date, fund_code, isin, provider, weight)
-            VALUES (:effectiveDate, :fund, :isin, :provider, 1)
-            """)
-        .param("effectiveDate", LocalDate.of(2025, 6, 30))
-        .param("fund", fund)
-        .param("isin", isin)
-        .param("provider", provider)
         .update();
   }
 }

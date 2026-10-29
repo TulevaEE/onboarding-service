@@ -66,6 +66,15 @@ class LimitCheckEventRepositoryTest {
         .containsExactly(dailyDate);
   }
 
+  @Test
+  void aStoredProviderEvent_doesNotMarkItsDateChecked_becauseTheDailyCheckNoLongerWritesOne() {
+    var providerOnlyDate = LocalDate.of(2026, 3, 4);
+    repository.save(event(PROVIDER));
+
+    assertThat(repository.findDistinctCheckDates(TUK75, providerOnlyDate, providerOnlyDate))
+        .isEmpty();
+  }
+
   private LimitCheckEvent event(CheckType checkType) {
     return LimitCheckEvent.builder()
         .fund(TUK75)

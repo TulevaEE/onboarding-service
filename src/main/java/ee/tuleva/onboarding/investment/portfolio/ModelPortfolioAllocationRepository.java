@@ -19,8 +19,7 @@ public interface ModelPortfolioAllocationRepository
 
   // Snapshot semantics: a model portfolio is versioned as a whole, so all allocations on a given
   // effective date form one indivisible version. Returns every row from the single newest
-  // effectiveDate <= :asOf. Contrast with PositionLimit/ProviderLimit, where each ISIN/provider
-  // versions independently.
+  // effectiveDate <= :asOf. Contrast with PositionLimit, where each ISIN versions independently.
   @Query(
       """
       SELECT m FROM ModelPortfolioAllocation m

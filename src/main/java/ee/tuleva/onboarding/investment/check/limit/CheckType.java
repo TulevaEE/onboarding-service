@@ -10,6 +10,5 @@ public enum CheckType {
   FREE_CASH,
   OWNERSHIP;
 
-  static final Set<CheckType> WRITTEN_BY_THE_DAILY_CHECK =
-      EnumSet.of(POSITION, PROVIDER, RESERVE, FREE_CASH);
+  static final Set<CheckType> WRITTEN_BY_THE_DAILY_CHECK = EnumSet.of(POSITION, RESERVE, FREE_CASH);
 }

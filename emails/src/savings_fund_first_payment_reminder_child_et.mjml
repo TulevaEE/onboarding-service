@@ -19,7 +19,7 @@
           varale võimalikult palju aega kasvada. Saad kohe ka teha püsimakse, näiteks
           lapsetoetuse suuruses.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child?utm_content=first_payment_reminder_child_payment">
           Teen esimese sissemakse
         </mj-button>
         <mj-text>Soovi korral saad lapsele kogumise kohta uurida veel neist materjalidest:</mj-text>

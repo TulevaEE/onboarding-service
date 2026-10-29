@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -159,6 +160,23 @@ class OcfNotifierTest {
   }
 
   @Test
+  void aFundWeighedByTheMonthAverageSaysSoWithBothInvestedRatios() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(computed(TUK75, "0.0034"), weighedByTheMonthAverage(TKF100, "0.0025")),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.34%
+              ⚠️ TKF100 2026-04: 0.25% — month-end invested 94.07% is not representative of the month average 96.45% (-2.38 pp), so the underlying funds are weighed by their month-average share""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
   void aFailureDoesNotSuppressTheMustNotBePublishedWarningForAnIncompleteFund() {
     notifier.notifyRun(
         MONTH,
@@ -252,6 +270,51 @@ class OcfNotifierTest {
     return new Computed(fund, month, snapshot(fund, month, totalOcf, true), List.of(), List.of());
   }
 
+  private static OcfRunOutcome weighedByTheMonthAverage(TulevaFund fund, String totalOcf) {
+    var snapshot = snapshot(fund, MONTH, totalOcf, true);
+    var audit =
+        new OcfAudit(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            UnderlyingWeightBasis.MONTH_AVERAGE,
+            new BigDecimal("0.940700000000"),
+            new BigDecimal("0.964512345678"));
+    return new Computed(
+        fund,
+        MONTH,
+        new OcfSnapshot(
+            snapshot.id(),
+            snapshot.fundCode(),
+            snapshot.snapshotMonth(),
+            snapshot.version(),
+            snapshot.methodology(),
+            snapshot.managementFeeRate(),
+            snapshot.depotFeeRate(),
+            snapshot.underlyingFundCost(),
+            snapshot.underlyingFundCostGross(),
+            snapshot.underlyingFundCostNet(),
+            snapshot.rebateBasis(),
+            snapshot.transactionCostRate(),
+            snapshot.totalOcf(),
+            snapshot.complete(),
+            snapshot.checks(),
+            snapshot.publishedAt(),
+            snapshot.publishedIn(),
+            audit),
+        List.of(),
+        List.of());
+  }
+
   private static OcfRunOutcome holding(TulevaFund fund, String totalOcf, InstrumentRate rate) {
     return new Computed(
         fund,
@@ -284,7 +347,8 @@ class OcfNotifierTest {
   }
 
   private static OcfAudit emptyAudit() {
-    return new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+    return new OcfAudit(
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Test

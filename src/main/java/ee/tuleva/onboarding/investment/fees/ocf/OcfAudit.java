@@ -21,7 +21,10 @@ public record OcfAudit(
     @Nullable LocalDate txnWindowEnd,
     @Nullable BigDecimal txnCommissions,
     @Nullable BigDecimal txnAverageAum,
-    @Nullable String txnNavDates) {
+    @Nullable String txnNavDates,
+    @Nullable UnderlyingWeightBasis underlyingWeightBasis,
+    @Nullable BigDecimal investedRatioMonthEnd,
+    @Nullable BigDecimal investedRatioMonthAverage) {
 
   public static OcfAudit fromResultSet(ResultSet rs) throws SQLException {
     return new OcfAudit(
@@ -36,7 +39,15 @@ public record OcfAudit(
         localDate(rs, "txn_window_end"),
         rs.getBigDecimal("txn_commissions"),
         rs.getBigDecimal("txn_average_aum"),
-        rs.getString("txn_nav_dates"));
+        rs.getString("txn_nav_dates"),
+        weightBasis(rs),
+        rs.getBigDecimal("invested_ratio_month_end"),
+        rs.getBigDecimal("invested_ratio_month_average"));
+  }
+
+  private static @Nullable UnderlyingWeightBasis weightBasis(ResultSet rs) throws SQLException {
+    var value = rs.getString("underlying_weight_basis");
+    return value == null ? null : UnderlyingWeightBasis.valueOf(value);
   }
 
   private static @Nullable LocalDate localDate(ResultSet rs, String column) throws SQLException {

@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -96,7 +95,7 @@ public class OcfSnapshotRepository {
   }
 
   private int updateWorkingVersion(OcfSnapshot snapshot) {
-    return bindValues(
+    return OcfSnapshotParameters.bind(
             jdbcClient.sql(
                 """
                 UPDATE investment_ocf_snapshot SET
@@ -123,6 +122,9 @@ public class OcfSnapshotRepository {
                   txn_commissions = :txnCommissions,
                   txn_average_aum = :txnAverageAum,
                   txn_nav_dates = :txnNavDates,
+                  underlying_weight_basis = :underlyingWeightBasis,
+                  invested_ratio_month_end = :investedRatioMonthEnd,
+                  invested_ratio_month_average = :investedRatioMonthAverage,
                   calculated_at = now()
                 WHERE fund_code = :fundCode
                   AND snapshot_month = :snapshotMonth
@@ -133,7 +135,7 @@ public class OcfSnapshotRepository {
   }
 
   private void insertNextVersion(OcfSnapshot snapshot) {
-    bindValues(
+    OcfSnapshotParameters.bind(
             jdbcClient.sql(
                 """
                 INSERT INTO investment_ocf_snapshot
@@ -144,7 +146,8 @@ public class OcfSnapshotRepository {
                    nav_date, nav_calculation_id, assets_under_management, management_fee_rate_id,
                    depot_charged_to_fund, depot_tier_nav_date, depot_tier_basis,
                    txn_window_start, txn_window_end, txn_commissions, txn_average_aum,
-                   txn_nav_dates)
+                   txn_nav_dates, underlying_weight_basis, invested_ratio_month_end,
+                   invested_ratio_month_average)
                 SELECT :fundCode, :snapshotMonth, COALESCE(MAX(version), 0) + 1,
                        :managementFeeRate, :depotFeeRate, :underlyingFundCost,
                        :underlyingFundCostGross, :underlyingFundCostNet, :rebateBasis,
@@ -153,41 +156,13 @@ public class OcfSnapshotRepository {
                        :navDate, :navCalculationId, :assetsUnderManagement, :managementFeeRateId,
                        :depotChargedToFund, :depotTierNavDate, :depotTierBasis,
                        :txnWindowStart, :txnWindowEnd, :txnCommissions, :txnAverageAum,
-                       :txnNavDates
+                       :txnNavDates, :underlyingWeightBasis, :investedRatioMonthEnd,
+                       :investedRatioMonthAverage
                 FROM investment_ocf_snapshot
                 WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
                 """),
             snapshot)
         .update();
-  }
-
-  private StatementSpec bindValues(StatementSpec spec, OcfSnapshot snapshot) {
-    var audit = snapshot.audit();
-    return spec.param("fundCode", snapshot.fundCode())
-        .param("snapshotMonth", snapshot.snapshotMonth())
-        .param("managementFeeRate", snapshot.managementFeeRate())
-        .param("depotFeeRate", snapshot.depotFeeRate())
-        .param("underlyingFundCost", snapshot.underlyingFundCost())
-        .param("underlyingFundCostGross", snapshot.underlyingFundCostGross())
-        .param("underlyingFundCostNet", snapshot.underlyingFundCostNet())
-        .param("rebateBasis", snapshot.rebateBasis().name())
-        .param("methodology", snapshot.methodology().name())
-        .param("transactionCostRate", snapshot.transactionCostRate())
-        .param("totalOcf", snapshot.totalOcf())
-        .param("complete", snapshot.complete())
-        .param("checks", snapshot.checks() == null ? "{}" : snapshot.checks())
-        .param("navDate", audit.navDate())
-        .param("navCalculationId", audit.navCalculationId())
-        .param("assetsUnderManagement", audit.assetsUnderManagement())
-        .param("managementFeeRateId", audit.managementFeeRateId())
-        .param("depotChargedToFund", audit.depotChargedToFund())
-        .param("depotTierNavDate", audit.depotTierNavDate())
-        .param("depotTierBasis", audit.depotTierBasis())
-        .param("txnWindowStart", audit.txnWindowStart())
-        .param("txnWindowEnd", audit.txnWindowEnd())
-        .param("txnCommissions", audit.txnCommissions())
-        .param("txnAverageAum", audit.txnAverageAum())
-        .param("txnNavDates", audit.txnNavDates());
   }
 
   public boolean publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {

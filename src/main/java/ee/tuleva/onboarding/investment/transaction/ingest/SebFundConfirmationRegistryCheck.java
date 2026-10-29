@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationDifferences.inSebsReport;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
+import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,6 +19,7 @@ class SebFundConfirmationRegistryCheck {
 
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
+  private final ReportedQuantityNormalizer quantityNormalizer;
 
   RegistryComparison compare(SebFundConfirmation confirmation) {
     return registered(confirmation)
@@ -24,9 +27,7 @@ class SebFundConfirmationRegistryCheck {
             trade ->
                 RegistryComparison.of(
                     figureDifferences(
-                            tradeDifferences(confirmation, trade.order()),
-                            confirmation,
-                            trade.execution())
+                            tradeDifferences(confirmation, trade.order()), confirmation, trade)
                         .list()))
         .orElse(RegistryComparison.NOT_IN_REGISTRY);
   }
@@ -60,15 +61,28 @@ class SebFundConfirmationRegistryCheck {
         .field("instrumendi liik", FUND, order.getInstrumentType());
   }
 
-  private static SebFundConfirmationDifferences figureDifferences(
+  private SebFundConfirmationDifferences figureDifferences(
       SebFundConfirmationDifferences differences,
       SebFundConfirmation confirmation,
-      TransactionExecution execution) {
+      RegisteredTrade trade) {
+    TransactionExecution execution = trade.execution();
     return differences
-        .storedAmount("kogus", confirmation.quantity(), execution.getExecutedQuantity())
+        .storedAmount(
+            "kogus",
+            confirmation.quantity(),
+            storedQuantity(confirmation, trade.order()),
+            execution.getExecutedQuantity())
         .storedAmount("hind", confirmation.price(), execution.getUnitPrice())
         .storedAmount(
             "kogumaksumus", confirmation.totalAmount(), execution.getTotalConsideration());
+  }
+
+  private BigDecimal storedQuantity(SebFundConfirmation confirmation, TransactionOrder order) {
+    return quantityNormalizer.storedQuantity(
+        order,
+        inSebsReport(confirmation.quantity()),
+        executionRepository.findAllByOrderId(order.getId()),
+        confirmation.tradeReference());
   }
 
   private record RegisteredTrade(TransactionExecution execution, TransactionOrder order) {}

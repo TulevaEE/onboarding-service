@@ -48,7 +48,8 @@ class SebFundConfirmationNavDateWriterIT {
   void setUp() {
     writer =
         new SebFundConfirmationNavDateWriter(
-            new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
+            new SebFundConfirmationRegistryCheck(
+                executionRepository, orderRepository, new ReportedQuantityNormalizer()),
             executionRepository,
             new SebFundConfirmationAuditRecorder(
                 auditEventRepository,

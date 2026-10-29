@@ -107,7 +107,8 @@ class SebFundConfirmationImportJobIT {
                 extractor,
                 priceResolver,
                 parameterRepository,
-                new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
+                new SebFundConfirmationRegistryCheck(
+                    executionRepository, orderRepository, new ReportedQuantityNormalizer()),
                 clock,
                 PROPERTIES),
             new SebFundConfirmationMissingFinder(
@@ -120,7 +121,8 @@ class SebFundConfirmationImportJobIT {
                 PROPERTIES),
             auditRecorder,
             new SebFundConfirmationNavDateWriter(
-                new SebFundConfirmationRegistryCheck(executionRepository, orderRepository),
+                new SebFundConfirmationRegistryCheck(
+                    executionRepository, orderRepository, new ReportedQuantityNormalizer()),
                 executionRepository,
                 auditRecorder),
             new SebFundConfirmationDigest(notificationService, auditRecorder, PROPERTIES));

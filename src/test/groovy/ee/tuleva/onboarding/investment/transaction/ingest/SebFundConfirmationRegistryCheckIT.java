@@ -37,6 +37,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 class SebFundConfirmationRegistryCheckIT {
 
   private static final String REFERENCE = "DLA0000001";
+  private static final String FIRST_FILL = "DLA0000002";
   private static final String ISIN = "IE00BKPTWY98";
 
   @Autowired private TransactionExecutionRepository executionRepository;
@@ -48,7 +49,9 @@ class SebFundConfirmationRegistryCheckIT {
 
   @BeforeEach
   void setUp() {
-    check = new SebFundConfirmationRegistryCheck(executionRepository, orderRepository);
+    check =
+        new SebFundConfirmationRegistryCheck(
+            executionRepository, orderRepository, new ReportedQuantityNormalizer());
   }
 
   @Test
@@ -109,6 +112,37 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_findsATotalThatNoRoundingOfTheConfirmationProduces() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "12.40000000", "123456789.15");
+
+    assertThat(check.compare(confirmation("1000.00", "12.4", "123456789.10")))
+        .isEqualTo(
+            new RegistryComparison(MISMATCH, List.of("kogumaksumus 123456789.1 vs 123456789.15")));
+  }
+
+  @Test
+  void compare_matchesBothFillsOfARedemptionWhoseClosingFillAbsorbedTheRounding() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(redemption, FIRST_FILL, "10000000.0100", "1.00000000", "10000000.01");
+    execution(redemption, REFERENCE, "8811874.0946", "1.00000000", "8811874.09");
+
+    assertThat(check.compare(confirmation(FIRST_FILL, SELL, "10000000.0092", "1", "10000000.01")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "8811874.0954", "1", "8811874.09")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_stillFindsAClosingFillThatTheRoundingDoesNotExplain() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(redemption, FIRST_FILL, "10000000.0100", "1.00000000", "10000000.01");
+    execution(redemption, REFERENCE, "8811874.0946", "1.00000000", "8811874.09");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "8811874.0854", "1", "8811874.09")))
+        .isEqualTo(new RegistryComparison(MISMATCH, List.of("kogus 8811874.0854 vs 8811874.0946")));
+  }
+
+  @Test
   void compare_saysWhenTheReferenceBelongsToAnotherTradeInTheRegistry() {
     persist(TUK00, "IE00BFG1TM61", SELL, ETF, "1000.0000", "12.40000000", "12400.00");
 
@@ -158,25 +192,42 @@ class SebFundConfirmationRegistryCheckIT {
       String quantity,
       String price,
       String total) {
+    return execution(
+        order(fund, isin, side, instrumentType, "1000"), REFERENCE, quantity, price, total);
+  }
+
+  private TransactionOrder order(TransactionType side, String quantity) {
+    return order(TUK75, ISIN, side, FUND, quantity);
+  }
+
+  private TransactionOrder order(
+      TulevaFund fund,
+      String isin,
+      TransactionType side,
+      InstrumentType instrumentType,
+      String quantity) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(fund).createdBy("test-user").build());
-    TransactionOrder order =
-        orderRepository.save(
-            TransactionOrder.builder()
-                .batch(batch)
-                .fund(fund)
-                .instrumentIsin(isin)
-                .transactionType(side)
-                .instrumentType(instrumentType)
-                .orderQuantity(new BigDecimal("1000"))
-                .orderVenue(SEB)
-                .orderUuid(UUID.randomUUID())
-                .build());
+    return orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(fund)
+            .instrumentIsin(isin)
+            .transactionType(side)
+            .instrumentType(instrumentType)
+            .orderQuantity(new BigDecimal(quantity))
+            .orderVenue(SEB)
+            .orderUuid(UUID.randomUUID())
+            .build());
+  }
+
+  private TransactionExecution execution(
+      TransactionOrder order, String reference, String quantity, String price, String total) {
     TransactionExecution execution =
         executionRepository.save(
             TransactionExecution.builder()
                 .orderId(order.getId())
-                .brokerTransactionId(REFERENCE)
+                .brokerTransactionId(reference)
                 .executionTimestamp(Instant.parse("2026-01-05T12:48:00Z"))
                 .executedQuantity(new BigDecimal(quantity))
                 .unitPrice(new BigDecimal(price))
@@ -193,14 +244,19 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   private static SebFundConfirmation confirmation(String quantity, String price, String total) {
+    return confirmation(REFERENCE, BUY, quantity, price, total);
+  }
+
+  private static SebFundConfirmation confirmation(
+      String reference, TransactionType side, String quantity, String price, String total) {
     return new SebFundConfirmation(
         TUK75,
-        REFERENCE,
+        reference,
         Instant.parse("2026-01-05T09:48:17Z"),
         LocalDate.of(2026, 1, 6),
         LocalDate.of(2026, 1, 9),
         ISIN,
-        BUY,
+        side,
         new BigDecimal(quantity),
         new BigDecimal(price),
         new BigDecimal(total),

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
-import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,9 +36,7 @@ class LimitCheckNotifierTest {
             new BigDecimal("15"),
             new BigDecimal("20"),
             SOFT);
-    var result =
-        new LimitCheckResult(
-            TUK75, LocalDate.of(2026, 3, 4), List.of(breach), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(breach), null, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -61,8 +58,7 @@ class LimitCheckNotifierTest {
             new BigDecimal("20"),
             HARD);
     var result =
-        new LimitCheckResult(
-            TUK75, LocalDate.of(2026, 2, 11), List.of(breach), List.of(), null, null);
+        new LimitCheckResult(TUK75, LocalDate.of(2026, 2, 11), List.of(breach), null, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -119,8 +115,7 @@ class LimitCheckNotifierTest {
 
   @Test
   void sendsAllClearWhenNoBreaches() {
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), null, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -134,12 +129,9 @@ class LimitCheckNotifierTest {
     var run =
         LimitCheckRun.of(
             List.of(
-                new LimitCheckResult(
-                    TUK75, LocalDate.of(2026, 3, 2), List.of(), List.of(), null, null),
-                new LimitCheckResult(
-                    TUK75, LocalDate.of(2026, 3, 3), List.of(), List.of(), null, null),
-                new LimitCheckResult(
-                    TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null)));
+                new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 2), List.of(), null, null),
+                new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 3), List.of(), null, null),
+                new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), null, null)));
 
     notifier.notify(run);
 
@@ -149,26 +141,11 @@ class LimitCheckNotifierTest {
   }
 
   @Test
-  void includesProviderBreachDetails() {
-    var breach =
-        new ProviderBreach(
-            TUK75, ISHARES, new BigDecimal("35"), new BigDecimal("30"), new BigDecimal("40"), SOFT);
-    var result =
-        new LimitCheckResult(
-            TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(breach), null, null);
-
-    notifier.notify(LimitCheckRun.of(List.of(result)));
-
-    verify(notificationService).sendMessage(contains("ISHARES"), eq(INVESTMENT));
-  }
-
-  @Test
   void includesReserveBreachDetails() {
     var breach =
         new ReserveBreach(
             TUK75, new BigDecimal("40000"), new BigDecimal("50000"), new BigDecimal("30000"), SOFT);
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), breach, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -187,8 +164,7 @@ class LimitCheckNotifierTest {
             new BigDecimal("-5000"),
             BigDecimal.ZERO,
             new BigDecimal("10000"));
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, breach);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), null, breach);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -197,8 +173,7 @@ class LimitCheckNotifierTest {
 
   @Test
   void withinLimitsMessageShowsGreenIcon() {
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), null, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -210,8 +185,7 @@ class LimitCheckNotifierTest {
     var breach =
         new ReserveBreach(
             TUK75, new BigDecimal("40000"), new BigDecimal("50000"), new BigDecimal("30000"), SOFT);
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), breach, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -228,8 +202,7 @@ class LimitCheckNotifierTest {
     var breach =
         new ReserveBreach(
             TUK75, new BigDecimal("20000"), new BigDecimal("50000"), new BigDecimal("30000"), HARD);
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), breach, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -243,13 +216,18 @@ class LimitCheckNotifierTest {
   @Test
   void headerReflectsWorstSeverityWhenSoftAndHardMixed() {
     var soft =
-        new ProviderBreach(
-            TUK75, ISHARES, new BigDecimal("35"), new BigDecimal("30"), new BigDecimal("40"), SOFT);
+        new PositionBreach(
+            TUK75,
+            "IE001",
+            "iShares MSCI World",
+            new BigDecimal("16.50"),
+            new BigDecimal("15"),
+            new BigDecimal("20"),
+            SOFT);
     var hard =
         new ReserveBreach(
             TUK75, new BigDecimal("20000"), new BigDecimal("50000"), new BigDecimal("30000"), HARD);
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(soft), hard, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(soft), hard, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
@@ -257,15 +235,14 @@ class LimitCheckNotifierTest {
     verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
     var message = captor.getValue();
     assertThat(message).contains("🛑 LIMIT BREACH DETECTED");
-    assertThat(message).contains("⚠️ [SOFT] PROVIDER");
+    assertThat(message).contains("⚠️ [SOFT] POSITION");
     assertThat(message).contains("🛑 [HARD] RESERVE");
   }
 
   @Test
   void swallowsExceptions() {
     doThrow(new RuntimeException("Slack down")).when(notificationService).sendMessage(any(), any());
-    var result =
-        new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), null, null);
 
     notifier.notify(LimitCheckRun.of(List.of(result)));
   }

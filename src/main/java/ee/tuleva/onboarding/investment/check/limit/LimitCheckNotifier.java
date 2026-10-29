@@ -141,7 +141,6 @@ class LimitCheckNotifier {
     }
     var worst = OK;
     worst = worse(worst, appendPositionBreaches(body, result));
-    worst = worse(worst, appendProviderBreaches(body, result));
     worst = worse(worst, appendReserveBreach(body, result));
     return worst;
   }
@@ -159,27 +158,6 @@ class LimitCheckNotifier {
                     result.fund(),
                     result.checkDate(),
                     breach.label(),
-                    breach.actualPercent(),
-                    breach.softLimitPercent(),
-                    breach.hardLimitPercent()));
-      }
-    }
-    return worst;
-  }
-
-  private BreachSeverity appendProviderBreaches(StringBuilder body, LimitCheckResult result) {
-    var worst = OK;
-    for (var breach : result.providerBreaches()) {
-      if (breach.severity() != OK) {
-        worst = worse(worst, breach.severity());
-        body.append(
-            "\n%s [%s] PROVIDER %s %s: %s=%s%%, soft=%s%%, hard=%s%%"
-                .formatted(
-                    severityIcon(breach.severity()),
-                    breach.severity(),
-                    result.fund(),
-                    result.checkDate(),
-                    breach.provider(),
                     breach.actualPercent(),
                     breach.softLimitPercent(),
                     breach.hardLimitPercent()));

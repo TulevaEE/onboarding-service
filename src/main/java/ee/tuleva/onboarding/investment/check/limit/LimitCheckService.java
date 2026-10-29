@@ -20,13 +20,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -42,12 +40,9 @@ class LimitCheckService {
   private final FundValueProvider fundValueProvider;
   private final NavReportPositionProvider navReportPositionProvider;
   private final PositionLimitRepository positionLimitRepository;
-  private final ProviderLimitRepository providerLimitRepository;
   private final FundLimitRepository fundLimitRepository;
-  private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final LimitCheckEventWriter limitCheckEventWriter;
   private final PositionLimitChecker positionLimitChecker;
-  private final ProviderLimitChecker providerLimitChecker;
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
   private final TransactionOrderRepository transactionOrderRepository;
@@ -192,13 +187,9 @@ class LimitCheckService {
                         checkDate, fund, FEE)));
 
     var positionLimits = positionLimitRepository.findLatestByFundAsOf(fund, checkDate);
-    var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, checkDate);
     var fundLimit = fundLimitRepository.findLatestByFundAsOf(fund, checkDate).orElse(null);
-    var isinToProvider = buildIsinToProviderMap(fund, checkDate);
 
     var positionBreaches = positionLimitChecker.check(fund, positions, totalNav, positionLimits);
-    var providerBreaches =
-        providerLimitChecker.check(fund, positions, totalNav, isinToProvider, providerLimits);
     var reserveBreach = reserveLimitChecker.check(fund, cashTotal, fundLimit);
     var pendingCashImpact = pendingCashImpact(fund, checkDate);
     var freeCashBreach =
@@ -209,12 +200,10 @@ class LimitCheckService {
         checkDate,
         List.of(
             event(fund, checkDate, POSITION, positionBreaches),
-            event(fund, checkDate, PROVIDER, providerBreaches),
             event(fund, checkDate, RESERVE, reserveBreach),
             event(fund, checkDate, FREE_CASH, freeCashBreach)));
 
-    return new LimitCheckResult(
-        fund, checkDate, positionBreaches, providerBreaches, reserveBreach, freeCashBreach);
+    return new LimitCheckResult(fund, checkDate, positionBreaches, reserveBreach, freeCashBreach);
   }
 
   private BigDecimal pendingCashImpact(TulevaFund fund, LocalDate checkDate) {
@@ -265,32 +254,9 @@ class LimitCheckService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private Map<String, Provider> buildIsinToProviderMap(TulevaFund fund, LocalDate checkDate) {
-    var merged =
-        new HashMap<>(
-            modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, checkDate).stream()
-                .filter(a -> a.getIsin() != null && a.getProvider() != null)
-                .collect(
-                    Collectors.toMap(
-                        ModelPortfolioAllocation::getIsin,
-                        ModelPortfolioAllocation::getProvider,
-                        (a, b) -> b)));
-    modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, checkDate).stream()
-        .filter(a -> a.getIsin() != null && a.getProvider() != null)
-        .forEach(a -> merged.put(a.getIsin(), a.getProvider()));
-    return merged;
-  }
-
   private LimitCheckEvent event(
-      TulevaFund fund, LocalDate checkDate, CheckType checkType, List<?> breaches) {
-    var hasBreaches =
-        breaches.stream()
-            .anyMatch(
-                b -> {
-                  if (b instanceof PositionBreach pb) return pb.severity() != BreachSeverity.OK;
-                  if (b instanceof ProviderBreach pb) return pb.severity() != BreachSeverity.OK;
-                  return false;
-                });
+      TulevaFund fund, LocalDate checkDate, CheckType checkType, List<PositionBreach> breaches) {
+    var hasBreaches = breaches.stream().anyMatch(b -> b.severity() != BreachSeverity.OK);
 
     return event(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
   }

@@ -35,8 +35,26 @@ final class SebFundConfirmationDifferences {
     return this;
   }
 
+  SebFundConfirmationDifferences storedAmount(
+      String name, BigDecimal confirmed, @Nullable BigDecimal stored) {
+    if (stored == null
+        || !(equalToSebsPrecision(confirmed, stored) || equalAtTheStoredScale(confirmed, stored))) {
+      differences.add(
+          name + " " + plain(confirmed) + " vs " + (stored == null ? null : plain(stored)));
+    }
+    return this;
+  }
+
   List<String> list() {
     return List.copyOf(differences);
+  }
+
+  private static boolean equalAtTheStoredScale(BigDecimal confirmed, BigDecimal stored) {
+    return confirmed.abs().setScale(stored.scale(), HALF_UP).compareTo(stored.abs()) == 0;
+  }
+
+  private static String plain(BigDecimal value) {
+    return value.stripTrailingZeros().toPlainString();
   }
 
   private static boolean equalToSebsPrecision(BigDecimal confirmed, BigDecimal other) {

@@ -85,6 +85,14 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_matchesAPriceThatAgreesAtSebsPrecisionEvenWhereRoundingToTheRegistryWouldNot() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "123.45678940", "123456.79");
+
+    assertThat(check.compare(confirmation("1000.00", "123.456789449", "123456.79")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
   void compare_saysWhenTheReferenceBelongsToAnotherTradeInTheRegistry() {
     persist(TUK00, "IE00BFG1TM61", SELL, ETF, "1000.0000", "12.40000000", "12400.00");
 

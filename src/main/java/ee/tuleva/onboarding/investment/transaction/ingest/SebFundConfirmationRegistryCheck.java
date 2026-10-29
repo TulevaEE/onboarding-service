@@ -1,17 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
-import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.RegistryComparison;
-import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -68,27 +65,10 @@ class SebFundConfirmationRegistryCheck {
       SebFundConfirmation confirmation,
       TransactionExecution execution) {
     return differences
-        .amount(
-            "kogus",
-            atRegistryPrecision(confirmation.quantity(), execution.getExecutedQuantity()),
-            stripped(execution.getExecutedQuantity()))
-        .amount(
-            "hind",
-            atRegistryPrecision(confirmation.price(), execution.getUnitPrice()),
-            stripped(execution.getUnitPrice()))
-        .amount(
-            "kogumaksumus",
-            atRegistryPrecision(confirmation.totalAmount(), execution.getTotalConsideration()),
-            stripped(execution.getTotalConsideration()));
-  }
-
-  private static BigDecimal atRegistryPrecision(BigDecimal confirmed, @Nullable BigDecimal stored) {
-    BigDecimal rounded = stored == null ? confirmed : confirmed.setScale(stored.scale(), HALF_UP);
-    return rounded.stripTrailingZeros();
-  }
-
-  private static @Nullable BigDecimal stripped(@Nullable BigDecimal value) {
-    return value == null ? null : value.stripTrailingZeros();
+        .storedAmount("kogus", confirmation.quantity(), execution.getExecutedQuantity())
+        .storedAmount("hind", confirmation.price(), execution.getUnitPrice())
+        .storedAmount(
+            "kogumaksumus", confirmation.totalAmount(), execution.getTotalConsideration());
   }
 
   private record RegisteredTrade(TransactionExecution execution, TransactionOrder order) {}

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OcfRunKind.RU
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.COMPLETE;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.FAILED;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.INCOMPLETE;
+import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MONTH_AVERAGE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -20,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -207,17 +209,48 @@ class OcfNotifier {
 
   private static String line(OcfRunOutcome outcome) {
     return "%s %s %s: %s"
-        .formatted(
-            status(outcome).icon, outcome.fund().getCode(), outcome.month(), detail(outcome));
+        .formatted(icon(outcome), outcome.fund().getCode(), outcome.month(), detail(outcome));
+  }
+
+  private static String icon(OcfRunOutcome outcome) {
+    return switch (outcome) {
+      case Computed computed when monthAverageWeighting(computed).isPresent() -> INCOMPLETE.icon;
+      default -> status(outcome).icon;
+    };
   }
 
   private static String detail(OcfRunOutcome outcome) {
     return switch (outcome) {
       case Failed failed -> failed.reason();
       case Computed computed when computed.incomplete() ->
-          "%s%%, incomplete — %s".formatted(totalOcfPercent(computed), gapNames(computed.gaps()));
-      case Computed computed -> "%s%%".formatted(totalOcfPercent(computed));
+          withMonthAverageWeighting(
+              computed,
+              "%s%%, incomplete — %s"
+                  .formatted(totalOcfPercent(computed), gapNames(computed.gaps())));
+      case Computed computed ->
+          withMonthAverageWeighting(computed, "%s%%".formatted(totalOcfPercent(computed)));
     };
+  }
+
+  private static String withMonthAverageWeighting(Computed computed, String detail) {
+    return Stream.concat(Stream.of(detail), monthAverageWeighting(computed).stream())
+        .collect(joining(" — "));
+  }
+
+  private static Optional<String> monthAverageWeighting(Computed computed) {
+    var audit = computed.snapshot().audit();
+    var monthEnd = audit.investedRatioMonthEnd();
+    var average = audit.investedRatioMonthAverage();
+    if (audit.underlyingWeightBasis() != MONTH_AVERAGE || monthEnd == null || average == null) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        ("month-end invested %s%% is not representative of the month average %s%% (%s pp), so"
+                + " the underlying funds are weighed by their month-average share")
+            .formatted(
+                percent(monthEnd, PERCENT_DECIMAL_PLACES),
+                percent(average, PERCENT_DECIMAL_PLACES),
+                percent(monthEnd.subtract(average), PERCENT_DECIMAL_PLACES)));
   }
 
   private static String gapNames(List<OcfGap> gaps) {

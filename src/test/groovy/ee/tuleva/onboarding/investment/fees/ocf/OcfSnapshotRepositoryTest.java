@@ -38,7 +38,8 @@ class OcfSnapshotRepositoryTest {
   }
 
   private static final OcfAudit NO_AUDIT =
-      new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+      new OcfAudit(
+          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
   private OcfSnapshot snapshot(LocalDate month, String totalOcf) {
     return snapshot(month, totalOcf, NO_AUDIT);
@@ -213,7 +214,10 @@ class OcfSnapshotRepositoryTest {
             LocalDate.of(2026, 4, 30),
             new BigDecimal("1234.56"),
             new BigDecimal("98000000.00"),
-            "[\"2026-04-29\",\"2026-04-30\"]");
+            "[\"2026-04-29\",\"2026-04-30\"]",
+            UnderlyingWeightBasis.MONTH_AVERAGE,
+            new BigDecimal("0.940000000000"),
+            new BigDecimal("0.970000000000"));
 
     repository.save(snapshot(APRIL, "0.00340000", audit), List.of());
 

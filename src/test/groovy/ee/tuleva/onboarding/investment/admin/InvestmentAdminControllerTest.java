@@ -445,7 +445,8 @@ class InvestmentAdminControllerTest {
             false,
             null,
             new ee.tuleva.onboarding.investment.fees.ocf.OcfAudit(
-                null, null, null, null, null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null));
     given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
         .willReturn(snapshot);
 

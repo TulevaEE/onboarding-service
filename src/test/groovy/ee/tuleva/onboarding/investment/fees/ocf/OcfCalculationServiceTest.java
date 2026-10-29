@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +41,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +67,12 @@ class OcfCalculationServiceTest {
   @Mock(strictness = Mock.Strictness.LENIENT)
   private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private HistoricalTransactionFeeRepository historicalTransactionFeeRepository;
+
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private UnderlyingWeights underlyingWeights;
+
   @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
   @Spy private MonthEndNavCheck monthEndNavCheck = new MonthEndNavCheck(PUBLIC_HOLIDAYS);
@@ -74,6 +82,31 @@ class OcfCalculationServiceTest {
   @BeforeEach
   void defaultFeesChargedToFund() {
     given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
+  }
+
+  @BeforeEach
+  void theMonthEndIsRepresentativeByDefault() {
+    given(underlyingWeights.of(any(), any(), any()))
+        .willAnswer(invocation -> atMonthEnd(invocation.getArgument(2)));
+  }
+
+  private static UnderlyingWeights.Weights atMonthEnd(NavCalculation calculation) {
+    var aum = calculation.assetsUnderManagement();
+    var securities =
+        calculation.securityLines().stream()
+            .map(NavAccountLine::value)
+            .reduce(ZERO, BigDecimal::add);
+    return new UnderlyingWeights.Weights(
+        UnderlyingWeightBasis.MONTH_END,
+        OcfHolding.weightsOf(calculation.securityLines(), aum),
+        securities.divide(aum, OcfHolding.WEIGHT_SCALE, HALF_UP),
+        null);
+  }
+
+  @BeforeEach
+  void noSwedbankEraFeesByDefault() {
+    given(historicalTransactionFeeRepository.sumForFundBetween(any(), any(), any()))
+        .willReturn(ZERO);
   }
 
   private static final PublicHolidays PUBLIC_HOLIDAYS = new PublicHolidays();
@@ -157,7 +190,7 @@ class OcfCalculationServiceTest {
         unitsLine(new BigDecimal("100000000")));
 
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(fund.getCode()), any(), any()))
         .willReturn(new BigDecimal("50000"));
     given(
@@ -276,7 +309,7 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findAum(fund.getCode(), MONTH_END))
         .willReturn(new BigDecimal("110000000"));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(fund.getCode()), any(), any()))
         .willReturn(new BigDecimal("50000"));
 
@@ -450,7 +483,7 @@ class OcfCalculationServiceTest {
   @Test
   void transactionCostReturnsZeroWhenNoTransactions() {
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(ZERO);
 
@@ -460,12 +493,68 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void anUnrepresentativeMonthEndWeighsTheUnderlyingFundsByTheirMonthAverageAndSaysSo() {
+    givenRate(new BigDecimal("0.0010"));
+    var calculation =
+        new NavCalculation(
+            CALCULATION_ID,
+            Instant.EPOCH,
+            List.of(
+                securityLine(ISIN, new BigDecimal("940000")),
+                unitsLine(new BigDecimal("1000000"))));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
+        .willReturn(Optional.of(MONTH_END));
+    given(fundNavQueryService.findPublishedCalculation(TUK75.getCode(), MONTH_END))
+        .willReturn(Optional.of(calculation));
+    given(underlyingWeights.of(TUK75, MONTH, calculation))
+        .willReturn(
+            new UnderlyingWeights.Weights(
+                UnderlyingWeightBasis.MONTH_AVERAGE,
+                new TreeMap<>(Map.of(ISIN, new BigDecimal("0.970000000000"))),
+                new BigDecimal("0.940000000000"),
+                new BigDecimal("0.970000000000")));
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+
+    assertThat(cost.rate()).isEqualByComparingTo("0.00097");
+    assertThat(cost.weightBasis()).isEqualTo(UnderlyingWeightBasis.MONTH_AVERAGE);
+    assertThat(cost.investedRatioMonthEnd()).isEqualByComparingTo("0.94");
+    assertThat(cost.investedRatioMonthAverage()).isEqualByComparingTo("0.97");
+    assertThat(cost.holdings())
+        .containsExactly(
+            new OcfHolding(new BigDecimal("0.970000000000"), rate(ISIN, new BigDecimal("0.0010"))));
+  }
+
+  @Test
+  void transactionCostAddsTheSwedbankEraFeesToTheRegistrysSettlementFees() {
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), TRAILING_YEAR_START, MONTH_END))
+        .willReturn(List.of(TRAILING_YEAR_START, MONTH_END));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+    given(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("300"));
+    given(
+            historicalTransactionFeeRepository.sumForFundBetween(
+                TUK75, TRAILING_YEAR_START, MONTH_END))
+        .willReturn(new BigDecimal("200"));
+
+    var cost = service.getTransactionCost(TUK75, MONTH_END);
+
+    assertThat(cost.commissions()).isEqualByComparingTo("500");
+    assertThat(cost.rate()).isEqualByComparingTo("0.000005");
+  }
+
+  @Test
   void transactionCostWindowStartsAtTheFundsInception() {
     var inception = TKF100.getInceptionDate();
     given(fundNavQueryService.findPublishedNavDatesBetween(TKF100.getCode(), inception, MONTH_END))
         .willReturn(List.of(inception, MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TKF100.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TKF100.getCode()), any()))
@@ -475,7 +564,7 @@ class OcfCalculationServiceTest {
 
     assertThat(cost.signum()).isGreaterThan(0);
     verify(transactionExecutionRepository)
-        .sumCommissionsForFundAndPeriod(
+        .sumSettlementFeesForFundAndPeriod(
             TKF100.getCode(),
             inception.atStartOfDay(ESTONIAN_ZONE).toInstant(),
             MONTH_END.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
@@ -487,7 +576,7 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findPublishedNavDatesBetween(TKF100.getCode(), inception, MONTH_END))
         .willReturn(List.of(inception, MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TKF100.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TKF100.getCode()), any()))
@@ -509,7 +598,7 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
         .willReturn(List.of(MONTH_END.minusMonths(1), MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
@@ -519,7 +608,7 @@ class OcfCalculationServiceTest {
 
     assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
     verify(transactionExecutionRepository)
-        .sumCommissionsForFundAndPeriod(
+        .sumSettlementFeesForFundAndPeriod(
             TUK75.getCode(),
             periodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
             MONTH_END.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
@@ -533,7 +622,7 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
         .willReturn(List.of(MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
@@ -563,7 +652,7 @@ class OcfCalculationServiceTest {
     given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
         .willReturn(List.of(periodStart, MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
@@ -583,7 +672,7 @@ class OcfCalculationServiceTest {
                 TUK75.getCode(), periodStart, leapMonthEnd))
         .willReturn(List.of(periodStart, leapMonthEnd));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
@@ -604,7 +693,7 @@ class OcfCalculationServiceTest {
   @Test
   void transactionCostReturnsZeroWhenZeroAum() {
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(
@@ -792,7 +881,10 @@ class OcfCalculationServiceTest {
                 MONTH_END,
                 new BigDecimal("1000"),
                 new BigDecimal("1000000.00000000"),
-                "[\"%s\",\"%s\"]".formatted(FIRST_NAV_DATE_IN_WINDOW, MONTH_END)));
+                "[\"%s\",\"%s\"]".formatted(FIRST_NAV_DATE_IN_WINDOW, MONTH_END),
+                UnderlyingWeightBasis.MONTH_END,
+                new BigDecimal("0.500000000000"),
+                null));
   }
 
   @Test
@@ -908,7 +1000,7 @@ class OcfCalculationServiceTest {
     givenPublishedCalculation(
         TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findPublishedNavDatesBetween(eq(TUK75.getCode()), any(), any()))
@@ -948,7 +1040,7 @@ class OcfCalculationServiceTest {
                 TUK75.getCode(), TRAILING_YEAR_START, MONTH_END))
         .willReturn(List.of(FIRST_NAV_DATE_IN_WINDOW, MONTH_END));
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(commissions);
     given(fundNavQueryService.findAum(eq(TUK75.getCode()), any())).willReturn(aum);
@@ -978,7 +1070,7 @@ class OcfCalculationServiceTest {
 
   private void setupNoTransactionCosts(TulevaFund fund) {
     given(
-            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+            transactionExecutionRepository.sumSettlementFeesForFundAndPeriod(
                 eq(fund.getCode()), any(), any()))
         .willReturn(ZERO);
   }

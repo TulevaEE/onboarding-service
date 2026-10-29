@@ -50,11 +50,11 @@ class SebFundConfirmationDigest {
     List<String> blocks = new ArrayList<>();
     newFindings.forEach(found -> blocks.addAll(text.blocks(found.outcome(), found.findings())));
     newMissing.forEach(trade -> blocks.add(text.block(trade)));
-    newUnreadable.forEach(file -> blocks.add(text.block(file)));
-    newMisnamed.forEach(file -> blocks.add(text.block(file)));
+    newUnreadable.forEach(file -> blocks.add(SebFundConfirmationAlertText.block(file)));
+    newMisnamed.forEach(file -> blocks.add(SebFundConfirmationAlertText.block(file)));
     List<SebFundConfirmationCheckFailure> newFailures =
         failures.stream().filter(failure -> !auditRecorder.alreadyAlertedToday(failure)).toList();
-    newFailures.forEach(failure -> blocks.add(text.block(failure)));
+    newFailures.forEach(failure -> blocks.add(SebFundConfirmationAlertText.block(failure)));
     if (blocks.isEmpty()
         || !send(HEADER + BLOCK_SEPARATOR + String.join(BLOCK_SEPARATOR, blocks))) {
       return;

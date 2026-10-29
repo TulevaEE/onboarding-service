@@ -131,14 +131,14 @@ class SebFundConfirmationAlertText {
         "Kontrolli funds@ postkasti ja küsi kinnitust SEB-lt");
   }
 
-  String block(UnreadableSebFundConfirmation unreadable) {
+  static String block(UnreadableSebFundConfirmation unreadable) {
     return lines(
         "SEB tehingukinnitust ei õnnestunud lugeda: " + unreadable.key(),
         "Põhjus: " + unreadable.reason(),
         "Kontrolli PDF-i käsitsi");
   }
 
-  String block(MisnamedSebFundConfirmation misnamed) {
+  static String block(MisnamedSebFundConfirmation misnamed) {
     return lines(
         "SEB tehingukinnituse failinimi ja sisu ei klapi: " + misnamed.key(),
         "Failinimi viitab tehingule "
@@ -150,7 +150,7 @@ class SebFundConfirmationAlertText {
             + " kinnitus on olemas");
   }
 
-  String block(SebFundConfirmationCheckFailure failure) {
+  static String block(SebFundConfirmationCheckFailure failure) {
     return lines(
         "SEB tehingukinnituste kontroll jäi pooleli: " + failure.step(),
         "Põhjus: " + failure.reason(),

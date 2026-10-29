@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 final class SebFundConfirmationDifferences {
 
   private static final MathContext SEB_REPORT_SIGNIFICANT_DIGITS = new MathContext(10, HALF_UP);
+  private static final BigDecimal TWO = BigDecimal.valueOf(2);
 
   private final List<String> differences = new ArrayList<>();
 
@@ -37,8 +38,7 @@ final class SebFundConfirmationDifferences {
 
   SebFundConfirmationDifferences storedAmount(
       String name, BigDecimal confirmed, @Nullable BigDecimal stored) {
-    if (stored == null
-        || !(equalToSebsPrecision(confirmed, stored) || equalAtTheStoredScale(confirmed, stored))) {
+    if (stored == null || !isStoredAs(confirmed, stored)) {
       differences.add(
           name + " " + plain(confirmed) + " vs " + (stored == null ? null : plain(stored)));
     }
@@ -49,8 +49,19 @@ final class SebFundConfirmationDifferences {
     return List.copyOf(differences);
   }
 
-  private static boolean equalAtTheStoredScale(BigDecimal confirmed, BigDecimal stored) {
-    return confirmed.abs().setScale(stored.scale(), HALF_UP).compareTo(stored.abs()) == 0;
+  private static boolean isStoredAs(BigDecimal confirmed, BigDecimal stored) {
+    BigDecimal largestRoundingError =
+        sebsRoundingStep(confirmed).add(stored.ulp()).divide(TWO, MathContext.DECIMAL64);
+    return confirmed.abs().subtract(stored.abs()).abs().compareTo(largestRoundingError) <= 0;
+  }
+
+  private static BigDecimal sebsRoundingStep(BigDecimal confirmed) {
+    if (confirmed.signum() == 0) {
+      return BigDecimal.ZERO;
+    }
+    int magnitude = confirmed.precision() - confirmed.scale() - 1;
+    return BigDecimal.ONE.scaleByPowerOfTen(
+        magnitude - SEB_REPORT_SIGNIFICANT_DIGITS.getPrecision() + 1);
   }
 
   private static String plain(BigDecimal value) {

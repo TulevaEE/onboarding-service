@@ -93,6 +93,22 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
+  void compare_matchesAPriceSebRoundedToTenDigitsBeforeTheRegistryStoredIt() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "1.23456790", "1234.57");
+
+    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_stillFindsAPriceOneStoredUnitAway() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "1.23456791", "1234.57");
+
+    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
+        .isEqualTo(new RegistryComparison(MISMATCH, List.of("hind 1.2345678949 vs 1.23456791")));
+  }
+
+  @Test
   void compare_saysWhenTheReferenceBelongsToAnotherTradeInTheRegistry() {
     persist(TUK00, "IE00BFG1TM61", SELL, ETF, "1000.0000", "12.40000000", "12400.00");
 

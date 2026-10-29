@@ -101,7 +101,7 @@ class FundFeeUpdater {
     applyUpdate(fund, matchingRows.getFirst().rate(), field);
   }
 
-  private void applyUpdate(Fund fund, BigDecimal newValue, FeeField field) {
+  void applyUpdate(Fund fund, BigDecimal newValue, FeeField field) {
     if (newValue.compareTo(MIN_FEE) <= 0 || newValue.compareTo(MAX_FEE) > 0) {
       log.error(
           "Fee value out of bounds, skipping: field={}, isin={}, value={}",

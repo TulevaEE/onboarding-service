@@ -179,9 +179,7 @@ class OcfCalculationServiceTest {
             result,
             List.of(
                 new OcfHolding(
-                    new BigDecimal("100000000"),
-                    new BigDecimal("100000000"),
-                    rate(ISIN, new BigDecimal("0.0007")))));
+                    new BigDecimal("1.000000000000"), rate(ISIN, new BigDecimal("0.0007")))));
   }
 
   @Test

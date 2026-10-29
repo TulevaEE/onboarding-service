@@ -258,7 +258,7 @@ class OcfNotifierTest {
         MONTH,
         snapshot(fund, MONTH, totalOcf, true),
         List.of(),
-        List.of(new OcfHolding(new BigDecimal("1000.00"), new BigDecimal("10000.00"), rate)));
+        List.of(new OcfHolding(new BigDecimal("0.1"), rate)));
   }
 
   private static OcfRunOutcome incomplete(TulevaFund fund, String totalOcf, OcfGap... gaps) {

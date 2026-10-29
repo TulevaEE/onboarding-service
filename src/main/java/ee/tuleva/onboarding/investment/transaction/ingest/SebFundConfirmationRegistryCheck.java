@@ -77,21 +77,23 @@ class SebFundConfirmationRegistryCheck {
         .storedAmount(
             "hind",
             confirmation.price(),
-            figuresItsWriterStores(confirmation.price(), execution),
+            confirmedOrAsSebReportsIt(confirmation.price()),
             execution.getUnitPrice())
         .storedAmount(
             "kogumaksumus",
             confirmation.totalAmount(),
-            figuresItsWriterStores(confirmation.totalAmount(), execution),
+            confirmedOrAsSebReportsIt(confirmation.totalAmount()),
             execution.getTotalConsideration());
   }
 
   private List<BigDecimal> quantitiesItsWriterStores(
       SebFundConfirmation confirmation, RegisteredTrade trade) {
-    BigDecimal confirmed = confirmation.quantity().abs();
+    BigDecimal confirmed = confirmation.quantity();
+    BigDecimal normalized =
+        normalized(asSebReportsIt(confirmed.abs()), confirmation, trade.order());
     return isFromSebsReport(trade.execution())
-        ? List.of(normalized(asSebReportsIt(confirmed), confirmation, trade.order()))
-        : confirmedOrAsSebReportsIt(confirmed);
+        ? List.of(normalized)
+        : List.of(confirmed, asSebReportsIt(confirmed), normalized);
   }
 
   private BigDecimal normalized(
@@ -101,13 +103,6 @@ class SebFundConfirmationRegistryCheck {
         reported,
         executionRepository.findAllByOrderId(order.getId()),
         confirmation.tradeReference());
-  }
-
-  private static List<BigDecimal> figuresItsWriterStores(
-      BigDecimal confirmed, TransactionExecution execution) {
-    return isFromSebsReport(execution)
-        ? List.of(asSebReportsIt(confirmed.abs()))
-        : confirmedOrAsSebReportsIt(confirmed.abs());
   }
 
   private static List<BigDecimal> confirmedOrAsSebReportsIt(BigDecimal confirmed) {

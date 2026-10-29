@@ -175,32 +175,40 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
-  void compare_findsAPriceFromSebsReportThatSebsTenDigitsCannotGive() {
+  void compare_matchesAPriceFromSebsReportRoundedOnlyToTheStoredScale() {
     persist(TUK75, ISIN, BUY, FUND, "1000.0000", "1.23456789", "1234.57");
-
-    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
-        .isEqualTo(new RegistryComparison(MISMATCH, List.of("hind 1.2345678949 vs 1.23456789")));
-  }
-
-  @Test
-  void compare_matchesAHistoricalPriceAtTheStoredScale() {
-    execution(
-        order(BUY, "1000"),
-        REFERENCE,
-        SOURCE_HISTORICAL_IMPORT,
-        "1000.0000",
-        "1.23456789",
-        "1234.57");
 
     assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
         .isEqualTo(new RegistryComparison(MATCH, List.of()));
   }
 
   @Test
-  void compare_matchesAHandEnteredPriceAtTheStoredScale() {
-    execution(order(BUY, "1000"), REFERENCE, "MANUAL", "1000.0000", "1.23456789", "1234.57");
+  void compare_matchesATotalFromSebsReportHeldToTheCent() {
+    persist(TUK75, ISIN, BUY, FUND, "1000.0000", "12.40000000", "123456789.15");
 
-    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
+    assertThat(check.compare(confirmation("1000.00", "12.4", "123456789.15")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_matchesAHistoricalClosingFillCompletedToTheOrder() {
+    TransactionOrder redemption = order(SELL, "18811874.1046");
+    execution(
+        redemption,
+        FIRST_FILL,
+        SOURCE_HISTORICAL_IMPORT,
+        "10000000.0100",
+        "1.00000000",
+        "10000000.01");
+    execution(
+        redemption,
+        REFERENCE,
+        SOURCE_HISTORICAL_IMPORT,
+        "8811874.0946",
+        "1.00000000",
+        "8811874.09");
+
+    assertThat(check.compare(confirmation(REFERENCE, SELL, "8811874.0954", "1", "8811874.09")))
         .isEqualTo(new RegistryComparison(MATCH, List.of()));
   }
 

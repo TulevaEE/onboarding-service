@@ -135,7 +135,7 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
-  void compare_findsAnImportedFillTheNormalizerWouldHaveCompleted() {
+  void compare_findsAFillFromSebsReportThatTheNormalizerWouldHaveCompleted() {
     TransactionOrder redemption = order(SELL, "18811874.1046");
     execution(redemption, REFERENCE, "18811874.1000", "1.00000000", "18811874.10");
 
@@ -175,7 +175,7 @@ class SebFundConfirmationRegistryCheckIT {
   }
 
   @Test
-  void compare_findsAnImportedPriceThatOnlyTheHistoryImportWouldStore() {
+  void compare_findsAPriceFromSebsReportThatSebsTenDigitsCannotGive() {
     persist(TUK75, ISIN, BUY, FUND, "1000.0000", "1.23456789", "1234.57");
 
     assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
@@ -191,6 +191,14 @@ class SebFundConfirmationRegistryCheckIT {
         "1000.0000",
         "1.23456789",
         "1234.57");
+
+    assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
+        .isEqualTo(new RegistryComparison(MATCH, List.of()));
+  }
+
+  @Test
+  void compare_matchesAHandEnteredPriceAtTheStoredScale() {
+    execution(order(BUY, "1000"), REFERENCE, "MANUAL", "1000.0000", "1.23456789", "1234.57");
 
     assertThat(check.compare(confirmation("1000.00", "1.2345678949", "1234.57")))
         .isEqualTo(new RegistryComparison(MATCH, List.of()));

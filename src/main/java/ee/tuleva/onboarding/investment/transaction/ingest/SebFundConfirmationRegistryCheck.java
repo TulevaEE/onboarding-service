@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
-import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService.SOURCE_HISTORICAL_IMPORT;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
+import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.SOURCE_SEB_OOTEL;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -88,26 +88,34 @@ class SebFundConfirmationRegistryCheck {
 
   private List<BigDecimal> quantitiesItsWriterStores(
       SebFundConfirmation confirmation, RegisteredTrade trade) {
-    if (isHistorical(trade.execution())) {
-      return figuresItsWriterStores(confirmation.quantity(), trade.execution());
-    }
-    TransactionOrder order = trade.order();
-    return List.of(
-        quantityNormalizer.storedQuantity(
-            order,
-            asSebReportsIt(confirmation.quantity().abs()),
-            executionRepository.findAllByOrderId(order.getId()),
-            confirmation.tradeReference()));
+    BigDecimal confirmed = confirmation.quantity().abs();
+    return isFromSebsReport(trade.execution())
+        ? List.of(normalized(asSebReportsIt(confirmed), confirmation, trade.order()))
+        : confirmedOrAsSebReportsIt(confirmed);
+  }
+
+  private BigDecimal normalized(
+      BigDecimal reported, SebFundConfirmation confirmation, TransactionOrder order) {
+    return quantityNormalizer.storedQuantity(
+        order,
+        reported,
+        executionRepository.findAllByOrderId(order.getId()),
+        confirmation.tradeReference());
   }
 
   private static List<BigDecimal> figuresItsWriterStores(
       BigDecimal confirmed, TransactionExecution execution) {
-    BigDecimal reported = asSebReportsIt(confirmed);
-    return isHistorical(execution) ? List.of(confirmed, reported) : List.of(reported);
+    return isFromSebsReport(execution)
+        ? List.of(asSebReportsIt(confirmed.abs()))
+        : confirmedOrAsSebReportsIt(confirmed.abs());
   }
 
-  private static boolean isHistorical(TransactionExecution execution) {
-    return SOURCE_HISTORICAL_IMPORT.equals(execution.getSource());
+  private static List<BigDecimal> confirmedOrAsSebReportsIt(BigDecimal confirmed) {
+    return List.of(confirmed, asSebReportsIt(confirmed));
+  }
+
+  private static boolean isFromSebsReport(TransactionExecution execution) {
+    return SOURCE_SEB_OOTEL.equals(execution.getSource());
   }
 
   private record RegisteredTrade(TransactionExecution execution, TransactionOrder order) {}

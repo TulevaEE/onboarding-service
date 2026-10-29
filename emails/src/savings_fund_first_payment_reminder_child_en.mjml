@@ -21,7 +21,7 @@
           child's savings as much time to grow as possible. You can also set up a recurring
           payment straight away, the size of the child benefit for example.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/child?language=en&utm_content=first_payment_reminder_child_payment">
           Make the first contribution
         </mj-button>
         <mj-text>If you would like to read more about the fund, start here:</mj-text>

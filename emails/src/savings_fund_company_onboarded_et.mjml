@@ -13,7 +13,7 @@
           Esimese sissemakse saad teha mugavalt ettevõtte pangakontolt. Alustada võid endale sobivast
           summast.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen sissemakse</mj-button>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?utm_content=company_onboarded_payment">Teen sissemakse</mj-button>
         <mj-text>Ettevõtte kaudu investeerimisest saad lugeda blogist rohkem:</mj-text>
         <mj-text>
           <ul style="margin:0;padding-left:20px;">

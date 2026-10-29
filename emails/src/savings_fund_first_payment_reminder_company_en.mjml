@@ -14,7 +14,7 @@
           You can start with as little as 1&nbsp;euro. The fund's fee is *|savingsFundFee|*%&nbsp;per year
           and there are no other fees.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">Make a contribution</mj-button>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?language=en&utm_content=first_payment_reminder_company_payment">Make a contribution</mj-button>
         <mj-text>
           Two things companies often ask us: <strong>you do not need an LEI code</strong> to invest
           in the fund, and you can easily get <strong>the statement needed for the annual report</strong>

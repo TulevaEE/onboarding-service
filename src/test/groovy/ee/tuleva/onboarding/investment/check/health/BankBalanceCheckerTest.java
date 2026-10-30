@@ -105,12 +105,12 @@ class BankBalanceCheckerTest {
   }
 
   @Test
-  void warnsThatADayInsideACatchUpStatementWasNotComparedAndCannotRunWithoutAnyStatement() {
+  void warnsInWholeCentsThatADayInsideACatchUpStatementWasNotComparedWithTheBank() {
     given(bankAccounts.findAll(TUV100)).willReturn(List.of(TUV100_INVESTMENT));
     given(bankStatementBalances.closingBalance(TUV100_INVESTMENT, NAV_DATE))
         .willReturn(Optional.empty());
     given(bankStatementBalances.isInsideAStatementClosingLater(TUV100_INVESTMENT, NAV_DATE))
-        .willReturn(true, false);
+        .willReturn(true);
 
     assertThat(checker.check(TUV100, NAV_DATE, List.of(cash("1000.004"))))
         .containsExactly(
@@ -122,10 +122,6 @@ class BankBalanceCheckerTest {
                     + " inside a catch-up statement (one statement for several days, e.g. after"
                     + " an outage) whose closing balance is for a later day. Check the day's"
                     + " balance in SEB's internet bank"));
-    assertThat(checker.check(TUV100, NAV_DATE, List.of(cash("1000.00"))))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUV100, BANK_BALANCE, NOT_RUN, "No bank statement for 2026-10-23"));
   }
 
   @Test

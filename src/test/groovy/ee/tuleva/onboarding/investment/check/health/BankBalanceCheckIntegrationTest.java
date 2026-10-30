@@ -131,7 +131,7 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
-  void warnsThatADayInsideACatchUpStatementWasNotComparedUntilAStatementOfItsOwnArrives() {
+  void warnsThatADayInsideACatchUpStatementWasNotComparedUntilTheDayIsRefetchedOnItsOwn() {
     storeCatchUpStatement(
         TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(2), NAV_DATE, "1000000.00", EARLY_MORNING);
 

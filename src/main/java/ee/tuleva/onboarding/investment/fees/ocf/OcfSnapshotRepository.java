@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -16,9 +15,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Repository
 @RequiredArgsConstructor
 public class OcfSnapshotRepository {
-
-  private static final String ONLY_WHEN_COMPLETE = "  AND complete = true\n";
-  private static final String GAPS_AND_ALL = "";
 
   private final JdbcClient jdbcClient;
   private final TransactionTemplate transactionTemplate;
@@ -66,18 +62,19 @@ public class OcfSnapshotRepository {
                     """
                     INSERT INTO investment_ocf_snapshot_detail
                       (snapshot_id, isin, weight, published_ocf, net_ocf, rate_basis,
-                       instrument_fee_rate_id)
+                       instrument_fee_rate_id, instrument_fee_id)
                     VALUES
                       (:snapshotId, :isin, :weight, :publishedOcf, :netOcf, :rateBasis,
-                       :instrumentFeeRateId)
+                       :instrumentFeeRateId, :instrumentFeeId)
                     """)
                 .param("snapshotId", snapshotId)
                 .param("isin", holding.rate().isin())
                 .param("weight", holding.weight())
                 .param("publishedOcf", holding.rate().publishedOcf())
                 .param("netOcf", holding.rate().netOcf())
-                .param("rateBasis", holding.rate().rateBasis().name())
-                .param("instrumentFeeRateId", holding.rate().id())
+                .param("rateBasis", holding.rate().basis().name())
+                .param("instrumentFeeRateId", holding.rate().rateId())
+                .param("instrumentFeeId", holding.rate().agreementId())
                 .update());
   }
 
@@ -96,7 +93,7 @@ public class OcfSnapshotRepository {
   }
 
   private int updateWorkingVersion(OcfSnapshot snapshot) {
-    return bindValues(
+    return OcfSnapshotParameters.bind(
             jdbcClient.sql(
                 """
                 UPDATE investment_ocf_snapshot SET
@@ -120,9 +117,12 @@ public class OcfSnapshotRepository {
                   depot_tier_basis = :depotTierBasis,
                   txn_window_start = :txnWindowStart,
                   txn_window_end = :txnWindowEnd,
-                  txn_commissions = :txnCommissions,
+                  txn_fees = :txnFees,
                   txn_average_aum = :txnAverageAum,
                   txn_nav_dates = :txnNavDates,
+                  underlying_weight_basis = :underlyingWeightBasis,
+                  invested_ratio_month_end = :investedRatioMonthEnd,
+                  invested_ratio_month_average = :investedRatioMonthAverage,
                   calculated_at = now()
                 WHERE fund_code = :fundCode
                   AND snapshot_month = :snapshotMonth
@@ -133,7 +133,7 @@ public class OcfSnapshotRepository {
   }
 
   private void insertNextVersion(OcfSnapshot snapshot) {
-    bindValues(
+    OcfSnapshotParameters.bind(
             jdbcClient.sql(
                 """
                 INSERT INTO investment_ocf_snapshot
@@ -143,8 +143,9 @@ public class OcfSnapshotRepository {
                    transaction_cost_rate, total_ocf, complete, checks,
                    nav_date, nav_calculation_id, assets_under_management, management_fee_rate_id,
                    depot_charged_to_fund, depot_tier_nav_date, depot_tier_basis,
-                   txn_window_start, txn_window_end, txn_commissions, txn_average_aum,
-                   txn_nav_dates)
+                   txn_window_start, txn_window_end, txn_fees, txn_average_aum,
+                   txn_nav_dates, underlying_weight_basis, invested_ratio_month_end,
+                   invested_ratio_month_average)
                 SELECT :fundCode, :snapshotMonth, COALESCE(MAX(version), 0) + 1,
                        :managementFeeRate, :depotFeeRate, :underlyingFundCost,
                        :underlyingFundCostGross, :underlyingFundCostNet, :rebateBasis,
@@ -152,8 +153,9 @@ public class OcfSnapshotRepository {
                        :transactionCostRate, :totalOcf, :complete, :checks,
                        :navDate, :navCalculationId, :assetsUnderManagement, :managementFeeRateId,
                        :depotChargedToFund, :depotTierNavDate, :depotTierBasis,
-                       :txnWindowStart, :txnWindowEnd, :txnCommissions, :txnAverageAum,
-                       :txnNavDates
+                       :txnWindowStart, :txnWindowEnd, :txnFees, :txnAverageAum,
+                       :txnNavDates, :underlyingWeightBasis, :investedRatioMonthEnd,
+                       :investedRatioMonthAverage
                 FROM investment_ocf_snapshot
                 WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
                 """),
@@ -161,111 +163,80 @@ public class OcfSnapshotRepository {
         .update();
   }
 
-  private StatementSpec bindValues(StatementSpec spec, OcfSnapshot snapshot) {
-    var audit = snapshot.audit();
-    return spec.param("fundCode", snapshot.fundCode())
-        .param("snapshotMonth", snapshot.snapshotMonth())
-        .param("managementFeeRate", snapshot.managementFeeRate())
-        .param("depotFeeRate", snapshot.depotFeeRate())
-        .param("underlyingFundCost", snapshot.underlyingFundCost())
-        .param("underlyingFundCostGross", snapshot.underlyingFundCostGross())
-        .param("underlyingFundCostNet", snapshot.underlyingFundCostNet())
-        .param("rebateBasis", snapshot.rebateBasis().name())
-        .param("methodology", snapshot.methodology().name())
-        .param("transactionCostRate", snapshot.transactionCostRate())
-        .param("totalOcf", snapshot.totalOcf())
-        .param("complete", snapshot.complete())
-        .param("checks", snapshot.checks() == null ? "{}" : snapshot.checks())
-        .param("navDate", audit.navDate())
-        .param("navCalculationId", audit.navCalculationId())
-        .param("assetsUnderManagement", audit.assetsUnderManagement())
-        .param("managementFeeRateId", audit.managementFeeRateId())
-        .param("depotChargedToFund", audit.depotChargedToFund())
-        .param("depotTierNavDate", audit.depotTierNavDate())
-        .param("depotTierBasis", audit.depotTierBasis())
-        .param("txnWindowStart", audit.txnWindowStart())
-        .param("txnWindowEnd", audit.txnWindowEnd())
-        .param("txnCommissions", audit.txnCommissions())
-        .param("txnAverageAum", audit.txnAverageAum())
-        .param("txnNavDates", audit.txnNavDates());
-  }
-
-  public boolean publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
-    if (stampPublished(fundCode, snapshotMonth, publishedIn, ONLY_WHEN_COMPLETE) > 0) {
-      return true;
-    }
-    var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
-    if (incomplete.isPresent()) {
-      log.warn(
-          "Refused to publish an incomplete OCF snapshot: fund={}, month={}, checks={}",
-          fundCode,
-          snapshotMonth,
-          incomplete.get().checks());
-      throw new IncompleteOcfSnapshotException(incomplete.get());
-    }
-    return nothingToPublish(fundCode, snapshotMonth);
-  }
-
-  public boolean publishDespiteGaps(String fundCode, LocalDate snapshotMonth, String publishedIn) {
-    var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
-    if (stampPublished(fundCode, snapshotMonth, publishedIn, GAPS_AND_ALL) == 0) {
-      return nothingToPublish(fundCode, snapshotMonth);
-    }
-    incomplete.ifPresent(
-        snapshot ->
-            log.warn(
-                "Incomplete OCF snapshot published under an override: fund={}, month={},"
-                    + " publishedIn={}, checks={}",
-                fundCode,
-                snapshotMonth,
-                publishedIn,
-                snapshot.checks()));
-    return true;
-  }
-
-  private int stampPublished(
-      String fundCode, LocalDate snapshotMonth, String publishedIn, String completenessPredicate) {
-    var sql =
-        """
-        UPDATE investment_ocf_snapshot
-        SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
-        WHERE fund_code = :fundCode
-          AND snapshot_month = :snapshotMonth
-          AND published_at IS NULL
-        """
-            + completenessPredicate;
+  boolean recordPublication(OcfSnapshot snapshot, OcfPublication publication) {
     return jdbcClient
-        .sql(sql)
-        .param("fundCode", fundCode)
-        .param("snapshotMonth", snapshotMonth)
-        .param("publishedIn", publishedIn)
-        .update();
+            .sql(
+                """
+                UPDATE investment_ocf_snapshot SET
+                  published_at = CURRENT_TIMESTAMP,
+                  published_in = :publishedIn,
+                  published_valid_from = :validFrom,
+                  published_ocf = :publishedOcf,
+                  published_management_fee_rate = :managementFeeRate,
+                  published_management_fee_rate_id = :managementFeeRateId,
+                  published_by = :publishedBy,
+                  publication_approved_by = :approvedBy,
+                  publication_exception_reason = :exceptionReason
+                WHERE id = :id
+                  AND published_at IS NULL
+                  AND total_ocf = :totalOcf
+                  AND management_fee_rate = :calculatedManagementFeeRate
+                  AND complete = :complete
+                  AND checks = :checks
+                """)
+            .param("publishedIn", publication.publishedIn())
+            .param("validFrom", publication.validFrom())
+            .param("publishedOcf", publication.publishedOcf())
+            .param("managementFeeRate", publication.managementFeeRate())
+            .param("managementFeeRateId", publication.managementFeeRateId())
+            .param("publishedBy", publication.publishedBy())
+            .param("approvedBy", publication.approvedBy())
+            .param("exceptionReason", publication.exceptionReason())
+            .param("id", snapshot.id())
+            .param("totalOcf", snapshot.totalOcf())
+            .param("calculatedManagementFeeRate", snapshot.managementFeeRate())
+            .param("complete", snapshot.complete())
+            .param("checks", snapshot.checks())
+            .update()
+        == 1;
   }
 
-  private Optional<OcfSnapshot> incompleteWorkingVersion(String fundCode, LocalDate snapshotMonth) {
+  Optional<KidFigure> findPublishedInForceOn(String fundCode, LocalDate date) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT snapshot_month, version, published_valid_from, published_ocf, published_in
+            FROM investment_ocf_snapshot
+            WHERE fund_code = :fundCode
+              AND published_valid_from <= :date
+            ORDER BY published_valid_from DESC, published_at DESC, id DESC
+            LIMIT 1
+            """)
+        .param("fundCode", fundCode)
+        .param("date", date)
+        .query(
+            (rs, rowNum) ->
+                new KidFigure(
+                    rs.getObject("snapshot_month", LocalDate.class),
+                    rs.getInt("version"),
+                    rs.getObject("published_valid_from", LocalDate.class),
+                    rs.getBigDecimal("published_ocf"),
+                    rs.getString("published_in")))
+        .optional();
+  }
+
+  Optional<OcfSnapshot> findVersion(String fundCode, LocalDate snapshotMonth, int version) {
     return jdbcClient
         .sql(
             """
             SELECT * FROM investment_ocf_snapshot
-            WHERE fund_code = :fundCode
-              AND snapshot_month = :snapshotMonth
-              AND published_at IS NULL
-              AND complete = false
-            ORDER BY version DESC
-            LIMIT 1
+            WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth AND version = :version
             """)
         .param("fundCode", fundCode)
         .param("snapshotMonth", snapshotMonth)
+        .param("version", version)
         .query(OcfSnapshot::fromResultSet)
         .optional();
-  }
-
-  private boolean nothingToPublish(String fundCode, LocalDate snapshotMonth) {
-    log.warn(
-        "Nothing to publish: fund={}, month={} has no unpublished snapshot",
-        fundCode,
-        snapshotMonth);
-    return false;
   }
 
   public Optional<OcfSnapshot> findByFundAndMonth(String fundCode, LocalDate snapshotMonth) {

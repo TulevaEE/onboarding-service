@@ -43,4 +43,18 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
       nativeQuery = true)
   BigDecimal sumCommissionsForFundAndPeriod(
       String fundCode, Instant fromInclusive, Instant toExclusive);
+
+  @Query(
+      value =
+          """
+          SELECT COALESCE(SUM(e.settlement_fee_amount), 0)
+          FROM investment_transaction_execution e
+          JOIN investment_transaction_order o ON e.order_id = o.id
+          WHERE o.fund_code = :fundCode
+            AND e.execution_timestamp >= :fromInclusive
+            AND e.execution_timestamp < :toExclusive
+          """,
+      nativeQuery = true)
+  BigDecimal sumSettlementFeesForFundAndPeriod(
+      String fundCode, Instant fromInclusive, Instant toExclusive);
 }

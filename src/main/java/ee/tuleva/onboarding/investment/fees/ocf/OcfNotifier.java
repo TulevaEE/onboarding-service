@@ -8,15 +8,14 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
-import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.ApplicableRate;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Collection;
 import java.util.List;
@@ -30,8 +29,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class OcfNotifier {
 
-  private static final BigDecimal HUNDRED = new BigDecimal("100");
-  private static final int PERCENT_DECIMAL_PLACES = 2;
   private static final int INSTRUMENT_RATE_DECIMAL_PLACES = 3;
   private static final String OUTCOME_LINE_INDENT = "  ";
 
@@ -73,7 +70,7 @@ class OcfNotifier {
             .map(Computed.class::cast)
             .flatMap(computed -> computed.holdings().stream())
             .map(OcfHolding::rate)
-            .noneMatch(InstrumentRate::fellBackToThePublishedOcf);
+            .noneMatch(ApplicableRate::fellBackToThePublishedOcf);
     return allComplete && noHeldFallback ? INFO : ERROR;
   }
 
@@ -104,8 +101,10 @@ class OcfNotifier {
                                 .formatted(
                                     INCOMPLETE.icon,
                                     rate.isin(),
-                                    percent(rate.netOcf(), INSTRUMENT_RATE_DECIMAL_PLACES),
-                                    percent(rate.publishedOcf(), INSTRUMENT_RATE_DECIMAL_PLACES))))
+                                    ComputedFundLine.percent(
+                                        rate.netOcf(), INSTRUMENT_RATE_DECIMAL_PLACES),
+                                    ComputedFundLine.percent(
+                                        rate.publishedOcf(), INSTRUMENT_RATE_DECIMAL_PLACES))))
         .flatMap(lines -> lines);
   }
 
@@ -207,29 +206,21 @@ class OcfNotifier {
 
   private static String line(OcfRunOutcome outcome) {
     return "%s %s %s: %s"
-        .formatted(
-            status(outcome).icon, outcome.fund().getCode(), outcome.month(), detail(outcome));
+        .formatted(icon(outcome), outcome.fund().getCode(), outcome.month(), detail(outcome));
+  }
+
+  private static String icon(OcfRunOutcome outcome) {
+    return switch (outcome) {
+      case Computed computed when new ComputedFundLine(computed).needsReview() -> INCOMPLETE.icon;
+      default -> status(outcome).icon;
+    };
   }
 
   private static String detail(OcfRunOutcome outcome) {
     return switch (outcome) {
       case Failed failed -> failed.reason();
-      case Computed computed when computed.incomplete() ->
-          "%s%%, incomplete — %s".formatted(totalOcfPercent(computed), gapNames(computed.gaps()));
-      case Computed computed -> "%s%%".formatted(totalOcfPercent(computed));
+      case Computed computed -> new ComputedFundLine(computed).detail();
     };
-  }
-
-  private static String gapNames(List<OcfGap> gaps) {
-    return gaps.stream().map(Enum::name).collect(joining(", "));
-  }
-
-  private static String totalOcfPercent(Computed computed) {
-    return percent(computed.snapshot().totalOcf(), PERCENT_DECIMAL_PLACES);
-  }
-
-  private static String percent(BigDecimal rate, int decimalPlaces) {
-    return rate.multiply(HUNDRED).setScale(decimalPlaces, HALF_UP).toPlainString();
   }
 
   @RequiredArgsConstructor

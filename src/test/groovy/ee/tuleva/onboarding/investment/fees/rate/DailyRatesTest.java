@@ -58,7 +58,8 @@ class DailyRatesTest {
                 PUBLISHED,
                 PUBLISHED,
                 STANDARD_AFTER_AGREEMENT,
-                "its agreement ended on 2026-06-15, so the published OCF applies after it"));
+                ("its agreement ended on 2026-06-15, so the published OCF applies after it; enter the new"
+                    + " agreement if there is one")));
     assertThat(rate.fellBackToThePublishedOcf()).isTrue();
     assertThat(rate.isTheStandardRateAfterAnAgreement()).isTrue();
   }
@@ -75,6 +76,34 @@ class DailyRatesTest {
         .get()
         .extracting(ApplicableRate::basis)
         .isEqualTo(STANDARD_AFTER_AGREEMENT);
+  }
+
+  @Test
+  void afterSeveralAgreementsEndedTheOneThatEndedLastGivesThePublishedOcf() {
+    var rates =
+        new DailyRates(
+            JUNE,
+            List.of(
+                new AgreementPeriod(1L, ISIN, PUBLISHED, NEW_YEAR, LocalDate.of(2026, 3, 31)),
+                new AgreementPeriod(
+                    2L,
+                    ISIN,
+                    new BigDecimal("0.0030"),
+                    LocalDate.of(2026, 2, 1),
+                    LocalDate.of(2026, 2, 28))),
+            Map.of());
+
+    assertThat(rates.on(ISIN, JUNE_16))
+        .contains(
+            new ApplicableRate(
+                ISIN,
+                1L,
+                null,
+                PUBLISHED,
+                PUBLISHED,
+                STANDARD_AFTER_AGREEMENT,
+                "its agreement ended on 2026-03-31, so the published OCF applies after it; enter"
+                    + " the new agreement if there is one"));
   }
 
   @Test
@@ -95,6 +124,26 @@ class DailyRatesTest {
     assertThat(later.reason()).isEqualTo("no volume");
     assertThat(later.fellBackToThePublishedOcf()).isTrue();
     assertThat(later.isTheStandardRateAfterAnAgreement()).isFalse();
+  }
+
+  @Test
+  void theRatesAppliedDuringTheMonthAreThoseOfTheAgreementsThatDecidedOneOfItsDays() {
+    var replacedMidMonth = resolved(101L, PUBLISHED_FALLBACK, "no volume");
+    var newerFromJune16 = resolved(102L, AGREEMENT, null);
+    var rates =
+        new DailyRates(
+            JUNE,
+            List.of(
+                new AgreementPeriod(1L, ISIN, PUBLISHED, NEW_YEAR, null),
+                new AgreementPeriod(2L, ISIN, PUBLISHED, JUNE_16, null),
+                new AgreementPeriod(3L, ISIN, PUBLISHED, NEW_YEAR, LocalDate.of(2026, 4, 30))),
+            Map.of(
+                1L, replacedMidMonth,
+                2L, newerFromJune16,
+                3L, resolved(103L, AGREEMENT, null)));
+
+    assertThat(rates.ratesAppliedDuringTheMonth())
+        .containsExactly(replacedMidMonth, newerFromJune16);
   }
 
   @Test

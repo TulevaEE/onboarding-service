@@ -14,6 +14,7 @@ public record OcfPublicationRequest(
     @NotNull TulevaFund fund,
     @NotNull YearMonth month,
     @Positive int version,
+    @NotBlank @Size(max = 64) String calculationFingerprint,
     @NotNull LocalDate validFrom,
     @NotNull BigDecimal publishedOcf,
     @NotBlank @Size(max = 200) String publishedIn,

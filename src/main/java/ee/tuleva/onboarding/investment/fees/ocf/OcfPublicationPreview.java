@@ -11,6 +11,7 @@ public record OcfPublicationPreview(
     int version,
     boolean complete,
     @Nullable String checks,
+    String calculationFingerprint,
     BigDecimal calculatedOcf,
     BigDecimal calculatedManagementFeeRate,
     LocalDate validFrom,

@@ -4,5 +4,6 @@ import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 public enum OcfMethodology {
-  EX_ANTE_NET_ASSETS_V1
+  EX_ANTE_NET_ASSETS_V1,
+  EX_ANTE_NET_ASSETS_V2
 }

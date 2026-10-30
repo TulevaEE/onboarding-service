@@ -75,21 +75,19 @@ class OcfPublicationServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    9L,
-                    TUK75,
-                    MANAGEMENT,
-                    FEE_ON_THE_PUBLICATION_DATE,
-                    FIXED,
-                    NOVEMBER_1,
-                    null)));
+                    9L, TUK75, MANAGEMENT, FEE_ON_THE_PUBLICATION_DATE, FIXED, NOVEMBER_1, null)));
   }
 
   private static OcfPublicationRequest request(
-      BigDecimal publishedOcf, @Nullable String approvedBy, @Nullable String exceptionReason) {
+      OcfSnapshot previewed,
+      BigDecimal publishedOcf,
+      @Nullable String approvedBy,
+      @Nullable String exceptionReason) {
     return new OcfPublicationRequest(
         TUK75,
         OCTOBER,
         2,
+        OcfCalculationFingerprint.of(previewed),
         NOVEMBER_1,
         publishedOcf,
         "KID 01.11.2026",
@@ -116,6 +114,7 @@ class OcfPublicationServiceTest {
                 2,
                 true,
                 "{\"gaps\":[]}",
+                OcfCalculationFingerprint.of(snapshot(true, null)),
                 CALCULATED_OCF,
                 FEE_IN_THE_CALCULATION,
                 NOVEMBER_1,
@@ -142,12 +141,10 @@ class OcfPublicationServiceTest {
   }
 
   @Test
-  void publishingRecordsTheFigureTheFeeAndWhoPublishedIt() {
+  void publishingRecordsTheFigureTheFeeAndWhoPublishedItAndAnswersWithThatVersion() {
     var snapshot = snapshot(true, null);
     given(ocfSnapshotRepository.findVersion("TUK75", OCTOBER.atDay(1), 2))
-        .willReturn(Optional.of(snapshot));
-    given(ocfSnapshotRepository.findByFundAndMonth("TUK75", OCTOBER.atDay(1)))
-        .willReturn(Optional.of(snapshot));
+        .willReturn(Optional.of(snapshot), Optional.of(snapshot(true, Instant.EPOCH)));
     givenTheFeeOnThePublicationDate();
     var publication =
         new OcfPublication(
@@ -161,9 +158,27 @@ class OcfPublicationServiceTest {
             null);
     given(ocfSnapshotRepository.recordPublication(snapshot, publication)).willReturn(true);
 
-    service.publish(request(PUBLISHED_OCF, null, null));
+    var answer = service.publish(request(snapshot(true, null), PUBLISHED_OCF, null, null));
 
     then(ocfSnapshotRepository).should().recordPublication(snapshot, publication);
+    assertThat(answer)
+        .isEqualTo(
+            new OcfPublicationPreview(
+                "TUK75",
+                OCTOBER,
+                2,
+                true,
+                "{\"gaps\":[]}",
+                OcfCalculationFingerprint.of(snapshot(true, null)),
+                CALCULATED_OCF,
+                FEE_IN_THE_CALCULATION,
+                NOVEMBER_1,
+                FEE_ON_THE_PUBLICATION_DATE,
+                PUBLISHED_OCF,
+                new BigDecimal("0.27"),
+                null,
+                true));
+    then(ocfSnapshotRepository).should(never()).findByFundAndMonth(any(), any());
   }
 
   @Test
@@ -172,7 +187,43 @@ class OcfPublicationServiceTest {
         .willReturn(Optional.of(snapshot(true, null)));
     givenTheFeeOnThePublicationDate();
 
-    assertThatThrownBy(() -> service.publish(request(CALCULATED_OCF, null, null)))
+    assertThatThrownBy(
+            () -> service.publish(request(snapshot(true, null), CALCULATED_OCF, null, null)))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(ocfSnapshotRepository).should(never()).recordPublication(any(), any());
+  }
+
+  @Test
+  void anExceptionIsNotPublishedOnceTheGapsChangedSinceThePreviewTheApproversSaw() {
+    var previewed = snapshot(false, null);
+    var recalculated =
+        new OcfSnapshot(
+            42L,
+            "TUK75",
+            OCTOBER.atDay(1),
+            2,
+            OcfMethodology.EX_ANTE_NET_ASSETS_V2,
+            FEE_IN_THE_CALCULATION,
+            BigDecimal.ZERO,
+            new BigDecimal("0.00080000"),
+            new BigDecimal("0.00080000"),
+            new BigDecimal("0.00080000"),
+            RebateBasis.NET,
+            BigDecimal.ZERO,
+            CALCULATED_OCF,
+            false,
+            "{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}",
+            null,
+            null,
+            previewed.audit());
+    given(ocfSnapshotRepository.findVersion("TUK75", OCTOBER.atDay(1), 2))
+        .willReturn(Optional.of(recalculated));
+    givenTheFeeOnThePublicationDate();
+
+    assertThatThrownBy(
+            () ->
+                service.publish(
+                    request(previewed, PUBLISHED_OCF, "fund-manager", "board decision")))
         .isInstanceOf(OcfPublicationRefusedException.class);
     then(ocfSnapshotRepository).should(never()).recordPublication(any(), any());
   }
@@ -183,7 +234,8 @@ class OcfPublicationServiceTest {
         .willReturn(Optional.of(snapshot(true, Instant.EPOCH)));
     givenTheFeeOnThePublicationDate();
 
-    assertThatThrownBy(() -> service.publish(request(PUBLISHED_OCF, null, null)))
+    assertThatThrownBy(
+            () -> service.publish(request(snapshot(true, null), PUBLISHED_OCF, null, null)))
         .isInstanceOf(OcfPublicationRefusedException.class);
     then(ocfSnapshotRepository).should(never()).recordPublication(any(), any());
   }
@@ -194,9 +246,14 @@ class OcfPublicationServiceTest {
         .willReturn(Optional.of(snapshot(false, null)));
     givenTheFeeOnThePublicationDate();
 
-    assertThatThrownBy(() -> service.publish(request(PUBLISHED_OCF, null, "board decision")))
+    assertThatThrownBy(
+            () ->
+                service.publish(
+                    request(snapshot(false, null), PUBLISHED_OCF, null, "board decision")))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    assertThatThrownBy(() -> service.publish(request(PUBLISHED_OCF, "fund-manager", " ")))
+    assertThatThrownBy(
+            () ->
+                service.publish(request(snapshot(false, null), PUBLISHED_OCF, "fund-manager", " ")))
         .isInstanceOf(OcfPublicationRefusedException.class);
     then(ocfSnapshotRepository).should(never()).recordPublication(any(), any());
   }
@@ -206,12 +263,10 @@ class OcfPublicationServiceTest {
     var snapshot = snapshot(false, null);
     given(ocfSnapshotRepository.findVersion("TUK75", OCTOBER.atDay(1), 2))
         .willReturn(Optional.of(snapshot));
-    given(ocfSnapshotRepository.findByFundAndMonth("TUK75", OCTOBER.atDay(1)))
-        .willReturn(Optional.of(snapshot));
     givenTheFeeOnThePublicationDate();
     given(ocfSnapshotRepository.recordPublication(any(), any())).willReturn(true);
 
-    service.publish(request(PUBLISHED_OCF, "fund-manager", "board decision"));
+    service.publish(request(snapshot, PUBLISHED_OCF, "fund-manager", "board decision"));
 
     then(ocfSnapshotRepository)
         .should()
@@ -229,13 +284,57 @@ class OcfPublicationServiceTest {
   }
 
   @Test
+  void thePublisherCannotBeTheSecondApproverOfAnException() {
+    given(ocfSnapshotRepository.findVersion("TUK75", OCTOBER.atDay(1), 2))
+        .willReturn(Optional.of(snapshot(false, null)));
+    givenTheFeeOnThePublicationDate();
+
+    assertThatThrownBy(
+            () ->
+                service.publish(
+                    request(
+                        snapshot(false, null),
+                        PUBLISHED_OCF,
+                        " Portfolio-Manager ",
+                        "board decision")))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(ocfSnapshotRepository).should(never()).recordPublication(any(), any());
+  }
+
+  @Test
+  void aFigureCannotTakeEffectInsideTheMonthItWasCalculatedFor() {
+    var lastDayOfTheMonth = OCTOBER.atEndOfMonth();
+
+    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, lastDayOfTheMonth))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    assertThatThrownBy(
+            () ->
+                service.publish(
+                    new OcfPublicationRequest(
+                        TUK75,
+                        OCTOBER,
+                        2,
+                        OcfCalculationFingerprint.of(snapshot(true, null)),
+                        lastDayOfTheMonth,
+                        PUBLISHED_OCF,
+                        "KID 31.10.2026",
+                        "portfolio-manager",
+                        null,
+                        null)))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(ocfSnapshotRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
   void aCompleteCalculationIsNotPublishedAsAnException() {
     given(ocfSnapshotRepository.findVersion("TUK75", OCTOBER.atDay(1), 2))
         .willReturn(Optional.of(snapshot(true, null)));
     givenTheFeeOnThePublicationDate();
 
     assertThatThrownBy(
-            () -> service.publish(request(PUBLISHED_OCF, "fund-manager", "board decision")))
+            () ->
+                service.publish(
+                    request(snapshot(true, null), PUBLISHED_OCF, "fund-manager", "board decision")))
         .isInstanceOf(OcfPublicationRefusedException.class);
   }
 
@@ -246,13 +345,15 @@ class OcfPublicationServiceTest {
     givenTheFeeOnThePublicationDate();
     given(ocfSnapshotRepository.recordPublication(any(), any())).willReturn(false);
 
-    assertThatThrownBy(() -> service.publish(request(PUBLISHED_OCF, null, null)))
+    assertThatThrownBy(
+            () -> service.publish(request(snapshot(true, null), PUBLISHED_OCF, null, null)))
         .isInstanceOf(OcfPublicationRefusedException.class);
   }
 
   @Test
   void anUnknownVersionCannotBePublished() {
-    assertThatThrownBy(() -> service.publish(request(PUBLISHED_OCF, null, null)))
+    assertThatThrownBy(
+            () -> service.publish(request(snapshot(true, null), PUBLISHED_OCF, null, null)))
         .isInstanceOf(OcfPublicationRefusedException.class);
   }
 }

@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.investment.fees.rate;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -31,6 +33,45 @@ class InstrumentFeeAgreementRepository {
         .param("date", date)
         .query(InstrumentFeeAgreementRepository::agreement)
         .list();
+  }
+
+  List<InstrumentFeeAgreement> findAllInForceDuring(YearMonth month) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_instrument_fee
+            WHERE valid_from <= :monthEnd
+              AND (valid_to IS NULL OR valid_to >= :monthStart)
+            ORDER BY isin, valid_from
+            """)
+        .param("monthStart", month.atDay(1))
+        .param("monthEnd", month.atEndOfMonth())
+        .query(InstrumentFeeAgreementRepository::agreement)
+        .list();
+  }
+
+  List<AgreementPeriod> findAllStartedBy(LocalDate date) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT id, isin, published_ocf, valid_from, valid_to FROM investment_instrument_fee
+            WHERE valid_from <= :date
+            ORDER BY isin, valid_from
+            """)
+        .param("date", date)
+        .query(
+            (rs, rowNum) ->
+                new AgreementPeriod(
+                    rs.getLong("id"),
+                    rs.getString("isin"),
+                    rs.getBigDecimal("published_ocf"),
+                    rs.getObject("valid_from", LocalDate.class),
+                    rs.getObject("valid_to", LocalDate.class)))
+        .list();
+  }
+
+  Set<Long> findIdsAppliedDuring(YearMonth month) {
+    return new AgreementsInForce(findAllStartedBy(month.atEndOfMonth())).appliedDuring(month);
   }
 
   private static InstrumentFeeAgreement agreement(ResultSet rs, int rowNum) throws SQLException {

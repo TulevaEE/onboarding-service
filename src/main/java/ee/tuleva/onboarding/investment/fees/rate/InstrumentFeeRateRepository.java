@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees.rate;
 
 import static ee.tuleva.onboarding.investment.fees.rate.InstrumentFeeAgreementRepository.THE_AGREEMENT_OF_EACH_ISIN_VALID_ON_THE_DATE;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toMap;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,6 +10,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -82,6 +84,27 @@ class InstrumentFeeRateRepository {
         .param("date", period.atEndOfMonth())
         .query((rs, rowNum) -> rate(rs, period))
         .list();
+  }
+
+  Map<Long, InstrumentRate> findNewestPerAgreementFor(YearMonth period) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM (
+              SELECT r.*,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY r.instrument_fee_id ORDER BY r.created_at DESC, r.id DESC) AS rn
+              FROM investment_instrument_fee_rate r
+              WHERE r.period_start = :periodStart AND r.period_end = :periodEnd
+            ) ranked
+            WHERE rn = 1
+            """)
+        .param("periodStart", period.atDay(1))
+        .param("periodEnd", period.atEndOfMonth())
+        .query((rs, rowNum) -> Map.entry(rs.getLong("instrument_fee_id"), rate(rs, period)))
+        .list()
+        .stream()
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   Set<Long> agreementsResolvedSince(YearMonth period, Instant since) {

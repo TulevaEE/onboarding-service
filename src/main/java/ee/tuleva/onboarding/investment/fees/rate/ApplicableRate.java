@@ -34,7 +34,8 @@ public record ApplicableRate(
         ended.publishedOcf(),
         ended.publishedOcf(),
         STANDARD_AFTER_AGREEMENT,
-        "its agreement ended on %s, so the published OCF applies after it"
+        ("its agreement ended on %s, so the published OCF applies after it; enter the new"
+                + " agreement if there is one")
             .formatted(ended.validTo()));
   }
 

@@ -49,7 +49,7 @@ public record OcfSnapshot(
         fundCode,
         snapshotMonth,
         UNVERSIONED,
-        OcfMethodology.EX_ANTE_NET_ASSETS_V1,
+        OcfMethodology.EX_ANTE_NET_ASSETS_V2,
         managementFeeRate,
         depotFeeRate,
         rebateBasis == RebateBasis.GROSS ? underlyingFundCostGross : underlyingFundCostNet,

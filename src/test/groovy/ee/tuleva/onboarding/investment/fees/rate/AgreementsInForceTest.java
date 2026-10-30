@@ -49,7 +49,8 @@ class AgreementsInForceTest {
   @Test
   void afterSeveralAgreementsEndedTheOneThatEndedLastIsTheLastEnded() {
     var endedLast =
-        new AgreementPeriod(1L, ISIN, PUBLISHED, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31));
+        new AgreementPeriod(
+            1L, ISIN, PUBLISHED, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31));
     var agreements =
         new AgreementsInForce(
             List.of(

@@ -25,6 +25,7 @@ public class OcfPublicationService {
   private final FeeRateRepository feeRateRepository;
 
   public OcfPublicationPreview preview(TulevaFund fund, YearMonth month, LocalDate validFrom) {
+    refuseUnlessAfterTheMonth(fund, month, validFrom);
     var snapshot =
         ocfSnapshotRepository
             .findByFundAndMonth(fund.getCode(), month.atDay(1))
@@ -38,14 +39,8 @@ public class OcfPublicationService {
 
   public OcfPublicationPreview publish(OcfPublicationRequest request) {
     var fund = request.fund();
-    var snapshot =
-        ocfSnapshotRepository
-            .findVersion(fund.getCode(), request.month().atDay(1), request.version())
-            .orElseThrow(
-                () ->
-                    new OcfPublicationRefusedException(
-                        "No such OCF calculation: fund=%s, month=%s, version=%d"
-                            .formatted(fund.getCode(), request.month(), request.version())));
+    refuseUnlessAfterTheMonth(fund, request.month(), request.validFrom());
+    var snapshot = theRequestedVersion(request);
     var fee = managementFeeOn(fund, request.validFrom());
     var publishedOcf = publishedOcf(snapshot, fee);
     refuseUnlessPublishable(snapshot, request, publishedOcf);
@@ -75,7 +70,18 @@ public class OcfPublicationService {
         publishedOcf,
         request.publishedIn(),
         request.exceptionReason() != null);
-    return preview(fund, request.month(), request.validFrom());
+    return preview(fund, theRequestedVersion(request), request.validFrom());
+  }
+
+  private OcfSnapshot theRequestedVersion(OcfPublicationRequest request) {
+    var fund = request.fund();
+    return ocfSnapshotRepository
+        .findVersion(fund.getCode(), request.month().atDay(1), request.version())
+        .orElseThrow(
+            () ->
+                new OcfPublicationRefusedException(
+                    "No such OCF calculation: fund=%s, month=%s, version=%d"
+                        .formatted(fund.getCode(), request.month(), request.version())));
   }
 
   private OcfPublicationPreview preview(
@@ -88,6 +94,7 @@ public class OcfPublicationService {
         snapshot.version(),
         snapshot.complete(),
         snapshot.checks(),
+        OcfCalculationFingerprint.of(snapshot),
         snapshot.totalOcf(),
         snapshot.managementFeeRate(),
         validFrom,
@@ -100,10 +107,23 @@ public class OcfPublicationService {
         snapshot.publishedAt() != null);
   }
 
+  private static void refuseUnlessAfterTheMonth(
+      TulevaFund fund, YearMonth month, LocalDate validFrom) {
+    if (!validFrom.isAfter(month.atEndOfMonth())) {
+      throw new OcfPublicationRefusedException(
+          "A KID figure takes effect only after the month it was calculated for: fund=%s,"
+                  .formatted(fund.getCode())
+              + " month=%s, validFrom=%s".formatted(month, validFrom));
+    }
+  }
+
   private static void refuseUnlessPublishable(
       OcfSnapshot snapshot, OcfPublicationRequest request, BigDecimal publishedOcf) {
     if (snapshot.publishedAt() != null) {
       throw refused(request, "the calculation is already published");
+    }
+    if (!OcfCalculationFingerprint.of(snapshot).equals(request.calculationFingerprint())) {
+      throw refused(request, "the calculation was recalculated since it was previewed");
     }
     if (publishedOcf.compareTo(request.publishedOcf()) != 0) {
       throw refused(
@@ -112,6 +132,7 @@ public class OcfPublicationService {
               .formatted(publishedOcf.toPlainString(), request.publishedOcf().toPlainString()));
     }
     refuseUnlessTheExceptionFitsTheCompleteness(snapshot, request);
+    refuseAnApproverWhoIsThePublisher(request);
   }
 
   private static void refuseUnlessTheExceptionFitsTheCompleteness(
@@ -126,6 +147,13 @@ public class OcfPublicationService {
           "the calculation is incomplete (%s), so publishing it needs an exception reason and a"
                   .formatted(snapshot.checks())
               + " second approver");
+    }
+  }
+
+  private static void refuseAnApproverWhoIsThePublisher(OcfPublicationRequest request) {
+    var approvedBy = request.approvedBy();
+    if (approvedBy != null && request.publishedBy().strip().equalsIgnoreCase(approvedBy.strip())) {
+      throw refused(request, "the second approver must be someone other than the publisher");
     }
   }
 

@@ -5,23 +5,20 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OcfRunKind.RU
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.COMPLETE;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.FAILED;
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.INCOMPLETE;
-import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MONTH_AVERAGE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
-import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.ApplicableRate;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +29,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class OcfNotifier {
 
-  private static final BigDecimal HUNDRED = new BigDecimal("100");
-  private static final int PERCENT_DECIMAL_PLACES = 2;
   private static final int INSTRUMENT_RATE_DECIMAL_PLACES = 3;
   private static final String OUTCOME_LINE_INDENT = "  ";
 
@@ -75,7 +70,7 @@ class OcfNotifier {
             .map(Computed.class::cast)
             .flatMap(computed -> computed.holdings().stream())
             .map(OcfHolding::rate)
-            .noneMatch(InstrumentRate::fellBackToThePublishedOcf);
+            .noneMatch(ApplicableRate::fellBackToThePublishedOcf);
     return allComplete && noHeldFallback ? INFO : ERROR;
   }
 
@@ -106,8 +101,10 @@ class OcfNotifier {
                                 .formatted(
                                     INCOMPLETE.icon,
                                     rate.isin(),
-                                    percent(rate.netOcf(), INSTRUMENT_RATE_DECIMAL_PLACES),
-                                    percent(rate.publishedOcf(), INSTRUMENT_RATE_DECIMAL_PLACES))))
+                                    ComputedFundLine.percent(
+                                        rate.netOcf(), INSTRUMENT_RATE_DECIMAL_PLACES),
+                                    ComputedFundLine.percent(
+                                        rate.publishedOcf(), INSTRUMENT_RATE_DECIMAL_PLACES))))
         .flatMap(lines -> lines);
   }
 
@@ -214,7 +211,7 @@ class OcfNotifier {
 
   private static String icon(OcfRunOutcome outcome) {
     return switch (outcome) {
-      case Computed computed when monthAverageWeighting(computed).isPresent() -> INCOMPLETE.icon;
+      case Computed computed when new ComputedFundLine(computed).needsReview() -> INCOMPLETE.icon;
       default -> status(outcome).icon;
     };
   }
@@ -222,47 +219,8 @@ class OcfNotifier {
   private static String detail(OcfRunOutcome outcome) {
     return switch (outcome) {
       case Failed failed -> failed.reason();
-      case Computed computed when computed.incomplete() ->
-          withMonthAverageWeighting(
-              computed,
-              "%s%%, incomplete — %s"
-                  .formatted(totalOcfPercent(computed), gapNames(computed.gaps())));
-      case Computed computed ->
-          withMonthAverageWeighting(computed, "%s%%".formatted(totalOcfPercent(computed)));
+      case Computed computed -> new ComputedFundLine(computed).detail();
     };
-  }
-
-  private static String withMonthAverageWeighting(Computed computed, String detail) {
-    return Stream.concat(Stream.of(detail), monthAverageWeighting(computed).stream())
-        .collect(joining(" — "));
-  }
-
-  private static Optional<String> monthAverageWeighting(Computed computed) {
-    var audit = computed.snapshot().audit();
-    var monthEnd = audit.investedRatioMonthEnd();
-    var average = audit.investedRatioMonthAverage();
-    if (audit.underlyingWeightBasis() != MONTH_AVERAGE || monthEnd == null || average == null) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        ("month-end invested %s%% is not representative of the month average %s%% (%s pp), so"
-                + " the underlying funds are weighed by their month-average share")
-            .formatted(
-                percent(monthEnd, PERCENT_DECIMAL_PLACES),
-                percent(average, PERCENT_DECIMAL_PLACES),
-                percent(monthEnd.subtract(average), PERCENT_DECIMAL_PLACES)));
-  }
-
-  private static String gapNames(List<OcfGap> gaps) {
-    return gaps.stream().map(Enum::name).collect(joining(", "));
-  }
-
-  private static String totalOcfPercent(Computed computed) {
-    return percent(computed.snapshot().totalOcf(), PERCENT_DECIMAL_PLACES);
-  }
-
-  private static String percent(BigDecimal rate, int decimalPlaces) {
-    return rate.multiply(HUNDRED).setScale(decimalPlaces, HALF_UP).toPlainString();
   }
 
   @RequiredArgsConstructor

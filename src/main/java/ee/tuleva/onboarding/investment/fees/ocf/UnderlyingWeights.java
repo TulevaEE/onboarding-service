@@ -5,19 +5,23 @@ import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MON
 import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MONTH_END;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Comparator.comparing;
 
-import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
+import ee.tuleva.onboarding.investment.fees.rate.ApplicableRate;
+import ee.tuleva.onboarding.investment.fees.rate.DailyRates;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculation;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,30 +44,70 @@ class UnderlyingWeights {
 
   record Weights(
       UnderlyingWeightBasis basis,
-      SortedMap<String, BigDecimal> byIsin,
+      List<DayWeights> days,
       BigDecimal investedRatioMonthEnd,
       @Nullable BigDecimal investedRatioMonthAverage) {
 
-    List<String> unratedIsins(Map<String, InstrumentRate> rates) {
-      return OcfHolding.unratedIsins(byIsin.keySet(), rates);
+    List<String> unratedIsins(DailyRates rates) {
+      return days.stream()
+          .flatMap(day -> day.heldIsins().filter(isin -> rates.on(isin, day.date()).isEmpty()))
+          .distinct()
+          .sorted()
+          .toList();
     }
 
-    List<OcfHolding> holdings(Map<String, InstrumentRate> rates) {
-      return OcfHolding.of(byIsin, rates);
+    List<OcfHolding> holdings(DailyRates rates) {
+      var weightByRate = new LinkedHashMap<ApplicableRate, BigDecimal>();
+      days.forEach(day -> day.addTo(weightByRate, rates));
+      var dayCount = BigDecimal.valueOf(days.size());
+      return weightByRate.entrySet().stream()
+          .map(
+              weight ->
+                  new OcfHolding(
+                      weight.getValue().divide(dayCount, WEIGHT_SCALE, HALF_UP), weight.getKey()))
+          .sorted(
+              comparing((OcfHolding holding) -> holding.rate().isin())
+                  .thenComparing(holding -> holding.rate().agreementId())
+                  .thenComparing(holding -> holding.rate().basis()))
+          .toList();
+    }
+  }
+
+  record DayWeights(LocalDate date, SortedMap<String, BigDecimal> byIsin) {
+
+    Stream<String> heldIsins() {
+      return byIsin.entrySet().stream()
+          .filter(weight -> weight.getValue().signum() != 0)
+          .map(Map.Entry::getKey);
+    }
+
+    void addTo(Map<ApplicableRate, BigDecimal> weightByRate, DailyRates rates) {
+      heldIsins()
+          .forEach(
+              isin ->
+                  weightByRate.merge(
+                      rates
+                          .on(isin, date)
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Unrated holding passed the guard: " + isin)),
+                      byIsin.get(isin),
+                      BigDecimal::add));
     }
   }
 
   Weights of(TulevaFund fund, YearMonth month, NavCalculation monthEndCalculation) {
+    var monthEnd = List.of(new DayWeights(month.atEndOfMonth(), weightsOf(monthEndCalculation)));
     var monthEndInvestedRatio = investedRatio(monthEndCalculation);
     var publishedInMonth = publishedCalculationsIn(fund, month);
     if (publishedInMonth.isEmpty()) {
-      return new Weights(MONTH_END, weightsOf(monthEndCalculation), monthEndInvestedRatio, null);
+      return new Weights(MONTH_END, monthEnd, monthEndInvestedRatio, null);
     }
     var averageInvestedRatio =
-        mean(publishedInMonth.stream().map(UnderlyingWeights::investedRatio).toList());
+        mean(publishedInMonth.values().stream().map(UnderlyingWeights::investedRatio).toList());
     if (isRepresentative(monthEndInvestedRatio, averageInvestedRatio)) {
-      return new Weights(
-          MONTH_END, weightsOf(monthEndCalculation), monthEndInvestedRatio, averageInvestedRatio);
+      return new Weights(MONTH_END, monthEnd, monthEndInvestedRatio, averageInvestedRatio);
     }
     log.warn(
         "Month-end invested ratio is not representative, underlying funds are weighed by their"
@@ -75,19 +119,25 @@ class UnderlyingWeights {
         averageInvestedRatio);
     return new Weights(
         MONTH_AVERAGE,
-        averageWeights(publishedInMonth),
+        publishedInMonth.entrySet().stream()
+            .map(published -> new DayWeights(published.getKey(), weightsOf(published.getValue())))
+            .toList(),
         monthEndInvestedRatio,
         averageInvestedRatio);
   }
 
-  private List<NavCalculation> publishedCalculationsIn(TulevaFund fund, YearMonth month) {
-    return fundNavQueryService
+  private SortedMap<LocalDate, NavCalculation> publishedCalculationsIn(
+      TulevaFund fund, YearMonth month) {
+    var calculations = new TreeMap<LocalDate, NavCalculation>();
+    fundNavQueryService
         .findPublishedNavDatesBetween(fund.getCode(), month.atDay(1), month.atEndOfMonth())
-        .stream()
-        .map(date -> fundNavQueryService.findPublishedCalculation(fund.getCode(), date))
-        .flatMap(Optional::stream)
-        .filter(calculation -> calculation.assetsUnderManagement().signum() > 0)
-        .toList();
+        .forEach(
+            date ->
+                fundNavQueryService
+                    .findPublishedCalculation(fund.getCode(), date)
+                    .filter(calculation -> calculation.assetsUnderManagement().signum() > 0)
+                    .ifPresent(calculation -> calculations.put(date, calculation)));
+    return calculations;
   }
 
   private boolean isRepresentative(BigDecimal monthEnd, BigDecimal average) {
@@ -96,24 +146,6 @@ class UnderlyingWeights {
 
   private static SortedMap<String, BigDecimal> weightsOf(NavCalculation calculation) {
     return OcfHolding.weightsOf(calculation.securityLines(), calculation.assetsUnderManagement());
-  }
-
-  private static SortedMap<String, BigDecimal> averageWeights(List<NavCalculation> calculations) {
-    var sums = new TreeMap<String, BigDecimal>();
-    calculations.stream()
-        .map(UnderlyingWeights::weightsOf)
-        .forEach(
-            weights ->
-                weights.forEach((isin, weight) -> sums.merge(isin, weight, BigDecimal::add)));
-    var days = BigDecimal.valueOf(calculations.size());
-    var averages = new TreeMap<String, BigDecimal>();
-    sums.forEach(
-        (isin, sum) -> {
-          if (sum.signum() != 0) {
-            averages.put(isin, sum.divide(days, WEIGHT_SCALE, HALF_UP));
-          }
-        });
-    return averages;
   }
 
   private static BigDecimal investedRatio(NavCalculation calculation) {

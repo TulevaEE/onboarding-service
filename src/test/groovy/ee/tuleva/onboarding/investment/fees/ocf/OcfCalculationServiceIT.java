@@ -16,6 +16,8 @@ import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.rate.AgreementPeriod;
+import ee.tuleva.onboarding.investment.fees.rate.DailyRates;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
@@ -46,6 +48,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   OcfCalculationServiceIT.Json.class,
   OcfCalculationService.class,
+  OcfPublicationService.class,
   OcfSnapshotRepository.class,
   HistoricalTransactionFeeRepository.class,
   OcfJson.class,
@@ -62,6 +65,7 @@ class OcfCalculationServiceIT {
   private static final YearMonth MAY = YearMonth.of(2026, 5);
   private static final LocalDate FRIDAY_MAY_29 = LocalDate.of(2026, 5, 29);
   private static final String PUBLISHED_IN = "KID 2026";
+  private static final LocalDate OCTOBER_1 = LocalDate.of(2026, 10, 1);
   private static final YearMonth JUNE = YearMonth.of(2026, 6);
   private static final String SYNTHETIC_ISIN = "ZZ0000000001";
 
@@ -80,6 +84,7 @@ class OcfCalculationServiceIT {
   @MockitoBean private OcfNotifier ocfNotifier;
 
   @Autowired private OcfCalculationService service;
+  @Autowired private OcfPublicationService publicationService;
   @Autowired private OcfSnapshotRepository snapshotRepository;
   @Autowired private NavReportRepository navReportRepository;
   @Autowired private JdbcClient jdbcClient;
@@ -110,8 +115,8 @@ class OcfCalculationServiceIT {
     assertThat(stored.complete()).isFalse();
     assertThat(stored.checks()).contains("\"gaps\":[\"MONTH_END_NAV_NOT_PUBLISHED\"]");
     assertThat(stored.audit().navDate()).isEqualTo(TUESDAY_SEPTEMBER_29);
-    assertThatThrownBy(() -> service.publish(TUK75, SEPTEMBER, PUBLISHED_IN))
-        .isInstanceOf(IncompleteOcfSnapshotException.class);
+    assertThatThrownBy(() -> publish(stored, null))
+        .isInstanceOf(OcfPublicationRefusedException.class);
   }
 
   @Test
@@ -127,7 +132,11 @@ class OcfCalculationServiceIT {
     assertThat(stored.complete()).isTrue();
     assertThat(stored.checks()).contains("\"gaps\":[]");
     assertThat(stored.audit().navDate()).isEqualTo(WEDNESDAY_SEPTEMBER_30);
-    assertThat(service.publish(TUK75, SEPTEMBER, PUBLISHED_IN)).isTrue();
+    publish(stored, null);
+    assertThat(snapshotRepository.findPublishedInForceOn(TUK75.getCode(), OCTOBER_1))
+        .get()
+        .extracting(KidFigure::publishedIn)
+        .isEqualTo(PUBLISHED_IN);
   }
 
   @Test
@@ -144,8 +153,8 @@ class OcfCalculationServiceIT {
 
   @Test
   void aMonthWhoseMonthEndCashSpikedWeighsTheUnderlyingFundsByTheMonthAverageAndRecordsWhy() {
-    var rate = givenAStoredJuneRate(new BigDecimal("0.0012"), new BigDecimal("0.0010"));
-    given(instrumentOcfService.ratesFor(JUNE)).willReturn(Map.of(SYNTHETIC_ISIN, rate));
+    given(instrumentOcfService.dailyRatesFor(JUNE))
+        .willReturn(givenAStoredJuneRate(new BigDecimal("0.0012"), new BigDecimal("0.0010"), null));
     publishedNavWithSecurities(LocalDate.of(2026, 6, 10), "990000.00");
     publishedNavWithSecurities(LocalDate.of(2026, 6, 19), "980000.00");
     publishedNavWithSecurities(LocalDate.of(2026, 6, 30), "940000.00");
@@ -160,7 +169,47 @@ class OcfCalculationServiceIT {
     assertThat(stored.underlyingFundCost()).isEqualByComparingTo("0.00097");
   }
 
-  private InstrumentRate givenAStoredJuneRate(BigDecimal publishedOcf, BigDecimal netOcf) {
+  @Test
+  void anUnderlyingFundKeptAfterItsAgreementEndedPaysThePublishedOcfForTheRestOfTheMonth() {
+    given(instrumentOcfService.dailyRatesFor(JUNE))
+        .willReturn(
+            givenAStoredJuneRate(
+                new BigDecimal("0.0012"), new BigDecimal("0.0010"), LocalDate.of(2026, 6, 15)));
+    publishedNavWithSecurities(LocalDate.of(2026, 6, 10), "990000.00");
+    publishedNavWithSecurities(LocalDate.of(2026, 6, 19), "980000.00");
+    publishedNavWithSecurities(LocalDate.of(2026, 6, 30), "940000.00");
+
+    service.calculateOcf(TUK75, JUNE);
+
+    var stored = storedSnapshot(JUNE);
+    assertThat(stored.complete()).isTrue();
+    assertThat(stored.underlyingFundCost()).isEqualByComparingTo("0.001098");
+    assertThat(storedRatePeriods())
+        .containsExactly(
+            "AGREEMENT 0.330000000000 rated", "STANDARD_AFTER_AGREEMENT 0.640000000000 unrated");
+  }
+
+  private List<String> storedRatePeriods() {
+    return jdbcClient
+        .sql(
+            """
+            SELECT rate_basis, weight, instrument_fee_rate_id
+            FROM investment_ocf_snapshot_detail
+            WHERE instrument_fee_id IS NOT NULL
+            ORDER BY rate_basis
+            """)
+        .query(
+            (rs, rowNum) ->
+                "%s %s %s"
+                    .formatted(
+                        rs.getString("rate_basis"),
+                        rs.getBigDecimal("weight").toPlainString(),
+                        rs.getObject("instrument_fee_rate_id") == null ? "unrated" : "rated"))
+        .list();
+  }
+
+  private DailyRates givenAStoredJuneRate(
+      BigDecimal publishedOcf, BigDecimal netOcf, @Nullable LocalDate agreementEnds) {
     jdbcClient
         .sql(
             """
@@ -173,11 +222,12 @@ class OcfCalculationServiceIT {
         .sql(
             """
             INSERT INTO investment_instrument_fee
-              (isin, published_ocf, rebate_kind, rebate_terms, valid_from)
-            VALUES (:isin, :publishedOcf, 'FIXED', '{}', DATE '2026-01-01')
+              (isin, published_ocf, rebate_kind, rebate_terms, valid_from, valid_to)
+            VALUES (:isin, :publishedOcf, 'FIXED', '{}', DATE '2026-01-01', :validTo)
             """)
         .param("isin", SYNTHETIC_ISIN)
         .param("publishedOcf", publishedOcf)
+        .param("validTo", agreementEnds)
         .update();
     var agreementId =
         jdbcClient
@@ -206,8 +256,26 @@ class OcfCalculationServiceIT {
             .param("isin", SYNTHETIC_ISIN)
             .query(Long.class)
             .single();
-    return new InstrumentRate(
-        rateId, SYNTHETIC_ISIN, JUNE, publishedOcf, netOcf, AGREEMENT, null, RebateKind.FIXED);
+    return new DailyRates(
+        JUNE,
+        List.of(
+            new AgreementPeriod(
+                agreementId,
+                SYNTHETIC_ISIN,
+                publishedOcf,
+                LocalDate.of(2026, 1, 1),
+                agreementEnds)),
+        Map.of(
+            agreementId,
+            new InstrumentRate(
+                rateId,
+                SYNTHETIC_ISIN,
+                JUNE,
+                publishedOcf,
+                netOcf,
+                AGREEMENT,
+                null,
+                RebateKind.FIXED)));
   }
 
   private void publishedNavWithSecurities(LocalDate navDate, String securities) {
@@ -258,6 +326,23 @@ class OcfCalculationServiceIT {
                 .publishedAt(publishedAt)
                 .build()));
     return calculationId;
+  }
+
+  private void publish(OcfSnapshot snapshot, @Nullable String exceptionReason) {
+    var month = YearMonth.from(snapshot.snapshotMonth());
+    var preview = publicationService.preview(TUK75, month, OCTOBER_1);
+    publicationService.publish(
+        new OcfPublicationRequest(
+            TUK75,
+            month,
+            preview.version(),
+            preview.calculationFingerprint(),
+            OCTOBER_1,
+            preview.publishedOcf(),
+            PUBLISHED_IN,
+            "portfolio-manager",
+            null,
+            exceptionReason));
   }
 
   private OcfSnapshot storedSnapshot(YearMonth month) {

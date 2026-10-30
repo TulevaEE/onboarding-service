@@ -31,7 +31,7 @@ final class OcfSnapshotParameters {
         .param("depotTierBasis", audit.depotTierBasis())
         .param("txnWindowStart", audit.txnWindowStart())
         .param("txnWindowEnd", audit.txnWindowEnd())
-        .param("txnCommissions", audit.txnCommissions())
+        .param("txnFees", audit.txnFees())
         .param("txnAverageAum", audit.txnAverageAum())
         .param("txnNavDates", audit.txnNavDates())
         .param("underlyingWeightBasis", nameOf(audit.underlyingWeightBasis()))

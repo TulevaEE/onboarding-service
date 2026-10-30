@@ -100,12 +100,19 @@ public class OcfCalculationService {
         gaps.isEmpty(),
         gaps);
 
-    return new Computed(fund, month, snapshot, gaps, underlying.holdings());
+    return new Computed(
+        fund,
+        month,
+        snapshot,
+        gaps,
+        underlying.holdings(),
+        ocfSnapshotRepository.findPublishedInForceOn(fund.getCode(), monthEnd).orElse(null));
   }
 
   public void calculateForAllFunds(YearMonth month) {
     var outcomes = computeAllFunds(month);
-    ocfNotifier.notifyRun(month, outcomes, instrumentOcfService.ratesFor(month).values());
+    ocfNotifier.notifyRun(
+        month, outcomes, instrumentOcfService.dailyRatesFor(month).ratesAppliedDuringTheMonth());
   }
 
   public void backfillMonths(int monthsBack, Clock clock) {
@@ -130,34 +137,6 @@ public class OcfCalculationService {
       return new Failed(
           fund, month, requireNonNullElse(e.getMessage(), e.getClass().getSimpleName()));
     }
-  }
-
-  public boolean publish(TulevaFund fund, YearMonth month, String publishedIn) {
-    return logPublication(
-        fund,
-        month,
-        publishedIn,
-        ocfSnapshotRepository.publish(fund.getCode(), month.atDay(1), publishedIn));
-  }
-
-  public boolean publishDespiteGaps(TulevaFund fund, YearMonth month, String publishedIn) {
-    return logPublication(
-        fund,
-        month,
-        publishedIn,
-        ocfSnapshotRepository.publishDespiteGaps(fund.getCode(), month.atDay(1), publishedIn));
-  }
-
-  private boolean logPublication(
-      TulevaFund fund, YearMonth month, String publishedIn, boolean published) {
-    if (published) {
-      log.info(
-          "OCF snapshot published: fund={}, month={}, publishedIn={}",
-          fund.getCode(),
-          month,
-          publishedIn);
-    }
-    return published;
   }
 
   private static List<OcfGap> gaps(
@@ -186,7 +165,7 @@ public class OcfCalculationService {
         depot.tierBasis(),
         txn.windowStart(),
         txn.windowEnd(),
-        txn.commissions(),
+        txn.fees(),
         txn.averageAum(),
         ocfJson.navDates(txn.navDates()),
         underlying.weightBasis(),
@@ -217,7 +196,7 @@ public class OcfCalculationService {
   }
 
   UnderlyingFundCost getUnderlyingFundCost(TulevaFund fund, LocalDate monthEnd) {
-    var rates = instrumentOcfService.ratesFor(YearMonth.from(monthEnd));
+    var rates = instrumentOcfService.dailyRatesFor(YearMonth.from(monthEnd));
     var navDate =
         fundNavQueryService
             .findLatestPublishedNavDateOnOrBefore(fund.getCode(), monthEnd)
@@ -275,7 +254,7 @@ public class OcfCalculationService {
     if (avgAum.signum() <= 0) {
       log.warn(
           "Transaction costs without an average AUM to divide by, the rate resolves to zero:"
-              + " fund={}, monthEnd={}, commissions={}",
+              + " fund={}, monthEnd={}, fees={}",
           fund.getCode(),
           monthEnd,
           txnCosts);
@@ -333,7 +312,7 @@ public class OcfCalculationService {
       BigDecimal rate,
       LocalDate windowStart,
       LocalDate windowEnd,
-      BigDecimal commissions,
+      BigDecimal fees,
       BigDecimal averageAum,
       List<LocalDate> navDates,
       List<OcfGap> gaps) {}

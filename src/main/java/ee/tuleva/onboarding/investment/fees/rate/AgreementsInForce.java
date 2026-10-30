@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.fees.rate;
 
 import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toSet;
 
@@ -29,7 +31,9 @@ final class AgreementsInForce {
   Optional<AgreementPeriod> lastEndedBefore(String isin, LocalDate day) {
     return agreementsOf(isin)
         .filter(agreement -> agreement.endedBefore(day))
-        .max(comparing(AgreementPeriod::lastDay).thenComparing(AgreementPeriod::validFrom));
+        .max(
+            comparing(AgreementPeriod::validTo, nullsLast(naturalOrder()))
+                .thenComparing(AgreementPeriod::validFrom));
   }
 
   Set<Long> appliedDuring(YearMonth month) {
@@ -39,6 +43,16 @@ final class AgreementsInForce {
         .flatMap(day -> agreementsByIsin.keySet().stream().flatMap(isin -> on(isin, day).stream()))
         .map(AgreementPeriod::id)
         .collect(toSet());
+  }
+
+  List<InstrumentRate> ratesAppliedDuring(
+      YearMonth month, Map<Long, InstrumentRate> rateByAgreement) {
+    var applied = appliedDuring(month);
+    return rateByAgreement.entrySet().stream()
+        .filter(rate -> applied.contains(rate.getKey()))
+        .map(Map.Entry::getValue)
+        .sorted(comparing(InstrumentRate::isin).thenComparing(InstrumentRate::id))
+        .toList();
   }
 
   private Stream<AgreementPeriod> agreementsOf(String isin) {

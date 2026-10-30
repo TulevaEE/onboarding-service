@@ -12,7 +12,7 @@ import java.util.List;
 record TransactionCostWindow(
     LocalDate start,
     LocalDate end,
-    BigDecimal commissions,
+    BigDecimal fees,
     BigDecimal averageAum,
     List<LocalDate> navDates) {
 
@@ -23,21 +23,20 @@ record TransactionCostWindow(
   }
 
   TransactionCost at(BigDecimal rate, List<OcfGap> gaps) {
-    return new TransactionCost(rate, start, end, commissions, averageAum, navDates, gaps);
+    return new TransactionCost(rate, start, end, fees, averageAum, navDates, gaps);
   }
 
   TransactionCost annualised() {
     var rate =
         start.equals(trailingYearStart(end))
-            ? commissions.divide(averageAum, SCALE, HALF_UP)
+            ? fees.divide(averageAum, SCALE, HALF_UP)
             : annualisedOverTheFundsLife();
     return at(rate, List.of());
   }
 
   private BigDecimal annualisedOverTheFundsLife() {
     var daysOfFundLife = ChronoUnit.DAYS.between(start, end) + 1;
-    return commissions
-        .multiply(DAYS_IN_YEAR)
+    return fees.multiply(DAYS_IN_YEAR)
         .divide(averageAum.multiply(BigDecimal.valueOf(daysOfFundLife)), SCALE, HALF_UP);
   }
 }

@@ -44,7 +44,7 @@ record ComputedFundLine(Computed computed) {
                         figure,
                         percent(kid.publishedOcf(), PERCENT_DECIMAL_PLACES),
                         kid.validFrom()))
-        .orElse(figure);
+        .orElse("%s (no KID recorded)".formatted(figure));
   }
 
   private Stream<String> notes() {

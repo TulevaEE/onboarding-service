@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.TEXT_PLAIN;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,12 +31,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(OcfPublicationAdminController.class)
-@Import(AdminTokenValidator.class)
+@Import({AdminTokenValidator.class, OcfPublicationRefusalAdvice.class})
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
 class OcfPublicationAdminControllerTest {
 
   private static final YearMonth OCTOBER = YearMonth.of(2026, 10);
+  private static final String A_FINGERPRINT = "0".repeat(64);
   private static final LocalDate NOVEMBER_1 = LocalDate.of(2026, 11, 1);
 
   @Autowired private MockMvc mockMvc;
@@ -48,6 +51,7 @@ class OcfPublicationAdminControllerTest {
           2,
           true,
           "{\"gaps\":[]}",
+          A_FINGERPRINT,
           new BigDecimal("0.00280000"),
           new BigDecimal("0.00200000"),
           NOVEMBER_1,
@@ -65,9 +69,11 @@ class OcfPublicationAdminControllerTest {
   private static final String PUBLISH_BODY =
       """
       {"fund": "TUK75", "month": "2026-10", "version": 2, "validFrom": "2026-11-01",
+       "calculationFingerprint": "%s",
        "publishedOcf": 0.00270000, "publishedIn": "KID 01.11.2026",
        "publishedBy": "portfolio-manager@example.com"}
-      """;
+      """
+          .formatted(A_FINGERPRINT);
 
   @Test
   void previewWithTheGatewaysOpsTokenShowsTheFigureThatWouldBePublished() throws Exception {
@@ -107,7 +113,7 @@ class OcfPublicationAdminControllerTest {
   @Test
   void aRefusedPublicationIsAConflictThatSaysWhy() throws Exception {
     given(ocfPublicationService.publish(any(OcfPublicationRequest.class)))
-        .willThrow(new OcfPublicationRefusedException("the calculation is already published"));
+        .willThrow(OcfPublicationRefusedException.class);
 
     mockMvc
         .perform(
@@ -116,7 +122,25 @@ class OcfPublicationAdminControllerTest {
                 .header("X-Admin-Token", "ops-token")
                 .contentType(APPLICATION_JSON)
                 .content(PUBLISH_BODY))
-        .andExpect(status().isConflict());
+        .andExpect(status().isConflict())
+        .andExpect(content().contentTypeCompatibleWith(TEXT_PLAIN));
+  }
+
+  @Test
+  void aPreviewWithoutAMonthIsRejectedBeforeTheService() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/ocf-publications/preview")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "validFrom": "2026-11-01"}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(ocfPublicationService);
   }
 
   @Test
@@ -130,8 +154,10 @@ class OcfPublicationAdminControllerTest {
                 .content(
                     """
                     {"fund": "TUK75", "month": "2026-10", "version": 2, "validFrom": "2026-11-01",
+                     "calculationFingerprint": "%s",
                      "publishedOcf": 0.00270000, "publishedIn": "KID 01.11.2026"}
-                    """))
+                    """
+                        .formatted(A_FINGERPRINT)))
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(ocfPublicationService);

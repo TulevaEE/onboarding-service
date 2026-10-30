@@ -48,7 +48,7 @@ class BankBalanceChecker {
       return bankStatementBalances
           .closingBalance(account, navDate)
           .map(balance -> compare(fund, navDate, reportCash, balance))
-          .orElseGet(() -> withoutAClosingBalance(fund, navDate, account));
+          .orElseGet(() -> withoutAClosingBalance(fund, navDate, reportCash, account));
     } catch (RuntimeException e) {
       log.error("Bank statement could not be read: fund={}, navDate={}", fund, navDate, e);
       return List.of(
@@ -57,9 +57,17 @@ class BankBalanceChecker {
   }
 
   private List<HealthCheckFinding> withoutAClosingBalance(
-      TulevaFund fund, LocalDate navDate, BankAccount account) {
+      TulevaFund fund, LocalDate navDate, BigDecimal reportCash, BankAccount account) {
     if (bankStatementBalances.isInsideAStatementClosingLater(account, navDate)) {
-      return List.of();
+      return List.of(
+          finding(
+              fund,
+              WARNING,
+              ("Report cash %s on %s not compared with the bank: SEB sent that day inside a"
+                      + " catch-up statement (one statement for several days, e.g. after an"
+                      + " outage) whose closing balance is for a later day. Check the day's"
+                      + " balance in SEB's internet bank")
+                  .formatted(euros(reportCash), navDate)));
     }
     return List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate)));
   }

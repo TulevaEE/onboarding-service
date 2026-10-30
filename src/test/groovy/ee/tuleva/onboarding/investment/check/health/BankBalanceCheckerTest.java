@@ -105,6 +105,26 @@ class BankBalanceCheckerTest {
   }
 
   @Test
+  void warnsInWholeCentsThatADayInsideACatchUpStatementWasNotComparedWithTheBank() {
+    given(bankAccounts.findAll(TUV100)).willReturn(List.of(TUV100_INVESTMENT));
+    given(bankStatementBalances.closingBalance(TUV100_INVESTMENT, NAV_DATE))
+        .willReturn(Optional.empty());
+    given(bankStatementBalances.isInsideAStatementClosingLater(TUV100_INVESTMENT, NAV_DATE))
+        .willReturn(true);
+
+    assertThat(checker.check(TUV100, NAV_DATE, List.of(cash("1000.004"))))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUV100,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 1000.00 on 2026-10-23 not compared with the bank: SEB sent that day"
+                    + " inside a catch-up statement (one statement for several days, e.g. after"
+                    + " an outage) whose closing balance is for a later day. Check the day's"
+                    + " balance in SEB's internet bank"));
+  }
+
+  @Test
   void hasNothingToSayAboutAFundWithNoInvestmentAccount() {
     given(bankAccounts.findAll(TKF100))
         .willReturn(List.of(new BankAccount("EE222222222222222222", DEPOSIT_EUR, TKF100, "c")));

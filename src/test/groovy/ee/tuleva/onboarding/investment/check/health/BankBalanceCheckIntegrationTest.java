@@ -131,12 +131,25 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
-  void hasNoFindingForADayInsideACatchUpStatementWhoseClosingBalanceIsForItsLastDayOnly() {
+  void warnsThatADayInsideACatchUpStatementWasNotComparedUntilTheDayIsRefetchedOnItsOwn() {
     storeCatchUpStatement(
         TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(2), NAV_DATE, "1000000.00", EARLY_MORNING);
 
-    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 999.00 on 2026-10-22 not compared with the bank: SEB sent that day"
+                    + " inside a catch-up statement (one statement for several days, e.g. after"
+                    + " an outage) whose closing balance is for a later day. Check the day's"
+                    + " balance in SEB's internet bank"));
     assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1000000.00"))).isEmpty();
+
+    storeStatement(TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(1), "999.00", "CRDT", REFETCHED);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00"))).isEmpty();
   }
 
   private static List<FundPosition> cash(TulevaFund fund, String marketValue) {

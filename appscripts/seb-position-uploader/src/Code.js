@@ -12,8 +12,9 @@
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
-//                   backfillSebConfirmations() (SEB trade confirmations since 02.02.2026; safe to
-//                   run again, threads already uploaded are skipped).
+//                   backfillSebConfirmations() (threads of SEB trade confirmations active since
+//                   02.02.2026; safe to run again, threads already uploaded are skipped; a thread
+//                   that also holds another sender's report is left to processNewEmails).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
@@ -143,8 +144,18 @@ function isSourceInScope(source, onlySource) {
     return !!source && (!onlySource || source === onlySource);
 }
 
+function isThreadInScope(messageSources, onlySource) {
+    return messageSources.every(function (source) {
+        return !source || isSourceInScope(source, onlySource);
+    });
+}
+
 function processThread(thread, minMessageDate, onlySource) {
     var messages = thread.getMessages();
+    if (onlySource && !isThreadInScope(messages.map(sourceOf), onlySource)) {
+        Logger.log("Skipped a thread that also holds messages from other senders: " + thread.getFirstMessageSubject());
+        return;
+    }
     var uploadCount = getUploadCount(thread);
     var matchingCount = 0;
     for (var j = 0; j < messages.length; j++) {
@@ -153,7 +164,7 @@ function processThread(thread, minMessageDate, onlySource) {
         if (messageHasMatchingAttachments(message)) {
             matchingCount++;
             if (shouldProcessMessage(matchingCount, uploadCount)) {
-                processMessage(message, thread, onlySource);
+                processMessage(message, thread);
             }
         }
     }
@@ -300,10 +311,10 @@ function notifySlack(message) {
     }
 }
 
-function processMessage(message, thread, onlySource) {
+function processMessage(message, thread) {
     var source = sourceOf(message);
 
-    if (!isSourceInScope(source, onlySource)) {
+    if (!source) {
         return;
     }
 
@@ -646,5 +657,6 @@ if (typeof module !== "undefined" && module.exports) {
         gmailSearchQuery,
         daysToReach,
         isSourceInScope,
+        isThreadInScope,
     };
 }

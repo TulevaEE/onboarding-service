@@ -18,6 +18,7 @@ const {
   gmailSearchQuery,
   daysToReach,
   isSourceInScope,
+  isThreadInScope,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -260,6 +261,21 @@ describe("isSourceInScope", () => {
   });
   test("never takes a message without a known source", () => {
     expect(isSourceInScope(null, undefined)).toBe(false);
+  });
+});
+
+describe("isThreadInScope", () => {
+  test("takes every thread when the run is not limited to one source", () => {
+    expect(isThreadInScope([SOURCES.SEB, SOURCES.SEB_CONFIRMATION], undefined)).toBe(true);
+  });
+  test("takes a thread of the limited source's messages", () => {
+    expect(isThreadInScope([SOURCES.SEB_CONFIRMATION, SOURCES.SEB_CONFIRMATION], SOURCES.SEB_CONFIRMATION)).toBe(true);
+  });
+  test("ignores messages from unknown senders, which are never uploaded", () => {
+    expect(isThreadInScope([SOURCES.SEB_CONFIRMATION, null], SOURCES.SEB_CONFIRMATION)).toBe(true);
+  });
+  test("leaves a thread that also holds another source's message to the regular run", () => {
+    expect(isThreadInScope([SOURCES.SEB, SOURCES.SEB_CONFIRMATION], SOURCES.SEB_CONFIRMATION)).toBe(false);
   });
 });
 

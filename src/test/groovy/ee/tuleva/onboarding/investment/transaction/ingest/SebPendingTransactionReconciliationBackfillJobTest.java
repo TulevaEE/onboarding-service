@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -39,6 +40,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18);
   private static final int BACKFILL_DAYS = 365;
+  private static final String NO_REPORTS_MESSAGE =
+      "SEB ootel-tehingute raporteid pole viimase 365 päeva kohta, midagi ei sobitatud uuesti.";
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
@@ -67,7 +70,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
-  void run_postsOneSummaryOfNewExecutionsSettlementsAndTheAlertsItHeldBack() {
+  void run_withHeldBackAlerts_postsOneWarningWithTheirCountsByKindAndEachPriceDivergence() {
     InvestmentReport day27 = report(TODAY.minusDays(27));
     InvestmentReport day10 = report(TODAY.minusDays(10));
     givenStoredReports(Map.of(27, day27, 10, day10));
@@ -76,26 +79,59 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     willAnswer(
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
-              alerts.raise(new PossibleReportTruncationEvent(TODAY, 1, TODAY.minusDays(1), 50));
+              alerts.raise(truncationOn(invocation.getArgument(0)));
               return null;
             })
         .given(reconciliationService)
-        .replay(any(), any());
+        .replay(eq(day27), any());
+    willAnswer(
+            invocation -> {
+              ReconciliationAlerts alerts = invocation.getArgument(1);
+              alerts.raise(priceDivergenceOn(invocation.getArgument(0)));
+              return null;
+            })
+        .given(reconciliationService)
+        .replay(eq(day10), any());
 
     job.run();
 
     verify(notificationService)
         .sendMessage(
             """
-            SEB ootel-raportite ajalugu sobitati uuesti kuupäevade järjekorras: 2 raportit, \
-            2026-04-21 kuni 2026-05-08.
-            Uusi täitmisi 4, uusi arveldusi 2. Hoiatusi jäeti saatmata 2, need on logis.
-            Uuesti käivitamine on ohutu: juba sobitatut topelt ei lisata.""",
+            SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 2 \
+            (2026-04-21 kuni 2026-05-08).
+            Uusi täitmisi: 4, uusi arveldusi: 2. Saatmata hoiatusi: 2 (koguse või summa \
+            lahknevusi: 0, kärbitud raporteid: 1, tükkide hinnaerinevusi: 1).
+            Tükkide hinnaerinevus: tellimus 123, IE000F60HVH9, raport 2026-05-08.
+            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void run_withoutHeldBackAlerts_postsTheSummaryAsInformation() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    givenStoredReports(Map.of(27, day27));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 4L);
+
+    job.run();
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 1 \
+            (2026-04-21).
+            Uusi täitmisi: 1, uusi arveldusi: 1. Saatmata hoiatusi: 0 (koguse või summa \
+            lahknevusi: 0, kärbitud raporteid: 0, tükkide hinnaerinevusi: 0).
+            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT);
   }
 
   @Test
-  void run_stopsAtTheFirstReportThatFailsAndSaysWhereItStopped() {
+  void run_stopsAtTheFirstReportThatFailsAndDoesNotCountItsRolledBackAlerts() {
     InvestmentReport day27 = report(TODAY.minusDays(27));
     InvestmentReport day10 = report(TODAY.minusDays(10));
     InvestmentReport day3 = report(TODAY.minusDays(3));
@@ -103,7 +139,12 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 3L);
     lenient()
-        .doThrow(new IllegalStateException("broken report"))
+        .doAnswer(
+            invocation -> {
+              ReconciliationAlerts alerts = invocation.getArgument(1);
+              alerts.raise(truncationOn(invocation.getArgument(0)));
+              throw new IllegalStateException("broken report");
+            })
         .when(reconciliationService)
         .replay(eq(day10), any());
 
@@ -114,10 +155,13 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     verify(notificationService)
         .sendMessage(
             """
-            SEB ootel-raportite ajaloo uuesti sobitamine peatus raportil 2026-05-08 (põhjus logis).
-            Enne seda 1 raport, 2026-04-21 kuni 2026-04-21: uusi täitmisi 1, uusi arveldusi 0, \
-            hoiatusi jäeti saatmata 0.
-            Paranda põhjus ja käivita uuesti: juba sobitatut topelt ei lisata.""",
+            SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-05-08 \
+            (põhjus on logis).
+            Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hinnaerinevusi: 0).
+            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
+            topelt.""",
             INVESTMENT,
             ERROR);
   }
@@ -137,9 +181,11 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     verify(notificationService)
         .sendMessage(
             """
-            SEB ootel-raportite ajaloo uuesti sobitamine peatus raportil 2026-04-21 (põhjus logis).
+            SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-04-21 \
+            (põhjus on logis).
             Enne seda ei sobitatud ühtki raportit.
-            Paranda põhjus ja käivita uuesti: juba sobitatut topelt ei lisata.""",
+            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
+            topelt.""",
             INVESTMENT,
             ERROR);
   }
@@ -151,12 +197,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     job.run();
 
     verify(reconciliationService, never()).replay(any(), any());
-    verify(notificationService)
-        .sendMessage(
-            "SEB ootel-raportite ajaloo uuesti sobitamine: viimase 365 päeva kohta pole ühtki"
-                + " raportit, midagi ei sobitatud.",
-            INVESTMENT,
-            WARNING);
+    verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
   }
 
   @Test
@@ -165,12 +206,23 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
     job.onSebPendingTransactionReconciliationBackfillRequested();
 
-    verify(notificationService)
-        .sendMessage(
-            "SEB ootel-raportite ajaloo uuesti sobitamine: viimase 365 päeva kohta pole ühtki"
-                + " raportit, midagi ei sobitatud.",
-            INVESTMENT,
-            WARNING);
+    verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
+  }
+
+  private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {
+    return new PossibleReportTruncationEvent(
+        report.getReportDate(), 1, report.getReportDate().minusDays(1), 50);
+  }
+
+  private static ExecutionPriceConsistencyEvent priceDivergenceOn(InvestmentReport report) {
+    return new ExecutionPriceConsistencyEvent(
+        123L,
+        "IE000F60HVH9",
+        new BigDecimal("10.00"),
+        new BigDecimal("11.00"),
+        new BigDecimal("0.10"),
+        new BigDecimal("0.01"),
+        report.getReportDate());
   }
 
   private void givenStoredReports(Map<Integer, InvestmentReport> reportsByDaysAgo) {

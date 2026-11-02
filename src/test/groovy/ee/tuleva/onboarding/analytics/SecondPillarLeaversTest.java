@@ -31,7 +31,7 @@ class SecondPillarLeaversTest {
   }
 
   @Test
-  void asksTheRegistryWhetherContributionsEndedWithoutAnApplication() {
+  void asksTheRegistryWhetherContributionsCannotRestart() {
     given(unitOwnerRepository.contributionsCannotRestart("38888888888")).willReturn(true);
 
     assertThat(secondPillarLeavers.contributionsCannotRestart("38888888888")).isTrue();

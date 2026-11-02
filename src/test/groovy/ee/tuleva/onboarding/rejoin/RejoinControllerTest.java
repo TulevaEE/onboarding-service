@@ -53,7 +53,7 @@ class RejoinControllerTest {
   }
 
   @Test
-  void tellsAPersonEpisRefusesThatTheyMayNotRejoinWithoutNamingAnEndWithoutAnApplication()
+  void tellsAPersonEpisRefusesThatTheyMayNotRejoinWithoutSayingTheirContributionsCannotRestart()
       throws Exception {
     given(rejoinPermissionSource.getRejoinPermission()).willReturn(new RejoinPermission(false));
 
@@ -68,7 +68,7 @@ class RejoinControllerTest {
   }
 
   @Test
-  void refusesAPersonWhoseContributionsEndedWithoutAnApplicationEvenThoughEpisWouldOfferTheForm()
+  void refusesAPersonWhoseContributionsCannotRestartEvenThoughEpisWouldOfferTheForm()
       throws Exception {
     given(secondPillarLeavers.contributionsCannotRestart(person.getRepresentedPersonalCode()))
         .willReturn(true);

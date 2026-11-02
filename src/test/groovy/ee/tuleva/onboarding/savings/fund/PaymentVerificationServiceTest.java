@@ -872,8 +872,70 @@ class PaymentVerificationServiceTest {
         .publishEvent(
             argThat(
                 (SavingsPaymentFailedEvent e) ->
-                    e.getUser().equals(parent) && e.getLocale().equals(Locale.of("et"))));
+                    e.getUser().equals(parent)
+                        && e.getLocale().equals(Locale.of("et"))
+                        && e.getRecipient().equals(new PartyId(PERSON, childCode))));
     verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void identityCheckFailure_namesTheChildInTheDescriptionEvenThoughNoPartyIsAttachedYet() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var parent = User.builder().id(123L).personalCode(parentCode).firstName("JAAN").build();
+    var child = User.builder().id(456L).personalCode(childCode).firstName("MARI").build();
+    var payment = createPayment(parentCode, "for child " + childCode);
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(parent)
+                        && e.getRecipient().equals(new PartyId(PERSON, childCode))));
+  }
+
+  @Test
+  void identityCheckFailure_namesTheCompanyInTheDescriptionWhenPaidFromAPersonalAccount() {
+    var boardMemberCode = "38812121215";
+    var registryCode = "12345678";
+    var boardMember =
+        User.builder().id(123L).personalCode(boardMemberCode).firstName("JAAN").build();
+    var payment = createPayment(boardMemberCode, "for company " + registryCode);
+    when(userRepository.findByPersonalCode(boardMemberCode)).thenReturn(Optional.of(boardMember));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(boardMember)
+                        && e.getRecipient().equals(new PartyId(LEGAL_ENTITY, registryCode))));
+  }
+
+  @Test
+  void identityCheckFailure_namesThePayersOwnAccountWhenThePaymentNamesNoAccount() {
+    var user = User.builder().id(123L).personalCode("37508295796").firstName("PÄRT").build();
+    var payment =
+        createPayment(null, "no personal code here").toBuilder()
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .build();
+    when(userRepository.findByPersonalCode(user.getPersonalCode())).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(user)
+                        && e.getRecipient().equals(new PartyId(PERSON, user.getPersonalCode()))));
   }
 
   @Test

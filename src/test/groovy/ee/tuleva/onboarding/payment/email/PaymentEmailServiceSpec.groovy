@@ -217,6 +217,31 @@ class PaymentEmailServiceSpec extends Specification {
     1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status, null)
   }
 
+  def "a retry email carries the account holder's merge vars so its button opens that account"() {
+    given:
+    def user = sampleUser().build()
+    def message = new MandrillMessage()
+    def mergeVars = [
+        "fname"             : user.firstName,
+        "lname"             : user.lastName,
+        "recipientName"     : "Kid Tester",
+        "recipientIsChild"  : true,
+        "recipientAccountId": CHILD_LINK_ID.toString(),
+    ]
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars, ["savings_fund"]) >> message
+    1 * emailService.send(user, message, templateName) >> Optional.empty()
+
+    where:
+    email                                                                                            | templateName
+    SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID))      | "savings_fund_payment_failed_en"
+    SavingsFundPaymentEmail.cancelled(SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID))   | "savings_fund_payment_cancelled_en"
+  }
+
   def "savings fund payment email includes the recipient name when present"() {
     given:
     def user = sampleUser().build()

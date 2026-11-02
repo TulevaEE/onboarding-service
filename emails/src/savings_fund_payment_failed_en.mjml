@@ -21,9 +21,7 @@
         </mj-text>
         <mj-text>Please try again here:</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
-          Make a new contribution
-        </mj-button>
+        <mj-include path="./partials/savings_fund_retry_button_en.mjml" />
       </mj-column>
     </mj-section>
 

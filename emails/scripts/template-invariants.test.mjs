@@ -10,9 +10,9 @@ const distDir = join(root, 'dist');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 
 const TEMPLATE_SCOPED_VARIABLES = {
-  recipientIsChild: /_child_/,
-  recipientIsCompany: /_company_/,
-  recipientAccountId: /_(child|company)_/,
+  recipientIsChild: /_child_|_payment_(failed|cancelled)_/,
+  recipientIsCompany: /_company_|_payment_(failed|cancelled)_/,
+  recipientAccountId: /_(child|company)_|_payment_(failed|cancelled)_/,
   hasFeeComparison: /^(?!second_pillar_mandate_)/,
 };
 

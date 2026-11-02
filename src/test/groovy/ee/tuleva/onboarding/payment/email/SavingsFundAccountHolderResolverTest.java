@@ -117,6 +117,53 @@ class SavingsFundAccountHolderResolverTest {
     assertThat(resolved).isEqualTo(SavingsFundAccountHolder.companyNotOnFileYet());
   }
 
+  @Test
+  void retryForACompanyThePayerRepresentsOpensTheCompany() {
+    String registryCode = "12345678";
+    given(companyRoles.isBoardMember(payer.getPersonalCode(), registryCode)).willReturn(true);
+    given(companyRoles.findCompany(registryCode))
+        .willReturn(Optional.of(new CompanyRole(COMPANY_ID, registryCode, "Tuleva OÜ")));
+
+    var resolved = resolver.resolveRetryAccount(payer, new PartyId(LEGAL_ENTITY, registryCode));
+
+    assertThat(resolved).isEqualTo(SavingsFundAccountHolder.company("Tuleva OÜ", COMPANY_ID));
+  }
+
+  @Test
+  void retryNamingACompanyThePayerDoesNotRepresentKeepsThePayersOwnLink() {
+    String registryCode = "12345678";
+    given(companyRoles.isBoardMember(payer.getPersonalCode(), registryCode)).willReturn(false);
+
+    var resolved = resolver.resolveRetryAccount(payer, new PartyId(LEGAL_ENTITY, registryCode));
+
+    assertThat(resolved).isEqualTo(SavingsFundAccountHolder.person());
+    verify(companyRoles, never()).findCompany(any());
+  }
+
+  @Test
+  void retryForARepresentedChildOpensTheChild() {
+    String childCode = "51111111111";
+    given(
+            parentChildLinkService.findRepresentation(
+                payer.getPersonalCode(), childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .willReturn(Optional.of(LINK_ID));
+    given(partyResolver.resolve(new PartyId(PERSON, childCode))).willReturn(Optional.empty());
+
+    var resolved = resolver.resolveRetryAccount(payer, new PartyId(PERSON, childCode));
+
+    assertThat(resolved).isEqualTo(SavingsFundAccountHolder.child(LINK_ID));
+    verifyNoInteractions(companyRoles);
+  }
+
+  @Test
+  void retryForThePayersOwnAccountKeepsThePayersOwnLink() {
+    var resolved =
+        resolver.resolveRetryAccount(payer, new PartyId(PERSON, payer.getPersonalCode()));
+
+    assertThat(resolved).isEqualTo(SavingsFundAccountHolder.person());
+    verifyNoInteractions(companyRoles, parentChildLinkService, partyResolver);
+  }
+
   private static Party namedParty(String code, String name) {
     record NamedParty(String code, String name) implements Party {}
     return new NamedParty(code, name);

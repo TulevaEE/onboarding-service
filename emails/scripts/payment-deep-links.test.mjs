@@ -42,6 +42,30 @@ const BUTTONS_BY_MERGE_VARS = [
     {},
     `${PAYMENT_PAGE}/company?language=en&utm_content=company_onboarded_payment`,
   ],
+  ...['savings_fund_payment_failed', 'savings_fund_payment_cancelled'].flatMap((family) => [
+    [`${family}_et`, {}, PAYMENT_PAGE],
+    [`${family}_en`, {}, `${PAYMENT_PAGE}?language=en`],
+    [
+      `${family}_et`,
+      { recipientIsChild: true, recipientAccountId: ACCOUNT_ID },
+      `${PAYMENT_PAGE}/child/${ACCOUNT_ID}?utm_content=payment_retry_child`,
+    ],
+    [
+      `${family}_en`,
+      { recipientIsChild: true, recipientAccountId: ACCOUNT_ID },
+      `${PAYMENT_PAGE}/child/${ACCOUNT_ID}?language=en&utm_content=payment_retry_child`,
+    ],
+    [
+      `${family}_et`,
+      { recipientIsCompany: true, recipientAccountId: ACCOUNT_ID },
+      `${PAYMENT_PAGE}/company/${ACCOUNT_ID}?utm_content=payment_retry_company`,
+    ],
+    [
+      `${family}_en`,
+      { recipientIsCompany: true, recipientAccountId: ACCOUNT_ID },
+      `${PAYMENT_PAGE}/company/${ACCOUNT_ID}?language=en&utm_content=payment_retry_company`,
+    ],
+  ]),
 ];
 
 const ROLE_LESS_PAYMENT_LINKS = [

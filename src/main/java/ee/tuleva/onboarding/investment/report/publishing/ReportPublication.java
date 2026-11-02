@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.net.URLDecoder;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -34,7 +31,7 @@ sealed interface ReportPublication {
   static ReportPublication linking(
       TulevaFund fund, String reportUrl, YearMonth month, YearMonth lastMonth) {
     return FundReportMapping.forFund(fund)
-        .reportPeriodNamedBy(filename(reportUrl))
+        .reportPeriodLinkedBy(reportUrl)
         .filter(period -> !period.isAfter(lastMonth))
         .<ReportPublication>map(
             period ->
@@ -45,7 +42,7 @@ sealed interface ReportPublication {
   }
 
   private static String filename(String url) {
-    return URLDecoder.decode(url.substring(url.lastIndexOf('/') + 1), UTF_8);
+    return FundReportMapping.filenameIn(url);
   }
 
   record Published(TulevaFund fund, String reportUrl) implements ReportPublication {

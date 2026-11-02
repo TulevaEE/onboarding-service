@@ -62,6 +62,20 @@ class FundReportMappingTest {
   }
 
   @Test
+  void reportPeriodLinkedByReadsTheMonthFromTheUrlsDecodedFilename() {
+    assertThat(
+            FundReportMapping.TUK00.reportPeriodLinkedBy(
+                "https://tuleva.ee/wp-content/uploads/2026/10/"
+                    + "Tuleva-Maailma-V%C3%B5lakirjade-Pensionifondi-investeeringute-aruanne-2026-09-1.pdf"))
+        .contains(YearMonth.of(2026, 9));
+    assertThat(
+            FundReportMapping.TUK75.reportPeriodLinkedBy(
+                "https://tuleva.ee/wp-content/uploads/2026/10/"
+                    + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-09.pdf"))
+        .isEmpty();
+  }
+
+  @Test
   void tkf100ExcludedFromEmail() {
     assertThat(FundReportMapping.TKF100.includeInEmail()).isFalse();
   }

@@ -1,12 +1,12 @@
 {
   "templates": {
     "batch_failed_en": {
-      "subject": "Important information about your withdrawal applications",
+      "subject": "Important information about your applications",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "batch_failed_et": {
-      "subject": "Tähtis info sinu väljamakse avalduste kohta",
+      "subject": "Tähtis info sinu avalduste kohta",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -377,7 +377,7 @@
     }
   },
   "descriptions": {
-    "batch_failed": "Sent right away when some applications in a signed withdrawal batch fail to reach the pension registry. Goes to the person who signed the batch and lists which applications need to be redone.",
+    "batch_failed": "Sent right away when only some applications in a signed batch go through at Pensionikeskus. Goes to the person who signed the batch, says how many went through, asks them to contact us and attaches copies of the applications.",
     "capital_transfer_approved_by_board": "Sent to both the buyer and the seller when the Tuleva board approves the member capital transfer and it is executed.",
     "capital_transfer_buyer_to_sign": "Sent to the buyer as soon as the seller signs the member capital transfer contract, asking the buyer to sign next.",
     "capital_transfer_confirmed_by_buyer": "Sent to the seller when the buyer confirms they have paid, asking the seller to confirm that the money arrived.",

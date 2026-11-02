@@ -6,14 +6,13 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>You tried to submit applications, but unfortunately a technical problem occurred.</mj-text>
+        <mj-text>Unfortunately, only some of your applications went through at Pensionikeskus.</mj-text>
         <mj-text>
-          Out of the *|totalMandateCount|* applications you submitted, *|failedMandateCount|* hit
-          a technical problem. The remaining *|successfulMandateCount|* applications reached
-          Pensionikeskus and are being processed.
+          Out of the *|totalMandateCount|* you submitted, *|successfulMandateCount|* went through
+          and *|failedMandateCount|* did not.
         </mj-text>
         <mj-text>
-          Please contact us so we can fix the problem:
+          Please contact us so we can see what to do next:
           <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
           <a href="tel:+3726445100">644&nbsp;5100</a>.
         </mj-text>

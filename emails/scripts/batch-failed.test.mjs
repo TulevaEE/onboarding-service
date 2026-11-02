@@ -20,7 +20,7 @@ const languages = {
   en: {
     required: [
       'Unfortunately, only some of your applications went through at Pensionikeskus.',
-      'Out of the *|totalMandateCount|* you submitted, *|successfulMandateCount|* went through and *|failedMandateCount|* did not.',
+      'Out of the *|totalMandateCount|* applications you submitted, *|successfulMandateCount|* went through and *|failedMandateCount|* did not.',
       'Please contact us so we can see what to do next:',
     ],
     applicationTypes: ['withdrawal', 'rejoin'],

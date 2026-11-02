@@ -8,8 +8,8 @@
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>Unfortunately, only some of your applications went through at Pensionikeskus.</mj-text>
         <mj-text>
-          Out of the *|totalMandateCount|* you submitted, *|successfulMandateCount|* went through
-          and *|failedMandateCount|* did not.
+          Out of the *|totalMandateCount|* applications you submitted,
+          *|successfulMandateCount|* went through and *|failedMandateCount|* did not.
         </mj-text>
         <mj-text>
           Please contact us so we can see what to do next:

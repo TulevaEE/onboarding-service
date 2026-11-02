@@ -15,6 +15,8 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -22,6 +24,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +37,7 @@ class InvestmentReportPublisherTest {
   @Mock private InvestmentReportDataService dataService;
   @Mock private InvestmentReportPdfGenerator pdfGenerator;
   @Mock private WordPressMediaClient wordPressClient;
+  @Mock private WordPressPageReader pageReader;
   @Mock private EmailService emailService;
   private InvestmentReportPublisher publisher;
 
@@ -44,6 +48,7 @@ class InvestmentReportPublisherTest {
   void setUp() {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
+    lenient().when(pageReader.investmentReportUrl(any())).thenReturn(Optional.empty());
   }
 
   private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
@@ -51,6 +56,7 @@ class InvestmentReportPublisherTest {
         dataService,
         pdfGenerator,
         wordPressClient,
+        pageReader,
         emailService,
         new InvestmentReportPublishingProperties(funds));
   }
@@ -286,6 +292,85 @@ class InvestmentReportPublisherTest {
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");
     verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
+  }
+
+  @Test
+  void nothingIsPublishedWhileAFundPageLinksANewerReport() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(pageReader.investmentReportUrl(FundReportMapping.TUK00.pageSlug()))
+        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK00, YearMonth.of(2026, 4))));
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(),
+                false,
+                List.of(
+                    "Fund page already links a newer report: fund=TUK00, linked=2026-04,"
+                        + " publishing=2026-03")));
+    verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
+  }
+
+  @Test
+  void aCorrectedReportForTheMonthAlreadyLinkedIsPublished() {
+    givenEveryReportCanBeProduced();
+    given(pageReader.investmentReportUrl(FundReportMapping.TUK75.pageSlug()))
+        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, MARCH_2026)));
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
+  }
+
+  @Test
+  void aPageLinkingAnOlderReportOrSomeOtherFileGetsThisMonthsReport() {
+    givenEveryReportCanBeProduced();
+    given(pageReader.investmentReportUrl(FundReportMapping.TUK75.pageSlug()))
+        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, YearMonth.of(2026, 2))));
+    given(pageReader.investmentReportUrl(FundReportMapping.TUK00.pageSlug()))
+        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, YearMonth.of(2026, 4))));
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
+  }
+
+  @Test
+  void nothingIsPublishedWhenAFundPageCannotBeReadToCheckForANewerReport() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(pageReader.investmentReportUrl(FundReportMapping.TUV100.pageSlug()))
+        .willThrow(new IllegalStateException("page unreadable"));
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(),
+                false,
+                List.of(
+                    "Could not read the fund page to check it links no newer report: fund=TUV100,"
+                        + " error=page unreadable")));
+    verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
+  }
+
+  private void givenEveryReportCanBeProduced() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    var context = sampleContext("Test Fund");
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
+    given(emailService.sendSystemEmail(any())).willReturn(true);
+  }
+
+  private static String reportUrl(FundReportMapping mapping, YearMonth month) {
+    return "https://tuleva.ee/wp-content/uploads/2026/05/"
+        + WordPressSlug.of(mapping.buildPdfFilename(month));
   }
 
   private static InvestmentReportContext sampleContext(String fundTitle) {

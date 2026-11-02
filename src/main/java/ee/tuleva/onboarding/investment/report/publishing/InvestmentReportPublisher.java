@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -36,6 +37,7 @@ public class InvestmentReportPublisher {
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
+  private final WordPressPageReader pageReader;
   private final EmailService emailService;
   private final InvestmentReportPublishingProperties properties;
 
@@ -46,6 +48,12 @@ public class InvestmentReportPublisher {
     if (!navDateErrors.isEmpty()) {
       log.warn("Pre-publish validation failed: {}", navDateErrors);
       return abortedWithoutPublishing(navDateErrors);
+    }
+
+    var newerReports = newerReportsLinked(month);
+    if (!newerReports.isEmpty()) {
+      log.warn("Fund pages already link newer reports, nothing published: {}", newerReports);
+      return abortedWithoutPublishing(newerReports);
     }
 
     logQuantityWarnings(month);
@@ -94,6 +102,31 @@ public class InvestmentReportPublisher {
 
   private List<FundReportMapping> publishedReports() {
     return properties.funds().stream().map(FundReportMapping::forFund).toList();
+  }
+
+  private List<String> newerReportsLinked(YearMonth month) {
+    return publishedReports().stream()
+        .flatMap(mapping -> newerReportLinkedFrom(mapping, month).stream())
+        .toList();
+  }
+
+  private Optional<String> newerReportLinkedFrom(FundReportMapping mapping, YearMonth month) {
+    var fundCode = mapping.fund().getCode();
+    try {
+      return pageReader
+          .investmentReportUrl(mapping.pageSlug())
+          .flatMap(mapping::reportPeriodLinkedBy)
+          .filter(linked -> linked.isAfter(month))
+          .map(
+              linked ->
+                  "Fund page already links a newer report: fund=%s, linked=%s, publishing=%s"
+                      .formatted(fundCode, linked, month));
+    } catch (RuntimeException e) {
+      log.error("Could not read fund page to check for a newer report: fund={}", fundCode, e);
+      return Optional.of(
+          "Could not read the fund page to check it links no newer report: fund=%s, error=%s"
+              .formatted(fundCode, e.getMessage()));
+    }
   }
 
   private void logQuantityWarnings(YearMonth month) {

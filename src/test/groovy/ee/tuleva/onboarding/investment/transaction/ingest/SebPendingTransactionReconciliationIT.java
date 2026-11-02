@@ -308,6 +308,35 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_executionStoredWithALaterReportedDate_movesItBackAndSettlesOnTime() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    TransactionExecution storedLate =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 3, 1))
+                .build());
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(
+        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {});
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(executionRepository.findById(storedLate.getId()).orElseThrow().getReportedDate())
+        .isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 16));
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);

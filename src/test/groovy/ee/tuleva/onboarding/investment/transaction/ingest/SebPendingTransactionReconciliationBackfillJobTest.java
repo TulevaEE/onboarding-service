@@ -59,6 +59,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     InvestmentReport day10 = report(TODAY.minusDays(10));
     InvestmentReport day0 = report(TODAY);
     givenStoredReports(Map.of(27, day27, 10, day10, 0, day0));
+    given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
 
     job.run();
 
@@ -80,7 +81,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
               alerts.raise(truncationOn(invocation.getArgument(0)));
-              return null;
+              return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
         .replay(eq(day27), any());
@@ -88,7 +89,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
               alerts.raise(priceDivergenceOn(invocation.getArgument(0)));
-              return null;
+              return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
         .replay(eq(day10), any());
@@ -115,6 +116,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 4L);
+    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
     job.run();
 
@@ -131,6 +133,35 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
+  void run_whenSettlementChecksWereSkipped_warnsAndListsThoseReportsWithTheReason() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    given(reconciliationService.replay(eq(day27), any()))
+        .willReturn(SettlementCheck.SKIPPED_MALFORMED_ROWS);
+    given(reconciliationService.replay(eq(day10), any()))
+        .willReturn(SettlementCheck.SKIPPED_NO_MATCHED_ROW);
+
+    job.run();
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 2 \
+            (2026-04-21 kuni 2026-05-08).
+            Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata hoiatusi: 0 (koguse või summa \
+            lahknevusi: 0, kärbitud raporteid: 0, tükkide hinnaerinevusi: 0).
+            Arvelduse kontroll jäi vahele: 2026-04-21 (vigased read), 2026-05-08 (ükski rida ei \
+            sobitunud).
+            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
   void run_stopsAtTheFirstReportThatFailsAndDoesNotCountItsRolledBackAlerts() {
     InvestmentReport day27 = report(TODAY.minusDays(27));
     InvestmentReport day10 = report(TODAY.minusDays(10));
@@ -138,6 +169,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27, 10, day10, 3, day3));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 3L);
+    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
     lenient()
         .doAnswer(
             invocation -> {

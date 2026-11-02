@@ -44,8 +44,7 @@ class KnownLookupsTest {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
     given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(true);
-    given(leaverStatus.contributionsEndedWithoutApplication(user.getPersonalCode()))
-        .willReturn(false);
+    given(leaverStatus.contributionsCannotRestart(user.getPersonalCode())).willReturn(false);
 
     assertThat(lookups.mayRejoinSecondPillar(user)).isEqualTo(Known.YES);
   }
@@ -55,8 +54,7 @@ class KnownLookupsTest {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
     given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(true);
-    given(leaverStatus.contributionsEndedWithoutApplication(user.getPersonalCode()))
-        .willReturn(true);
+    given(leaverStatus.contributionsCannotRestart(user.getPersonalCode())).willReturn(true);
 
     assertThat(lookups.mayRejoinSecondPillar(user)).isEqualTo(Known.NO);
   }

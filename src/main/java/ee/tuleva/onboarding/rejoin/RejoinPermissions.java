@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.rejoin;
 
-import static ee.tuleva.onboarding.rejoin.RejoinDecision.CONTRIBUTIONS_ENDED_WITHOUT_APPLICATION;
+import static ee.tuleva.onboarding.rejoin.RejoinDecision.CONTRIBUTIONS_CANNOT_RESTART;
 import static ee.tuleva.onboarding.rejoin.RejoinDecision.PERMITTED;
 import static ee.tuleva.onboarding.rejoin.RejoinDecision.REFUSED_BY_PENSIONIKESKUS;
 
@@ -18,9 +18,8 @@ class RejoinPermissions {
   private final SecondPillarLeavers secondPillarLeavers;
 
   RejoinDecision decideFor(Person person) {
-    if (secondPillarLeavers.contributionsEndedWithoutApplication(
-        person.getRepresentedPersonalCode())) {
-      return CONTRIBUTIONS_ENDED_WITHOUT_APPLICATION;
+    if (secondPillarLeavers.contributionsCannotRestart(person.getRepresentedPersonalCode())) {
+      return CONTRIBUTIONS_CANNOT_RESTART;
     }
     return rejoinPermissionSource.getRejoinPermission().permitted()
         ? PERMITTED

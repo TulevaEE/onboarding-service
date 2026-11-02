@@ -36,7 +36,7 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
         AND uo.p2mmteDate IS NULL
         AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
       """)
-  boolean contributionsEndedWithoutApplication(String personalCode);
+  boolean contributionsCannotRestart(String personalCode);
 
   @Query(
       """

@@ -70,9 +70,7 @@ class RejoinControllerTest {
   @Test
   void refusesAPersonWhoseContributionsEndedWithoutAnApplicationEvenThoughEpisWouldOfferTheForm()
       throws Exception {
-    given(
-            secondPillarLeavers.contributionsEndedWithoutApplication(
-                person.getRepresentedPersonalCode()))
+    given(secondPillarLeavers.contributionsCannotRestart(person.getRepresentedPersonalCode()))
         .willReturn(true);
 
     askForPermission()
@@ -81,7 +79,7 @@ class RejoinControllerTest {
             content()
                 .json(
                     """
-                    {"permitted": false, "decision": "CONTRIBUTIONS_ENDED_WITHOUT_APPLICATION"}
+                    {"permitted": false, "decision": "CONTRIBUTIONS_CANNOT_RESTART"}
                     """));
     verifyNoInteractions(rejoinPermissionSource);
   }

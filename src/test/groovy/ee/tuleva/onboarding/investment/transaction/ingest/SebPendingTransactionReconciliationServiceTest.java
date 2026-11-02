@@ -1139,6 +1139,102 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void replay_olderReportWithANewerOneStored_settlesTheOrderMissingFromItOnItsDate() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+    lenient()
+        .when(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .thenReturn(
+            Optional.of(
+                InvestmentReport.builder()
+                    .provider(SEB)
+                    .reportType(PENDING_TRANSACTIONS)
+                    .reportDate(LocalDate.of(2026, 5, 14))
+                    .metadata(Map.of("asOfDate", "2026-05-13"))
+                    .rawData(List.of())
+                    .build()));
+    List<Object> heldBack = new ArrayList<>();
+
+    service.replay(reportWithSingleRow(clientRef), heldBack::add);
+
+    verify(settlementRepository)
+        .save(
+            argThat(
+                (TransactionSettlement settlement) ->
+                    settlement.getOrderId().equals(456L)
+                        && settlement.getReportDate().equals(LocalDate.of(2026, 5, 13))));
+    assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void replay_nearMissOrder_holdsTheMismatchBackInsteadOfPublishingIt() {
+    service = newService();
+    UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+    TransactionOrder order =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderQuantity(new BigDecimal("15007"))
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(UUID.randomUUID())
+            .orderStatus(SENT)
+            .build();
+    given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    List<Object> heldBack = new ArrayList<>();
+
+    service.replay(
+        reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")), heldBack::add);
+
+    assertThat(heldBack)
+        .singleElement()
+        .isInstanceOfSatisfying(
+            QuantityAmountMismatchEvent.class,
+            event -> {
+              assertThat(event.order().getId()).isEqualTo(123L);
+              assertThat(event.kind())
+                  .isEqualTo(QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY);
+            });
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void replay_reportRowCountDroppedSharply_holdsTheTruncationAlertBackAndDoesNotSettle() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
+        .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 50)));
+    List<Object> heldBack = new ArrayList<>();
+
+    service.replay(reportWithSingleRow(clientRef), heldBack::add);
+
+    assertThat(heldBack)
+        .singleElement()
+        .isEqualTo(
+            new PossibleReportTruncationEvent(
+                LocalDate.of(2026, 5, 13), 1, LocalDate.of(2026, 5, 12), 50));
+    verify(settlementRepository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
   void reconcile_reportWithMalformedRow_skipsSettlementByAbsence() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

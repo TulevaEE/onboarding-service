@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -247,6 +248,44 @@ class SebPendingTransactionReconciliationIT {
         auditEventRepository.findByOrderIdAndEventType(absentOrder.getId(), "SETTLEMENT_DETECTED");
     assertThat(events).hasSize(1);
     assertThat(events.get(0).getPayload().get("reportDate")).isEqualTo("2026-02-13");
+  }
+
+  @Test
+  void replay_reportsOldestFirst_settlesAnOrderOnTheFirstReportItIsMissingFrom() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
+    InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen);
+    List<Object> heldBack = new ArrayList<>();
+
+    reconciliationService.replay(report, heldBack::add);
+    reconciliationService.replay(missingFrom, heldBack::add);
+    reconciliationService.replay(latest, heldBack::add);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 16));
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(SETTLED);
+    assertThat(orderRepository.findById(stillOpen.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(EXECUTED);
+    assertThat(heldBack).isEmpty();
+  }
+
+  @Test
+  void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
+    InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen);
+
+    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(missingFrom);
+    reconciliationService.reconcile(latest);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 20));
   }
 
   @Test
@@ -591,6 +630,42 @@ class SebPendingTransactionReconciliationIT {
             .build());
     entityManager.flush();
     return absentOrder;
+  }
+
+  private TransactionOrder givenOrderLeavesAfterFirstReportWhileAnotherStays() {
+    order.setOrderTimestamp(Instant.parse("2026-02-10T15:00:00Z"));
+    orderRepository.save(order);
+    TransactionOrder stillOpen =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(order.getBatch())
+                .fund(TKF100)
+                .instrumentIsin("IE00BFG1TM61")
+                .transactionType(BUY)
+                .instrumentType(FUND)
+                .orderQuantity(new BigDecimal("2670"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(UUID.fromString("22222222-2222-2222-2222-222222222222"))
+                .orderStatus(SENT)
+                .orderTimestamp(Instant.parse("2026-02-12T15:00:00Z"))
+                .build());
+    entityManager.flush();
+    return stillOpen;
+  }
+
+  private InvestmentReport reportWhoseFirstRowIs(LocalDate reportDate, TransactionOrder owner) {
+    List<Map<String, Object>> rawData = loadFixtureRawData();
+    rawData.get(0).put("Client ref", owner.getOrderUuid().toString());
+    rawData.get(0).put("Our ref", "DLA0000001");
+    return reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(reportDate)
+            .rawData(rawData)
+            .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
+            .createdAt(Instant.now())
+            .build());
   }
 
   private List<Map<String, Object>> loadFixtureRawData() {

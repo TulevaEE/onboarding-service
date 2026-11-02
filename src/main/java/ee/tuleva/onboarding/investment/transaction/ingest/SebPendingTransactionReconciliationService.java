@@ -55,10 +55,18 @@ public class SebPendingTransactionReconciliationService {
 
   @Transactional
   public void reconcile(InvestmentReport report) {
-    reconcile(report, eventPublisher::publishEvent);
+    reconcile(report, eventPublisher::publishEvent, SettlementByAbsence.ON_LATEST_REPORT_ONLY);
   }
 
-  private void reconcile(InvestmentReport report, ReconciliationAlerts alerts) {
+  @Transactional
+  public void replay(InvestmentReport report, ReconciliationAlerts alerts) {
+    reconcile(report, alerts, SettlementByAbsence.ON_THIS_REPORT_AS_OF_ITS_DATE);
+  }
+
+  private void reconcile(
+      InvestmentReport report,
+      ReconciliationAlerts alerts,
+      SettlementByAbsence settlementByAbsence) {
     LocalDate reportDate = report.getReportDate();
     LocalDate asOfDate =
         sebReportAsOfDate.resolveOrFallBackToReportDate(
@@ -95,7 +103,13 @@ public class SebPendingTransactionReconciliationService {
         unmatched);
 
     detectSettlementsByAbsence(
-        reportDate, rows.size(), matched, presentOrderIds, extraction.isComplete(), alerts);
+        reportDate,
+        rows.size(),
+        matched,
+        presentOrderIds,
+        extraction.isComplete(),
+        alerts,
+        settlementByAbsence);
   }
 
   private void detectSettlementsByAbsence(
@@ -104,7 +118,8 @@ public class SebPendingTransactionReconciliationService {
       int matched,
       Set<Long> presentOrderIds,
       boolean reportComplete,
-      ReconciliationAlerts alerts) {
+      ReconciliationAlerts alerts,
+      SettlementByAbsence settlementByAbsence) {
     if (rowCount == 0) {
       log.info("Skipping settlement detection on empty report: reportDate={}", reportDate);
       return;
@@ -122,7 +137,8 @@ public class SebPendingTransactionReconciliationService {
           "Skipping settlement detection, report had malformed rows: reportDate={}", reportDate);
       return;
     }
-    if (!isLatestReport(reportDate)) {
+    if (settlementByAbsence == SettlementByAbsence.ON_LATEST_REPORT_ONLY
+        && !isLatestReport(reportDate)) {
       log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
       return;
     }
@@ -138,6 +154,11 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
         .filter(order -> executedBefore(order, reportDate))
         .forEach(order -> settleByAbsence(order, reportDate));
+  }
+
+  private enum SettlementByAbsence {
+    ON_LATEST_REPORT_ONLY,
+    ON_THIS_REPORT_AS_OF_ITS_DATE
   }
 
   private boolean isLatestReport(LocalDate reportDate) {

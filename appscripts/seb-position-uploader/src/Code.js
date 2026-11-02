@@ -12,7 +12,8 @@
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
-//                   backfillSebConfirmations() (SEB trade confirmations since 02.02.2026, run once).
+//                   backfillSebConfirmations() (SEB trade confirmations since 02.02.2026; safe to
+//                   run again, threads already uploaded are skipped).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
@@ -106,8 +107,7 @@ function processHistoricalEmails30Days() {
 
 function backfillSebConfirmations() {
     processEmailsFromDays(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), {
-        minMessageDate: SEB_CONFIRMATION_BACKFILL_START,
-        sender: SOURCES.SEB_CONFIRMATION.senders[0]
+        source: SOURCES.SEB_CONFIRMATION
     });
 }
 
@@ -115,7 +115,8 @@ function processEmailsFromDays(days, options) {
     options = options || {};
     var minMessageDate = options.minMessageDate || null;
 
-    var searchQuery = gmailSearchQuery(days, options.sender);
+    var onlySource = options.source;
+    var searchQuery = gmailSearchQuery(days, onlySource && onlySource.senders[0]);
     Logger.log("Searching with query: " + searchQuery + (minMessageDate ? ", minMessageDate=" + minMessageDate.toISOString() : ""));
 
     var threads = GmailApp.search(searchQuery);
@@ -123,7 +124,7 @@ function processEmailsFromDays(days, options) {
 
     // Process oldest threads first so the newest thread's upload wins on S3.
     for (var i = threads.length - 1; i >= 0; i--) {
-        processThread(threads[i], minMessageDate);
+        processThread(threads[i], minMessageDate, onlySource);
     }
 
     Logger.log("Processing complete");
@@ -135,10 +136,14 @@ function gmailSearchQuery(days, sender) {
 }
 
 function daysToReach(start, now) {
-    return Math.ceil((now.getTime() - start.getTime()) / DAY_MILLIS);
+    return Math.ceil((now.getTime() - start.getTime()) / DAY_MILLIS) + 1;
 }
 
-function processThread(thread, minMessageDate) {
+function isSourceInScope(source, onlySource) {
+    return !!source && (!onlySource || source === onlySource);
+}
+
+function processThread(thread, minMessageDate, onlySource) {
     var messages = thread.getMessages();
     var uploadCount = getUploadCount(thread);
     var matchingCount = 0;
@@ -148,7 +153,7 @@ function processThread(thread, minMessageDate) {
         if (messageHasMatchingAttachments(message)) {
             matchingCount++;
             if (shouldProcessMessage(matchingCount, uploadCount)) {
-                processMessage(message, thread);
+                processMessage(message, thread, onlySource);
             }
         }
     }
@@ -295,10 +300,10 @@ function notifySlack(message) {
     }
 }
 
-function processMessage(message, thread) {
+function processMessage(message, thread, onlySource) {
     var source = sourceOf(message);
 
-    if (!source) {
+    if (!isSourceInScope(source, onlySource)) {
         return;
     }
 
@@ -640,5 +645,6 @@ if (typeof module !== "undefined" && module.exports) {
         resolveContentType,
         gmailSearchQuery,
         daysToReach,
+        isSourceInScope,
     };
 }

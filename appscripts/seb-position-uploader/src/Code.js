@@ -5,10 +5,14 @@
 // ReportImportJob in TulevaEE/onboarding-service then pulls those files and
 // ingests them into investment_report and investment_fund_position.
 //
+// SEB reports are also saved to a Google Drive folder for Tuleva's Google
+// Sheets NAV fallback, so Drive holds the same file as S3 (see saveReportsToDrive).
+//
 // Required Apps Script Properties (Project Settings > Script properties):
 //   AWS_ACCESS_KEY_ID
 //   AWS_SECRET_ACCESS_KEY
 //   AWS_REGION (defaults to eu-central-1)
+//   DRIVE_SEB_REPORT_FOLDER_ID (the Drive copy is skipped when it isn't set)
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview).
@@ -36,12 +40,14 @@ var SOURCES = {
             {
                 pattern: /^TULEVA_pos_raport_(\d{8})(?:[ _().\-].*)?\.csv$/i,
                 s3Prefix: "seb/",
-                s3Suffix: "_positions.csv"
+                s3Suffix: "_positions.csv",
+                driveKeyword: "tuleva_pos"
             },
             {
                 pattern: /^TULEVA_ootel_tehingud_(\d{8})(?:[ _().\-].*)?\.csv$/i,
                 s3Prefix: "seb/",
-                s3Suffix: "_pending_transactions.csv"
+                s3Suffix: "_pending_transactions.csv",
+                driveKeyword: "tuleva_ootel"
             }
         ],
         // Filenames arriving from SEB senders that are NOT SEB position reports —
@@ -76,14 +82,17 @@ function processNewEmails() {
             "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
         throw e;
     }
+    saveReportsToDrive(2);
 }
 
 function processHistoricalEmails() {
     processEmailsFromDays(7);
+    saveReportsToDrive(7);
 }
 
 function processHistoricalEmails30Days() {
     processEmailsFromDays(30);
+    saveReportsToDrive(30);
 }
 
 function processEmailsFromDays(days, options) {
@@ -244,12 +253,12 @@ function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames
 }
 
 function notifySlack(message) {
-    var webhookUrl = PropertiesService.getScriptProperties().getProperty("SLACK_WEBHOOK_URL");
-    if (!webhookUrl) {
-        Logger.log("SLACK_WEBHOOK_URL not configured — would have sent: " + message);
-        return;
-    }
     try {
+        var webhookUrl = PropertiesService.getScriptProperties().getProperty("SLACK_WEBHOOK_URL");
+        if (!webhookUrl) {
+            Logger.log("SLACK_WEBHOOK_URL not configured — would have sent: " + message);
+            return false;
+        }
         var response = UrlFetchApp.fetch(webhookUrl, {
             method: "post",
             contentType: "application/json",
@@ -259,9 +268,12 @@ function notifySlack(message) {
         var code = response.getResponseCode();
         if (code < 200 || code >= 300) {
             Logger.log("Slack webhook non-2xx: status=" + code + ", body=" + response.getContentText());
+            return false;
         }
+        return true;
     } catch (e) {
         Logger.log("Slack notify threw: " + e.message);
+        return false;
     }
 }
 
@@ -273,7 +285,8 @@ function processMessage(message, thread) {
     }
 
     var attachments = message.getAttachments();
-    var uploadedCount = 0;
+    var handledCount = 0;
+    var emailSource = emailSourceOf(message);
 
     for (var k = 0; k < attachments.length; k++) {
         var attachment = attachments[k];
@@ -282,21 +295,319 @@ function processMessage(message, thread) {
         var result = getFileConfigAndDate(source, filename);
         if (result) {
             var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+            var datedReport = !result.fileConfig.keyFromCapture;
+            if (datedReport && isReplacedByNewerEmail(s3Key, emailSource)) {
+                Logger.log("SKIPPED: " + filename + ", s3://" + S3_BUCKET + "/" + s3Key + " holds a newer e-mail's report");
+                handledCount++;
+                continue;
+            }
             var content = isBinaryFileConfig(result.fileConfig) ? attachment.getBytes() : attachment.getDataAsString();
 
             try {
                 uploadToS3(S3_BUCKET, s3Key, content, resolveContentType(result.fileConfig));
                 Logger.log("SUCCESS: Uploaded " + filename + " -> s3://" + S3_BUCKET + "/" + s3Key);
-                uploadedCount++;
+                handledCount++;
             } catch (e) {
                 Logger.log("FAILED: " + filename + " -> " + e.message);
                 throw e;
             }
+            if (datedReport) recordEmailSourceAfterUpload(s3Key, emailSource);
         }
     }
 
-    if (uploadedCount > 0) {
+    if (handledCount > 0) {
         incrementUploadLabel(thread);
+    }
+}
+
+// A report named by its date keeps one file per date on S3 and in Drive. A Script
+// Property per S3 key records the e-mail (date and Gmail id) whose report that
+// file holds, so a catch-up replay or a retry of an older e-mail never puts an
+// older report back; of two e-mails with the same time the higher Gmail id wins.
+var REPORT_SOURCE_PROPERTY_PREFIX = "report_source:";
+var REPORT_SOURCE_KEEP_DAYS = 45;
+
+function emailSourceOf(message) {
+    return { date: message.getDate().toISOString(), id: message.getId() };
+}
+
+function isReplacedByNewerEmail(s3Key, emailSource) {
+    var recorded = PropertiesService.getScriptProperties().getProperty(REPORT_SOURCE_PROPERTY_PREFIX + s3Key);
+    return isOlderThanCurrentSource(emailSource, parseEmailSource(s3Key, recorded));
+}
+
+function parseEmailSource(s3Key, recorded) {
+    if (!recorded) return null;
+    try {
+        return JSON.parse(recorded);
+    } catch (e) {
+        Logger.log("Unreadable e-mail record ignored: key=" + s3Key + ", value=" + recorded);
+        return null;
+    }
+}
+
+function recordEmailSource(s3Key, emailSource) {
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty(REPORT_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(emailSource));
+    try {
+        forgetOldReportSources(props, new Date());
+    } catch (e) {
+        Logger.log("Old e-mail records not pruned: " + e.message);
+    }
+}
+
+function recordEmailSourceAfterUpload(s3Key, emailSource) {
+    try {
+        recordEmailSource(s3Key, emailSource);
+    } catch (e) {
+        Logger.log("E-mail record not saved, the upload itself went through: key=" + s3Key + ", error=" + e.message);
+    }
+}
+
+// Drive copy for the Google Sheets NAV fallback. It runs as its own pass after the
+// S3 pass, with its own per-thread "Drive-Saved-Nx" label, so Drive can neither
+// stop nor repeat an S3 upload, and a failed copy is retried on the next run.
+// Only messages the S3 pass has already uploaded are copied, so Drive holds the
+// same reports as S3. The Sheets scripts read the "_US.csv" copy with the newest
+// date in its name, so each report type and date keeps one current "_US.csv";
+// it is updated in place, and its previous content is kept as a "_vN" copy.
+// Creating the new original is the last write: tuleva's seb-import starts its
+// Sheets import when the SEB report file names change, and its settlement recheck
+// reads the last updated pending report of each date.
+// The S3 pass's e-mail record per report (see recordEmailSource) also guards Drive:
+// an older e-mail never replaces it, and the same e-mail resumes a copy that
+// failed half way. The Drive pass writes it before any Drive write, for files
+// that were on S3 before the record existed.
+var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
+var DRIVE_LABEL_PREFIX = "Drive-Saved-";
+var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
+
+function saveReportsToDrive(days) {
+    try {
+        var props = PropertiesService.getScriptProperties();
+        var folderId = props.getProperty(DRIVE_FOLDER_PROPERTY);
+        if (!folderId) {
+            Logger.log("Drive copy skipped, " + DRIVE_FOLDER_PROPERTY + " is not set");
+            notifyDriveProblemOncePerDay("SEB reports are not saved to Drive: the Script Property " + DRIVE_FOLDER_PROPERTY + " is not set");
+            return;
+        }
+        var lock = LockService.getScriptLock();
+        if (!lock.tryLock(1000)) {
+            Logger.log("Drive copy skipped, another run is saving to Drive");
+            return;
+        }
+        try {
+            var folder = DriveApp.getFolderById(folderId);
+            var threads = GmailApp.search(gmailSearchQuery(days));
+            for (var i = threads.length - 1; i >= 0; i--) {
+                saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder);
+            }
+        } finally {
+            lock.releaseLock();
+        }
+    } catch (e) {
+        Logger.log("FAILED Drive copy run: " + e.message);
+        notifyDriveProblemOncePerDay("SEB reports could not be saved to Drive: `" + e.message + "`");
+    }
+}
+
+function saveThreadToDriveWithoutStoppingTheOthers(thread, folder) {
+    try {
+        saveThreadToDrive(thread, folder);
+    } catch (e) {
+        Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
+        notifyDriveProblemOncePerDay("an SEB report is in S3 but not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
+            "for older ones run processHistoricalEmails once the cause is fixed");
+    }
+}
+
+function saveThreadToDrive(thread, folder) {
+    var uploadCount = getUploadCount(thread);
+    var driveCount = getDriveCount(thread);
+    var matchingCount = 0;
+    var driveMatchingCount = 0;
+    var messages = thread.getMessages();
+    for (var j = 0; j < messages.length; j++) {
+        var message = messages[j];
+        if (!messageHasMatchingAttachments(message)) continue;
+        matchingCount++;
+        var reports = driveReportsOf(message);
+        if (reports.length === 0) continue;
+        driveMatchingCount++;
+        if (!shouldProcessMessage(driveMatchingCount, driveCount)) continue;
+        if (matchingCount > uploadCount) return;
+        var emailSource = emailSourceOf(message);
+        for (var k = 0; k < reports.length; k++) {
+            saveReportToDrive(folder, reports[k].attachment, reports[k].fileConfig, reports[k].reportDate, emailSource);
+        }
+        incrementDriveLabel(thread);
+        driveCount++;
+    }
+}
+
+function driveReportsOf(message) {
+    var source = sourceOf(message);
+    if (!source) return [];
+    var reports = [];
+    message.getAttachments().forEach(function (attachment) {
+        var result = getFileConfigAndDate(source, attachment.getName());
+        if (result && result.fileConfig.driveKeyword) {
+            reports.push({ attachment: attachment, fileConfig: result.fileConfig, reportDate: result.keyStem.replace(/-/g, "") });
+        }
+    });
+    return reports;
+}
+
+function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource) {
+    var name = attachment.getName();
+    if (isUsCopyName(name)) {
+        var alerted = notifyDriveProblemOncePerDay("`" + name + "` is in S3 but was not saved to Drive: its name ends in _US.csv, " +
+            "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
+        if (!alerted) throw new Error("Slack alert about " + name + " not delivered, retrying next run");
+        return;
+    }
+    var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
+    if (isReplacedByNewerEmail(s3Key, emailSource)) {
+        Logger.log("Drive copy skipped, the current copy comes from a newer e-mail: " + name);
+        return;
+    }
+    recordEmailSource(s3Key, emailSource);
+
+    var family = driveReportFamily(folder, fileConfig, reportDate);
+    var currentUsCopies = family.current.filter(function (f) { return isUsCopyName(f.getName()); });
+    var currentOriginals = family.current.filter(function (f) { return !isUsCopyName(f.getName()); });
+
+    var usContent = convertSebCsvToUs(attachment.getDataAsString());
+    if (currentUsCopies.length === 0) {
+        folder.createFile(usCopyName(name), usContent, MimeType.CSV);
+    } else {
+        var current = currentUsCopies[0];
+        current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
+        current.setContent(usContent);
+        current.setName(usCopyName(name));
+        currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
+    }
+
+    currentOriginals.forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
+    folder.createFile(attachment.copyBlob());
+    Logger.log("SUCCESS: Saved " + name + " to Drive");
+}
+
+function isOlderThanCurrentSource(source, current) {
+    if (!current || current.id === source.id) return false;
+    var sourceTime = new Date(source.date).getTime();
+    var currentTime = new Date(current.date).getTime();
+    return sourceTime < currentTime || (sourceTime === currentTime && source.id < current.id);
+}
+
+function forgetOldReportSources(props, now) {
+    var oldest = now.getTime() - REPORT_SOURCE_KEEP_DAYS * 24 * 60 * 60 * 1000;
+    var all = props.getProperties();
+    Object.keys(all).forEach(function (key) {
+        if (key.indexOf(REPORT_SOURCE_PROPERTY_PREFIX) !== 0) return;
+        if (sourceTime(all[key]) < oldest) props.deleteProperty(key);
+    });
+}
+
+function sourceTime(record) {
+    try {
+        return new Date(JSON.parse(record).date).getTime() || 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function driveReportFamily(folder, fileConfig, reportDate) {
+    var current = [];
+    var names = [];
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+        var file = files.next();
+        var name = file.getName();
+        if (!isSameDriveReport(name, fileConfig, reportDate)) continue;
+        names.push(name);
+        if (!isVersionedDriveName(name)) current.push(file);
+    }
+    return { current: current, nextVersion: nextDriveVersion(names) };
+}
+
+function isSameDriveReport(name, fileConfig, reportDate) {
+    var match = name.match(fileConfig.pattern);
+    return !!match && match[1] === reportDate;
+}
+
+function isVersionedDriveName(name) {
+    return /_v\d+\.csv$/i.test(name);
+}
+
+function nextDriveVersion(names) {
+    var next = 1;
+    names.forEach(function (name) {
+        var version = name.match(/_v(\d+)\.csv$/i);
+        if (version) next = Math.max(next, parseInt(version[1], 10) + 1);
+    });
+    return next;
+}
+
+function versionedDriveName(name, version) {
+    return name.replace(/\.csv$/i, "") + "_v" + version + ".csv";
+}
+
+function usCopyName(name) {
+    return name.replace(/\.csv$/i, "") + "_US.csv";
+}
+
+function isUsCopyName(name) {
+    return /_us\.csv$/i.test(name);
+}
+
+function convertSebCsvToUs(content) {
+    return content.replace(/,/g, ".").replace(/;/g, ",");
+}
+
+function alertsSentToday(stored, today) {
+    try {
+        var alerted = JSON.parse(stored);
+        if (alerted && alerted.day === today && Array.isArray(alerted.problems)) return alerted;
+    } catch (e) {
+        Logger.log("Drive alert record unreadable, starting a new one: " + e.message);
+    }
+    return { day: today, problems: [] };
+}
+
+function getDriveCount(thread) {
+    var labelNames = thread.getLabels().map(function (l) { return l.getName(); });
+    for (var i = 0; i < labelNames.length; i++) {
+        if (labelNames[i].indexOf(DRIVE_LABEL_PREFIX) === 0) {
+            return parseInt(labelNames[i].replace(DRIVE_LABEL_PREFIX, "").replace("x", ""), 10) || 0;
+        }
+    }
+    return 0;
+}
+
+function incrementDriveLabel(thread) {
+    var currentCount = getDriveCount(thread);
+    if (currentCount > 0) {
+        var oldLabel = GmailApp.getUserLabelByName(DRIVE_LABEL_PREFIX + currentCount + "x");
+        if (oldLabel) thread.removeLabel(oldLabel);
+    }
+    thread.addLabel(getOrCreateLabel(DRIVE_LABEL_PREFIX + (currentCount + 1) + "x"));
+}
+
+function notifyDriveProblemOncePerDay(problem) {
+    try {
+        var today = Utilities.formatDate(new Date(), "Europe/Tallinn", "yyyy-MM-dd");
+        var props = PropertiesService.getScriptProperties();
+        var alerted = alertsSentToday(props.getProperty(DRIVE_ALERTS_PROPERTY), today);
+        var key = simpleHash(problem);
+        if (alerted.problems.indexOf(key) !== -1) return true;
+        if (!notifySlack(":warning: " + problem + ". The Google Sheets NAV fallback reads the Drive folder.")) return false;
+        alerted.problems.push(key);
+        props.setProperty(DRIVE_ALERTS_PROPERTY, JSON.stringify(alerted));
+        return true;
+    } catch (e) {
+        Logger.log("Drive alert failed: " + e.message + ", problem=" + problem);
+        return false;
     }
 }
 
@@ -608,5 +919,22 @@ if (typeof module !== "undefined" && module.exports) {
         isIgnoredFilename,
         isBinaryFileConfig,
         resolveContentType,
+        notifySlack,
+        processNewEmails,
+        processHistoricalEmails,
+        saveReportsToDrive,
+        saveThreadToDrive,
+        saveReportToDrive,
+        isOlderThanCurrentSource,
+        forgetOldReportSources,
+        driveReportFamily,
+        isSameDriveReport,
+        isVersionedDriveName,
+        nextDriveVersion,
+        versionedDriveName,
+        usCopyName,
+        isUsCopyName,
+        convertSebCsvToUs,
+        notifyDriveProblemOncePerDay,
     };
 }

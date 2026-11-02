@@ -4,6 +4,15 @@ Google Apps Script that polls the `funds@tuleva.ee` Gmail mailbox for SEB positi
 
 This script lives in [Google Apps Script](https://script.google.com), not on our servers. It runs unattended every 5 minutes via a Google time-driven trigger. The source of truth is `src/Code.js` in this repo; the live editor copy is kept in sync via `clasp push`.
 
+## Drive copy for the Google Sheets NAV fallback
+
+Every SEB position and pending-transaction report that goes to S3 is also saved to a Google Drive folder (`DRIVE_SEB_REPORT_FOLDER_ID`), where Tuleva's Google Sheets scripts read it for the manual NAV fallback. Drive therefore gets exactly the files S3 gets, from the same senders, including a corrected report the funds mailbox sends to itself.
+
+- **Its own pass.** `processNewEmails` runs the Drive copy after the S3 pass, under a script lock, and only for messages the S3 pass has already uploaded. Progress is a separate per-thread `Drive-Saved-Nx` label, so a Drive problem can neither stop nor repeat an S3 upload, and a failed copy is retried by every run while the e-mail is within the last 2 days; for an older one the alert asks to run `processHistoricalEmails` once the cause is fixed. The first run copies the last two days' reports, and `processHistoricalEmails` and `processHistoricalEmails30Days` run the Drive pass for their window too; replaying older e-mails never brings back older content (next point).
+- **The folder.** It keeps the attachment unchanged plus a `<name>_US.csv` copy with decimal points and comma separators. The Sheets scripts pick the `_US.csv` with the newest date in its name, so each report type and date keeps one current `_US.csv`: a newer report overwrites its content in place, and the previous content is kept as `<name>_US_vN.csv`. The replaced original is renamed `<name>_vN.csv`. A file belongs to a type and date by the same filename pattern the S3 upload uses. An older e-mail never replaces newer content, and the same e-mail resumes a copy that failed half way (next section). The new original is the last file written: tuleva's `seb-import` starts its Sheets import when the SEB report file names change, and its settlement recheck reads the last updated pending report of each date.
+- **Newest e-mail wins, on S3 and in Drive.** A report named by its date (SEB reports, the Swedbank portfolio) keeps one file per date. A Script Property `report_source:<s3 key>` records the e-mail (date and Gmail id) whose report the file holds; it is written after each upload, and by the Drive pass before its first write. An older e-mail, for example from a catch-up replay or a retry, is skipped on S3 and in Drive and counts as done; of two e-mails with the same time the higher Gmail id wins. Records whose e-mail is more than 45 days old are dropped. Flow Traders confirmations are named by allocation id and keep no record.
+- **Alerts.** A failure, or a missing `DRIVE_SEB_REPORT_FOLDER_ID`, posts one Slack alert per problem per day. An attachment already named `…_US.csv` goes to S3 but not to Drive, with an alert.
+
 ## Apps Script project
 
 - Project name: **Investment CSV to S3**
@@ -23,6 +32,10 @@ Tests are pure-Jest — no Apps Script runtime needed. The `module.exports` bloc
 ## Deploying
 
 CircleCI deploys the script; merging to `master` is the deploy. `appscript-test` runs `npm test` on every branch. On `master`, `appscript-deploy` then runs `npx clasp push --force` with the shared `funds@tuleva.ee` account's clasp login, stored as `CLASPRC_JSON` in the `appscript` CircleCI context. A `master` commit that changes nothing under `appscripts/` skips the deploy.
+
+### Changing `oauthScopes`
+
+Adding a scope to `src/appsscript.json` needs a new authorization from `funds@tuleva.ee`. Until someone signed in as `funds@tuleva.ee` opens the project in the Apps Script editor, runs `processNewEmails` once and approves the new permissions, the time-driven trigger fails: no report reaches S3, and the script cannot post to Slack, because it never starts. Merge such a change only when that person is ready to authorize right after `appscript-deploy` finishes, and check the next trigger run under Executions.
 
 ### Manual deploy (fallback)
 
@@ -44,4 +57,5 @@ The script reads these from `PropertiesService.getScriptProperties()` at runtime
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` (defaults to `eu-central-1`)
+- `DRIVE_SEB_REPORT_FOLDER_ID` — the Drive folder for the SEB report copies, the same folder tuleva's `seb-import` reads. `funds@tuleva.ee` needs edit access to it. When it isn't set, the script skips the Drive copy and alerts once a day.
 - `SLACK_WEBHOOK_URL` — Slack incoming webhook for error and skip alerts. When it isn't set, the script only logs the alert.

@@ -75,6 +75,19 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   @Test
+  void checks_aConfirmationReceivedOnTheDayAlertsStart() {
+    assertThat(service.checks(confirmation("12.4"))).isTrue();
+  }
+
+  @Test
+  void checks_noConfirmationReceivedBeforeAlertsStart() {
+    assertThat(
+            serviceOn(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 1, 6))
+                .checks(confirmation("12.4")))
+        .isFalse();
+  }
+
+  @Test
   void verify_isCleanWhenTheReportRowAgreesAndThePriceIsTheNavOfTheNextNavDate() {
     reportOn(PRICING, pendingRow("1000", "12.34567890", "12345.68", VALUE));
     navOn(PRICING, "12.3456");
@@ -246,6 +259,10 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   private SebFundConfirmationVerificationService serviceOn(LocalDate today) {
+    return serviceOn(today, LocalDate.of(2026, 1, 5));
+  }
+
+  private SebFundConfirmationVerificationService serviceOn(LocalDate today, LocalDate alertsFrom) {
     return new SebFundConfirmationVerificationService(
         reportService,
         new SebPendingTransactionExtractor(),
@@ -253,7 +270,7 @@ class SebFundConfirmationVerificationServiceTest {
         parameterRepository,
         registryCheck,
         Clock.fixed(today.atTime(12, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC),
-        new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5)));
+        new SebFundConfirmationProperties(2, 2, alertsFrom));
   }
 
   private static SebFundConfirmation confirmation(String price) {

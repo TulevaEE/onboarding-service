@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +18,6 @@ class SebFundConfirmationDigest {
   private final OperationsNotificationService notificationService;
   private final SebFundConfirmationAuditRecorder auditRecorder;
   private final SebFundConfirmationAlertText text;
-  private final LocalDate alertsFrom;
 
   SebFundConfirmationDigest(
       OperationsNotificationService notificationService,
@@ -28,7 +26,6 @@ class SebFundConfirmationDigest {
     this.notificationService = notificationService;
     this.auditRecorder = auditRecorder;
     this.text = new SebFundConfirmationAlertText(properties);
-    this.alertsFrom = properties.alertsFrom();
   }
 
   void publish(
@@ -39,7 +36,6 @@ class SebFundConfirmationDigest {
       List<SebFundConfirmationCheckFailure> failures) {
     List<NewFindings> newFindings =
         outcomes.stream()
-            .filter(outcome -> !outcome.confirmation().wasReceivedBefore(alertsFrom))
             .filter(outcome -> outcome.result().isActionable())
             .map(outcome -> new NewFindings(outcome, auditRecorder.unalertedFindings(outcome)))
             .filter(found -> !found.findings().isEmpty())

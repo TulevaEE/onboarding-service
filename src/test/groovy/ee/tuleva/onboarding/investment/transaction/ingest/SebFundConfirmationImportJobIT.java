@@ -391,9 +391,13 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
-  void run_setsThePricingDateFromAConfirmationReceivedBeforeAlertsStartWithoutAlerting() {
+  void run_onlySetsThePricingDateFromAConfirmationReceivedBeforeAlertsFrom() {
     job = jobWith(new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
     seedTwoTradesAndANavBelowTheConfirmedPrice();
+    jdbcClient
+        .sql("DELETE FROM investment_parameter WHERE parameter_name = :name")
+        .param("name", NAV_TOLERANCE)
+        .update();
     registerExecution("DLA0000001", "12.40000000", "12400.00");
 
     job.run();
@@ -402,12 +406,7 @@ class SebFundConfirmationImportJobIT {
     assertThat(executionRepository.findByBrokerTransactionId("DLA0000001"))
         .hasValueSatisfying(
             execution -> assertThat(execution.getNavDate()).isEqualTo(LocalDate.of(2026, 1, 6)));
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
-        .singleElement()
-        .satisfies(
-            event ->
-                assertThat(event.getPayload())
-                    .containsEntry("status", "[MATCH, FAR_FROM_NAV, ON_TIME]"));
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001")).isEmpty();
   }
 
   private SebFundConfirmationImportJob jobWith(SebFundConfirmationProperties properties) {

@@ -64,6 +64,10 @@ class SebFundConfirmationVerificationService {
     this.properties = properties;
   }
 
+  boolean checks(SebFundConfirmation confirmation) {
+    return !confirmation.wasReceivedBefore(properties.alertsFrom());
+  }
+
   SebFundConfirmationResult verify(SebFundConfirmation confirmation) {
     LocalDate receivedDate = confirmation.orderReceivedOn();
     Optional<SebPendingTransactionRow> row = latestReportRow(confirmation, receivedDate);

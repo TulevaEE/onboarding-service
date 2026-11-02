@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_AVAILABLE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
+import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions2
 import ee.tuleva.onboarding.banking.iso20022.camt052.TotalTransactions2;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test;
 class BankStatementTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 3, 13);
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   @Test
   void validateEntries_detectsEntryCountMismatch() {
@@ -311,6 +314,107 @@ class BankStatementTest {
     var report = statement(INTRA_DAY_REPORT, balance(OPEN, "175345.82"), balance(CLOSE, "1.00"));
 
     assertThat(report.bookedBalance()).isEmpty();
+  }
+
+  @Test
+  void
+      closingBalanceOn_aDayInsideAMultiDayStatementIsTheOpeningBalancePlusItsBookingsUpToThatDay() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1160.00")),
+            List.of(
+                bookedOn(DATE, "200.00"),
+                bookedOn(DATE.plusDays(1), "-50.00"),
+                bookedOn(DATE.plusDays(2), "10.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).contains(new BigDecimal("1200.00"));
+    assertThat(statement.closingBalanceOn(DATE.plusDays(1), TALLINN))
+        .contains(new BigDecimal("1150.00"));
+    assertThat(statement.closingBalanceOn(DATE.plusDays(2), TALLINN))
+        .contains(new BigDecimal("1160.00"));
+  }
+
+  @Test
+  void closingBalanceOn_aDayWithoutBookingsKeepsThePreviousDaysBalance() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1210.00")),
+            List.of(bookedOn(DATE, "200.00"), bookedOn(DATE.plusDays(2), "10.00")));
+
+    assertThat(statement.closingBalanceOn(DATE.plusDays(1), TALLINN))
+        .contains(new BigDecimal("1200.00"));
+  }
+
+  @Test
+  void closingBalanceOn_isAbsentOutsideTheStatementPeriod() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1200.00")),
+            List.of(bookedOn(DATE, "200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE.minusDays(1), TALLINN)).isEmpty();
+    assertThat(statement.closingBalanceOn(DATE.plusDays(3), TALLINN)).isEmpty();
+  }
+
+  @Test
+  void closingBalanceOn_isAbsentWithoutAnOpeningBalance() {
+    var statement =
+        catchUpStatement(List.of(balance(CLOSE, "1200.00")), List.of(bookedOn(DATE, "200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  @Test
+  void closingBalanceOn_isAbsentWithoutAClosingBalance() {
+    var statement =
+        catchUpStatement(List.of(balance(OPEN, "1000.00")), List.of(bookedOn(DATE, "200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  @Test
+  void closingBalanceOn_isAbsentWhenABookingHasNoDate() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1200.00")),
+            List.of(creditEntry("200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  @Test
+  void closingBalanceOn_isAbsentWhenTheBookingsDoNotAddUpToTheClosingBalance() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1300.00")),
+            List.of(bookedOn(DATE, "200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  private static BankStatement catchUpStatement(
+      List<BankStatementBalance> balances, List<BankStatementEntry> entries) {
+    return new BankStatement(
+        HISTORIC_STATEMENT,
+        new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
+        balances,
+        entries,
+        new StatementPeriod(DATE, DATE.plusDays(2)));
+  }
+
+  private static BankStatementEntry bookedOn(LocalDate bookingDate, String amount) {
+    var value = new BigDecimal(amount);
+    return new BankStatementEntry(
+        null,
+        value,
+        "EUR",
+        value.signum() < 0 ? TransactionType.DEBIT : TransactionType.CREDIT,
+        "ref",
+        "ext-" + bookingDate,
+        null,
+        null,
+        bookingDate.atTime(LocalTime.MAX).atZone(TALLINN).toInstant().truncatedTo(MICROS),
+        true);
   }
 
   private static BankStatement statement(

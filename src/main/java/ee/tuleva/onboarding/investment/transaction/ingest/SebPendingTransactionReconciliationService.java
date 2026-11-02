@@ -55,6 +55,10 @@ public class SebPendingTransactionReconciliationService {
 
   @Transactional
   public void reconcile(InvestmentReport report) {
+    reconcile(report, eventPublisher::publishEvent);
+  }
+
+  private void reconcile(InvestmentReport report, ReconciliationAlerts alerts) {
     LocalDate reportDate = report.getReportDate();
     LocalDate asOfDate =
         sebReportAsOfDate.resolveOrFallBackToReportDate(
@@ -76,7 +80,7 @@ public class SebPendingTransactionReconciliationService {
     for (SebPendingTransactionRow row : rows) {
       RowOutcome outcome =
           rowReconciler.reconcileRow(
-              row, reportDate, asOfDate, matchingProperties, presentOrderIds);
+              row, reportDate, asOfDate, matchingProperties, presentOrderIds, alerts);
       switch (outcome) {
         case MATCHED -> matched++;
         case UNMATCHED -> unmatched++;
@@ -91,7 +95,7 @@ public class SebPendingTransactionReconciliationService {
         unmatched);
 
     detectSettlementsByAbsence(
-        reportDate, rows.size(), matched, presentOrderIds, extraction.isComplete());
+        reportDate, rows.size(), matched, presentOrderIds, extraction.isComplete(), alerts);
   }
 
   private void detectSettlementsByAbsence(
@@ -99,7 +103,8 @@ public class SebPendingTransactionReconciliationService {
       int rowCount,
       int matched,
       Set<Long> presentOrderIds,
-      boolean reportComplete) {
+      boolean reportComplete,
+      ReconciliationAlerts alerts) {
     if (rowCount == 0) {
       log.info("Skipping settlement detection on empty report: reportDate={}", reportDate);
       return;
@@ -121,7 +126,7 @@ public class SebPendingTransactionReconciliationService {
       log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
       return;
     }
-    if (isPossibleTruncation(reportDate, rowCount)) {
+    if (isPossibleTruncation(reportDate, rowCount, alerts)) {
       return;
     }
     Instant since = reportDate.minusDays(scanLookbackDays).atStartOfDay(ZoneOffset.UTC).toInstant();
@@ -143,7 +148,8 @@ public class SebPendingTransactionReconciliationService {
         .orElse(true);
   }
 
-  private boolean isPossibleTruncation(LocalDate reportDate, int rowCount) {
+  private boolean isPossibleTruncation(
+      LocalDate reportDate, int rowCount, ReconciliationAlerts alerts) {
     Optional<InvestmentReport> priorReport =
         reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, reportDate);
     if (priorReport.isEmpty()) {
@@ -167,7 +173,7 @@ public class SebPendingTransactionReconciliationService {
         priorRowCount);
     auditRecorder.recordPossibleReportTruncation(
         reportDate, rowCount, priorReportDate, priorRowCount);
-    eventPublisher.publishEvent(
+    alerts.raise(
         new PossibleReportTruncationEvent(reportDate, rowCount, priorReportDate, priorRowCount));
     return true;
   }

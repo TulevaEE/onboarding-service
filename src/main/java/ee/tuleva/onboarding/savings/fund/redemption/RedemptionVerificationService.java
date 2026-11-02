@@ -6,10 +6,12 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
+import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.aml.ScreeningOutcome;
@@ -71,7 +73,7 @@ public class RedemptionVerificationService {
         };
 
     switch (verdict) {
-      case Verdict.RetryLater _ -> retryLater(request);
+      case Verdict.RetryLater retry -> retryLater(request, retry.holdReasonsAtDeadline());
       case Verdict.Freeze _ -> holdService.freeze(request.getId());
       case Verdict.HoldPayout hold -> {
         holdService.holdPayout(request.getId(), hold.reasons());
@@ -87,17 +89,20 @@ public class RedemptionVerificationService {
     }
   }
 
-  private void retryLater(RedemptionRequest request) {
+  private void retryLater(
+      RedemptionRequest request, Set<RedemptionHoldReason> holdReasonsAtDeadline) {
     if (!canStillRetry(request)) {
-      holdService.holdPayout(request.getId(), Set.of(SCREENING_UNAVAILABLE));
+      holdService.holdPayout(request.getId(), holdReasonsAtDeadline);
       redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       return;
     }
     redemptionRequestRepository.markVerificationAttempted(request.getId(), Instant.now(clock));
     log.info(
-        "Screening unavailable, retrying until deadline: id={}, party={}, deadline={}",
+        "Verification input unavailable, retrying until deadline: id={}, partyType={},"
+            + " holdReasonsAtDeadline={}, deadline={}",
         request.getId(),
-        request.getPartyId(),
+        request.getPartyId().type(),
+        holdReasonsAtDeadline,
         deadlinesService.getScreeningRetryDeadline(request));
   }
 
@@ -131,7 +136,7 @@ public class RedemptionVerificationService {
 
     ScreeningOutcome screening = sanctionAndPepScreener.screeningOutcome(user, allCountries);
     if (screening == ScreeningOutcome.UNAVAILABLE) {
-      return new Verdict.RetryLater();
+      return new Verdict.RetryLater(Set.of(SCREENING_UNAVAILABLE));
     }
     if (screening == ScreeningOutcome.SANCTION_HIT) {
       return new Verdict.Freeze();
@@ -140,12 +145,33 @@ public class RedemptionVerificationService {
     if (screening == ScreeningOutcome.PEP_HIT) {
       reasons.add(PEP);
     }
-    if (riskLevels.isHighRisk(user.getPersonalCode())) {
-      log.info(
-          "Redemption party is high risk: id={}, party={}", request.getId(), request.getPartyId());
-      reasons.add(HIGH_RISK);
+    try {
+      if (riskLevels.isHighRisk(user.getPersonalCode())) {
+        log.info(
+            "Redemption party is high risk: id={}, party={}",
+            request.getId(),
+            request.getPartyId());
+        reasons.add(HIGH_RISK);
+      }
+    } catch (RiskLevelUnavailableException _) {
+      return riskLevelUnavailable(request, reasons);
     }
     return reasons.isEmpty() ? new Verdict.Clear() : new Verdict.HoldPayout(reasons);
+  }
+
+  private Verdict riskLevelUnavailable(
+      RedemptionRequest request, Set<RedemptionHoldReason> heldFor) {
+    log.warn(
+        "Risk level unavailable: id={}, partyType={}, heldFor={}",
+        request.getId(),
+        request.getPartyId().type(),
+        heldFor);
+    if (heldFor.isEmpty()) {
+      return new Verdict.RetryLater(Set.of(RISK_LEVEL_UNAVAILABLE));
+    }
+    Set<RedemptionHoldReason> reasons = EnumSet.copyOf(heldFor);
+    reasons.add(RISK_LEVEL_UNAVAILABLE);
+    return new Verdict.HoldPayout(reasons);
   }
 
   private Verdict verifyLegalEntity(RedemptionRequest request) {
@@ -162,7 +188,7 @@ public class RedemptionVerificationService {
           request.getId(),
           registryCode,
           e);
-      return new Verdict.RetryLater();
+      return new Verdict.RetryLater(Set.of(SCREENING_UNAVAILABLE));
     } catch (RuntimeException e) {
       log.error(
           "Failed to re-screen legal entity for redemption: requestId={}, registryCode={}",
@@ -180,7 +206,7 @@ public class RedemptionVerificationService {
   }
 
   private sealed interface Verdict {
-    record RetryLater() implements Verdict {}
+    record RetryLater(Set<RedemptionHoldReason> holdReasonsAtDeadline) implements Verdict {}
 
     record Freeze() implements Verdict {}
 

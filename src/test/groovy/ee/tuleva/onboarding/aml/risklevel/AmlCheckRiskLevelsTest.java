@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
-import ee.tuleva.onboarding.aml.RiskLevels;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,7 @@ class AmlCheckRiskLevelsTest {
   private static final List<AmlCheckType> TKF = List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE);
 
   private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
-  private final RiskLevels amlCheckRiskLevels = new AmlCheckRiskLevels(amlCheckRepository);
+  private final AmlCheckRiskLevels amlCheckRiskLevels = new AmlCheckRiskLevels(amlCheckRepository);
 
   @Test
   void highRiskWhenTheLatestThirdPillarSnapshotIsHigh() {

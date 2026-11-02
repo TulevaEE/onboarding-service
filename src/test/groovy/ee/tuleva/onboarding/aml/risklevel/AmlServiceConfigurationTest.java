@@ -29,7 +29,10 @@ class AmlServiceConfigurationTest {
               "http://127.0.0.1:" + unresponsiveServer.getLocalPort(),
               "test-api-token-of-at-least-thirty-two-characters",
               ofMillis(500),
-              ofMillis(250));
+              ofMillis(250),
+              false,
+              ofMillis(500),
+              ofSeconds(60));
       var restClient =
           AmlServiceConfiguration.amlServiceRestClient(RestClient.builder(), properties);
 
@@ -42,7 +45,15 @@ class AmlServiceConfigurationTest {
   @Test
   void startsEnabledWithoutAnApiToken() {
     var properties =
-        new AmlServiceProperties(true, "https://aml-service.test", "", ofSeconds(5), ofSeconds(60));
+        new AmlServiceProperties(
+            true,
+            "https://aml-service.test",
+            "",
+            ofSeconds(5),
+            ofSeconds(60),
+            false,
+            ofSeconds(1),
+            ofSeconds(2));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
@@ -51,7 +62,46 @@ class AmlServiceConfigurationTest {
   void startsDisabledWithoutAnApiToken() {
     var properties =
         new AmlServiceProperties(
-            false, "https://aml-service.test", "", ofSeconds(5), ofSeconds(60));
+            false,
+            "https://aml-service.test",
+            "",
+            ofSeconds(5),
+            ofSeconds(60),
+            false,
+            ofSeconds(1),
+            ofSeconds(2));
+
+    assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
+  }
+
+  @Test
+  void startsWithOnlyHighRiskFromAmlServiceEnabledWithoutAnApiToken() {
+    var properties =
+        new AmlServiceProperties(
+            false,
+            "https://aml-service.test",
+            "",
+            ofSeconds(5),
+            ofSeconds(60),
+            true,
+            ofSeconds(1),
+            ofSeconds(2));
+
+    assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
+  }
+
+  @Test
+  void startsWithBothTheNightlyRunAndHighRiskFromAmlServiceEnabledWithoutAnApiToken() {
+    var properties =
+        new AmlServiceProperties(
+            true,
+            "https://aml-service.test",
+            "",
+            ofSeconds(5),
+            ofSeconds(60),
+            true,
+            ofSeconds(1),
+            ofSeconds(2));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }

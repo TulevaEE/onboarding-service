@@ -15,4 +15,27 @@ unless set) decides what each does:
   while writing is reported as failed and does not fall back, so no second, independently sampled
   set is written.
 
+`ConfiguredRiskLevels.isHighRisk`, which the redemption verification job asks before a payout,
+follows `aml-service.high-risk-enabled` (`AML_SERVICE_HIGH_RISK_ENABLED`, off unless set). Off: the
+newest `RISK_LEVEL`/`RISK_LEVEL_OVERRIDE` and `TKF_RISK_LEVEL`/`TKF_RISK_LEVEL_OVERRIDE` rows in
+`aml_check` (`AmlCheckRiskLevels`). On: aml-service's `GET
+/v1/risk-levels/effective/{personalCode}`, with the specialist's overrides and the related-persons
+chain applied; the person is high risk when any family's `effective` level is `HIGH`, even if
+another family's answer is unusable, and a person with no level in any family is not. The call has
+its own short timeouts (`high-risk-connect-timeout` 1s, `high-risk-read-timeout` 2s), no retry of
+its own, and a plain `RestClient.builder()` rather than the application's, so no customizer
+(Sentry's span and breadcrumb interceptor, the observation one) sees the URL with the personal code
+in it. When aml-service cannot answer it throws `RiskLevelUnavailableException`, whose message
+carries a reason without the personal code. A failure that concerns only this person's answer (a
+400, which aml-service returns only for a malformed personal code, or a parsed answer with a missing
+or unknown value) stops there. Anything else (a timeout or I/O error, a body that stalls or cannot
+be read, a 5xx, a 3xx, any other 4xx) means aml-service itself is failing, and it then throws for
+the next 30 seconds without asking, so a hanging aml-service costs at most one timeout every 30
+seconds rather than one per person. The verification job retries an unavailable risk level every
+five minutes until the screening deadline, then holds the payout with `RISK_LEVEL_UNAVAILABLE`,
+which the AML channel hears about with the request id. A PEP hit is held at once with `PEP` and
+`RISK_LEVEL_UNAVAILABLE`, since its payout is held whatever aml-service would say. To roll back,
+unset `AML_SERVICE_HIGH_RISK_ENABLED` rather than deploying an older build: once a payout is held
+with `RISK_LEVEL_UNAVAILABLE`, a build without that hold reason cannot load the redemption.
+
 `ScheduledAmlRiskMetadataRefreshJob` refreshes the views at 12:00 and 16:00 for Metabase.

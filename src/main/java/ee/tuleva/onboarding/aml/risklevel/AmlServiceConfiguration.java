@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.aml.risklevel;
 import static java.time.Duration.ofMillis;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -22,22 +25,44 @@ class AmlServiceConfiguration {
 
   @Bean
   AmlServiceClient amlServiceClient(RestClient.Builder builder, AmlServiceProperties properties) {
-    if (properties.enabled() && properties.configuredApiToken().isEmpty()) {
-      log.warn(
-          "aml-service API token is not configured, so the 05:30 risk level run falls back to the"
-              + " materialized views each night until it is: missing=api-token"
-              + " (AML_SERVICE_API_TOKEN)");
-    }
+    warnOfWhatAMissingApiTokenStops(properties);
     return new AmlServiceClient(
         amlServiceRestClient(builder, properties), amlServiceRetryTemplate(), properties);
   }
 
+  private static void warnOfWhatAMissingApiTokenStops(AmlServiceProperties properties) {
+    if (properties.configuredApiToken().isPresent()) {
+      return;
+    }
+    List<String> stopped = new ArrayList<>();
+    if (properties.enabled()) {
+      stopped.add("the 05:30 risk level run falls back to the materialized views each night");
+    }
+    if (properties.highRiskEnabled()) {
+      stopped.add(
+          "every person redemption that screening does not freeze is held, at its screening"
+              + " deadline at the latest");
+    }
+    if (!stopped.isEmpty()) {
+      log.warn(
+          "aml-service API token is not configured, so {} until it is: missing=api-token"
+              + " (AML_SERVICE_API_TOKEN)",
+          String.join(", and ", stopped));
+    }
+  }
+
   static RestClient amlServiceRestClient(
       RestClient.Builder builder, AmlServiceProperties properties) {
-    var httpClient = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build();
+    return restClient(
+        builder, properties.url(), properties.connectTimeout(), properties.readTimeout());
+  }
+
+  static RestClient restClient(
+      RestClient.Builder builder, String url, Duration connectTimeout, Duration readTimeout) {
+    var httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
     var requestFactory = new JdkClientHttpRequestFactory(httpClient);
-    requestFactory.setReadTimeout(properties.readTimeout());
-    return builder.baseUrl(properties.url()).requestFactory(requestFactory).build();
+    requestFactory.setReadTimeout(readTimeout);
+    return builder.baseUrl(url).requestFactory(requestFactory).build();
   }
 
   static RetryTemplate amlServiceRetryTemplate() {

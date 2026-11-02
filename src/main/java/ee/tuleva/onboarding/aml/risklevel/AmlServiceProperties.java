@@ -11,7 +11,10 @@ record AmlServiceProperties(
     String url,
     @Nullable String apiToken,
     Duration connectTimeout,
-    Duration readTimeout) {
+    Duration readTimeout,
+    boolean highRiskEnabled,
+    Duration highRiskConnectTimeout,
+    Duration highRiskReadTimeout) {
 
   Optional<String> configuredApiToken() {
     return Optional.ofNullable(apiToken).filter(token -> !token.isBlank());

@@ -55,6 +55,7 @@ public class OcfCalculationService {
   private final OcfNotifier ocfNotifier;
   private final MonthEndNavCheck monthEndNavCheck;
   private final UnderlyingWeights underlyingWeights;
+  private final KidComparisons kidComparisons;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
     return compute(fund, month).snapshot();
@@ -106,7 +107,7 @@ public class OcfCalculationService {
         snapshot,
         gaps,
         underlying.holdings(),
-        ocfSnapshotRepository.findPublishedInForceOn(fund.getCode(), monthEnd).orElse(null));
+        kidComparisons.atTheMonthEndOf(fund, snapshot));
   }
 
   public void calculateForAllFunds(YearMonth month) {

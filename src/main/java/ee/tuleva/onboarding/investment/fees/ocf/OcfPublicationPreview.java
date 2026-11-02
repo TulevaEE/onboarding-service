@@ -18,5 +18,7 @@ public record OcfPublicationPreview(
     BigDecimal managementFeeRate,
     BigDecimal publishedOcf,
     BigDecimal publishedOcfPercent,
+    int publishedDecimals,
     @Nullable KidFigure kidInForceBefore,
+    @Nullable ExceptionDecision exception,
     boolean alreadyPublished) {}

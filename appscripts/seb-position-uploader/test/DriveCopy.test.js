@@ -1,0 +1,2136 @@
+const {
+  SOURCES,
+  notifySlack,
+  processNewEmails,
+  processHistoricalEmails,
+  dryRun,
+  uploadMatchingAttachments,
+  saveReportsToDrive,
+  saveThreadToDrive,
+  saveReportToDrive,
+  isOlderThanCurrentSource,
+  forgetOldReportSources,
+  driveReportFamily,
+  isSameDriveReport,
+  isVersionedDriveName,
+  nextDriveVersion,
+  versionedDriveName,
+  usCopyName,
+  isUsCopyName,
+  convertSebCsvToUs,
+  notifyDriveProblemOncePerDay,
+} = require("../src/Code");
+
+const POSITIONS = SOURCES.SEB.files[0];
+const PENDING = SOURCES.SEB.files[1];
+
+function fakeDrive() {
+  const events = [];
+  const downloads = [];
+  const failures = {};
+  function fail(action, name) {
+    const key = action + " " + name;
+    if (failures[key]) throw new Error("Drive failed: " + key);
+  }
+  function file(name, content) {
+    let currentName = name;
+    let currentContent = content;
+    const f = {
+      getName: () => currentName,
+      content: () => currentContent,
+      getBlob() {
+        downloads.push(currentName);
+        return { getDataAsString: () => currentContent };
+      },
+      setName(newName) {
+        fail("setName", currentName);
+        events.push("rename " + currentName + " -> " + newName);
+        currentName = newName;
+        return f;
+      },
+      setContent(newContent) {
+        fail("setContent", currentName);
+        events.push("setContent " + currentName);
+        currentContent = newContent;
+        return f;
+      },
+      makeCopy(copyName, destination) {
+        fail("makeCopy", currentName);
+        return destination.createFile(copyName, currentContent);
+      },
+    };
+    return f;
+  }
+  const files = [];
+  const folder = {
+    getFiles() {
+      const snapshot = files.slice();
+      let i = 0;
+      return { hasNext: () => i < snapshot.length, next: () => snapshot[i++] };
+    },
+    createFile(blobOrName, content) {
+      const isBlob = typeof blobOrName !== "string";
+      const name = isBlob ? blobOrName.getName() : blobOrName;
+      fail("createFile", name);
+      const f = file(name, isBlob ? blobOrName.getDataAsString() : content);
+      files.push(f);
+      events.push("create " + name);
+      return f;
+    },
+  };
+  return {
+    folder,
+    events,
+    downloads,
+    failures,
+    seed: (names) => names.forEach((n) => files.push(file(n, "old " + n))),
+    seedWithContent: (contents) => Object.keys(contents).forEach((n) => files.push(file(n, contents[n]))),
+    names: () => files.map((f) => f.getName()),
+    byName: (name) => files.filter((f) => f.getName() === name),
+    currentUsCopiesFor: (keyword, date) =>
+      files.filter((f) => {
+        const n = f.getName().toLowerCase();
+        return n.includes(keyword) && n.match(/(\d{8})/)[1] === date && n.endsWith("_us.csv");
+      }),
+  };
+}
+
+function fakeAttachment(name, content) {
+  return {
+    getName: () => name,
+    getDataAsString: () => content,
+    copyBlob: () => {
+      let blobName = name;
+      const blob = {
+        getName: () => blobName,
+        getDataAsString: () => content,
+        setName(newName) {
+          blobName = newName;
+          return blob;
+        },
+      };
+      return blob;
+    },
+  };
+}
+
+function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], lockAvailable = true, s3Status = 200 } = {}) {
+  const slack = [];
+  const calls = { search: 0, lock: 0, folders: [] };
+  const props = Object.assign({}, properties);
+  const logs = [];
+  global.Logger = { log: (line) => logs.push(String(line)) };
+  global.MimeType = { CSV: "text/csv" };
+  global.Utilities = {
+    formatDate: () => "2026-11-02",
+    newBlob: (content) => ({ getBytes: () => Array.from(String(content), (ch) => ch.charCodeAt(0) & 0xff) }),
+    computeDigest: () => [1, 2, 3],
+    computeHmacSignature: () => [4, 5, 6],
+    DigestAlgorithm: { SHA_256: "SHA_256" },
+    MacAlgorithm: { HMAC_SHA_256: "HMAC_SHA_256" },
+  };
+  global.PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: (key) => (key in props ? props[key] : null),
+      setProperty: (key, value) => {
+        props[key] = value;
+      },
+      getProperties: () => Object.assign({}, props),
+      deleteProperty: (key) => {
+        delete props[key];
+      },
+    }),
+  };
+  const lock = { held: false, releases: 0 };
+  global.LockService = {
+    getScriptLock: () => ({
+      tryLock: () => {
+        calls.lock++;
+        if (!lockAvailable || lock.held) return false;
+        lock.held = true;
+        return true;
+      },
+      releaseLock: () => {
+        lock.held = false;
+        lock.releases++;
+      },
+    }),
+  };
+  global.DriveApp = {
+    getFolderById(id) {
+      calls.folders.push(id);
+      if (!folders[id]) throw new Error("No item with the given ID could be found");
+      return folders[id];
+    },
+  };
+  global.GmailApp = {
+    search: () => {
+      calls.search++;
+      return threads;
+    },
+    getUserLabelByName: (name) => ({ getName: () => name }),
+  };
+  const s3 = { status: s3Status };
+  const s3Keys = [];
+  const s3Bodies = {};
+  const slackResponses = [];
+  global.UrlFetchApp = {
+    fetch(url, options) {
+      if (url.includes(".amazonaws.com/")) {
+        const key = url.split(".amazonaws.com/")[1];
+        if (s3.status !== 200) return { getResponseCode: () => s3.status, getContentText: () => "AccessDenied" };
+        s3Keys.push(key);
+        s3Bodies[key] = String.fromCharCode(...options.payload);
+        return { getResponseCode: () => 200, getContentText: () => "ok" };
+      }
+      const response = slackResponses.shift() || 200;
+      if (response instanceof Error) throw response;
+      if (response === 200) slack.push(JSON.parse(options.payload).text);
+      return { getResponseCode: () => response, getContentText: () => "slack says " + response };
+    },
+  };
+  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses, logs, lock };
+}
+
+const noRecipients = { getTo: () => "", getCc: () => "", getBcc: () => "" };
+
+const MORNING = new Date("2026-11-02T08:45:00Z");
+const SOURCE = { date: MORNING.toISOString(), id: "18f0a00000000001" };
+const LATER = { date: "2026-11-02T10:15:00.000Z", id: "18f0a00000000002" };
+
+function sebMessage(id, attachments, date = MORNING) {
+  return {
+    ...noRecipients,
+    getId: () => id,
+    getDate: () => date,
+    getFrom: () => "SEB <" + SOURCES.SEB.senders[0] + ">",
+    getAttachments: () => attachments,
+  };
+}
+
+function swedbankMessage(id) {
+  return {
+    ...noRecipients,
+    getId: () => id,
+    getDate: () => MORNING,
+    getFrom: () => "Swedbank <" + SOURCES.SWEDBANK.senders[0] + ">",
+    getAttachments: () => [fakeAttachment("TULEVA_PORTFOLIO_20261020.csv", "x")],
+  };
+}
+
+function fakeThread(messages, labelNames) {
+  const labels = labelNames.slice();
+  return {
+    labels,
+    getId: () => "thread-1",
+    getMessages: () => messages,
+    getFirstMessageSubject: () => "SEB reports",
+    getLabels: () => labels.map((name) => ({ getName: () => name })),
+    addLabel: (label) => labels.push(label.getName()),
+    removeLabel: (label) => labels.splice(labels.indexOf(label.getName()), 1),
+  };
+}
+
+beforeEach(() => {
+  jest.useFakeTimers({ now: new Date("2026-11-02T11:00:00Z") });
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+  ["Logger", "MimeType", "Utilities", "PropertiesService", "LockService", "DriveApp", "GmailApp", "UrlFetchApp"].forEach(
+    (name) => delete global[name],
+  );
+});
+
+describe("which reports are copied to Drive", () => {
+  test("both SEB report types carry the keyword the Sheets scripts look for", () => {
+    expect(SOURCES.SEB.files.map((f) => f.driveKeyword)).toEqual(["tuleva_pos", "tuleva_ootel"]);
+  });
+  test("Swedbank and Flow Traders files are not copied", () => {
+    Object.keys(SOURCES)
+      .filter((key) => key !== "SEB")
+      .forEach((key) => SOURCES[key].files.forEach((f) => expect(f.driveKeyword).toBeUndefined()));
+  });
+});
+
+describe("Drive file names", () => {
+  test("the US copy turns decimal commas into points and semicolon separators into commas", () => {
+    expect(convertSebCsvToUs("Fund;Quantity;Price\nTUK75;1234,5;10,25\n")).toBe("Fund,Quantity,Price\nTUK75,1234.5,10.25\n");
+  });
+  test("the US copy ends in _US.csv, whatever the extension's letter case", () => {
+    expect(usCopyName("TULEVA_pos_raport_20261020.csv")).toBe("TULEVA_pos_raport_20261020_US.csv");
+    expect(usCopyName("TULEVA_pos_raport_20261020_korrigeeritud.CSV")).toBe("TULEVA_pos_raport_20261020_korrigeeritud_US.csv");
+    expect(isUsCopyName("TULEVA_pos_raport_20261020_korrigeeritud_US.CSV")).toBe(true);
+    expect(isUsCopyName("TULEVA_pos_raport_20261020_US_v1.csv")).toBe(false);
+  });
+  test("an older version gets _vN before the extension", () => {
+    expect(versionedDriveName("TULEVA_pos_raport_20261020_US.csv", 2)).toBe("TULEVA_pos_raport_20261020_US_v2.csv");
+    expect(isVersionedDriveName("TULEVA_pos_raport_20261020_US_v2.csv")).toBe(true);
+    expect(isVersionedDriveName("TULEVA_pos_raport_20261020_US.csv")).toBe(false);
+  });
+  test("the next version follows the highest one", () => {
+    expect(nextDriveVersion(["TULEVA_pos_raport_20261020.csv"])).toBe(1);
+    expect(nextDriveVersion(["TULEVA_pos_raport_20261020_v1.csv", "TULEVA_pos_raport_20261020_US_v2.csv"])).toBe(3);
+  });
+});
+
+describe("isSameDriveReport", () => {
+  test("matches the original, the US copy, a corrected file and old versions of that type and date", () => {
+    [
+      "TULEVA_pos_raport_20261020.csv",
+      "TULEVA_pos_raport_20261020_US.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv",
+      "TULEVA_pos_raport_20261020_US_v3.csv",
+    ].forEach((name) => expect(isSameDriveReport(name, POSITIONS, "20261020")).toBe(true));
+  });
+  test("reads the date from the report name, not from digits later in it", () => {
+    expect(isSameDriveReport("TULEVA_pos_raport_20261021_parandus_20261020_US.csv", POSITIONS, "20261020")).toBe(false);
+  });
+  test("does not match another report type or another file that only mentions the type", () => {
+    expect(isSameDriveReport("TULEVA_ootel_tehingud_20261020_US.csv", POSITIONS, "20261020")).toBe(false);
+    expect(isSameDriveReport("koopia_TULEVA_pos_raport_20261020_US.csv", POSITIONS, "20261020")).toBe(false);
+  });
+});
+
+describe("saveReportToDrive", () => {
+  const seeded = [
+    "TULEVA_pos_raport_20261020.csv",
+    "TULEVA_pos_raport_20261020_US.csv",
+    "TULEVA_pos_raport_20261019_US.csv",
+    "TULEVA_pos_raport_20261021_parandus_20261020_US.csv",
+    "TULEVA_ootel_tehingud_20261020_US.csv",
+  ];
+
+  test("the first report of a date gets an unchanged original and a US copy", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1,5\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_US.csv")[0].content()).toBe("A,1.5\n");
+    expect(drive.byName("TULEVA_pos_raport_20261020.csv")[0].content()).toBe("A;1,5\n");
+  });
+
+  test("a corrected report updates the current US copy in place and keeps the old content as _v1", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    const currentUs = drive.byName("TULEVA_pos_raport_20261020_US.csv")[0];
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2,5\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names()).toEqual([
+      "TULEVA_pos_raport_20261020_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv",
+      "TULEVA_pos_raport_20261019_US.csv",
+      "TULEVA_pos_raport_20261021_parandus_20261020_US.csv",
+      "TULEVA_ootel_tehingud_20261020_US.csv",
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv",
+    ]);
+    expect(currentUs.content()).toBe("B,2.5\n");
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv")[0].content()).toBe("old TULEVA_pos_raport_20261020_US.csv");
+  });
+
+  test("the folder's file names change after the US copy's content does, so a reader watching the names sees the new content", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    const contentUpdated = drive.events.indexOf("setContent TULEVA_pos_raport_20261020_US.csv");
+    expect(contentUpdated).toBeGreaterThan(-1);
+    expect(drive.events.slice(contentUpdated + 1).some((e) => e.startsWith("create "))).toBe(true);
+  });
+
+  test("the new original is the last file written, so it is the last updated report of that date", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.events.slice(-2)).toEqual([
+      "rename TULEVA_pos_raport_20261020.csv -> TULEVA_pos_raport_20261020_v1.csv",
+      "create TULEVA_pos_raport_20261020.csv",
+    ]);
+  });
+
+  test("a resent report takes the next free version number", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed([
+      "TULEVA_ootel_tehingud_20261020_v1.csv",
+      "TULEVA_ootel_tehingud_20261020_US_v1.csv",
+      "TULEVA_ootel_tehingud_20261020.csv",
+      "TULEVA_ootel_tehingud_20261020_US.csv",
+    ]);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "C;3\n"), PENDING, "20261020", SOURCE);
+
+    expect(drive.names().sort()).toEqual(
+      [
+        "TULEVA_ootel_tehingud_20261020.csv",
+        "TULEVA_ootel_tehingud_20261020_US.csv",
+        "TULEVA_ootel_tehingud_20261020_US_v1.csv",
+        "TULEVA_ootel_tehingud_20261020_US_v2.csv",
+        "TULEVA_ootel_tehingud_20261020_v1.csv",
+        "TULEVA_ootel_tehingud_20261020_v2.csv",
+      ].sort(),
+    );
+  });
+
+  test.each([
+    ["makeCopy", "TULEVA_pos_raport_20261020_US.csv", "old TULEVA_pos_raport_20261020_US.csv"],
+    ["setContent", "TULEVA_pos_raport_20261020_US.csv", "old TULEVA_pos_raport_20261020_US.csv"],
+    ["setName", "TULEVA_pos_raport_20261020_US.csv", "B,2\n"],
+    ["createFile", "TULEVA_pos_raport_20261020_korrigeeritud.csv", "B,2\n"],
+    ["setName", "TULEVA_pos_raport_20261020.csv", "B,2\n"],
+  ])("when %s fails on %s the date still has exactly one current US copy", (action, name, expectedContent) => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    drive.failures[action + " " + name] = true;
+
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", SOURCE),
+    ).toThrow("Drive failed");
+
+    const current = drive.currentUsCopiesFor("tuleva_pos", "20261020");
+    expect(current).toHaveLength(1);
+    expect(current[0].content()).toBe(expectedContent);
+  });
+
+  test("an older message never replaces the content of a newer correction", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+    const before = drive.names();
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names()).toEqual(before);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("the same e-mail resumes a copy that failed half way", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261020.csv"] = true;
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n");
+    expect(() => saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE)).toThrow("Drive failed");
+
+    delete drive.failures["createFile TULEVA_pos_raport_20261020.csv"];
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
+  });
+
+  test("a report the folder already holds with the same content, as the old Gmail saver wrote it, gets no new version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020.csv": "A;1,5\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1.5\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1,5\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.events).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020.csv", "TULEVA_pos_raport_20261020_US.csv"]);
+  });
+
+  test("a correction the old Gmail saver has already versioned in gets no new version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv": "B;2\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.events).toEqual([]);
+  });
+
+  test("a copy resumed after its new original failed keeps the US copy it already updated, without another version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.events).toEqual(["create TULEVA_pos_raport_20261020_korrigeeritud.csv"]);
+  });
+
+  test("a report whose original matches but whose US copy does not is written again, ending with a new original", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020.csv": "B;2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(drive.events.slice(-1)).toEqual(["create TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a copy retried after its in-place update failed keeps the old content as one version, not two", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"] = true;
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE)).toThrow("Drive failed");
+
+    delete drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"];
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => name.startsWith("TULEVA_pos_raport_20261020_US_v"))).toEqual(["TULEVA_pos_raport_20261020_US_v1.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv")[0].content()).toBe("old TULEVA_pos_raport_20261020_US.csv");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test.each([
+    ["setContent", "TULEVA_pos_raport_20261020_US.csv"],
+    ["setName", "TULEVA_pos_raport_20261020.csv"],
+  ])("a copy retried after %s failed on %s keeps the _US copy and the original it replaced under one version number", (action, failingName) => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    drive.failures[action + " " + failingName] = true;
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE)).toThrow("Drive failed");
+
+    delete drive.failures[action + " " + failingName];
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => /^TULEVA_pos_raport_20261020.*_v\d+\.csv$/.test(name)).sort()).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+  });
+
+  test("two current _US copies of one name are never versioned onto the same name", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    const names = drive.names();
+    expect(new Set(names).size).toBe(names.length);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("an older _US version with no original of its number does not pull a new save's original onto it", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v2.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "C,3\n",
+      "TULEVA_pos_raport_20261020.csv": "X;0\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_v3.csv").map((f) => f.content())).toEqual(["X;0\n"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v2.csv")).toEqual([]);
+  });
+
+  const correctionB = { date: "2026-11-02T09:15:00.000Z", id: "18f0a00000000002" };
+  const correctionC = { date: "2026-11-02T10:15:00.000Z", id: "18f0a00000000003" };
+  const versionedNames = (drive) => drive.names().filter((name) => /^TULEVA_pos_raport_20261020.*_v\d+\.csv$/.test(name)).sort();
+
+  test("a newer correction first pairs the original that an unfinished correction left current with that correction's _US version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv")[0].content()).toBe("A,1\n");
+    expect(drive.byName("TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv")[0].content()).toBe("B,2\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["C,3\n"]);
+  });
+
+  describe("a chain of interrupted corrections ends with every archived original beside its _US version", () => {
+    const correctionAt = (minute, n) => ({ date: "2026-11-02T10:" + minute + ":00.000Z", id: "18f0a0000000001" + n });
+    const correctionFile = (n) => fakeAttachment("TULEVA_pos_raport_20261020_parandus" + n + ".csv", "P" + n + ";" + n + "\n");
+    const expectEveryArchivedOriginalBesideItsUsVersion = (drive) => {
+      const archived = versionedNames(drive);
+      const originals = archived.filter((name) => !/_US_v\d+\.csv$/i.test(name));
+      expect(originals.length).toBeGreaterThan(0);
+      originals.forEach((original) => {
+        const version = original.match(/_v(\d+)\.csv$/)[1];
+        const usContents = archived.filter((name) => new RegExp("_US_v" + version + "\\.csv$").test(name)).map((name) => drive.byName(name)[0].content());
+        expect(usContents).toContain(convertSebCsvToUs(drive.byName(original)[0].content()));
+      });
+    };
+    const seededWithA = () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+      return drive;
+    };
+
+    test.each([2, 3])("after %i corrections in a row fail to archive original A, the next one archives A beside A's _US, and a rerun writes nothing", (failing) => {
+      const drive = seededWithA();
+      drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+      for (let n = 1; n <= failing; n++) {
+        expect(() => saveReportToDrive(drive.folder, correctionFile(n), POSITIONS, "20261020", correctionAt(10 + n, n))).toThrow("Drive failed");
+      }
+      delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+      const last = failing + 1;
+
+      saveReportToDrive(drive.folder, correctionFile(last), POSITIONS, "20261020", correctionAt(10 + last, last));
+      const eventsAfterIt = drive.events.length;
+      saveReportToDrive(drive.folder, correctionFile(last), POSITIONS, "20261020", correctionAt(10 + last, last));
+
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+      expectEveryArchivedOriginalBesideItsUsVersion(drive);
+      expect(drive.events.slice(eventsAfterIt)).toEqual([]);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["P" + last + "," + last + "\n"]);
+    });
+
+    test("when the second correction archives A but fails at its own new original, the third still leaves every version paired", () => {
+      const drive = seededWithA();
+      drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+      expect(() => saveReportToDrive(drive.folder, correctionFile(1), POSITIONS, "20261020", correctionAt(11, 1))).toThrow("Drive failed");
+      delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+      drive.failures["createFile TULEVA_pos_raport_20261020_parandus2.csv"] = true;
+      expect(() => saveReportToDrive(drive.folder, correctionFile(2), POSITIONS, "20261020", correctionAt(12, 2))).toThrow("Drive failed");
+      delete drive.failures["createFile TULEVA_pos_raport_20261020_parandus2.csv"];
+
+      saveReportToDrive(drive.folder, correctionFile(3), POSITIONS, "20261020", correctionAt(13, 3));
+
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expectEveryArchivedOriginalBesideItsUsVersion(drive);
+      expect(new Set(drive.names()).size).toBe(drive.names().length);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["P3,3\n"]);
+    });
+  });
+
+  test("a newer correction interrupted while pairing the original another correction left current resumes that pairing from its own record", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+    const correctionCAttachment = fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n");
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    expect(() => saveReportToDrive(drive.folder, correctionCAttachment, POSITIONS, "20261020", correctionC)).toThrow("Drive failed");
+    delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+
+    saveReportToDrive(drive.folder, correctionCAttachment, POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+  });
+
+  test("a newer correction after one whose in-place update failed archives the current pair under that correction's number, once", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"] = true;
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    delete drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"];
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual(["TULEVA_pos_raport_20261020_US_v1.csv", "TULEVA_pos_raport_20261020_v1.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["C,3\n"]);
+  });
+
+  test("a correction whose writes all went through but whose completion was not recorded keeps its own pair together when a newer one comes", () => {
+    const { props } = installAppsScriptFakes({
+      properties: {
+        "drive_source:seb/2026-10-20_positions.csv": JSON.stringify(Object.assign({ unfinishedVersion: 1 }, correctionB)),
+        "report_source:seb/2026-10-20_positions.csv": JSON.stringify(correctionB),
+      },
+    });
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv": "B;2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(JSON.parse(props["drive_source:seb/2026-10-20_positions.csv"])).toEqual(correctionC);
+  });
+
+  test("the original left current joins the unfinished version whichever of its _US copies is found first", () => {
+    installAppsScriptFakes({
+      properties: { "drive_source:seb/2026-10-20_positions.csv": JSON.stringify(Object.assign({ unfinishedVersion: 1 }, correctionB)) },
+    });
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_teine_US_v1.csv": "E,5\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020.csv": "A;1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+  });
+
+  test("a newer correction after one that failed at its new original leaves that correction's _US version alone, as it has no original", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["createFile TULEVA_pos_raport_20261020_korrigeeritud.csv"] = true;
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    delete drive.failures["createFile TULEVA_pos_raport_20261020_korrigeeritud.csv"];
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+  });
+
+  describe("an incoming name with a version suffix is saved under the report's name without it, as S3 keys it", () => {
+    const sameName = (drive) => drive.names().filter((name, i, all) => all.indexOf(name) !== i);
+
+    test("a _v1.csv correction after the plain report replaces it, and no two files share a name", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+      expect(sameName(drive)).toEqual([]);
+      expect(drive.byName("TULEVA_pos_raport_20261020.csv").map((f) => f.content())).toEqual(["B;2\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => [f.getName(), f.content()])).toEqual([["TULEVA_pos_raport_20261020_US.csv", "B,2\n"]]);
+    });
+
+    test("an identical resend of that correction writes nothing", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+      const eventsAfterTheCorrection = drive.events.length;
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", {
+        date: "2026-11-02T10:45:00.000Z",
+        id: "18f0a00000000003",
+      });
+
+      expect(drive.events.slice(eventsAfterTheCorrection)).toEqual([]);
+    });
+
+    test("a later _v2.csv correction archives the previous pair under one number", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v2.csv", "C;3\n"), POSITIONS, "20261020", {
+        date: "2026-11-02T10:45:00.000Z",
+        id: "18f0a00000000003",
+      });
+
+      expect(sameName(drive)).toEqual([]);
+      expect(versionedNames(drive)).toEqual([
+        "TULEVA_pos_raport_20261020_US_v1.csv",
+        "TULEVA_pos_raport_20261020_US_v2.csv",
+        "TULEVA_pos_raport_20261020_v1.csv",
+        "TULEVA_pos_raport_20261020_v2.csv",
+      ]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_v2.csv")[0].content()).toBe("B;2\n");
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v2.csv")[0].content()).toBe("B,2\n");
+    });
+
+    test("a _US.csv name with a version suffix is kept out of Drive like any _US.csv name", () => {
+      const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+      const drive = fakeDrive();
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_US_v1.csv", "A,1\n"), POSITIONS, "20261020", SOURCE);
+
+      expect(drive.names()).toEqual([]);
+      expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US_v1.csv")]);
+    });
+  });
+
+  test("a later correction takes the next version number for both files", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020.csv": "B;2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.names().filter((name) => name.includes("_v2")).sort()).toEqual(["TULEVA_pos_raport_20261020_US_v2.csv", "TULEVA_pos_raport_20261020_v2.csv"]);
+  });
+
+  test("a correction whose old content an earlier version already holds is still versioned when the latest version differs", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_US_v2.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020.csv": "A;1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v3.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+  });
+
+  test("a correction downloads the current _US.csv once", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.downloads.filter((name) => name === "TULEVA_pos_raport_20261020_US.csv")).toHaveLength(1);
+  });
+
+  test("a report whose current Drive copy already came from this e-mail is not saved again", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n");
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+    const eventsAfterTheCopy = drive.events.length;
+
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.events.slice(eventsAfterTheCopy)).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a newer e-mail replaces a report whose current Drive copy came from an earlier one", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  const failingDriveRecordWrites = (fails) => {
+    const store = PropertiesService.getScriptProperties();
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("drive_source:") && fails(JSON.parse(value))) throw new Error("properties quota");
+          store.setProperty(key, value);
+        },
+      }),
+    };
+  };
+
+  test("a completion record that cannot be saved does not fail the copy", () => {
+    installAppsScriptFakes();
+    failingDriveRecordWrites((record) => !record.unfinishedVersion);
+    const drive = fakeDrive();
+
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE),
+    ).not.toThrow();
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a started-copy record that cannot be saved stops the copy before any Drive change, so the retry archives the old pair under one number", () => {
+    installAppsScriptFakes();
+    let checkpointFails = true;
+    failingDriveRecordWrites((record) => checkpointFails && Boolean(record.unfinishedVersion));
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"] = true;
+    const correction = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, correction, POSITIONS, "20261020", SOURCE)).toThrow();
+    expect(drive.events).toEqual([]);
+
+    checkpointFails = false;
+    delete drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"];
+    saveReportToDrive(drive.folder, correction, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => /_v\d+\.csv$/.test(name)).sort()).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+  });
+
+  test("of two e-mails with the same time the one with the higher Gmail id wins, in either order", () => {
+    const tie = (id) => ({ date: MORNING.toISOString(), id });
+    [["18f0a00000000001", "18f0a00000000009"], ["18f0a00000000009", "18f0a00000000001"]].forEach((order) => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      order.forEach((id) =>
+        saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_" + id + ".csv", id + "\n"), POSITIONS, "20261020", tie(id)),
+      );
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["18f0a00000000009\n"]);
+    });
+  });
+
+  test("the reports of each type and date are tracked apart", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261021.csv", "D;4\n"), POSITIONS, "20261021", LATER);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_ootel_tehingud_20261021.csv", "E;5\n"), PENDING, "20261021", SOURCE);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+    expect(drive.currentUsCopiesFor("tuleva_ootel", "20261021")).toHaveLength(1);
+  });
+
+  test("an attachment already named _US.csv is not saved, and Slack says why", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_US.CSV", "A,1\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names()).toEqual([]);
+    expect(slack).toHaveLength(1);
+    expect(slack[0]).toContain("TULEVA_pos_raport_20261020_US.CSV");
+    expect(slack[0]).toContain("Resend it without the _US ending");
+  });
+});
+
+describe("the e-mail record per report type and date", () => {
+  test("an older e-mail is older; the same e-mail and a newer one are not", () => {
+    expect(isOlderThanCurrentSource(SOURCE, LATER)).toBe(true);
+    expect(isOlderThanCurrentSource(LATER, SOURCE)).toBe(false);
+    expect(isOlderThanCurrentSource(SOURCE, SOURCE)).toBe(false);
+    expect(isOlderThanCurrentSource(SOURCE, null)).toBe(false);
+  });
+  test("records whose e-mail is more than 45 days old are dropped, whatever the report date", () => {
+    const record = (date) => JSON.stringify({ date, id: "18f0a00000000001" });
+    const { props } = installAppsScriptFakes({
+      properties: {
+        "report_source:seb/2026-10-20_positions.csv": record("2026-09-16T08:45:00.000Z"),
+        "report_source:seb/2026-08-01_pending_transactions.csv": record("2026-11-01T10:15:00.000Z"),
+        "report_source:seb/2026-10-31_positions.csv": record("2026-11-01T08:45:00.000Z"),
+        "report_source:portfolio/2026-10-19.csv": "not json",
+        "drive_source:seb/2026-10-20_positions.csv": record("2026-09-16T08:45:00.000Z"),
+        "drive_source:seb/2026-10-31_positions.csv": record("2026-11-01T08:45:00.000Z"),
+        "us_name_alerted:18f0a00000000001:1a2b3c": record("2026-09-16T08:45:00.000Z"),
+        SLACK_WEBHOOK_URL: "https://hooks.example/x",
+      },
+    });
+
+    forgetOldReportSources(PropertiesService.getScriptProperties(), new Date("2026-11-02T09:00:00Z"));
+
+    expect(Object.keys(props).sort()).toEqual([
+      "SLACK_WEBHOOK_URL",
+      "drive_source:seb/2026-10-31_positions.csv",
+      "report_source:seb/2026-08-01_pending_transactions.csv",
+      "report_source:seb/2026-10-31_positions.csv",
+    ]);
+  });
+});
+
+describe("driveReportFamily", () => {
+  test("returns the current files of that type and date and the next version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed([
+      "TULEVA_pos_raport_20261020.csv",
+      "TULEVA_pos_raport_20261020_US.csv",
+      "TULEVA_pos_raport_20261020_US_v4.csv",
+      "TULEVA_pos_raport_20261019_US_v9.csv",
+    ]);
+
+    const family = driveReportFamily(drive.folder, POSITIONS, "20261020");
+
+    expect(family.current.map((f) => f.getName())).toEqual(["TULEVA_pos_raport_20261020.csv", "TULEVA_pos_raport_20261020_US.csv"]);
+    expect(family.nextVersion).toBe(5);
+  });
+});
+
+describe("saveThreadToDrive", () => {
+  const report = (date) => [fakeAttachment("TULEVA_pos_raport_" + date + ".csv", "A;1\n")];
+
+  test("also copies the messages the S3 pass has not uploaded, and leaves the thread's labels to S3", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names().sort()).toEqual([
+      "TULEVA_pos_raport_20261019.csv",
+      "TULEVA_pos_raport_20261019_US.csv",
+      "TULEVA_pos_raport_20261020.csv",
+      "TULEVA_pos_raport_20261020_US.csv",
+    ]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("the next run writes nothing for the reports already in Drive", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-2x"]);
+    saveThreadToDrive(thread, drive.folder);
+    const eventsAfterTheFirstRun = drive.events.length;
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.events.slice(eventsAfterTheFirstRun)).toEqual([]);
+  });
+
+  test("a failed copy is retried by the next run", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"] = true;
+    const thread = fakeThread([sebMessage("m1", report("20261020"))], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+    expect(drive.names()).toEqual([]);
+
+    delete drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"];
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a message whose attachments cannot be read does not drop the other messages of its thread", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const unreadable = {
+      ...sebMessage("m1", []),
+      getAttachments: () => {
+        throw new Error("Gmail unavailable");
+      },
+    };
+    const correction = sebMessage("m2", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"));
+    const thread = fakeThread([unreadable, correction], ["S3-Uploaded-1x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a report that keeps failing does not stop the other report of its e-mail", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"] = true;
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n")])],
+      ["S3-Uploaded-1x"],
+    );
+
+    saveThreadToDrive(thread, drive.folder);
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_ootel_tehingud_20261020_US.csv", "TULEVA_ootel_tehingud_20261020.csv"]);
+  });
+
+  test("a failed copy does not hold up the later e-mails of its thread, and Slack hears about it", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261019_US.csv"] = true;
+    const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-2x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(slack).toEqual([expect.stringContaining("not in Drive yet")]);
+  });
+
+  test("retrying a message whose copy failed half way leaves its reports already in Drive as they are", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_ootel_tehingud_20261020_US.csv"] = true;
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n")])],
+      ["S3-Uploaded-1x"],
+    );
+    saveThreadToDrive(thread, drive.folder);
+    const eventsBeforeTheRetry = drive.events.length;
+
+    delete drive.failures["createFile TULEVA_ootel_tehingud_20261020_US.csv"];
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.events.slice(eventsBeforeTheRetry)).toEqual([
+      "create TULEVA_ootel_tehingud_20261020_US.csv",
+      "create TULEVA_ootel_tehingud_20261020.csv",
+    ]);
+    expect(drive.names()).toEqual([
+      "TULEVA_pos_raport_20261020_US.csv",
+      "TULEVA_pos_raport_20261020.csv",
+      "TULEVA_ootel_tehingud_20261020_US.csv",
+      "TULEVA_ootel_tehingud_20261020.csv",
+    ]);
+  });
+
+  test.each([
+    ["Slack does not take the alert", { SLACK_WEBHOOK_URL: "https://hooks.example/x" }, [503]],
+    ["the Slack webhook call fails", { SLACK_WEBHOOK_URL: "https://hooks.example/x" }, [new Error("timeout")]],
+    ["no Slack webhook is configured", {}, []],
+  ])("a report rejected for its _US name is still not saved, and does not hold up the thread, when %s", (name, properties, slackFailures) => {
+    const { slackResponses } = installAppsScriptFakes({ properties });
+    slackResponses.push(...slackFailures);
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [
+        sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")]),
+        sebMessage("m2", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "B;2\n")]),
+      ],
+      ["S3-Uploaded-2x"],
+    );
+
+    expect(() => saveThreadToDrive(thread, drive.folder)).not.toThrow();
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261021_US.csv", "TULEVA_pos_raport_20261021.csv"]);
+  });
+
+  test("the alert about a _US.csv attachment goes once, not again on the later days its e-mail is looked at", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")])], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+
+    global.Utilities = { formatDate: () => "2026-11-03" };
+    saveThreadToDrive(thread, drive.folder);
+    global.Utilities = { formatDate: () => "2026-11-04" };
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+  });
+
+  test("the same _US.csv name in another e-mail on the same day alerts too, once", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const usNamed = () => [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")];
+    const first = fakeThread([sebMessage("18f0a00000000001", usNamed())], ["S3-Uploaded-1x"]);
+    const second = fakeThread([sebMessage("18f0a00000000002", usNamed(), new Date("2026-11-02T10:15:00Z"))], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(first, drive.folder);
+
+    saveThreadToDrive(second, drive.folder);
+    global.Utilities = { formatDate: () => "2026-11-03" };
+    saveThreadToDrive(first, drive.folder);
+    saveThreadToDrive(second, drive.folder);
+
+    expect(slack).toEqual([expect.stringContaining("18f0a00000000001"), expect.stringContaining("18f0a00000000002")]);
+  });
+
+  test("a _US.csv attachment next to the plain report is still alerted about, and the plain report is saved", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])],
+      ["S3-Uploaded-1x"],
+    );
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_US.csv")[0].content()).toBe("A,1\n");
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+    expect(slack[0]).toContain("nothing to resend");
+    expect(slack[0]).not.toContain("Resend it");
+  });
+
+  test("an alert Slack did not take about a _US.csv attachment is sent by the next run", () => {
+    const { slack, slackResponses } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    slackResponses.push(503);
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")])], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+    expect(slack).toEqual([]);
+
+    saveThreadToDrive(thread, drive.folder);
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+    expect(drive.names()).toEqual([]);
+  });
+
+  test("a thread without SEB reports leaves Drive as it is", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const thread = fakeThread([swedbankMessage("m1")], ["S3-Uploaded-1x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual([]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+});
+
+describe("saveReportsToDrive", () => {
+  const report = (date) => [fakeAttachment("TULEVA_pos_raport_" + date + ".csv", "A;1\n")];
+
+  test("only alerts, once a day, when the folder Script Property is not set", () => {
+    const { calls, slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+
+    saveReportsToDrive([], 2);
+    saveReportsToDrive([], 2);
+
+    expect(calls).toEqual({ search: 0, lock: 0, folders: [] });
+    expect(slack).toHaveLength(1);
+    expect(slack[0]).toContain("DRIVE_SEB_REPORT_FOLDER_ID");
+  });
+
+  test("a run does nothing while another run holds the script lock, and the next trigger retries", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", report("20261020"))], []);
+    const { calls, s3Keys } = installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
+      folders: { "folder-1": drive.folder },
+      threads: [thread],
+      lockAvailable: false,
+    });
+
+    processNewEmails();
+
+    expect(calls.search).toBe(0);
+    expect(s3Keys).toEqual([]);
+    expect(thread.labels).toEqual([]);
+  });
+
+  test("a catch-up run refuses to start while another run holds the script lock", () => {
+    const { calls } = installAppsScriptFakes({ lockAvailable: false });
+
+    expect(() => processHistoricalEmails()).toThrow("another run holds the script lock");
+    expect(calls.search).toBe(0);
+  });
+
+  test("one failing thread does not stop the others, and Slack hears about it once a day", () => {
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261019_US.csv"] = true;
+    const failing = fakeThread([sebMessage("m1", report("20261019"))], ["S3-Uploaded-1x"]);
+    const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+    const { slack } = installAppsScriptFakes({
+      properties: {
+        DRIVE_SEB_REPORT_FOLDER_ID: "folder-1",
+        SLACK_WEBHOOK_URL: "https://hooks.example/x",
+      },
+      folders: { "folder-1": drive.folder },
+      threads: [working, failing],
+    });
+
+    saveReportsToDrive([working, failing], 2);
+    saveReportsToDrive([working, failing], 2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261019")).toEqual([]);
+    expect(slack).toHaveLength(1);
+    expect(slack[0]).toContain("not in Drive");
+  });
+
+  test("replaying older e-mails after a newer one, as the first run does, keeps the newer content", () => {
+    const drive = fakeDrive();
+    const newer = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const older = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], ["S3-Uploaded-1x"]);
+    installAppsScriptFakes({
+      properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
+      folders: { "folder-1": drive.folder },
+      threads: [older, newer],
+    });
+
+    saveReportsToDrive([older, newer], 2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a failed original that is retried after a newer correction succeeded does not bring back its content", () => {
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261020.csv"] = true;
+    const original = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-11-02T08:45:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const correction = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    installAppsScriptFakes({
+      properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
+      folders: { "folder-1": drive.folder },
+      threads: [correction, original],
+    });
+
+    saveReportsToDrive([correction, original], 2);
+    delete drive.failures["createFile TULEVA_pos_raport_20261020.csv"];
+    saveReportsToDrive([correction, original], 2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a thread whose messages cannot be read, so could hold a newer e-mail of any report, keeps the Drive pass from writing that run", () => {
+    const drive = fakeDrive();
+    const unreadable = {
+      getMessages: () => {
+        throw new Error("Gmail unavailable");
+      },
+      getId: () => "thread-2",
+    };
+    const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, unreadable] });
+
+    expect(() => saveReportsToDrive([working, unreadable], 2)).not.toThrow();
+
+    expect(drive.events).toEqual([]);
+  });
+
+  const gmailDown = () => {
+    throw new Error("Gmail unavailable");
+  };
+  test.each([
+    ["a message", () => fakeThread([{ getDate: gmailDown, getId: gmailDown }], [])],
+    ["a thread", () => ({ getMessages: gmailDown, getId: gmailDown })],
+  ])("%s that cannot even give its id or time in a Gmail outage neither throws out of the Drive pass nor lets an e-mail it could be newer than through", (name, brokenThread) => {
+    const drive = fakeDrive();
+    const broken = brokenThread();
+    const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, broken] });
+
+    expect(() => saveReportsToDrive([working, broken], 2)).not.toThrow();
+
+    expect(drive.events).toEqual([]);
+  });
+
+  test("a message whose attachments cannot be read keeps every older e-mail out of Drive, and the newer ones still go in", () => {
+    const drive = fakeDrive();
+    const unreadAt0915 = fakeThread([{ ...sebMessage("18f0a00000000002", [], new Date("2026-11-02T09:15:00Z")), getAttachments: gmailDown }], []);
+    const olderOtherDate = fakeThread([sebMessage("18f0a00000000001", report("20261019"), new Date("2026-11-02T08:00:00Z"))], []);
+    const newerOtherDate = fakeThread([sebMessage("18f0a00000000003", report("20261021"), new Date("2026-11-02T10:00:00Z"))], []);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder } });
+
+    saveReportsToDrive([newerOtherDate, unreadAt0915, olderOtherDate], 2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261019")).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021")).toHaveLength(1);
+  });
+
+  const pos20261020 = (id, content, date) => sebMessage(id, [fakeAttachment("TULEVA_pos_raport_20261020.csv", content)], date);
+
+  test("a Gmail id that cannot be read leaves the order of e-mails with the same time unknown, so the Drive pass writes nothing that run and alerts", () => {
+    const drive = fakeDrive();
+    let lowerIdReads = 0;
+    const lower = {
+      ...pos20261020("18f0a00000000001", "A;1\n", MORNING),
+      getId: () => {
+        lowerIdReads++;
+        if (lowerIdReads === 1) throw new Error("Gmail unavailable");
+        return "18f0a00000000001";
+      },
+    };
+    const higher = pos20261020("18f0a00000000002", "B;2\n", MORNING);
+    const { slack } = installAppsScriptFakes({
+      properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+      folders: { "folder-1": drive.folder },
+    });
+
+    saveReportsToDrive([fakeThread([higher], []), fakeThread([lower], [])], 2);
+
+    expect(drive.events).toEqual([]);
+    expect(slack).toEqual([expect.stringContaining("not in Drive yet")]);
+  });
+
+  test("the Drive pass reads each e-mail's time and Gmail id once", () => {
+    const drive = fakeDrive();
+    const reads = { date: 0, id: 0 };
+    const message = pos20261020("18f0a00000000002", "B;2\n", MORNING);
+    const counted = {
+      ...message,
+      getDate: () => {
+        reads.date++;
+        return message.getDate();
+      },
+      getId: () => {
+        reads.id++;
+        return message.getId();
+      },
+    };
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder } });
+
+    saveReportsToDrive([fakeThread([counted], [])], 2);
+
+    expect(reads).toEqual({ date: 1, id: 1 });
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+  });
+
+  test("the Drive pass takes the e-mails of all threads newest first, so an older e-mail never writes a report a newer one has", () => {
+    const drive = fakeDrive();
+    const newer = fakeThread([pos20261020("18f0a00000000002", "B;2\n", new Date("2026-11-02T10:15:00Z"))], []);
+    const older = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-02T08:45:00Z"))], []);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder } });
+
+    saveReportsToDrive([newer, older], 2);
+
+    expect(drive.events).toEqual(["create TULEVA_pos_raport_20261020_US.csv", "create TULEVA_pos_raport_20261020.csv"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a newer e-mail whose save failed before any record still keeps an older one from writing its report that run", () => {
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "B;2\n", "TULEVA_pos_raport_20261020_US.csv": "B,2\n" });
+    const newer = fakeThread([pos20261020("18f0a00000000002", "B;2\n", new Date("2026-11-02T10:15:00Z"))], []);
+    const older = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-02T08:45:00Z"))], []);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder } });
+    const store = PropertiesService.getScriptProperties();
+    let failedOnce = false;
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:") && !failedOnce) {
+            failedOnce = true;
+            throw new Error("properties busy");
+          }
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    saveReportsToDrive([older, newer], 2);
+
+    expect(drive.events).toEqual([]);
+  });
+
+  test("the first run copies the e-mails of the last two days, and leaves the reports the old Gmail saver already saved as it is", () => {
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261030.csv": "A;1\n",
+      "TULEVA_pos_raport_20261030_US.csv": "A,1\n",
+    });
+    const dailyReports = fakeThread(
+      [
+        sebMessage("18f0a00000000001", report("20261027"), new Date("2026-10-28T08:45:00Z")),
+        sebMessage("18f0a00000000002", report("20261030"), new Date("2026-11-01T08:45:00Z")),
+        sebMessage("18f0a00000000003", report("20261031"), new Date("2026-11-02T08:45:00Z")),
+      ],
+      ["S3-Uploaded-3x"],
+    );
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
+
+    saveReportsToDrive([dailyReports], 2);
+
+    expect(drive.events).toEqual(["create TULEVA_pos_raport_20261031_US.csv", "create TULEVA_pos_raport_20261031.csv"]);
+  });
+
+  test("a catch-up run copies the e-mails of its own window", () => {
+    const drive = fakeDrive();
+    const dailyReports = fakeThread(
+      [
+        sebMessage("18f0a00000000001", report("20261027"), new Date("2026-10-28T08:45:00Z")),
+        sebMessage("18f0a00000000003", report("20261031"), new Date("2026-11-02T08:45:00Z")),
+      ],
+      ["S3-Uploaded-2x"],
+    );
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
+    saveReportsToDrive([dailyReports], 2);
+
+    saveReportsToDrive([dailyReports], 7);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261027")).toHaveLength(1);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261031")).toHaveLength(1);
+  });
+
+  test("a folder it cannot open is reported, not thrown", () => {
+    const { slack } = installAppsScriptFakes({
+      properties: { DRIVE_SEB_REPORT_FOLDER_ID: "missing-folder", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+    });
+
+    expect(() => saveReportsToDrive([], 2)).not.toThrow();
+    expect(slack).toHaveLength(1);
+    expect(slack[0]).toContain("could not be saved to Drive");
+  });
+});
+
+describe("one run: S3 first, then Drive", () => {
+  const awsAndDrive = (drive) => ({
+    properties: {
+      AWS_ACCESS_KEY_ID: "test-key",
+      AWS_SECRET_ACCESS_KEY: "test-secret",
+      DRIVE_SEB_REPORT_FOLDER_ID: "folder-1",
+    },
+    folders: { "folder-1": drive.folder },
+  });
+
+  test.each([
+    ["processNewEmails", () => processNewEmails()],
+    ["processHistoricalEmails", () => processHistoricalEmails()],
+  ])("%s uploads a new report to S3 and copies it to Drive in the same run", (name, run) => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread] }));
+
+    run();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test.each([
+    ["processNewEmails", () => processNewEmails()],
+    ["processHistoricalEmails", () => processHistoricalEmails()],
+  ])("when S3 rejects the upload, %s still copies the report to Drive and then fails with the S3 error", (name, run) => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread], s3Status: 403 }));
+
+    expect(run).toThrow("S3 upload failed: 403");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(thread.labels).toEqual([]);
+  });
+
+  test("a run searches Gmail once for both passes", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread] }));
+
+    processNewEmails();
+
+    expect(fakes.calls.search).toBe(1);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("processNewEmails tells Slack about the S3 failure after the Drive copy", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const setup = awsAndDrive(drive);
+    setup.properties.SLACK_WEBHOOK_URL = "https://hooks.example/x";
+    const fakes = installAppsScriptFakes(Object.assign(setup, { threads: [thread], s3Status: 403 }));
+
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+
+    expect(fakes.slack).toEqual([expect.stringContaining("Uncaught error in `processNewEmails`")]);
+  });
+
+  const unreadableUploadedThread = () =>
+    fakeThread(
+      [
+        {
+          ...sebMessage("18f0a00000000005", [], new Date("2026-11-01T08:45:00Z")),
+          getAttachments: () => {
+            throw new Error("Gmail unavailable");
+          },
+        },
+      ],
+      ["S3-Uploaded-1x"],
+    );
+
+  test("an already uploaded message whose attachments cannot be read still lets processNewEmails copy the healthy reports to Drive", () => {
+    const drive = fakeDrive();
+    const healthy = fakeThread([sebMessage("18f0a00000000006", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "H;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [healthy, unreadableUploadedThread()] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(fakes.calls.folders).toEqual(["folder-1"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021").map((f) => f.content())).toEqual(["H,1\n"]);
+  });
+
+  test("the e-mail records read before an unreadable message still keep an older e-mail out of Drive", () => {
+    const drive = fakeDrive();
+    const correctionThenUnreadable = fakeThread(
+      [
+        sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z")),
+        {
+          ...sebMessage("18f0a00000000005", []),
+          getAttachments: () => {
+            throw new Error("Gmail unavailable");
+          },
+        },
+      ],
+      ["S3-Uploaded-2x"],
+    );
+    const olderNeverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-11-01T08:45:00Z"))],
+      [],
+    );
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [olderNeverUploaded, correctionThenUnreadable] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a thread whose earlier uploads cannot be read does not keep the scan from the other threads", () => {
+    const drive = fakeDrive();
+    const unreadableThread = { getLabels: () => [{ getName: () => "S3-Uploaded-1x" }], getMessages: () => { throw new Error("Gmail unavailable"); }, getId: () => "thread-9" };
+    const uploadedCorrection = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [unreadableThread, uploadedCorrection] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+  });
+
+  const unreadable = () => {
+    throw new Error("Gmail unavailable");
+  };
+  const pos20261020 = (id, content, date) => sebMessage(id, [fakeAttachment("TULEVA_pos_raport_20261020.csv", content)], date);
+
+  test("when a thread of earlier uploads cannot be read, nothing goes to S3 and Drive copies no e-mail that thread could hold a newer one for", () => {
+    const drive = fakeDrive();
+    const unreadThread = { getLabels: () => [{ getName: () => "S3-Uploaded-1x" }], getMessages: unreadable, getId: () => "thread-9" };
+    const olderNeverUploaded = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-01T08:45:00Z"))], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [unreadThread, olderNeverUploaded] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.names()).toEqual([]);
+  });
+
+  test("when an earlier upload of a known time cannot be read, nothing goes to S3 and Drive copies only the e-mails newer than it", () => {
+    const drive = fakeDrive();
+    const unreadUpload = fakeThread([{ ...sebMessage("18f0a00000000002", [], new Date("2026-11-02T10:15:00Z")), getAttachments: unreadable }], ["S3-Uploaded-1x"]);
+    const olderNeverUploaded = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-01T08:45:00Z"))], []);
+    const newerReport = fakeThread(
+      [sebMessage("18f0a00000000003", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "C;3\n")], new Date("2026-11-02T10:30:00Z"))],
+      [],
+    );
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [unreadUpload, olderNeverUploaded, newerReport] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021").map((f) => f.content())).toEqual(["C,3\n"]);
+  });
+
+  test("an unreadable message does not use up the upload slot of the uploaded report after it in its thread", () => {
+    const drive = fakeDrive();
+    const unreadThenUploaded = fakeThread(
+      [
+        { ...sebMessage("18f0a00000000004", [], new Date("2026-11-02T07:00:00Z")), getAttachments: unreadable },
+        sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z")),
+      ],
+      ["S3-Uploaded-1x"],
+    );
+    const olderNeverUploaded = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-02T08:00:00Z"))], []);
+    installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [unreadThenUploaded, olderNeverUploaded] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(drive.events).not.toContain("create TULEVA_pos_raport_20261020.csv");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("during an S3 outage, an older e-mail never replaces a correction Drive already holds whose own e-mail cannot be read", () => {
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv": "B;2\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+    });
+    const correction = fakeThread([{ ...sebMessage("18f0a00000000002", [], new Date("2026-11-02T10:15:00Z")), getAttachments: unreadable }], []);
+    const older = fakeThread([pos20261020("18f0a00000000001", "A;1\n", new Date("2026-11-01T08:45:00Z"))], []);
+    installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [correction, older], s3Status: 403 }));
+
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+
+    expect(drive.events).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("once S3 accepts uploads again, the next run uploads the report and leaves its Drive copy as it is", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread], s3Status: 403 }));
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+    const namesAfterTheFailedRun = drive.names();
+
+    fakes.s3.status = 200;
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(drive.names()).toEqual(namesAfterTheFailedRun);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("when S3 rejects the uploads, an older e-mail still does not replace a newer correction in Drive", () => {
+    const drive = fakeDrive();
+    const correctionUploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const olderNeverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-11-01T08:45:00Z"))],
+      [],
+    );
+    const anotherDate = fakeThread([sebMessage("18f0a00000000003", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "C;3\n")])], []);
+    const fakes = installAppsScriptFakes(
+      Object.assign(awsAndDrive(drive), { threads: [anotherDate, correctionUploadedBeforeTheRecord, olderNeverUploaded], s3Status: 403 }),
+    );
+
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021").map((f) => f.content())).toEqual(["C,3\n"]);
+  });
+});
+
+describe("S3 and Drive keep the newest e-mail of each report date", () => {
+  const fakesWith = (drive, threads) =>
+    installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
+      folders: { "folder-1": drive.folder },
+      threads,
+    });
+  const correctionThread = () =>
+    fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      [],
+    );
+
+  test("a catch-up run does not put an older report back on S3 or in Drive", () => {
+    const drive = fakeDrive();
+    const correction = correctionThread();
+    const fakes = fakesWith(drive, [correction]);
+    processNewEmails();
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    GmailApp.search = () => [correction, neverUploaded];
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("B;2\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("a correction uploaded before the e-mail record existed still beats an older e-mail a catch-up finds", () => {
+    const drive = fakeDrive();
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = fakesWith(drive, [uploadedBeforeTheRecord, neverUploaded]);
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("when the record of an earlier correction cannot be saved, Drive does not get the older report either", () => {
+    const drive = fakeDrive();
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = fakesWith(drive, [uploadedBeforeTheRecord, neverUploaded]);
+    const store = PropertiesService.getScriptProperties();
+    let failedOnce = false;
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:") && !failedOnce) {
+            failedOnce = true;
+            throw new Error("properties quota");
+          }
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.events).not.toContain("create TULEVA_pos_raport_20261020.csv");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("an already uploaded older e-mail never lowers the record of a newer one", () => {
+    const drive = fakeDrive();
+    const olderUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const fakes = fakesWith(drive, [olderUploaded]);
+    const newer = JSON.stringify({ date: "2026-11-02T10:15:00.000Z", id: "18f0a00000000002" });
+    fakes.props["report_source:seb/2026-10-20_positions.csv"] = newer;
+
+    processHistoricalEmails();
+
+    expect(fakes.props["report_source:seb/2026-10-20_positions.csv"]).toBe(newer);
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
+  test("a newer e-mail for the same date replaces the file on S3 and in Drive", () => {
+    const drive = fakeDrive();
+    const original = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = fakesWith(drive, [original]);
+    processNewEmails();
+    const correction = correctionThread();
+    GmailApp.search = () => [correction, original];
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv", "seb/2026-10-20_positions.csv"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+  });
+
+  test("of two attachments for the same report in one e-mail, S3 and Drive both keep the last", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [
+        sebMessage("18f0a00000000001", [
+          fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+          fakeAttachment("TULEVA_pos_raport_20261020_uuendatud.csv", "B;2\n"),
+        ]),
+      ],
+      [],
+    );
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("B;2\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test.each([
+    ["after", ["TULEVA_pos_raport_20261020.csv", "TULEVA_pos_raport_20261020_US.csv"]],
+    ["before", ["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]],
+  ])("with a _US.csv attachment %s the plain report in one e-mail, S3 and Drive both keep the plain report", (position, order) => {
+    const drive = fakeDrive();
+    const contents = { "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "X,9\n" };
+    const thread = fakeThread([sebMessage("18f0a00000000001", order.map((name) => fakeAttachment(name, contents[name])))], []);
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("A;1\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
+  });
+
+  test("a Swedbank e-mail with a _US.csv portfolio file after the plain one uploads both, as before, and the last wins", () => {
+    const portfolio = {
+      ...noRecipients,
+      getId: () => "18f0a00000000001",
+      getDate: () => MORNING,
+      getFrom: () => "Swedbank <" + SOURCES.SWEDBANK.senders[0] + ">",
+      getAttachments: () => [fakeAttachment("TULEVA_PORTFOLIO_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_PORTFOLIO_20261020_US.csv", "X,9\n")],
+    };
+    const fakes = s3Only([fakeThread([portfolio], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["portfolio/2026-10-20.csv", "portfolio/2026-10-20.csv"]);
+    expect(fakes.s3Bodies["portfolio/2026-10-20.csv"]).toBe("X,9\n");
+  });
+
+  test("a _US.csv attachment with a version suffix next to the plain report is skipped on S3 and kept out of Drive like any _US.csv", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [
+        sebMessage("18f0a00000000001", [
+          fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+          fakeAttachment("TULEVA_pos_raport_20261020_US_v1.csv", "X,9\n"),
+        ]),
+      ],
+      [],
+    );
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("A;1\n");
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a lone _US.csv attachment still goes to S3, and not to Drive", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])], []);
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("X,9\n");
+    expect(drive.names()).toEqual([]);
+  });
+
+  const s3Only = (threads, properties = {}) =>
+    installAppsScriptFakes({
+      properties: Object.assign({ AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" }, properties),
+      threads,
+    });
+  const newerRecord = JSON.stringify({ date: "2026-11-02T10:15:00.000Z", id: "18f0a00000000009" });
+
+  test("one message with an older positions report and a new pending report uploads only the pending one", () => {
+    const thread = fakeThread(
+      [
+        sebMessage("18f0a00000000001", [
+          fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+          fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n"),
+        ]),
+      ],
+      [],
+    );
+    const fakes = s3Only([thread], { "report_source:seb/2026-10-20_positions.csv": newerRecord });
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_pending_transactions.csv"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("a Swedbank portfolio report is guarded the same way", () => {
+    const older = {
+      ...noRecipients,
+      getId: () => "18f0a00000000001",
+      getDate: () => MORNING,
+      getFrom: () => "Swedbank <" + SOURCES.SWEDBANK.senders[0] + ">",
+      getAttachments: () => [fakeAttachment("TULEVA_PORTFOLIO_20261020.csv", "x")],
+    };
+    const fakes = s3Only([fakeThread([older], [])], { "report_source:portfolio/2026-10-20.csv": newerRecord });
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
+  test("a record that cannot be saved after an upload neither stops the run nor repeats the upload", () => {
+    const first = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const second = fakeThread([sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "B;1\n")])], []);
+    const fakes = s3Only([second, first]);
+    const store = PropertiesService.getScriptProperties();
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:")) throw new Error("properties quota");
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    expect(() => processNewEmails()).not.toThrow();
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv", "seb/2026-10-21_positions.csv"]);
+    expect(first.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(second.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("a correction uploaded before the record existed beats an older e-mail even when no record can be saved", () => {
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = s3Only([uploadedBeforeTheRecord, neverUploaded]);
+    const store = PropertiesService.getScriptProperties();
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:")) throw new Error("properties quota");
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("an unreadable record counts as none: the report uploads and the record is rewritten", () => {
+    const thread = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = s3Only([thread], { "report_source:seb/2026-10-20_positions.csv": "not json" });
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000001");
+  });
+
+  test("Flow Traders confirmations, named by allocation id, keep no e-mail record", () => {
+    const drive = fakeDrive();
+    const confirmation = {
+      ...noRecipients,
+      getId: () => "18f0a00000000003",
+      getDate: () => MORNING,
+      getFrom: () => "Flow Traders <" + SOURCES.FT.senders[0] + ">",
+      getAttachments: () => [{ getName: () => "MID9DSWsDs-00.pdf", getBytes: () => [37, 80, 68, 70] }],
+    };
+    const fakes = fakesWith(drive, [fakeThread([confirmation], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00.pdf"]);
+    expect(Object.keys(fakes.props).filter((k) => k.startsWith("report_source:"))).toEqual([]);
+  });
+});
+
+describe("the SEB confirmation backfill in processNewEmails", () => {
+  const confirmation = () => ({
+    ...noRecipients,
+    getId: () => "18f0a00000000007",
+    getDate: () => MORNING,
+    getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
+    getAttachments: () => [{ getName: () => "DLA1234567-001.pdf", getBytes: () => [37, 80, 68, 70] }],
+  });
+
+  test("runs under the run's own lock, which a second lock attempt cannot take, and the lock is released once", () => {
+    const fakes = installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes" },
+      threads: [fakeThread([confirmation()], ["S3-Uploaded-1x"])],
+    });
+
+    processNewEmails();
+
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBeUndefined();
+    expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
+    expect(fakes.lock.releases).toBe(1);
+    expect(fakes.logs).toContainEqual("Backfill complete: uploaded=1");
+  });
+
+  test("an attachment the upload skips counts as handled, for the thread's label, but not as uploaded, for the backfill's count", () => {
+    installAppsScriptFakes({ properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" } });
+    const message = sebMessage("18f0a00000000001", [
+      fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+      fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n"),
+    ]);
+
+    expect(uploadMatchingAttachments(message, SOURCES.SEB)).toEqual({ uploaded: 1, handled: 2 });
+  });
+});
+
+describe("dryRun", () => {
+  test("previews a _US.csv attachment beside its plain SEB report as skipped, as the real run skips it", () => {
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])],
+      [],
+    );
+    const { logs } = installAppsScriptFakes({ threads: [thread] });
+
+    dryRun();
+
+    expect(logs.filter((line) => line.includes("Would UPLOAD"))).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020.csv to")]);
+    expect(logs).toContainEqual(expect.stringContaining("Would SKIP: TULEVA_pos_raport_20261020_US.csv"));
+  });
+});
+
+describe("alerts never throw", () => {
+  test("two problems at once alert once each per day", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+
+    for (let run = 0; run < 3; run++) {
+      notifyDriveProblemOncePerDay("folder missing");
+      notifyDriveProblemOncePerDay("file locked");
+    }
+
+    expect(slack).toHaveLength(2);
+  });
+  test("notifySlack swallows a Script Properties failure", () => {
+    installAppsScriptFakes();
+    global.PropertiesService = {
+      getScriptProperties: () => {
+        throw new Error("properties unavailable");
+      },
+    };
+    expect(() => notifySlack("x")).not.toThrow();
+  });
+  test.each([
+    ["a webhook error", new Error("timeout")],
+    ["a non-2xx answer", 503],
+  ])("after %s the next run tries the alert again", (name, failure) => {
+    const { slack, slackResponses } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    slackResponses.push(failure);
+
+    notifyDriveProblemOncePerDay("folder missing");
+    notifyDriveProblemOncePerDay("folder missing");
+    notifyDriveProblemOncePerDay("folder missing");
+
+    expect(slack).toEqual([expect.stringContaining("folder missing")]);
+  });
+
+  test("a Drive problem alerts again on another day", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+
+    notifyDriveProblemOncePerDay("folder missing");
+    global.Utilities = { formatDate: () => "2026-11-03" };
+    notifyDriveProblemOncePerDay("folder missing");
+
+    expect(slack).toHaveLength(2);
+  });
+});

@@ -10,18 +10,13 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
-import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Duration;
 import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.core.LockConfiguration;
-import net.javacrumbs.shedlock.core.LockProvider;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -37,36 +32,25 @@ public class InvestmentReportPublisher {
   private static final int MIN_END_OF_MONTH_DAY = 25;
   private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
   private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
-  private static final String ONE_PUBLISH_AT_A_TIME_LOCK = "investmentReportPublishing";
-  private static final Duration PUBLISH_LOCK_HELD_AT_MOST = Duration.ofMinutes(30);
 
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
-  private final WordPressPageReader pageReader;
+  private final NewerReportCheck newerReportCheck;
   private final EmailService emailService;
-  private final LockProvider lockProvider;
-  private final Clock clock;
+  private final InvestmentReportPublishingLock publishingLock;
   private final InvestmentReportPublishingProperties properties;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
-    var lock =
-        lockProvider.lock(
-            new LockConfiguration(
-                clock.instant(),
-                ONE_PUBLISH_AT_A_TIME_LOCK,
-                PUBLISH_LOCK_HELD_AT_MOST,
-                Duration.ZERO));
-    if (lock.isEmpty()) {
-      log.warn("Investment report publishing already running, nothing published: month={}", month);
-      return abortedWithoutPublishing(
-          List.of("Another investment report publish is running: month=%s".formatted(month)));
-    }
-    try {
-      return publishWhileNoOtherPublishRuns(month);
-    } finally {
-      lock.get().unlock();
-    }
+    return publishingLock
+        .whileNoOtherPublishRuns(() -> publishWhileNoOtherPublishRuns(month))
+        .orElseGet(() -> anotherPublishIsRunning(month));
+  }
+
+  private static InvestmentReportPublishingResult anotherPublishIsRunning(YearMonth month) {
+    log.warn("Investment report publishing already running, nothing published: month={}", month);
+    return abortedWithoutPublishing(
+        List.of("Another investment report publish is running: month=%s".formatted(month)));
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(YearMonth month) {
@@ -78,9 +62,9 @@ public class InvestmentReportPublisher {
       return abortedWithoutPublishing(navDateErrors);
     }
 
-    var newerReports = newerReportsLinked(month);
+    var newerReports = newerReportCheck.newerReportsLinked(configuredReports(), month);
     if (!newerReports.isEmpty()) {
-      log.warn("Fund pages already link newer reports, nothing published: {}", newerReports);
+      log.warn("Fund page check refused the publish: month={}, errors={}", month, newerReports);
       return abortedWithoutPublishing(newerReports);
     }
 
@@ -128,37 +112,12 @@ public class InvestmentReportPublisher {
     return new InvestmentReportPublishingResult(Map.of(), false, errors);
   }
 
-  private List<FundReportMapping> publishedReports() {
+  private List<FundReportMapping> configuredReports() {
     return properties.funds().stream().map(FundReportMapping::forFund).toList();
   }
 
-  private List<String> newerReportsLinked(YearMonth month) {
-    return publishedReports().stream()
-        .flatMap(mapping -> newerReportLinkedFrom(mapping, month).stream())
-        .toList();
-  }
-
-  private Optional<String> newerReportLinkedFrom(FundReportMapping mapping, YearMonth month) {
-    var fundCode = mapping.fund().getCode();
-    try {
-      return pageReader
-          .investmentReportUrl(mapping.pageSlug())
-          .flatMap(mapping::reportPeriodLinkedBy)
-          .filter(linked -> linked.isAfter(month))
-          .map(
-              linked ->
-                  "Fund page already links a newer report: fund=%s, linked=%s, publishing=%s"
-                      .formatted(fundCode, linked, month));
-    } catch (RuntimeException e) {
-      log.error("Could not read fund page to check for a newer report: fund={}", fundCode, e);
-      return Optional.of(
-          "Could not read the fund page to check it links no newer report: fund=%s, error=%s"
-              .formatted(fundCode, e.getMessage()));
-    }
-  }
-
   private void logQuantityWarnings(YearMonth month) {
-    for (var mapping : publishedReports()) {
+    for (var mapping : configuredReports()) {
       var quantityWarnings = dataService.validateQuantities(mapping.fund(), month);
       if (!quantityWarnings.isEmpty()) {
         log.warn(
@@ -171,7 +130,7 @@ public class InvestmentReportPublisher {
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var errors = new ArrayList<String>();
     var allocationErrors = new ArrayList<String>();
-    for (var mapping : publishedReports()) {
+    for (var mapping : configuredReports()) {
       try {
         var context = dataService.getReportData(mapping.fund(), month);
         var allocationError = validateAllocation(mapping.fund().getCode(), context);

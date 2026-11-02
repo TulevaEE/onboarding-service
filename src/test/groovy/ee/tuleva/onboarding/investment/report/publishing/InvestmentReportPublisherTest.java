@@ -5,10 +5,10 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
@@ -16,21 +16,15 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
-import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
-import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import net.javacrumbs.shedlock.core.LockProvider;
-import net.javacrumbs.shedlock.core.SimpleLock;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,10 +37,9 @@ class InvestmentReportPublisherTest {
   @Mock private InvestmentReportDataService dataService;
   @Mock private InvestmentReportPdfGenerator pdfGenerator;
   @Mock private WordPressMediaClient wordPressClient;
-  @Mock private WordPressPageReader pageReader;
+  @Mock private NewerReportCheck newerReportCheck;
   @Mock private EmailService emailService;
-  @Mock private LockProvider lockProvider;
-  @Mock private SimpleLock lock;
+  @Mock private InvestmentReportPublishingLock publishingLock;
   private InvestmentReportPublisher publisher;
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
@@ -56,8 +49,10 @@ class InvestmentReportPublisherTest {
   void setUp() {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
-    lenient().when(pageReader.investmentReportUrl(any())).thenReturn(Optional.empty());
-    lenient().when(lockProvider.lock(any())).thenReturn(Optional.of(lock));
+    lenient().when(newerReportCheck.newerReportsLinked(any(), any())).thenReturn(List.of());
+    lenient()
+        .when(publishingLock.whileNoOtherPublishRuns(any()))
+        .thenAnswer(publish -> Optional.of(publish.<Supplier<?>>getArgument(0).get()));
   }
 
   private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
@@ -65,10 +60,9 @@ class InvestmentReportPublisherTest {
         dataService,
         pdfGenerator,
         wordPressClient,
-        pageReader,
+        newerReportCheck,
         emailService,
-        lockProvider,
-        Clock.fixed(Instant.parse("2026-04-10T07:00:00Z"), ZoneOffset.UTC),
+        publishingLock,
         new InvestmentReportPublishingProperties(funds));
   }
 
@@ -105,13 +99,7 @@ class InvestmentReportPublisherTest {
 
   @Test
   void aFundLeftOutOfTheConfigurationIsNeitherGeneratedNorPublished() {
-    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
-    var context = sampleContext("Test Fund");
-    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
-    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
-    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
-    given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
-    given(emailService.sendSystemEmail(any())).willReturn(true);
+    givenEveryReportCanBeProduced();
 
     var result = publisher.publish(MARCH_2026);
 
@@ -306,72 +294,26 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
-  void nothingIsPublishedWhileAFundPageLinksANewerReport() {
+  void nothingIsPublishedWhenAFundPageLinksANewerReportOrCannotBeRead() {
     given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
-    given(pageReader.investmentReportUrl(FundReportMapping.TUK00.pageSlug()))
-        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK00, YearMonth.of(2026, 4))));
+    var refusal =
+        "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
+    given(
+            newerReportCheck.newerReportsLinked(
+                List.of(FundReportMapping.TUK75, FundReportMapping.TUK00, FundReportMapping.TUV100),
+                MARCH_2026))
+        .willReturn(List.of(refusal));
 
     var result = publisher.publish(MARCH_2026);
 
     assertThat(result)
-        .isEqualTo(
-            new InvestmentReportPublishingResult(
-                Map.of(),
-                false,
-                List.of(
-                    "Fund page already links a newer report: fund=TUK00, linked=2026-04,"
-                        + " publishing=2026-03")));
-    verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
-  }
-
-  @Test
-  void aCorrectedReportForTheMonthAlreadyLinkedIsPublished() {
-    givenEveryReportCanBeProduced();
-    given(pageReader.investmentReportUrl(FundReportMapping.TUK75.pageSlug()))
-        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, MARCH_2026)));
-
-    var result = publisher.publish(MARCH_2026);
-
-    assertThat(result.errors()).isEmpty();
-    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
-  }
-
-  @Test
-  void aPageLinkingAnOlderReportOrSomeOtherFileGetsThisMonthsReport() {
-    givenEveryReportCanBeProduced();
-    given(pageReader.investmentReportUrl(FundReportMapping.TUK75.pageSlug()))
-        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, YearMonth.of(2026, 2))));
-    given(pageReader.investmentReportUrl(FundReportMapping.TUK00.pageSlug()))
-        .willReturn(Optional.of(reportUrl(FundReportMapping.TUK75, YearMonth.of(2026, 4))));
-
-    var result = publisher.publish(MARCH_2026);
-
-    assertThat(result.errors()).isEmpty();
-    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
-  }
-
-  @Test
-  void nothingIsPublishedWhenAFundPageCannotBeReadToCheckForANewerReport() {
-    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
-    given(pageReader.investmentReportUrl(FundReportMapping.TUV100.pageSlug()))
-        .willThrow(new IllegalStateException("page unreadable"));
-
-    var result = publisher.publish(MARCH_2026);
-
-    assertThat(result)
-        .isEqualTo(
-            new InvestmentReportPublishingResult(
-                Map.of(),
-                false,
-                List.of(
-                    "Could not read the fund page to check it links no newer report: fund=TUV100,"
-                        + " error=page unreadable")));
+        .isEqualTo(new InvestmentReportPublishingResult(Map.of(), false, List.of(refusal)));
     verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
   }
 
   @Test
   void aSecondPublishWhileOneIsRunningPublishesNothing() {
-    given(lockProvider.lock(any())).willReturn(Optional.empty());
+    willReturn(Optional.empty()).given(publishingLock).whileNoOtherPublishRuns(any());
 
     var result = publisher.publish(MARCH_2026);
 
@@ -381,30 +323,8 @@ class InvestmentReportPublisherTest {
                 Map.of(),
                 false,
                 List.of("Another investment report publish is running: month=2026-03")));
-    verifyNoInteractions(dataService, pageReader, pdfGenerator, wordPressClient, emailService);
-  }
-
-  @Test
-  void everyPublishTakesTheSameLockAndReleasesIt() {
-    givenEveryReportCanBeProduced();
-
-    publisher.publish(MARCH_2026);
-    publisher.publish(MARCH_2026.plusMonths(1));
-
-    verify(lockProvider, times(2))
-        .lock(
-            argThat(configuration -> configuration.getName().equals("investmentReportPublishing")));
-    verify(lock, times(2)).unlock();
-  }
-
-  @Test
-  void theLockIsReleasedWhenAPublishFails() {
-    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026))
-        .willThrow(new IllegalStateException("database down"));
-
-    assertThatThrownBy(() -> publisher.publish(MARCH_2026))
-        .isInstanceOf(IllegalStateException.class);
-    verify(lock).unlock();
+    verifyNoInteractions(
+        dataService, newerReportCheck, pdfGenerator, wordPressClient, emailService);
   }
 
   private void givenEveryReportCanBeProduced() {
@@ -415,11 +335,6 @@ class InvestmentReportPublisherTest {
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
     given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
     given(emailService.sendSystemEmail(any())).willReturn(true);
-  }
-
-  private static String reportUrl(FundReportMapping mapping, YearMonth month) {
-    return "https://tuleva.ee/wp-content/uploads/2026/05/"
-        + WordPressSlug.of(mapping.buildPdfFilename(month));
   }
 
   private static InvestmentReportContext sampleContext(String fundTitle) {

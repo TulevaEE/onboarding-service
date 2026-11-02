@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.net.URLDecoder;
 import java.time.YearMonth;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -99,10 +98,6 @@ public enum FundReportMapping {
       throw new IllegalArgumentException("No report mapping for fund: " + fund.getCode());
     }
     return mapping;
-  }
-
-  public static List<FundReportMapping> all() {
-    return List.of(values());
   }
 
   public static String estonianMonth(int month) {

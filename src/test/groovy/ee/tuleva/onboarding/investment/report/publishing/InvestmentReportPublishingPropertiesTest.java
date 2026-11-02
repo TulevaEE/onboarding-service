@@ -4,27 +4,52 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
+import ee.tuleva.onboarding.notification.email.EmailService;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
-import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.ClassPathResource;
 
 class InvestmentReportPublishingPropertiesTest {
+
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withUserConfiguration(
+              InvestmentReportPublisher.class,
+              InvestmentReportPublishingLock.class,
+              NewerReportCheck.class)
+          .withBean(
+              InvestmentReportDataService.class, () -> mock(InvestmentReportDataService.class))
+          .withBean(
+              InvestmentReportPdfGenerator.class, () -> mock(InvestmentReportPdfGenerator.class))
+          .withBean(WordPressMediaClient.class, () -> mock(WordPressMediaClient.class))
+          .withBean(WordPressPageReader.class, () -> mock(WordPressPageReader.class))
+          .withBean(EmailService.class, () -> mock(EmailService.class))
+          .withBean(LockProvider.class, () -> mock(LockProvider.class))
+          .withBean(Clock.class, Clock::systemUTC);
 
   @Test
   void productionPublishesThePensionFundsReportsAndNotTkf100sYet() throws IOException {
     var production =
         new YamlPropertySourceLoader()
             .load("application", new ClassPathResource("application.yml")).stream()
+                .filter(
+                    document ->
+                        "production"
+                            .equals(document.getProperty("spring.config.activate.on-profile[0]")))
                 .filter(document -> document.containsProperty("investment-report-publishing.funds"))
                 .findFirst()
                 .orElseThrow();
@@ -38,17 +63,34 @@ class InvestmentReportPublishingPropertiesTest {
   }
 
   @Test
-  void publishingWithNoFundsConfiguredFailsAtStartupRatherThanPublishingNothing() {
-    var binder =
-        new Binder(
-            new MapConfigurationPropertySource(
-                Map.of("investment-report-publishing.enabled", "true")));
+  void anEnabledPublisherPublishesTheConfiguredFunds() {
+    contextRunner
+        .withPropertyValues(
+            "investment-report-publishing.enabled=true",
+            "investment-report-publishing.funds=TUK75, TUK00")
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(InvestmentReportPublisher.class);
+              assertThat(context.getBean(InvestmentReportPublishingProperties.class).funds())
+                  .containsExactly(TUK75, TUK00);
+            });
+  }
 
-    assertThatThrownBy(
-            () ->
-                binder.bindOrCreate(
-                    "investment-report-publishing", InvestmentReportPublishingProperties.class))
-        .isInstanceOf(BindException.class);
+  @Test
+  void anEnabledPublisherWithNoFundsConfiguredFailsAtStartupRatherThanPublishingNothing() {
+    contextRunner
+        .withPropertyValues("investment-report-publishing.enabled=true")
+        .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Test
+  void aDisabledPublisherNeedsNoFunds() {
+    contextRunner.run(
+        context -> {
+          assertThat(context).hasNotFailed();
+          assertThat(context).doesNotHaveBean(InvestmentReportPublisher.class);
+          assertThat(context).doesNotHaveBean(InvestmentReportPublishingProperties.class);
+        });
   }
 
   @Test

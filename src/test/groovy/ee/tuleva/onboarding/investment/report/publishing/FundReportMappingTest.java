@@ -17,13 +17,13 @@ class FundReportMappingTest {
   }
 
   @Test
-  void allReturnsFourMappings() {
-    assertThat(FundReportMapping.all()).hasSize(4);
+  void everyFundHasAReportMapping() {
+    assertThat(FundReportMapping.values()).hasSize(4);
   }
 
   @Test
   void pageSlugsPointAtThePagesThatCarryTheAcfReportField() {
-    assertThat(FundReportMapping.all())
+    assertThat(FundReportMapping.values())
         .extracting(FundReportMapping::pageSlug)
         .containsExactly(
             "tuleva-maailma-aktsiate-pensionifond",

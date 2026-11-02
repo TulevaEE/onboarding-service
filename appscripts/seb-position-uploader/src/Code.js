@@ -108,7 +108,7 @@ function processHistoricalEmails30Days() {
 
 function backfillSebConfirmations() {
     var source = SOURCES.SEB_CONFIRMATION;
-    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), source.senders[0]);
+    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), source.senders);
     var threads = GmailApp.search(searchQuery);
     Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery + ", threads=" + threads.length);
 
@@ -122,7 +122,7 @@ function backfillSebConfirmations() {
 }
 
 function messagesFrom(messages, source) {
-    return messages.filter(function (message) { return sourceOf(message) === source; });
+    return messages.filter(function (message) { return getSourceForSender(message.getFrom()) === source; });
 }
 
 function processEmailsFromDays(days, options) {
@@ -143,9 +143,9 @@ function processEmailsFromDays(days, options) {
     Logger.log("Processing complete");
 }
 
-function gmailSearchQuery(days, sender) {
+function gmailSearchQuery(days, senders) {
     var query = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
-    return sender ? query + " from:" + sender : query;
+    return senders ? query + " from:(" + senders.join(" OR ") + ")" : query;
 }
 
 function daysToReach(start, now) {

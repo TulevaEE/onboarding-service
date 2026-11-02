@@ -17,8 +17,7 @@ const {
   resolveContentType,
   gmailSearchQuery,
   daysToReach,
-  isSourceInScope,
-  isThreadInScope,
+  messagesFrom,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -249,33 +248,25 @@ describe("daysToReach", () => {
   });
 });
 
-describe("isSourceInScope", () => {
-  test("takes every known source when the run is not limited to one", () => {
-    expect(isSourceInScope(SOURCES.SEB, undefined)).toBe(true);
+describe("messagesFrom", () => {
+  const messageFrom = (sender) => ({
+    getFrom: () => sender,
+    getTo: () => "funds@tuleva.ee",
+    getCc: () => "",
+    getBcc: () => "",
   });
-  test("takes the source the run is limited to", () => {
-    expect(isSourceInScope(SOURCES.SEB_CONFIRMATION, SOURCES.SEB_CONFIRMATION)).toBe(true);
-  });
-  test("leaves out another source in a thread the limited run found", () => {
-    expect(isSourceInScope(SOURCES.SEB, SOURCES.SEB_CONFIRMATION)).toBe(false);
-  });
-  test("never takes a message without a known source", () => {
-    expect(isSourceInScope(null, undefined)).toBe(false);
-  });
-});
 
-describe("isThreadInScope", () => {
-  test("takes every thread when the run is not limited to one source", () => {
-    expect(isThreadInScope([SOURCES.SEB, SOURCES.SEB_CONFIRMATION], undefined)).toBe(true);
+  test("takes SEB's trade confirmations from a thread", () => {
+    const confirmation = messageFrom("SEB <tehingukinnitus@seb.ee>");
+    expect(messagesFrom([confirmation], SOURCES.SEB_CONFIRMATION)).toEqual([confirmation]);
   });
-  test("takes a thread of the limited source's messages", () => {
-    expect(isThreadInScope([SOURCES.SEB_CONFIRMATION, SOURCES.SEB_CONFIRMATION], SOURCES.SEB_CONFIRMATION)).toBe(true);
+  test("leaves another source's report in the same thread to the regular run", () => {
+    const report = messageFrom("SEB <trustee@seb.ee>");
+    const confirmation = messageFrom("SEB <tehingukinnitus@seb.ee>");
+    expect(messagesFrom([report, confirmation], SOURCES.SEB_CONFIRMATION)).toEqual([confirmation]);
   });
-  test("ignores messages from unknown senders, which are never uploaded", () => {
-    expect(isThreadInScope([SOURCES.SEB_CONFIRMATION, null], SOURCES.SEB_CONFIRMATION)).toBe(true);
-  });
-  test("leaves a thread that also holds another source's message to the regular run", () => {
-    expect(isThreadInScope([SOURCES.SEB, SOURCES.SEB_CONFIRMATION], SOURCES.SEB_CONFIRMATION)).toBe(false);
+  test("leaves out a message from an unknown sender", () => {
+    expect(messagesFrom([messageFrom("someone@example.com")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
   });
 });
 

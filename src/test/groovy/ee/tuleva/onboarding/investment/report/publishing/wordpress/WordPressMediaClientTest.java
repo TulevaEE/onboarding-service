@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +57,6 @@ class WordPressMediaClientTest {
                 "https://tuleva.ee/wp-content/uploads/2026/04/test-report.pdf"));
 
     server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
-        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
-    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andExpect(method(POST))
         .andExpect(content().contentType(MediaType.APPLICATION_PDF))
@@ -80,9 +78,6 @@ class WordPressMediaClientTest {
             Map.of("id", 42, "source_url", "https://evil.com/malicious.pdf"));
 
     server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
-        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
-    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
@@ -98,9 +93,6 @@ class WordPressMediaClientTest {
             Map.of("source_url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf"));
 
     server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
-        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
-    server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
@@ -110,25 +102,21 @@ class WordPressMediaClientTest {
   }
 
   @Test
-  void uploadReusesExistingMediaInsteadOfCreatingDuplicate() throws Exception {
-    var existing =
+  void aCorrectedReportIsUploadedRatherThanTheFileOfTheSameNameReused() throws Exception {
+    var corrected =
         objectMapper.writeValueAsString(
-            List.of(
-                Map.of(
-                    "id",
-                    42,
-                    "source_url",
-                    "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
+            Map.of(
+                "id", 43, "source_url", "https://tuleva.ee/wp-content/uploads/2026/04/test-1.pdf"));
 
     server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
-        .andRespond(withSuccess(existing, MediaType.APPLICATION_JSON));
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
+        .andExpect(method(POST))
+        .andRespond(withSuccess(corrected, MediaType.APPLICATION_JSON));
 
     var result = client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46});
 
-    assertThat(result.attachmentId()).isEqualTo(42);
-    assertThat(result.sourceUrl())
-        .isEqualTo("https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
+    assertThat(result)
+        .isEqualTo(new UploadResult(43, "https://tuleva.ee/wp-content/uploads/2026/04/test-1.pdf"));
     server.verify();
   }
 
@@ -139,9 +127,6 @@ class WordPressMediaClientTest {
             Map.of(
                 "id", 42, "source_url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf"));
 
-    server
-        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media?search=test.pdf"))
-        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andExpect(method(POST))

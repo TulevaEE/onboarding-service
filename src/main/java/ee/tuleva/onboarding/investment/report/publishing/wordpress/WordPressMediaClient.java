@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,15 +27,6 @@ public class WordPressMediaClient {
   public UploadResult upload(String filename, byte[] pdfBytes) {
     refuseWhenUnconfigured();
     var slug = WordPressSlug.of(filename);
-
-    var existing = findExistingMedia(slug);
-    if (existing.isPresent()) {
-      log.info(
-          "Reusing existing WordPress media instead of re-uploading: filename={}, attachmentId={}",
-          slug,
-          existing.get().attachmentId());
-      return existing.get();
-    }
 
     log.info("Uploading PDF to WordPress: filename={}, size={}bytes", slug, pdfBytes.length);
 
@@ -69,37 +59,6 @@ public class WordPressMediaClient {
 
     log.info("WordPress upload successful: attachmentId={}, sourceUrl={}", attachmentId, sourceUrl);
     return new UploadResult(attachmentId, sourceUrl);
-  }
-
-  private Optional<UploadResult> findExistingMedia(String slug) {
-    var media =
-        retryTemplate.invoke(
-            () ->
-                restClient
-                    .get()
-                    .uri(uriBuilder -> uriBuilder.path("/media").queryParam("search", slug).build())
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {}));
-
-    if (media == null) {
-      return Optional.empty();
-    }
-
-    return media.stream()
-        .flatMap(item -> toUploadResult(item).stream())
-        .filter(
-            result ->
-                VALID_WP_PDF_URL.matcher(result.sourceUrl()).matches()
-                    && result.sourceUrl().endsWith("/" + slug))
-        .findFirst();
-  }
-
-  private static Optional<UploadResult> toUploadResult(Map<String, Object> item) {
-    if (item.get("id") instanceof Integer attachmentId
-        && item.get("source_url") instanceof String sourceUrl) {
-      return Optional.of(new UploadResult(attachmentId, sourceUrl));
-    }
-    return Optional.empty();
   }
 
   public void updateAcfReportField(String pageSlug, int attachmentId) {

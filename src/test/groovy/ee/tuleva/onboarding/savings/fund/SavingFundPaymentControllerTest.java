@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -88,8 +89,8 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
     var user = sampleUser().build();
-    when(userService.findByPersonalCode(person.getPersonalCode())).thenReturn(Optional.of(user));
-    when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+    given(userService.findByPersonalCode(person.getPersonalCode())).willReturn(Optional.of(user));
+    given(localeService.getCurrentLocale()).willReturn(Locale.ENGLISH);
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());

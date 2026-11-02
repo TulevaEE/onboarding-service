@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.user.SecondPillarContributionPeriod.Status.PA
 import static ee.tuleva.onboarding.user.UserContactsFixture.contributionPeriod;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.time.Clock;
@@ -229,10 +230,10 @@ class SecondPillarContributionsTest {
     assertThat(contributionsOn27October2026.statusOf(periods)).isNull();
   }
 
-  @ParameterizedTest(name = "{0}")
+  @ParameterizedTest
   @MethodSource
   void aLeaverMayRejoinTodayOnlyOnceTheRejoinDateHasComeAndNoRestartIsComing(
-      String who, List<SecondPillarContributionPeriod> periods, boolean mayRejoin) {
+      List<SecondPillarContributionPeriod> periods, boolean mayRejoin) {
     var on10November2026 = on("2026-11-10T10:00:00Z");
 
     assertThat(on10November2026.mayRejoinToday(periods)).isEqualTo(mayRejoin);
@@ -241,19 +242,21 @@ class SecondPillarContributionsTest {
   private static Stream<Arguments>
       aLeaverMayRejoinTodayOnlyOnceTheRejoinDateHasComeAndNoRestartIsComing() {
     return Stream.of(
-        arguments("stopped in 2012", stoppedOn("2011-12-31", "2012-01-01"), true),
-        arguments("stopped in May 2022", stoppedOn("2022-04-30", "2022-05-01"), true),
+        arguments(named("stopped in 2012", stoppedOn("2011-12-31", "2012-01-01")), true),
+        arguments(named("stopped in May 2022", stoppedOn("2022-04-30", "2022-05-01")), true),
         arguments(
-            "stopped in 2012 and rejoined from May 2027",
-            List.of(
-                contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
-                contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"),
-                contributionPeriod(CONTRIBUTING, "2027-05-01")),
+            named(
+                "stopped in 2012 and rejoined from May 2027",
+                List.of(
+                    contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
+                    contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"),
+                    contributionPeriod(CONTRIBUTING, "2027-05-01"))),
             false),
-        arguments("stopped in September 2023", stoppedOn("2023-08-31", "2023-09-01"), false),
+        arguments(named("stopped in September 2023", stoppedOn("2023-08-31", "2023-09-01")), false),
         arguments(
-            "still contributing", List.of(contributionPeriod(CONTRIBUTING, "2002-07-01")), false),
-        arguments("no contribution periods", List.of(), false));
+            named("still contributing", List.of(contributionPeriod(CONTRIBUTING, "2002-07-01"))),
+            false),
+        arguments(named("no contribution periods", List.of()), false));
   }
 
   @Test

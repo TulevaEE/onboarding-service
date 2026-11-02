@@ -48,7 +48,7 @@ class RejoinControllerTest {
             content()
                 .json(
                     """
-                    {"permitted": true, "contributionsEndedWithoutApplication": false}
+                    {"permitted": true, "decision": "PERMITTED"}
                     """));
   }
 
@@ -63,7 +63,7 @@ class RejoinControllerTest {
             content()
                 .json(
                     """
-                    {"permitted": false, "contributionsEndedWithoutApplication": false}
+                    {"permitted": false, "decision": "REFUSED_BY_PENSIONIKESKUS"}
                     """));
   }
 
@@ -81,7 +81,7 @@ class RejoinControllerTest {
             content()
                 .json(
                     """
-                    {"permitted": false, "contributionsEndedWithoutApplication": true}
+                    {"permitted": false, "decision": "CONTRIBUTIONS_ENDED_WITHOUT_APPLICATION"}
                     """));
     verifyNoInteractions(rejoinPermissionSource);
   }

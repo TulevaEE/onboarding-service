@@ -19,6 +19,6 @@ class RejoinController {
   @GetMapping("/rejoin-permission")
   public RejoinPermissionResponse getRejoinPermission(
       @AuthenticationPrincipal AuthenticatedPerson person) {
-    return rejoinPermissions.forPerson(person);
+    return new RejoinPermissionResponse(rejoinPermissions.decideFor(person));
   }
 }

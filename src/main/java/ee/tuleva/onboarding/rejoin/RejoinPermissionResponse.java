@@ -1,3 +1,11 @@
 package ee.tuleva.onboarding.rejoin;
 
-record RejoinPermissionResponse(boolean permitted, boolean contributionsEndedWithoutApplication) {}
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+record RejoinPermissionResponse(RejoinDecision decision) {
+
+  @JsonProperty("permitted")
+  public boolean isPermitted() {
+    return decision == RejoinDecision.PERMITTED;
+  }
+}

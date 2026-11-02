@@ -11,12 +11,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -246,40 +247,36 @@ class UnitOwnerRepositoryTest {
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
   }
 
-  @Test
-  void contributionsEndedWithoutApplication_whenTheDutyEndedWithNoWithdrawalOrStopApplication() {
-    LocalDate dutyEnded = LocalDate.of(2021, 8, 31);
-    LocalDate applied = LocalDate.of(2021, 3, 1);
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "none",
+      textBlock =
+          """
+          # duty end, withdrawal, stop application, ended without application
+          2021-08-31, none,       none,             true
+          2021-08-31, 2021-03-01, none,             false
+          2021-08-31, none,       2021-03-01,       false
+          none,       none,       none,             false
+          """)
+  void contributionsEndedWithoutApplication_whenTheDutyEndedWithNoWithdrawalOrStopApplication(
+      LocalDate dutyEnd,
+      LocalDate withdrawalApplication,
+      LocalDate stopApplication,
+      boolean endedWithoutApplication) {
     repository.save(
         entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
-            .p2dutyEnd(dutyEnded)
-            .p2ravaDate(null)
-            .p2mmteDate(null)
-            .build());
-    repository.save(
-        entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_2, creationTime)
-            .p2dutyEnd(dutyEnded)
-            .p2ravaDate(applied)
-            .p2mmteDate(null)
-            .build());
-    repository.save(
-        entityBuilder(PERSON_ID_3, SNAPSHOT_DATE_2, creationTime)
-            .p2dutyEnd(dutyEnded)
-            .p2ravaDate(null)
-            .p2mmteDate(applied)
-            .build());
-    repository.save(
-        entityBuilder(PERSON_ID_4, SNAPSHOT_DATE_2, creationTime)
-            .p2dutyEnd(null)
-            .p2ravaDate(null)
-            .p2mmteDate(null)
+            .p2dutyEnd(dutyEnd)
+            .p2ravaDate(withdrawalApplication)
+            .p2mmteDate(stopApplication)
             .build());
 
-    assertThat(
-            Stream.of(PERSON_ID_1, PERSON_ID_2, PERSON_ID_3, PERSON_ID_4, "38888888888")
-                .map(repository::contributionsEndedWithoutApplication)
-                .toList())
-        .containsExactly(true, false, false, false, false);
+    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1))
+        .isEqualTo(endedWithoutApplication);
+  }
+
+  @Test
+  void contributionsEndedWithoutApplication_isFalseForSomeoneNotInTheRegistry() {
+    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1)).isFalse();
   }
 
   @Test

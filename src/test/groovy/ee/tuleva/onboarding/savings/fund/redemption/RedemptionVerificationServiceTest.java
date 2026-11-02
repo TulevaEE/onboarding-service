@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.country.Countries;
@@ -182,6 +184,54 @@ class RedemptionVerificationServiceTest {
 
     verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_recordsTheAttemptAndRetriesWhileTheRiskLevelIsUnavailable() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRisk(PERSONAL_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void
+      process_personRequest_holdsThePayoutAsRiskLevelUnavailableWhenNoRiskLevelCameByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRisk(PERSONAL_CODE);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
+  }
+
+  @Test
+  void process_personRequest_holdsThePayoutAtOnceOnAPepHitWhenTheRiskLevelIsUnavailable() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRisk(PERSONAL_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(holdService).holdPayout(request.getId(), Set.of(PEP, RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(request.getId(), RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
 
   @Test

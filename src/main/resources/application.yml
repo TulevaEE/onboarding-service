@@ -77,6 +77,9 @@ aml-service:
   api-token: ${AML_SERVICE_API_TOKEN:}
   connect-timeout: 5s
   read-timeout: 60s
+  high-risk-enabled: ${AML_SERVICE_HIGH_RISK_ENABLED:false}
+  high-risk-connect-timeout: 1s
+  high-risk-read-timeout: 2s
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}

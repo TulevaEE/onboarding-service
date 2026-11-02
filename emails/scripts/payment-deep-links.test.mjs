@@ -8,9 +8,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const PAYMENT_BUTTONS = {
   savings_fund_first_payment_reminder_child_et:
-    'https://pension.tuleva.ee/savings-fund/payment/child?utm_content=first_payment_reminder_child_payment',
+    'https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?utm_content=first_payment_reminder_child_payment',
   savings_fund_first_payment_reminder_child_en:
-    'https://pension.tuleva.ee/savings-fund/payment/child?language=en&utm_content=first_payment_reminder_child_payment',
+    'https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?language=en&utm_content=first_payment_reminder_child_payment',
   savings_fund_first_payment_reminder_company_et:
     'https://pension.tuleva.ee/savings-fund/payment/company?utm_content=first_payment_reminder_company_payment',
   savings_fund_first_payment_reminder_company_en:

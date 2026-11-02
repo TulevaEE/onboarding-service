@@ -252,17 +252,17 @@ class UnitOwnerRepositoryTest {
       nullValues = "none",
       textBlock =
           """
-          # duty end, withdrawal, stop application, ended without application
+          # duty end, withdrawal, stop application, cannot restart
           2021-08-31, none,       none,             true
           2021-08-31, 2021-03-01, none,             false
           2021-08-31, none,       2021-03-01,       false
           none,       none,       none,             false
           """)
-  void contributionsEndedWithoutApplication_whenTheDutyEndedWithNoWithdrawalOrStopApplication(
+  void contributionsCannotRestart_whenTheDutyEndedWithNoWithdrawalOrStopApplication(
       LocalDate dutyEnd,
       LocalDate withdrawalApplication,
       LocalDate stopApplication,
-      boolean endedWithoutApplication) {
+      boolean cannotRestart) {
     repository.save(
         entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
             .p2dutyEnd(dutyEnd)
@@ -270,17 +270,16 @@ class UnitOwnerRepositoryTest {
             .p2mmteDate(stopApplication)
             .build());
 
-    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1))
-        .isEqualTo(endedWithoutApplication);
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isEqualTo(cannotRestart);
   }
 
   @Test
-  void contributionsEndedWithoutApplication_isFalseForSomeoneNotInTheRegistry() {
-    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1)).isFalse();
+  void contributionsCannotRestart_isFalseForSomeoneNotInTheRegistry() {
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isFalse();
   }
 
   @Test
-  void contributionsEndedWithoutApplication_readsOnlyTheLatestSnapshot() {
+  void contributionsCannotRestart_readsOnlyTheLatestSnapshot() {
     repository.save(
         entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime)
             .p2dutyEnd(LocalDate.of(2021, 8, 31))
@@ -293,7 +292,7 @@ class UnitOwnerRepositoryTest {
             .p2ravaDate(LocalDate.of(2021, 3, 1))
             .build());
 
-    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1)).isFalse();
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isFalse();
   }
 
   @Test

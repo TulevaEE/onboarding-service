@@ -17,7 +17,7 @@ public class SecondPillarLeavers implements SecondPillarLeaverStatus {
   }
 
   @Override
-  public boolean contributionsEndedWithoutApplication(String personalCode) {
-    return unitOwnerRepository.contributionsEndedWithoutApplication(personalCode);
+  public boolean contributionsCannotRestart(String personalCode) {
+    return unitOwnerRepository.contributionsCannotRestart(personalCode);
   }
 }

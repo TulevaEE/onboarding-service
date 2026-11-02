@@ -4,5 +4,5 @@ public interface SecondPillarLeaverStatus {
 
   boolean hasLeft(String personalCode);
 
-  boolean contributionsEndedWithoutApplication(String personalCode);
+  boolean contributionsCannotRestart(String personalCode);
 }

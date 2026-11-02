@@ -27,7 +27,6 @@ class OcfSnapshotRepositoryTest {
 
   private static final LocalDate APRIL = LocalDate.of(2026, 4, 1);
   private static final LocalDate MARCH = LocalDate.of(2026, 3, 1);
-  private static final LocalDate MAY_1 = LocalDate.of(2026, 5, 1);
   private static final String SYNTHETIC_ISIN = "ZZ0000000001";
 
   @Autowired private JdbcClient jdbcClient;
@@ -35,6 +34,9 @@ class OcfSnapshotRepositoryTest {
 
   @BeforeEach
   void setUp() {
+    jdbcClient.sql("DELETE FROM investment_ocf_kid_review").update();
+    jdbcClient.sql("DELETE FROM investment_ocf_exception").update();
+    jdbcClient.sql("DELETE FROM investment_ocf_publication").update();
     jdbcClient.sql("DELETE FROM investment_ocf_snapshot").update();
   }
 
@@ -60,22 +62,6 @@ class OcfSnapshotRepositoryTest {
         true,
         null,
         audit);
-  }
-
-  private OcfSnapshot incompleteSnapshot(LocalDate month) {
-    return OcfSnapshot.computed(
-        "TUK75",
-        month,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        RebateBasis.NET,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        false,
-        "{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}",
-        NO_AUDIT);
   }
 
   @Test
@@ -272,196 +258,23 @@ class OcfSnapshotRepositoryTest {
     assertThat(repository.findByFundAndMonth("TUK75", APRIL)).isEmpty();
   }
 
-  @Test
-  void aPublicationRecordsTheFigureItsDateItsFeeAndWhoPublishedIt() {
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    var working = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
-
-    var publication =
-        new OcfPublication(
-            MAY_1,
-            new BigDecimal("0.00330000"),
-            new BigDecimal("0.00330000"),
-            7L,
-            "KID 01.05.2026",
-            "portfolio-manager",
-            null,
-            null);
-
-    var recorded = repository.recordPublication(working, publication);
-
-    assertThat(recorded).isTrue();
-    assertThat(repository.findPublishedInForceOn("TUK75", MAY_1))
-        .contains(new KidFigure(APRIL, 1, MAY_1, new BigDecimal("0.00330000"), "KID 01.05.2026"));
-    assertThat(storedPublication()).isEqualTo(publication);
-  }
-
-  @Test
-  void aVersionAlreadyPublishedIsNotPublishedAgain() {
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    assertThat(publishTheWorkingVersion(APRIL, "KID 2026")).isTrue();
-    var published = repository.findVersion("TUK75", APRIL, 1).orElseThrow();
-
-    assertThat(repository.recordPublication(published, publication("KID 2026 second edition")))
-        .isFalse();
-  }
-
-  @Test
-  void aCalculationThatChangedAfterItWasReadIsNotPublished() {
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    var read = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
-    repository.save(snapshot(APRIL, "0.00350000"), List.of());
-
-    assertThat(repository.recordPublication(read, publication("KID 2026"))).isFalse();
-    assertThat(repository.findPublishedInForceOn("TUK75", MAY_1)).isEmpty();
-  }
-
-  @Test
-  void aCalculationWhoseManagementFeeChangedUnderTheSameTotalIsNotPublished() {
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    var read = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
-    repository.save(
-        OcfSnapshot.computed(
-            "TUK75",
-            APRIL,
-            new BigDecimal("0.00300000"),
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            new BigDecimal("0.00040000"),
-            RebateBasis.NET,
-            BigDecimal.ZERO,
-            new BigDecimal("0.00340000"),
-            true,
-            null,
-            NO_AUDIT),
-        List.of());
-
-    assertThat(repository.recordPublication(read, publication("KID 2026"))).isFalse();
-    assertThat(repository.findPublishedInForceOn("TUK75", MAY_1)).isEmpty();
-  }
-
-  @Test
-  void anExceptionIsNotRecordedAgainstGapsThatChangedAfterTheyWereRead() {
-    repository.save(incompleteSnapshot(APRIL), List.of());
-    var read = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
-    repository.save(
-        OcfSnapshot.computed(
-            "TUK75",
-            APRIL,
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            RebateBasis.NET,
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            false,
-            "{\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]}",
-            NO_AUDIT),
-        List.of());
-
-    assertThat(
-            repository.recordPublication(
-                read,
-                new OcfPublication(
-                    MAY_1,
-                    BigDecimal.ZERO,
-                    BigDecimal.ZERO,
-                    7L,
-                    "KID 2026",
-                    "portfolio-manager",
-                    "fund-manager",
-                    "the gaps were reviewed")))
-        .isFalse();
-  }
-
-  @Test
-  void anIncompleteCalculationPublishedAsAnExceptionKeepsItsGapsWithTheReasonAndApprover() {
-    repository.save(incompleteSnapshot(APRIL), List.of());
-    var working = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
-
-    var publication =
-        new OcfPublication(
-            MAY_1,
-            working.totalOcf(),
-            new BigDecimal("0.00340000"),
-            7L,
-            "KID 2026",
-            "portfolio-manager",
-            "fund-manager",
-            "the fee rate is set by the supervisory board decision");
-
-    repository.recordPublication(working, publication);
-
-    var published = repository.findVersion("TUK75", APRIL, 1).orElseThrow();
-    assertThat(published.complete()).isFalse();
-    assertThat(published.checks()).isEqualTo(working.checks());
-    assertThat(storedPublication()).isEqualTo(publication);
-  }
-
-  @Test
-  void theKidInForceOnADayIsTheLatestPublicationValidByThen() {
-    repository.save(snapshot(MARCH, "0.00300000"), List.of());
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    repository.recordPublication(
-        repository.findByFundAndMonth("TUK75", MARCH).orElseThrow(),
-        publication(MARCH.plusMonths(1), "KID 01.04.2026"));
-    repository.recordPublication(
-        repository.findByFundAndMonth("TUK75", APRIL).orElseThrow(), publication("KID 01.05.2026"));
-
-    assertThat(repository.findPublishedInForceOn("TUK75", MARCH.plusMonths(1).minusDays(1)))
-        .isEmpty();
-    assertThat(repository.findPublishedInForceOn("TUK75", MAY_1.minusDays(1)))
-        .contains(
-            new KidFigure(
-                MARCH, 1, MARCH.plusMonths(1), new BigDecimal("0.00340000"), "KID 01.04.2026"));
-    assertThat(repository.findPublishedInForceOn("TUK75", MAY_1))
-        .contains(new KidFigure(APRIL, 1, MAY_1, new BigDecimal("0.00340000"), "KID 01.05.2026"));
-    assertThat(repository.findPublishedInForceOn("TUV100", MAY_1)).isEmpty();
-  }
-
-  private boolean publishTheWorkingVersion(LocalDate month, String publishedIn) {
-    return repository.recordPublication(
-        repository.findByFundAndMonth("TUK75", month).orElseThrow(), publication(publishedIn));
-  }
-
-  private static OcfPublication publication(String publishedIn) {
-    return publication(MAY_1, publishedIn);
-  }
-
-  private static OcfPublication publication(LocalDate validFrom, String publishedIn) {
-    return new OcfPublication(
-        validFrom,
-        new BigDecimal("0.00340000"),
-        new BigDecimal("0.00340000"),
-        7L,
-        publishedIn,
-        "portfolio-manager",
-        null,
-        null);
-  }
-
-  private OcfPublication storedPublication() {
-    return jdbcClient
+  private void publishTheWorkingVersion(LocalDate month, String publishedIn) {
+    jdbcClient
         .sql(
             """
-            SELECT published_valid_from, published_ocf, published_management_fee_rate,
-                   published_management_fee_rate_id, published_in, published_by,
-                   publication_approved_by, publication_exception_reason
-            FROM investment_ocf_snapshot WHERE published_at IS NOT NULL
+            UPDATE investment_ocf_snapshot
+            SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
+            WHERE fund_code = 'TUK75' AND snapshot_month = :month AND published_at IS NULL
             """)
-        .query(
-            (rs, rowNum) ->
-                new OcfPublication(
-                    rs.getObject("published_valid_from", LocalDate.class),
-                    rs.getBigDecimal("published_ocf"),
-                    rs.getBigDecimal("published_management_fee_rate"),
-                    rs.getLong("published_management_fee_rate_id"),
-                    rs.getString("published_in"),
-                    rs.getString("published_by"),
-                    rs.getString("publication_approved_by"),
-                    rs.getString("publication_exception_reason")))
-        .single();
+        .param("publishedIn", publishedIn)
+        .param("month", month)
+        .update();
+  }
+
+  @Test
+  void aCalculationNotYetStoredHasNoIdToRecordADecisionAgainst() {
+    assertThatThrownBy(() -> snapshot(APRIL, "0.00340000").storedId())
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

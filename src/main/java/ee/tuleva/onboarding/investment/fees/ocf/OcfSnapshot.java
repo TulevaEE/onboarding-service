@@ -65,6 +65,15 @@ public record OcfSnapshot(
         audit);
   }
 
+  long storedId() {
+    if (id == null) {
+      throw new IllegalStateException(
+          "OCF calculation not stored yet: fundCode=%s, snapshotMonth=%s"
+              .formatted(fundCode, snapshotMonth));
+    }
+    return id;
+  }
+
   public static OcfSnapshot fromResultSet(ResultSet rs, int rowNum) throws SQLException {
     var publishedAt = rs.getTimestamp("published_at");
     return new OcfSnapshot(

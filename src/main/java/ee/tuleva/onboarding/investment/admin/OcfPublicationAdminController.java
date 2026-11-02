@@ -1,6 +1,12 @@
 package ee.tuleva.onboarding.investment.admin;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
+import ee.tuleva.onboarding.investment.fees.ocf.KidFigure;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationDecisionService;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationPreview;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfExceptionRequest;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfGivenPublicationRequest;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfKidReviewRequest;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationPreview;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationRequest;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationService;
@@ -25,9 +31,36 @@ public class OcfPublicationAdminController {
 
   private final AdminTokenValidator tokenValidator;
   private final OcfPublicationService ocfPublicationService;
+  private final OcfCalculationDecisionService ocfCalculationDecisionService;
+
+  public record CalculationRequest(@NotNull TulevaFund fund, @NotNull YearMonth month) {}
 
   public record PreviewRequest(
       @NotNull TulevaFund fund, @NotNull YearMonth month, @NotNull LocalDate validFrom) {}
+
+  @PostMapping("/calculation")
+  public OcfCalculationPreview calculation(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody CalculationRequest request) {
+    tokenValidator.validateWithOpsAccess(token);
+    return ocfCalculationDecisionService.preview(request.fund(), request.month());
+  }
+
+  @PostMapping("/exception")
+  public OcfCalculationPreview exception(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody OcfExceptionRequest request) {
+    tokenValidator.validateWithOpsAccess(token);
+    return ocfCalculationDecisionService.recordException(request);
+  }
+
+  @PostMapping("/review")
+  public OcfCalculationPreview review(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody OcfKidReviewRequest request) {
+    tokenValidator.validateWithOpsAccess(token);
+    return ocfCalculationDecisionService.recordReview(request);
+  }
 
   @PostMapping("/preview")
   public OcfPublicationPreview preview(
@@ -42,5 +75,13 @@ public class OcfPublicationAdminController {
       @Valid @RequestBody OcfPublicationRequest request) {
     tokenValidator.validateWithOpsAccess(token);
     return ocfPublicationService.publish(request);
+  }
+
+  @PostMapping("/given")
+  public KidFigure publishGiven(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody OcfGivenPublicationRequest request) {
+    tokenValidator.validateWithOpsAccess(token);
+    return ocfPublicationService.publishGiven(request);
   }
 }

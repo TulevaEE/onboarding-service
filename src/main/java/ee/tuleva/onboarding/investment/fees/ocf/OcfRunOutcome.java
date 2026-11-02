@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Failed {
 
@@ -17,7 +16,7 @@ sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Fai
       OcfSnapshot snapshot,
       List<OcfGap> gaps,
       List<OcfHolding> holdings,
-      @Nullable KidFigure kidInForce)
+      KidComparison kid)
       implements OcfRunOutcome {
 
     boolean incomplete() {
@@ -25,9 +24,11 @@ sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Fai
     }
 
     boolean differsFromTheKid() {
-      return !incomplete()
-          && kidInForce != null
-          && kidInForce.differsAtThePublishedPrecisionFrom(snapshot.totalOcf());
+      return !incomplete() && kid.differsFrom(snapshot.totalOcf());
+    }
+
+    boolean awaitsAKidReview() {
+      return differsFromTheKid() && kid.keptOnReview() == null;
     }
   }
 

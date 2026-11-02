@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeRateSource.FIXED;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
 import static ee.tuleva.onboarding.investment.fees.ocf.UnderlyingWeightBasis.MONTH_AVERAGE;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -9,13 +10,17 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.rate.AgreementPeriod;
 import ee.tuleva.onboarding.investment.fees.rate.DailyRates;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentOcfService;
@@ -25,6 +30,7 @@ import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -49,7 +55,13 @@ import tools.jackson.databind.json.JsonMapper;
   OcfCalculationServiceIT.Json.class,
   OcfCalculationService.class,
   OcfPublicationService.class,
+  OcfCalculationDecisionService.class,
+  OcfCalculationVersions.class,
+  KidComparisons.class,
   OcfSnapshotRepository.class,
+  OcfPublicationRepository.class,
+  OcfExceptionRepository.class,
+  OcfKidReviewRepository.class,
   HistoricalTransactionFeeRepository.class,
   OcfJson.class,
   MonthEndNavCheck.class,
@@ -75,6 +87,11 @@ class OcfCalculationServiceIT {
     JsonMapper jsonMapper() {
       return JsonMapper.builder().build();
     }
+
+    @Bean
+    Clock clock() {
+      return Clock.fixed(Instant.parse("2026-11-03T10:00:00Z"), UTC);
+    }
   }
 
   @MockitoBean private FeeRateRepository feeRateRepository;
@@ -85,6 +102,8 @@ class OcfCalculationServiceIT {
 
   @Autowired private OcfCalculationService service;
   @Autowired private OcfPublicationService publicationService;
+  @Autowired private OcfCalculationDecisionService decisionService;
+  @Autowired private OcfPublicationRepository publicationRepository;
   @Autowired private OcfSnapshotRepository snapshotRepository;
   @Autowired private NavReportRepository navReportRepository;
   @Autowired private JdbcClient jdbcClient;
@@ -115,8 +134,131 @@ class OcfCalculationServiceIT {
     assertThat(stored.complete()).isFalse();
     assertThat(stored.checks()).contains("\"gaps\":[\"MONTH_END_NAV_NOT_PUBLISHED\"]");
     assertThat(stored.audit().navDate()).isEqualTo(TUESDAY_SEPTEMBER_29);
-    assertThatThrownBy(() -> publish(stored, null))
+    assertThatThrownBy(() -> publish(stored, "portfolio-manager"))
         .isInstanceOf(OcfPublicationRefusedException.class);
+  }
+
+  @Test
+  void anIncompleteMonthTheFundManagerExceptedIsPublishedBySomeoneElseButNotByThemselves() {
+    publishedNav(TUESDAY_SEPTEMBER_29);
+    unpublishedNav(WEDNESDAY_SEPTEMBER_30);
+    service.calculateOcf(TUK75, SEPTEMBER);
+    var calculation = decisionService.preview(TUK75, SEPTEMBER);
+
+    var excepted =
+        decisionService.recordException(
+            new OcfExceptionRequest(
+                TUK75,
+                SEPTEMBER,
+                calculation.version(),
+                calculation.calculationFingerprint(),
+                "the month-end NAV is late and the KID cannot wait",
+                "fund-manager"));
+
+    assertThat(excepted.exception())
+        .isEqualTo(
+            new ExceptionDecision(
+                "fund-manager",
+                "the month-end NAV is late and the KID cannot wait",
+                Instant.parse("2026-11-03T10:00:00Z")));
+    var stored = storedSnapshot(SEPTEMBER);
+    assertThatThrownBy(() -> publish(stored, " Fund-Manager "))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    publish(stored, "portfolio-manager");
+    assertThat(publicationRepository.findInForceOn(TUK75.getCode(), OCTOBER_1))
+        .get()
+        .extracting(KidFigure::publishedIn)
+        .isEqualTo(PUBLISHED_IN);
+  }
+
+  @Test
+  void aMonthDifferingFromTheKidAsksForAReviewUntilTheKidIsKeptOnReviewForThatFigure() {
+    given(instrumentOcfService.dailyRatesFor(MAY))
+        .willReturn(new DailyRates(MAY, List.of(), Map.of()));
+    publishedNav(FRIDAY_MAY_29);
+    publicationService.publishGiven(givenKid(LocalDate.of(2026, 3, 1), "KID 01.03.2026"));
+    service.calculateForAllFunds(MAY);
+    var calculation = decisionService.preview(TUK75, MAY);
+
+    var reviewed =
+        decisionService.recordReview(
+            new OcfKidReviewRequest(
+                TUK75,
+                MAY,
+                calculation.version(),
+                calculation.calculationFingerprint(),
+                calculation.kidInForceAtMonthEnd().publicationId(),
+                "the difference is a one-off, the KID stays",
+                "portfolio-manager"));
+    service.calculateForAllFunds(MAY);
+
+    assertThat(calculation.differsFromTheKid()).isTrue();
+    assertThat(calculation.keptOnReview()).isNull();
+    assertThat(reviewed.keptOnReview())
+        .isEqualTo(
+            new KidReview(
+                "portfolio-manager",
+                "the difference is a one-off, the KID stays",
+                Instant.parse("2026-11-03T10:00:00Z")));
+    then(ocfNotifier)
+        .should()
+        .notifyRun(eq(MAY), argThat(outcomes -> tuk75(outcomes).awaitsAKidReview()), any());
+    then(ocfNotifier)
+        .should()
+        .notifyRun(
+            eq(MAY),
+            argThat(
+                outcomes ->
+                    tuk75(outcomes).differsFromTheKid() && !tuk75(outcomes).awaitsAKidReview()),
+            any());
+  }
+
+  @Test
+  void aReviewOfTheKidSlackShowedIsRefusedOnceANewerKidTookEffectBeforeTheMonthEnd() {
+    given(instrumentOcfService.dailyRatesFor(MAY))
+        .willReturn(new DailyRates(MAY, List.of(), Map.of()));
+    publishedNav(FRIDAY_MAY_29);
+    publicationService.publishGiven(givenKid(LocalDate.of(2026, 3, 1), "KID 01.03.2026"));
+    service.calculateOcf(TUK75, MAY);
+    var calculation = decisionService.preview(TUK75, MAY);
+    publicationService.publishGiven(givenKid(LocalDate.of(2026, 5, 15), "KID 15.05.2026"));
+
+    assertThatThrownBy(
+            () ->
+                decisionService.recordReview(
+                    new OcfKidReviewRequest(
+                        TUK75,
+                        MAY,
+                        calculation.version(),
+                        calculation.calculationFingerprint(),
+                        calculation.kidInForceAtMonthEnd().publicationId(),
+                        "the difference is a one-off, the KID stays",
+                        "portfolio-manager")))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    assertThat(decisionService.preview(TUK75, MAY).keptOnReview()).isNull();
+  }
+
+  private static OcfGivenPublicationRequest givenKid(LocalDate validFrom, String publishedIn) {
+    return new OcfGivenPublicationRequest(
+        TUK75,
+        validFrom,
+        new BigDecimal("0.0046"),
+        2,
+        MONTHLY_ESTIMATE,
+        null,
+        null,
+        publishedIn,
+        "portfolio-manager",
+        "the KID in force before the monthly calculation");
+  }
+
+  private static Computed tuk75(List<OcfRunOutcome> outcomes) {
+    return outcomes.stream()
+        .filter(Computed.class::isInstance)
+        .map(Computed.class::cast)
+        .filter(computed -> computed.fund() == TUK75)
+        .findFirst()
+        .orElseThrow();
   }
 
   @Test
@@ -132,8 +274,8 @@ class OcfCalculationServiceIT {
     assertThat(stored.complete()).isTrue();
     assertThat(stored.checks()).contains("\"gaps\":[]");
     assertThat(stored.audit().navDate()).isEqualTo(WEDNESDAY_SEPTEMBER_30);
-    publish(stored, null);
-    assertThat(snapshotRepository.findPublishedInForceOn(TUK75.getCode(), OCTOBER_1))
+    publish(stored, "portfolio-manager");
+    assertThat(publicationRepository.findInForceOn(TUK75.getCode(), OCTOBER_1))
         .get()
         .extracting(KidFigure::publishedIn)
         .isEqualTo(PUBLISHED_IN);
@@ -328,7 +470,7 @@ class OcfCalculationServiceIT {
     return calculationId;
   }
 
-  private void publish(OcfSnapshot snapshot, @Nullable String exceptionReason) {
+  private void publish(OcfSnapshot snapshot, String publishedBy) {
     var month = YearMonth.from(snapshot.snapshotMonth());
     var preview = publicationService.preview(TUK75, month, OCTOBER_1);
     publicationService.publish(
@@ -340,9 +482,8 @@ class OcfCalculationServiceIT {
             OCTOBER_1,
             preview.publishedOcf(),
             PUBLISHED_IN,
-            "portfolio-manager",
-            null,
-            exceptionReason));
+            publishedBy,
+            "the monthly estimate"));
   }
 
   private OcfSnapshot storedSnapshot(YearMonth month) {

@@ -163,68 +163,6 @@ public class OcfSnapshotRepository {
         .update();
   }
 
-  boolean recordPublication(OcfSnapshot snapshot, OcfPublication publication) {
-    return jdbcClient
-            .sql(
-                """
-                UPDATE investment_ocf_snapshot SET
-                  published_at = CURRENT_TIMESTAMP,
-                  published_in = :publishedIn,
-                  published_valid_from = :validFrom,
-                  published_ocf = :publishedOcf,
-                  published_management_fee_rate = :managementFeeRate,
-                  published_management_fee_rate_id = :managementFeeRateId,
-                  published_by = :publishedBy,
-                  publication_approved_by = :approvedBy,
-                  publication_exception_reason = :exceptionReason
-                WHERE id = :id
-                  AND published_at IS NULL
-                  AND total_ocf = :totalOcf
-                  AND management_fee_rate = :calculatedManagementFeeRate
-                  AND complete = :complete
-                  AND checks = :checks
-                """)
-            .param("publishedIn", publication.publishedIn())
-            .param("validFrom", publication.validFrom())
-            .param("publishedOcf", publication.publishedOcf())
-            .param("managementFeeRate", publication.managementFeeRate())
-            .param("managementFeeRateId", publication.managementFeeRateId())
-            .param("publishedBy", publication.publishedBy())
-            .param("approvedBy", publication.approvedBy())
-            .param("exceptionReason", publication.exceptionReason())
-            .param("id", snapshot.id())
-            .param("totalOcf", snapshot.totalOcf())
-            .param("calculatedManagementFeeRate", snapshot.managementFeeRate())
-            .param("complete", snapshot.complete())
-            .param("checks", snapshot.checks())
-            .update()
-        == 1;
-  }
-
-  Optional<KidFigure> findPublishedInForceOn(String fundCode, LocalDate date) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT snapshot_month, version, published_valid_from, published_ocf, published_in
-            FROM investment_ocf_snapshot
-            WHERE fund_code = :fundCode
-              AND published_valid_from <= :date
-            ORDER BY published_valid_from DESC, published_at DESC, id DESC
-            LIMIT 1
-            """)
-        .param("fundCode", fundCode)
-        .param("date", date)
-        .query(
-            (rs, rowNum) ->
-                new KidFigure(
-                    rs.getObject("snapshot_month", LocalDate.class),
-                    rs.getInt("version"),
-                    rs.getObject("published_valid_from", LocalDate.class),
-                    rs.getBigDecimal("published_ocf"),
-                    rs.getString("published_in")))
-        .optional();
-  }
-
   Optional<OcfSnapshot> findVersion(String fundCode, LocalDate snapshotMonth, int version) {
     return jdbcClient
         .sql(

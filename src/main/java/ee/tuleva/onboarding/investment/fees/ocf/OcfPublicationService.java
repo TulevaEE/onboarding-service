@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.EX_POST;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.fees.FeeRate;
@@ -11,7 +12,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -19,75 +19,64 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OcfPublicationService {
 
-  private static final int PUBLISHED_PERCENT_DECIMAL_PLACES = 2;
+  private static final String NOT_PUBLISHED = "OCF not published, ";
 
-  private final OcfSnapshotRepository ocfSnapshotRepository;
+  private final OcfCalculationVersions calculationVersions;
   private final FeeRateRepository feeRateRepository;
+  private final OcfPublicationRepository publicationRepository;
+  private final OcfExceptionRepository exceptionRepository;
 
   public OcfPublicationPreview preview(TulevaFund fund, YearMonth month, LocalDate validFrom) {
     refuseUnlessAfterTheMonth(fund, month, validFrom);
-    var snapshot =
-        ocfSnapshotRepository
-            .findByFundAndMonth(fund.getCode(), month.atDay(1))
-            .orElseThrow(
-                () ->
-                    new OcfPublicationRefusedException(
-                        "No OCF calculation for the month: fund=%s, month=%s"
-                            .formatted(fund.getCode(), month)));
-    return preview(fund, snapshot, validFrom);
+    return preview(fund, calculationVersions.latest(fund, month), validFrom);
   }
 
   public OcfPublicationPreview publish(OcfPublicationRequest request) {
     var fund = request.fund();
     refuseUnlessAfterTheMonth(fund, request.month(), request.validFrom());
-    var snapshot = theRequestedVersion(request);
+    var snapshot = calculationVersions.unchanged(request);
     var fee = managementFeeOn(fund, request.validFrom());
     var publishedOcf = publishedOcf(snapshot, fee);
     refuseUnlessPublishable(snapshot, request, publishedOcf);
-    var publication =
-        new OcfPublication(
-            request.validFrom(),
-            publishedOcf,
-            fee.annualRate(),
-            fee.id(),
-            request.publishedIn(),
-            request.publishedBy(),
-            request.approvedBy(),
-            request.exceptionReason());
-    if (!ocfSnapshotRepository.recordPublication(snapshot, publication)) {
-      throw new OcfPublicationRefusedException(
-          "The OCF calculation changed or was published since it was read: fund=%s, month=%s,"
-                  .formatted(fund.getCode(), request.month())
-              + " version=%d".formatted(request.version()));
+    refuseUnlessTheIncompletenessWasExcepted(snapshot, request);
+    refuseAKidAlreadyRecorded(fund, request.validFrom(), request.publishedIn());
+    if (!publicationRepository.recordFromCalculation(
+        snapshot, OcfPublication.fromCalculation(request, publishedOcf, fee))) {
+      throw request.refusal(NOT_PUBLISHED + "the calculation changed or was published since read");
     }
     log.info(
-        "OCF published: fund={}, month={}, version={}, validFrom={}, publishedOcf={},"
-            + " publishedIn={}, exception={}",
+        "OCF published from a calculation: fund={}, month={}, version={}, validFrom={},"
+            + " publishedOcf={}, publishedIn={}, complete={}",
         fund.getCode(),
         request.month(),
         request.version(),
         request.validFrom(),
         publishedOcf,
         request.publishedIn(),
-        request.exceptionReason() != null);
-    return preview(fund, theRequestedVersion(request), request.validFrom());
+        snapshot.complete());
+    return preview(fund, calculationVersions.unchanged(request), request.validFrom());
   }
 
-  private OcfSnapshot theRequestedVersion(OcfPublicationRequest request) {
-    var fund = request.fund();
-    return ocfSnapshotRepository
-        .findVersion(fund.getCode(), request.month().atDay(1), request.version())
-        .orElseThrow(
-            () ->
-                new OcfPublicationRefusedException(
-                    "No such OCF calculation: fund=%s, month=%s, version=%d"
-                        .formatted(fund.getCode(), request.month(), request.version())));
+  public KidFigure publishGiven(OcfGivenPublicationRequest request) {
+    refuseUnlessThePeriodFitsTheBasis(request);
+    refuseAKidAlreadyRecorded(request.fund(), request.validFrom(), request.publishedIn());
+    var recorded = publicationRepository.recordGiven(OcfPublication.given(request));
+    log.info(
+        "OCF given figure recorded: fund={}, validFrom={}, publishedOcf={}, basis={},"
+            + " publishedIn={}",
+        request.fund().getCode(),
+        request.validFrom(),
+        request.publishedOcf(),
+        request.basis(),
+        request.publishedIn());
+    return recorded;
   }
 
   private OcfPublicationPreview preview(
       TulevaFund fund, OcfSnapshot snapshot, LocalDate validFrom) {
     var fee = managementFeeOn(fund, validFrom);
     var publishedOcf = publishedOcf(snapshot, fee);
+    var precision = PublishedPrecision.of(fund);
     return new OcfPublicationPreview(
         fund.getCode(),
         YearMonth.from(snapshot.snapshotMonth()),
@@ -100,11 +89,61 @@ public class OcfPublicationService {
         validFrom,
         fee.annualRate(),
         publishedOcf,
-        publishedOcf.movePointRight(2).setScale(PUBLISHED_PERCENT_DECIMAL_PLACES, HALF_UP),
-        ocfSnapshotRepository
-            .findPublishedInForceOn(fund.getCode(), validFrom.minusDays(1))
-            .orElse(null),
+        precision.percent(publishedOcf),
+        precision.decimals(),
+        publicationRepository.findInForceOn(fund.getCode(), validFrom.minusDays(1)).orElse(null),
+        exceptionRepository.findForTheCurrentCalculation(snapshot).orElse(null),
         snapshot.publishedAt() != null);
+  }
+
+  private void refuseUnlessTheIncompletenessWasExcepted(
+      OcfSnapshot snapshot, OcfPublicationRequest request) {
+    if (snapshot.complete()) {
+      return;
+    }
+    var exception = exceptionRepository.findForTheCurrentCalculation(snapshot);
+    if (exception.isEmpty()) {
+      throw request.refusal(
+          NOT_PUBLISHED
+              + "the calculation is incomplete (%s) and the fund manager has not decided an"
+                  .formatted(snapshot.checks())
+              + " exception for it");
+    }
+    if (samePerson(request.publishedBy(), exception.get().decidedBy())) {
+      throw request.refusal(
+          NOT_PUBLISHED + "the publisher must be someone other than who decided the exception");
+    }
+  }
+
+  private void refuseAKidAlreadyRecorded(TulevaFund fund, LocalDate validFrom, String publishedIn) {
+    if (publicationRepository.isRecorded(fund.getCode(), validFrom, publishedIn)) {
+      throw new OcfPublicationRefusedException(
+          "OCF not published, this KID is already recorded: fund=%s, validFrom=%s, publishedIn=%s"
+              .formatted(fund.getCode(), validFrom, publishedIn));
+    }
+  }
+
+  private static void refuseUnlessThePeriodFitsTheBasis(OcfGivenPublicationRequest request) {
+    var start = request.exPostPeriodStart();
+    var end = request.exPostPeriodEnd();
+    var exPost = request.basis() == EX_POST;
+    if (exPost != (start != null) || exPost != (end != null)) {
+      throw refusedGiven(request, "an ex-post figure names its period and an estimate does not");
+    }
+    if (start != null && end != null && start.isAfter(end)) {
+      throw refusedGiven(request, "the ex-post period ends before it starts");
+    }
+  }
+
+  private static OcfPublicationRefusedException refusedGiven(
+      OcfGivenPublicationRequest request, String why) {
+    return new OcfPublicationRefusedException(
+        "OCF not recorded, %s: fund=%s, validFrom=%s, basis=%s"
+            .formatted(why, request.fund().getCode(), request.validFrom(), request.basis()));
+  }
+
+  private static boolean samePerson(String one, String other) {
+    return one.strip().equalsIgnoreCase(other.strip());
   }
 
   private static void refuseUnlessAfterTheMonth(
@@ -120,51 +159,14 @@ public class OcfPublicationService {
   private static void refuseUnlessPublishable(
       OcfSnapshot snapshot, OcfPublicationRequest request, BigDecimal publishedOcf) {
     if (snapshot.publishedAt() != null) {
-      throw refused(request, "the calculation is already published");
-    }
-    if (!OcfCalculationFingerprint.of(snapshot).equals(request.calculationFingerprint())) {
-      throw refused(request, "the calculation was recalculated since it was previewed");
+      throw request.refusal(NOT_PUBLISHED + "the calculation is already published");
     }
     if (publishedOcf.compareTo(request.publishedOcf()) != 0) {
-      throw refused(
-          request,
-          "the figure is %s, not the %s that was previewed"
-              .formatted(publishedOcf.toPlainString(), request.publishedOcf().toPlainString()));
+      throw request.refusal(
+          NOT_PUBLISHED
+              + "the figure is %s, not the %s that was previewed"
+                  .formatted(publishedOcf.toPlainString(), request.publishedOcf().toPlainString()));
     }
-    refuseUnlessTheExceptionFitsTheCompleteness(snapshot, request);
-    refuseAnApproverWhoIsThePublisher(request);
-  }
-
-  private static void refuseUnlessTheExceptionFitsTheCompleteness(
-      OcfSnapshot snapshot, OcfPublicationRequest request) {
-    var anException = !isBlank(request.exceptionReason()) && !isBlank(request.approvedBy());
-    if (snapshot.complete() && request.exceptionReason() != null) {
-      throw refused(request, "a complete calculation is published without an exception");
-    }
-    if (!snapshot.complete() && !anException) {
-      throw refused(
-          request,
-          "the calculation is incomplete (%s), so publishing it needs an exception reason and a"
-                  .formatted(snapshot.checks())
-              + " second approver");
-    }
-  }
-
-  private static void refuseAnApproverWhoIsThePublisher(OcfPublicationRequest request) {
-    var approvedBy = request.approvedBy();
-    if (approvedBy != null && request.publishedBy().strip().equalsIgnoreCase(approvedBy.strip())) {
-      throw refused(request, "the second approver must be someone other than the publisher");
-    }
-  }
-
-  private static OcfPublicationRefusedException refused(OcfPublicationRequest request, String why) {
-    return new OcfPublicationRefusedException(
-        "OCF not published, %s: fund=%s, month=%s, version=%d"
-            .formatted(why, request.fund().getCode(), request.month(), request.version()));
-  }
-
-  private static boolean isBlank(@Nullable String text) {
-    return text == null || text.isBlank();
   }
 
   private FeeRate managementFeeOn(TulevaFund fund, LocalDate validFrom) {

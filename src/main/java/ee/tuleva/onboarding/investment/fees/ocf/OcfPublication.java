@@ -1,15 +1,61 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.MONTHLY_ESTIMATE;
+
+import ee.tuleva.onboarding.investment.fees.FeeRate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 
 record OcfPublication(
+    String fundCode,
     LocalDate validFrom,
     BigDecimal publishedOcf,
-    BigDecimal managementFeeRate,
-    long managementFeeRateId,
+    int publishedDecimals,
+    OcfPublicationBasis basis,
+    String basisReason,
+    @Nullable BigDecimal managementFeeRate,
+    @Nullable Long managementFeeRateId,
+    @Nullable LocalDate exPostPeriodStart,
+    @Nullable LocalDate exPostPeriodEnd,
     String publishedIn,
-    String publishedBy,
-    @Nullable String approvedBy,
-    @Nullable String exceptionReason) {}
+    String publishedBy) {
+
+  static OcfPublication fromCalculation(
+      OcfPublicationRequest request, BigDecimal publishedOcf, FeeRate fee) {
+    return new OcfPublication(
+        request.fund().getCode(),
+        request.validFrom(),
+        publishedOcf,
+        PublishedPrecision.of(request.fund()).decimals(),
+        MONTHLY_ESTIMATE,
+        request.basisReason(),
+        fee.annualRate(),
+        fee.id(),
+        null,
+        null,
+        request.publishedIn(),
+        request.publishedBy());
+  }
+
+  static OcfPublication given(OcfGivenPublicationRequest request) {
+    return new OcfPublication(
+        request.fund().getCode(),
+        request.validFrom(),
+        request.publishedOcf(),
+        request.publishedDecimals(),
+        request.basis(),
+        request.basisReason(),
+        null,
+        null,
+        request.exPostPeriodStart(),
+        request.exPostPeriodEnd(),
+        request.publishedIn(),
+        request.publishedBy());
+  }
+
+  KidFigure recordedAs(long publicationId) {
+    return new KidFigure(
+        publicationId, validFrom, publishedOcf, publishedDecimals, basis, publishedIn);
+  }
+}

@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -77,6 +78,9 @@ class OcfCalculationServiceTest {
   @Mock(strictness = Mock.Strictness.LENIENT)
   private UnderlyingWeights underlyingWeights;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private KidComparisons kidComparisons;
+
   @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
   @Spy private MonthEndNavCheck monthEndNavCheck = new MonthEndNavCheck(PUBLIC_HOLIDAYS);
@@ -86,6 +90,14 @@ class OcfCalculationServiceTest {
   @BeforeEach
   void defaultFeesChargedToFund() {
     given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
+  }
+
+  @BeforeEach
+  void noKidIsRecordedByDefault() {
+    given(kidComparisons.atTheMonthEndOf(any(), any()))
+        .willAnswer(
+            invocation ->
+                new KidComparison(PublishedPrecision.of(invocation.getArgument(0)), null, null));
   }
 
   @BeforeEach
@@ -1065,17 +1077,23 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void eachComputedFundCarriesTheKidFigureInForceAtTheMonthEnd() {
+  void eachComputedFundCarriesItsComparisonWithTheKidInForceAtTheMonthEnd() {
     givenEveryFundComputesWithNothingCharged();
     var kid =
-        new KidFigure(
-            MONTH.minusMonths(2).atDay(1),
-            1,
-            MONTH.minusMonths(1).atDay(1),
-            new BigDecimal("0.00280000"),
-            "KID 2026");
-    given(ocfSnapshotRepository.findPublishedInForceOn(TUK75.getCode(), MONTH_END))
-        .willReturn(Optional.of(kid));
+        new KidComparison(
+            new PublishedPrecision(2),
+            new KidFigure(
+                5L,
+                MONTH.minusMonths(1).atDay(1),
+                new BigDecimal("0.00460000"),
+                2,
+                OcfPublicationBasis.MONTHLY_ESTIMATE,
+                "KID 2026"),
+            null);
+    willReturn(kid)
+        .given(kidComparisons)
+        .atTheMonthEndOf(
+            eq(TUK75), argThat(snapshot -> snapshot.fundCode().equals(TUK75.getCode())));
 
     service.calculateForAllFunds(MONTH);
 
@@ -1089,7 +1107,7 @@ class OcfCalculationServiceTest {
                         .filter(Computed.class::isInstance)
                         .map(Computed.class::cast)
                         .filter(computed -> computed.fund() == TUK75)
-                        .allMatch(computed -> kid.equals(computed.kidInForce()))),
+                        .allMatch(computed -> kid.equals(computed.kid()))),
             any());
   }
 

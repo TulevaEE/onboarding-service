@@ -23,6 +23,7 @@ import java.util.Optional;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.With;
 import org.jspecify.annotations.Nullable;
 
 @Getter
@@ -42,6 +43,7 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
+  @With private final boolean lastPage;
 
   public Optional<BigDecimal> bookedBalance() {
     return balances.stream()
@@ -53,7 +55,8 @@ public class BankStatement {
   public Optional<BigDecimal> closingBalanceOn(LocalDate day, ZoneId timezone) {
     var opening = Optional.ofNullable(findOpeningBalance(balances));
     var bookings = bookingsDatedInsideThePeriod(timezone);
-    if (opening.isEmpty()
+    if (!lastPage
+        || opening.isEmpty()
         || bookings.isEmpty()
         || !period.covers(day)
         || !addUpToTheClosingBalance(opening.get(), bookings.get())) {
@@ -131,12 +134,22 @@ public class BankStatement {
 
   public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
-    return from(report, timezone);
+    var lastPage =
+        Optional.ofNullable(accountReport.getGrpHdr())
+            .map(header -> header.getMsgPgntn())
+            .map(pagination -> pagination.isLastPgInd())
+            .orElse(true);
+    return from(report, timezone).withLastPage(lastPage);
   }
 
   public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
     var statement = Require.exactlyOne(customerStatement.getStmt(), "statement");
-    return from(statement, timezone);
+    var lastPage =
+        Optional.ofNullable(customerStatement.getGrpHdr())
+            .map(header -> header.getMsgPgntn())
+            .map(pagination -> pagination.isLastPgInd())
+            .orElse(true);
+    return from(statement, timezone).withLastPage(lastPage);
   }
 
   static BankStatement from(AccountReport11 report, ZoneId timezone) {
@@ -158,7 +171,7 @@ public class BankStatement {
     var summary = TransactionSummary.from(report.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period);
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period, true);
   }
 
   static BankStatement from(AccountStatement2 statement, ZoneId timezone) {
@@ -174,7 +187,7 @@ public class BankStatement {
     var summary = TransactionSummary.from(statement.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries, period);
+    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries, period, true);
   }
 
   private static StatementPeriod period(

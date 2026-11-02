@@ -356,6 +356,17 @@ class BankStatementTest {
   }
 
   @Test
+  void closingBalanceOn_isAbsentWhenTheBankSentOnlyOnePageOfTheStatement() {
+    var firstPage =
+        catchUpStatement(
+                List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1000.00")),
+                List.of(bookedOn(DATE, "200.00"), bookedOn(DATE.plusDays(2), "-200.00")))
+            .withLastPage(false);
+
+    assertThat(firstPage.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  @Test
   void closingBalanceOn_isAbsentOutsideTheStatementPeriod() {
     var statement =
         catchUpStatement(
@@ -419,7 +430,8 @@ class BankStatementTest {
         new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
         balances,
         entries,
-        new StatementPeriod(DATE, DATE.plusDays(2)));
+        new StatementPeriod(DATE, DATE.plusDays(2)),
+        true);
   }
 
   private static BankStatementEntry bookedOn(LocalDate bookingDate, String amount) {
@@ -452,7 +464,8 @@ class BankStatementTest {
         new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
         List.of(balances),
         List.of(),
-        new StatementPeriod(DATE, DATE));
+        new StatementPeriod(DATE, DATE),
+        true);
   }
 
   private static BankStatementBalance balance(

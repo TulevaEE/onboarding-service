@@ -393,6 +393,16 @@ class BankStatementTest {
   }
 
   @Test
+  void closingBalanceOn_isAbsentWhenABookingIsDatedOutsideTheStatementPeriod() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1200.00")),
+            List.of(bookedOn(DATE, "200.00"), bookedOn(DATE.plusDays(3), "-50.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).isEmpty();
+  }
+
+  @Test
   void closingBalanceOn_isAbsentWhenTheBookingsDoNotAddUpToTheClosingBalance() {
     var statement =
         catchUpStatement(

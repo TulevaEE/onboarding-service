@@ -72,19 +72,21 @@ public class SecondPillarContributions {
 
   private static @Nullable LocalDate rejoinPossibleFrom(
       LocalDate day, List<SecondPillarContributionPeriod> periods) {
-    final Period FUNDED_PENSIONS_ACT_27_2_LG_1_LEAVER_REJOINS_AFTER_CONTRIBUTIONS_ENDED =
+    final Period FUNDED_PENSIONS_ACT_27_2_LG_1_CONTRIBUTIONS_RESTART_AFTER_THEY_ENDED =
         Period.ofYears(5);
+    final Period FILING_WINDOW_OPENS_BEFORE_THE_CONTRIBUTIONS_IT_STARTS = Period.ofMonths(9);
     final LocalDate FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM =
         LocalDate.of(2026, 11, 1);
     return stopStartDate(day, periods)
         .map(
             stopStart ->
-                stopStart.plus(
-                    FUNDED_PENSIONS_ACT_27_2_LG_1_LEAVER_REJOINS_AFTER_CONTRIBUTIONS_ENDED))
+                stopStart
+                    .plus(FUNDED_PENSIONS_ACT_27_2_LG_1_CONTRIBUTIONS_RESTART_AFTER_THEY_ENDED)
+                    .minus(FILING_WINDOW_OPENS_BEFORE_THE_CONTRIBUTIONS_IT_STARTS))
         .map(
-            fiveYearsLater ->
-                fiveYearsLater.isAfter(FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
-                    ? fiveYearsLater
+            filingOpens ->
+                filingOpens.isAfter(FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
+                    ? filingOpens
                     : FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
         .orElse(null);
   }

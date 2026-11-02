@@ -14,20 +14,32 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class SecondPillarContributionsTest {
 
   private final SecondPillarContributions contributionsOn27October2026 = on("2026-10-27T10:00:00Z");
 
-  @Test
-  void aLeaverWhoStoppedContributionsMayRejoinFiveYearsAfterTheStopBegan() {
+  @ParameterizedTest
+  @CsvSource({
+    "2021-08-31, 2021-09-01, 2026-11-01",
+    "2021-12-31, 2022-01-01, 2026-11-01",
+    "2022-04-30, 2022-05-01, 2026-11-01",
+    "2022-08-31, 2022-09-01, 2026-12-01",
+    "2022-12-31, 2023-01-01, 2027-04-01",
+    "2023-04-30, 2023-05-01, 2027-08-01",
+    "2023-08-31, 2023-09-01, 2027-12-01",
+  })
+  void aLeaverMayFileInTheWindowPensionikeskusPublishesForTheDayContributionsStopped(
+      String lastContribution, String stopped, String filingOpens) {
     var periods =
         List.of(
-            contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"),
-            contributionPeriod(NOT_CONTRIBUTING, "2023-09-01"));
+            contributionPeriod(CONTRIBUTING, "2002-07-01", lastContribution),
+            contributionPeriod(NOT_CONTRIBUTING, stopped));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom(filingOpens));
   }
 
   @Test
@@ -55,22 +67,22 @@ class SecondPillarContributionsTest {
   }
 
   @Test
-  void aLeaverWhoseLastPeriodHasEndedMayRejoinFiveYearsAfterTheDayAfterTheLastContribution() {
+  void aLeaverWhoseLastPeriodHasEndedMayFileNineMonthsBeforeFiveYearsAfterTheLastContribution() {
     var periods = List.of(contributionPeriod(CONTRIBUTING, "2002-07-01", "2023-08-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2027-12-01"));
   }
 
   @Test
-  void aLeaverWhoseContributionsEndedTwiceMayRejoinFiveYearsAfterTheLaterEnd() {
+  void aLeaverWhoseContributionsEndedTwiceMayFileNineMonthsBeforeFiveYearsAfterTheLaterEnd() {
     var periods =
         List.of(
             contributionPeriod(CONTRIBUTING_WITHOUT_ACCOUNT, "2015-01-01", "2024-04-30"),
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2029-05-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2028-08-01"));
   }
 
   @Test
@@ -83,7 +95,7 @@ class SecondPillarContributionsTest {
             contributionPeriod(NOT_CONTRIBUTING, "2027-05-01", "2027-08-31"));
 
     assertThat(contributionsOn27October2026.statusOf(periods))
-        .isEqualTo(stoppedAndMayRejoinFrom("2028-09-01"));
+        .isEqualTo(stoppedAndMayRejoinFrom("2027-12-01"));
   }
 
   @Test
@@ -131,7 +143,7 @@ class SecondPillarContributionsTest {
                 .toList())
         .containsExactly(
             pausedWithoutRejoinDate(),
-            stoppedAndMayRejoinFrom("2031-09-01"),
+            stoppedAndMayRejoinFrom("2030-12-01"),
             pausedWithoutRejoinDate());
   }
 
@@ -220,6 +232,10 @@ class SecondPillarContributionsTest {
         List.of(
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
             contributionPeriod(NOT_CONTRIBUTING, "2012-01-01"));
+    var stoppedInMay2022 =
+        List.of(
+            contributionPeriod(CONTRIBUTING, "2002-07-01", "2022-04-30"),
+            contributionPeriod(NOT_CONTRIBUTING, "2022-05-01"));
     var rejoinedFromMay2027 =
         List.of(
             contributionPeriod(CONTRIBUTING, "2002-07-01", "2011-12-31"),
@@ -235,13 +251,14 @@ class SecondPillarContributionsTest {
     assertThat(
             Stream.of(
                     stoppedIn2012,
+                    stoppedInMay2022,
                     rejoinedFromMay2027,
                     stoppedIn2023,
                     contributing,
                     List.<SecondPillarContributionPeriod>of())
                 .map(on10November2026::mayRejoinToday)
                 .toList())
-        .containsExactly(true, false, false, false, false);
+        .containsExactly(true, true, false, false, false, false);
     assertThat(contributionsOn27October2026.mayRejoinToday(stoppedIn2012)).isFalse();
   }
 

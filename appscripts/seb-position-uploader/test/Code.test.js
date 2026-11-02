@@ -17,6 +17,7 @@ const {
   resolveContentType,
   gmailSearchQuery,
   daysToReach,
+  isSourceInScope,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -239,11 +240,26 @@ describe("gmailSearchQuery", () => {
 });
 
 describe("daysToReach", () => {
-  test("gives a window of whole days that still reaches the start", () => {
-    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-11-02T12:00:00+02:00"))).toBe(274);
+  test("gives a window of whole days that reaches the start with a day to spare", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-11-02T12:00:00+02:00"))).toBe(275);
   });
-  test("needs no extra day when the start is a whole number of days ago", () => {
-    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-02-04T00:00:00+02:00"))).toBe(2);
+  test("keeps the spare day when the start is a whole number of days ago", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-02-04T00:00:00+02:00"))).toBe(3);
+  });
+});
+
+describe("isSourceInScope", () => {
+  test("takes every known source when the run is not limited to one", () => {
+    expect(isSourceInScope(SOURCES.SEB, undefined)).toBe(true);
+  });
+  test("takes the source the run is limited to", () => {
+    expect(isSourceInScope(SOURCES.SEB_CONFIRMATION, SOURCES.SEB_CONFIRMATION)).toBe(true);
+  });
+  test("leaves out another source in a thread the limited run found", () => {
+    expect(isSourceInScope(SOURCES.SEB, SOURCES.SEB_CONFIRMATION)).toBe(false);
+  });
+  test("never takes a message without a known source", () => {
+    expect(isSourceInScope(null, undefined)).toBe(false);
   });
 });
 

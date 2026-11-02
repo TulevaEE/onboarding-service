@@ -129,12 +129,9 @@ class SebPendingTransactionReconciliationBackfillJob {
 
   private static String completedMessage(ReplaySummary summary) {
     return "SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: "
-        + summary.reportsAndRange()
+        + reportsAndRange(summary.replayed())
         + ".\n"
-        + summary.counts()
-        + "\n"
-        + summary.skippedChecksLine()
-        + summary.priceDivergenceLines()
+        + outcome(summary)
         + "Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). "
         + RERUN_ADDS_NOTHING_TWICE;
   }
@@ -146,14 +143,65 @@ class SebPendingTransactionReconciliationBackfillJob {
         + (summary.replayed().isEmpty()
             ? "Enne seda ei sobitatud ühtki raportit.\n"
             : "Enne seda raporteid: "
-                + summary.reportsAndRange()
+                + reportsAndRange(summary.replayed())
                 + ". "
-                + summary.counts()
-                + "\n"
-                + summary.skippedChecksLine()
-                + summary.priceDivergenceLines())
+                + outcome(summary))
         + "Paranda põhjus ja käivita uuesti. "
         + RERUN_ADDS_NOTHING_TWICE;
+  }
+
+  private static String reportsAndRange(List<LocalDate> replayed) {
+    return replayed.size() == 1
+        ? "1 (" + replayed.getFirst() + ")"
+        : replayed.size() + " (" + replayed.getFirst() + " kuni " + replayed.getLast() + ")";
+  }
+
+  private static String outcome(ReplaySummary summary) {
+    List<ReconciliationAlert> alerts = summary.alerts();
+    return "Uusi täitmisi: "
+        + summary.newExecutions()
+        + ", uusi arveldusi: "
+        + summary.newSettlements()
+        + ". Saatmata hoiatusi: "
+        + alerts.size()
+        + " (koguse või summa lahknevusi: "
+        + count(alerts, QuantityAmountMismatchEvent.class)
+        + ", kärbitud raporteid: "
+        + count(alerts, PossibleReportTruncationEvent.class)
+        + ", tükkide hinnaerinevusi: "
+        + count(alerts, ExecutionPriceConsistencyEvent.class)
+        + ").\n"
+        + skippedChecksLine(summary.skippedChecks())
+        + priceDivergenceLines(alerts);
+  }
+
+  private static long count(
+      List<ReconciliationAlert> alerts, Class<? extends ReconciliationAlert> kind) {
+    return alerts.stream().filter(kind::isInstance).count();
+  }
+
+  private static String skippedChecksLine(List<SkippedCheck> skippedChecks) {
+    return skippedChecks.isEmpty()
+        ? ""
+        : skippedChecks.stream()
+            .map(skipped -> skipped.reportDate() + " (" + skipped.reason() + ")")
+            .collect(joining(", ", "Arvelduse kontroll jäi vahele: ", ".\n"));
+  }
+
+  private static String priceDivergenceLines(List<ReconciliationAlert> alerts) {
+    return alerts.stream()
+        .filter(ExecutionPriceConsistencyEvent.class::isInstance)
+        .map(ExecutionPriceConsistencyEvent.class::cast)
+        .map(
+            divergence ->
+                "Tükkide hinnaerinevus: tellimus "
+                    + divergence.orderId()
+                    + ", "
+                    + divergence.isin()
+                    + ", raport "
+                    + divergence.reportDate()
+                    + ".\n")
+        .collect(joining());
   }
 
   private record ReplaySummary(
@@ -161,58 +209,7 @@ class SebPendingTransactionReconciliationBackfillJob {
       long newExecutions,
       long newSettlements,
       List<ReconciliationAlert> alerts,
-      List<SkippedCheck> skippedChecks) {
-
-    String reportsAndRange() {
-      return replayed.size() == 1
-          ? "1 (" + replayed.getFirst() + ")"
-          : replayed.size() + " (" + replayed.getFirst() + " kuni " + replayed.getLast() + ")";
-    }
-
-    String counts() {
-      return "Uusi täitmisi: "
-          + newExecutions
-          + ", uusi arveldusi: "
-          + newSettlements
-          + ". Saatmata hoiatusi: "
-          + alerts.size()
-          + " (koguse või summa lahknevusi: "
-          + count(QuantityAmountMismatchEvent.class)
-          + ", kärbitud raporteid: "
-          + count(PossibleReportTruncationEvent.class)
-          + ", tükkide hinnaerinevusi: "
-          + count(ExecutionPriceConsistencyEvent.class)
-          + ").";
-    }
-
-    String skippedChecksLine() {
-      return skippedChecks.isEmpty()
-          ? ""
-          : skippedChecks.stream()
-              .map(skipped -> skipped.reportDate() + " (" + skipped.reason() + ")")
-              .collect(joining(", ", "Arvelduse kontroll jäi vahele: ", ".\n"));
-    }
-
-    String priceDivergenceLines() {
-      return alerts.stream()
-          .filter(ExecutionPriceConsistencyEvent.class::isInstance)
-          .map(ExecutionPriceConsistencyEvent.class::cast)
-          .map(
-              divergence ->
-                  "Tükkide hinnaerinevus: tellimus "
-                      + divergence.orderId()
-                      + ", "
-                      + divergence.isin()
-                      + ", raport "
-                      + divergence.reportDate()
-                      + ".\n")
-          .collect(joining());
-    }
-
-    private long count(Class<? extends ReconciliationAlert> kind) {
-      return alerts.stream().filter(kind::isInstance).count();
-    }
-  }
+      List<SkippedCheck> skippedChecks) {}
 
   private record SkippedCheck(LocalDate reportDate, String reason) {}
 }

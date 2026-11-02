@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -20,11 +21,16 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +45,8 @@ class InvestmentReportPublisherTest {
   @Mock private WordPressMediaClient wordPressClient;
   @Mock private WordPressPageReader pageReader;
   @Mock private EmailService emailService;
+  @Mock private LockProvider lockProvider;
+  @Mock private SimpleLock lock;
   private InvestmentReportPublisher publisher;
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
@@ -49,6 +57,7 @@ class InvestmentReportPublisherTest {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
     lenient().when(pageReader.investmentReportUrl(any())).thenReturn(Optional.empty());
+    lenient().when(lockProvider.lock(any())).thenReturn(Optional.of(lock));
   }
 
   private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
@@ -58,6 +67,8 @@ class InvestmentReportPublisherTest {
         wordPressClient,
         pageReader,
         emailService,
+        lockProvider,
+        Clock.fixed(Instant.parse("2026-04-10T07:00:00Z"), ZoneOffset.UTC),
         new InvestmentReportPublishingProperties(funds));
   }
 
@@ -356,6 +367,44 @@ class InvestmentReportPublisherTest {
                     "Could not read the fund page to check it links no newer report: fund=TUV100,"
                         + " error=page unreadable")));
     verifyNoInteractions(pdfGenerator, wordPressClient, emailService);
+  }
+
+  @Test
+  void aSecondPublishWhileOneIsRunningPublishesNothing() {
+    given(lockProvider.lock(any())).willReturn(Optional.empty());
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(),
+                false,
+                List.of("Another investment report publish is running: month=2026-03")));
+    verifyNoInteractions(dataService, pageReader, pdfGenerator, wordPressClient, emailService);
+  }
+
+  @Test
+  void everyPublishTakesTheSameLockAndReleasesIt() {
+    givenEveryReportCanBeProduced();
+
+    publisher.publish(MARCH_2026);
+    publisher.publish(MARCH_2026.plusMonths(1));
+
+    verify(lockProvider, times(2))
+        .lock(
+            argThat(configuration -> configuration.getName().equals("investmentReportPublishing")));
+    verify(lock, times(2)).unlock();
+  }
+
+  @Test
+  void theLockIsReleasedWhenAPublishFails() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026))
+        .willThrow(new IllegalStateException("database down"));
+
+    assertThatThrownBy(() -> publisher.publish(MARCH_2026))
+        .isInstanceOf(IllegalStateException.class);
+    verify(lock).unlock();
   }
 
   private void givenEveryReportCanBeProduced() {

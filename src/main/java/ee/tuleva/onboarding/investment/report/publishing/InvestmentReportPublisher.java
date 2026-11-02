@@ -14,10 +14,14 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPage
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.core.LockConfiguration;
+import net.javacrumbs.shedlock.core.LockProvider;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,15 +37,39 @@ public class InvestmentReportPublisher {
   private static final int MIN_END_OF_MONTH_DAY = 25;
   private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
   private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
+  private static final String ONE_PUBLISH_AT_A_TIME_LOCK = "investmentReportPublishing";
+  private static final Duration PUBLISH_LOCK_HELD_AT_MOST = Duration.ofMinutes(30);
 
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
   private final WordPressPageReader pageReader;
   private final EmailService emailService;
+  private final LockProvider lockProvider;
+  private final Clock clock;
   private final InvestmentReportPublishingProperties properties;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
+    var lock =
+        lockProvider.lock(
+            new LockConfiguration(
+                clock.instant(),
+                ONE_PUBLISH_AT_A_TIME_LOCK,
+                PUBLISH_LOCK_HELD_AT_MOST,
+                Duration.ZERO));
+    if (lock.isEmpty()) {
+      log.warn("Investment report publishing already running, nothing published: month={}", month);
+      return abortedWithoutPublishing(
+          List.of("Another investment report publish is running: month=%s".formatted(month)));
+    }
+    try {
+      return publishWhileNoOtherPublishRuns(month);
+    } finally {
+      lock.get().unlock();
+    }
+  }
+
+  private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
 
     var navDateErrors = validateNavDates(month);

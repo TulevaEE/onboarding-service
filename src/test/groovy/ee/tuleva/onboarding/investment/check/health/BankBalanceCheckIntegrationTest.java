@@ -204,6 +204,32 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
+  void cannotRunForACatchUpDayWhenSebSentOnlyTheStatementsFirstPage() {
+    store(
+        TUK75_INVESTMENT_IBAN,
+        HISTORIC_STATEMENT,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        EARLY_MORNING,
+        catchUpStatement(
+                TUK75_INVESTMENT_IBAN,
+                NAV_DATE.minusDays(2),
+                NAV_DATE,
+                "1000.00",
+                List.of(booking(NAV_DATE.minusDays(2), "200.00", "CRDT")),
+                "1200.00")
+            .replace(
+                "</CreDtTm></GrpHdr>",
+                "</CreDtTm><MsgPgntn><PgNb>1</PgNb><LastPgInd>false</LastPgInd></MsgPgntn></GrpHdr>"),
+        EARLY_MORNING,
+        null);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1200.00")))
+        .extracting(HealthCheckFinding::severity)
+        .containsExactly(NOT_RUN);
+  }
+
+  @Test
   void comparesADayRefetchedOnItsOwnWithItsOwnStatementRatherThanTheCatchUp() {
     storeCatchUpStatement(
         TUK75_INVESTMENT_IBAN,

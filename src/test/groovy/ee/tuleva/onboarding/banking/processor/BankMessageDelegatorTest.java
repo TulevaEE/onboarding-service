@@ -70,7 +70,8 @@ class BankMessageDelegatorTest {
             new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
             List.of(),
             List.of(),
-            new StatementPeriod(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 13)));
+            new StatementPeriod(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 13)),
+            true);
     given(
             bankingMessageRepository
                 .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtAsc())

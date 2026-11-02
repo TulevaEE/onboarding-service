@@ -55,7 +55,7 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
-    List<Object> heldBackAlerts = new ArrayList<>();
+    List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
     Optional<LocalDate> stoppedAt = Optional.empty();
     for (InvestmentReport report : reports) {
@@ -71,7 +71,7 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
     ReplaySummary summary =
         new ReplaySummary(
-            replayed,
+            List.copyOf(replayed),
             executionRepository.count() - executionsBefore,
             settlementRepository.count() - settlementsBefore,
             heldBackAlerts.size());
@@ -96,7 +96,8 @@ class SebPendingTransactionReconciliationBackfillJob {
         .toList();
   }
 
-  private static void holdBack(Object alert, List<Object> heldBackAlerts) {
+  private static void holdBack(
+      ReconciliationAlert alert, List<ReconciliationAlert> heldBackAlerts) {
     log.info("SEB pending transactions replay held back alert: alert={}", alert);
     heldBackAlerts.add(alert);
   }

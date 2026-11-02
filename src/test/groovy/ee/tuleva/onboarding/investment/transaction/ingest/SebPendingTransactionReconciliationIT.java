@@ -255,7 +255,7 @@ class SebPendingTransactionReconciliationIT {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
     InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen);
-    List<Object> heldBack = new ArrayList<>();
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
 
     reconciliationService.replay(report, heldBack::add);
     reconciliationService.replay(missingFrom, heldBack::add);

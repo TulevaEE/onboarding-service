@@ -76,7 +76,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     willAnswer(
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
-              alerts.raise("held-back alert");
+              alerts.raise(new PossibleReportTruncationEvent(TODAY, 1, TODAY.minusDays(1), 50));
               return null;
             })
         .given(reconciliationService)

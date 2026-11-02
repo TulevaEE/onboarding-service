@@ -1163,7 +1163,7 @@ class SebPendingTransactionReconciliationServiceTest {
                     .metadata(Map.of("asOfDate", "2026-05-13"))
                     .rawData(List.of())
                     .build()));
-    List<Object> heldBack = new ArrayList<>();
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
 
     service.replay(reportWithSingleRow(clientRef), heldBack::add);
 
@@ -1195,7 +1195,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .build();
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
-    List<Object> heldBack = new ArrayList<>();
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
 
     service.replay(
         reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")), heldBack::add);
@@ -1221,7 +1221,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
     given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
         .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 50)));
-    List<Object> heldBack = new ArrayList<>();
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
 
     service.replay(reportWithSingleRow(clientRef), heldBack::add);
 

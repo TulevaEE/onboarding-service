@@ -5,7 +5,6 @@ import static java.util.Objects.requireNonNull;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -25,13 +24,13 @@ class OcfPublicationRepository {
               if (!markPublished(snapshot, publication.publishedIn())) {
                 return false;
               }
-              insert(publication, snapshot.storedId());
+              insert(publication);
               return true;
             }));
   }
 
   KidFigure recordGiven(OcfPublication publication) {
-    return publication.recordedAs(insert(publication, null));
+    return publication.recordedAs(insert(publication));
   }
 
   boolean isRecorded(String fundCode, LocalDate validFrom, String publishedIn) {
@@ -98,7 +97,7 @@ class OcfPublicationRepository {
         == 1;
   }
 
-  private long insert(OcfPublication publication, @Nullable Long snapshotId) {
+  private long insert(OcfPublication publication) {
     var keyHolder = new GeneratedKeyHolder();
     jdbcClient
         .sql(
@@ -120,7 +119,7 @@ class OcfPublicationRepository {
         .param("publishedDecimals", publication.publishedDecimals())
         .param("basis", publication.basis().name())
         .param("basisReason", publication.basisReason())
-        .param("snapshotId", snapshotId)
+        .param("snapshotId", publication.snapshotId())
         .param("managementFeeRate", publication.managementFeeRate())
         .param("managementFeeRateId", publication.managementFeeRateId())
         .param("exPostPeriodStart", publication.exPostPeriodStart())

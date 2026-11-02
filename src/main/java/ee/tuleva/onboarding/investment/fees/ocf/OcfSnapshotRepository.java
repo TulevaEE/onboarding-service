@@ -192,6 +192,22 @@ public class OcfSnapshotRepository {
         .optional();
   }
 
+  boolean anyVersionPublished(String fundCode, LocalDate snapshotMonth) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT 1 FROM investment_ocf_snapshot
+            WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+              AND published_at IS NOT NULL
+            LIMIT 1
+            """)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .query(Integer.class)
+        .optional()
+        .isPresent();
+  }
+
   public Optional<OcfSnapshot> findPublishedByFundAndMonth(
       String fundCode, LocalDate snapshotMonth) {
     return jdbcClient

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
-import static ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationBasis.EX_POST;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.investment.fees.FeeRate;
@@ -10,8 +9,11 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -39,9 +41,16 @@ public class OcfPublicationService {
     var publishedOcf = publishedOcf(snapshot, fee);
     refuseUnlessPublishable(snapshot, request, publishedOcf);
     refuseUnlessTheIncompletenessWasExcepted(snapshot, request);
-    refuseAKidAlreadyRecorded(fund, request.validFrom(), request.publishedIn());
-    if (!publicationRepository.recordFromCalculation(
-        snapshot, OcfPublication.fromCalculation(request, publishedOcf, fee))) {
+    var alreadyRecorded =
+        NOT_PUBLISHED + kidAlreadyRecorded(request.validFrom(), request.publishedIn());
+    if (publicationRepository.isRecorded(
+        fund.getCode(), request.validFrom(), request.publishedIn())) {
+      throw request.refusal(alreadyRecorded);
+    }
+    var publication = OcfPublication.fromCalculation(request, snapshot, publishedOcf, fee);
+    if (!unlessRecordedMeanwhile(
+        () -> publicationRepository.recordFromCalculation(snapshot, publication),
+        recordedConcurrently -> request.refusal(alreadyRecorded, recordedConcurrently))) {
       throw request.refusal(NOT_PUBLISHED + "the calculation changed or was published since read");
     }
     log.info(
@@ -58,9 +67,17 @@ public class OcfPublicationService {
   }
 
   public KidFigure publishGiven(OcfGivenPublicationRequest request) {
-    refuseUnlessThePeriodFitsTheBasis(request);
-    refuseAKidAlreadyRecorded(request.fund(), request.validFrom(), request.publishedIn());
-    var recorded = publicationRepository.recordGiven(OcfPublication.given(request));
+    request.refuseUnlessThePeriodFitsTheBasis();
+    var alreadyRecorded = kidAlreadyRecorded(request.validFrom(), request.publishedIn());
+    if (publicationRepository.isRecorded(
+        request.fund().getCode(), request.validFrom(), request.publishedIn())) {
+      throw request.refused(alreadyRecorded);
+    }
+    var publication = OcfPublication.given(request);
+    var recorded =
+        unlessRecordedMeanwhile(
+            () -> publicationRepository.recordGiven(publication),
+            recordedConcurrently -> request.refused(alreadyRecorded, recordedConcurrently));
     log.info(
         "OCF given figure recorded: fund={}, validFrom={}, publishedOcf={}, basis={},"
             + " publishedIn={}",
@@ -115,31 +132,18 @@ public class OcfPublicationService {
     }
   }
 
-  private void refuseAKidAlreadyRecorded(TulevaFund fund, LocalDate validFrom, String publishedIn) {
-    if (publicationRepository.isRecorded(fund.getCode(), validFrom, publishedIn)) {
-      throw new OcfPublicationRefusedException(
-          "OCF not published, this KID is already recorded: fund=%s, validFrom=%s, publishedIn=%s"
-              .formatted(fund.getCode(), validFrom, publishedIn));
+  private static <T> T unlessRecordedMeanwhile(
+      Supplier<T> recording,
+      Function<DuplicateKeyException, OcfPublicationRefusedException> refusal) {
+    try {
+      return recording.get();
+    } catch (DuplicateKeyException recordedConcurrently) {
+      throw refusal.apply(recordedConcurrently);
     }
   }
 
-  private static void refuseUnlessThePeriodFitsTheBasis(OcfGivenPublicationRequest request) {
-    var start = request.exPostPeriodStart();
-    var end = request.exPostPeriodEnd();
-    var exPost = request.basis() == EX_POST;
-    if (exPost != (start != null) || exPost != (end != null)) {
-      throw refusedGiven(request, "an ex-post figure names its period and an estimate does not");
-    }
-    if (start != null && end != null && start.isAfter(end)) {
-      throw refusedGiven(request, "the ex-post period ends before it starts");
-    }
-  }
-
-  private static OcfPublicationRefusedException refusedGiven(
-      OcfGivenPublicationRequest request, String why) {
-    return new OcfPublicationRefusedException(
-        "OCF not recorded, %s: fund=%s, validFrom=%s, basis=%s"
-            .formatted(why, request.fund().getCode(), request.validFrom(), request.basis()));
+  private static String kidAlreadyRecorded(LocalDate validFrom, String publishedIn) {
+    return "a KID valid from %s is already recorded in %s".formatted(validFrom, publishedIn);
   }
 
   private static boolean samePerson(String one, String other) {

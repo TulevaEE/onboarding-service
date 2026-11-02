@@ -14,6 +14,7 @@ record OcfPublication(
     int publishedDecimals,
     OcfPublicationBasis basis,
     String basisReason,
+    @Nullable Long snapshotId,
     @Nullable BigDecimal managementFeeRate,
     @Nullable Long managementFeeRateId,
     @Nullable LocalDate exPostPeriodStart,
@@ -21,8 +22,35 @@ record OcfPublication(
     String publishedIn,
     String publishedBy) {
 
+  static OcfPublication notFromACalculation(
+      String fundCode,
+      LocalDate validFrom,
+      BigDecimal publishedOcf,
+      int publishedDecimals,
+      OcfPublicationBasis basis,
+      String basisReason,
+      @Nullable LocalDate exPostPeriodStart,
+      @Nullable LocalDate exPostPeriodEnd,
+      String publishedIn,
+      String publishedBy) {
+    return new OcfPublication(
+        fundCode,
+        validFrom,
+        publishedOcf,
+        publishedDecimals,
+        basis,
+        basisReason,
+        null,
+        null,
+        null,
+        exPostPeriodStart,
+        exPostPeriodEnd,
+        publishedIn,
+        publishedBy);
+  }
+
   static OcfPublication fromCalculation(
-      OcfPublicationRequest request, BigDecimal publishedOcf, FeeRate fee) {
+      OcfPublicationRequest request, OcfSnapshot snapshot, BigDecimal publishedOcf, FeeRate fee) {
     return new OcfPublication(
         request.fund().getCode(),
         request.validFrom(),
@@ -30,6 +58,7 @@ record OcfPublication(
         PublishedPrecision.of(request.fund()).decimals(),
         MONTHLY_ESTIMATE,
         request.basisReason(),
+        snapshot.storedId(),
         fee.annualRate(),
         fee.id(),
         null,
@@ -39,15 +68,13 @@ record OcfPublication(
   }
 
   static OcfPublication given(OcfGivenPublicationRequest request) {
-    return new OcfPublication(
+    return notFromACalculation(
         request.fund().getCode(),
         request.validFrom(),
         request.publishedOcf(),
         request.publishedDecimals(),
         request.basis(),
         request.basisReason(),
-        null,
-        null,
         request.exPostPeriodStart(),
         request.exPostPeriodEnd(),
         request.publishedIn(),

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 @ExtendWith(MockitoExtension.class)
 class OcfPublicationServiceTest {
@@ -140,6 +141,7 @@ class OcfPublicationServiceTest {
         2,
         MONTHLY_ESTIMATE,
         "the monthly estimate",
+        42L,
         FEE_ON_THE_PUBLICATION_DATE,
         9L,
         null,
@@ -431,6 +433,39 @@ class OcfPublicationServiceTest {
                         EX_POST, LocalDate.of(2025, 12, 31), LocalDate.of(2025, 1, 1), "KID")))
         .isInstanceOf(OcfPublicationRefusedException.class);
     then(publicationRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void anExPostPeriodEndingOnTheDayTheKidTakesEffectIsNotRecorded() {
+    assertThatThrownBy(
+            () ->
+                service.publishGiven(
+                    givenFigure(EX_POST, LocalDate.of(2025, 11, 1), NOVEMBER_1, "KID")))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(publicationRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aGivenKidRecordedMeanwhileByAnotherRequestIsRefusedAsAlreadyRecorded() {
+    var request = givenFigure(MONTHLY_ESTIMATE, null, null, "KID 01.11.2026");
+    given(publicationRepository.recordGiven(OcfPublication.given(request)))
+        .willThrow(new DuplicateKeyException("investment_ocf_publication"));
+
+    assertThatThrownBy(() -> service.publishGiven(request))
+        .isInstanceOf(OcfPublicationRefusedException.class)
+        .hasCauseInstanceOf(DuplicateKeyException.class);
+  }
+
+  @Test
+  void aKidRecordedMeanwhileByAnotherRequestRefusesThePublicationFromACalculation() {
+    givenTheStoredVersion(snapshot(true, null));
+    givenTheFeeOnThePublicationDate();
+    given(publicationRepository.recordFromCalculation(any(), any()))
+        .willThrow(new DuplicateKeyException("investment_ocf_publication"));
+
+    assertThatThrownBy(() -> service.publish(request(snapshot(true, null), PUBLISHED_OCF)))
+        .isInstanceOf(OcfPublicationRefusedException.class)
+        .hasCauseInstanceOf(DuplicateKeyException.class);
   }
 
   @Test

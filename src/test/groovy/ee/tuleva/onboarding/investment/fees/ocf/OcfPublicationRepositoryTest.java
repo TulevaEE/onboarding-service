@@ -16,7 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @Import({OcfPublicationRepository.class, OcfSnapshotRepository.class})
@@ -37,13 +40,12 @@ class OcfPublicationRepositoryTest {
   @Test
   void aPublicationFromACalculationRecordsItsFigureBasisFeeAndPublisherAndMarksTheVersion() {
     var working = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
-    var publication = fromCalculation(MAY_1, "KID 01.05.2026");
+    var publication = fromCalculation(working, MAY_1, "KID 01.05.2026");
 
     var recorded = repository.recordFromCalculation(working, publication);
 
     assertThat(recorded).isTrue();
-    assertThat(storedPublications())
-        .containsExactly(new StoredPublication(publication, working.storedId()));
+    assertThat(storedPublications()).containsExactly(publication);
     var published = snapshotRepository.findVersion("TUK75", APRIL, 1).orElseThrow();
     assertThat(published.publishedAt()).isNotNull();
     assertThat(published.publishedIn()).isEqualTo("KID 01.05.2026");
@@ -61,12 +63,12 @@ class OcfPublicationRepositoryTest {
   @Test
   void aVersionAlreadyPublishedIsNotPublishedAgain() {
     var working = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
-    repository.recordFromCalculation(working, fromCalculation(MAY_1, "KID 01.05.2026"));
+    repository.recordFromCalculation(working, fromCalculation(working, MAY_1, "KID 01.05.2026"));
     var published = snapshotRepository.findVersion("TUK75", APRIL, 1).orElseThrow();
 
     assertThat(
             repository.recordFromCalculation(
-                published, fromCalculation(MAY_1, "KID 01.05.2026 second edition")))
+                published, fromCalculation(published, MAY_1, "KID 01.05.2026 second edition")))
         .isFalse();
     assertThat(storedPublications()).hasSize(1);
   }
@@ -76,7 +78,7 @@ class OcfPublicationRepositoryTest {
     var read = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
     storedCalculation(APRIL, "0.00350000", "0.00350000", true, null);
 
-    assertThat(repository.recordFromCalculation(read, fromCalculation(MAY_1, "KID 2026")))
+    assertThat(repository.recordFromCalculation(read, fromCalculation(read, MAY_1, "KID 2026")))
         .isFalse();
     assertThat(storedPublications()).isEmpty();
   }
@@ -86,7 +88,7 @@ class OcfPublicationRepositoryTest {
     var read = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
     storedCalculation(APRIL, "0.00300000", "0.00340000", true, null);
 
-    assertThat(repository.recordFromCalculation(read, fromCalculation(MAY_1, "KID 2026")))
+    assertThat(repository.recordFromCalculation(read, fromCalculation(read, MAY_1, "KID 2026")))
         .isFalse();
     assertThat(storedPublications()).isEmpty();
   }
@@ -97,7 +99,7 @@ class OcfPublicationRepositoryTest {
         storedCalculation(APRIL, "0", "0", false, "{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}");
     storedCalculation(APRIL, "0", "0", false, "{\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]}");
 
-    assertThat(repository.recordFromCalculation(read, fromCalculation(MAY_1, "KID 2026")))
+    assertThat(repository.recordFromCalculation(read, fromCalculation(read, MAY_1, "KID 2026")))
         .isFalse();
     assertThat(storedPublications()).isEmpty();
   }
@@ -105,15 +107,13 @@ class OcfPublicationRepositoryTest {
   @Test
   void aGivenExPostFigureIsRecordedWithItsPeriodAndWithoutACalculation() {
     var given =
-        new OcfPublication(
+        OcfPublication.notFromACalculation(
             "TUK75",
             MAY_1,
             new BigDecimal("0.00463800"),
             2,
             EX_POST,
             "ex-post 2025 differs from the estimate at the published precision",
-            null,
-            null,
             LocalDate.of(2025, 1, 1),
             LocalDate.of(2025, 12, 31),
             "KID 01.05.2026",
@@ -130,7 +130,7 @@ class OcfPublicationRepositoryTest {
                 2,
                 EX_POST,
                 "KID 01.05.2026"));
-    assertThat(storedPublications()).containsExactly(new StoredPublication(given, null));
+    assertThat(storedPublications()).containsExactly(given);
   }
 
   @Test
@@ -164,13 +164,52 @@ class OcfPublicationRepositoryTest {
     assertThat(repository.isRecorded("TUK00", MAY_1, "KID 01.05.2026")).isFalse();
     assertThatThrownBy(
             () -> repository.recordGiven(given("TUK75", MAY_1, "0.00450000", "KID 01.05.2026")))
-        .isInstanceOf(DataIntegrityViolationException.class);
+        .isInstanceOf(DuplicateKeyException.class);
   }
 
   @Test
   @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*(pg|ci).*")
   void anExPostFigureNamesItsPeriod() {
     assertThatThrownBy(() -> insertRaw("EX_POST", 2, null, null, null, null))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  void aKidRecordedMeanwhileFailsThePublicationAndLeavesTheCalculationUnpublished() {
+    var working = storedCalculation(APRIL, "0.00340000", "0.00340000", true, null);
+    try {
+      var recordedMeanwhile =
+          repository.recordGiven(given("TUK75", MAY_1, "0.00460000", "KID 01.05.2026"));
+      try {
+        assertThatThrownBy(
+                () ->
+                    repository.recordFromCalculation(
+                        working, fromCalculation(working, MAY_1, "KID 01.05.2026")))
+            .isInstanceOf(DuplicateKeyException.class);
+        assertThat(snapshotRepository.findVersion("TUK75", APRIL, 1).orElseThrow().publishedAt())
+            .isNull();
+      } finally {
+        jdbcClient
+            .sql("DELETE FROM investment_ocf_publication WHERE id = :id")
+            .param("id", recordedMeanwhile.publicationId())
+            .update();
+      }
+    } finally {
+      jdbcClient
+          .sql("DELETE FROM investment_ocf_publication WHERE snapshot_id = :snapshotId")
+          .param("snapshotId", working.storedId())
+          .update();
+      jdbcClient
+          .sql("DELETE FROM investment_ocf_snapshot WHERE id = :snapshotId")
+          .param("snapshotId", working.storedId())
+          .update();
+    }
+  }
+
+  @Test
+  void anExPostPeriodEndsBeforeTheKidTakesEffect() {
+    assertThatThrownBy(() -> insertRaw("EX_POST", 2, null, null, LocalDate.of(2025, 5, 1), MAY_1))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -319,7 +358,8 @@ class OcfPublicationRepositoryTest {
     return snapshotRepository.findByFundAndMonth("TUK75", month).orElseThrow();
   }
 
-  private static OcfPublication fromCalculation(LocalDate validFrom, String publishedIn) {
+  private static OcfPublication fromCalculation(
+      OcfSnapshot calculation, LocalDate validFrom, String publishedIn) {
     return new OcfPublication(
         "TUK75",
         validFrom,
@@ -327,6 +367,7 @@ class OcfPublicationRepositoryTest {
         2,
         MONTHLY_ESTIMATE,
         "the monthly estimate",
+        calculation.storedId(),
         new BigDecimal("0.00330000"),
         7L,
         null,
@@ -337,15 +378,13 @@ class OcfPublicationRepositoryTest {
 
   private static OcfPublication given(
       String fundCode, LocalDate validFrom, String publishedOcf, String publishedIn) {
-    return new OcfPublication(
+    return OcfPublication.notFromACalculation(
         fundCode,
         validFrom,
         new BigDecimal(publishedOcf),
         PublishedPrecision.of(TulevaFund.fromCode(fundCode)).decimals(),
         MONTHLY_ESTIMATE,
         "the KID already in force",
-        null,
-        null,
         null,
         null,
         publishedIn,
@@ -356,28 +395,25 @@ class OcfPublicationRepositoryTest {
     return jdbcClient.sql("SELECT id FROM investment_ocf_publication").query(Long.class).single();
   }
 
-  private List<StoredPublication> storedPublications() {
+  private List<OcfPublication> storedPublications() {
     return jdbcClient
         .sql("SELECT * FROM investment_ocf_publication ORDER BY id")
         .query(
             (rs, rowNum) ->
-                new StoredPublication(
-                    new OcfPublication(
-                        rs.getString("fund_code"),
-                        rs.getObject("valid_from", LocalDate.class),
-                        rs.getBigDecimal("published_ocf"),
-                        rs.getInt("published_decimals"),
-                        OcfPublicationBasis.valueOf(rs.getString("basis")),
-                        rs.getString("basis_reason"),
-                        rs.getBigDecimal("management_fee_rate"),
-                        rs.getObject("management_fee_rate_id", Long.class),
-                        rs.getObject("ex_post_period_start", LocalDate.class),
-                        rs.getObject("ex_post_period_end", LocalDate.class),
-                        rs.getString("published_in"),
-                        rs.getString("published_by")),
-                    rs.getObject("snapshot_id", Long.class)))
+                new OcfPublication(
+                    rs.getString("fund_code"),
+                    rs.getObject("valid_from", LocalDate.class),
+                    rs.getBigDecimal("published_ocf"),
+                    rs.getInt("published_decimals"),
+                    OcfPublicationBasis.valueOf(rs.getString("basis")),
+                    rs.getString("basis_reason"),
+                    rs.getObject("snapshot_id", Long.class),
+                    rs.getBigDecimal("management_fee_rate"),
+                    rs.getObject("management_fee_rate_id", Long.class),
+                    rs.getObject("ex_post_period_start", LocalDate.class),
+                    rs.getObject("ex_post_period_end", LocalDate.class),
+                    rs.getString("published_in"),
+                    rs.getString("published_by")))
         .list();
   }
-
-  private record StoredPublication(OcfPublication publication, @Nullable Long snapshotId) {}
 }

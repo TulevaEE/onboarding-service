@@ -39,24 +39,34 @@ record ComputedFundLine(Computed computed) {
   }
 
   private String figureBesideTheKid() {
-    var figure = "%s%%".formatted(totalOcfPercent());
-    return Optional.ofNullable(computed.kid().kidInForce())
-        .map(kid -> "%s (%s)".formatted(figure, theKid(kid)))
-        .orElse("%s (no KID recorded)".formatted(figure));
+    var aboutTheKid =
+        Stream.of(theKid().stream(), keptOnReview().stream(), monthPublished().stream())
+            .flatMap(part -> part)
+            .toList();
+    return "%s%% (%s)"
+        .formatted(
+            totalOcfPercent(),
+            aboutTheKid.isEmpty() ? "no KID recorded" : String.join(", ", aboutTheKid));
   }
 
-  private String theKid(KidFigure kid) {
-    var publishedFigure =
-        "KID %s%% from %s"
-            .formatted(
-                kid.precision().percent(kid.publishedOcf()).toPlainString(), kid.validFrom());
-    return Stream.concat(Stream.of(publishedFigure), keptOnReview().stream())
-        .collect(joining(", "));
+  private Optional<String> theKid() {
+    return Optional.ofNullable(computed.kid().kidInForce())
+        .map(
+            kid ->
+                "KID %s%% from %s"
+                    .formatted(
+                        kid.precision().percent(kid.publishedOcf()).toPlainString(),
+                        kid.validFrom()));
+  }
+
+  private Optional<String> monthPublished() {
+    return computed.kid().monthPublished()
+        ? Optional.of("month published as a KID")
+        : Optional.empty();
   }
 
   private Optional<String> keptOnReview() {
     return Optional.ofNullable(computed.kid().keptOnReview())
-        .filter(review -> computed.differsFromTheKid())
         .map(
             review ->
                 "kept on review %s"

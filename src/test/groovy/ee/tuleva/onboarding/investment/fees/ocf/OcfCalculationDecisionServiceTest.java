@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 @ExtendWith(MockitoExtension.class)
 class OcfCalculationDecisionServiceTest {
@@ -100,7 +102,7 @@ class OcfCalculationDecisionServiceTest {
   private void givenTheKid(
       OcfSnapshot snapshot, @Nullable KidFigure kid, @Nullable KidReview keptOnReview) {
     given(kidComparisons.atTheMonthEndOf(TUK75, snapshot))
-        .willReturn(new KidComparison(TWO_DECIMALS, kid, keptOnReview));
+        .willReturn(new KidComparison(TWO_DECIMALS, kid, keptOnReview, false));
   }
 
   private static OcfCalculationPreview previewOf(
@@ -203,7 +205,9 @@ class OcfCalculationDecisionServiceTest {
     assertThatThrownBy(
             () -> service.recordReview(reviewOf(snapshot, ONE_DECIMAL_KID.publicationId())))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 
   @Test
@@ -236,6 +240,19 @@ class OcfCalculationDecisionServiceTest {
 
     then(exceptionRepository).should().record(snapshot, decision);
     assertThat(answer).isEqualTo(previewOf(snapshot, null, false, decision, null));
+  }
+
+  @Test
+  void anExceptionRecordedMeanwhileByAnotherRequestIsRefusedAsAlreadyRecorded() {
+    var snapshot = snapshot("0.00450000", INCOMPLETE_CHECKS, null);
+    givenTheVersion(snapshot);
+    willThrow(new DuplicateKeyException("investment_ocf_exception"))
+        .given(exceptionRepository)
+        .record(any(), any());
+
+    assertThatThrownBy(() -> service.recordException(exceptionFor(snapshot)))
+        .isInstanceOf(OcfPublicationRefusedException.class)
+        .hasCauseInstanceOf(DuplicateKeyException.class);
   }
 
   @Test
@@ -298,13 +315,63 @@ class OcfCalculationDecisionServiceTest {
     givenTheVersion(snapshot);
     given(kidComparisons.atTheMonthEndOf(TUK75, snapshot))
         .willReturn(
-            new KidComparison(TWO_DECIMALS, KID, null),
-            new KidComparison(TWO_DECIMALS, KID, review));
+            new KidComparison(TWO_DECIMALS, KID, null, false),
+            new KidComparison(TWO_DECIMALS, KID, review, false));
+    given(kidReviewRepository.recordUnlessPublishedOrRecalculated(snapshot, KID, review))
+        .willReturn(true);
 
     var answer = service.recordReview(reviewOf(snapshot));
 
-    then(kidReviewRepository).should().record(snapshot, KID, review);
+    then(kidReviewRepository).should().recordUnlessPublishedOrRecalculated(snapshot, KID, review);
     assertThat(answer).isEqualTo(previewOf(snapshot, KID, true, null, review));
+  }
+
+  @Test
+  void aMonthAlreadyPublishedAsAKidIsNotRecordedAsKeepingTheOlderKid() {
+    var snapshot = snapshot("0.00450000", COMPLETE_CHECKS, null);
+    givenTheVersion(snapshot);
+    given(kidComparisons.atTheMonthEndOf(TUK75, snapshot))
+        .willReturn(new KidComparison(TWO_DECIMALS, KID, null, true));
+
+    assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
+  }
+
+  @Test
+  void aMonthPublishedBetweenTheCheckAndTheReviewIsRefusedAsPublished() {
+    var snapshot = snapshot("0.00450000", COMPLETE_CHECKS, null);
+    givenTheVersion(snapshot);
+    givenTheKid(snapshot, KID, null);
+    given(ocfSnapshotRepository.anyVersionPublished("TUK75", OCTOBER.atDay(1))).willReturn(true);
+
+    assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+  }
+
+  @Test
+  void aCalculationRecalculatedBetweenTheCheckAndTheReviewIsRefusedAsRecalculated() {
+    var snapshot = snapshot("0.00450000", COMPLETE_CHECKS, null);
+    givenTheVersion(snapshot);
+    givenTheKid(snapshot, KID, null);
+
+    assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
+        .isInstanceOf(OcfPublicationRefusedException.class);
+    then(ocfSnapshotRepository).should().anyVersionPublished("TUK75", OCTOBER.atDay(1));
+  }
+
+  @Test
+  void aMonthAlreadyPublishedAsAKidNoLongerDiffersFromTheOlderKid() {
+    var snapshot = snapshot("0.00450000", COMPLETE_CHECKS, null);
+    given(ocfSnapshotRepository.findByFundAndMonth("TUK75", OCTOBER.atDay(1)))
+        .willReturn(Optional.of(snapshot));
+    given(kidComparisons.atTheMonthEndOf(TUK75, snapshot))
+        .willReturn(new KidComparison(TWO_DECIMALS, KID, null, true));
+
+    assertThat(service.preview(TUK75, OCTOBER))
+        .isEqualTo(previewOf(snapshot, KID, false, null, null));
   }
 
   @Test
@@ -315,7 +382,9 @@ class OcfCalculationDecisionServiceTest {
 
     assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 
   @Test
@@ -326,7 +395,9 @@ class OcfCalculationDecisionServiceTest {
 
     assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot, KID.publicationId() - 1)))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 
   @Test
@@ -337,7 +408,9 @@ class OcfCalculationDecisionServiceTest {
 
     assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 
   @Test
@@ -348,7 +421,9 @@ class OcfCalculationDecisionServiceTest {
 
     assertThatThrownBy(() -> service.recordReview(reviewOf(snapshot)))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 
   @Test
@@ -358,6 +433,8 @@ class OcfCalculationDecisionServiceTest {
     assertThatThrownBy(
             () -> service.recordReview(reviewOf(snapshot("0.00450000", COMPLETE_CHECKS, null))))
         .isInstanceOf(OcfPublicationRefusedException.class);
-    then(kidReviewRepository).should(never()).record(any(), any(), any());
+    then(kidReviewRepository)
+        .should(never())
+        .recordUnlessPublishedOrRecalculated(any(), any(), any());
   }
 }

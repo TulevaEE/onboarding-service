@@ -245,6 +245,62 @@ class OcfNotifierTest {
   }
 
   @Test
+  void aMonthAlreadyPublishedAsAKidSaysSoAndNoLongerAsksForAReviewOfTheOlderKid() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            new Computed(
+                TUK75,
+                MONTH,
+                snapshot(TUK75, MONTH, "0.004549", true),
+                List.of(),
+                List.of(),
+                new KidComparison(
+                    PublishedPrecision.of(TUK75),
+                    new KidFigure(
+                        1L,
+                        LocalDate.of(2026, 3, 1),
+                        new BigDecimal("0.00460000"),
+                        2,
+                        OcfPublicationBasis.MONTHLY_ESTIMATE,
+                        "KID 02.03.2026"),
+                    null,
+                    true))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4549% (KID 0.46% from 2026-03-01, month published as a KID)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aPublishedMonthWithNoKidInForceAtItsEndSaysOnlyThatItIsPublished() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            new Computed(
+                TUK75,
+                MONTH,
+                snapshot(TUK75, MONTH, "0.004549", true),
+                List.of(),
+                List.of(),
+                new KidComparison(PublishedPrecision.of(TUK75), null, null, true))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4549% (month published as a KID)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
   void aSavingsFundKidPrintedAtOneDecimalIsComparedAtOneDecimalSoTheSameTenthDoesNotDiffer() {
     notifier.notifyRun(
         MONTH, List.of(besideTheKid(TKF100, "0.004912", "0.00520000", 1)), List.of());
@@ -427,11 +483,12 @@ class OcfNotifierTest {
                 kidDecimals,
                 OcfPublicationBasis.MONTHLY_ESTIMATE,
                 "KID 02.03.2026"),
-            keptOnReview));
+            keptOnReview,
+            false));
   }
 
   private static KidComparison noKid(TulevaFund fund) {
-    return new KidComparison(PublishedPrecision.of(fund), null, null);
+    return new KidComparison(PublishedPrecision.of(fund), null, null, false);
   }
 
   private static OcfRunOutcome weighedByTheMonthAverage(TulevaFund fund, String totalOcf) {
@@ -516,7 +573,8 @@ class OcfNotifierTest {
                 2,
                 OcfPublicationBasis.MONTHLY_ESTIMATE,
                 "KID 02.03.2026"),
-            null));
+            null,
+            false));
   }
 
   private static OcfSnapshot snapshot(

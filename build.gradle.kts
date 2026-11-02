@@ -23,17 +23,17 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.1.1"
+val springModulithVersion = "2.1.2"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.1.1"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
-    id("com.diffplug.spotless") version "8.10.3"
-    id("io.freefair.lombok") version "9.8.0"
-    id("net.ltgt.errorprone") version "5.1.1"
+    id("com.diffplug.spotless") version "8.10.4"
+    id("io.freefair.lombok") version "9.8.3"
+    id("net.ltgt.errorprone") version "5.2.0"
     id("info.solidsoft.pitest") version "1.19.0"
     pmd
     jacoco
@@ -44,7 +44,7 @@ lombok {
 }
 
 pmd {
-    toolVersion = "7.28.0"
+    toolVersion = "7.29.0"
     isConsoleOutput = false
     isIgnoreFailures = true
     ruleSets = listOf()
@@ -52,7 +52,7 @@ pmd {
 }
 
 pitest {
-    pitestVersion = "1.30.0"
+    pitestVersion = "1.30.1"
     junit5PluginVersion = "1.2.3"
     addJUnitPlatformLauncher = false
     threads = 4
@@ -105,9 +105,8 @@ repositories {
 
 dependencies {
     constraints {
-        // Transitive security patches: httpclient via lutung, beanutils via mockserver
+        // Transitive security patch: httpclient via lutung
         implementation("org.apache.httpcomponents:httpclient:4.5.14")
-        testImplementation("commons-beanutils:commons-beanutils:1.11.0")
     }
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -122,16 +121,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.1")
-    errorprone("com.google.errorprone:error_prone_core:2.50.0")
-    errorprone("com.uber.nullaway:nullaway:0.14.2")
+    errorprone("com.google.errorprone:error_prone_core:2.51.0")
+    errorprone("com.uber.nullaway:nullaway:0.14.3")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
-    implementation("org.springdoc:springdoc-openapi-starter-common:3.1.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.2.0")
     implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -178,8 +177,8 @@ dependencies {
     implementation("org.bouncycastle:bcutil-jdk18on:1.86")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.59.0")
-    implementation("io.sentry:sentry-logback:8.59.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.62.0")
+    implementation("io.sentry:sentry-logback:8.62.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -189,12 +188,12 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.55.10")
+    implementation("software.amazon.awssdk:s3:2.57.8")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
     // commons-csv references this at compile time (annotation-only, no runtime impact)
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
-    implementation("org.apache.poi:poi-ooxml:5.5.1")
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.5")
+    implementation("org.apache.poi:poi-ooxml:6.0.0")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.
@@ -217,10 +216,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-restclient-test")
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
-    testImplementation("org.spockframework:spock-core:2.4-groovy-5.0") {
+    testImplementation("org.spockframework:spock-core:2.5-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
+    testImplementation("org.spockframework:spock-spring:2.5-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy:5.1.3")
@@ -229,8 +228,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:8.0.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:8.0.0")
+    testImplementation("org.mock-server:mockserver-netty:9.2.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:9.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")

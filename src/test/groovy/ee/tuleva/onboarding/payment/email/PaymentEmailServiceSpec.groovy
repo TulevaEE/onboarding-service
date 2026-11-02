@@ -137,7 +137,7 @@ class PaymentEmailServiceSpec extends Specification {
   def "a savings fund payment email with no nudge carries no nudge tag"() {
     given:
     def user = sampleUser().build()
-    def email = SavingsFundPaymentEmail.personSuccess()
+    def email = SavingsFundPaymentEmail.success(SavingsFundAccountHolder.person())
     def decision = NudgeDecision.of(NudgeKey.NONE)
     def mergeVars = [
         "fname": user.firstName,
@@ -184,12 +184,12 @@ class PaymentEmailServiceSpec extends Specification {
     1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status, decision.tag())
 
     where:
-    email                                               | templateName
-    SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_person_en"
-    SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)  | "savings_fund_payment_success_child_en"
-    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ", COMPANY_ID) | "savings_fund_payment_success_company_en"
-    SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
-    SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
+    email                                                                                         | templateName
+    SavingsFundPaymentEmail.success(SavingsFundAccountHolder.person())                            | "savings_fund_payment_success_person_en"
+    SavingsFundPaymentEmail.success(SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID))  | "savings_fund_payment_success_child_en"
+    SavingsFundPaymentEmail.success(SavingsFundAccountHolder.company("Tuleva OÜ", COMPANY_ID))    | "savings_fund_payment_success_company_en"
+    SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person())                             | "savings_fund_payment_failed_en"
+    SavingsFundPaymentEmail.cancelled(SavingsFundAccountHolder.person())                          | "savings_fund_payment_cancelled_en"
   }
 
   def "send savings fund payment email without a pillar suggestion"() {
@@ -209,7 +209,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person()), locale)
 
     then:
     1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags) >> message
@@ -237,7 +237,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID), decision, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.success(SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID)), decision, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)

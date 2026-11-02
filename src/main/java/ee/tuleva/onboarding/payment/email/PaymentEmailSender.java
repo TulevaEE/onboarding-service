@@ -28,7 +28,7 @@ public class PaymentEmailSender {
   private final PaymentEmailService emailService;
   private final SecurityContextRunner securityContextRunner;
   private final NudgeDecisionService nudgeDecisionService;
-  private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
+  private final SavingsFundAccountHolderResolver accountHolderResolver;
 
   // TODO: can we make these @Async?
   @EventListener
@@ -55,7 +55,8 @@ public class PaymentEmailSender {
         () ->
             emailService.sendSavingsFundPaymentEmail(
                 user,
-                savingsFundSuccessEmailResolver.resolve(event),
+                SavingsFundPaymentEmail.success(
+                    accountHolderResolver.resolve(user, event.getRecipient())),
                 nudgeDecisionService.decide(user, paidAccount, SAVINGS_FUND_PAYMENT),
                 event.getLocale()));
   }
@@ -63,14 +64,18 @@ public class PaymentEmailSender {
   @EventListener
   public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
     emailService.sendSavingsFundPaymentEmail(
-        event.getUser(), SavingsFundPaymentEmail.cancelled(), event.getLocale());
+        event.getUser(),
+        SavingsFundPaymentEmail.cancelled(SavingsFundAccountHolder.person()),
+        event.getLocale());
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
   @Transactional(propagation = REQUIRES_NEW)
   public void onSavingsPaymentFailed(SavingsPaymentFailedEvent event) {
     emailService.sendSavingsFundPaymentEmail(
-        event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());
+        event.getUser(),
+        SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person()),
+        event.getLocale());
   }
 
   private static NudgeAccount paidAccount(PartyId recipient) {

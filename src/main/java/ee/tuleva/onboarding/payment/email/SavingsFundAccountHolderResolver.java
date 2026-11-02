@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
-import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import java.util.Optional;
 import java.util.Set;
@@ -20,44 +19,41 @@ import org.springframework.stereotype.Component;
 @Component
 @NullMarked
 @RequiredArgsConstructor
-class SavingsFundSuccessEmailResolver {
+class SavingsFundAccountHolderResolver {
 
   private final ParentChildLinkService parentChildLinkService;
   private final PartyResolver partyResolver;
   private final CompanyRoles companyRoles;
 
-  SavingsFundPaymentEmail resolve(SavingsPaymentCreatedEvent event) {
-    PartyId recipient = event.getRecipient();
+  SavingsFundAccountHolder resolve(User payer, PartyId recipient) {
     return switch (recipient.type()) {
-      case LEGAL_ENTITY -> companySuccess(recipient);
-      case PERSON -> personOrChildSuccess(event.getUser(), recipient);
+      case LEGAL_ENTITY -> company(recipient);
+      case PERSON -> personOrChild(payer, recipient);
     };
   }
 
-  private SavingsFundPaymentEmail companySuccess(PartyId recipient) {
+  private SavingsFundAccountHolder company(PartyId recipient) {
     return companyRoles
         .findCompany(recipient.code())
-        .map(company -> SavingsFundPaymentEmail.companySuccess(company.name(), company.id()))
-        .orElseGet(SavingsFundPaymentEmail::companySuccess);
+        .map(company -> SavingsFundAccountHolder.company(company.name(), company.id()))
+        .orElseGet(SavingsFundAccountHolder::companyNotOnFileYet);
   }
 
-  private SavingsFundPaymentEmail personOrChildSuccess(User payer, PartyId recipient) {
+  private SavingsFundAccountHolder personOrChild(User payer, PartyId recipient) {
     if (payer.getPersonalCode().equals(recipient.code())) {
-      return SavingsFundPaymentEmail.personSuccess();
+      return SavingsFundAccountHolder.person();
     }
-    var linkId = representationOf(payer, recipient);
-    if (linkId.isEmpty()) {
-      return SavingsFundPaymentEmail.personSuccess();
-    }
-    return childSuccess(recipient, linkId.get());
+    return representationOf(payer, recipient)
+        .map(accountId -> child(recipient, accountId))
+        .orElseGet(SavingsFundAccountHolder::person);
   }
 
-  private SavingsFundPaymentEmail childSuccess(PartyId recipient, UUID accountId) {
+  private SavingsFundAccountHolder child(PartyId recipient, UUID accountId) {
     return partyResolver
         .resolve(recipient)
         .map(Party::name)
-        .map(childName -> SavingsFundPaymentEmail.childSuccess(childName, accountId))
-        .orElseGet(() -> SavingsFundPaymentEmail.childSuccess(accountId));
+        .map(childName -> SavingsFundAccountHolder.child(childName, accountId))
+        .orElseGet(() -> SavingsFundAccountHolder.child(accountId));
   }
 
   private Optional<UUID> representationOf(User payer, PartyId recipient) {

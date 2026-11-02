@@ -33,9 +33,9 @@ class PaymentEmailSenderSpec extends Specification {
     runAs(_, _) >> { args -> (args[1] as Runnable).run() }
   }
   NudgeDecisionService nudgeDecisionService = Mock()
-  SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
+  SavingsFundAccountHolderResolver accountHolderResolver = Mock()
 
-  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, securityContextRunner, nudgeDecisionService, savingsFundSuccessEmailResolver)
+  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, securityContextRunner, nudgeDecisionService, accountHolderResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -72,20 +72,20 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def decision = NudgeDecision.of(SAVINGS_FUND_RECURRING)
     def event = new SavingsPaymentCreatedEvent(this, user, ENGLISH, recipient)
-    1 * savingsFundSuccessEmailResolver.resolve(event) >> email
+    1 * accountHolderResolver.resolve(user, recipient) >> holder
 
     when:
     paymentEmailSender.onSavingsPaymentCreated(event)
 
     then:
     1 * nudgeDecisionService.decide(user, paidAccount, SAVINGS_FUND_PAYMENT) >> decision
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, email, decision, ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.success(holder), decision, ENGLISH)
 
     where:
-    description   | recipient                                        | paidAccount                                     | email
-    "own account" | new PartyId(PartyId.Type.PERSON, "38812121215")  | new NudgeAccount(PERSON, "38812121215")         | SavingsFundPaymentEmail.personSuccess()
-    "child"       | new PartyId(PartyId.Type.PERSON, "51111111111")  | new NudgeAccount(PERSON, "51111111111")         | SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)
-    "company"     | new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") | new NudgeAccount(LEGAL_ENTITY, "12345678")    | SavingsFundPaymentEmail.companySuccess("Mesila OÜ", COMPANY_ID)
+    description   | recipient                                        | paidAccount                                     | holder
+    "own account" | new PartyId(PartyId.Type.PERSON, "38812121215")  | new NudgeAccount(PERSON, "38812121215")         | SavingsFundAccountHolder.person()
+    "child"       | new PartyId(PartyId.Type.PERSON, "51111111111")  | new NudgeAccount(PERSON, "51111111111")         | SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID)
+    "company"     | new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") | new NudgeAccount(LEGAL_ENTITY, "12345678")    | SavingsFundAccountHolder.company("Mesila OÜ", COMPANY_ID)
   }
 
   def "send email on savings payment cancel without a nudge"() {
@@ -97,7 +97,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCancelled(event)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(SavingsFundAccountHolder.person()), ENGLISH)
     0 * nudgeDecisionService._
   }
 
@@ -110,7 +110,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentFailed(event)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person()), ENGLISH)
     0 * nudgeDecisionService._
     0 * securityContextRunner._
   }
@@ -126,6 +126,6 @@ class PaymentEmailSenderSpec extends Specification {
 
     then:
     noExceptionThrown()
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(minor, SavingsFundPaymentEmail.failed(), ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(minor, SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person()), ENGLISH)
   }
 }

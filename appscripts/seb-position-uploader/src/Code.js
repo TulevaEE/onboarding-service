@@ -318,6 +318,12 @@ function processMessage(message, thread) {
         return;
     }
 
+    if (uploadMatchingAttachments(message, source) > 0) {
+        incrementUploadLabel(thread);
+    }
+}
+
+function uploadMatchingAttachments(message, source) {
     var attachments = message.getAttachments();
     var uploadedCount = 0;
 
@@ -341,9 +347,7 @@ function processMessage(message, thread) {
         }
     }
 
-    if (uploadedCount > 0) {
-        incrementUploadLabel(thread);
-    }
+    return uploadedCount;
 }
 
 var FUNDS_MAILBOX = "funds@tuleva.ee";

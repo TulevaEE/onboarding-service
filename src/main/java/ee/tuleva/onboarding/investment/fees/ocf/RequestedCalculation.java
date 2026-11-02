@@ -14,8 +14,19 @@ interface RequestedCalculation {
   String calculationFingerprint();
 
   default OcfPublicationRefusedException refusal(String description) {
-    return new OcfPublicationRefusedException(
-        "%s: fund=%s, month=%s, version=%d"
-            .formatted(description, fund().getCode(), month(), version()));
+    return new OcfPublicationRefusedException(described(description));
+  }
+
+  default OcfPublicationRefusedException recalculatedSincePreviewed() {
+    return refusal("The OCF calculation was recalculated since it was previewed");
+  }
+
+  default OcfPublicationRefusedException refusal(String description, Throwable cause) {
+    return new OcfPublicationRefusedException(described(description), cause);
+  }
+
+  private String described(String description) {
+    return "%s: fund=%s, month=%s, version=%d"
+        .formatted(description, fund().getCode(), month(), version());
   }
 }

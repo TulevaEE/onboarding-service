@@ -120,6 +120,19 @@ class OcfSnapshotRepositoryTest {
   }
 
   @Test
+  void aMonthCountsAsPublishedOnceAnyOfItsVersionsIsAndOnlyForThatFundAndMonth() {
+    repository.save(snapshot(APRIL, "0.00340000"), List.of());
+    assertThat(repository.anyVersionPublished("TUK75", APRIL)).isFalse();
+
+    publishTheWorkingVersion(APRIL, "KID 2026");
+    repository.save(snapshot(APRIL, "0.00500000"), List.of());
+
+    assertThat(repository.anyVersionPublished("TUK75", APRIL)).isTrue();
+    assertThat(repository.anyVersionPublished("TUK75", MARCH)).isFalse();
+    assertThat(repository.anyVersionPublished("TUV100", APRIL)).isFalse();
+  }
+
+  @Test
   void nothingIsPublishedUntilSomebodyPublishesIt() {
     repository.save(snapshot(APRIL, "0.00340000"), List.of());
 

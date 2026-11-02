@@ -34,7 +34,9 @@ CREATE TABLE investment_ocf_publication (
     CONSTRAINT investment_ocf_publication_ex_post_is_not_a_calculation
         CHECK (basis <> 'EX_POST' OR snapshot_id IS NULL),
     CONSTRAINT investment_ocf_publication_ex_post_period_order
-        CHECK (ex_post_period_start <= ex_post_period_end)
+        CHECK (ex_post_period_start <= ex_post_period_end),
+    CONSTRAINT investment_ocf_publication_ex_post_period_ends_before_valid_from
+        CHECK (ex_post_period_end IS NULL OR ex_post_period_end < valid_from)
 );
 
 CREATE INDEX idx_ocf_publication_snapshot ON investment_ocf_publication (snapshot_id);

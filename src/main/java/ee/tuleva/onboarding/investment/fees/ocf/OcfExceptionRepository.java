@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
-import java.sql.Timestamp;
+import static java.time.ZoneOffset.UTC;
+
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,7 +26,7 @@ class OcfExceptionRepository {
         .param("calculationFingerprint", OcfCalculationFingerprint.of(snapshot))
         .param("reason", decision.reason())
         .param("decidedBy", decision.decidedBy())
-        .param("decidedAt", Timestamp.from(decision.decidedAt()))
+        .param("decidedAt", OffsetDateTime.ofInstant(decision.decidedAt(), UTC))
         .update();
   }
 

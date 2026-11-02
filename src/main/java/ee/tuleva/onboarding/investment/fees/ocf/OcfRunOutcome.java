@@ -20,11 +20,11 @@ sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Fai
       implements OcfRunOutcome {
 
     boolean incomplete() {
-      return !gaps.isEmpty();
+      return !snapshot.complete();
     }
 
     boolean differsFromTheKid() {
-      return !incomplete() && kid.differsFrom(snapshot.totalOcf());
+      return kid.differsFrom(snapshot);
     }
 
     boolean awaitsAKidReview() {

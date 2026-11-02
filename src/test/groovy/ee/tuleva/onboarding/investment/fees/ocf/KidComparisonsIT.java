@@ -34,11 +34,56 @@ class KidComparisonsIT {
   @Autowired private OcfSnapshotRepository snapshotRepository;
 
   @Test
+  void anIncompleteMonthIsNotComparedSoAReviewKeepingTheKidForItsFigureIsNotShown() {
+    var calculation =
+        storedCalculation(
+            TUK75, "0.00450000", false, "{\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]}");
+    var inForce = publicationRepository.recordGiven(kid(TUK75, "2026-03-01", "0.00460000", 2));
+    kidReviewRepository.recordUnlessPublishedOrRecalculated(calculation, inForce, REVIEW);
+
+    var comparison = kidComparisons.atTheMonthEndOf(TUK75, calculation);
+
+    assertThat(comparison)
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null, false));
+    assertThat(comparison.differsFrom(calculation)).isFalse();
+  }
+
+  @Test
+  void aMonthAlreadyPublishedAsAKidDoesNotDifferFromTheOlderKidInAnyLaterVersion() {
+    var firstVersion = storedCalculation(TUK75, "0.00450000");
+    var inForce = publicationRepository.recordGiven(kid(TUK75, "2026-03-01", "0.00460000", 2));
+    publicationRepository.recordFromCalculation(
+        firstVersion,
+        new OcfPublication(
+            "TUK75",
+            LocalDate.of(2026, 5, 1),
+            new BigDecimal("0.00450000"),
+            2,
+            MONTHLY_ESTIMATE,
+            "the monthly estimate",
+            firstVersion.storedId(),
+            new BigDecimal("0.00450000"),
+            7L,
+            null,
+            null,
+            "KID 01.05.2026",
+            "portfolio-manager"));
+    var laterVersion = storedCalculation(TUK75, "0.00450000");
+
+    var comparison = kidComparisons.atTheMonthEndOf(TUK75, laterVersion);
+
+    assertThat(laterVersion.version()).isEqualTo(2);
+    assertThat(comparison)
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null, true));
+    assertThat(comparison.differsFrom(laterVersion)).isFalse();
+  }
+
+  @Test
   void aFundWithNoKidRecordedComparesWithNothing() {
     var calculation = storedCalculation(TUK75, "0.00450000");
 
     assertThat(kidComparisons.atTheMonthEndOf(TUK75, calculation))
-        .isEqualTo(new KidComparison(new PublishedPrecision(2), null, null));
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), null, null, false));
   }
 
   @Test
@@ -49,18 +94,19 @@ class KidComparisonsIT {
 
     var comparison = kidComparisons.atTheMonthEndOf(TUK75, calculation);
 
-    assertThat(comparison).isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null));
-    assertThat(comparison.differsFrom(calculation.totalOcf())).isTrue();
+    assertThat(comparison)
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, null, false));
+    assertThat(comparison.differsFrom(calculation)).isTrue();
   }
 
   @Test
   void aReviewThatKeptTheKidForThisFigureClearsTheDifference() {
     var calculation = storedCalculation(TUK75, "0.00450000");
     var inForce = publicationRepository.recordGiven(kid(TUK75, "2026-03-01", "0.00460000", 2));
-    kidReviewRepository.record(calculation, inForce, REVIEW);
+    kidReviewRepository.recordUnlessPublishedOrRecalculated(calculation, inForce, REVIEW);
 
     assertThat(kidComparisons.atTheMonthEndOf(TUK75, calculation))
-        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, REVIEW));
+        .isEqualTo(new KidComparison(new PublishedPrecision(2), inForce, REVIEW, false));
   }
 
   @Test
@@ -70,9 +116,10 @@ class KidComparisonsIT {
 
     var comparison = kidComparisons.atTheMonthEndOf(TKF100, calculation);
 
-    assertThat(comparison).isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null));
+    assertThat(comparison)
+        .isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null, false));
     assertThat(comparison.precision()).isEqualTo(new PublishedPrecision(1));
-    assertThat(comparison.differsFrom(calculation.totalOcf())).isFalse();
+    assertThat(comparison.differsFrom(calculation)).isFalse();
   }
 
   @Test
@@ -82,9 +129,10 @@ class KidComparisonsIT {
 
     var comparison = kidComparisons.atTheMonthEndOf(TKF100, calculation);
 
-    assertThat(comparison).isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null));
+    assertThat(comparison)
+        .isEqualTo(new KidComparison(new PublishedPrecision(1), inForce, null, false));
     assertThat(comparison.precision()).isEqualTo(new PublishedPrecision(2));
-    assertThat(comparison.differsFrom(calculation.totalOcf())).isTrue();
+    assertThat(comparison.differsFrom(calculation)).isTrue();
   }
 
   @Test
@@ -96,6 +144,11 @@ class KidComparisonsIT {
   }
 
   private OcfSnapshot storedCalculation(TulevaFund fund, String totalOcf) {
+    return storedCalculation(fund, totalOcf, true, "{\"gaps\":[]}");
+  }
+
+  private OcfSnapshot storedCalculation(
+      TulevaFund fund, String totalOcf, boolean complete, String checks) {
     snapshotRepository.save(
         OcfSnapshot.computed(
             fund.getCode(),
@@ -107,8 +160,8 @@ class KidComparisonsIT {
             RebateBasis.NET,
             BigDecimal.ZERO,
             new BigDecimal(totalOcf),
-            true,
-            "{\"gaps\":[]}",
+            complete,
+            checks,
             new OcfAudit(
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
                 null)),
@@ -118,15 +171,13 @@ class KidComparisonsIT {
 
   private static OcfPublication kid(
       TulevaFund fund, String validFrom, String publishedOcf, int decimals) {
-    return new OcfPublication(
+    return OcfPublication.notFromACalculation(
         fund.getCode(),
         LocalDate.parse(validFrom),
         new BigDecimal(publishedOcf),
         decimals,
         MONTHLY_ESTIMATE,
         "the KID already in force",
-        null,
-        null,
         null,
         null,
         "KID " + validFrom,

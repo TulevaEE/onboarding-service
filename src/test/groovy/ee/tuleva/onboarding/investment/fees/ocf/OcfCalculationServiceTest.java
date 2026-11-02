@@ -97,7 +97,8 @@ class OcfCalculationServiceTest {
     given(kidComparisons.atTheMonthEndOf(any(), any()))
         .willAnswer(
             invocation ->
-                new KidComparison(PublishedPrecision.of(invocation.getArgument(0)), null, null));
+                new KidComparison(
+                    PublishedPrecision.of(invocation.getArgument(0)), null, null, false));
   }
 
   @BeforeEach
@@ -1089,7 +1090,8 @@ class OcfCalculationServiceTest {
                 2,
                 OcfPublicationBasis.MONTHLY_ESTIMATE,
                 "KID 2026"),
-            null);
+            null,
+            false);
     willReturn(kid)
         .given(kidComparisons)
         .atTheMonthEndOf(

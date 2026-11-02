@@ -59,14 +59,14 @@ class OcfKidReviewRepositoryTest {
 
   @Test
   void aReviewKeepsTheKidForAFigureThatRoundsToTheReviewedOne() {
-    repository.record(calculation, kid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW);
 
     assertThat(repository.findLatestKeeping(kid, new BigDecimal("0.00451"))).contains(REVIEW);
   }
 
   @Test
   void aFigureThatRoundsAwayFromTheReviewedOneIsNotKeptByThatReview() {
-    repository.record(calculation, kid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW);
 
     assertThat(repository.findLatestKeeping(kid, new BigDecimal("0.00444"))).isEmpty();
   }
@@ -75,7 +75,7 @@ class OcfKidReviewRepositoryTest {
   void aReviewOfAKidPrintedAtOneDecimalKeepsItForAnyFigureRoundingToTheSameTenth() {
     var oneDecimalKid =
         publicationRepository.recordGiven(kidOf("0.00520000", 1, "KID 01.03.2026 one decimal"));
-    repository.record(calculation, oneDecimalKid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, oneDecimalKid, REVIEW);
 
     assertThat(repository.findLatestKeeping(oneDecimalKid, new BigDecimal("0.0049")))
         .contains(REVIEW);
@@ -83,8 +83,58 @@ class OcfKidReviewRepositoryTest {
   }
 
   @Test
+  void aReviewIsNotRecordedOnceAVersionOfTheMonthIsPublishedAsAKid() {
+    jdbcClient
+        .sql(
+            """
+            UPDATE investment_ocf_snapshot
+            SET published_at = CURRENT_TIMESTAMP, published_in = 'KID 01.05.2026'
+            WHERE id = :id
+            """)
+        .param("id", calculation.storedId())
+        .update();
+
+    assertThat(repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW)).isFalse();
+    assertThat(repository.findLatestKeeping(kid, new BigDecimal("0.0045"))).isEmpty();
+  }
+
+  @Test
+  void aCalculationRecalculatedInPlaceAfterItWasReadIsNotRecordedAsReviewed() {
+    snapshotRepository.save(
+        OcfSnapshot.computed(
+            "TUK75",
+            APRIL,
+            new BigDecimal("0.00200000"),
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            new BigDecimal("0.00240000"),
+            RebateBasis.NET,
+            BigDecimal.ZERO,
+            new BigDecimal("0.00440000"),
+            true,
+            "{\"gaps\":[]}",
+            new OcfAudit(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null)),
+        List.of());
+
+    assertThat(repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW)).isFalse();
+    assertThat(
+            jdbcClient
+                .sql("SELECT COUNT(*) FROM investment_ocf_kid_review")
+                .query(Long.class)
+                .single())
+        .isZero();
+  }
+
+  @Test
+  void aReviewOfAnUnpublishedMonthIsRecorded() {
+    assertThat(repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW)).isTrue();
+  }
+
+  @Test
   void aReviewOfAnotherKidDoesNotKeepThisOne() {
-    repository.record(calculation, kid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW);
     var anotherKid = publicationRepository.recordGiven(kidOf("0.00460000", 2, "KID 01.04.2026"));
 
     assertThat(repository.findLatestKeeping(anotherKid, new BigDecimal("0.0045"))).isEmpty();
@@ -94,15 +144,15 @@ class OcfKidReviewRepositoryTest {
   void theLatestReviewKeepingTheFigureIsTheOneShown() {
     var later =
         new KidReview("portfolio-manager", "reviewed again", Instant.parse("2026-06-03T08:00:00Z"));
-    repository.record(calculation, kid, REVIEW);
-    repository.record(calculation, kid, later);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, later);
 
     assertThat(repository.findLatestKeeping(kid, new BigDecimal("0.0045"))).contains(later);
   }
 
   @Test
   void aReviewRecordsTheKidTheCalculationAndTheFigureItKept() {
-    repository.record(calculation, kid, REVIEW);
+    repository.recordUnlessPublishedOrRecalculated(calculation, kid, REVIEW);
 
     assertThat(
             jdbcClient
@@ -131,15 +181,13 @@ class OcfKidReviewRepositoryTest {
   }
 
   private static OcfPublication kidOf(String publishedOcf, int decimals, String publishedIn) {
-    return new OcfPublication(
+    return OcfPublication.notFromACalculation(
         "TUK75",
         MARCH_1,
         new BigDecimal(publishedOcf),
         decimals,
         MONTHLY_ESTIMATE,
         "the KID already in force",
-        null,
-        null,
         null,
         null,
         publishedIn,

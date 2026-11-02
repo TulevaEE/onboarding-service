@@ -26,4 +26,8 @@ record SebFundConfirmation(
   LocalDate orderReceivedOn() {
     return orderReceivedAt.atZone(SEB_TIME_ZONE).toLocalDate();
   }
+
+  boolean wasReceivedBefore(LocalDate day) {
+    return orderReceivedOn().isBefore(day);
+  }
 }

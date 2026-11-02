@@ -95,37 +95,7 @@ class SebFundConfirmationImportJobIT {
 
   @BeforeEach
   void setUp() {
-    Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-    SebFundConfirmationAuditRecorder auditRecorder =
-        new SebFundConfirmationAuditRecorder(auditEventRepository, clock);
-    job =
-        new SebFundConfirmationImportJob(
-            new SebFundConfirmationS3Source(s3Client, clock),
-            new SebFundConfirmationPdfParser(fundResolver, liberationSansTable()),
-            new SebFundConfirmationVerificationService(
-                reportService,
-                extractor,
-                priceResolver,
-                parameterRepository,
-                new SebFundConfirmationRegistryCheck(
-                    executionRepository, orderRepository, new ReportedQuantityNormalizer()),
-                clock,
-                PROPERTIES),
-            new SebFundConfirmationMissingFinder(
-                reportService,
-                extractor,
-                instrumentReferenceService,
-                fundResolver,
-                calendar,
-                clock,
-                PROPERTIES),
-            auditRecorder,
-            new SebFundConfirmationNavDateWriter(
-                new SebFundConfirmationRegistryCheck(
-                    executionRepository, orderRepository, new ReportedQuantityNormalizer()),
-                executionRepository,
-                auditRecorder),
-            new SebFundConfirmationDigest(notificationService, auditRecorder, PROPERTIES));
+    job = jobWith(PROPERTIES);
 
     jdbcClient
         .sql("DELETE FROM investment_parameter WHERE parameter_name = :name")
@@ -418,6 +388,59 @@ class SebFundConfirmationImportJobIT {
             Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
             Kontrolli, kumb on õige, ja paranda täitmine tehinguregistris või küsi SEB-lt parandust""",
             INVESTMENT);
+  }
+
+  @Test
+  void run_setsThePricingDateFromAConfirmationReceivedBeforeAlertsStartWithoutAlerting() {
+    job = jobWith(new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
+    seedTwoTradesAndANavBelowTheConfirmedPrice();
+    registerExecution("DLA0000001", "12.40000000", "12400.00");
+
+    job.run();
+
+    then(notificationService).shouldHaveNoInteractions();
+    assertThat(executionRepository.findByBrokerTransactionId("DLA0000001"))
+        .hasValueSatisfying(
+            execution -> assertThat(execution.getNavDate()).isEqualTo(LocalDate.of(2026, 1, 6)));
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("status", "[MATCH, FAR_FROM_NAV, ON_TIME]"));
+  }
+
+  private SebFundConfirmationImportJob jobWith(SebFundConfirmationProperties properties) {
+    Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    SebFundConfirmationAuditRecorder auditRecorder =
+        new SebFundConfirmationAuditRecorder(auditEventRepository, clock);
+    return new SebFundConfirmationImportJob(
+        new SebFundConfirmationS3Source(s3Client, clock),
+        new SebFundConfirmationPdfParser(fundResolver, liberationSansTable()),
+        new SebFundConfirmationVerificationService(
+            reportService,
+            extractor,
+            priceResolver,
+            parameterRepository,
+            new SebFundConfirmationRegistryCheck(
+                executionRepository, orderRepository, new ReportedQuantityNormalizer()),
+            clock,
+            properties),
+        new SebFundConfirmationMissingFinder(
+            reportService,
+            extractor,
+            instrumentReferenceService,
+            fundResolver,
+            calendar,
+            clock,
+            properties),
+        auditRecorder,
+        new SebFundConfirmationNavDateWriter(
+            new SebFundConfirmationRegistryCheck(
+                executionRepository, orderRepository, new ReportedQuantityNormalizer()),
+            executionRepository,
+            auditRecorder),
+        new SebFundConfirmationDigest(notificationService, auditRecorder, properties));
   }
 
   private void registerExecution(String reference, String price, String total) {

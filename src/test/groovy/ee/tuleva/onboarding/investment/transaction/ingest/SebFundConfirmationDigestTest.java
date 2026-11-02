@@ -295,6 +295,31 @@ class SebFundConfirmationDigestTest {
   }
 
   @Test
+  void publish_doesNotAlertAConfirmationReceivedBeforeAlertsStart() {
+    SebFundConfirmationDigest startingTheNextDay =
+        new SebFundConfirmationDigest(
+            notificationService,
+            auditRecorder,
+            new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
+    SebFundConfirmationOutcome outcome =
+        outcome(
+            new SebFundConfirmationResult(
+                MATCH,
+                List.of(),
+                RegistryComparison.NOT_IN_REGISTRY,
+                FAR_FROM_NAV,
+                new BigDecimal("12.3000"),
+                new BigDecimal("0.8130"),
+                LATE,
+                3));
+
+    startingTheNextDay.publish(List.of(outcome), List.of(), List.of(), List.of(), List.of());
+
+    then(notificationService).should(never()).sendMessage(any(), any());
+    then(auditRecorder).should(never()).recordAlerted(any(), any());
+  }
+
+  @Test
   void publish_recordsNothingWhenSlackFails() {
     SebFundConfirmationOutcome outcome =
         outcome(

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.company.Company;
@@ -917,6 +918,41 @@ class PaymentVerificationServiceTest {
                 (SavingsPaymentFailedEvent e) ->
                     e.getUser().equals(boardMember)
                         && e.getRecipient().equals(new PartyId(LEGAL_ENTITY, registryCode))));
+  }
+
+  @Test
+  void identityCheckFailure_namesTheCompanyForAnAppPaymentMadeFromAPersonalAccount() {
+    var boardMemberCode = "38812121215";
+    var company = new PartyId(LEGAL_ENTITY, "12345678");
+    var boardMember =
+        User.builder().id(123L).personalCode(boardMemberCode).firstName("JAAN").build();
+    var payment =
+        createPayment(boardMemberCode, company.code() + ", 1761900000").toBuilder()
+            .partyId(company)
+            .build();
+    given(userRepository.findByPersonalCode(boardMemberCode)).willReturn(Optional.of(boardMember));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .addReturnReason(
+            payment.getId(), "selgituses olev registrikood ei klapi maksja registrikoodiga");
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(boardMember) && e.getRecipient().equals(company)));
+  }
+
+  @Test
+  void identityCheckFailure_publishesNoFailedEventWhenACompanysOwnAccountPaidWithoutAnIdCode() {
+    var company = new PartyId(LEGAL_ENTITY, "12345678");
+    var payment =
+        createPayment(null, company.code() + ", 1761900000").toBuilder().partyId(company).build();
+
+    service.process(payment);
+
+    verify(applicationEventPublisher, never()).publishEvent(any(SavingsPaymentFailedEvent.class));
   }
 
   @Test

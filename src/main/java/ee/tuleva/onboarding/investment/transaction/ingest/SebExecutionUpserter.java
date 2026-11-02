@@ -42,6 +42,7 @@ class SebExecutionUpserter {
       TransactionExecution execution = existing.get();
       Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
       executionMapper.applyTo(execution, row, order);
+      keepEarliestReportedDate(execution, asOfDate);
       executionRepository.save(execution);
       Map<String, Object> after = executionMapper.mutableFieldsForDeltaAudit(execution);
       if (!before.equals(after)) {
@@ -56,6 +57,13 @@ class SebExecutionUpserter {
     order.setOrderStatus(OrderStatus.EXECUTED);
     orderRepository.save(order);
     return true;
+  }
+
+  private static void keepEarliestReportedDate(TransactionExecution execution, LocalDate asOfDate) {
+    LocalDate reportedDate = execution.getReportedDate();
+    if (reportedDate == null || reportedDate.isAfter(asOfDate)) {
+      execution.setReportedDate(asOfDate);
+    }
   }
 
   private boolean wouldOrphanExistingExecution(

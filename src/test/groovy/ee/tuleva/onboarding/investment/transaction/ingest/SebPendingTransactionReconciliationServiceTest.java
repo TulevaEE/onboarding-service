@@ -1311,6 +1311,45 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void replay_reportWithMalformedRow_saysTheSettlementCheckWasSkippedForIt() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    Map<String, Object> malformed = new HashMap<>();
+    malformed.put("ISIN", "IE000F60HVH9");
+    malformed.put("Client ref", "not-a-uuid");
+    malformed.put("Buy/Sell", "Buy");
+    malformed.put("Our ref", "DLA9999999");
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
+            .rawData(List.of(validRawRow(clientRef), malformed))
+            .build();
+
+    SettlementCheck check = service.replay(report, alert -> {});
+
+    assertThat(check).isEqualTo(SettlementCheck.SKIPPED_MALFORMED_ROWS);
+  }
+
+  @Test
+  void replay_reportWhereAnOrderIsMissing_saysTheSettlementCheckRan() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    SettlementCheck check = service.replay(reportWithSingleRow(clientRef), alert -> {});
+
+    assertThat(check).isEqualTo(SettlementCheck.CHECKED);
+  }
+
+  @Test
   void reconcile_existingExecutionFieldsChanged_recordsExecutionUpdatedAudit() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,12 @@ import org.springframework.stereotype.Component;
 class SebPendingTransactionReconciliationBackfillJob {
 
   private static final int BACKFILL_DAYS = 365;
+  private static final Map<SettlementCheck, String> SKIPPED_CHECK_REASONS =
+      Map.of(
+          SettlementCheck.SKIPPED_EMPTY_REPORT, "tühi raport",
+          SettlementCheck.SKIPPED_NO_MATCHED_ROW, "ükski rida ei sobitunud",
+          SettlementCheck.SKIPPED_MALFORMED_ROWS, "vigased read",
+          SettlementCheck.SKIPPED_NOT_LATEST_REPORT, "polnud viimane raport");
   private static final String RERUN_ADDS_NOTHING_TWICE =
       "Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.";
 
@@ -57,12 +64,14 @@ class SebPendingTransactionReconciliationBackfillJob {
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
+    List<SkippedCheck> skippedChecks = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
     Optional<LocalDate> stoppedAt = Optional.empty();
     for (InvestmentReport report : reports) {
       List<ReconciliationAlert> reportAlerts = new ArrayList<>();
+      SettlementCheck check;
       try {
-        reconciliationService.replay(report, reportAlerts::add);
+        check = reconciliationService.replay(report, reportAlerts::add);
       } catch (RuntimeException e) {
         log.error(
             "SEB pending transactions replay stopped: reportDate={}", report.getReportDate(), e);
@@ -72,6 +81,8 @@ class SebPendingTransactionReconciliationBackfillJob {
       reportAlerts.forEach(
           alert -> log.info("SEB pending transactions replay held back alert: alert={}", alert));
       heldBackAlerts.addAll(reportAlerts);
+      Optional.ofNullable(SKIPPED_CHECK_REASONS.get(check))
+          .ifPresent(reason -> skippedChecks.add(new SkippedCheck(report.getReportDate(), reason)));
       replayed.add(report.getReportDate());
     }
     ReplaySummary summary =
@@ -79,7 +90,8 @@ class SebPendingTransactionReconciliationBackfillJob {
             List.copyOf(replayed),
             executionRepository.count() - executionsBefore,
             settlementRepository.count() - settlementsBefore,
-            List.copyOf(heldBackAlerts));
+            List.copyOf(heldBackAlerts),
+            List.copyOf(skippedChecks));
     log.info(
         "SEB pending transactions replay completed: reports={}, newExecutions={},"
             + " newSettlements={}, heldBackAlerts={}, stoppedAt={}",
@@ -102,7 +114,7 @@ class SebPendingTransactionReconciliationBackfillJob {
   }
 
   private void sendCompleted(ReplaySummary summary) {
-    if (summary.alerts().isEmpty()) {
+    if (summary.alerts().isEmpty() && summary.skippedChecks().isEmpty()) {
       notificationService.sendMessage(completedMessage(summary), INVESTMENT);
     } else {
       notificationService.sendMessage(completedMessage(summary), INVESTMENT, WARNING);
@@ -121,6 +133,7 @@ class SebPendingTransactionReconciliationBackfillJob {
         + ".\n"
         + summary.counts()
         + "\n"
+        + summary.skippedChecksLine()
         + summary.priceDivergenceLines()
         + "Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). "
         + RERUN_ADDS_NOTHING_TWICE;
@@ -137,6 +150,7 @@ class SebPendingTransactionReconciliationBackfillJob {
                 + ". "
                 + summary.counts()
                 + "\n"
+                + summary.skippedChecksLine()
                 + summary.priceDivergenceLines())
         + "Paranda põhjus ja käivita uuesti. "
         + RERUN_ADDS_NOTHING_TWICE;
@@ -146,7 +160,8 @@ class SebPendingTransactionReconciliationBackfillJob {
       List<LocalDate> replayed,
       long newExecutions,
       long newSettlements,
-      List<ReconciliationAlert> alerts) {
+      List<ReconciliationAlert> alerts,
+      List<SkippedCheck> skippedChecks) {
 
     String reportsAndRange() {
       return replayed.size() == 1
@@ -170,6 +185,14 @@ class SebPendingTransactionReconciliationBackfillJob {
           + ").";
     }
 
+    String skippedChecksLine() {
+      return skippedChecks.isEmpty()
+          ? ""
+          : skippedChecks.stream()
+              .map(skipped -> skipped.reportDate() + " (" + skipped.reason() + ")")
+              .collect(joining(", ", "Arvelduse kontroll jäi vahele: ", ".\n"));
+    }
+
     String priceDivergenceLines() {
       return alerts.stream()
           .filter(ExecutionPriceConsistencyEvent.class::isInstance)
@@ -190,4 +213,6 @@ class SebPendingTransactionReconciliationBackfillJob {
       return alerts.stream().filter(kind::isInstance).count();
     }
   }
+
+  private record SkippedCheck(LocalDate reportDate, String reason) {}
 }

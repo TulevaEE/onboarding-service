@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -47,6 +48,49 @@ public class BankStatement {
         .filter(balance -> balance.type() == type.bookedBalanceType)
         .map(BankStatementBalance::balance)
         .findFirst();
+  }
+
+  public Optional<BigDecimal> closingBalanceOn(LocalDate day, ZoneId timezone) {
+    var opening = Optional.ofNullable(findOpeningBalance(balances));
+    var bookings = datedBookings(timezone);
+    if (opening.isEmpty()
+        || bookings.isEmpty()
+        || !period.covers(day)
+        || !addUpToTheClosingBalance(opening.get(), bookings.get())) {
+      return Optional.empty();
+    }
+    return Optional.of(opening.get().add(sumBookedBy(day, bookings.get())));
+  }
+
+  private record DatedAmount(LocalDate day, BigDecimal amount) {}
+
+  private Optional<List<DatedAmount>> datedBookings(ZoneId timezone) {
+    var dated =
+        entries.stream()
+            .map(
+                entry ->
+                    Optional.ofNullable(entry.receivedBefore())
+                        .map(
+                            bookedBy ->
+                                new DatedAmount(
+                                    bookedBy.atZone(timezone).toLocalDate(), entry.amount())))
+            .toList();
+    return dated.stream().allMatch(Optional::isPresent)
+        ? Optional.of(dated.stream().map(Optional::orElseThrow).toList())
+        : Optional.empty();
+  }
+
+  private boolean addUpToTheClosingBalance(BigDecimal opening, List<DatedAmount> bookings) {
+    return bookedBalance()
+        .map(closing -> opening.add(sumBookedBy(period.to(), bookings)).compareTo(closing) == 0)
+        .orElse(false);
+  }
+
+  private static BigDecimal sumBookedBy(LocalDate day, List<DatedAmount> bookings) {
+    return bookings.stream()
+        .filter(booking -> !booking.day().isAfter(day))
+        .map(DatedAmount::amount)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   record TransactionSummary(

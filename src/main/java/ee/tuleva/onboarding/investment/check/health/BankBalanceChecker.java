@@ -65,8 +65,8 @@ class BankBalanceChecker {
               WARNING,
               ("Report cash %s on %s not compared with the bank: SEB sent that day inside a"
                       + " catch-up statement (one statement for several days, e.g. after an"
-                      + " outage) whose closing balance is for a later day. Check the day's"
-                      + " balance in SEB's internet bank")
+                      + " outage), and the day's balance could not be worked out from its"
+                      + " bookings. Check the day's balance in SEB's internet bank")
                   .formatted(euros(reportCash), navDate)));
     }
     return List.of(finding(fund, NOT_RUN, "No bank statement for %s".formatted(navDate)));

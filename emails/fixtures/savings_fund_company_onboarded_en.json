@@ -2,6 +2,11 @@
   "variants": {
     "company account opened": {
       "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "company not on file yet": {
+      "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ"
     }
   }

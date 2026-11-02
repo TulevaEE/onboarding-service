@@ -232,9 +232,9 @@ describe("gmailSearchQuery", () => {
   test("searches every sender's attachments sent to funds@ in the window", () => {
     expect(gmailSearchQuery(2)).toBe("to:funds@tuleva.ee has:attachment newer_than:2d");
   });
-  test("narrows the search to one sender", () => {
-    expect(gmailSearchQuery(274, "tehingukinnitus@seb.ee")).toBe(
-      "to:funds@tuleva.ee has:attachment newer_than:274d from:tehingukinnitus@seb.ee"
+  test("narrows the search to a source's senders", () => {
+    expect(gmailSearchQuery(274, ["tehingukinnitus@seb.ee", "kinnitus@seb.ee"])).toBe(
+      "to:funds@tuleva.ee has:attachment newer_than:274d from:(tehingukinnitus@seb.ee OR kinnitus@seb.ee)"
     );
   });
 });
@@ -249,12 +249,7 @@ describe("daysToReach", () => {
 });
 
 describe("messagesFrom", () => {
-  const messageFrom = (sender) => ({
-    getFrom: () => sender,
-    getTo: () => "funds@tuleva.ee",
-    getCc: () => "",
-    getBcc: () => "",
-  });
+  const messageFrom = (sender) => ({ getFrom: () => sender });
 
   test("takes SEB's trade confirmations from a thread", () => {
     const confirmation = messageFrom("SEB <tehingukinnitus@seb.ee>");
@@ -267,6 +262,9 @@ describe("messagesFrom", () => {
   });
   test("leaves out a message from an unknown sender", () => {
     expect(messagesFrom([messageFrom("someone@example.com")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
+  });
+  test("leaves out a reply from the funds mailbox without asking Gmail who sent it", () => {
+    expect(messagesFrom([messageFrom("funds@tuleva.ee")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
   });
 });
 

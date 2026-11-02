@@ -50,7 +50,7 @@ class KnownLookupsTest {
   }
 
   @Test
-  void aLeaverWhoseDateHasComeMayNotRejoinWhenTheirContributionsEndedWithoutAnApplication() {
+  void aLeaverWhoseDateHasComeMayNotRejoinWhenTheirContributionsCannotRestart() {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
     given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(true);

@@ -67,6 +67,7 @@ public class BankStatement {
   private Optional<List<DatedAmount>> datedBookings(ZoneId timezone) {
     var dated =
         entries.stream()
+            .filter(BankStatementEntry::booked)
             .map(
                 entry ->
                     Optional.ofNullable(entry.receivedBefore())

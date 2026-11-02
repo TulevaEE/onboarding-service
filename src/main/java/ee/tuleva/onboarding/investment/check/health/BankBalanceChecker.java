@@ -62,7 +62,7 @@ class BankBalanceChecker {
       return List.of(
           finding(
               fund,
-              WARNING,
+              NOT_RUN,
               ("Report cash %s on %s not compared with the bank: SEB sent that day inside a"
                       + " catch-up statement (one statement for several days, e.g. after an"
                       + " outage), and the day's balance could not be worked out from its"

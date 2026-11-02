@@ -42,13 +42,15 @@ public class BookedBalanceReader implements BankStatementBalances {
 
   @Override
   public Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day) {
-    var statementOfTheDay =
-        bankingMessageRepository.findLatestProcessedStatementEndingOn(SEB, account.iban(), day);
-    if (statementOfTheDay.isPresent()) {
-      return statementOf(statementOfTheDay.get()).bookedBalance();
-    }
-    return catchUpStatementCovering(account, day)
-        .flatMap(message -> statementOf(message).closingBalanceOn(day, message.getTimezoneId()));
+    return bankingMessageRepository
+        .findLatestProcessedStatementEndingOn(SEB, account.iban(), day)
+        .flatMap(message -> statementOf(message).bookedBalance())
+        .or(
+            () ->
+                catchUpStatementCovering(account, day)
+                    .flatMap(
+                        message ->
+                            statementOf(message).closingBalanceOn(day, message.getTimezoneId())));
   }
 
   @Override

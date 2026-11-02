@@ -84,7 +84,7 @@ class SebFundConfirmationImportJob {
         .add(confirmation.map(SebFundConfirmation::tradeReference).orElse(nameReference));
     confirmation.ifPresent(
         read -> {
-          if (verificationService.checks(read) && !nameReference.equals(read.tradeReference())) {
+          if (!nameReference.equals(read.tradeReference())) {
             uploads
                 .misnamed()
                 .add(new MisnamedSebFundConfirmation(key, nameReference, read.tradeReference()));

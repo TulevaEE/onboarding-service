@@ -299,19 +299,6 @@ class SebFundConfirmationImportJobTest {
   }
 
   @Test
-  void run_saysNothingAboutTheFileNameOfAConfirmationItDoesNotCheck() {
-    given(parser.parse(SECOND_PDF)).willReturn(confirmation("DLA0000003"));
-    given(verificationService.checks(confirmation("DLA0000003"))).willReturn(false);
-
-    job.run();
-
-    then(missingFinder).should().find(Set.of("DLA0000001", "DLA0000003"));
-    then(digest)
-        .should()
-        .publish(List.of(outcome("DLA0000001")), List.of(), List.of(), List.of(), List.of());
-  }
-
-  @Test
   void run_countsAPdfItCouldNotReadAsAConfirmationOfTheTradeItsFileNames() {
     willThrow(new SebFundConfirmationPdfParseException("Glyph not in table"))
         .given(parser)

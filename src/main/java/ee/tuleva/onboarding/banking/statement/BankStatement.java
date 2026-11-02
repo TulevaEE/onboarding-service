@@ -52,7 +52,7 @@ public class BankStatement {
 
   public Optional<BigDecimal> closingBalanceOn(LocalDate day, ZoneId timezone) {
     var opening = Optional.ofNullable(findOpeningBalance(balances));
-    var bookings = datedBookings(timezone);
+    var bookings = bookingsDatedInsideThePeriod(timezone);
     if (opening.isEmpty()
         || bookings.isEmpty()
         || !period.covers(day)
@@ -64,7 +64,7 @@ public class BankStatement {
 
   private record DatedAmount(LocalDate day, BigDecimal amount) {}
 
-  private Optional<List<DatedAmount>> datedBookings(ZoneId timezone) {
+  private Optional<List<DatedAmount>> bookingsDatedInsideThePeriod(ZoneId timezone) {
     var dated =
         entries.stream()
             .filter(BankStatementEntry::booked)
@@ -76,22 +76,24 @@ public class BankStatement {
                                 new DatedAmount(
                                     bookedBy.atZone(timezone).toLocalDate(), entry.amount())))
             .toList();
-    return dated.stream().allMatch(Optional::isPresent)
+    return dated.stream()
+            .allMatch(booking -> booking.filter(it -> period.covers(it.day())).isPresent())
         ? Optional.of(dated.stream().map(Optional::orElseThrow).toList())
         : Optional.empty();
   }
 
   private boolean addUpToTheClosingBalance(BigDecimal opening, List<DatedAmount> bookings) {
     return bookedBalance()
-        .map(closing -> opening.add(sumBookedBy(period.to(), bookings)).compareTo(closing) == 0)
+        .map(closing -> opening.add(sum(bookings)).compareTo(closing) == 0)
         .orElse(false);
   }
 
   private static BigDecimal sumBookedBy(LocalDate day, List<DatedAmount> bookings) {
-    return bookings.stream()
-        .filter(booking -> !booking.day().isAfter(day))
-        .map(DatedAmount::amount)
-        .reduce(ZERO, BigDecimal::add);
+    return sum(bookings.stream().filter(booking -> !booking.day().isAfter(day)).toList());
+  }
+
+  private static BigDecimal sum(List<DatedAmount> bookings) {
+    return bookings.stream().map(DatedAmount::amount).reduce(ZERO, BigDecimal::add);
   }
 
   record TransactionSummary(

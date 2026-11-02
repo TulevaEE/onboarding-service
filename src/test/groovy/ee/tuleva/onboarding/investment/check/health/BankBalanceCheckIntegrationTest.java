@@ -180,6 +180,30 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
+  void cannotRunForACatchUpDayWhenABookingIsDatedAfterTheStatementEnds() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
+            booking(NAV_DATE.plusDays(1), "50.00", "DBIT")),
+        "1200.00");
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1200.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                NOT_RUN,
+                "Report cash 1200.00 on 2026-10-22 not compared with the bank: SEB sent that day"
+                    + " inside a catch-up statement (one statement for several days, e.g. after"
+                    + " an outage), and the day's balance could not be worked out from its"
+                    + " bookings. Check the day's balance in SEB's internet bank"));
+  }
+
+  @Test
   void comparesADayRefetchedOnItsOwnWithItsOwnStatementRatherThanTheCatchUp() {
     storeCatchUpStatement(
         TUK75_INVESTMENT_IBAN,

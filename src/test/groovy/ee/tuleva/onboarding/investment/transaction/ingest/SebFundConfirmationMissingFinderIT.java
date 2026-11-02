@@ -33,7 +33,7 @@ class SebFundConfirmationMissingFinderIT {
   private static final String FUND_ISIN = "IE00BKPTWY98";
   private static final String ETF_ISIN = "IE000F60HVH9";
   private static final LocalDate TODAY = LocalDate.of(2026, 1, 14);
-  private static final LocalDate MISSING_CONFIRMATIONS_FROM = LocalDate.of(2026, 1, 5);
+  private static final LocalDate ALERTS_FROM = LocalDate.of(2026, 1, 5);
 
   @Autowired private InvestmentReportService reportService;
   @Autowired private InvestmentReportRepository reportRepository;
@@ -54,7 +54,7 @@ class SebFundConfirmationMissingFinderIT {
             fundResolver,
             calendar,
             Clock.fixed(TODAY.atTime(10, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC),
-            new SebFundConfirmationProperties(2, 2, MISSING_CONFIRMATIONS_FROM));
+            new SebFundConfirmationProperties(2, 2, ALERTS_FROM));
   }
 
   @Test

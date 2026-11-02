@@ -76,7 +76,7 @@ class SebFundConfirmationMissingFinder {
           .map(this::missingConfirmation)
           .flatMap(Optional::stream)
           .filter(trade -> !confirmedReferences.contains(trade.tradeReference()))
-          .filter(trade -> !trade.tradeDate().isBefore(properties.missingConfirmationsFrom()))
+          .filter(trade -> !trade.tradeDate().isBefore(properties.alertsFrom()))
           .filter(trade -> !trade.tradeDate().isAfter(lastTradeDateDue))
           .forEach(trade -> missing.put(trade.tradeReference(), trade));
     }

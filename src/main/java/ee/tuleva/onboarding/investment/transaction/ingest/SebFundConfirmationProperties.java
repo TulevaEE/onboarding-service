@@ -5,4 +5,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("transaction-registry.seb-fund-confirmation")
 record SebFundConfirmationProperties(
-    int maxNavDatesAfterReceipt, int businessDaysToWait, LocalDate missingConfirmationsFrom) {}
+    int maxNavDatesAfterReceipt, int businessDaysToWait, LocalDate alertsFrom) {}

@@ -267,7 +267,7 @@ transaction-registry:
   seb-fund-confirmation:
     max-nav-dates-after-receipt: 2
     business-days-to-wait: 3
-    missing-confirmations-from: 2026-10-01
+    alerts-from: 2026-10-01
   ft-confirmation:
     # Whether onboarding-service is the authoritative FT-verification pipeline yet. While
     # false (parallel run with GAS), the FT check runs in shadow mode: confirmations are

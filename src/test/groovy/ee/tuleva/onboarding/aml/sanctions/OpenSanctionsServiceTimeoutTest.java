@@ -22,7 +22,9 @@ class OpenSanctionsServiceTimeoutTest {
   @Test
   @Timeout(value = 5, unit = SECONDS, threadMode = ThreadMode.SEPARATE_THREAD)
   void match_failsFastWhenSanctionsApiDoesNotRespond() throws IOException {
-    try (var unresponsiveServer = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+    var backlogForEveryRetryAttempt = 10;
+    try (var unresponsiveServer =
+        new ServerSocket(0, backlogForEveryRetryAttempt, InetAddress.getLoopbackAddress())) {
       var service =
           new OpenSanctionsService(
               new RestTemplateBuilder(),

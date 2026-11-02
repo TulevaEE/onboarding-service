@@ -12,7 +12,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -26,7 +25,6 @@ class SebMatchedRowProcessor {
   private final SebExecutionUpserter executionUpserter;
   private final ReportedQuantityNormalizer quantityNormalizer;
   private final TransactionExecutionRepository executionRepository;
-  private final ApplicationEventPublisher eventPublisher;
   private final ReconciliationAuditRecorder auditRecorder;
   private final TransactionSettlementRepository settlementRepository;
 
@@ -35,7 +33,8 @@ class SebMatchedRowProcessor {
       SebPendingTransactionRow row,
       LocalDate reportDate,
       LocalDate asOfDate,
-      TransactionMatchingProperties matchingProperties) {
+      TransactionMatchingProperties matchingProperties,
+      ReconciliationAlerts alerts) {
     if (!consistencyChecker.isConsistent(order, row, reportDate)) {
       return RowOutcome.MATCHED;
     }
@@ -47,7 +46,7 @@ class SebMatchedRowProcessor {
     Optional<QuantityAmountMismatchEvent> blankEconomics =
         quantityAmountValidator.detectBlankEconomics(order, row, matchingProperties);
     if (blankEconomics.isPresent()) {
-      reportMismatch(blankEconomics.get().withReportDate(reportDate), row);
+      reportMismatch(blankEconomics.get().withReportDate(reportDate), row, alerts);
       return RowOutcome.MATCHED;
     }
     List<TransactionExecution> existingExecutions =
@@ -58,12 +57,12 @@ class SebMatchedRowProcessor {
         quantityAmountValidator.validateCumulative(
             order, normalizedRow, existingExecutions, matchingProperties);
     if (mismatch.isPresent()) {
-      reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow);
+      reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow, alerts);
       return RowOutcome.MATCHED;
     }
     BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
     if (executionUpserter.upsert(normalizedRow, order, reportDate, asOfDate, reportedQuantity)) {
-      checkPriceConsistency(order, reportDate, matchingProperties);
+      checkPriceConsistency(order, reportDate, matchingProperties, alerts);
       return RowOutcome.MATCHED;
     }
     return RowOutcome.SKIPPED;
@@ -80,7 +79,10 @@ class SebMatchedRowProcessor {
   }
 
   private void checkPriceConsistency(
-      TransactionOrder order, LocalDate reportDate, TransactionMatchingProperties properties) {
+      TransactionOrder order,
+      LocalDate reportDate,
+      TransactionMatchingProperties properties,
+      ReconciliationAlerts alerts) {
     priceConsistencyChecker
         .check(
             order,
@@ -98,11 +100,14 @@ class SebMatchedRowProcessor {
                   event.relativeSpread(),
                   event.tolerance(),
                   reportDate);
-              eventPublisher.publishEvent(event.withReportDate(reportDate));
+              alerts.raise(event.withReportDate(reportDate));
             });
   }
 
-  private void reportMismatch(QuantityAmountMismatchEvent event, SebPendingTransactionRow row) {
+  private void reportMismatch(
+      QuantityAmountMismatchEvent event,
+      SebPendingTransactionRow row,
+      ReconciliationAlerts alerts) {
     log.info(
         "Quantity/amount mismatch: clientRef={}, ourRef={}, isin={}, kind={}, expected={},"
             + " actual={}, reportDate={}",
@@ -114,7 +119,7 @@ class SebMatchedRowProcessor {
         event.actual(),
         event.reportDate());
     auditRecorder.recordQuantityAmountMismatch(event);
-    eventPublisher.publishEvent(event);
+    alerts.raise(event);
   }
 
   private void handleSettledOrderReappearance(

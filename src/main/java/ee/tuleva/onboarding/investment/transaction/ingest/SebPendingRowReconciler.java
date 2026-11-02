@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -23,7 +22,6 @@ class SebPendingRowReconciler {
   private final SebPendingTransactionComplexMatcher complexMatcher;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
-  private final ApplicationEventPublisher eventPublisher;
   private final ReconciliationAuditRecorder auditRecorder;
   private final SebMatchedRowProcessor matchedRowProcessor;
 
@@ -32,16 +30,18 @@ class SebPendingRowReconciler {
       LocalDate reportDate,
       LocalDate asOfDate,
       TransactionMatchingProperties matchingProperties,
-      Set<Long> presentOrderIds) {
+      Set<Long> presentOrderIds,
+      ReconciliationAlerts alerts) {
     presentOrderIds.addAll(referencedOrderIds(row));
     Optional<TransactionOrder> orderOpt = matchOrder(row, matchingProperties);
     if (orderOpt.isEmpty()) {
-      handleUnmatchedRow(row, reportDate, matchingProperties);
+      handleUnmatchedRow(row, reportDate, matchingProperties, alerts);
       return RowOutcome.UNMATCHED;
     }
     TransactionOrder order = orderOpt.get();
     presentOrderIds.add(order.getId());
-    return processMatchedRow(order, row, reportDate, asOfDate, matchingProperties);
+    return matchedRowProcessor.process(
+        order, row, reportDate, asOfDate, matchingProperties, alerts);
   }
 
   private Optional<TransactionOrder> matchOrder(
@@ -59,11 +59,12 @@ class SebPendingRowReconciler {
   private void handleUnmatchedRow(
       SebPendingTransactionRow row,
       LocalDate reportDate,
-      TransactionMatchingProperties matchingProperties) {
+      TransactionMatchingProperties matchingProperties,
+      ReconciliationAlerts alerts) {
     Optional<QuantityAmountMismatchEvent> nearMiss =
         complexMatcher.findNearMiss(row, matchingProperties);
     if (nearMiss.isPresent()) {
-      reportMismatch(nearMiss.get().withReportDate(reportDate), row);
+      reportMismatch(nearMiss.get().withReportDate(reportDate), row, alerts);
       return;
     }
     log.info(
@@ -75,16 +76,10 @@ class SebPendingRowReconciler {
     auditRecorder.recordUnmatched(row, reportDate);
   }
 
-  private RowOutcome processMatchedRow(
-      TransactionOrder order,
+  private void reportMismatch(
+      QuantityAmountMismatchEvent event,
       SebPendingTransactionRow row,
-      LocalDate reportDate,
-      LocalDate asOfDate,
-      TransactionMatchingProperties matchingProperties) {
-    return matchedRowProcessor.process(order, row, reportDate, asOfDate, matchingProperties);
-  }
-
-  private void reportMismatch(QuantityAmountMismatchEvent event, SebPendingTransactionRow row) {
+      ReconciliationAlerts alerts) {
     log.info(
         "Quantity/amount mismatch: clientRef={}, ourRef={}, isin={}, kind={}, expected={},"
             + " actual={}, reportDate={}",
@@ -96,7 +91,7 @@ class SebPendingRowReconciler {
         event.actual(),
         event.reportDate());
     auditRecorder.recordQuantityAmountMismatch(event);
-    eventPublisher.publishEvent(event);
+    alerts.raise(event);
   }
 
   private Optional<TransactionOrder> matchByBrokerRef(SebPendingTransactionRow row) {

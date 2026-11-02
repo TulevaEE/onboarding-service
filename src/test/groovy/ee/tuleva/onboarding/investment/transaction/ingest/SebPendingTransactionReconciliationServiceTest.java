@@ -88,7 +88,6 @@ class SebPendingTransactionReconciliationServiceTest {
             executionUpserter,
             new ReportedQuantityNormalizer(),
             executionRepository,
-            eventPublisher,
             auditRecorder,
             settlementRepository);
     SebPendingRowReconciler rowReconciler =
@@ -102,7 +101,6 @@ class SebPendingTransactionReconciliationServiceTest {
                 new ReportedQuantityNormalizer()),
             executionRepository,
             orderRepository,
-            eventPublisher,
             auditRecorder,
             matchedRowProcessor);
     return new SebPendingTransactionReconciliationService(

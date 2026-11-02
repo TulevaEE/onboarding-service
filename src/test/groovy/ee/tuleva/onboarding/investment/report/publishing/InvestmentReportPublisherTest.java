@@ -312,6 +312,24 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
+  void aPageThatCameToLinkANewerReportDuringThePublishIsLeftAlone() {
+    givenEveryReportCanBeProduced();
+    var refusal =
+        "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
+    given(newerReportCheck.newerReportsLinked(List.of(FundReportMapping.TUK00), MARCH_2026))
+        .willReturn(List.of(refusal));
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUV100");
+    assertThat(result.errors()).containsExactly(refusal);
+    verify(wordPressClient, never())
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+  }
+
+  @Test
   void aSecondPublishWhileOneIsRunningPublishesNothing() {
     willReturn(Optional.empty()).given(publishingLock).whileNoOtherPublishRuns(any());
 

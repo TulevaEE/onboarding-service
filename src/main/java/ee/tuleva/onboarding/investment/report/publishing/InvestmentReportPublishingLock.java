@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 class InvestmentReportPublishingLock {
 
   static final String ONE_PUBLISH_AT_A_TIME_LOCK = "investmentReportPublishing";
-  private static final Duration PUBLISH_LOCK_HELD_AT_MOST = Duration.ofMinutes(30);
+  private static final Duration PUBLISH_LOCK_HELD_AT_MOST = Duration.ofHours(2);
 
   private final LockProvider lockProvider;
   private final Clock clock;

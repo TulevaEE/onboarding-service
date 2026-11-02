@@ -50,7 +50,7 @@ class InvestmentReportPublishingLockTest {
                     configuration.getName().equals("investmentReportPublishing")
                         && configuration
                             .getLockAtMostUntil()
-                            .equals(NOW.plus(Duration.ofMinutes(30)))));
+                            .equals(NOW.plus(Duration.ofHours(2)))));
     verify(lock).unlock();
   }
 

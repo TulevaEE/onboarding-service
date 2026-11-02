@@ -89,7 +89,7 @@ public class InvestmentReportPublisher {
     }
 
     var repointErrors = new ArrayList<String>();
-    var publishedUrls = repointFundPages(uploads, repointErrors);
+    var publishedUrls = repointFundPages(month, uploads, repointErrors);
     if (!repointErrors.isEmpty()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
@@ -169,11 +169,16 @@ public class InvestmentReportPublisher {
   }
 
   private Map<String, String> repointFundPages(
-      Map<FundReportMapping, UploadResult> uploads, List<String> errors) {
+      YearMonth month, Map<FundReportMapping, UploadResult> uploads, List<String> errors) {
     var publishedUrls = new LinkedHashMap<String, String>();
     for (var entry : uploads.entrySet()) {
       var mapping = entry.getKey();
       var upload = entry.getValue();
+      var linkedSinceTheCheck = newerReportCheck.newerReportsLinked(List.of(mapping), month);
+      if (!linkedSinceTheCheck.isEmpty()) {
+        errors.addAll(linkedSinceTheCheck);
+        continue;
+      }
       try {
         wordPressClient.updateAcfReportField(mapping.pageSlug(), upload.attachmentId());
         publishedUrls.put(mapping.fund().getCode(), upload.sourceUrl());

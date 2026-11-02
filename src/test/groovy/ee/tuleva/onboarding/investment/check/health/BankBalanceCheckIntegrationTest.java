@@ -157,7 +157,32 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
-  void warnsThatADayInsideACatchUpStatementWithoutAnOpeningBalanceWasNotCompared() {
+  void comparesADayRefetchedOnItsOwnWithItsOwnStatementRatherThanTheCatchUp() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
+            booking(NAV_DATE.minusDays(1), "50.00", "DBIT")),
+        "1150.00");
+    storeStatement(TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(1), "1100.00", "CRDT", REFETCHED);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1100.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1150.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 1150.00, bank closing balance 1100.00 on 2026-10-22, difference"
+                    + " 50.00, NAV too high. Have SEB correct the report's cash before the NAV"));
+  }
+
+  @Test
+  void
+      warnsThatADayInsideACatchUpStatementWithoutAnOpeningBalanceWasNotComparedUntilRefetchedOnItsOwn() {
     storeCatchUpStatement(
         TUK75_INVESTMENT_IBAN,
         NAV_DATE.minusDays(2),
@@ -177,6 +202,10 @@ class BankBalanceCheckIntegrationTest {
                     + " an outage), and the day's balance could not be worked out from its"
                     + " bookings. Check the day's balance in SEB's internet bank"));
     assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1000000.00"))).isEmpty();
+
+    storeStatement(TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(1), "999.00", "CRDT", REFETCHED);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00"))).isEmpty();
   }
 
   private static List<FundPosition> cash(TulevaFund fund, String marketValue) {

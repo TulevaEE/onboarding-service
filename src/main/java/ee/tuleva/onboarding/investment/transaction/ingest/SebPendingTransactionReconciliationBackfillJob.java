@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -31,8 +32,8 @@ import org.springframework.stereotype.Component;
 class SebPendingTransactionReconciliationBackfillJob {
 
   private static final int BACKFILL_DAYS = 365;
-  private static final String RERUN_IS_SAFE =
-      "Uuesti käivitamine on ohutu: juba sobitatut topelt ei lisata.";
+  private static final String RERUN_ADDS_NOTHING_TWICE =
+      "Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.";
 
   private final Clock clock;
   private final InvestmentReportService reportService;
@@ -59,33 +60,37 @@ class SebPendingTransactionReconciliationBackfillJob {
     List<LocalDate> replayed = new ArrayList<>();
     Optional<LocalDate> stoppedAt = Optional.empty();
     for (InvestmentReport report : reports) {
+      List<ReconciliationAlert> reportAlerts = new ArrayList<>();
       try {
-        reconciliationService.replay(report, alert -> holdBack(alert, heldBackAlerts));
-        replayed.add(report.getReportDate());
+        reconciliationService.replay(report, reportAlerts::add);
       } catch (RuntimeException e) {
         log.error(
             "SEB pending transactions replay stopped: reportDate={}", report.getReportDate(), e);
         stoppedAt = Optional.of(report.getReportDate());
         break;
       }
+      reportAlerts.forEach(
+          alert -> log.info("SEB pending transactions replay held back alert: alert={}", alert));
+      heldBackAlerts.addAll(reportAlerts);
+      replayed.add(report.getReportDate());
     }
     ReplaySummary summary =
         new ReplaySummary(
             List.copyOf(replayed),
             executionRepository.count() - executionsBefore,
             settlementRepository.count() - settlementsBefore,
-            heldBackAlerts.size());
+            List.copyOf(heldBackAlerts));
     log.info(
         "SEB pending transactions replay completed: reports={}, newExecutions={},"
             + " newSettlements={}, heldBackAlerts={}, stoppedAt={}",
         replayed.size(),
         summary.newExecutions(),
         summary.newSettlements(),
-        summary.heldBackAlerts(),
+        heldBackAlerts.size(),
         stoppedAt.orElse(null));
     stoppedAt.ifPresentOrElse(
         date -> notificationService.sendMessage(stoppedMessage(date, summary), INVESTMENT, ERROR),
-        () -> notificationService.sendMessage(completedMessage(summary), INVESTMENT));
+        () -> sendCompleted(summary));
   }
 
   private List<InvestmentReport> storedReportsOldestFirst(LocalDate today) {
@@ -96,58 +101,93 @@ class SebPendingTransactionReconciliationBackfillJob {
         .toList();
   }
 
-  private static void holdBack(
-      ReconciliationAlert alert, List<ReconciliationAlert> heldBackAlerts) {
-    log.info("SEB pending transactions replay held back alert: alert={}", alert);
-    heldBackAlerts.add(alert);
+  private void sendCompleted(ReplaySummary summary) {
+    if (summary.alerts().isEmpty()) {
+      notificationService.sendMessage(completedMessage(summary), INVESTMENT);
+    } else {
+      notificationService.sendMessage(completedMessage(summary), INVESTMENT, WARNING);
+    }
   }
 
   private static String noReportsMessage() {
-    return "SEB ootel-raportite ajaloo uuesti sobitamine: viimase "
+    return "SEB ootel-tehingute raporteid pole viimase "
         + BACKFILL_DAYS
-        + " päeva kohta pole ühtki raportit, midagi ei sobitatud.";
+        + " päeva kohta, midagi ei sobitatud uuesti.";
   }
 
   private static String completedMessage(ReplaySummary summary) {
-    return "SEB ootel-raportite ajalugu sobitati uuesti kuupäevade järjekorras: "
+    return "SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: "
         + summary.reportsAndRange()
-        + ".\nUusi täitmisi "
-        + summary.newExecutions()
-        + ", uusi arveldusi "
-        + summary.newSettlements()
-        + ". Hoiatusi jäeti saatmata "
-        + summary.heldBackAlerts()
-        + ", need on logis.\n"
-        + RERUN_IS_SAFE;
+        + ".\n"
+        + summary.counts()
+        + "\n"
+        + summary.priceDivergenceLines()
+        + "Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). "
+        + RERUN_ADDS_NOTHING_TWICE;
   }
 
   private static String stoppedMessage(LocalDate stoppedAt, ReplaySummary summary) {
-    return "SEB ootel-raportite ajaloo uuesti sobitamine peatus raportil "
+    return "SEB ootel-tehingute raportite uuesti sobitamine peatus raportil "
         + stoppedAt
-        + " (põhjus logis).\n"
+        + " (põhjus on logis).\n"
         + (summary.replayed().isEmpty()
-            ? "Enne seda ei sobitatud ühtki raportit."
-            : "Enne seda "
+            ? "Enne seda ei sobitatud ühtki raportit.\n"
+            : "Enne seda raporteid: "
                 + summary.reportsAndRange()
-                + ": uusi täitmisi "
-                + summary.newExecutions()
-                + ", uusi arveldusi "
-                + summary.newSettlements()
-                + ", hoiatusi jäeti saatmata "
-                + summary.heldBackAlerts()
-                + ".")
-        + "\nParanda põhjus ja käivita uuesti: juba sobitatut topelt ei lisata.";
+                + ". "
+                + summary.counts()
+                + "\n"
+                + summary.priceDivergenceLines())
+        + "Paranda põhjus ja käivita uuesti. "
+        + RERUN_ADDS_NOTHING_TWICE;
   }
 
   private record ReplaySummary(
-      List<LocalDate> replayed, long newExecutions, long newSettlements, int heldBackAlerts) {
+      List<LocalDate> replayed,
+      long newExecutions,
+      long newSettlements,
+      List<ReconciliationAlert> alerts) {
 
     String reportsAndRange() {
-      return (replayed.size() == 1 ? "1 raport" : replayed.size() + " raportit")
-          + ", "
-          + replayed.getFirst()
-          + " kuni "
-          + replayed.getLast();
+      return replayed.size() == 1
+          ? "1 (" + replayed.getFirst() + ")"
+          : replayed.size() + " (" + replayed.getFirst() + " kuni " + replayed.getLast() + ")";
+    }
+
+    String counts() {
+      return "Uusi täitmisi: "
+          + newExecutions
+          + ", uusi arveldusi: "
+          + newSettlements
+          + ". Saatmata hoiatusi: "
+          + alerts.size()
+          + " (koguse või summa lahknevusi: "
+          + count(QuantityAmountMismatchEvent.class)
+          + ", kärbitud raporteid: "
+          + count(PossibleReportTruncationEvent.class)
+          + ", tükkide hinnaerinevusi: "
+          + count(ExecutionPriceConsistencyEvent.class)
+          + ").";
+    }
+
+    String priceDivergenceLines() {
+      return alerts.stream()
+          .filter(ExecutionPriceConsistencyEvent.class::isInstance)
+          .map(ExecutionPriceConsistencyEvent.class::cast)
+          .map(
+              divergence ->
+                  "Tükkide hinnaerinevus: tellimus "
+                      + divergence.orderId()
+                      + ", "
+                      + divergence.isin()
+                      + ", raport "
+                      + divergence.reportDate()
+                      + ".\n")
+          .collect(joining());
+    }
+
+    private long count(Class<? extends ReconciliationAlert> kind) {
+      return alerts.stream().filter(kind::isInstance).count();
     }
   }
 }

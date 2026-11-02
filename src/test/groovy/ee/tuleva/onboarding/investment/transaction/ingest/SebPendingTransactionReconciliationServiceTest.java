@@ -1177,6 +1177,52 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void replay_orderFirstListedByALaterReport_isNotSettledByAnEarlierReportItIsMissingFrom() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder listedLater = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(listedLater));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "100", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+
+    service.replay(reportWithSingleRow(clientRef), alert -> {});
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(listedLater.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void replay_secondPieceListedByALaterReport_leavesTheOrderAShortFillOnTheEarlierReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder splitOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(splitOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "60", "2026-05-10T10:00:00Z", LocalDate.of(2026, 5, 11)),
+                pieceListedOn(
+                    2456L, "DLA456B", "40", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+
+    service.replay(reportWithSingleRow(clientRef), alert -> {});
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(splitOrder.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
   void replay_nearMissOrder_holdsTheMismatchBackInsteadOfPublishingIt() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
@@ -1553,6 +1599,19 @@ class SebPendingTransactionReconciliationServiceTest {
         .orderVenue(OrderVenue.SEB)
         .orderUuid(UUID.randomUUID())
         .orderStatus(EXECUTED)
+        .build();
+  }
+
+  private static TransactionExecution pieceListedOn(
+      Long id, String brokerRef, String quantity, String tradeInstant, LocalDate reportedDate) {
+    return TransactionExecution.builder()
+        .id(id)
+        .orderId(456L)
+        .source("SEB_OOTEL")
+        .brokerTransactionId(brokerRef)
+        .executedQuantity(new BigDecimal(quantity))
+        .executionTimestamp(Instant.parse(tradeInstant))
+        .reportedDate(reportedDate)
         .build();
   }
 

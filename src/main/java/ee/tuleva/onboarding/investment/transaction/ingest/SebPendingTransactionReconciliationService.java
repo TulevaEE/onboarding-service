@@ -109,6 +109,7 @@ public class SebPendingTransactionReconciliationService {
 
     detectSettlementsByAbsence(
         reportDate,
+        asOfDate,
         rows.size(),
         matched,
         presentOrderIds,
@@ -119,6 +120,7 @@ public class SebPendingTransactionReconciliationService {
 
   private void detectSettlementsByAbsence(
       LocalDate reportDate,
+      LocalDate asOfDate,
       int rowCount,
       int matched,
       Set<Long> presentOrderIds,
@@ -157,8 +159,8 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
-        .filter(order -> executedBefore(order, reportDate))
-        .forEach(order -> settleByAbsence(order, reportDate));
+        .filter(order -> executedBefore(order, reportDate, asOfDate))
+        .forEach(order -> settleByAbsence(order, reportDate, asOfDate));
   }
 
   private boolean isLatestReport(LocalDate reportDate) {
@@ -199,21 +201,29 @@ public class SebPendingTransactionReconciliationService {
     return true;
   }
 
-  private boolean executedBefore(TransactionOrder order, LocalDate reportDate) {
-    return latestExecutionTimestamp(order)
+  private boolean executedBefore(TransactionOrder order, LocalDate reportDate, LocalDate asOfDate) {
+    return executionsListedBy(order, asOfDate).stream()
+        .map(TransactionExecution::getExecutionTimestamp)
+        .filter(Objects::nonNull)
+        .max(Comparator.naturalOrder())
         .map(timestamp -> timestamp.atZone(ZoneOffset.UTC).toLocalDate().isBefore(reportDate))
         .orElse(false);
   }
 
-  private Optional<Instant> latestExecutionTimestamp(TransactionOrder order) {
+  private List<TransactionExecution> executionsListedBy(
+      TransactionOrder order, LocalDate asOfDate) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .map(TransactionExecution::getExecutionTimestamp)
-        .filter(Objects::nonNull)
-        .max(Comparator.naturalOrder());
+        .filter(execution -> isListedBy(execution, asOfDate))
+        .toList();
   }
 
-  private void settleByAbsence(TransactionOrder order, LocalDate reportDate) {
-    List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+  private static boolean isListedBy(TransactionExecution execution, LocalDate asOfDate) {
+    LocalDate reportedDate = execution.getReportedDate();
+    return reportedDate == null || !reportedDate.isAfter(asOfDate);
+  }
+
+  private void settleByAbsence(TransactionOrder order, LocalDate reportDate, LocalDate asOfDate) {
+    List<TransactionExecution> executions = executionsListedBy(order, asOfDate);
     if (quantityAmountValidator.isShortFill(order, executions, matchingPolicy.current())) {
       log.error(
           "Order absent from pending report but not fully filled, leaving EXECUTED: orderId={},"

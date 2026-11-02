@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static java.math.BigDecimal.ZERO;
+import static lombok.AccessLevel.PRIVATE;
 
 import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReportV02;
@@ -22,11 +23,10 @@ import java.util.Optional;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.With;
 import org.jspecify.annotations.Nullable;
 
 @Getter
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = PRIVATE)
 public class BankStatement {
 
   @RequiredArgsConstructor
@@ -42,7 +42,20 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
-  @With private final boolean lastPage;
+  private final boolean lastPage;
+
+  public BankStatement(
+      BankStatementType type,
+      BankStatementAccount bankStatementAccount,
+      List<BankStatementBalance> balances,
+      List<BankStatementEntry> entries,
+      StatementPeriod period) {
+    this(type, bankStatementAccount, balances, entries, period, true);
+  }
+
+  public BankStatement withMorePagesToFollow() {
+    return new BankStatement(type, bankStatementAccount, balances, entries, period, false);
+  }
 
   public Optional<BigDecimal> bookedBalance() {
     return balances.stream()
@@ -86,22 +99,22 @@ public class BankStatement {
 
   public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
-    var lastPage =
-        Optional.ofNullable(accountReport.getGrpHdr())
-            .map(header -> header.getMsgPgntn())
-            .map(pagination -> pagination.isLastPgInd())
-            .orElse(true);
-    return from(report, timezone).withLastPage(lastPage);
+    var bankStatement = from(report, timezone);
+    return Optional.ofNullable(accountReport.getGrpHdr())
+        .map(header -> header.getMsgPgntn())
+        .filter(pagination -> !pagination.isLastPgInd())
+        .map(pagination -> bankStatement.withMorePagesToFollow())
+        .orElse(bankStatement);
   }
 
   public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
     var statement = Require.exactlyOne(customerStatement.getStmt(), "statement");
-    var lastPage =
-        Optional.ofNullable(customerStatement.getGrpHdr())
-            .map(header -> header.getMsgPgntn())
-            .map(pagination -> pagination.isLastPgInd())
-            .orElse(true);
-    return from(statement, timezone).withLastPage(lastPage);
+    var bankStatement = from(statement, timezone);
+    return Optional.ofNullable(customerStatement.getGrpHdr())
+        .map(header -> header.getMsgPgntn())
+        .filter(pagination -> !pagination.isLastPgInd())
+        .map(pagination -> bankStatement.withMorePagesToFollow())
+        .orElse(bankStatement);
   }
 
   static BankStatement from(AccountReport11 report, ZoneId timezone) {
@@ -123,7 +136,7 @@ public class BankStatement {
     var summary = TransactionSummary.from(report.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period, true);
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period);
   }
 
   static BankStatement from(AccountStatement2 statement, ZoneId timezone) {
@@ -139,7 +152,7 @@ public class BankStatement {
     var summary = TransactionSummary.from(statement.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries, period, true);
+    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries, period);
   }
 
   private static StatementPeriod period(
@@ -182,8 +195,8 @@ public class BankStatement {
     addIfPresent(mismatches, checkTotalCountMismatch(summary, entries.size()));
     addIfPresent(mismatches, checkCreditCountMismatch(summary, creditEntryCount(entries)));
     addIfPresent(mismatches, checkDebitCountMismatch(summary, debitEntryCount(entries)));
-    addIfPresent(mismatches, checkCreditSumMismatch(summary, creditSum));
-    addIfPresent(mismatches, checkDebitSumMismatch(summary, debitSum));
+    addIfPresent(mismatches, checkSumMismatch("credit", summary.creditSum(), creditSum));
+    addIfPresent(mismatches, checkSumMismatch("debit", summary.debitSum(), debitSum));
     addIfPresent(mismatches, checkBalanceEquationMismatch(balances, creditSum, debitSum));
 
     return mismatches;
@@ -245,26 +258,19 @@ public class BankStatement {
   }
 
   @Nullable
-  private static String checkCreditSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
-    if (summary.creditSum() == null || summary.creditSum().compareTo(actualSum) == 0) {
+  private static String checkSumMismatch(
+      String side, @Nullable BigDecimal expectedSum, BigDecimal actualSum) {
+    if (expectedSum == null || expectedSum.compareTo(actualSum) == 0) {
       return null;
     }
-    return "credit sum mismatch: expected=%s, actual=%s".formatted(summary.creditSum(), actualSum);
-  }
-
-  @Nullable
-  private static String checkDebitSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
-    if (summary.debitSum() == null || summary.debitSum().compareTo(actualSum) == 0) {
-      return null;
-    }
-    return "debit sum mismatch: expected=%s, actual=%s".formatted(summary.debitSum(), actualSum);
+    return "%s sum mismatch: expected=%s, actual=%s".formatted(side, expectedSum, actualSum);
   }
 
   @Nullable
   private static String checkBalanceEquationMismatch(
       List<BankStatementBalance> balances, BigDecimal creditSum, BigDecimal debitSum) {
-    var opening = findOpeningBalance(balances);
-    var closing = findClosingBalance(balances);
+    var opening = findBalance(balances, OPEN);
+    var closing = findBalance(balances, CLOSE);
     if (opening == null || closing == null) {
       return null;
     }
@@ -276,18 +282,10 @@ public class BankStatement {
   }
 
   @Nullable
-  private static BigDecimal findOpeningBalance(List<BankStatementBalance> balances) {
+  private static BigDecimal findBalance(
+      List<BankStatementBalance> balances, StatementBalanceType type) {
     return balances.stream()
-        .filter(b -> b.type() == OPEN)
-        .map(BankStatementBalance::balance)
-        .findFirst()
-        .orElse(null);
-  }
-
-  @Nullable
-  private static BigDecimal findClosingBalance(List<BankStatementBalance> balances) {
-    return balances.stream()
-        .filter(b -> b.type() == CLOSE)
+        .filter(b -> b.type() == type)
         .map(BankStatementBalance::balance)
         .findFirst()
         .orElse(null);

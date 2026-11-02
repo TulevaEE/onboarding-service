@@ -103,8 +103,7 @@ class SebStatementRouterTest {
         new BankStatementAccount(iban, "Tuleva Fondid AS", "14118923"),
         List.of(),
         List.of(entries),
-        STATEMENT_PERIOD,
-        true);
+        STATEMENT_PERIOD);
   }
 
   private BankStatementEntry bankStatementEntry(

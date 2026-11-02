@@ -410,8 +410,7 @@ class PensionFundStatementProcessorTest {
                     LocalDate.of(2026, 2, 10),
                     new BigDecimal("123456.78"))),
             List.of(),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
 
     processor.process(statement, TUK75_ACCOUNT);
 
@@ -433,8 +432,7 @@ class PensionFundStatementProcessorTest {
                     LocalDate.of(2026, 2, 10),
                     new BigDecimal("123456.78"))),
             List.of(),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
 
     processor.process(statement, TUK75_ACCOUNT);
 
@@ -496,8 +494,7 @@ class PensionFundStatementProcessorTest {
                     LocalDate.of(2026, 2, 10),
                     new BigDecimal("123456.78"))),
             List.of(),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
     given(fundBankLedger.hasBankEntries(TUK75)).willReturn(true);
 
     processor.process(report, TUK75_ACCOUNT);
@@ -534,8 +531,7 @@ class PensionFundStatementProcessorTest {
                     LocalDate.of(2026, 2, 10),
                     BigDecimal.ZERO)),
             List.of(),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
 
     processor.process(statement, TUK75_ACCOUNT);
 
@@ -555,8 +551,7 @@ class PensionFundStatementProcessorTest {
         new BankStatementAccount(TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
         List.of(),
         List.of(entries),
-        STATEMENT_PERIOD,
-        true);
+        STATEMENT_PERIOD);
   }
 
   private BankStatementEntry pendingEntry(BigDecimal amount, String remittanceInformation) {
@@ -579,8 +574,7 @@ class PensionFundStatementProcessorTest {
         new BankStatementAccount(TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
         List.of(),
         List.of(entries),
-        STATEMENT_PERIOD,
-        true);
+        STATEMENT_PERIOD);
   }
 
   private BankStatementEntry entry(BigDecimal amount, String remittanceInformation) {

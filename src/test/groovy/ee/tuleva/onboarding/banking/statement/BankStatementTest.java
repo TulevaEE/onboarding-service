@@ -320,8 +320,7 @@ class BankStatementTest {
         new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
         List.of(balances),
         List.of(),
-        new StatementPeriod(DATE, DATE),
-        true);
+        new StatementPeriod(DATE, DATE));
   }
 
   private static BankStatementBalance balance(

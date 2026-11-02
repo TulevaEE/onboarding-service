@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.banking.statement;
 
+import static ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code.BOOK;
+import static ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code.PDNG;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -63,7 +67,7 @@ class DayClosingBalanceTest {
         catchUpStatement(
                 List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1000.00")),
                 List.of(bookedOn(DATE, "200.00"), bookedOn(DATE.plusDays(2), "-200.00")))
-            .withLastPage(false);
+            .withMorePagesToFollow();
 
     assertThat(DayClosingBalance.on(firstPage, DATE, TALLINN)).isEmpty();
   }
@@ -132,24 +136,23 @@ class DayClosingBalanceTest {
         new BankStatementAccount("EE001234567890123456", "Acme OÜ", "10060701"),
         balances,
         entries,
-        new StatementPeriod(DATE, DATE.plusDays(2)),
-        true);
+        new StatementPeriod(DATE, DATE.plusDays(2)));
   }
 
   private static BankStatementEntry bookedOn(LocalDate bookingDate, String amount) {
-    return entryOn(bookingDate, amount, true);
+    return entry(amount, endOf(bookingDate), BOOK);
   }
 
   private static BankStatementEntry pendingOn(LocalDate bookingDate, String amount) {
-    return entryOn(bookingDate, amount, false);
+    return entry(amount, endOf(bookingDate), PDNG);
   }
 
-  private static BankStatementEntry entryOn(LocalDate bookingDate, String amount, boolean booked) {
-    return entry(amount, bookingDate, booked);
+  private static BankStatementEntry undatedBooking(String amount) {
+    return entry(amount, null, BOOK);
   }
 
   private static BankStatementEntry entry(
-      String amount, @Nullable LocalDate bookingDate, boolean booked) {
+      String amount, @Nullable Instant bookedBy, EntryStatus2Code status) {
     var value = new BigDecimal(amount);
     return new BankStatementEntry(
         null,
@@ -157,17 +160,15 @@ class DayClosingBalanceTest {
         "EUR",
         value.signum() < 0 ? TransactionType.DEBIT : TransactionType.CREDIT,
         "ref",
-        "ext-" + bookingDate,
+        "ext-" + bookedBy,
         null,
         null,
-        bookingDate == null
-            ? null
-            : bookingDate.atTime(LocalTime.MAX).atZone(TALLINN).toInstant().truncatedTo(MICROS),
-        booked);
+        bookedBy,
+        status == BOOK);
   }
 
-  private static BankStatementEntry undatedBooking(String amount) {
-    return entry(amount, null, true);
+  private static Instant endOf(LocalDate day) {
+    return day.atTime(LocalTime.MAX).atZone(TALLINN).toInstant().truncatedTo(MICROS);
   }
 
   private static BankStatementBalance balance(

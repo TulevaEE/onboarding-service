@@ -278,8 +278,7 @@ class SavingsFundStatementProcessorTest {
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
             List.of(),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
     statementAccount = new BankAccount(accountIban, accountType, TKF100, "gw-test");
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 

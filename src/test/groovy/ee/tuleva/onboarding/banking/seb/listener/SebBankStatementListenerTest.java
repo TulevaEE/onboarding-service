@@ -56,7 +56,6 @@ class SebBankStatementListenerTest {
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678"),
         List.of(),
         List.of(),
-        STATEMENT_PERIOD,
-        true);
+        STATEMENT_PERIOD);
   }
 }

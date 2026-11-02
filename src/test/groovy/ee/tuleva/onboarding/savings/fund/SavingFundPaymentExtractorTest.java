@@ -115,8 +115,7 @@ class SavingFundPaymentExtractorTest {
             account,
             List.of(),
             List.of(creditEntry),
-            STATEMENT_PERIOD,
-            true);
+            STATEMENT_PERIOD);
 
     // when
     List<SavingFundPayment> payments = extractor.extractPayments(statement);
@@ -273,8 +272,7 @@ class SavingFundPaymentExtractorTest {
         account,
         List.of(),
         entries,
-        STATEMENT_PERIOD,
-        true);
+        STATEMENT_PERIOD);
   }
 
   private BankStatementAccount createBankStatementAccount(String iban, String name, String idCode) {

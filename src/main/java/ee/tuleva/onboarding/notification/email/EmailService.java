@@ -18,7 +18,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +28,6 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class EmailService {
-
-  private static final Set<String> FAILED_STATUSES = Set.of("rejected", "invalid");
 
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
@@ -140,13 +137,9 @@ public class EmailService {
       MandrillMessageStatus response =
           mandrillApi.messages()
               .sendTemplate(templateName, Map.of(), message, false, null, sendDate)[0];
-      log.info(
-          "Mandrill API response: status={}, id={}, rejectReason={}",
-          response.getStatus(),
-          response.getId(),
-          response.getRejectReason());
+      MandrillRecipientStatuses.logStatus(response);
 
-      if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
+      if (MandrillRecipientStatuses.hasFailed(response)) {
         log.warn(
             "Mandrill did not deliver email: personalCode={}, templateName={}, status={}, rejectReason={}, id={}",
             person.getPersonalCode(),
@@ -181,20 +174,9 @@ public class EmailService {
       emailServiceRetryTemplate.execute(
           () -> {
             log.info("Sending system email: to={}", message.getTo());
-            MandrillMessageStatus response = mandrillApi.messages().send(message, false)[0];
-            log.info(
-                "Mandrill API response: status={}, id={}, rejectReason={}",
-                response.getStatus(),
-                response.getId(),
-                response.getRejectReason());
-
-            if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
-              throw new EmailDeliveryException(
-                  "Mandrill rejected email: status=%s, rejectReason=%s, id=%s"
-                      .formatted(
-                          response.getStatus(), response.getRejectReason(), response.getId()));
-            }
-            return response;
+            MandrillMessageStatus[] statuses = mandrillApi.messages().send(message, false);
+            MandrillRecipientStatuses.of(message, statuses).requireAcceptedByEveryMainRecipient();
+            return statuses;
           });
       return true;
     } catch (RetryException e) {

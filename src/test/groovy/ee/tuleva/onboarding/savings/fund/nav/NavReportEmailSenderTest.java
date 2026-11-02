@@ -58,7 +58,7 @@ class NavReportEmailSenderTest {
     assertThat(message.getTo().get(0).getEmail()).isEqualTo("trustee@seb.ee");
     assertThat(message.getTo().get(0).getType()).isEqualTo(TO);
     assertThat(message.getTo().get(1).getEmail()).isEqualTo("funds@tuleva.ee");
-    assertThat(message.getTo().get(1).getType()).isEqualTo(TO);
+    assertThat(message.getTo().get(1).getType()).isEqualTo(CC);
     assertThat(message.getTo().get(2).getEmail()).isEqualTo("taavi.pertman@tuleva.ee");
     assertThat(message.getTo().get(2).getType()).isEqualTo(CC);
     assertThat(message.getTo().get(3).getEmail()).isEqualTo("compliance@tuleva.ee");

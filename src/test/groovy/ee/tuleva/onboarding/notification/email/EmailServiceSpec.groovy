@@ -4,6 +4,7 @@ import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.model.MandrillApiError
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.config.EmailConfiguration
@@ -15,6 +16,9 @@ import spock.lang.Specification
 import java.time.Duration
 import java.time.Instant
 
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.BCC
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class EmailServiceSpec extends Specification {
@@ -198,6 +202,138 @@ class EmailServiceSpec extends Specification {
     thrown(EmailDeliveryException)
   }
 
+  def "sendSystemEmail throws when a main recipient is rejected even though Mandrill lists a delivered copy first"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO), recipient("copy@example.com", CC)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [
+        recipientStatus("copy@example.com", "sent"),
+        recipientStatus("desk@example.com", "rejected")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail throws when the second of two main recipients is invalid"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO), recipient("custody@example.com", TO)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [
+        recipientStatus("desk@example.com", "sent"),
+        recipientStatus("custody@example.com", "invalid")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail counts the email as sent when only a copy recipient is rejected"() {
+    given:
+    def systemMessage = messageTo([
+        recipient("desk@example.com", TO),
+        recipient("Copy@Example.com", CC),
+        recipient("audit@example.com", BCC)])
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [
+        recipientStatus("copy@example.com", "rejected"),
+        recipientStatus("audit@example.com", "invalid"),
+        recipientStatus("desk@example.com", "queued")]
+    result == true
+  }
+
+  def "sendSystemEmail throws when Mandrill gives a main recipient no status value"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [recipientStatus("desk@example.com", null)]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail throws when Mandrill answers for the copies but not for a main recipient"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO), recipient("copy@example.com", CC)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [recipientStatus("copy@example.com", "sent")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail throws when an address that is both a main and a copy recipient is rejected"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO), recipient("desk@example.com", CC)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [recipientStatus("desk@example.com", "rejected")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail matches a main recipient regardless of surrounding spaces and letter case"() {
+    given:
+    def systemMessage = messageTo([recipient(" Desk@Example.com ", TO)])
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [recipientStatus("desk@example.com", "sent")]
+    result == true
+  }
+
+  def "sendSystemEmail throws when every recipient is a copy and Mandrill rejects them"() {
+    given:
+    def systemMessage = messageTo([recipient("copy@example.com", CC)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [recipientStatus("copy@example.com", "rejected")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail throws when a rejected status names no recipient"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO), recipient("copy@example.com", CC)])
+
+    when:
+    service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> [
+        recipientStatus("desk@example.com", "sent"),
+        recipientStatus(null, "rejected")]
+    thrown(EmailDeliveryException)
+  }
+
+  def "sendSystemEmail returns false when Mandrill answers with no recipient status"() {
+    given:
+    def systemMessage = messageTo([recipient("desk@example.com", TO)])
+
+    when:
+    def result = service.sendSystemEmail(systemMessage)
+
+    then:
+    1 * mandrillMessagesApi.send(systemMessage, false) >> new MandrillMessageStatus[0]
+    result == false
+  }
+
   def "does not send email when the message has no recipient"() {
     given:
     def messageWithoutRecipient = service.newMandrillMessage(
@@ -294,6 +430,25 @@ class EmailServiceSpec extends Specification {
     then:
     response == Optional.empty()
     0 * mandrillMessagesApi._
+  }
+
+  private static MandrillMessage messageTo(List<Recipient> recipients) {
+    new MandrillMessage().tap { to = recipients }
+  }
+
+  private static Recipient recipient(String email, Recipient.Type type) {
+    new Recipient().tap {
+      it.email = email
+      it.type = type
+    }
+  }
+
+  private static MandrillMessageStatus recipientStatus(String email, String status) {
+    new MandrillMessageStatus().tap {
+      it.email = email
+      it.status = status
+      it._id = email
+    }
   }
 
 }

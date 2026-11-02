@@ -33,6 +33,10 @@ const FEE_COMPARISON_BASIS = [
   'tulevaFeePercent',
 ];
 
+const ROLE_LESS_PAYMENT_LINK = /href="https:\/\/pension\.tuleva\.ee\/savings-fund\/payment(?:\?[^"]*)?"/g;
+
+const roleLessPaymentLinks = (html) => html.match(ROLE_LESS_PAYMENT_LINK) ?? [];
+
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
   .map((f) => basename(f, '.html'));
@@ -180,6 +184,33 @@ for (const name of distTemplates) {
         `variant "${variant}" leaves unresolved conditionals: ${leftover?.join(', ')}`,
       );
       assert.ok(rendered.length > html.length / 4, `variant "${variant}" rendered almost nothing`);
+    }
+  });
+}
+
+test('the role-less payment link check catches the bare page with or without a query, and no deep link', () => {
+  const page = 'https://pension.tuleva.ee/savings-fund/payment';
+  assert.equal(roleLessPaymentLinks(`<a href="${page}">`).length, 1);
+  assert.equal(roleLessPaymentLinks(`<a href="${page}?language=en&utm_content=x">`).length, 1);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/child/abc?language=en">`), []);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/company?utm_content=x">`), []);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/abc/cancellation">`), []);
+});
+
+for (const name of distTemplates.filter(
+  (template) =>
+    /_(child|company)_/.test(template) ||
+    readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:recipientIsChild|*'),
+)) {
+  test(`${name}: an email about a child's or company's account has no role-less payment link, because that opens the payer's own account`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    const aboutAnotherAccount = (vars) =>
+      /_(child|company)_/.test(name) || vars.recipientIsChild || vars.recipientIsCompany;
+    for (const [variant, vars] of Object.entries(fixture.variants).filter(([, vars]) =>
+      aboutAnotherAccount(vars),
+    )) {
+      assert.deepEqual(roleLessPaymentLinks(renderMergeLanguage(html, vars)), [], `variant "${variant}"`);
     }
   });
 }

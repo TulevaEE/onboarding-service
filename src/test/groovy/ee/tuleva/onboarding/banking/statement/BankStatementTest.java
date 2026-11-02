@@ -346,6 +346,16 @@ class BankStatementTest {
   }
 
   @Test
+  void closingBalanceOn_countsOnlyBookedEntriesSoPendingOnesThatCancelOutCannotMoveADay() {
+    var statement =
+        catchUpStatement(
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1000.00")),
+            List.of(pendingOn(DATE, "200.00"), pendingOn(DATE.plusDays(2), "-200.00")));
+
+    assertThat(statement.closingBalanceOn(DATE, TALLINN)).contains(new BigDecimal("1000.00"));
+  }
+
+  @Test
   void closingBalanceOn_isAbsentOutsideTheStatementPeriod() {
     var statement =
         catchUpStatement(
@@ -403,6 +413,14 @@ class BankStatementTest {
   }
 
   private static BankStatementEntry bookedOn(LocalDate bookingDate, String amount) {
+    return entryOn(bookingDate, amount, true);
+  }
+
+  private static BankStatementEntry pendingOn(LocalDate bookingDate, String amount) {
+    return entryOn(bookingDate, amount, false);
+  }
+
+  private static BankStatementEntry entryOn(LocalDate bookingDate, String amount, boolean booked) {
     var value = new BigDecimal(amount);
     return new BankStatementEntry(
         null,
@@ -414,7 +432,7 @@ class BankStatementTest {
         null,
         null,
         bookingDate.atTime(LocalTime.MAX).atZone(TALLINN).toInstant().truncatedTo(MICROS),
-        true);
+        booked);
   }
 
   private static BankStatement statement(

@@ -105,7 +105,7 @@ class BankBalanceCheckerTest {
   }
 
   @Test
-  void warnsInWholeCentsThatADayWhoseBalanceTheCatchUpStatementCannotGiveWasNotCompared() {
+  void cannotRunInWholeCentsForADayWhoseBalanceTheCatchUpStatementCannotGive() {
     given(bankAccounts.findAll(TUV100)).willReturn(List.of(TUV100_INVESTMENT));
     given(bankStatementBalances.closingBalance(TUV100_INVESTMENT, NAV_DATE))
         .willReturn(Optional.empty());
@@ -117,7 +117,7 @@ class BankBalanceCheckerTest {
             new HealthCheckFinding(
                 TUV100,
                 BANK_BALANCE,
-                WARNING,
+                NOT_RUN,
                 "Report cash 1000.00 on 2026-10-23 not compared with the bank: SEB sent that day"
                     + " inside a catch-up statement (one statement for several days, e.g. after"
                     + " an outage), and the day's balance could not be worked out from its"

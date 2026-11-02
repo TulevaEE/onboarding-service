@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,6 +16,7 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdf
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -20,7 +25,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,28 +35,38 @@ class InvestmentReportPublisherTest {
   @Mock private InvestmentReportPdfGenerator pdfGenerator;
   @Mock private WordPressMediaClient wordPressClient;
   @Mock private EmailService emailService;
-  @InjectMocks private InvestmentReportPublisher publisher;
+  private InvestmentReportPublisher publisher;
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
+  private static final List<TulevaFund> PENSION_FUNDS = List.of(TUK75, TUK00, TUV100);
 
   @BeforeEach
   void setUp() {
+    publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
+  }
+
+  private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
+    return new InvestmentReportPublisher(
+        dataService,
+        pdfGenerator,
+        wordPressClient,
+        emailService,
+        new InvestmentReportPublishingProperties(funds));
   }
 
   private static final Map<String, LocalDate> CONSISTENT_NAV_DATES =
       Map.of(
           "TUK75", LocalDate.of(2026, 3, 31),
           "TUK00", LocalDate.of(2026, 3, 31),
-          "TUV100", LocalDate.of(2026, 3, 31),
-          "TKF100", LocalDate.of(2026, 3, 31));
+          "TUV100", LocalDate.of(2026, 3, 31));
 
   private static final UploadResult SAMPLE_UPLOAD =
       new UploadResult(42, "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
 
   @Test
   void publishRunsFullPipeline() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
 
@@ -63,18 +77,46 @@ class InvestmentReportPublisherTest {
 
     var result = publisher.publish(MARCH_2026);
 
-    assertThat(result.wordPressUrls()).hasSize(4);
+    assertThat(result.wordPressUrls()).hasSize(3);
     assertThat(result.emailSent()).isTrue();
     assertThat(result.errors()).isEmpty();
 
-    verify(wordPressClient, times(4)).upload(any(), any());
-    verify(wordPressClient, times(4)).updateAcfReportField(any(), eq(42));
+    verify(wordPressClient, times(3)).upload(any(), any());
+    verify(wordPressClient, times(3)).updateAcfReportField(any(), eq(42));
     verify(emailService).sendSystemEmail(any());
   }
 
   @Test
-  void publishExcludesTkf100FromEmail() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+  void aFundLeftOutOfTheConfigurationIsNeitherGeneratedNorPublished() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    var context = sampleContext("Test Fund");
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
+    given(emailService.sendSystemEmail(any())).willReturn(true);
+
+    var result = publisher.publish(MARCH_2026);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
+    verify(dataService, never()).getReportData(eq(TKF100), any());
+    verify(wordPressClient, never())
+        .upload(eq(FundReportMapping.TKF100.buildPdfFilename(MARCH_2026)), any());
+    verify(wordPressClient, never())
+        .updateAcfReportField(eq(FundReportMapping.TKF100.pageSlug()), anyInt());
+  }
+
+  @Test
+  void tkf100IsPublishedOnceConfiguredButNotEmailed() {
+    var allFunds = List.of(TUK75, TUK00, TUV100, TKF100);
+    publisher = publisherFor(allFunds);
+    given(dataService.findNavDates(allFunds, MARCH_2026))
+        .willReturn(
+            Map.of(
+                "TUK75", LocalDate.of(2026, 3, 31),
+                "TUK00", LocalDate.of(2026, 3, 31),
+                "TUV100", LocalDate.of(2026, 3, 31),
+                "TKF100", LocalDate.of(2026, 3, 31)));
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
 
@@ -85,7 +127,6 @@ class InvestmentReportPublisherTest {
 
     publisher.publish(MARCH_2026);
 
-    // Email should have 3 PDF attachments (TKF100 excluded)
     verify(emailService)
         .sendSystemEmail(
             argThat(
@@ -94,14 +135,13 @@ class InvestmentReportPublisherTest {
                   return true;
                 }));
 
-    // All 4 funds get uploaded and ACF updated
     verify(wordPressClient, times(4)).upload(any(), any());
     verify(wordPressClient, times(4)).updateAcfReportField(any(), eq(42));
   }
 
   @Test
   void publishAbortsWithoutTouchingAnyPageWhenAFundReportCannotBeProduced() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
 
@@ -110,8 +150,6 @@ class InvestmentReportPublisherTest {
     given(dataService.getReportData(FundReportMapping.TUK00.fund(), MARCH_2026))
         .willThrow(new IllegalStateException("No NAV data"));
     given(dataService.getReportData(FundReportMapping.TUV100.fund(), MARCH_2026))
-        .willReturn(context);
-    given(dataService.getReportData(FundReportMapping.TKF100.fund(), MARCH_2026))
         .willReturn(context);
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
 
@@ -128,7 +166,7 @@ class InvestmentReportPublisherTest {
 
   @Test
   void publishAlertsAndSkipsEmailWhenAPageUpdateFailsAfterAllUploads() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     var context = sampleContext("Test Fund", new BigDecimal("0.998000"));
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
 
@@ -142,10 +180,10 @@ class InvestmentReportPublisherTest {
 
     var result = publisher.publish(MARCH_2026);
 
-    verify(wordPressClient, times(4)).upload(any(), any());
+    verify(wordPressClient, times(3)).upload(any(), any());
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");
-    assertThat(result.wordPressUrls()).hasSize(3).doesNotContainKey("TUK00");
+    assertThat(result.wordPressUrls()).hasSize(2).doesNotContainKey("TUK00");
     assertThat(result.emailSent()).isFalse();
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
@@ -157,9 +195,8 @@ class InvestmentReportPublisherTest {
         Map.of(
             "TUK75", LocalDate.of(2026, 3, 31),
             "TUK00", LocalDate.of(2026, 3, 30),
-            "TUV100", LocalDate.of(2026, 3, 31),
-            "TKF100", LocalDate.of(2026, 3, 31));
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(navDates);
+            "TUV100", LocalDate.of(2026, 3, 31));
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
     var result = publisher.publish(MARCH_2026);
 
@@ -175,9 +212,8 @@ class InvestmentReportPublisherTest {
         Map.of(
             "TUK75", LocalDate.of(2026, 3, 15),
             "TUK00", LocalDate.of(2026, 3, 15),
-            "TUV100", LocalDate.of(2026, 3, 15),
-            "TKF100", LocalDate.of(2026, 3, 15));
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(navDates);
+            "TUV100", LocalDate.of(2026, 3, 15));
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
     var result = publisher.publish(MARCH_2026);
 
@@ -188,7 +224,7 @@ class InvestmentReportPublisherTest {
 
   @Test
   void publishRejectsAllocationOutOfRange() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
 
     var badContext = sampleContext("Test Fund", new BigDecimal("0.950000"));
     given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(badContext);
@@ -202,7 +238,7 @@ class InvestmentReportPublisherTest {
 
   @Test
   void publishPassesValidationWithGoodData() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
 
     var context = sampleContext("Test Fund", new BigDecimal("0.998000"));
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
@@ -215,12 +251,12 @@ class InvestmentReportPublisherTest {
     var result = publisher.publish(MARCH_2026);
 
     assertThat(result.errors()).isEmpty();
-    assertThat(result.wordPressUrls()).hasSize(4);
+    assertThat(result.wordPressUrls()).hasSize(3);
   }
 
   @Test
   void publishHandlesWordPressUploadFailure() {
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
 
@@ -231,7 +267,7 @@ class InvestmentReportPublisherTest {
     var result = publisher.publish(MARCH_2026);
 
     assertThat(result.wordPressUrls()).isEmpty();
-    assertThat(result.errors()).hasSize(4);
+    assertThat(result.errors()).hasSize(3);
     assertThat(result.emailSent()).isFalse();
     verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
     verify(emailService, never()).sendSystemEmail(any());
@@ -242,9 +278,8 @@ class InvestmentReportPublisherTest {
     var navDates =
         Map.of(
             "TUK75", LocalDate.of(2026, 3, 31),
-            "TUV100", LocalDate.of(2026, 3, 31),
-            "TKF100", LocalDate.of(2026, 3, 31));
-    given(dataService.findNavDatesForAllFunds(MARCH_2026)).willReturn(navDates);
+            "TUV100", LocalDate.of(2026, 3, 31));
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
     var result = publisher.publish(MARCH_2026);
 

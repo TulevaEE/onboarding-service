@@ -34,16 +34,15 @@ public class InvestmentReportDataService {
   private final PortfolioCostBasisService costBasisService;
   private final InvestmentReportRowsBuilder rowsBuilder;
 
-  public Map<String, LocalDate> findNavDatesForAllFunds(YearMonth month) {
+  public Map<String, LocalDate> findNavDates(List<TulevaFund> funds, YearMonth month) {
     var startDate = month.atDay(1);
     var endDate = month.atEndOfMonth();
     var result = new LinkedHashMap<String, LocalDate>();
-    for (var mapping : FundReportMapping.all()) {
+    for (var fund : funds) {
       var navDate =
-          navReportRepository.findLatestPublishedNavDate(
-              mapping.fund().getCode(), startDate, endDate);
+          navReportRepository.findLatestPublishedNavDate(fund.getCode(), startDate, endDate);
       if (navDate != null) {
-        result.put(mapping.fund().getCode(), navDate);
+        result.put(fund.getCode(), navDate);
       }
     }
     return result;

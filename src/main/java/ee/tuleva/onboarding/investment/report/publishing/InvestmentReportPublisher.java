@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdf
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.*;
@@ -18,11 +19,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
+@EnableConfigurationProperties(InvestmentReportPublishingProperties.class)
 @RequiredArgsConstructor
 public class InvestmentReportPublisher {
 
@@ -34,6 +37,7 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
   private final EmailService emailService;
+  private final InvestmentReportPublishingProperties properties;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
     log.info("Starting investment report publishing for month={}", month);
@@ -88,8 +92,12 @@ public class InvestmentReportPublisher {
     return new InvestmentReportPublishingResult(Map.of(), false, errors);
   }
 
+  private List<FundReportMapping> publishedReports() {
+    return properties.funds().stream().map(FundReportMapping::forFund).toList();
+  }
+
   private void logQuantityWarnings(YearMonth month) {
-    for (var mapping : FundReportMapping.all()) {
+    for (var mapping : publishedReports()) {
       var quantityWarnings = dataService.validateQuantities(mapping.fund(), month);
       if (!quantityWarnings.isEmpty()) {
         log.warn(
@@ -102,7 +110,7 @@ public class InvestmentReportPublisher {
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var errors = new ArrayList<String>();
     var allocationErrors = new ArrayList<String>();
-    for (var mapping : FundReportMapping.all()) {
+    for (var mapping : publishedReports()) {
       try {
         var context = dataService.getReportData(mapping.fund(), month);
         var allocationError = validateAllocation(mapping.fund().getCode(), context);
@@ -222,10 +230,10 @@ public class InvestmentReportPublisher {
   }
 
   private List<String> validateNavDates(YearMonth month) {
-    var navDates = dataService.findNavDatesForAllFunds(month);
+    var navDates = dataService.findNavDates(properties.funds(), month);
     var errors = new ArrayList<String>();
 
-    var allFundCodes = FundReportMapping.all().stream().map(m -> m.fund().getCode()).toList();
+    var allFundCodes = properties.funds().stream().map(TulevaFund::getCode).toList();
     var missingFunds = allFundCodes.stream().filter(code -> !navDates.containsKey(code)).toList();
     if (!missingFunds.isEmpty()) {
       errors.add("No published NAV data for funds: %s (month=%s)".formatted(missingFunds, month));

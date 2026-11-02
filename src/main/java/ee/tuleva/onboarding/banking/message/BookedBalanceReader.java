@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.banking.BankStatementBalances;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -50,7 +51,8 @@ public class BookedBalanceReader implements BankStatementBalances {
                 catchUpStatementCovering(account, day)
                     .flatMap(
                         message ->
-                            statementOf(message).closingBalanceOn(day, message.getTimezoneId())));
+                            DayClosingBalance.on(
+                                statementOf(message), day, message.getTimezoneId())));
   }
 
   @Override

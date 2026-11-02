@@ -95,7 +95,7 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     if (isCompanyPayingForSomeoneElse(remitterPartyId, payment.getRemitterName(), partyId)) {
-      identityCheckFailure(payment, COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT);
+      identityCheckFailure(payment, partyId, COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT);
       return;
     }
 
@@ -114,13 +114,13 @@ public class PaymentVerificationService {
         && remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
         && !guardianFundingTheirWard) {
-      identityCheckFailure(payment, messages.codeMismatch());
+      identityCheckFailure(payment, partyId, messages.codeMismatch());
       return;
     }
 
     Optional<Party> party = partyResolver.resolve(partyId);
     if (party.isEmpty()) {
-      identityCheckFailure(payment, messages.notClient());
+      identityCheckFailure(payment, partyId, messages.notClient());
       return;
     }
 
@@ -128,12 +128,12 @@ public class PaymentVerificationService {
         nameMatcher.isSameName(party.get().name(), payment.getRemitterName());
 
     if (!acceptedFromAnyRemitter && remitterPartyId.isEmpty() && !remitterNameIsUnitHolder) {
-      identityCheckFailure(payment, messages.nameMismatch());
+      identityCheckFailure(payment, partyId, messages.nameMismatch());
       return;
     }
 
     if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
-      identityCheckFailure(payment, messages.notOnboarded());
+      identityCheckFailure(payment, partyId, messages.notOnboarded());
       return;
     }
 
@@ -171,6 +171,18 @@ public class PaymentVerificationService {
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {
+    returnAsUnattributed(payment, reason);
+    findPayer(payment)
+        .ifPresent(payer -> publishFailed(payer, new PartyId(PERSON, payer.getPersonalCode())));
+  }
+
+  private void identityCheckFailure(
+      SavingFundPayment payment, PartyId namedAccount, String reason) {
+    returnAsUnattributed(payment, reason);
+    findPayer(payment).ifPresent(payer -> publishFailed(payer, namedAccount));
+  }
+
+  private void returnAsUnattributed(SavingFundPayment payment, String reason) {
     log.info("Identity check failed for payment {}: {}", payment.getId(), reason);
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
@@ -183,12 +195,11 @@ public class PaymentVerificationService {
 
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
+  }
 
-    findPayer(payment)
-        .ifPresent(
-            user ->
-                applicationEventPublisher.publishEvent(
-                    new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+  private void publishFailed(User payer, PartyId recipient) {
+    applicationEventPublisher.publishEvent(
+        new SavingsPaymentFailedEvent(this, payer, Locale.of("et"), recipient));
   }
 
   private Optional<User> findPayer(SavingFundPayment payment) {

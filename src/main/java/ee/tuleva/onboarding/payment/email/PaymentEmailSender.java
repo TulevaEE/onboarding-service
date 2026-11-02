@@ -65,7 +65,8 @@ public class PaymentEmailSender {
   public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
     emailService.sendSavingsFundPaymentEmail(
         event.getUser(),
-        SavingsFundPaymentEmail.cancelled(SavingsFundAccountHolder.person()),
+        SavingsFundPaymentEmail.cancelled(
+            accountHolderResolver.resolveRetryAccount(event.getUser(), event.getRecipient())),
         event.getLocale());
   }
 
@@ -74,7 +75,8 @@ public class PaymentEmailSender {
   public void onSavingsPaymentFailed(SavingsPaymentFailedEvent event) {
     emailService.sendSavingsFundPaymentEmail(
         event.getUser(),
-        SavingsFundPaymentEmail.failed(SavingsFundAccountHolder.person()),
+        SavingsFundPaymentEmail.failed(
+            accountHolderResolver.resolveRetryAccount(event.getUser(), event.getRecipient())),
         event.getLocale());
   }
 

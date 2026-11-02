@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.email;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 
 import ee.tuleva.onboarding.auth.role.CompanyRoles;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -30,6 +31,14 @@ class SavingsFundAccountHolderResolver {
       case LEGAL_ENTITY -> company(recipient);
       case PERSON -> personOrChild(payer, recipient);
     };
+  }
+
+  SavingsFundAccountHolder resolveRetryAccount(User payer, PartyId recipient) {
+    if (recipient.type() == LEGAL_ENTITY
+        && !companyRoles.isBoardMember(payer.getPersonalCode(), recipient.code())) {
+      return SavingsFundAccountHolder.person();
+    }
+    return resolve(payer, recipient);
   }
 
   private SavingsFundAccountHolder company(PartyId recipient) {

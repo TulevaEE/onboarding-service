@@ -12,9 +12,9 @@
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
-//                   backfillSebConfirmations() (threads of SEB trade confirmations active since
-//                   02.02.2026; safe to run again, threads already uploaded are skipped; a thread
-//                   that also holds another sender's report is left to processNewEmails).
+//                   backfillSebConfirmations() (every SEB trade confirmation in threads active
+//                   since 02.02.2026; touches no upload labels, so running it again only uploads
+//                   the same PDFs again).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
@@ -107,17 +107,29 @@ function processHistoricalEmails30Days() {
 }
 
 function backfillSebConfirmations() {
-    processEmailsFromDays(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), {
-        source: SOURCES.SEB_CONFIRMATION
-    });
+    var source = SOURCES.SEB_CONFIRMATION;
+    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), source.senders[0]);
+    var threads = GmailApp.search(searchQuery);
+    Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery + ", threads=" + threads.length);
+
+    var uploaded = 0;
+    for (var i = threads.length - 1; i >= 0; i--) {
+        messagesFrom(threads[i].getMessages(), source).forEach(function (message) {
+            uploaded += uploadMatchingAttachments(message, source);
+        });
+    }
+    Logger.log("Backfill complete: uploaded=" + uploaded);
+}
+
+function messagesFrom(messages, source) {
+    return messages.filter(function (message) { return sourceOf(message) === source; });
 }
 
 function processEmailsFromDays(days, options) {
     options = options || {};
     var minMessageDate = options.minMessageDate || null;
 
-    var onlySource = options.source;
-    var searchQuery = gmailSearchQuery(days, onlySource && onlySource.senders[0]);
+    var searchQuery = gmailSearchQuery(days);
     Logger.log("Searching with query: " + searchQuery + (minMessageDate ? ", minMessageDate=" + minMessageDate.toISOString() : ""));
 
     var threads = GmailApp.search(searchQuery);
@@ -125,7 +137,7 @@ function processEmailsFromDays(days, options) {
 
     // Process oldest threads first so the newest thread's upload wins on S3.
     for (var i = threads.length - 1; i >= 0; i--) {
-        processThread(threads[i], minMessageDate, onlySource);
+        processThread(threads[i], minMessageDate);
     }
 
     Logger.log("Processing complete");
@@ -140,22 +152,8 @@ function daysToReach(start, now) {
     return Math.ceil((now.getTime() - start.getTime()) / DAY_MILLIS) + 1;
 }
 
-function isSourceInScope(source, onlySource) {
-    return !!source && (!onlySource || source === onlySource);
-}
-
-function isThreadInScope(messageSources, onlySource) {
-    return messageSources.every(function (source) {
-        return !source || isSourceInScope(source, onlySource);
-    });
-}
-
-function processThread(thread, minMessageDate, onlySource) {
+function processThread(thread, minMessageDate) {
     var messages = thread.getMessages();
-    if (onlySource && !isThreadInScope(messages.map(sourceOf), onlySource)) {
-        Logger.log("Skipped a thread that also holds messages from other senders: " + thread.getFirstMessageSubject());
-        return;
-    }
     var uploadCount = getUploadCount(thread);
     var matchingCount = 0;
     for (var j = 0; j < messages.length; j++) {
@@ -660,7 +658,6 @@ if (typeof module !== "undefined" && module.exports) {
         resolveContentType,
         gmailSearchQuery,
         daysToReach,
-        isSourceInScope,
-        isThreadInScope,
+        messagesFrom,
     };
 }

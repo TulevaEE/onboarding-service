@@ -37,6 +37,11 @@ public class SebPendingTransactionReconciliationService {
 
   private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
 
+  private enum SettlementByAbsence {
+    ON_LATEST_REPORT_ONLY,
+    ON_THIS_REPORT_AS_OF_ITS_DATE
+  }
+
   private final SebPendingTransactionExtractor extractor;
   private final QuantityAmountValidator quantityAmountValidator;
   private final TransactionMatchingPolicy matchingPolicy;
@@ -59,7 +64,7 @@ public class SebPendingTransactionReconciliationService {
   }
 
   @Transactional
-  public void replay(InvestmentReport report, ReconciliationAlerts alerts) {
+  void replay(InvestmentReport report, ReconciliationAlerts alerts) {
     reconcile(report, alerts, SettlementByAbsence.ON_THIS_REPORT_AS_OF_ITS_DATE);
   }
 
@@ -154,11 +159,6 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
         .filter(order -> executedBefore(order, reportDate))
         .forEach(order -> settleByAbsence(order, reportDate));
-  }
-
-  private enum SettlementByAbsence {
-    ON_LATEST_REPORT_ONLY,
-    ON_THIS_REPORT_AS_OF_ITS_DATE
   }
 
   private boolean isLatestReport(LocalDate reportDate) {

@@ -14,7 +14,8 @@ record QuantityAmountMismatchEvent(
     @Nullable BigDecimal delta,
     BigDecimal tolerance,
     BigDecimal nearMissMultiplier,
-    @Nullable LocalDate reportDate) {
+    @Nullable LocalDate reportDate)
+    implements ReconciliationAlert {
 
   enum MismatchKind {
     ETF_QUANTITY,

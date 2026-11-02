@@ -108,3 +108,18 @@ BUTTONS_BY_MERGE_VARS.forEach(([name, vars, href]) => {
     assert.deepEqual(links, [href]);
   });
 });
+
+const COMPANY_ACCOUNT_EXPLANATIONS = {
+  savings_fund_payment_failed_et: 'ainult ettevõtte enda pangakontolt',
+  savings_fund_payment_failed_en: "only be made from the company's own bank account",
+};
+
+Object.entries(COMPANY_ACCOUNT_EXPLANATIONS).forEach(([name, explanation]) => {
+  test(`${name}: only a failed payment into a company account says it has to come from the company's bank account`, () => {
+    const html = readFileSync(join(root, 'dist', `${name}.html`), 'utf8');
+    const text = (vars) => renderMergeLanguage(html, vars).replace(/\s+/g, ' ');
+    assert.ok(text({ recipientIsCompany: true, recipientAccountId: ACCOUNT_ID }).includes(explanation));
+    assert.ok(!text({ recipientIsChild: true, recipientAccountId: ACCOUNT_ID }).includes(explanation));
+    assert.ok(!text({}).includes(explanation));
+  });
+});

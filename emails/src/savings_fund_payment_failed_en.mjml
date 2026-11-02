@@ -6,7 +6,7 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
-        <mj-raw>*|IF:companyAccountRequired|*</mj-raw>
+        <mj-raw>*|IF:recipientIsCompany|*</mj-raw>
         <mj-text>
           Your contribution to your company's Tuleva Additional Investment Fund account failed and we
           will soon return it to the same account it came from. Contributions to a company account can

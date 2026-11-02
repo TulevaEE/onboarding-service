@@ -6,7 +6,7 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
-        <mj-raw>*|IF:companyAccountRequired|*</mj-raw>
+        <mj-raw>*|IF:recipientIsCompany|*</mj-raw>
         <mj-text>
           Sinu sissemakse ettevõtte Tuleva Täiendava Kogumisfondi kontole ebaõnnestus ja me tagastame peagi selle
           samale kontole, kust see tuli. Ettevõtte kontole saab

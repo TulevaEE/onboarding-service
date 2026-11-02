@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -243,6 +244,59 @@ class UnitOwnerRepositoryTest {
 
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_1)).isFalse();
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
+  }
+
+  @Test
+  void contributionsEndedWithoutApplication_whenTheDutyEndedWithNoWithdrawalOrStopApplication() {
+    LocalDate dutyEnded = LocalDate.of(2021, 8, 31);
+    LocalDate applied = LocalDate.of(2021, 3, 1);
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(dutyEnded)
+            .p2ravaDate(null)
+            .p2mmteDate(null)
+            .build());
+    repository.save(
+        entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(dutyEnded)
+            .p2ravaDate(applied)
+            .p2mmteDate(null)
+            .build());
+    repository.save(
+        entityBuilder(PERSON_ID_3, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(dutyEnded)
+            .p2ravaDate(null)
+            .p2mmteDate(applied)
+            .build());
+    repository.save(
+        entityBuilder(PERSON_ID_4, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(null)
+            .p2ravaDate(null)
+            .p2mmteDate(null)
+            .build());
+
+    assertThat(
+            Stream.of(PERSON_ID_1, PERSON_ID_2, PERSON_ID_3, PERSON_ID_4, "38888888888")
+                .map(repository::contributionsEndedWithoutApplication)
+                .toList())
+        .containsExactly(true, false, false, false, false);
+  }
+
+  @Test
+  void contributionsEndedWithoutApplication_readsOnlyTheLatestSnapshot() {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime)
+            .p2dutyEnd(LocalDate.of(2021, 8, 31))
+            .p2ravaDate(null)
+            .p2mmteDate(null)
+            .build());
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(LocalDate.of(2021, 8, 31))
+            .p2ravaDate(LocalDate.of(2021, 3, 1))
+            .build());
+
+    assertThat(repository.contributionsEndedWithoutApplication(PERSON_ID_1)).isFalse();
   }
 
   @Test

@@ -29,4 +29,11 @@ class SecondPillarLeaversTest {
 
     assertThat(secondPillarLeavers.hasLeft("38888888888")).isFalse();
   }
+
+  @Test
+  void asksTheRegistryWhetherContributionsEndedWithoutAnApplication() {
+    given(unitOwnerRepository.contributionsEndedWithoutApplication("38888888888")).willReturn(true);
+
+    assertThat(secondPillarLeavers.contributionsEndedWithoutApplication("38888888888")).isTrue();
+  }
 }

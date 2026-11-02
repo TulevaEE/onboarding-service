@@ -40,7 +40,8 @@ class KnownLookups {
         "mayRejoinSecondPillar",
         () ->
             secondPillarContributions.mayRejoinToday(
-                userContacts.forPerson(person).secondPillarContributionPeriods()));
+                    userContacts.forPerson(person).secondPillarContributionPeriods())
+                && !leaverStatus.contributionsEndedWithoutApplication(person.getPersonalCode()));
   }
 
   Known thirdPillarRecurring(String personalCode) {

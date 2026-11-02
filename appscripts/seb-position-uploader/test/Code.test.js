@@ -15,6 +15,8 @@ const {
   isIgnoredFilename,
   isBinaryFileConfig,
   resolveContentType,
+  gmailSearchQuery,
+  daysToReach,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -222,6 +224,26 @@ describe("isBinaryFileConfig / resolveContentType — attachment content selecti
     const fileConfig = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf").fileConfig;
     expect(isBinaryFileConfig(fileConfig)).toBe(true);
     expect(resolveContentType(fileConfig)).toBe("application/pdf");
+  });
+});
+
+describe("gmailSearchQuery", () => {
+  test("searches every sender's attachments sent to funds@ in the window", () => {
+    expect(gmailSearchQuery(2)).toBe("to:funds@tuleva.ee has:attachment newer_than:2d");
+  });
+  test("narrows the search to one sender", () => {
+    expect(gmailSearchQuery(274, "tehingukinnitus@seb.ee")).toBe(
+      "to:funds@tuleva.ee has:attachment newer_than:274d from:tehingukinnitus@seb.ee"
+    );
+  });
+});
+
+describe("daysToReach", () => {
+  test("gives a window of whole days that still reaches the start", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-11-02T12:00:00+02:00"))).toBe(274);
+  });
+  test("needs no extra day when the start is a whole number of days ago", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-02-04T00:00:00+02:00"))).toBe(2);
   });
 });
 

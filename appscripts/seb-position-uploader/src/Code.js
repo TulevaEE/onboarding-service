@@ -11,13 +11,16 @@
 //   AWS_REGION (defaults to eu-central-1)
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
-// Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview).
+// Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
+//                   backfillSebConfirmations() (SEB trade confirmations since 02.02.2026, run once).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
 
 var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
+var SEB_CONFIRMATION_BACKFILL_START = new Date("2026-02-02T00:00:00+02:00");
+var DAY_MILLIS = 24 * 60 * 60 * 1000;
 
 var SOURCES = {
     SWEDBANK: {
@@ -101,11 +104,18 @@ function processHistoricalEmails30Days() {
     processEmailsFromDays(30);
 }
 
+function backfillSebConfirmations() {
+    processEmailsFromDays(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), {
+        minMessageDate: SEB_CONFIRMATION_BACKFILL_START,
+        sender: SOURCES.SEB_CONFIRMATION.senders[0]
+    });
+}
+
 function processEmailsFromDays(days, options) {
     options = options || {};
     var minMessageDate = options.minMessageDate || null;
 
-    var searchQuery = gmailSearchQuery(days);
+    var searchQuery = gmailSearchQuery(days, options.sender);
     Logger.log("Searching with query: " + searchQuery + (minMessageDate ? ", minMessageDate=" + minMessageDate.toISOString() : ""));
 
     var threads = GmailApp.search(searchQuery);
@@ -119,8 +129,13 @@ function processEmailsFromDays(days, options) {
     Logger.log("Processing complete");
 }
 
-function gmailSearchQuery(days) {
-    return "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+function gmailSearchQuery(days, sender) {
+    var query = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+    return sender ? query + " from:" + sender : query;
+}
+
+function daysToReach(start, now) {
+    return Math.ceil((now.getTime() - start.getTime()) / DAY_MILLIS);
 }
 
 function processThread(thread, minMessageDate) {
@@ -623,5 +638,7 @@ if (typeof module !== "undefined" && module.exports) {
         isIgnoredFilename,
         isBinaryFileConfig,
         resolveContentType,
+        gmailSearchQuery,
+        daysToReach,
     };
 }

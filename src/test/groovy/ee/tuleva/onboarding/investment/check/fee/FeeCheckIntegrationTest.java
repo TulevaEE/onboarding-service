@@ -26,13 +26,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-@TestPropertySource(properties = "investment.fee-check.depot-asset-base-from=2025-01-01")
 class FeeCheckIntegrationTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -90,11 +88,9 @@ class FeeCheckIntegrationTest {
     insertNavReportRow(
         DAY_THREE, "LIABILITY", "Payables of redeemed units", pendingRedemptions.negate());
 
-    var managementBaseMissingBothTerms = securities;
-    insertAccrual(
-        TUK75, "MANAGEMENT", DAY_THREE, managementBaseMissingBothTerms, new BigDecimal("6712.33"));
-    insertAccrual(
-        TUK75, "DEPOT", DAY_THREE, securities.add(blackrockAdjustment), new BigDecimal("268.49"));
+    var baseMissingBothTerms = securities;
+    insertAccrual(TUK75, "MANAGEMENT", DAY_THREE, baseMissingBothTerms, new BigDecimal("6712.33"));
+    insertAccrual(TUK75, "DEPOT", DAY_THREE, baseMissingBothTerms, new BigDecimal("268.49"));
 
     feeCheckService.runDailyChecks(List.of(TUK75), DAY_THREE);
 

@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -60,76 +59,77 @@ class SebPendingTransactionReconciliationBackfillJob {
   }
 
   void run() {
-    List<InvestmentReport> reports;
     try {
-      reports = storedReportsOldestFirst(LocalDate.now(clock));
+      announce(replayOldestFirst());
     } catch (RuntimeException e) {
       log.error(
-          "SEB pending transactions replay could not load the stored reports: backfillDays={}",
+          "SEB pending transactions replay stopped outside a report: backfillDays={}",
           BACKFILL_DAYS,
           e);
-      notificationService.sendMessage(loadFailedMessage(), INVESTMENT, ERROR);
-      return;
+      notificationService.sendMessage(stoppedOutsideAReportMessage(), INVESTMENT, ERROR);
     }
-    replayOldestFirst(reports);
   }
 
-  private void replayOldestFirst(List<InvestmentReport> reports) {
-    if (reports.isEmpty()) {
-      log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
-      notificationService.sendMessage(noReportsMessage(), INVESTMENT, WARNING);
-      return;
-    }
+  private ReplaySummary replayOldestFirst() {
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
     List<SkippedCheck> skippedChecks = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
     Optional<LocalDate> stoppedAt = Optional.empty();
-    for (InvestmentReport report : reports) {
+    LocalDate today = LocalDate.now(clock);
+    for (int daysAgo = BACKFILL_DAYS; daysAgo >= 0; daysAgo--) {
+      LocalDate date = today.minusDays(daysAgo);
       List<ReconciliationAlert> reportAlerts = new ArrayList<>();
       SettlementCheck check;
       try {
-        check = reconciliationService.replay(report, reportAlerts::add);
+        Optional<InvestmentReport> report =
+            reportService.getReport(SEB, PENDING_TRANSACTIONS, date);
+        if (report.isEmpty()) {
+          continue;
+        }
+        check = reconciliationService.replay(report.get(), reportAlerts::add);
       } catch (RuntimeException e) {
-        log.error(
-            "SEB pending transactions replay stopped: reportDate={}", report.getReportDate(), e);
-        stoppedAt = Optional.of(report.getReportDate());
+        log.error("SEB pending transactions replay stopped: reportDate={}", date, e);
+        stoppedAt = Optional.of(date);
         break;
       }
       reportAlerts.forEach(
           alert -> log.info("SEB pending transactions replay held back alert: alert={}", alert));
       heldBackAlerts.addAll(reportAlerts);
       Optional.ofNullable(SKIPPED_CHECK_REASONS.get(check))
-          .ifPresent(reason -> skippedChecks.add(new SkippedCheck(report.getReportDate(), reason)));
-      replayed.add(report.getReportDate());
+          .ifPresent(reason -> skippedChecks.add(new SkippedCheck(date, reason)));
+      replayed.add(date);
     }
-    ReplaySummary summary =
-        new ReplaySummary(
-            List.copyOf(replayed),
-            executionRepository.count() - executionsBefore,
-            settlementRepository.count() - settlementsBefore,
-            List.copyOf(heldBackAlerts),
-            List.copyOf(skippedChecks));
+    return new ReplaySummary(
+        List.copyOf(replayed),
+        executionRepository.count() - executionsBefore,
+        settlementRepository.count() - settlementsBefore,
+        List.copyOf(heldBackAlerts),
+        List.copyOf(skippedChecks),
+        stoppedAt);
+  }
+
+  private void announce(ReplaySummary summary) {
     log.info(
         "SEB pending transactions replay completed: reports={}, newExecutions={},"
             + " newSettlements={}, heldBackAlerts={}, stoppedAt={}",
-        replayed.size(),
+        summary.replayed().size(),
         summary.newExecutions(),
         summary.newSettlements(),
-        heldBackAlerts.size(),
-        stoppedAt.orElse(null));
-    stoppedAt.ifPresentOrElse(
-        date -> notificationService.sendMessage(stoppedMessage(date, summary), INVESTMENT, ERROR),
-        () -> sendCompleted(summary));
-  }
-
-  private List<InvestmentReport> storedReportsOldestFirst(LocalDate today) {
-    return IntStream.iterate(BACKFILL_DAYS, daysAgo -> daysAgo >= 0, daysAgo -> daysAgo - 1)
-        .mapToObj(today::minusDays)
-        .map(date -> reportService.getReport(SEB, PENDING_TRANSACTIONS, date))
-        .flatMap(Optional::stream)
-        .toList();
+        summary.alerts().size(),
+        summary.stoppedAt().orElse(null));
+    if (summary.replayed().isEmpty() && summary.stoppedAt().isEmpty()) {
+      log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
+      notificationService.sendMessage(noReportsMessage(), INVESTMENT, WARNING);
+      return;
+    }
+    summary
+        .stoppedAt()
+        .ifPresentOrElse(
+            date ->
+                notificationService.sendMessage(stoppedMessage(date, summary), INVESTMENT, ERROR),
+            () -> sendCompleted(summary));
   }
 
   private void sendCompleted(ReplaySummary summary) {
@@ -146,10 +146,8 @@ class SebPendingTransactionReconciliationBackfillJob {
         + " päeva kohta, midagi ei sobitatud uuesti.";
   }
 
-  private static String loadFailedMessage() {
-    return "SEB ootel-tehingute raportite uuesti sobitamine peatus: salvestatud raporteid ei"
-        + " saanud laadida (põhjus on logis).\n"
-        + "Ühtki raportit ei sobitatud.\n"
+  private static String stoppedOutsideAReportMessage() {
+    return "SEB ootel-tehingute raportite uuesti sobitamine peatus ootamatult (põhjus on logis).\n"
         + "Paranda põhjus ja käivita uuesti. "
         + RERUN_ADDS_NOTHING_TWICE;
   }
@@ -236,7 +234,8 @@ class SebPendingTransactionReconciliationBackfillJob {
       long newExecutions,
       long newSettlements,
       List<ReconciliationAlert> alerts,
-      List<SkippedCheck> skippedChecks) {}
+      List<SkippedCheck> skippedChecks,
+      Optional<LocalDate> stoppedAt) {}
 
   private record SkippedCheck(LocalDate reportDate, String reason) {}
 }

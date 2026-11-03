@@ -39,21 +39,15 @@ class TransactionAdminService {
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
-      TulevaFund fund,
-      TransactionMode mode,
-      LocalDate asOfDate,
-      @Nullable Map<String, Object> manualAdjustments,
-      String actor,
-      @Nullable CashOverride cash) {
-    TransactionCommand command =
-        TransactionCommand.requested(fund, mode, asOfDate, manualAdjustments, actor, cash);
+      CreateTransactionCommandRequest request, String actor) {
+    TransactionCommand command = TransactionCommand.requested(request, actor);
     commandRepository.save(command);
     log.info(
         "Admin transaction command created: id={}, fund={}, mode={}, asOfDate={}",
         command.getId(),
-        fund,
-        mode,
-        asOfDate);
+        command.getFund(),
+        command.getMode(),
+        command.getAsOfDate());
     @Nullable ProcessCommandResult result = preparationService.processCommand(command);
     List<TransactionOrder> orders = result == null ? List.of() : result.orders();
     return TransactionCommandResponse.from(command, orders, snapshotOf(command));
@@ -81,7 +75,12 @@ class TransactionAdminService {
               + cashOverrides.keySet());
     }
     return targetFunds.stream()
-        .map(fund -> createAndProcess(fund, mode, asOfDate, null, actor, cashOverrides.get(fund)))
+        .map(
+            fund ->
+                createAndProcess(
+                    new CreateTransactionCommandRequest(
+                        fund, mode, asOfDate, null, cashOverrides.get(fund)),
+                    actor))
         .toList();
   }
 

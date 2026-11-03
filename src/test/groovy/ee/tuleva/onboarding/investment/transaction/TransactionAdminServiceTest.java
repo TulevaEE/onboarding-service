@@ -101,7 +101,9 @@ class TransactionAdminServiceTest {
 
     TransactionCommandResponse response =
         service.createAndProcess(
-            TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "operator-9", null);
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null),
+            "operator-9");
 
     then(commandRepository)
         .should()
@@ -126,7 +128,8 @@ class TransactionAdminServiceTest {
     given(preparationService.processCommand(any()))
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
-    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+    service.createAndProcess(
+        new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null), "admin");
 
     then(commandRepository)
         .should()
@@ -147,12 +150,13 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     service.createAndProcess(
-        TUK75,
-        REBALANCE,
-        AS_OF_DATE,
-        null,
-        "operator-9",
-        new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
+        new CreateTransactionCommandRequest(
+            TUK75,
+            REBALANCE,
+            AS_OF_DATE,
+            null,
+            new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15")),
+        "operator-9");
 
     then(commandRepository)
         .should()
@@ -182,12 +186,13 @@ class TransactionAdminServiceTest {
 
     TransactionCommandResponse response =
         service.createAndProcess(
-            TUK75,
-            REBALANCE,
-            AS_OF_DATE,
-            null,
-            "admin",
-            new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
+            new CreateTransactionCommandRequest(
+                TUK75,
+                REBALANCE,
+                AS_OF_DATE,
+                null,
+                new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15")),
+            "admin");
 
     assertThat(response.cash()).isEqualByComparingTo("40000.00");
     assertThat(response.cashComment()).isEqualTo("Gateway balance at 10:15");
@@ -206,7 +211,8 @@ class TransactionAdminServiceTest {
         .processCommand(any());
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null), "admin");
 
     assertThat(response.status()).isEqualTo(FAILED);
     assertThat(response.errorMessage()).isEqualTo("No positions found");
@@ -297,7 +303,8 @@ class TransactionAdminServiceTest {
                     .build()));
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null), "admin");
 
     assertThat(response.calculationSnapshot()).isEqualTo(payload);
   }

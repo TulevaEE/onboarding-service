@@ -71,17 +71,13 @@ public class TransactionCommand {
 
   @Nullable private Instant processedAt;
 
-  static TransactionCommand requested(
-      TulevaFund fund,
-      TransactionMode mode,
-      LocalDate asOfDate,
-      @Nullable Map<String, Object> manualAdjustments,
-      String actor,
-      @Nullable CashOverride cash) {
+  static TransactionCommand requested(CreateTransactionCommandRequest request, String actor) {
+    Map<String, Object> manualAdjustments = request.manualAdjustments();
+    CashOverride cash = request.cash();
     return TransactionCommand.builder()
-        .fund(fund)
-        .mode(mode)
-        .asOfDate(asOfDate)
+        .fund(request.fund())
+        .mode(request.mode())
+        .asOfDate(request.asOfDate())
         .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
         .cash(cash == null ? null : cash.amount())
         .cashComment(cash == null ? null : cash.comment())

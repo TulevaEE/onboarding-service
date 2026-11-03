@@ -47,13 +47,7 @@ public class TransactionCommandController {
         request.asOfDate(),
         actor);
 
-    return adminService.createAndProcess(
-        request.fund(),
-        request.mode(),
-        request.asOfDate(),
-        request.manualAdjustments(),
-        actor,
-        request.cash());
+    return adminService.createAndProcess(request, actor);
   }
 
   @PostMapping("/transaction-commands/batch")

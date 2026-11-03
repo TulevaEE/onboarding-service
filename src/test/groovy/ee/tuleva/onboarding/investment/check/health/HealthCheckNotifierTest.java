@@ -436,6 +436,19 @@ class HealthCheckNotifierTest {
   }
 
   @Test
+  void readsAChecksEarlierEventsOnceToDecideWhetherToPost() {
+    var stillMissing =
+        HealthCheckResult.missingFromReport(
+            DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "resend"));
+    givenPreviousPresence(stillMissing);
+
+    notifier.notify(SEB, DATE, List.of(stillMissing), Map.of());
+
+    verify(eventRepository)
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(TUK75, DATE, FUND_IN_REPORT);
+  }
+
+  @Test
   void silentWhenTheSameCheckCouldNotRunForTheSameReason() {
     givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
     var finding =

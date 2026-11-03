@@ -49,8 +49,11 @@ public class HealthCheckNotifier {
       for (var result : results) {
         for (var checkType : result.checkTypes()) {
           var current = currentSeverity(result, checkType);
-          var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
-          if (current == previous && !reasonChanged(result, checkType, current)) {
+          var latestEvents =
+              eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+                  result.fund(), result.checkDate(), checkType);
+          var previous = previousSeverity(latestEvents);
+          if (current == previous && !reasonChanged(result, checkType, current, latestEvents)) {
             continue;
           }
           transitions.add(new Transition(result, checkType, current, previous));
@@ -90,19 +93,16 @@ public class HealthCheckNotifier {
   }
 
   private boolean reasonChanged(
-      HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
-    if (current != NOT_RUN && checkType != FUND_IN_REPORT) {
-      return false;
-    }
-    var rows =
-        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-            result.fund(), result.checkDate(), checkType);
-    if (rows.size() < 2) {
+      HealthCheckResult result,
+      HealthCheckType checkType,
+      HealthCheckSeverity current,
+      List<HealthCheckEvent> latestEvents) {
+    if ((current != NOT_RUN && checkType != FUND_IN_REPORT) || latestEvents.size() < 2) {
       return false;
     }
     return checkType == FUND_IN_REPORT
-        ? result.presenceDiffersFrom(rows.get(1))
-        : !messages(result, checkType).equals(storedMessages(rows.get(1)));
+        ? result.presenceDiffersFrom(latestEvents.get(1))
+        : !messages(result, checkType).equals(storedMessages(latestEvents.get(1)));
   }
 
   private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {
@@ -128,15 +128,11 @@ public class HealthCheckNotifier {
         .toList();
   }
 
-  private HealthCheckSeverity previousSeverity(
-      TulevaFund fund, LocalDate checkDate, HealthCheckType checkType) {
-    var rows =
-        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-            fund, checkDate, checkType);
-    if (rows.size() < 2) {
+  private static HealthCheckSeverity previousSeverity(List<HealthCheckEvent> latestEvents) {
+    if (latestEvents.size() < 2) {
       return PASS;
     }
-    var severity = rows.get(1).getSeverity();
+    var severity = latestEvents.get(1).getSeverity();
     return severity != null ? severity : PASS;
   }
 

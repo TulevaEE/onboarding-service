@@ -604,24 +604,24 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         recordCompletedDriveCopy(s3Key, emailSource);
         return;
     }
+    var keepsOldUsContentAsNewVersion = currentUsContent !== null && currentUsContent !== usContent && !isOldContentAlreadyTheLatestVersion(family, currentUsContent);
+    var version = keepsOldUsContentAsNewVersion ? family.nextVersion : family.usVersionWithoutItsOriginal || family.nextVersion;
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
-        updateTheOneCurrentUsCopyInPlace(folder, family, currentUsCopies, currentUsContent, usCopyName(name), usContent);
+        updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, keepsOldUsContentAsNewVersion, version, usCopyName(name), usContent);
     }
-    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, family.nextVersion);
+    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version);
     recordCompletedDriveCopy(s3Key, emailSource);
     Logger.log("Saved to Drive: file=" + name + ", messageId=" + emailSource.id);
 }
 
-function updateTheOneCurrentUsCopyInPlace(folder, family, currentUsCopies, currentUsContent, usName, usContent) {
+function updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, keepsOldUsContentAsNewVersion, version, usName, usContent) {
     var current = currentUsCopies[0];
-    if (currentUsContent !== usContent) {
-        if (!isOldContentAlreadyTheLatestVersion(family, currentUsContent)) current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
-        current.setContent(usContent);
-    }
+    if (keepsOldUsContentAsNewVersion) current.makeCopy(versionedDriveName(current.getName(), version), folder);
+    if (currentUsContent !== usContent) current.setContent(usContent);
     if (current.getName() !== usName) current.setName(usName);
-    currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
+    currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), version)); });
 }
 
 function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version) {
@@ -706,6 +706,7 @@ function driveReportFamily(folder, fileConfig, reportDate) {
     var current = [];
     var names = [];
     var latestUsVersion = null;
+    var originalVersions = [];
     var files = folder.getFiles();
     while (files.hasNext()) {
         var file = files.next();
@@ -713,9 +714,16 @@ function driveReportFamily(folder, fileConfig, reportDate) {
         if (!isSameDriveReport(name, fileConfig, reportDate)) continue;
         names.push(name);
         if (!isVersionedDriveName(name)) current.push(file);
-        else if (isUsVersionName(name) && (!latestUsVersion || versionOf(name) > versionOf(latestUsVersion.getName()))) latestUsVersion = file;
+        else if (!isUsVersionName(name)) originalVersions.push(versionOf(name));
+        else if (!latestUsVersion || versionOf(name) > versionOf(latestUsVersion.getName())) latestUsVersion = file;
     }
-    return { current: current, nextVersion: nextDriveVersion(names), latestUsVersion: latestUsVersion };
+    var latestUsVersionNumber = latestUsVersion ? versionOf(latestUsVersion.getName()) : null;
+    return {
+        current: current,
+        nextVersion: nextDriveVersion(names),
+        latestUsVersion: latestUsVersion,
+        usVersionWithoutItsOriginal: latestUsVersionNumber !== null && originalVersions.indexOf(latestUsVersionNumber) === -1 ? latestUsVersionNumber : null,
+    };
 }
 
 function isUsVersionName(name) {

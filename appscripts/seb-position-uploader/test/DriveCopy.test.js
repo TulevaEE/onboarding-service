@@ -482,6 +482,41 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
   });
 
+  test.each([
+    ["setContent", "TULEVA_pos_raport_20261020_US.csv"],
+    ["setName", "TULEVA_pos_raport_20261020.csv"],
+  ])("a copy retried after %s failed on %s keeps the _US copy and the original it replaced under one version number", (action, failingName) => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    drive.failures[action + " " + failingName] = true;
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE)).toThrow("Drive failed");
+
+    delete drive.failures[action + " " + failingName];
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => /^TULEVA_pos_raport_20261020.*_v\d+\.csv$/.test(name)).sort()).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+  });
+
+  test("a later correction takes the next version number for both files", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020.csv": "B;2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.names().filter((name) => name.includes("_v2")).sort()).toEqual(["TULEVA_pos_raport_20261020_US_v2.csv", "TULEVA_pos_raport_20261020_v2.csv"]);
+  });
+
   test("a correction whose old content an earlier version already holds is still versioned when the latest version differs", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

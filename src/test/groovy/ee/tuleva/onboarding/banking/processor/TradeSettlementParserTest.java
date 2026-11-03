@@ -175,6 +175,20 @@ class TradeSettlementParserTest {
   }
 
   @Test
+  void parse_returnsEmptyForAMissingSebReference() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse("/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448")).isEmpty();
+  }
+
+  @Test
+  void parse_returnsEmptyForABlankSebReference() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    assertThat(parser.parse(" /EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448")).isEmpty();
+  }
+
+  @Test
   void parse_returnsEmptyForMalformedRemittanceInfo() {
     assertThat(parser.parse("some random text")).isEmpty();
     assertThat(parser.parse("")).isEmpty();

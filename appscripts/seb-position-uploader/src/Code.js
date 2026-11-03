@@ -578,8 +578,7 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
     var name = attachment.getName();
     if (isUsCopyName(name)) {
         Logger.log("NOT SAVED to Drive, the name ends in _US.csv and the Google Sheets scripts would read it unconverted: " + name);
-        notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
-            "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
+        alertOnceAboutUsCopyName(name, emailSource);
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
@@ -646,6 +645,21 @@ function isLatestUsVersionWith(family, content) {
     return Boolean(family.latestUsVersion) && contentOf(family.latestUsVersion) === content;
 }
 
+var US_NAME_ALERT_PROPERTY_PREFIX = "us_name_alerted:";
+
+function alertOnceAboutUsCopyName(name, emailSource) {
+    var key = US_NAME_ALERT_PROPERTY_PREFIX + emailSource.id + ":" + simpleHash(name);
+    try {
+        var props = PropertiesService.getScriptProperties();
+        if (props.getProperty(key)) return;
+        var delivered = notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
+            "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
+        if (delivered) props.setProperty(key, JSON.stringify(emailSource));
+    } catch (e) {
+        Logger.log("Record of the _US.csv alert not saved: key=" + key + ", error=" + e.message);
+    }
+}
+
 function isTheOnlyCurrentFileWith(files, content) {
     return files.length === 1 && contentOf(files[0]) === content;
 }
@@ -671,7 +685,9 @@ function forgetOldReportSources(props, now) {
 }
 
 function isEmailRecordKey(key) {
-    return key.indexOf(REPORT_SOURCE_PROPERTY_PREFIX) === 0 || key.indexOf(DRIVE_SOURCE_PROPERTY_PREFIX) === 0;
+    return [REPORT_SOURCE_PROPERTY_PREFIX, DRIVE_SOURCE_PROPERTY_PREFIX, US_NAME_ALERT_PROPERTY_PREFIX].some(function (prefix) {
+        return key.indexOf(prefix) === 0;
+    });
 }
 
 function sourceTime(record) {

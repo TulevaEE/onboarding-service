@@ -602,6 +602,7 @@ describe("the e-mail record per report type and date", () => {
         "report_source:portfolio/2026-10-19.csv": "not json",
         "drive_source:seb/2026-10-20_positions.csv": record("2026-09-16T08:45:00.000Z"),
         "drive_source:seb/2026-10-31_positions.csv": record("2026-11-01T08:45:00.000Z"),
+        "us_name_alerted:18f0a00000000001:1a2b3c": record("2026-09-16T08:45:00.000Z"),
         SLACK_WEBHOOK_URL: "https://hooks.example/x",
       },
     });
@@ -752,6 +753,32 @@ describe("saveThreadToDrive", () => {
     expect(() => saveThreadToDrive(thread, drive.folder)).not.toThrow();
 
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261021_US.csv", "TULEVA_pos_raport_20261021.csv"]);
+  });
+
+  test("the alert about a _US.csv attachment goes once, not again on the later days its e-mail is looked at", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")])], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+
+    global.Utilities = { formatDate: () => "2026-11-03" };
+    saveThreadToDrive(thread, drive.folder);
+    global.Utilities = { formatDate: () => "2026-11-04" };
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+  });
+
+  test("the same _US.csv name in another e-mail alerts again", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const usNamed = () => [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")];
+    saveThreadToDrive(fakeThread([sebMessage("m1", usNamed())], ["S3-Uploaded-1x"]), drive.folder);
+
+    global.Utilities = { formatDate: () => "2026-11-03" };
+    saveThreadToDrive(fakeThread([sebMessage("m2", usNamed())], ["S3-Uploaded-1x"]), drive.folder);
+
+    expect(slack).toHaveLength(2);
   });
 
   test("an alert Slack did not take about a _US.csv attachment is sent by the next run", () => {

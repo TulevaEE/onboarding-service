@@ -18,6 +18,8 @@ const {
   gmailSearchQuery,
   daysToReach,
   messagesFrom,
+  backfillQueue,
+  backfillTimeIsUp,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -265,6 +267,49 @@ describe("messagesFrom", () => {
   });
   test("leaves out a reply from the funds mailbox without asking Gmail who sent it", () => {
     expect(messagesFrom([messageFrom("funds@tuleva.ee")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
+  });
+});
+
+describe("backfillQueue", () => {
+  const message = (sender, isoDate) => ({ getFrom: () => sender, getDate: () => new Date(isoDate) });
+  const thread = (...messages) => ({ getMessages: () => messages });
+  const confirmationSender = "SEB <tehingukinnitus@seb.ee>";
+
+  test("orders the confirmations of every thread oldest first, so a paused run resumes where it stopped", () => {
+    const march = message(confirmationSender, "2026-03-02T10:00:00Z");
+    const april = message(confirmationSender, "2026-04-01T10:00:00Z");
+    const may = message(confirmationSender, "2026-05-04T10:00:00Z");
+    expect(backfillQueue([thread(may), thread(march, april)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([march, april, may]);
+  });
+  test("leaves out the confirmations a paused run already uploaded", () => {
+    const uploaded = message(confirmationSender, "2026-03-02T10:00:00Z");
+    const next = message(confirmationSender, "2026-03-03T10:00:00Z");
+    expect(backfillQueue([thread(uploaded, next)], SOURCES.SEB_CONFIRMATION, new Date("2026-03-02T10:00:00Z")))
+      .toEqual([next]);
+  });
+  test("leaves out a confirmation older than the backfill start in a thread still active since then", () => {
+    const january = message(confirmationSender, "2026-01-15T10:00:00Z");
+    const march = message(confirmationSender, "2026-03-02T10:00:00Z");
+    expect(backfillQueue([thread(january, march)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([march]);
+  });
+  test("leaves another source's report in the same thread to the regular run", () => {
+    const report = message("SEB <trustee@seb.ee>", "2026-03-02T09:00:00Z");
+    const confirmation = message(confirmationSender, "2026-03-02T10:00:00Z");
+    expect(backfillQueue([thread(report, confirmation)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([confirmation]);
+  });
+});
+
+describe("backfillTimeIsUp", () => {
+  const startedAt = new Date("2026-11-03T10:00:00Z");
+
+  test("keeps uploading within the budget that leaves room before Apps Script's six-minute limit", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:59Z"))).toBe(false);
+  });
+  test("pauses once the budget is spent", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:05:00Z"))).toBe(true);
   });
 });
 

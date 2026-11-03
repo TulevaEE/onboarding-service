@@ -12,9 +12,11 @@
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
-//                   backfillSebConfirmations() (every SEB trade confirmation in threads active
-//                   since 02.02.2026; touches no upload labels, so running it again only uploads
-//                   the same PDFs again).
+//                   backfillSebConfirmations() (every SEB trade confirmation since 02.02.2026,
+//                   oldest first; touches no upload labels. It pauses before Apps Script's time
+//                   limit and the next run continues from the Script Property
+//                   SEB_CONFIRMATION_BACKFILL_RESUME_FROM; a finished run clears it, so the run
+//                   after that uploads every PDF again).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
@@ -22,6 +24,8 @@
 var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
 var SEB_CONFIRMATION_BACKFILL_START = new Date("2026-02-02T00:00:00+02:00");
+var SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY = "SEB_CONFIRMATION_BACKFILL_RESUME_FROM";
+var BACKFILL_TIME_BUDGET_MILLIS = 5 * 60 * 1000;
 var DAY_MILLIS = 24 * 60 * 60 * 1000;
 
 var SOURCES = {
@@ -107,18 +111,40 @@ function processHistoricalEmails30Days() {
 }
 
 function backfillSebConfirmations() {
+    var startedAt = new Date();
     var source = SOURCES.SEB_CONFIRMATION;
-    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, new Date()), source.senders);
-    var threads = GmailApp.search(searchQuery);
-    Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery + ", threads=" + threads.length);
+    var props = PropertiesService.getScriptProperties();
+    var resumeFrom = props.getProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
+    var uploadedUntil = resumeFrom ? new Date(resumeFrom) : SEB_CONFIRMATION_BACKFILL_START;
+    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, startedAt), source.senders);
+    var queue = backfillQueue(GmailApp.search(searchQuery), source, uploadedUntil);
+    Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery +
+        ", resumeFrom=" + uploadedUntil.toISOString() + ", messages=" + queue.length);
 
     var uploaded = 0;
-    for (var i = threads.length - 1; i >= 0; i--) {
-        messagesFrom(threads[i].getMessages(), source).forEach(function (message) {
-            uploaded += uploadMatchingAttachments(message, source);
-        });
+    for (var i = 0; i < queue.length; i++) {
+        if (backfillTimeIsUp(startedAt, new Date())) {
+            Logger.log("Backfill paused: uploaded=" + uploaded + ", remaining=" + (queue.length - i) +
+                ", resumeFrom=" + uploadedUntil.toISOString() + ". Run backfillSebConfirmations again to continue.");
+            return;
+        }
+        uploaded += uploadMatchingAttachments(queue[i], source);
+        uploadedUntil = queue[i].getDate();
+        props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, uploadedUntil.toISOString());
     }
+    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
     Logger.log("Backfill complete: uploaded=" + uploaded);
+}
+
+function backfillQueue(threads, source, uploadedUntil) {
+    return threads
+        .reduce(function (messages, thread) { return messages.concat(messagesFrom(thread.getMessages(), source)); }, [])
+        .filter(function (message) { return message.getDate().getTime() > uploadedUntil.getTime(); })
+        .sort(function (a, b) { return a.getDate().getTime() - b.getDate().getTime(); });
+}
+
+function backfillTimeIsUp(startedAt, now) {
+    return now.getTime() - startedAt.getTime() >= BACKFILL_TIME_BUDGET_MILLIS;
 }
 
 function messagesFrom(messages, source) {
@@ -659,5 +685,7 @@ if (typeof module !== "undefined" && module.exports) {
         gmailSearchQuery,
         daysToReach,
         messagesFrom,
+        backfillQueue,
+        backfillTimeIsUp,
     };
 }

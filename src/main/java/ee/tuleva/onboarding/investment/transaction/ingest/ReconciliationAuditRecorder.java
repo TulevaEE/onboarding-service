@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import ee.tuleva.onboarding.investment.transaction.PreviousSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -25,6 +26,7 @@ class ReconciliationAuditRecorder {
   static final String SETTLEMENT_DETECTED = "SETTLEMENT_DETECTED";
   static final String SETTLEMENT_REAPPEARED = "SETTLEMENT_REAPPEARED";
   static final String SETTLEMENT_REDATED = "SETTLEMENT_REDATED";
+  static final String SETTLEMENT_FROM_BANK = "SETTLEMENT_FROM_BANK";
   static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
   static final String POSSIBLE_REPORT_TRUNCATION = "POSSIBLE_REPORT_TRUNCATION";
 
@@ -117,6 +119,18 @@ class ReconciliationAuditRecorder {
     snapshot.put("reportDate", settlement.getReportDate().toString());
     snapshot.put("settledAt", settlement.getSettledAt().toString());
     return snapshot;
+  }
+
+  void recordSettlementFromBank(TransactionOrder order, LocalDate bookingDate) {
+    save(SETTLEMENT_FROM_BANK, order, orderPayload(order, bookingDate));
+  }
+
+  void recordSettlementRedatedByBank(
+      TransactionOrder order, LocalDate bookingDate, PreviousSettlement previous) {
+    Map<String, Object> payload = orderPayload(order, bookingDate);
+    payload.put("previousReportDate", previous.reportDate().toString());
+    payload.put("previousSource", previous.source().name());
+    save(SETTLEMENT_FROM_BANK, order, payload);
   }
 
   void recordSettlementReappeared(

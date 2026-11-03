@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -57,5 +58,37 @@ public class TransactionSettlementService {
     settlement.setReportDate(reportDate);
     settlement.setSettledAt(clock.instant());
     settlementRepository.save(settlement);
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isSettledByTheBank(TransactionOrder order) {
+    return settlementRepository
+        .findByOrderId(order.getId())
+        .filter(settlement -> settlement.getSource() == BANK_STATEMENT)
+        .isPresent();
+  }
+
+  @Transactional
+  public Optional<PreviousSettlement> settleFromTheBank(
+      TransactionOrder order, LocalDate bookingDate) {
+    Optional<TransactionSettlement> existing = settlementRepository.findByOrderId(order.getId());
+    if (existing.isEmpty()) {
+      recordSettlement(order, bookingDate, BANK_STATEMENT);
+      return Optional.empty();
+    }
+    TransactionSettlement settlement = existing.get();
+    PreviousSettlement previous =
+        new PreviousSettlement(settlement.getReportDate(), settlement.getSource());
+    settlement.setReportDate(bookingDate);
+    settlement.setSource(BANK_STATEMENT);
+    settlementRepository.save(settlement);
+    log.info(
+        "Settlement dated by the bank: orderId={}, bookingDate={}, previousDate={},"
+            + " previousSource={}",
+        order.getId(),
+        bookingDate,
+        previous.reportDate(),
+        previous.source());
+    return Optional.of(previous);
   }
 }

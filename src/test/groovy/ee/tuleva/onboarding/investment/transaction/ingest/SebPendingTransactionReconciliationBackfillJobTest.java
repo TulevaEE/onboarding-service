@@ -49,6 +49,11 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   private static final int BACKFILL_DAYS = 365;
   private static final String NO_REPORTS_MESSAGE =
       "SEB ootel-tehingute raporteid pole viimase 365 päeva kohta, midagi ei sobitatud uuesti.";
+  private static final String STOPPED_OUTSIDE_A_REPORT_MESSAGE =
+      """
+      SEB ootel-tehingute raportite uuesti sobitamine peatus ootamatult (põhjus on logis).
+      Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
+      topelt.""";
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
@@ -230,23 +235,56 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
-  void run_whenTheStoredReportsCannotBeLoaded_saysTheReplayStoppedBeforeReplayingAnyReport() {
-    given(reportService.getReport(eq(SEB), eq(PENDING_TRANSACTIONS), any()))
-        .willThrow(new IllegalStateException("report store unavailable"));
+  void run_whenAStoredReportCannotBeLoaded_stopsAtItsDateAfterReplayingTheOlderOnes() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day3 = report(TODAY.minusDays(3));
+    givenStoredReports(Map.of(27, day27, 3, day3));
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(10)))
+        .willThrow(new IllegalStateException("unreadable raw data"));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
     job.run();
 
-    verify(reconciliationService, never()).replay(any(), any());
+    verify(reconciliationService, never()).replay(eq(day3), any());
     verify(notificationService)
         .sendMessage(
             """
-            SEB ootel-tehingute raportite uuesti sobitamine peatus: salvestatud raporteid ei \
-            saanud laadida (põhjus on logis).
-            Ühtki raportit ei sobitatud.
+            SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-05-08 \
+            (põhjus on logis).
+            Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hinnaerinevusi: 0).
             Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
             topelt.""",
             INVESTMENT,
             ERROR);
+  }
+
+  @Test
+  void run_whenCountingTheExecutionsBeforeTheReplayFails_saysInSlackThatItStopped() {
+    given(executionRepository.count()).willThrow(new IllegalStateException("database unavailable"));
+
+    job.run();
+
+    verify(reconciliationService, never()).replay(any(), any());
+    verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
+  }
+
+  @Test
+  void run_whenCountingTheSettlementsAfterTheReplayFails_saysInSlackThatItStopped() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    givenStoredReports(Map.of(27, day27));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count())
+        .willReturn(3L)
+        .willThrow(new IllegalStateException("database unavailable"));
+    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+
+    job.run();
+
+    verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
   }
 
   @Test
@@ -331,8 +369,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
   private void givenStoredReports(Map<Integer, InvestmentReport> reportsByDaysAgo) {
     for (int daysAgo = 0; daysAgo <= BACKFILL_DAYS; daysAgo++) {
-      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(daysAgo)))
-          .willReturn(Optional.ofNullable(reportsByDaysAgo.get(daysAgo)));
+      lenient()
+          .when(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(daysAgo)))
+          .thenReturn(Optional.ofNullable(reportsByDaysAgo.get(daysAgo)));
     }
   }
 

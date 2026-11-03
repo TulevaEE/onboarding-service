@@ -11,6 +11,7 @@ import spock.lang.Specification
 import static org.mockito.Mockito.when
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel
@@ -98,6 +99,24 @@ class SlackServiceSpec extends Specification {
 
     when:
     slackService.sendMessage(testMessage, INVESTMENT, WARNING)
+
+    then:
+    server.verify()
+  }
+
+  def "sends a trading message to the trading webhook"() {
+    given:
+    def testMessage = "Orders emailed"
+
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.TRADING)).thenReturn(dummyWebhookUrl)
+
+    server.expect(requestTo(dummyWebhookUrl))
+        .andExpect(method(POST))
+        .andExpect(jsonPath('$.text').value(testMessage))
+        .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
+
+    when:
+    slackService.sendMessage(testMessage, TRADING)
 
     then:
     server.verify()

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import ee.tuleva.onboarding.notification.email.EmailService;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
+
+import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.util.Map;
@@ -15,7 +17,8 @@ public class CustodianOrderEmailSender {
 
   private final CustodianOrderEmailProperties properties;
   private final CustodianOrderMessageFactory messageFactory;
-  private final EmailService emailService;
+  private final AtMostOnceEmailSender custodianOrderEmailTransport;
+  private final CustodianOrderEmailNotifier notifier;
 
   public boolean send(TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
     if (!properties.isSendable()) {
@@ -34,17 +37,20 @@ public class CustodianOrderEmailSender {
     }
 
     var message = messageFactory.create(fund, timestamp, exports);
-    boolean sent = emailService.sendSystemEmail(message);
-    if (sent) {
-      log.info(
-          "Custodian order email sent: fund={}, to={}, cc={}, attachments={}",
+    var result = custodianOrderEmailTransport.send(message);
+    notifier.reportSendResult(message, result);
+    if (result.outcome() != SENT) {
+      log.error(
+          "Custodian order email not confirmed as sent: fund={}, outcome={}, problem={}",
           fund,
-          properties.to(),
-          properties.cc(),
-          message.getAttachments().size());
-    } else {
-      log.error("Custodian order email failed: fund={}, to={}", fund, properties.to());
+          result.outcome(),
+          result.problem());
+      return false;
     }
-    return sent;
+    log.info(
+        "Custodian order email sent: fund={}, attachments={}",
+        fund,
+        message.getAttachments().size());
+    return true;
   }
 }

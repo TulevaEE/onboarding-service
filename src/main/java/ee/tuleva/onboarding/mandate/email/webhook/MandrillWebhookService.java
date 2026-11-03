@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.email.webhook;
 
+import static java.util.Objects.requireNonNullElse;
+
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.notification.email.Email;
@@ -77,7 +79,8 @@ public class MandrillWebhookService {
             event.event(),
             failureReason(msg),
             msg.id(),
-            Instant.ofEpochSecond(event.ts()));
+            Instant.ofEpochSecond(event.ts()),
+            requireNonNullElse(msg.tags(), List.of()));
 
     log.warn(
         "Email delivery failed: recipient={}, event={}, subject={}, mandrillMessageId={}",

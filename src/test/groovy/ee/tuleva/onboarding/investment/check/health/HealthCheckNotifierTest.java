@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNSETTLED_TRADES;
@@ -92,6 +93,34 @@ class HealthCheckNotifierTest {
         .sendMessage(
             contains("Funds: TUK75 blocked, TUV100 imported with warnings, TUK00 imported"),
             eq(INVESTMENT));
+  }
+
+  @Test
+  void aFundMissingFromTheReportIsAWarningThatSaysWhatToAskSebFor() {
+    var missing =
+        new HealthCheckFinding(
+            TUV100,
+            FUND_IN_REPORT,
+            WARNING,
+            "TUV100: not in SEB's position report for navDate=2026-04-15. Ask SEB to resend the"
+                + " report with TUV100 before the 15:20 NAV");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of()),
+            HealthCheckResult.missingFromReport(DATE, missing)),
+        Map.of());
+
+    verify(notificationService)
+        .sendMessage(
+            "Import warning: SEB 2026-04-15\n"
+                + "Funds: TUK75 imported, TUV100 not in the report\n"
+                + "\n⚠️ [WARNING] FUND_IN_REPORT TUV100: TUV100: not in SEB's position report for"
+                + " navDate=2026-04-15. Ask SEB to resend the report with TUV100 before the 15:20"
+                + " NAV",
+            INVESTMENT);
   }
 
   @Test

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 public enum HealthCheckType {
+  FUND_IN_REPORT,
   COMPLETENESS,
   ISIN_MATCH,
   OUTSTANDING_UNITS,

@@ -39,7 +39,7 @@ public class HealthCheckNotifier {
     try {
       var transitions = new ArrayList<Transition>();
       for (var result : results) {
-        for (var checkType : HealthCheckType.values()) {
+        for (var checkType : result.checkTypes()) {
           var current = currentSeverity(result, checkType);
           var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
           if (current == previous && !reasonChanged(result, checkType, current)) {

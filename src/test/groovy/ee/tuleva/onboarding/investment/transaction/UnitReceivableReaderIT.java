@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
-import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -76,14 +75,14 @@ class UnitReceivableReaderIT {
   }
 
   @Test
-  void theThirdPillarFundMayCountTheReceivableBeforeItArrives() {
+  void theThirdPillarFundCountsOnlyTheRegistrarReceiptsBeforeTheRuleChangesIn2027() {
     reportRow(TUV100, "Receivables of outstanding units", TUV100.getIsin(), "4000.00");
 
     var unitReceivable = reader.read(TUV100, REPORT_DATE, TRADE_DAY);
 
     assertThat(unitReceivable)
         .usingRecursiveComparison(AMOUNTS_BY_VALUE)
-        .isEqualTo(new UnitReceivable(new BigDecimal("4000.00"), ZERO, BEFORE_IT_ARRIVES));
+        .isEqualTo(new UnitReceivable(new BigDecimal("4000.00"), ZERO, ONCE_IT_ARRIVES));
   }
 
   @Test

@@ -39,7 +39,8 @@ class SettlementFromBankService {
   private enum Outcome {
     ALREADY_FROM_BANK,
     SETTLED,
-    REDATED,
+    SAME_DATE,
+    NEW_DATE,
     NO_BANK_DATE
   }
 
@@ -64,7 +65,8 @@ class SettlementFromBankService {
             .toList();
     return new BankSettlementRun(
         count(outcomes, Outcome.SETTLED),
-        count(outcomes, Outcome.REDATED),
+        count(outcomes, Outcome.SAME_DATE),
+        count(outcomes, Outcome.NEW_DATE),
         count(outcomes, Outcome.NO_BANK_DATE));
   }
 
@@ -98,7 +100,7 @@ class SettlementFromBankService {
     Optional<PreviousSettlement> previous = settlementService.settleFromTheBank(order, bookingDate);
     if (previous.isPresent()) {
       auditRecorder.recordSettlementRedatedByBank(order, bookingDate, previous.get());
-      return Outcome.REDATED;
+      return previous.get().reportDate().equals(bookingDate) ? Outcome.SAME_DATE : Outcome.NEW_DATE;
     }
     auditRecorder.recordSettlementFromBank(order, bookingDate);
     return Outcome.SETTLED;

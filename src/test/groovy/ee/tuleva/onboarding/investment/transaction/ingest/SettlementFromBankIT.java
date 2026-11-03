@@ -181,7 +181,7 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void aRun_countsTheOrdersItSettledRedatedAndLeftWithoutABankDate() {
+  void aRun_countsTheOrdersItSettledConfirmedRedatedAndLeftWithoutABankDate() {
     TransactionOrder settles = executedOrder(OrderVenue.SEB, "11704");
     piece(settles, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
@@ -189,12 +189,16 @@ class SettlementFromBankIT {
     piece(redated, "DLA0553692", "11704");
     settledEarlier(redated, LocalDate.of(2026, 2, 16), PENDING_REPORT_ABSENCE);
     bankBooks("DLA0553692", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    TransactionOrder confirmed = executedOrder(OrderVenue.SEB, "11704");
+    piece(confirmed, "DLA0553694", "11704");
+    settledEarlier(confirmed, LocalDate.of(2026, 2, 12), PENDING_REPORT_ABSENCE);
+    bankBooks("DLA0553694", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
     TransactionOrder open = executedOrder(OrderVenue.SEB, "11704");
     piece(open, "DLA0553693", "11704");
 
     BankSettlementRun run = settlementFromBankService.settleOrdersBookedSince(SINCE);
 
-    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1));
+    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1, 1));
   }
 
   private void settleFromTheBank() {

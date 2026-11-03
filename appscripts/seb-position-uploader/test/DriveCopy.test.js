@@ -1110,6 +1110,25 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
   });
 
+  test("of two attachments for the same report in one e-mail, S3 and Drive both keep the last", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [
+        sebMessage("18f0a00000000001", [
+          fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+          fakeAttachment("TULEVA_pos_raport_20261020_uuendatud.csv", "B;2\n"),
+        ]),
+      ],
+      [],
+    );
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("B;2\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
   const s3Only = (threads, properties = {}) =>
     installAppsScriptFakes({
       properties: Object.assign({ AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" }, properties),

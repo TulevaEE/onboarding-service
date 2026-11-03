@@ -564,7 +564,15 @@ function driveReportsOf(message) {
             reports.push({ attachment: attachment, fileConfig: result.fileConfig, reportDate: result.keyStem.replace(/-/g, ""), emailSource: emailSource });
         }
     });
-    return reports;
+    return lastAttachmentOfEachReportAsOnS3(reports);
+}
+
+function lastAttachmentOfEachReportAsOnS3(reports) {
+    return reports.filter(function (report, i) {
+        return !reports.slice(i + 1).some(function (later) {
+            return later.fileConfig === report.fileConfig && later.reportDate === report.reportDate;
+        });
+    });
 }
 
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {

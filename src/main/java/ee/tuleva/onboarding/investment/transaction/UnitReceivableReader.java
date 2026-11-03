@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 
@@ -12,6 +14,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class UnitReceivableReader {
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final Set<TulevaFund> SISEKORD_4_P_2_5_3_PENSION_FUNDS = Set.of(TUV100);
   private static final LocalDate SISEKORD_4_P_2_5_3_EVERY_FUND_FROM = LocalDate.of(2027, 1, 1);
 
@@ -37,7 +41,7 @@ class UnitReceivableReader {
     return new UnitReceivable(
         reported(fund, positionDate),
         receivedAfter(fund, positionDate, asOfDate),
-        mayInvestCashKnownToArrive(fund, earlierOf(asOfDate, LocalDate.now(clock))));
+        whenCounted(fund, earlierOf(asOfDate, LocalDate.now(clock.withZone(TALLINN)))));
   }
 
   private BigDecimal reported(TulevaFund fund, LocalDate positionDate) {
@@ -54,6 +58,10 @@ class UnitReceivableReader {
     return registrarCashFlows.findContributions(fund, positionDate.plusDays(1), asOfDate).stream()
         .map(RegistrarContribution::amount)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private static UnitReceivable.Counted whenCounted(TulevaFund fund, LocalDate tradeDay) {
+    return mayInvestCashKnownToArrive(fund, tradeDay) ? BEFORE_IT_ARRIVES : ONCE_IT_ARRIVES;
   }
 
   private static boolean mayInvestCashKnownToArrive(TulevaFund fund, LocalDate tradeDay) {

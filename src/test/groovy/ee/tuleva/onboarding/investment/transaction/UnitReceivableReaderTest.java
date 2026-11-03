@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -28,38 +32,52 @@ class UnitReceivableReaderTest {
   void aSecondPillarFundMayNotCountTheReceivableBeforeItArrivesIn2026() {
     var reader = readerOn(LAST_DAY_OF_2026);
 
-    assertThat(
-            reader
-                .read(TUK00, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026)
-                .countedBeforeItArrives())
-        .isFalse();
+    assertThat(reader.read(TUK00, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, ONCE_IT_ARRIVES));
   }
 
   @Test
   void fromTheStartOf2027ASecondPillarFundMayCountTheReceivableBeforeItArrives() {
     var reader = readerOn(FIRST_DAY_OF_2027);
 
-    assertThat(reader.read(TUK00, LAST_DAY_OF_2026, FIRST_DAY_OF_2027).countedBeforeItArrives())
-        .isTrue();
+    assertThat(reader.read(TUK00, LAST_DAY_OF_2026, FIRST_DAY_OF_2027))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, BEFORE_IT_ARRIVES));
   }
 
   @Test
   void aCalculationDatedInto2027ButMadeIn2026FollowsTheRuleOfTheDayItIsMade() {
     var reader = readerOn(LAST_DAY_OF_2026);
 
-    assertThat(reader.read(TUK00, LAST_DAY_OF_2026, FIRST_DAY_OF_2027).countedBeforeItArrives())
-        .isFalse();
+    assertThat(reader.read(TUK00, LAST_DAY_OF_2026, FIRST_DAY_OF_2027))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, ONCE_IT_ARRIVES));
+  }
+
+  @Test
+  void aCalculationMadeIn2027ButDatedIn2026FollowsTheRuleOfTheDayItIsDated() {
+    var reader = readerOn(FIRST_DAY_OF_2027);
+
+    assertThat(reader.read(TUK00, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, ONCE_IT_ARRIVES));
+  }
+
+  @Test
+  void theRuleTurnsOnAtTallinnMidnightEvenOnAUtcClock() {
+    var reader =
+        new UnitReceivableReader(
+            fundPositionRepository,
+            registrarCashFlows,
+            Clock.fixed(FIRST_DAY_OF_2027.atTime(0, 30).atZone(TALLINN).toInstant(), UTC));
+
+    assertThat(reader.read(TUK00, LAST_DAY_OF_2026, FIRST_DAY_OF_2027))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, BEFORE_IT_ARRIVES));
   }
 
   @Test
   void theThirdPillarFundMayCountTheReceivableBeforeItArrivesAlready() {
     var reader = readerOn(LAST_DAY_OF_2026);
 
-    assertThat(
-            reader
-                .read(TUV100, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026)
-                .countedBeforeItArrives())
-        .isTrue();
+    assertThat(reader.read(TUV100, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026))
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, BEFORE_IT_ARRIVES));
   }
 
   private UnitReceivableReader readerOn(LocalDate today) {

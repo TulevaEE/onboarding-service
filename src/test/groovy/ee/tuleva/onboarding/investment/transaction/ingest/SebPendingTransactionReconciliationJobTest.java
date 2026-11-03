@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.pipeline.PipelineStep.EXECUTION_MATCHING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +25,7 @@ import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -131,6 +133,32 @@ class SebPendingTransactionReconciliationJobTest {
     verify(reconciliationService).reconcile(day0);
     verify(reconciliationService).reconcile(day1);
     verify(reconciliationService).reconcile(day3);
+  }
+
+  @Test
+  void run_reconcilesTheLookbackOldestFirstSoAnExecutionsFirstListedDateIsSetOnce() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
+    InvestmentReport day0 = report(TODAY);
+    InvestmentReport day1 = report(TODAY.minusDays(1));
+    InvestmentReport day3 = report(TODAY.minusDays(3));
+    for (int i = 0; i <= 7; i++) {
+      Optional<InvestmentReport> stored =
+          switch (i) {
+            case 0 -> Optional.of(day0);
+            case 1 -> Optional.of(day1);
+            case 3 -> Optional.of(day3);
+            default -> Optional.empty();
+          };
+      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
+          .willReturn(stored);
+    }
+
+    job.run();
+
+    InOrder inOrder = inOrder(reconciliationService);
+    inOrder.verify(reconciliationService).reconcile(day3);
+    inOrder.verify(reconciliationService).reconcile(day1);
+    inOrder.verify(reconciliationService).reconcile(day0);
   }
 
   @Test

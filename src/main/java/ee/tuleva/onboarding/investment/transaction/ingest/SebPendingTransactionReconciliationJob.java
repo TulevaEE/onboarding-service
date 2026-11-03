@@ -72,7 +72,7 @@ class SebPendingTransactionReconciliationJob {
 
   private Optional<String> reconcileLookback(LocalDate today) {
     String firstError = null;
-    for (int i = 0; i <= LOOKBACK_DAYS; i++) {
+    for (int i = LOOKBACK_DAYS; i >= 0; i--) {
       LocalDate date = today.minusDays(i);
       try {
         Optional<InvestmentReport> report =

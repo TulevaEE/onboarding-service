@@ -401,6 +401,49 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
   });
 
+  test("a report whose current Drive copy already came from this e-mail is not saved again", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n");
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+    const eventsAfterTheCopy = drive.events.length;
+
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.events.slice(eventsAfterTheCopy)).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a newer e-mail replaces a report whose current Drive copy came from an earlier one", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a Drive record that cannot be saved does not fail the copy", () => {
+    installAppsScriptFakes();
+    const store = PropertiesService.getScriptProperties();
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("drive_source:")) throw new Error("properties quota");
+          store.setProperty(key, value);
+        },
+      }),
+    };
+    const drive = fakeDrive();
+
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE),
+    ).not.toThrow();
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
   test("of two e-mails with the same time the one with the higher Gmail id wins, in either order", () => {
     const tie = (id) => ({ date: MORNING.toISOString(), id });
     [["18f0a00000000001", "18f0a00000000009"], ["18f0a00000000009", "18f0a00000000001"]].forEach((order) => {
@@ -452,13 +495,20 @@ describe("the e-mail record per report type and date", () => {
         "report_source:seb/2026-08-01_pending_transactions.csv": record("2026-11-01T10:15:00.000Z"),
         "report_source:seb/2026-10-31_positions.csv": record("2026-11-01T08:45:00.000Z"),
         "report_source:portfolio/2026-10-19.csv": "not json",
+        "drive_source:seb/2026-10-20_positions.csv": record("2026-09-16T08:45:00.000Z"),
+        "drive_source:seb/2026-10-31_positions.csv": record("2026-11-01T08:45:00.000Z"),
         SLACK_WEBHOOK_URL: "https://hooks.example/x",
       },
     });
 
     forgetOldReportSources(PropertiesService.getScriptProperties(), new Date("2026-11-02T09:00:00Z"));
 
-    expect(Object.keys(props).sort()).toEqual(["SLACK_WEBHOOK_URL", "report_source:seb/2026-08-01_pending_transactions.csv", "report_source:seb/2026-10-31_positions.csv"]);
+    expect(Object.keys(props).sort()).toEqual([
+      "SLACK_WEBHOOK_URL",
+      "drive_source:seb/2026-10-31_positions.csv",
+      "report_source:seb/2026-08-01_pending_transactions.csv",
+      "report_source:seb/2026-10-31_positions.csv",
+    ]);
   });
 });
 
@@ -525,6 +575,33 @@ describe("saveThreadToDrive", () => {
     delete drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"];
     saveThreadToDrive(thread, drive.folder);
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+  });
+
+  test("retrying a message whose copy failed half way leaves its reports already in Drive as they are", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_ootel_tehingud_20261020_US.csv"] = true;
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n")])],
+      ["S3-Uploaded-1x"],
+    );
+    expect(() => saveThreadToDrive(thread, drive.folder)).toThrow("Drive failed");
+    const eventsBeforeTheRetry = drive.events.length;
+
+    delete drive.failures["createFile TULEVA_ootel_tehingud_20261020_US.csv"];
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.events.slice(eventsBeforeTheRetry)).toEqual([
+      "create TULEVA_ootel_tehingud_20261020_US.csv",
+      "create TULEVA_ootel_tehingud_20261020.csv",
+    ]);
+    expect(drive.names()).toEqual([
+      "TULEVA_pos_raport_20261020_US.csv",
+      "TULEVA_pos_raport_20261020.csv",
+      "TULEVA_ootel_tehingud_20261020_US.csv",
+      "TULEVA_ootel_tehingud_20261020.csv",
+    ]);
     expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
   });
 

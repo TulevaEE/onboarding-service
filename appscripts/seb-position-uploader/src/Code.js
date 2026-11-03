@@ -563,6 +563,10 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
+    if (isCurrentDriveCopyFrom(s3Key, emailSource)) {
+        Logger.log("Drive copy skipped, the current copy already comes from this e-mail: " + name);
+        return;
+    }
     if (isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
         Logger.log("Drive copy skipped, the current copy comes from a newer e-mail: " + name);
         return;
@@ -586,7 +590,27 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
 
     currentOriginals.forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
     folder.createFile(attachment.copyBlob());
+    recordDriveSource(s3Key, emailSource);
     Logger.log("SUCCESS: Saved " + name + " to Drive");
+}
+
+// A Script Property per report records the e-mail its current Drive copy came
+// from, written once the copy is complete. A retry of a message whose copy failed
+// half way then skips the reports already saved instead of versioning them again.
+var DRIVE_SOURCE_PROPERTY_PREFIX = "drive_source:";
+
+function isCurrentDriveCopyFrom(s3Key, emailSource) {
+    var recorded = PropertiesService.getScriptProperties().getProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key);
+    var current = parseEmailSource(s3Key, recorded);
+    return Boolean(current) && current.id === emailSource.id;
+}
+
+function recordDriveSource(s3Key, emailSource) {
+    try {
+        PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(emailSource));
+    } catch (e) {
+        Logger.log("Drive record not saved, the copy itself went through: key=" + s3Key + ", error=" + e.message);
+    }
 }
 
 function isOlderThanCurrentSource(source, current) {
@@ -600,9 +624,13 @@ function forgetOldReportSources(props, now) {
     var oldest = now.getTime() - REPORT_SOURCE_KEEP_DAYS * 24 * 60 * 60 * 1000;
     var all = props.getProperties();
     Object.keys(all).forEach(function (key) {
-        if (key.indexOf(REPORT_SOURCE_PROPERTY_PREFIX) !== 0) return;
+        if (!isEmailRecordKey(key)) return;
         if (sourceTime(all[key]) < oldest) props.deleteProperty(key);
     });
+}
+
+function isEmailRecordKey(key) {
+    return key.indexOf(REPORT_SOURCE_PROPERTY_PREFIX) === 0 || key.indexOf(DRIVE_SOURCE_PROPERTY_PREFIX) === 0;
 }
 
 function sourceTime(record) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -342,7 +343,7 @@ public class SebPendingTransactionReconciliationService {
         "Settlement detected by absence from pending report: orderId={}, reportDate={}",
         order.getId(),
         reportDate);
-    settlementService.recordSettlement(order, reportDate);
+    settlementService.recordSettlement(order, reportDate, PENDING_REPORT_ABSENCE);
     auditRecorder.recordSettlementDetected(order, reportDate);
   }
 }

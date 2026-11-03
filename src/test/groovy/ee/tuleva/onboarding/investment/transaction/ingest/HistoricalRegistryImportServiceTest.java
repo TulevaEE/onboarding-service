@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,14 +71,16 @@ class HistoricalRegistryImportServiceTest {
   void settledRowWithBothDates_prefersActualSettlementDateOverExpected() {
     importService.importCsv(settledRowCsv("BUY", "2025-03-01", "2025-03-12", "15000.00"));
 
-    verify(settlementService).recordSettlement(any(), eq(LocalDate.of(2025, 3, 12)));
+    verify(settlementService)
+        .recordSettlement(any(), eq(LocalDate.of(2025, 3, 12)), eq(HISTORICAL_IMPORT));
   }
 
   @Test
   void settledRowWithOnlyExpectedDate_usesExpectedSettlementDate() {
     importService.importCsv(settledRowCsv("BUY", "2025-03-09", "", "15000.00"));
 
-    verify(settlementService).recordSettlement(any(), eq(LocalDate.of(2025, 3, 9)));
+    verify(settlementService)
+        .recordSettlement(any(), eq(LocalDate.of(2025, 3, 9)), eq(HISTORICAL_IMPORT));
   }
 
   private static String settledRowCsv(

@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,13 +46,28 @@ class TransactionSettlementServiceTest {
     given(settlementRepository.save(any(TransactionSettlement.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
-    TransactionSettlement settlement = service().recordSettlement(order, REPORT_DATE);
+    TransactionSettlement settlement =
+        service().recordSettlement(order, REPORT_DATE, PENDING_REPORT_ABSENCE);
 
     assertThat(settlement.getOrderId()).isEqualTo(42L);
     assertThat(settlement.getSettledAt()).isEqualTo(NOW);
     assertThat(settlement.getReportDate()).isEqualTo(REPORT_DATE);
+    assertThat(settlement.getSource()).isEqualTo(PENDING_REPORT_ABSENCE);
     assertThat(order.getOrderStatus()).isEqualTo(SETTLED);
     verify(orderRepository).save(order);
+  }
+
+  @Test
+  void recordSettlement_keepsWhatDatedTheSettlement() {
+    TransactionOrder order = order(42L);
+    given(settlementRepository.findByOrderId(42L)).willReturn(Optional.empty());
+    given(settlementRepository.save(any(TransactionSettlement.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    TransactionSettlement settlement =
+        service().recordSettlement(order, REPORT_DATE, HISTORICAL_IMPORT);
+
+    assertThat(settlement.getSource()).isEqualTo(HISTORICAL_IMPORT);
   }
 
   @Test
@@ -65,7 +82,8 @@ class TransactionSettlementServiceTest {
             .build();
     given(settlementRepository.findByOrderId(42L)).willReturn(Optional.of(existing));
 
-    TransactionSettlement settlement = service().recordSettlement(order, REPORT_DATE);
+    TransactionSettlement settlement =
+        service().recordSettlement(order, REPORT_DATE, PENDING_REPORT_ABSENCE);
 
     assertThat(settlement).isEqualTo(existing);
     assertThat(order.getOrderStatus()).isEqualTo(EXECUTED);

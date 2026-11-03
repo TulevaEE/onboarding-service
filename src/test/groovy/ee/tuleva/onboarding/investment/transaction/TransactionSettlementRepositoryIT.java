@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +34,7 @@ class TransactionSettlementRepositoryIT {
             .orderId(order.getId())
             .settledAt(settledAt)
             .reportDate(LocalDate.of(2026, 5, 13))
+            .source(BANK_STATEMENT)
             .build();
 
     TransactionSettlement saved = settlementRepository.save(settlement);
@@ -45,6 +47,7 @@ class TransactionSettlementRepositoryIT {
     assertThat(loaded.getOrderId()).isEqualTo(order.getId());
     assertThat(loaded.getSettledAt()).isEqualTo(settledAt);
     assertThat(loaded.getReportDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(loaded.getSource()).isEqualTo(BANK_STATEMENT);
     assertThat(loaded.getCreatedAt()).isNotNull();
   }
 

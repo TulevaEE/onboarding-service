@@ -109,7 +109,7 @@ public record NudgeDecision(
           feeComparison.asOf().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
     }
     if (savingsFundFeePercent != null) {
-      vars.put("savingsFundFee", percent(savingsFundFeePercent, locale));
+      vars.put("savingsFundFee", asPrinted(savingsFundFeePercent, locale));
     }
     if (secondPillarRejoinDeadline != null) {
       vars.put("secondPillarRejoinDeadline", longDate(secondPillarRejoinDeadline, locale));
@@ -141,7 +141,11 @@ public record NudgeDecision(
   }
 
   private static String percent(BigDecimal percent, Locale locale) {
-    String plain = percent.stripTrailingZeros().toPlainString();
+    return asPrinted(percent.stripTrailingZeros(), locale);
+  }
+
+  private static String asPrinted(BigDecimal percent, Locale locale) {
+    String plain = percent.toPlainString();
     return "et".equals(locale.getLanguage()) ? plain.replace('.', ',') : plain;
   }
 }

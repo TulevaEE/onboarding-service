@@ -28,6 +28,14 @@ class PublishedPrecisionTest {
   }
 
   @Test
+  void aFractionIsPrintedAsAFractionToThePublishedPercentDecimals() {
+    assertThat(PublishedPrecision.of(TUK75).printedFraction(new BigDecimal("0.00459700")))
+        .isEqualTo(new BigDecimal("0.0046"));
+    assertThat(PublishedPrecision.of(TKF100).printedFraction(new BigDecimal("0.00459700")))
+        .isEqualTo(new BigDecimal("0.005"));
+  }
+
+  @Test
   void figuresDifferOnlyWhenTheyRoundApartAtThePublishedPrecision() {
     var pensionFund = PublishedPrecision.of(TUK75);
     assertThat(pensionFund.differ(new BigDecimal("0.0046"), new BigDecimal("0.00464"))).isFalse();

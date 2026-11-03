@@ -557,9 +557,9 @@ function driveReportsOf(message) {
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
     var name = attachment.getName();
     if (isUsCopyName(name)) {
-        var alerted = notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
+        Logger.log("NOT SAVED to Drive, the name ends in _US.csv and the Google Sheets scripts would read it unconverted: " + name);
+        notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
             "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
-        if (!alerted) throw new Error("Slack alert about " + name + " not delivered, retrying next run");
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;

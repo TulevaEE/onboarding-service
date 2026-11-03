@@ -605,19 +605,26 @@ describe("saveThreadToDrive", () => {
     expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
   });
 
-  test("a report rejected for its _US name stays pending until Slack has the alert", () => {
-    const { slack, slackResponses } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
-    slackResponses.push(503);
+  test.each([
+    ["Slack does not take the alert", { SLACK_WEBHOOK_URL: "https://hooks.example/x" }, [503]],
+    ["the Slack webhook call fails", { SLACK_WEBHOOK_URL: "https://hooks.example/x" }, [new Error("timeout")]],
+    ["no Slack webhook is configured", {}, []],
+  ])("a report rejected for its _US name is still not saved, and does not hold up the thread, when %s", (name, properties, slackFailures) => {
+    const { slackResponses } = installAppsScriptFakes({ properties });
+    slackResponses.push(...slackFailures);
     const drive = fakeDrive();
-    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")])], ["S3-Uploaded-1x"]);
+    const thread = fakeThread(
+      [
+        sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")]),
+        sebMessage("m2", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "B;2\n")]),
+      ],
+      ["S3-Uploaded-2x"],
+    );
 
-    expect(() => saveThreadToDrive(thread, drive.folder)).toThrow("not delivered");
-    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(() => saveThreadToDrive(thread, drive.folder)).not.toThrow();
 
-    saveThreadToDrive(thread, drive.folder);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
-    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
-    expect(drive.names()).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261021_US.csv", "TULEVA_pos_raport_20261021.csv"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-2x", "Drive-Saved-2x"]);
   });
 
   test("a thread without SEB reports gets no Drive label", () => {

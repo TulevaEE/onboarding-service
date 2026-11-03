@@ -124,6 +124,31 @@ class HealthCheckNotifierTest {
   }
 
   @Test
+  void aFindingThatReadsTheSameForSeveralFundsIsOneLineNamingThem() {
+    var rowsNotRead =
+        "none of the 12 rows in SEB's position report for navDate=2026-04-15 could be read as"
+            + " fund positions: check the file and the parser";
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            HealthCheckResult.notReadFromReport(
+                DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, rowsNotRead)),
+            HealthCheckResult.notReadFromReport(
+                DATE, new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, rowsNotRead))),
+        Map.of());
+
+    verify(notificationService)
+        .sendMessage(
+            "Import warning: SEB 2026-04-15\n"
+                + "Funds: TUK75 not read from the report, TUV100 not read from the report\n"
+                + "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUV100: "
+                + rowsNotRead,
+            INVESTMENT);
+  }
+
+  @Test
   void importBlockedHeaderNamesOnlyTheBlockedFunds() {
     var failed = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
     var warned = new HealthCheckFinding(TUV100, COMPLETENESS, WARNING, "TUV100: no CASH");

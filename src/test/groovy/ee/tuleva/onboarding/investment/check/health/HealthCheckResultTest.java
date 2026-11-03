@@ -78,4 +78,21 @@ class HealthCheckResultTest {
     assertThat(result.checkTypes()).containsExactly(FUND_IN_REPORT);
     assertThat(result.importStatus()).isEqualTo("not in the report");
   }
+
+  @Test
+  void aFundNotReadFromTheReportIsCheckedForItsPresenceAloneAndSaysItWasNotRead() {
+    var finding = new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "no row could be read");
+
+    var result = HealthCheckResult.notReadFromReport(CHECK_DATE, finding);
+
+    assertThat(result)
+        .isEqualTo(
+            new HealthCheckResult(
+                TUV100,
+                CHECK_DATE,
+                List.of(finding),
+                HealthCheckResult.ReportPresence.NOT_READ_FROM_REPORT));
+    assertThat(result.checkTypes()).containsExactly(FUND_IN_REPORT);
+    assertThat(result.importStatus()).isEqualTo("not read from the report");
+  }
 }

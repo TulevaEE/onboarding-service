@@ -17,39 +17,70 @@ import org.junit.jupiter.api.Test;
 class FundInReportCheckerTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 4, 15);
+  private static final int REPORT_ROWS = 12;
   private final FundInReportChecker checker = new FundInReportChecker();
 
   @Test
   void warnsAboutANavFundTheReportHasNoRowsFor() {
-    var findings = checker.fundsMissingFromReport(NAV_DATE, Set.of(TUK75, TUK00, TKF100));
+    var results = checker.fundsNotRead(NAV_DATE, Set.of(TUK75, TUK00, TKF100), REPORT_ROWS);
 
-    assertThat(findings)
+    assertThat(results)
         .containsExactly(
-            new HealthCheckFinding(
+            missingFromReport(
                 TUV100,
-                FUND_IN_REPORT,
-                WARNING,
                 "TUV100: not in SEB's position report for navDate=2026-04-15. Ask SEB to resend"
                     + " the report with TUV100 before the 15:20 NAV"));
   }
 
   @Test
-  void warnsAboutEveryStartedNavFundWhenTheReportHasNoFundRowsAtAll() {
-    assertThat(checker.fundsMissingFromReport(NAV_DATE, Set.of()))
-        .extracting(HealthCheckFinding::fund)
-        .containsExactly(TUK75, TUK00, TUV100, TKF100);
+  void aReportWithNoDataRowsAsksSebToResendItWithOneMessageForEveryStartedNavFund() {
+    var noDataRows =
+        "SEB's position report for navDate=2026-04-15 has no data rows. Ask SEB to resend it"
+            + " before the 11:00 NAV";
+
+    assertThat(checker.fundsNotRead(NAV_DATE, Set.of(), 0))
+        .containsExactly(
+            missingFromReport(TUK75, noDataRows),
+            missingFromReport(TUK00, noDataRows),
+            missingFromReport(TUV100, noDataRows),
+            missingFromReport(TKF100, noDataRows));
+  }
+
+  @Test
+  void aReportWhoseRowsCouldNotBeReadPointsAtTheFileAndTheParserInsteadOfAskingSebToResend() {
+    var rowsNotRead =
+        "none of the 12 rows in SEB's position report for navDate=2026-04-15 could be read as"
+            + " fund positions: check the file and the parser";
+
+    assertThat(checker.fundsNotRead(NAV_DATE, Set.of(), REPORT_ROWS))
+        .containsExactly(
+            notReadFromReport(TUK75, rowsNotRead),
+            notReadFromReport(TUK00, rowsNotRead),
+            notReadFromReport(TUV100, rowsNotRead),
+            notReadFromReport(TKF100, rowsNotRead));
   }
 
   @Test
   void noFundIsMissingFromAReportWithEveryNavFund() {
-    assertThat(checker.fundsMissingFromReport(NAV_DATE, EnumSet.allOf(TulevaFund.class))).isEmpty();
+    assertThat(checker.fundsNotRead(NAV_DATE, EnumSet.allOf(TulevaFund.class), REPORT_ROWS))
+        .isEmpty();
   }
 
   @Test
   void aFundIsNotMissingFromAReportDatedBeforeItsInception() {
     var dayBeforeInception = TKF100.getInceptionDate().minusDays(1);
 
-    assertThat(checker.fundsMissingFromReport(dayBeforeInception, Set.of(TUK75, TUK00, TUV100)))
+    assertThat(checker.fundsNotRead(dayBeforeInception, Set.of(TUK75, TUK00, TUV100), REPORT_ROWS))
         .isEmpty();
+  }
+
+  private static HealthCheckResult missingFromReport(TulevaFund fund, String message) {
+    return HealthCheckResult.missingFromReport(
+        NAV_DATE, new HealthCheckFinding(fund, FUND_IN_REPORT, WARNING, message));
+  }
+
+  private static HealthCheckResult notReadFromReport(TulevaFund fund, String message) {
+    return HealthCheckResult.notReadFromReport(
+        NAV_DATE, new HealthCheckFinding(fund, FUND_IN_REPORT, WARNING, message));
   }
 }

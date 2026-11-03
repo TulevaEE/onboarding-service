@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.MISSING_FROM_REPORT;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.NOT_READ_FROM_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static java.util.stream.Collectors.toCollection;
@@ -20,7 +21,8 @@ public record HealthCheckResult(
 
   public enum ReportPresence {
     IN_REPORT,
-    MISSING_FROM_REPORT
+    MISSING_FROM_REPORT,
+    NOT_READ_FROM_REPORT
   }
 
   public HealthCheckResult(
@@ -32,10 +34,14 @@ public record HealthCheckResult(
     return new HealthCheckResult(finding.fund(), checkDate, List.of(finding), MISSING_FROM_REPORT);
   }
 
+  static HealthCheckResult notReadFromReport(LocalDate checkDate, HealthCheckFinding finding) {
+    return new HealthCheckResult(finding.fund(), checkDate, List.of(finding), NOT_READ_FROM_REPORT);
+  }
+
   List<HealthCheckType> checkTypes() {
-    return reportPresence == MISSING_FROM_REPORT
-        ? List.of(FUND_IN_REPORT)
-        : List.of(HealthCheckType.values());
+    return reportPresence == IN_REPORT
+        ? List.of(HealthCheckType.values())
+        : List.of(FUND_IN_REPORT);
   }
 
   public static Set<TulevaFund> blockedFunds(List<HealthCheckResult> results) {
@@ -58,9 +64,14 @@ public record HealthCheckResult(
   }
 
   public String importStatus() {
-    if (reportPresence == MISSING_FROM_REPORT) {
-      return "not in the report";
-    }
+    return switch (reportPresence) {
+      case MISSING_FROM_REPORT -> "not in the report";
+      case NOT_READ_FROM_REPORT -> "not read from the report";
+      case IN_REPORT -> importStatusOfAFundInTheReport();
+    };
+  }
+
+  private String importStatusOfAFundInTheReport() {
     if (hasFails()) {
       return "blocked";
     }

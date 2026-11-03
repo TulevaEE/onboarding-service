@@ -242,6 +242,27 @@ class NudgeDecisionSerializationTest {
   }
 
   @Test
+  void theSavingsFundFeeKeepsTheDecimalsItCarriesWhileTheSecondPillarFeesLoseTrailingZeros() {
+    NudgeDecision transfer =
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.60"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.50"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
+    NudgeDecision savingsFund = NudgeDecision.savingsFund(new BigDecimal("0.50"));
+
+    assertThat(savingsFund.mergeVars(Locale.of("et"))).containsEntry("savingsFundFee", "0,50");
+    assertThat(savingsFund.mergeVars(Locale.ENGLISH)).containsEntry("savingsFundFee", "0.50");
+    assertThat(transfer.mergeVars(Locale.of("et")))
+        .containsEntry("secondPillarFeePercent", "0,6")
+        .containsEntry("tulevaFeePercent", "0,5");
+  }
+
+  @Test
   void theRejoinNudgeRaisesItsFlagAndCarriesTheFilingDeadlineDayAndMonthFormattedForTheLocale() {
     NudgeDecision rejoin = NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30));
 

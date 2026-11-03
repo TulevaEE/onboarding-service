@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -108,19 +109,22 @@ class PerformanceScenarioCalculatorTest {
   }
 
   @Test
-  void favourableAndModerateComeOnlyFromFullLengthWindows() {
+  void favourableAndModerateAndTheMedianTheyAreMeasuredFromComeOnlyFromFullLengthWindows() {
     var full =
         List.of(
             fullLength("2020-01-31", "2022-01-31", 24, 1.0),
-            fullLength("2020-02-29", "2022-02-28", 24, 1.25),
-            fullLength("2020-03-31", "2022-03-31", 24, 1.5));
+            fullLength("2020-02-29", "2022-02-28", 24, 1.2),
+            fullLength("2020-03-31", "2022-03-31", 24, 1.4),
+            fullLength("2020-04-30", "2022-04-30", 24, 1.6));
     var shorter =
-        List.of(new ScenarioWindow(SHORTER, date("2024-12-31"), date("2025-12-31"), 12, 3.0));
+        List.of(
+            new ScenarioWindow(SHORTER, date("2024-12-31"), date("2025-12-31"), 12, 1.3),
+            new ScenarioWindow(SHORTER, date("2024-11-30"), date("2025-12-31"), 13, 3.5));
 
     var scenarios = PerformanceScenarioCalculator.pick(full, shorter, 0);
 
-    assertThat(scenarios.moderate()).isEqualTo(full.get(1));
-    assertThat(scenarios.favourable()).isEqualTo(full.get(2));
+    assertThat(scenarios)
+        .isEqualTo(new PerformanceScenarios(full.get(0), full.get(1), full.get(3)));
   }
 
   @Test
@@ -151,6 +155,23 @@ class PerformanceScenarioCalculatorTest {
 
     assertThat(scenarios.unfavourable()).isEqualTo(full.get(1));
     assertThat(scenarios.favourable()).isEqualTo(full.get(4));
+  }
+
+  @Test
+  void theOneYearColumnTakesItsUnfavourableFromTwelveMonthWindowsOnlyNotFromADropInTheLastMonths() {
+    var prices = new ArrayList<Double>(List.of(100.0, 100.0, 100.0));
+    prices.addAll(Collections.nCopies(11, 130.0));
+    prices.add(100.0);
+    var monthEnds = monthEndPrices(YearMonth.of(2025, 1), prices);
+
+    var scenarios = calculator.scenarios(monthEnds, 1, 0);
+
+    assertThat(scenarios)
+        .isEqualTo(
+            new PerformanceScenarios(
+                fullLength("2025-03-31", "2026-03-31", 12, 1.0),
+                fullLength("2025-01-31", "2026-01-31", 12, 1.3),
+                fullLength("2025-01-31", "2026-01-31", 12, 1.3)));
   }
 
   @Test

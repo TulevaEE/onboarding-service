@@ -741,8 +741,8 @@ describe("saveReportsToDrive", () => {
   test("only alerts, once a day, when the folder Script Property is not set", () => {
     const { calls, slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
 
-    saveReportsToDrive(2);
-    saveReportsToDrive(2);
+    saveReportsToDrive([], 2);
+    saveReportsToDrive([], 2);
 
     expect(calls).toEqual({ search: 0, lock: 0, folders: [] });
     expect(slack).toHaveLength(1);
@@ -787,8 +787,8 @@ describe("saveReportsToDrive", () => {
       threads: [working, failing],
     });
 
-    saveReportsToDrive(2);
-    saveReportsToDrive(2);
+    saveReportsToDrive([working, failing], 2);
+    saveReportsToDrive([working, failing], 2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261019")).toEqual([]);
@@ -809,7 +809,7 @@ describe("saveReportsToDrive", () => {
       threads: [older, newer],
     });
 
-    saveReportsToDrive(2);
+    saveReportsToDrive([older, newer], 2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
   });
@@ -831,9 +831,9 @@ describe("saveReportsToDrive", () => {
       threads: [correction, original],
     });
 
-    saveReportsToDrive(2);
+    saveReportsToDrive([correction, original], 2);
     delete drive.failures["createFile TULEVA_pos_raport_20261020.csv"];
-    saveReportsToDrive(2);
+    saveReportsToDrive([correction, original], 2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
   });
@@ -849,7 +849,7 @@ describe("saveReportsToDrive", () => {
     const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
     installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, unreadable] });
 
-    saveReportsToDrive(2);
+    saveReportsToDrive([working, unreadable], 2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
   });
@@ -870,7 +870,7 @@ describe("saveReportsToDrive", () => {
     );
     installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
 
-    saveReportsToDrive(2);
+    saveReportsToDrive([dailyReports], 2);
 
     expect(drive.events).toEqual(["create TULEVA_pos_raport_20261031_US.csv", "create TULEVA_pos_raport_20261031.csv"]);
   });
@@ -885,9 +885,9 @@ describe("saveReportsToDrive", () => {
       ["S3-Uploaded-2x"],
     );
     installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
-    saveReportsToDrive(2);
+    saveReportsToDrive([dailyReports], 2);
 
-    saveReportsToDrive(7);
+    saveReportsToDrive([dailyReports], 7);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261027")).toHaveLength(1);
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261031")).toHaveLength(1);
@@ -898,7 +898,7 @@ describe("saveReportsToDrive", () => {
       properties: { DRIVE_SEB_REPORT_FOLDER_ID: "missing-folder", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
     });
 
-    expect(() => saveReportsToDrive(2)).not.toThrow();
+    expect(() => saveReportsToDrive([], 2)).not.toThrow();
     expect(slack).toHaveLength(1);
     expect(slack[0]).toContain("could not be saved to Drive");
   });
@@ -942,6 +942,17 @@ describe("one run: S3 first, then Drive", () => {
     expect(fakes.s3Keys).toEqual([]);
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
     expect(thread.labels).toEqual([]);
+  });
+
+  test("a run searches Gmail once for both passes", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread] }));
+
+    processNewEmails();
+
+    expect(fakes.calls.search).toBe(1);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
   });
 
   test("processNewEmails tells Slack about the S3 failure after the Drive copy", () => {

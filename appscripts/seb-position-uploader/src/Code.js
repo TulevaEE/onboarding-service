@@ -140,7 +140,7 @@ function processEmailsFromDays(days, options) {
     try {
         uploadThreadsToS3(threads, minMessageDate, newestUploaded);
     } finally {
-        saveReportsToDrive(days, newestUploaded);
+        saveReportsToDrive(threads, days, newestUploaded);
     }
 
     Logger.log("Processing complete");
@@ -497,7 +497,7 @@ var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
 var DAY_MS = 24 * 60 * 60 * 1000;
 
-function saveReportsToDrive(days, newestUploaded) {
+function saveReportsToDrive(threads, days, newestUploaded) {
     try {
         var props = PropertiesService.getScriptProperties();
         var folderId = props.getProperty(DRIVE_FOLDER_PROPERTY);
@@ -508,7 +508,6 @@ function saveReportsToDrive(days, newestUploaded) {
         }
         var folder = DriveApp.getFolderById(folderId);
         var minMessageDate = new Date(Date.now() - days * DAY_MS);
-        var threads = GmailApp.search(gmailSearchQuery(days));
         for (var i = threads.length - 1; i >= 0; i--) {
             saveThreadToDrive(threads[i], folder, newestUploaded, minMessageDate);
         }

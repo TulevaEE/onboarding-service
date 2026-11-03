@@ -15,6 +15,10 @@ public class PaymentRates {
     return Optional.ofNullable(pending);
   }
 
+  public @Nullable Integer rateThatApplies() {
+    return pending != null ? pending : current;
+  }
+
   public boolean hasIncreased() {
     return (current != null && current > 2) || (pending != null && pending > 2);
   }

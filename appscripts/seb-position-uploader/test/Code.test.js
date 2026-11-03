@@ -15,6 +15,11 @@ const {
   isIgnoredFilename,
   isBinaryFileConfig,
   resolveContentType,
+  gmailSearchQuery,
+  daysToReach,
+  messagesFrom,
+  backfillQueue,
+  backfillTimeIsUp,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -33,6 +38,17 @@ describe("getSourceForSender", () => {
   test("matches each configured FT sender", () => {
     SOURCES.FT.senders.forEach((s) => {
       expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.FT);
+    });
+  });
+  test("matches each configured SEB trade confirmation sender", () => {
+    expect(SOURCES.SEB_CONFIRMATION.senders).not.toHaveLength(0);
+    SOURCES.SEB_CONFIRMATION.senders.forEach((s) => {
+      expect(getSourceForSender("Some Person <" + s + ">")).toBe(SOURCES.SEB_CONFIRMATION);
+    });
+  });
+  test("keeps the SEB trade confirmation sender apart from the SEB report senders", () => {
+    SOURCES.SEB_CONFIRMATION.senders.forEach((s) => {
+      expect(SOURCES.SEB.senders).not.toContain(s);
     });
   });
   test("rejects an arbitrary @tuleva.ee address that is not on the allowlist", () => {
@@ -166,6 +182,29 @@ describe("getFileConfigAndDate — S3 key regression (CSV feeds stay date-based)
     const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
     expect(s3Key).toBe("ft-confirmations/MID9BlFbos-00.pdf");
   });
+  test("SEB trade confirmation filename produces the trade-reference-based key", () => {
+    const result = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf");
+    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+    expect(s3Key).toBe("seb-confirmations/DLA1234567-001.pdf");
+  });
+});
+
+describe("getFileConfigAndDate — SEB trade confirmation filenames", () => {
+  test("matches a trade confirmation PDF and keeps the trade reference as the key stem", () => {
+    const result = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf");
+    expect(result.keyStem).toBe("DLA1234567-001");
+  });
+  test("matches regardless of the extension's letter case", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.PDF")).not.toBeNull();
+  });
+  test("rejects a PDF that is not named after a trade reference", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "random.pdf")).toBeNull();
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567.pdf")).toBeNull();
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "MID9BlFbos-00.pdf")).toBeNull();
+  });
+  test("rejects SEB report files", () => {
+    expect(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "TULEVA_pos_raport_20260409.csv")).toBeNull();
+  });
 });
 
 describe("isBinaryFileConfig / resolveContentType — attachment content selection", () => {
@@ -183,6 +222,94 @@ describe("isBinaryFileConfig / resolveContentType — attachment content selecti
     const swedbankFileConfig = getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv").fileConfig;
     expect(isBinaryFileConfig(swedbankFileConfig)).toBe(false);
     expect(resolveContentType(swedbankFileConfig)).toBe("text/csv");
+  });
+  test("SEB trade confirmation config reads as binary bytes with a PDF content-type", () => {
+    const fileConfig = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf").fileConfig;
+    expect(isBinaryFileConfig(fileConfig)).toBe(true);
+    expect(resolveContentType(fileConfig)).toBe("application/pdf");
+  });
+});
+
+describe("gmailSearchQuery", () => {
+  test("searches every sender's attachments sent to funds@ in the window", () => {
+    expect(gmailSearchQuery(2)).toBe("to:funds@tuleva.ee has:attachment newer_than:2d");
+  });
+  test("narrows the search to a source's senders", () => {
+    expect(gmailSearchQuery(274, ["tehingukinnitus@seb.ee", "kinnitus@seb.ee"])).toBe(
+      "to:funds@tuleva.ee has:attachment newer_than:274d from:(tehingukinnitus@seb.ee OR kinnitus@seb.ee)"
+    );
+  });
+});
+
+describe("daysToReach", () => {
+  test("gives a window of whole days that reaches the start with a day to spare", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-11-02T12:00:00+02:00"))).toBe(275);
+  });
+  test("keeps the spare day when the start is a whole number of days ago", () => {
+    expect(daysToReach(new Date("2026-02-02T00:00:00+02:00"), new Date("2026-02-04T00:00:00+02:00"))).toBe(3);
+  });
+});
+
+describe("messagesFrom", () => {
+  const messageFrom = (sender) => ({ getFrom: () => sender });
+
+  test("takes SEB's trade confirmations from a thread", () => {
+    const confirmation = messageFrom("SEB <tehingukinnitus@seb.ee>");
+    expect(messagesFrom([confirmation], SOURCES.SEB_CONFIRMATION)).toEqual([confirmation]);
+  });
+  test("leaves another source's report in the same thread to the regular run", () => {
+    const report = messageFrom("SEB <trustee@seb.ee>");
+    const confirmation = messageFrom("SEB <tehingukinnitus@seb.ee>");
+    expect(messagesFrom([report, confirmation], SOURCES.SEB_CONFIRMATION)).toEqual([confirmation]);
+  });
+  test("leaves out a message from an unknown sender", () => {
+    expect(messagesFrom([messageFrom("someone@example.com")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
+  });
+  test("leaves out a reply from the funds mailbox without asking Gmail who sent it", () => {
+    expect(messagesFrom([messageFrom("funds@tuleva.ee")], SOURCES.SEB_CONFIRMATION)).toEqual([]);
+  });
+});
+
+describe("backfillQueue", () => {
+  const message = (sender, isoDate) => ({ getFrom: () => sender, getDate: () => new Date(isoDate) });
+  const thread = (...messages) => ({ getMessages: () => messages });
+  const confirmationSender = "SEB <tehingukinnitus@seb.ee>";
+
+  test("orders the confirmations of every thread oldest first, so a paused run resumes where it stopped", () => {
+    const march = message(confirmationSender, "2026-03-02T10:00:00Z");
+    const april = message(confirmationSender, "2026-04-01T10:00:00Z");
+    const may = message(confirmationSender, "2026-05-04T10:00:00Z");
+    expect(backfillQueue([thread(may), thread(march, april)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([march, april, may]);
+  });
+  test("leaves out the confirmations a paused run already uploaded", () => {
+    const uploaded = message(confirmationSender, "2026-03-02T10:00:00Z");
+    const next = message(confirmationSender, "2026-03-03T10:00:00Z");
+    expect(backfillQueue([thread(uploaded, next)], SOURCES.SEB_CONFIRMATION, new Date("2026-03-02T10:00:00Z")))
+      .toEqual([next]);
+  });
+  test("leaves out a confirmation older than the backfill start in a thread still active since then", () => {
+    const january = message(confirmationSender, "2026-01-15T10:00:00Z");
+    const march = message(confirmationSender, "2026-03-02T10:00:00Z");
+    expect(backfillQueue([thread(january, march)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([march]);
+  });
+  test("leaves another source's report in the same thread to the regular run", () => {
+    const report = message("SEB <trustee@seb.ee>", "2026-03-02T09:00:00Z");
+    const confirmation = message(confirmationSender, "2026-03-02T10:00:00Z");
+    expect(backfillQueue([thread(report, confirmation)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
+      .toEqual([confirmation]);
+  });
+});
+
+describe("backfillTimeIsUp", () => {
+  const startedAt = new Date("2026-11-03T10:00:00Z");
+
+  test("keeps uploading within the budget that leaves room before Apps Script's six-minute limit", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:59Z"))).toBe(false);
+  });
+  test("pauses once the budget is spent", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:05:00Z"))).toBe(true);
   });
 });
 

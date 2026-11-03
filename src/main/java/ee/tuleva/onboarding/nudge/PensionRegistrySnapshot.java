@@ -9,8 +9,9 @@ public record PensionRegistrySnapshot(
     boolean leftSecondPillar,
     boolean canIncreasePaymentRate,
     boolean thirdPillarActive,
-    @Nullable TulevaFund secondPillarContributionTulevaFund) {
+    @Nullable TulevaFund secondPillarContributionTulevaFund,
+    @Nullable Integer secondPillarPaymentRate) {
 
   public static final PensionRegistrySnapshot UNKNOWN_PERSON =
-      new PensionRegistrySnapshot(false, false, false, false, false, null);
+      new PensionRegistrySnapshot(false, false, false, false, false, null, null);
 }

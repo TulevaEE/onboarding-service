@@ -22,6 +22,10 @@ record PublishedPrecision(int decimals) {
     return fraction.movePointRight(FRACTION_TO_PERCENT).setScale(decimals, HALF_UP);
   }
 
+  BigDecimal printedFraction(BigDecimal fraction) {
+    return percent(fraction).movePointLeft(FRACTION_TO_PERCENT);
+  }
+
   boolean differ(BigDecimal oneFraction, BigDecimal otherFraction) {
     return percent(oneFraction).compareTo(percent(otherFraction)) != 0;
   }

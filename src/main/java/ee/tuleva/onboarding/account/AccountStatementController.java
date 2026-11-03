@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.fund.PublishedManagementFee;
+import ee.tuleva.onboarding.fund.PublishedOngoingChargesFigure;
 import ee.tuleva.onboarding.locale.LocaleService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ public class AccountStatementController {
   private final SavingsFundStatementService savingsFundStatementService;
   private final LocaleService localeService;
   private final PublishedManagementFee publishedManagementFee;
+  private final PublishedOngoingChargesFigure publishedOngoingChargesFigure;
 
   @Operation(summary = "Get pension register account statement")
   @GetMapping("/pension-account-statement")
@@ -59,6 +61,7 @@ public class AccountStatementController {
   private ApiFundBalanceResponse toDto(FundBalance fundBalance, Locale locale) {
     var dto = ApiFundBalanceResponse.from(fundBalance, locale);
     publishedManagementFee.applyTo(dto.getFund());
+    publishedOngoingChargesFigure.applyTo(dto.getFund());
     return dto;
   }
 }

@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.fund;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
@@ -20,6 +23,10 @@ public class ApiFundResponse {
   private BigDecimal managementFeeRate;
   private Integer pillar;
   private BigDecimal ongoingChargesFigure;
+
+  @JsonInclude(NON_NULL)
+  private Integer ongoingChargesPercentDecimals;
+
   private FundStatus status;
   private LocalDate inceptionDate;
 
@@ -32,6 +39,11 @@ public class ApiFundResponse {
     this.ongoingChargesFigure = fund.getOngoingChargesFigure();
     this.status = fund.getStatus();
     this.inceptionDate = fund.getInceptionDate();
+  }
+
+  void showPublishedOngoingCharges(PublishedFigure published) {
+    this.ongoingChargesFigure = published.figure();
+    this.ongoingChargesPercentDecimals = published.decimals();
   }
 
   @JsonIgnore

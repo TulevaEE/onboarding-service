@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,9 +38,12 @@ public class SebPendingTransactionReconciliationService {
 
   private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
 
+  @RequiredArgsConstructor
   private enum SettlementByAbsence {
-    ON_LATEST_REPORT_ONLY,
-    ON_THIS_REPORT_AS_OF_ITS_DATE
+    ON_LATEST_REPORT_ONLY(execution -> true),
+    ON_THIS_REPORT_AS_OF_ITS_DATE(execution -> true);
+
+    private final Predicate<TransactionExecution> countsAsListed;
   }
 
   private final SebPendingTransactionExtractor extractor;
@@ -159,8 +163,8 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
-        .filter(order -> executedBefore(order, reportDate, asOfDate))
-        .forEach(order -> settleByAbsence(order, reportDate, asOfDate));
+        .filter(order -> executedBefore(order, reportDate, asOfDate, settlementByAbsence))
+        .forEach(order -> settleByAbsence(order, reportDate, asOfDate, settlementByAbsence));
     return SettlementCheck.CHECKED;
   }
 
@@ -202,8 +206,12 @@ public class SebPendingTransactionReconciliationService {
     return true;
   }
 
-  private boolean executedBefore(TransactionOrder order, LocalDate reportDate, LocalDate asOfDate) {
-    return executionsListedBy(order, asOfDate).stream()
+  private boolean executedBefore(
+      TransactionOrder order,
+      LocalDate reportDate,
+      LocalDate asOfDate,
+      SettlementByAbsence settlementByAbsence) {
+    return executionsListedBy(order, asOfDate, settlementByAbsence).stream()
         .map(TransactionExecution::getExecutionTimestamp)
         .filter(Objects::nonNull)
         .max(Comparator.naturalOrder())
@@ -212,8 +220,9 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private List<TransactionExecution> executionsListedBy(
-      TransactionOrder order, LocalDate asOfDate) {
+      TransactionOrder order, LocalDate asOfDate, SettlementByAbsence settlementByAbsence) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
+        .filter(settlementByAbsence.countsAsListed)
         .filter(execution -> isListedBy(execution, asOfDate))
         .toList();
   }
@@ -223,8 +232,13 @@ public class SebPendingTransactionReconciliationService {
     return reportedDate == null || !reportedDate.isAfter(asOfDate);
   }
 
-  private void settleByAbsence(TransactionOrder order, LocalDate reportDate, LocalDate asOfDate) {
-    List<TransactionExecution> executions = executionsListedBy(order, asOfDate);
+  private void settleByAbsence(
+      TransactionOrder order,
+      LocalDate reportDate,
+      LocalDate asOfDate,
+      SettlementByAbsence settlementByAbsence) {
+    List<TransactionExecution> executions =
+        executionsListedBy(order, asOfDate, settlementByAbsence);
     if (quantityAmountValidator.isShortFill(order, executions, matchingPolicy.current())) {
       log.error(
           "Order absent from pending report but not fully filled, leaving EXECUTED: orderId={},"

@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
+  static final String LOCK = "SebPendingTransactionReconciliationJob";
   private static final int LOOKBACK_DAYS = 7;
 
   private final Clock clock;
@@ -39,10 +40,7 @@ class SebPendingTransactionReconciliationJob {
   private final PipelineNotifier pipelineNotifier;
 
   @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
-  @SchedulerLock(
-      name = "SebPendingTransactionReconciliationJob",
-      lockAtMostFor = "30m",
-      lockAtLeastFor = "1m")
+  @SchedulerLock(name = LOCK, lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);
     if (!publicHolidays.isWorkingDay(today)) {
@@ -95,6 +93,7 @@ class SebPendingTransactionReconciliationJob {
   }
 
   @EventListener(RunSebPendingTransactionReconciliationRequested.class)
+  @SchedulerLock(name = LOCK, lockAtMostFor = "30m", lockAtLeastFor = "0s")
   void onSebPendingTransactionReconciliationRequested() {
     run();
   }

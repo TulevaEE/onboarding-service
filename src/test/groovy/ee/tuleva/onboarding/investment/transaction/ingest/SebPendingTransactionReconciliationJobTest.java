@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.EXECUTION_MATCHING;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
@@ -18,12 +20,16 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationJobTest {
@@ -193,6 +199,65 @@ class SebPendingTransactionReconciliationJobTest {
 
     verify(reconciliationService).reconcile(today);
   }
+
+  @Test
+  void aManualRequestHoldsTheLockTheScheduledRunAndTheReplayTake() {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(false);
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+
+    try (var context = lockedContext(lockProvider)) {
+      context.publishEvent(new RunSebPendingTransactionReconciliationRequested());
+    }
+
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verify(publicHolidays).isWorkingDay(TODAY);
+  }
+
+  @Test
+  void aManualRequestDoesNotRunWhileTheReplayHoldsTheLock() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
+
+    try (var context = lockedContext(lockProvider)) {
+      context.publishEvent(new RunSebPendingTransactionReconciliationRequested());
+    }
+
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verifyNoInteractions(
+        publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
+  }
+
+  @Test
+  void theScheduledRunDoesNotRunWhileTheReplayHoldsTheLock() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
+
+    try (var context = lockedContext(lockProvider)) {
+      context.getBean(SebPendingTransactionReconciliationJob.class).run();
+    }
+
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verifyNoInteractions(
+        publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
+  }
+
+  private AnnotationConfigApplicationContext lockedContext(LockProvider lockProvider) {
+    var context = new AnnotationConfigApplicationContext();
+    context.getEnvironment().setActiveProfiles("production");
+    context.registerBean(LockProvider.class, () -> lockProvider);
+    context.registerBean(Clock.class, () -> clock);
+    context.registerBean(PublicHolidays.class, () -> publicHolidays);
+    context.registerBean(InvestmentReportService.class, () -> reportService);
+    context.registerBean(
+        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
+    context.registerBean(PipelineTracker.class, () -> pipelineTracker);
+    context.registerBean(PipelineNotifier.class, () -> pipelineNotifier);
+    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationJob.class);
+    context.refresh();
+    return context;
+  }
+
+  @Configuration
+  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
+  static class SchedulerLockOnly {}
 
   private static InvestmentReport report(LocalDate date) {
     return InvestmentReport.builder()

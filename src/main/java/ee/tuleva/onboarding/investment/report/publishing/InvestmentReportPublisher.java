@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
-import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REFUSE;
-import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REPLACE;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
-import ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
@@ -45,16 +42,8 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPublishingLock publishingLock;
   private final InvestmentReportPublishingProperties properties;
 
-  public InvestmentReportPublishingResult publish(YearMonth month) {
-    return publishUnlessAnotherPublishRuns(month, REFUSE);
-  }
-
-  public InvestmentReportPublishingResult publishReplacingUnrecognisedFiles(YearMonth month) {
-    return publishUnlessAnotherPublishRuns(month, REPLACE);
-  }
-
-  private InvestmentReportPublishingResult publishUnlessAnotherPublishRuns(
-      YearMonth month, UnrecognisedFile unrecognised) {
+  public InvestmentReportPublishingResult publish(
+      final YearMonth month, final UnrecognisedReportFile unrecognised) {
     return publishingLock.whileNoOtherPublishRuns(
         () -> publishWhileNoOtherPublishRuns(month, unrecognised),
         heldUntil -> anotherPublishIsRunning(month, heldUntil));
@@ -74,7 +63,7 @@ public class InvestmentReportPublisher {
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(
-      YearMonth month, UnrecognisedFile unrecognised) {
+      YearMonth month, UnrecognisedReportFile unrecognised) {
     log.info(
         "Starting investment report publishing: month={}, unrecognisedFile={}",
         month,
@@ -119,7 +108,7 @@ public class InvestmentReportPublisher {
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
           publishedUrls.keySet(),
           repointErrors);
-      alertPartialPublish(month, publishedUrls.keySet(), repointErrors);
+      alertPartialPublish(month, publishedUrls, repointErrors);
       return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
     }
 
@@ -194,7 +183,7 @@ public class InvestmentReportPublisher {
 
   private Map<String, String> repointFundPages(
       YearMonth month,
-      UnrecognisedFile unrecognised,
+      UnrecognisedReportFile unrecognised,
       Map<FundReportMapping, UploadResult> uploads,
       List<String> errors) {
     var publishedUrls = new LinkedHashMap<String, String>();
@@ -261,7 +250,7 @@ public class InvestmentReportPublisher {
   }
 
   private void alertPartialPublish(
-      YearMonth month, Set<String> publishedFunds, List<String> errors) {
+      YearMonth month, Map<String, String> publishedUrls, List<String> errors) {
     try {
       var message = new MandrillMessage();
       message.setFromEmail("funds@tuleva.ee");
@@ -271,7 +260,7 @@ public class InvestmentReportPublisher {
           ("Investment report publish for %s left the website in a partial state.%n"
                   + "Fund pages updated: %s%nErrors: %s%n"
                   + "Manual attention needed to make all fund pages consistent.")
-              .formatted(month, publishedFunds, errors));
+              .formatted(month, publishedUrls.keySet(), errors));
       var recipient = new Recipient();
       recipient.setEmail("funds@tuleva.ee");
       recipient.setType(TO);

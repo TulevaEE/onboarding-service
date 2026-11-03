@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.report.publishing;
 import static ee.tuleva.onboarding.investment.report.publishing.FundReportMapping.TUK00;
 import static ee.tuleva.onboarding.investment.report.publishing.FundReportMapping.TUK75;
 import static ee.tuleva.onboarding.investment.report.publishing.FundReportMapping.TUV100;
-import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REFUSE;
-import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REPLACE;
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REFUSE;
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REPLACE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 

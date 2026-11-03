@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REFUSE;
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REPLACE;
 import static java.util.Objects.requireNonNullElse;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -186,9 +188,7 @@ public class InvestmentAdminController {
         "Admin triggered investment report publishing: month={}, replaceUnrecognised={}",
         targetMonth,
         replaceUnrecognised);
-    return replaceUnrecognised
-        ? publisher.publishReplacingUnrecognisedFiles(targetMonth)
-        : publisher.publish(targetMonth);
+    return publisher.publish(targetMonth, replaceUnrecognised ? REPLACE : REFUSE);
   }
 
   @GetMapping("/preview-investment-report")

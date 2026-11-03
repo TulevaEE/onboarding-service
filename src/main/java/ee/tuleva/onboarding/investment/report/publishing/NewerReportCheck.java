@@ -13,22 +13,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class NewerReportCheck {
 
-  enum UnrecognisedFile {
-    REFUSE,
-    REPLACE
-  }
-
   private final WordPressPageReader pageReader;
 
   List<String> reasonsNotToReplace(
-      List<FundReportMapping> reports, YearMonth month, UnrecognisedFile unrecognised) {
+      List<FundReportMapping> reports, YearMonth month, UnrecognisedReportFile unrecognised) {
     return reports.stream()
         .flatMap(mapping -> reasonNotToReplace(mapping, month, unrecognised).stream())
         .toList();
   }
 
   private Optional<String> reasonNotToReplace(
-      FundReportMapping mapping, YearMonth month, UnrecognisedFile unrecognised) {
+      FundReportMapping mapping, YearMonth month, UnrecognisedReportFile unrecognised) {
     var fundCode = mapping.fund().getCode();
     try {
       return pageReader
@@ -43,11 +38,14 @@ class NewerReportCheck {
   }
 
   private static Optional<String> reasonNotToReplace(
-      FundReportMapping mapping, String linked, YearMonth month, UnrecognisedFile unrecognised) {
+      FundReportMapping mapping,
+      String linked,
+      YearMonth month,
+      UnrecognisedReportFile unrecognised) {
     var fundCode = mapping.fund().getCode();
     var linkedPeriod = mapping.reportPeriodLinkedBy(linked);
     if (linkedPeriod.isEmpty()) {
-      return unrecognised == UnrecognisedFile.REPLACE
+      return unrecognised == UnrecognisedReportFile.REPLACE
           ? Optional.empty()
           : Optional.of(
               ("Fund page links a file that is not this fund's report, so it may be newer; check"

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REFUSE;
+import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REPLACE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
@@ -301,7 +303,8 @@ class InvestmentAdminControllerTest {
     var expectedResult =
         new InvestmentReportPublishingResult(
             Map.of("TUK75", "https://tuleva.ee/test.pdf"), true, List.of());
-    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3), REFUSE))
+        .willReturn(expectedResult);
 
     mockMvc
         .perform(
@@ -313,7 +316,7 @@ class InvestmentAdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.emailSent").value(true));
 
-    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3), REFUSE);
   }
 
   @Test
@@ -323,7 +326,8 @@ class InvestmentAdminControllerTest {
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));
 
     var expectedResult = new InvestmentReportPublishingResult(Map.of(), false, List.of());
-    given(investmentReportPublisher.publish(YearMonth.of(2026, 3))).willReturn(expectedResult);
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3), REFUSE))
+        .willReturn(expectedResult);
 
     mockMvc
         .perform(
@@ -332,7 +336,7 @@ class InvestmentAdminControllerTest {
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isOk());
 
-    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3));
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3), REFUSE);
   }
 
   @Test
@@ -340,7 +344,7 @@ class InvestmentAdminControllerTest {
       throws Exception {
     given(clock.instant()).willReturn(Instant.parse("2026-04-15T10:00:00Z"));
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));
-    given(investmentReportPublisher.publishReplacingUnrecognisedFiles(YearMonth.of(2026, 3)))
+    given(investmentReportPublisher.publish(YearMonth.of(2026, 3), REPLACE))
         .willReturn(new InvestmentReportPublishingResult(Map.of(), true, List.of()));
 
     mockMvc
@@ -354,7 +358,8 @@ class InvestmentAdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.emailSent").value(true));
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher).publish(YearMonth.of(2026, 3), REPLACE);
+    verify(investmentReportPublisher, never()).publish(any(), eq(REFUSE));
   }
 
   @Test
@@ -366,7 +371,7 @@ class InvestmentAdminControllerTest {
                 .header("X-Admin-Token", "wrong-token"))
         .andExpect(status().isUnauthorized());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -380,7 +385,7 @@ class InvestmentAdminControllerTest {
                 .param("year", "2026"))
         .andExpect(status().isBadRequest());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -397,7 +402,7 @@ class InvestmentAdminControllerTest {
                 .param("year", "2026"))
         .andExpect(status().isBadRequest());
 
-    verify(investmentReportPublisher, never()).publish(any());
+    verify(investmentReportPublisher, never()).publish(any(), any());
   }
 
   @Test

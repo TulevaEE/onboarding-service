@@ -38,11 +38,12 @@ class WordPressMediaClientTest {
   void setUp() {
     var builder = RestClient.builder().baseUrl("https://tuleva.ee/wp-json/wp/v2");
     server = MockRestServiceServer.bindTo(builder).build();
+    var configuration = new WordPressConfiguration();
     client =
         new WordPressMediaClient(
             builder.build(),
-            WordPressConfiguration.retryingTransientFailures(),
-            WordPressConfiguration.retryingRequestsThatNeverReachedWordPress(),
+            configuration.retryingTransientFailures(),
+            configuration.retryingRequestsThatNeverReachedWordPress(),
             List.of());
   }
 

@@ -93,14 +93,14 @@ public class WordPressConfiguration {
     return Base64.getEncoder().encodeToString(credentials.getBytes(UTF_8));
   }
 
-  static RetryTemplate retryingTransientFailures() {
+  RetryTemplate retryingTransientFailures() {
     return retrying(
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)
             .excludes(HttpClientErrorException.class));
   }
 
-  static RetryTemplate retryingRequestsThatNeverReachedWordPress() {
+  RetryTemplate retryingRequestsThatNeverReachedWordPress() {
     return retrying(
         RetryPolicy.builder()
             .includes(

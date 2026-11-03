@@ -471,25 +471,31 @@ function recordEmailSourceAfterUpload(s3Key, emailSource) {
 }
 
 // Drive copy for the Google Sheets NAV fallback. It runs as its own pass after the
-// S3 pass, with its own per-thread "Drive-Saved-Nx" label, so Drive can neither
-// stop nor repeat an S3 upload, and a failed copy is retried on the next run.
-// It does not wait for S3: a message the S3 pass could not upload is copied too,
-// since the fallback is needed exactly when the S3 pipeline fails. The newest-e-mail
-// guard below holds without S3: the S3 pass's scan of earlier uploads runs before
-// any upload, and the Drive pass records each e-mail before writing.
+// S3 pass, so Drive can neither stop nor repeat an S3 upload. It does not wait for
+// S3: a message the S3 pass could not upload is copied too, since the fallback is
+// needed exactly when the S3 pipeline fails. The newest-e-mail guard below holds
+// without S3: the S3 pass's scan of earlier uploads runs before any upload, and the
+// Drive pass records each e-mail before writing.
+// Each run copies the reports of the e-mails within its own window (the last 2 days
+// for processNewEmails) that are not in Drive yet. Progress is the Drive record per
+// report (see recordDriveSource), not a Gmail label, so a failed copy is retried by
+// every run while its e-mail is in the window, without holding up the later e-mails
+// of its thread.
 // The Sheets scripts read the "_US.csv" copy with the newest
 // date in its name, so each report type and date keeps one current "_US.csv";
 // it is updated in place, and its previous content is kept as a "_vN" copy.
 // Creating the new original is the last write: tuleva's seb-import starts its
 // Sheets import when the SEB report file names change, and its settlement recheck
 // reads the last updated pending report of each date.
+// A report whose current files already hold its content gets no new version, so the
+// files tuleva's earlier Gmail saver wrote, and a resumed copy, are not versioned again.
 // The S3 pass's e-mail record per report (see recordEmailSource) also guards Drive:
 // an older e-mail never replaces it, and the same e-mail resumes a copy that
 // failed half way. The Drive pass writes it before any Drive write, for files
 // that were on S3 before the record existed.
 var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
-var DRIVE_LABEL_PREFIX = "Drive-Saved-";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
+var DAY_MS = 24 * 60 * 60 * 1000;
 
 function saveReportsToDrive(days, newestUploaded) {
     try {
@@ -501,9 +507,10 @@ function saveReportsToDrive(days, newestUploaded) {
             return;
         }
         var folder = DriveApp.getFolderById(folderId);
+        var minMessageDate = new Date(Date.now() - days * DAY_MS);
         var threads = GmailApp.search(gmailSearchQuery(days));
         for (var i = threads.length - 1; i >= 0; i--) {
-            saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder, newestUploaded);
+            saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder, newestUploaded, minMessageDate);
         }
     } catch (e) {
         Logger.log("FAILED Drive copy run: " + e.message);
@@ -511,34 +518,37 @@ function saveReportsToDrive(days, newestUploaded) {
     }
 }
 
-function saveThreadToDriveWithoutStoppingTheOthers(thread, folder, newestUploaded) {
+function saveThreadToDriveWithoutStoppingTheOthers(thread, folder, newestUploaded, minMessageDate) {
     try {
-        saveThreadToDrive(thread, folder, newestUploaded);
+        saveThreadToDrive(thread, folder, newestUploaded, minMessageDate);
     } catch (e) {
         Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
-        notifyDriveProblemOncePerDay("an SEB report is not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
-            "for older ones run processHistoricalEmails once the cause is fixed");
+        notifyDriveCopyFailed(e);
     }
 }
 
-function saveThreadToDrive(thread, folder, newestUploaded) {
-    var driveCount = getDriveCount(thread);
-    var driveMatchingCount = 0;
-    var messages = thread.getMessages();
-    for (var j = 0; j < messages.length; j++) {
-        var message = messages[j];
-        if (!messageHasMatchingAttachments(message)) continue;
-        var reports = driveReportsOf(message);
-        if (reports.length === 0) continue;
-        driveMatchingCount++;
-        if (!shouldProcessMessage(driveMatchingCount, driveCount)) continue;
-        var emailSource = emailSourceOf(message);
-        for (var k = 0; k < reports.length; k++) {
-            saveReportToDrive(folder, reports[k].attachment, reports[k].fileConfig, reports[k].reportDate, emailSource, newestUploaded);
+function saveThreadToDrive(thread, folder, newestUploaded, minMessageDate) {
+    thread.getMessages().forEach(function (message) {
+        if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return;
+        try {
+            saveMessageToDrive(message, folder, newestUploaded);
+        } catch (e) {
+            Logger.log("FAILED Drive copy: messageId=" + message.getId() + " -> " + e.message);
+            notifyDriveCopyFailed(e);
         }
-        incrementDriveLabel(thread);
-        driveCount++;
-    }
+    });
+}
+
+function saveMessageToDrive(message, folder, newestUploaded) {
+    var emailSource = emailSourceOf(message);
+    driveReportsOf(message).forEach(function (report) {
+        saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, emailSource, newestUploaded);
+    });
+}
+
+function notifyDriveCopyFailed(e) {
+    notifyDriveProblemOncePerDay("an SEB report is not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
+        "for older ones run processHistoricalEmails once the cause is fixed");
 }
 
 function driveReportsOf(message) {
@@ -577,14 +587,22 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
     var currentUsCopies = family.current.filter(function (f) { return isUsCopyName(f.getName()); });
     var currentOriginals = family.current.filter(function (f) { return !isUsCopyName(f.getName()); });
 
-    var usContent = convertSebCsvToUs(attachment.getDataAsString());
+    var content = attachment.getDataAsString();
+    var usContent = convertSebCsvToUs(content);
+    if (isTheOnlyCurrentFileWith(currentUsCopies, usContent) && isTheOnlyCurrentFileWith(currentOriginals, content)) {
+        Logger.log("Drive copy unchanged, the folder already holds this content: " + name);
+        recordDriveSource(s3Key, emailSource);
+        return;
+    }
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
         var current = currentUsCopies[0];
-        current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
-        current.setContent(usContent);
-        current.setName(usCopyName(name));
+        if (contentOf(current) !== usContent) {
+            current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
+            current.setContent(usContent);
+        }
+        if (current.getName() !== usCopyName(name)) current.setName(usCopyName(name));
         currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
     }
 
@@ -611,6 +629,14 @@ function recordDriveSource(s3Key, emailSource) {
     } catch (e) {
         Logger.log("Drive record not saved, the copy itself went through: key=" + s3Key + ", error=" + e.message);
     }
+}
+
+function isTheOnlyCurrentFileWith(files, content) {
+    return files.length === 1 && contentOf(files[0]) === content;
+}
+
+function contentOf(file) {
+    return file.getBlob().getDataAsString();
 }
 
 function isOlderThanCurrentSource(source, current) {
@@ -697,25 +723,6 @@ function alertsSentToday(stored, today) {
         Logger.log("Drive alert record unreadable, starting a new one: " + e.message);
     }
     return { day: today, problems: [] };
-}
-
-function getDriveCount(thread) {
-    var labelNames = thread.getLabels().map(function (l) { return l.getName(); });
-    for (var i = 0; i < labelNames.length; i++) {
-        if (labelNames[i].indexOf(DRIVE_LABEL_PREFIX) === 0) {
-            return parseInt(labelNames[i].replace(DRIVE_LABEL_PREFIX, "").replace("x", ""), 10) || 0;
-        }
-    }
-    return 0;
-}
-
-function incrementDriveLabel(thread) {
-    var currentCount = getDriveCount(thread);
-    if (currentCount > 0) {
-        var oldLabel = GmailApp.getUserLabelByName(DRIVE_LABEL_PREFIX + currentCount + "x");
-        if (oldLabel) thread.removeLabel(oldLabel);
-    }
-    thread.addLabel(getOrCreateLabel(DRIVE_LABEL_PREFIX + (currentCount + 1) + "x"));
 }
 
 function notifyDriveProblemOncePerDay(problem) {

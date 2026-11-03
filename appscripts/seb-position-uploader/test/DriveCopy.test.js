@@ -35,6 +35,7 @@ function fakeDrive() {
     const f = {
       getName: () => currentName,
       content: () => currentContent,
+      getBlob: () => ({ getDataAsString: () => currentContent }),
       setName(newName) {
         fail("setName", currentName);
         events.push("rename " + currentName + " -> " + newName);
@@ -76,6 +77,7 @@ function fakeDrive() {
     events,
     failures,
     seed: (names) => names.forEach((n) => files.push(file(n, "old " + n))),
+    seedWithContent: (contents) => Object.keys(contents).forEach((n) => files.push(file(n, contents[n]))),
     names: () => files.map((f) => f.getName()),
     byName: (name) => files.filter((f) => f.getName() === name),
     currentUsCopiesFor: (keyword, date) =>
@@ -401,6 +403,63 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
   });
 
+  test("a report the folder already holds with the same content, as the old Gmail saver wrote it, gets no new version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020.csv": "A;1,5\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1.5\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1,5\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.events).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020.csv", "TULEVA_pos_raport_20261020_US.csv"]);
+  });
+
+  test("a correction the old Gmail saver has already versioned in gets no new version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv": "B;2\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.events).toEqual([]);
+  });
+
+  test("a copy resumed after its new original failed keeps the US copy it already updated, without another version", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.events).toEqual(["create TULEVA_pos_raport_20261020_korrigeeritud.csv"]);
+  });
+
+  test("a report whose original matches but whose US copy does not is written again, ending with a new original", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020.csv": "B;2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(drive.events.slice(-1)).toEqual(["create TULEVA_pos_raport_20261020.csv"]);
+  });
+
   test("a report whose current Drive copy already came from this e-mail is not saved again", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
@@ -533,7 +592,7 @@ describe("driveReportFamily", () => {
 describe("saveThreadToDrive", () => {
   const report = (date) => [fakeAttachment("TULEVA_pos_raport_" + date + ".csv", "A;1\n")];
 
-  test("also copies the messages the S3 pass has not uploaded", () => {
+  test("also copies the messages the S3 pass has not uploaded, and leaves the thread's labels to S3", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
     const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
@@ -546,36 +605,45 @@ describe("saveThreadToDrive", () => {
       "TULEVA_pos_raport_20261020_US.csv",
       "TULEVA_pos_raport_20261020.csv",
     ]);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-2x"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
   });
 
-  test("skips the messages already in Drive", () => {
+  test("the next run writes nothing for the reports already in Drive", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
-    const thread = fakeThread(
-      [sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))],
-      ["S3-Uploaded-2x", "Drive-Saved-1x"],
-    );
+    const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-2x"]);
+    saveThreadToDrive(thread, drive.folder);
+    const eventsAfterTheFirstRun = drive.events.length;
 
     saveThreadToDrive(thread, drive.folder);
 
-    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
-    expect(thread.labels).toEqual(["S3-Uploaded-2x", "Drive-Saved-2x"]);
+    expect(drive.events.slice(eventsAfterTheFirstRun)).toEqual([]);
   });
 
-  test("a failed copy leaves the Drive label as it was, so the next run retries it", () => {
+  test("a failed copy is retried by the next run", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
     drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"] = true;
     const thread = fakeThread([sebMessage("m1", report("20261020"))], ["S3-Uploaded-1x"]);
-
-    expect(() => saveThreadToDrive(thread, drive.folder)).toThrow("Drive failed");
-    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+    expect(drive.names()).toEqual([]);
 
     delete drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"];
     saveThreadToDrive(thread, drive.folder);
-    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a failed copy does not hold up the later e-mails of its thread, and Slack hears about it", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261019_US.csv"] = true;
+    const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-2x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(slack).toEqual([expect.stringContaining("not in Drive yet")]);
   });
 
   test("retrying a message whose copy failed half way leaves its reports already in Drive as they are", () => {
@@ -586,7 +654,7 @@ describe("saveThreadToDrive", () => {
       [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n")])],
       ["S3-Uploaded-1x"],
     );
-    expect(() => saveThreadToDrive(thread, drive.folder)).toThrow("Drive failed");
+    saveThreadToDrive(thread, drive.folder);
     const eventsBeforeTheRetry = drive.events.length;
 
     delete drive.failures["createFile TULEVA_ootel_tehingud_20261020_US.csv"];
@@ -602,7 +670,6 @@ describe("saveThreadToDrive", () => {
       "TULEVA_ootel_tehingud_20261020_US.csv",
       "TULEVA_ootel_tehingud_20261020.csv",
     ]);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
   });
 
   test.each([
@@ -624,10 +691,24 @@ describe("saveThreadToDrive", () => {
     expect(() => saveThreadToDrive(thread, drive.folder)).not.toThrow();
 
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261021_US.csv", "TULEVA_pos_raport_20261021.csv"]);
-    expect(thread.labels).toEqual(["S3-Uploaded-2x", "Drive-Saved-2x"]);
   });
 
-  test("a thread without SEB reports gets no Drive label", () => {
+  test("an alert Slack did not take about a _US.csv attachment is sent by the next run", () => {
+    const { slack, slackResponses } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    slackResponses.push(503);
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")])], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(thread, drive.folder);
+    expect(slack).toEqual([]);
+
+    saveThreadToDrive(thread, drive.folder);
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+    expect(drive.names()).toEqual([]);
+  });
+
+  test("a thread without SEB reports leaves Drive as it is", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
     const thread = fakeThread([swedbankMessage("m1")], ["S3-Uploaded-1x"]);
@@ -694,8 +775,8 @@ describe("saveReportsToDrive", () => {
     saveReportsToDrive(2);
     saveReportsToDrive(2);
 
-    expect(working.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
-    expect(failing.labels).toEqual(["S3-Uploaded-1x"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261019")).toEqual([]);
     expect(slack).toHaveLength(1);
     expect(slack[0]).toContain("not in Drive");
   });
@@ -716,7 +797,6 @@ describe("saveReportsToDrive", () => {
     saveReportsToDrive(2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
-    expect(older.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
   });
 
   test("a failed original that is retried after a newer correction succeeded does not bring back its content", () => {
@@ -741,8 +821,61 @@ describe("saveReportsToDrive", () => {
     saveReportsToDrive(2);
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
-    expect(original.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
-    expect(correction.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+  });
+
+  test("a thread whose messages cannot be read does not stop the others", () => {
+    const drive = fakeDrive();
+    const unreadable = {
+      getMessages: () => {
+        throw new Error("Gmail unavailable");
+      },
+      getFirstMessageSubject: () => "SEB reports",
+    };
+    const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, unreadable] });
+
+    saveReportsToDrive(2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+  });
+
+  test("the first run copies the e-mails of the last two days, and leaves the reports the old Gmail saver already saved as it is", () => {
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261030.csv": "A;1\n",
+      "TULEVA_pos_raport_20261030_US.csv": "A,1\n",
+    });
+    const dailyReports = fakeThread(
+      [
+        sebMessage("18f0a00000000001", report("20261027"), new Date("2026-10-28T08:45:00Z")),
+        sebMessage("18f0a00000000002", report("20261030"), new Date("2026-11-01T08:45:00Z")),
+        sebMessage("18f0a00000000003", report("20261031"), new Date("2026-11-02T08:45:00Z")),
+      ],
+      ["S3-Uploaded-3x"],
+    );
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
+
+    saveReportsToDrive(2);
+
+    expect(drive.events).toEqual(["create TULEVA_pos_raport_20261031_US.csv", "create TULEVA_pos_raport_20261031.csv"]);
+  });
+
+  test("a catch-up run copies the e-mails of its own window", () => {
+    const drive = fakeDrive();
+    const dailyReports = fakeThread(
+      [
+        sebMessage("18f0a00000000001", report("20261027"), new Date("2026-10-28T08:45:00Z")),
+        sebMessage("18f0a00000000003", report("20261031"), new Date("2026-11-02T08:45:00Z")),
+      ],
+      ["S3-Uploaded-2x"],
+    );
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [dailyReports] });
+    saveReportsToDrive(2);
+
+    saveReportsToDrive(7);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261027")).toHaveLength(1);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261031")).toHaveLength(1);
   });
 
   test("a folder it cannot open is reported, not thrown", () => {
@@ -778,7 +911,7 @@ describe("one run: S3 first, then Drive", () => {
 
     expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
   });
 
   test.each([
@@ -793,7 +926,7 @@ describe("one run: S3 first, then Drive", () => {
 
     expect(fakes.s3Keys).toEqual([]);
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
-    expect(thread.labels).toEqual(["Drive-Saved-1x"]);
+    expect(thread.labels).toEqual([]);
   });
 
   test("processNewEmails tells Slack about the S3 failure after the Drive copy", () => {
@@ -820,7 +953,7 @@ describe("one run: S3 first, then Drive", () => {
 
     expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
     expect(drive.names()).toEqual(namesAfterTheFailedRun);
-    expect(thread.labels).toEqual(["Drive-Saved-1x", "S3-Uploaded-1x"]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x"]);
   });
 
   test("when S3 rejects the uploads, an older e-mail still does not replace a newer correction in Drive", () => {
@@ -875,7 +1008,7 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
     expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("B;2\n");
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
-    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
   });
 
   test("a correction uploaded before the e-mail record existed still beats an older e-mail a catch-up finds", () => {
@@ -894,7 +1027,7 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
 
     expect(fakes.s3Keys).toEqual([]);
     expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
-    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
   });
 

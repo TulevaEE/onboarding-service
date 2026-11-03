@@ -98,7 +98,8 @@ public class BankOperationProcessor {
       case TRAD, SUBS, REDM -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
         if (tradeInfo.isEmpty()) {
-          parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
+          parkInSuspense(
+              entry, account, externalReference, amount, "unknown ticker or unreadable remittance");
           return;
         }
         var settlement = tradeInfo.get();

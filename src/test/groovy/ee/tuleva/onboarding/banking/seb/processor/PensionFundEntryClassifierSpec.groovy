@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
-import ee.tuleva.onboarding.ledger.TradeSettlementDetails
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
@@ -19,6 +18,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry
 import ee.tuleva.onboarding.banking.statement.TransactionType
 import ee.tuleva.onboarding.instrument.InstrumentReference
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails
 import spock.lang.Specification
 import java.math.BigDecimal
 import spock.lang.Unroll
@@ -70,7 +70,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "detail-less other as adjustment"        | entry("OTHR", 262.53, null, null, "Penalty CRED")                                  | new BankAdjustment()
     "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | developedWorldSettlement("DLA0544429", 31426.66, 34.085995776)
     "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | developedWorldSettlement("DLA0544429", 31426.66, 34.085995776)
-    "trade with unknown ticker"              | entry("TRAD", -100.00, null, null, "DLA1/ZZZZ GY/1/1/Buy/")                        | new Unclassified("unknown ticker")
+    "trade with unknown ticker"              | entry("TRAD", -100.00, null, null, "DLA1/ZZZZ GY/1/1/Buy/")                        | new Unclassified("unknown ticker or unreadable remittance")
+    "trade with an unreadable price"         | entry("SUBS", -1071209.00, null, null, "DLA0544429/BDWTEIA/31426.66//Buy/")        | new Unclassified("unknown ticker or unreadable remittance")
     "kickback booking"                       | entry("BOOK", 4370.58, null, null, "Management fee kickback VP00001 02/2026")      | new ManagementFeeRebate()
     "registrar credit"                       | entry("RCDT", 1000000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine") | new RegistrarContribution()
     "registrar debit"                        | entry("ICDT", -250000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine")    | new RegistrarPayout()

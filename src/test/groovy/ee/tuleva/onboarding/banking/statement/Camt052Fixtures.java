@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.ActiveOrHistoricCurrencyAnd
 import ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType12Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BalanceType5Choice;
-import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReportV02;
 import ee.tuleva.onboarding.banking.iso20022.camt052.CashAccount20;
 import ee.tuleva.onboarding.banking.iso20022.camt052.CashBalance3;
 import ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode;
@@ -16,9 +15,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt052.EntryDetails1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.EntryTransaction2;
 import ee.tuleva.onboarding.banking.iso20022.camt052.GenericOrganisationIdentification1;
-import ee.tuleva.onboarding.banking.iso20022.camt052.GroupHeader42;
 import ee.tuleva.onboarding.banking.iso20022.camt052.OrganisationIdentification4;
-import ee.tuleva.onboarding.banking.iso20022.camt052.Pagination;
 import ee.tuleva.onboarding.banking.iso20022.camt052.Party6Choice;
 import ee.tuleva.onboarding.banking.iso20022.camt052.PartyIdentification32;
 import ee.tuleva.onboarding.banking.iso20022.camt052.RemittanceInformation5;
@@ -122,34 +119,5 @@ final class Camt052Fixtures {
     balance.setCdtDbtInd(creditOrDebit);
     balance.setDt(dateChoice);
     return balance;
-  }
-
-  static BankToCustomerAccountReportV02 message(
-      AccountReport11 report, @Nullable Pagination pagination) {
-    var header = new GroupHeader42();
-    header.setMsgPgntn(pagination);
-    var message = messageWithoutHeader(report);
-    message.setGrpHdr(header);
-    return message;
-  }
-
-  static BankToCustomerAccountReportV02 messageWithoutHeader(AccountReport11 report) {
-    var message = new BankToCustomerAccountReportV02();
-    message.getRpt().add(report);
-    return message;
-  }
-
-  static Pagination lastPage() {
-    var pagination = new Pagination();
-    pagination.setPgNb("1");
-    pagination.setLastPgInd(true);
-    return pagination;
-  }
-
-  static Pagination firstOfSeveralPages() {
-    var pagination = new Pagination();
-    pagination.setPgNb("1");
-    pagination.setLastPgInd(false);
-    return pagination;
   }
 }

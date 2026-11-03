@@ -223,6 +223,26 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
+  void run_whenTheStoredReportsCannotBeLoaded_saysTheReplayStoppedBeforeReplayingAnyReport() {
+    given(reportService.getReport(eq(SEB), eq(PENDING_TRANSACTIONS), any()))
+        .willThrow(new IllegalStateException("report store unavailable"));
+
+    job.run();
+
+    verify(reconciliationService, never()).replay(any(), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus: salvestatud raporteid ei \
+            saanud laadida (põhjus on logis).
+            Ühtki raportit ei sobitatud.
+            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
+            topelt.""",
+            INVESTMENT,
+            ERROR);
+  }
+
+  @Test
   void run_withNoStoredReports_warnsThatNothingWasReplayed() {
     givenStoredReports(Map.of());
 

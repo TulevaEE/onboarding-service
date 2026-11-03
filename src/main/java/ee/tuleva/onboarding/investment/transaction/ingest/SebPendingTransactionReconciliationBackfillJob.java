@@ -55,7 +55,21 @@ class SebPendingTransactionReconciliationBackfillJob {
   }
 
   void run() {
-    List<InvestmentReport> reports = storedReportsOldestFirst(LocalDate.now(clock));
+    List<InvestmentReport> reports;
+    try {
+      reports = storedReportsOldestFirst(LocalDate.now(clock));
+    } catch (RuntimeException e) {
+      log.error(
+          "SEB pending transactions replay could not load the stored reports: backfillDays={}",
+          BACKFILL_DAYS,
+          e);
+      notificationService.sendMessage(loadFailedMessage(), INVESTMENT, ERROR);
+      return;
+    }
+    replayOldestFirst(reports);
+  }
+
+  private void replayOldestFirst(List<InvestmentReport> reports) {
     if (reports.isEmpty()) {
       log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
       notificationService.sendMessage(noReportsMessage(), INVESTMENT, WARNING);
@@ -125,6 +139,14 @@ class SebPendingTransactionReconciliationBackfillJob {
     return "SEB ootel-tehingute raporteid pole viimase "
         + BACKFILL_DAYS
         + " päeva kohta, midagi ei sobitatud uuesti.";
+  }
+
+  private static String loadFailedMessage() {
+    return "SEB ootel-tehingute raportite uuesti sobitamine peatus: salvestatud raporteid ei"
+        + " saanud laadida (põhjus on logis).\n"
+        + "Ühtki raportit ei sobitatud.\n"
+        + "Paranda põhjus ja käivita uuesti. "
+        + RERUN_ADDS_NOTHING_TWICE;
   }
 
   private static String completedMessage(ReplaySummary summary) {

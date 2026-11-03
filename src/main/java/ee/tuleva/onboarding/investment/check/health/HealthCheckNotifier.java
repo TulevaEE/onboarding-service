@@ -178,13 +178,16 @@ public class HealthCheckNotifier {
       List<HealthCheckResult> results,
       EarlierImports earlierImports,
       List<Transition> active) {
-    var blockedFunds = HealthCheckResult.blockedFunds(results);
-    if (!blockedFunds.isEmpty()) {
+    var fundsImportingNothing = HealthCheckResult.fundsImportingNothing(results);
+    if (!HealthCheckResult.blockedFunds(results).isEmpty()) {
       return "IMPORT BLOCKED: %s %s — %s, source files need to be fixed\n"
-          .formatted(provider, date, earlierImports.whatBlockingLeft(blockedFunds));
+          .formatted(provider, date, earlierImports.whatIsLeftFor(fundsImportingNothing));
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
-      return "Import warning: %s %s\n".formatted(provider, date);
+      return fundsImportingNothing.isEmpty()
+          ? "Import warning: %s %s\n".formatted(provider, date)
+          : "Import warning: %s %s — %s\n"
+              .formatted(provider, date, earlierImports.whatIsLeftFor(fundsImportingNothing));
     }
     if (active.stream().anyMatch(t -> t.current == NOT_RUN)) {
       return "Import check could not run: %s %s\n".formatted(provider, date);

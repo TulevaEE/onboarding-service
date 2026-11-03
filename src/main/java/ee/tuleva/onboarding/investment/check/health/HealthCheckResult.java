@@ -51,6 +51,17 @@ public record HealthCheckResult(
         .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
   }
 
+  static Set<TulevaFund> fundsImportingNothing(List<HealthCheckResult> results) {
+    return results.stream()
+        .filter(HealthCheckResult::importsNothing)
+        .map(HealthCheckResult::fund)
+        .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+  }
+
+  public boolean importsNothing() {
+    return reportPresence != IN_REPORT || hasFails();
+  }
+
   public boolean hasFails() {
     return findings.stream().anyMatch(f -> f.severity() == FAIL);
   }

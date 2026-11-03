@@ -634,6 +634,21 @@ describe("saveThreadToDrive", () => {
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
   });
 
+  test("a report that keeps failing does not stop the other report of its e-mail", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.failures["createFile TULEVA_pos_raport_20261020_US.csv"] = true;
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_ootel_tehingud_20261020.csv", "P;1\n")])],
+      ["S3-Uploaded-1x"],
+    );
+
+    saveThreadToDrive(thread, drive.folder);
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_ootel_tehingud_20261020_US.csv", "TULEVA_ootel_tehingud_20261020.csv"]);
+  });
+
   test("a failed copy does not hold up the later e-mails of its thread, and Slack hears about it", () => {
     const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
     const drive = fakeDrive();

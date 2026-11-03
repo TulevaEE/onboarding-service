@@ -510,7 +510,7 @@ function saveReportsToDrive(days, newestUploaded) {
         var minMessageDate = new Date(Date.now() - days * DAY_MS);
         var threads = GmailApp.search(gmailSearchQuery(days));
         for (var i = threads.length - 1; i >= 0; i--) {
-            saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder, newestUploaded, minMessageDate);
+            saveThreadToDrive(threads[i], folder, newestUploaded, minMessageDate);
         }
     } catch (e) {
         Logger.log("FAILED Drive copy run: " + e.message);
@@ -518,32 +518,34 @@ function saveReportsToDrive(days, newestUploaded) {
     }
 }
 
-function saveThreadToDriveWithoutStoppingTheOthers(thread, folder, newestUploaded, minMessageDate) {
+function saveThreadToDrive(thread, folder, newestUploaded, minMessageDate) {
+    driveReportsOfThreadOrNone(thread, minMessageDate).forEach(function (report) {
+        saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded);
+    });
+}
+
+function driveReportsOfThreadOrNone(thread, minMessageDate) {
     try {
-        saveThreadToDrive(thread, folder, newestUploaded, minMessageDate);
+        var reports = [];
+        thread.getMessages().forEach(function (message) {
+            if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return;
+            reports = reports.concat(driveReportsOf(message));
+        });
+        return reports;
     } catch (e) {
         Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
         notifyDriveCopyFailed(e);
+        return [];
     }
 }
 
-function saveThreadToDrive(thread, folder, newestUploaded, minMessageDate) {
-    thread.getMessages().forEach(function (message) {
-        if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return;
-        try {
-            saveMessageToDrive(message, folder, newestUploaded);
-        } catch (e) {
-            Logger.log("FAILED Drive copy: messageId=" + message.getId() + " -> " + e.message);
-            notifyDriveCopyFailed(e);
-        }
-    });
-}
-
-function saveMessageToDrive(message, folder, newestUploaded) {
-    var emailSource = emailSourceOf(message);
-    driveReportsOf(message).forEach(function (report) {
-        saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, emailSource, newestUploaded);
-    });
+function saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded) {
+    try {
+        saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, report.emailSource, newestUploaded);
+    } catch (e) {
+        Logger.log("FAILED Drive copy: messageId=" + report.emailSource.id + " -> " + e.message);
+        notifyDriveCopyFailed(e);
+    }
 }
 
 function notifyDriveCopyFailed(e) {
@@ -554,11 +556,12 @@ function notifyDriveCopyFailed(e) {
 function driveReportsOf(message) {
     var source = sourceOf(message);
     if (!source) return [];
+    var emailSource = emailSourceOf(message);
     var reports = [];
     message.getAttachments().forEach(function (attachment) {
         var result = getFileConfigAndDate(source, attachment.getName());
         if (result && result.fileConfig.driveKeyword) {
-            reports.push({ attachment: attachment, fileConfig: result.fileConfig, reportDate: result.keyStem.replace(/-/g, "") });
+            reports.push({ attachment: attachment, fileConfig: result.fileConfig, reportDate: result.keyStem.replace(/-/g, ""), emailSource: emailSource });
         }
     });
     return reports;

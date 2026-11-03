@@ -37,7 +37,7 @@ class PaymentProviderFixture {
         (LHV)           : samplePaymentProviderChannelConfiguration,
         (TULUNDUSUHISTU): samplePaymentProviderChannelConfigurationTulundusuhistu,
     ])
-    configuration.mapByAccessKey()
+    configuration.mapSecretKeysByAccessKey()
     return configuration
   }
 

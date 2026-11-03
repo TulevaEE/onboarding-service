@@ -1401,6 +1401,61 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void replay_earlierReportMovingOnlyTheReportedDateBack_recordsTheMoveInTheAudit() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution storedLate =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 20));
+    storedLate.setId(99L);
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(storedLate));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(storedLate));
+
+    service.replay(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {});
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_UPDATED".equals(event.getEventType())
+                        && "2026-05-20".equals(auditedField(event, "before", "reportedDate"))
+                        && "2026-05-12".equals(auditedField(event, "after", "reportedDate"))));
+  }
+
+  @Test
+  void replay_executionImportedFromTheSheetThatSebNowLists_recordsTheSourceFlipInTheAudit() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution imported =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 12));
+    imported.setId(99L);
+    imported.setSource("HISTORICAL_IMPORT");
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(imported));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(imported));
+
+    service.replay(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {});
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_UPDATED".equals(event.getEventType())
+                        && "HISTORICAL_IMPORT".equals(auditedField(event, "before", "source"))
+                        && "SEB_OOTEL".equals(auditedField(event, "after", "source"))));
+  }
+
+  @Test
   void reconcile_ambiguousBrokerRef_refusesMatchAndDoesNotPersist() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
@@ -1877,6 +1932,10 @@ class SebPendingTransactionReconciliationServiceTest {
               return execution;
             });
     return saved;
+  }
+
+  private static Object auditedField(TransactionAuditEvent event, String side, String field) {
+    return ((Map<?, ?>) event.getPayload().get(side)).get(field);
   }
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {

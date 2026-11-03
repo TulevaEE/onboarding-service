@@ -610,7 +610,7 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
         if (currentUsContent !== usContent) {
-            current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
+            if (!isLatestUsVersionWith(family, currentUsContent)) current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
             current.setContent(usContent);
         }
         if (current.getName() !== usCopyName(name)) current.setName(usCopyName(name));
@@ -640,6 +640,10 @@ function recordDriveSource(s3Key, emailSource) {
     } catch (e) {
         Logger.log("Drive record not saved, the copy itself went through: key=" + s3Key + ", error=" + e.message);
     }
+}
+
+function isLatestUsVersionWith(family, content) {
+    return Boolean(family.latestUsVersion) && contentOf(family.latestUsVersion) === content;
 }
 
 function isTheOnlyCurrentFileWith(files, content) {
@@ -681,6 +685,7 @@ function sourceTime(record) {
 function driveReportFamily(folder, fileConfig, reportDate) {
     var current = [];
     var names = [];
+    var latestUsVersion = null;
     var files = folder.getFiles();
     while (files.hasNext()) {
         var file = files.next();
@@ -688,8 +693,17 @@ function driveReportFamily(folder, fileConfig, reportDate) {
         if (!isSameDriveReport(name, fileConfig, reportDate)) continue;
         names.push(name);
         if (!isVersionedDriveName(name)) current.push(file);
+        else if (isUsVersionName(name) && (!latestUsVersion || versionOf(name) > versionOf(latestUsVersion.getName()))) latestUsVersion = file;
     }
-    return { current: current, nextVersion: nextDriveVersion(names) };
+    return { current: current, nextVersion: nextDriveVersion(names), latestUsVersion: latestUsVersion };
+}
+
+function isUsVersionName(name) {
+    return /_us_v\d+\.csv$/i.test(name);
+}
+
+function versionOf(name) {
+    return parseInt(name.match(/_v(\d+)\.csv$/i)[1], 10);
 }
 
 function isSameDriveReport(name, fileConfig, reportDate) {

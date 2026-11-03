@@ -465,6 +465,37 @@ describe("saveReportToDrive", () => {
     expect(drive.events.slice(-1)).toEqual(["create TULEVA_pos_raport_20261020.csv"]);
   });
 
+  test("a copy retried after its in-place update failed keeps the old content as one version, not two", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+    drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"] = true;
+    const attachment = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE)).toThrow("Drive failed");
+
+    delete drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"];
+    saveReportToDrive(drive.folder, attachment, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => name.startsWith("TULEVA_pos_raport_20261020_US_v"))).toEqual(["TULEVA_pos_raport_20261020_US_v1.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv")[0].content()).toBe("old TULEVA_pos_raport_20261020_US.csv");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a correction whose old content an earlier version already holds is still versioned when the latest version differs", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_US_v2.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020.csv": "A;1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_US_v3.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+  });
+
   test("a correction downloads the current _US.csv once", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

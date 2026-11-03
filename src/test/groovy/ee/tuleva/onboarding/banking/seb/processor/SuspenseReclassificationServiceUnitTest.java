@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlem
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
@@ -25,6 +24,7 @@ import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -134,7 +134,7 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("1000.00000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            new FundBankLedger.TradeSettlementDetails(
+            new TradeSettlementDetails(
                 "DLA0000001",
                 "IE00BFG1TM61",
                 "BDWTEIA",
@@ -169,7 +169,7 @@ class SuspenseReclassificationServiceUnitTest {
             new BigDecimal("-1450.25000"),
             transaction.getExternalReference(),
             SystemAccount.UNCLASSIFIED_BANK_ENTRY,
-            new FundBankLedger.TradeSettlementDetails(
+            new TradeSettlementDetails(
                 "DLA0000002",
                 "IE00BFG1TM61",
                 "BDWTEIA",

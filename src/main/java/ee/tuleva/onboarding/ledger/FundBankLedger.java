@@ -22,7 +22,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -403,15 +402,6 @@ public class FundBankLedger {
         entry(cashAccount, amount),
         entry(registrarAccount, amount.negate()));
   }
-
-  public record TradeSettlementDetails(
-      String brokerReference, String isin, String ticker, String displayName, BigDecimal price) {}
-
-  public record UnclassifiedEntryDetails(
-      @Nullable String counterpartyName,
-      @Nullable String counterpartyIban,
-      @Nullable String remittanceInformation,
-      @Nullable String subFamilyCode) {}
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount, TulevaFund fund) {
     return ledgerAccountService

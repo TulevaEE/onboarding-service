@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration

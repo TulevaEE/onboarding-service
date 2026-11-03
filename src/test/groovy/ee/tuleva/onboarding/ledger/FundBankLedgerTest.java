@@ -177,7 +177,7 @@ class FundBankLedgerTest {
             units,
             externalReference,
             FUND_INVESTMENT_CASH_CLEARING,
-            new FundBankLedger.TradeSettlementDetails(
+            new TradeSettlementDetails(
                 "DLA0553690",
                 isin,
                 "EJAP",
@@ -223,7 +223,7 @@ class FundBankLedgerTest {
         units1,
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
-        new FundBankLedger.TradeSettlementDetails(
+        new TradeSettlementDetails(
             "DLA0553690", isin1, "EJAP", "BNP Japan", new BigDecimal("17.864")),
         BOOKING_DATE);
     fundBankLedger.recordTradeSettlement(
@@ -232,7 +232,7 @@ class FundBankLedgerTest {
         units2,
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
-        new FundBankLedger.TradeSettlementDetails(
+        new TradeSettlementDetails(
             "DLA0553685", isin2, "XRSM", "Xtrackers USA", new BigDecimal("51.25")),
         BOOKING_DATE);
 
@@ -261,7 +261,7 @@ class FundBankLedgerTest {
             new BigDecimal("29000.00000"),
             randomUUID(),
             FUND_INVESTMENT_CASH_CLEARING,
-            new FundBankLedger.TradeSettlementDetails(
+            new TradeSettlementDetails(
                 "DLA0544429",
                 isin,
                 "BDWTEIA",
@@ -388,7 +388,7 @@ class FundBankLedgerTest {
     var amount = new BigDecimal("99.99");
     var externalReference = randomUUID();
     var details =
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Mystery Counterparty OU", "EE001234567890123499", "Selgituseta laekumine", "OTHR");
     var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
     var unclassifiedBefore = getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance();
@@ -559,7 +559,7 @@ class FundBankLedgerTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, null, "OTHR"));
+        new UnclassifiedEntryDetails(null, null, null, "OTHR"));
 
     assertThat(fundBankLedger.existsForExternalReference(externalReference)).isTrue();
     assertThat(fundBankLedger.existsForExternalReference(randomUUID())).isFalse();
@@ -575,14 +575,14 @@ class FundBankLedgerTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
+        new UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("-100.00"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, "offsetting debit", "OTHR"));
+        new UnclassifiedEntryDetails(null, null, "offsetting debit", "OTHR"));
 
     assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(ZERO);
@@ -600,14 +600,14 @@ class FundBankLedgerTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, "on the reconciled day", "OTHR"));
+        new UnclassifiedEntryDetails(null, null, "on the reconciled day", "OTHR"));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("200.00"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE.plusDays(1),
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, "the day after", "OTHR"));
+        new UnclassifiedEntryDetails(null, null, "the day after", "OTHR"));
 
     assertThat(
             fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
@@ -628,7 +628,7 @@ class FundBankLedgerTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
+        new UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
 
     var unresolved = fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75);
 
@@ -651,7 +651,7 @@ class FundBankLedgerTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "AS Pensionikeskus", "EE001234567890123477", "laekumine", null));
 
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(TUK75, AFTER_EVERY_BOOKING))
@@ -677,7 +677,7 @@ class FundBankLedgerTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "AS Pensionikeskus", "EE001234567890123477", "laekumine", null));
 
     var correction =
@@ -731,7 +731,7 @@ class FundBankLedgerTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", "Valitsemistasu 02/2026", null));
 
     fundBankLedger.reclassifySuspenseEntry(

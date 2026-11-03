@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.banking.processor;
 
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;

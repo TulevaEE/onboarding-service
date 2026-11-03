@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;

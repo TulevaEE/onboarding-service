@@ -785,7 +785,7 @@ class TransactionPreparationServiceTest {
                     new BigDecimal("400"),
                     new BigDecimal("250"),
                     new BigDecimal("650"),
-                    new BigDecimal("400")))
+                    new BigDecimal("450")))
             .reportCash(new BigDecimal("100000"))
             .appliedCash(new BigDecimal("100000"))
             .ledgerCash(new BigDecimal("95000"))
@@ -809,7 +809,7 @@ class TransactionPreparationServiceTest {
         .containsEntry("incomingPaymentsClearing", "400")
         .containsEntry("unitReceivable", "250")
         .containsEntry("unitReceivableReported", "650")
-        .containsEntry("unitReceivableReceived", "400");
+        .containsEntry("unitReceivableReceived", "450");
     assertThat(result).containsEntry("reportCash", "100000");
     assertThat(result).containsEntry("appliedCash", "100000");
     assertThat(result).containsEntry("ledgerCash", "95000");

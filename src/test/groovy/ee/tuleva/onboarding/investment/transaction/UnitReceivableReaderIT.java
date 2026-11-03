@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.context.annotation.FilterType.REGEX;
@@ -67,7 +70,9 @@ class UnitReceivableReaderIT {
 
     assertThat(unitReceivable)
         .usingRecursiveComparison(AMOUNTS_BY_VALUE)
-        .isEqualTo(new UnitReceivable(new BigDecimal("8000.00"), new BigDecimal("5000.00"), false));
+        .isEqualTo(
+            new UnitReceivable(
+                new BigDecimal("8000.00"), new BigDecimal("5000.00"), ONCE_IT_ARRIVES));
   }
 
   @Test
@@ -76,7 +81,9 @@ class UnitReceivableReaderIT {
 
     var unitReceivable = reader.read(TUV100, REPORT_DATE, TRADE_DAY);
 
-    assertThat(unitReceivable.countedBeforeItArrives()).isTrue();
+    assertThat(unitReceivable)
+        .usingRecursiveComparison(AMOUNTS_BY_VALUE)
+        .isEqualTo(new UnitReceivable(new BigDecimal("4000.00"), ZERO, BEFORE_IT_ARRIVES));
   }
 
   @Test

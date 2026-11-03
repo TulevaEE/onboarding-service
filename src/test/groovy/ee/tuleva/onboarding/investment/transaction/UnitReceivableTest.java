@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
+import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
@@ -9,21 +11,24 @@ class UnitReceivableTest {
 
   @Test
   void aFundThatMayInvestCashKnownToArrive_countsTheWholeReportedReceivable() {
-    var unitReceivable = new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), true);
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), BEFORE_IT_ARRIVES);
 
     assertThat(unitReceivable.dueOnTopOfReportCash()).isEqualByComparingTo("8000");
   }
 
   @Test
   void aFundThatMayInvestOnlyCashOnItsAccount_countsOnlyWhatHasArrivedSinceTheReport() {
-    var unitReceivable = new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), false);
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("5000"), ONCE_IT_ARRIVES);
 
     assertThat(unitReceivable.dueOnTopOfReportCash()).isEqualByComparingTo("5000");
   }
 
   @Test
   void aFundThatMayInvestOnlyCashOnItsAccount_neverCountsMoreThanTheReportedReceivable() {
-    var unitReceivable = new UnitReceivable(new BigDecimal("8000"), new BigDecimal("9000"), false);
+    var unitReceivable =
+        new UnitReceivable(new BigDecimal("8000"), new BigDecimal("9000"), ONCE_IT_ARRIVES);
 
     assertThat(unitReceivable.dueOnTopOfReportCash()).isEqualByComparingTo("8000");
   }

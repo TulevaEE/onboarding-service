@@ -822,16 +822,20 @@ describe("saveThreadToDrive", () => {
     expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
   });
 
-  test("the same _US.csv name in another e-mail alerts again", () => {
+  test("the same _US.csv name in another e-mail on the same day alerts too, once", () => {
     const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
     const drive = fakeDrive();
     const usNamed = () => [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "A,1\n")];
-    saveThreadToDrive(fakeThread([sebMessage("m1", usNamed())], ["S3-Uploaded-1x"]), drive.folder);
+    const first = fakeThread([sebMessage("18f0a00000000001", usNamed())], ["S3-Uploaded-1x"]);
+    const second = fakeThread([sebMessage("18f0a00000000002", usNamed(), new Date("2026-11-02T10:15:00Z"))], ["S3-Uploaded-1x"]);
+    saveThreadToDrive(first, drive.folder);
 
+    saveThreadToDrive(second, drive.folder);
     global.Utilities = { formatDate: () => "2026-11-03" };
-    saveThreadToDrive(fakeThread([sebMessage("m2", usNamed())], ["S3-Uploaded-1x"]), drive.folder);
+    saveThreadToDrive(first, drive.folder);
+    saveThreadToDrive(second, drive.folder);
 
-    expect(slack).toHaveLength(2);
+    expect(slack).toEqual([expect.stringContaining("18f0a00000000001"), expect.stringContaining("18f0a00000000002")]);
   });
 
   test("a _US.csv attachment next to the plain report is still alerted about, and the plain report is saved", () => {

@@ -656,7 +656,7 @@ function alertOnceAboutUsCopyName(name, emailSource) {
     try {
         var props = PropertiesService.getScriptProperties();
         if (props.getProperty(key)) return;
-        var delivered = notifyDriveProblemOncePerDay("`" + name + "` was not saved to Drive: its name ends in _US.csv, " +
+        var delivered = notifyDriveProblemOncePerDay("`" + name + "` from the e-mail of " + emailSource.date + " (Gmail id " + emailSource.id + ") was not saved to Drive: its name ends in _US.csv, " +
             "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
         if (delivered) props.setProperty(key, JSON.stringify(emailSource));
     } catch (e) {

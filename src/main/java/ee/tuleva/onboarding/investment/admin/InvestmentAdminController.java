@@ -167,7 +167,8 @@ public class InvestmentAdminController {
   public InvestmentReportPublishingResult publishInvestmentReports(
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(required = false) @Nullable Integer month,
-      @RequestParam(required = false) @Nullable Integer year) {
+      @RequestParam(required = false) @Nullable Integer year,
+      @RequestParam(defaultValue = "false") boolean replaceUnrecognised) {
     tokenValidator.validate(token);
 
     var publisher =
@@ -181,8 +182,13 @@ public class InvestmentAdminController {
             ? parseReportMonth(year, month)
             : YearMonth.now(clock).minusMonths(1);
 
-    log.info("Admin triggered investment report publishing: month={}", targetMonth);
-    return publisher.publish(targetMonth);
+    log.info(
+        "Admin triggered investment report publishing: month={}, replaceUnrecognised={}",
+        targetMonth,
+        replaceUnrecognised);
+    return replaceUnrecognised
+        ? publisher.publishReplacingUnrecognisedFiles(targetMonth)
+        : publisher.publish(targetMonth);
   }
 
   @GetMapping("/preview-investment-report")

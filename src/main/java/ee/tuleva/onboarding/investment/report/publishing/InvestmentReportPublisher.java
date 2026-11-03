@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REFUSE;
+import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REPLACE;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
+import ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
@@ -42,8 +45,17 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPublishingProperties properties;
 
   public InvestmentReportPublishingResult publish(YearMonth month) {
+    return publishUnlessAnotherPublishRuns(month, REFUSE);
+  }
+
+  public InvestmentReportPublishingResult publishReplacingUnrecognisedFiles(YearMonth month) {
+    return publishUnlessAnotherPublishRuns(month, REPLACE);
+  }
+
+  private InvestmentReportPublishingResult publishUnlessAnotherPublishRuns(
+      YearMonth month, UnrecognisedFile unrecognised) {
     return publishingLock
-        .whileNoOtherPublishRuns(() -> publishWhileNoOtherPublishRuns(month))
+        .whileNoOtherPublishRuns(() -> publishWhileNoOtherPublishRuns(month, unrecognised))
         .orElseGet(() -> anotherPublishIsRunning(month));
   }
 
@@ -53,8 +65,12 @@ public class InvestmentReportPublisher {
         List.of("Another investment report publish is running: month=%s".formatted(month)));
   }
 
-  private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(YearMonth month) {
-    log.info("Starting investment report publishing for month={}", month);
+  private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(
+      YearMonth month, UnrecognisedFile unrecognised) {
+    log.info(
+        "Starting investment report publishing: month={}, unrecognisedFile={}",
+        month,
+        unrecognised);
 
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
@@ -62,10 +78,10 @@ public class InvestmentReportPublisher {
       return abortedWithoutPublishing(navDateErrors);
     }
 
-    var newerReports = newerReportCheck.newerReportsLinked(configuredReports(), month);
-    if (!newerReports.isEmpty()) {
-      log.warn("Fund page check refused the publish: month={}, errors={}", month, newerReports);
-      return abortedWithoutPublishing(newerReports);
+    var refusals = newerReportCheck.reasonsNotToReplace(configuredReports(), month, unrecognised);
+    if (!refusals.isEmpty()) {
+      log.warn("Fund page check refused the publish: month={}, errors={}", month, refusals);
+      return abortedWithoutPublishing(refusals);
     }
 
     logQuantityWarnings(month);
@@ -89,7 +105,7 @@ public class InvestmentReportPublisher {
     }
 
     var repointErrors = new ArrayList<String>();
-    var publishedUrls = repointFundPages(month, uploads, repointErrors);
+    var publishedUrls = repointFundPages(month, unrecognised, uploads, repointErrors);
     if (!repointErrors.isEmpty()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
@@ -169,14 +185,18 @@ public class InvestmentReportPublisher {
   }
 
   private Map<String, String> repointFundPages(
-      YearMonth month, Map<FundReportMapping, UploadResult> uploads, List<String> errors) {
+      YearMonth month,
+      UnrecognisedFile unrecognised,
+      Map<FundReportMapping, UploadResult> uploads,
+      List<String> errors) {
     var publishedUrls = new LinkedHashMap<String, String>();
     for (var entry : uploads.entrySet()) {
       var mapping = entry.getKey();
       var upload = entry.getValue();
-      var linkedSinceTheCheck = newerReportCheck.newerReportsLinked(List.of(mapping), month);
-      if (!linkedSinceTheCheck.isEmpty()) {
-        errors.addAll(linkedSinceTheCheck);
+      var refusedSinceTheCheck =
+          newerReportCheck.reasonsNotToReplace(List.of(mapping), month, unrecognised);
+      if (!refusedSinceTheCheck.isEmpty()) {
+        errors.addAll(refusedSinceTheCheck);
         continue;
       }
       try {

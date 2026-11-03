@@ -336,6 +336,28 @@ class InvestmentAdminControllerTest {
   }
 
   @Test
+  void publishInvestmentReports_replacesAFileThatIsNotTheFundsReportOnlyWhenAsked()
+      throws Exception {
+    given(clock.instant()).willReturn(Instant.parse("2026-04-15T10:00:00Z"));
+    given(clock.getZone()).willReturn(ZoneId.of("UTC"));
+    given(investmentReportPublisher.publishReplacingUnrecognisedFiles(YearMonth.of(2026, 3)))
+        .willReturn(new InvestmentReportPublishingResult(Map.of(), true, List.of()));
+
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "3")
+                .param("year", "2026")
+                .param("replaceUnrecognised", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.emailSent").value(true));
+
+    verify(investmentReportPublisher, never()).publish(any());
+  }
+
+  @Test
   void publishInvestmentReports_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(

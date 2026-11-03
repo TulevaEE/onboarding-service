@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REFUSE;
+import static ee.tuleva.onboarding.investment.report.publishing.NewerReportCheck.UnrecognisedFile.REPLACE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -49,7 +51,7 @@ class InvestmentReportPublisherTest {
   void setUp() {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
-    lenient().when(newerReportCheck.newerReportsLinked(any(), any())).thenReturn(List.of());
+    lenient().when(newerReportCheck.reasonsNotToReplace(any(), any(), any())).thenReturn(List.of());
     lenient()
         .when(publishingLock.whileNoOtherPublishRuns(any()))
         .thenAnswer(publish -> Optional.of(publish.<Supplier<?>>getArgument(0).get()));
@@ -299,9 +301,10 @@ class InvestmentReportPublisherTest {
     var refusal =
         "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
     given(
-            newerReportCheck.newerReportsLinked(
+            newerReportCheck.reasonsNotToReplace(
                 List.of(FundReportMapping.TUK75, FundReportMapping.TUK00, FundReportMapping.TUV100),
-                MARCH_2026))
+                MARCH_2026,
+                REFUSE))
         .willReturn(List.of(refusal));
 
     var result = publisher.publish(MARCH_2026);
@@ -316,7 +319,9 @@ class InvestmentReportPublisherTest {
     givenEveryReportCanBeProduced();
     var refusal =
         "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
-    given(newerReportCheck.newerReportsLinked(List.of(FundReportMapping.TUK00), MARCH_2026))
+    given(
+            newerReportCheck.reasonsNotToReplace(
+                List.of(FundReportMapping.TUK00), MARCH_2026, REFUSE))
         .willReturn(List.of(refusal));
 
     var result = publisher.publish(MARCH_2026);
@@ -327,6 +332,25 @@ class InvestmentReportPublisherTest {
         .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+  }
+
+  @Test
+  void aFileThePageLinksThatIsNotTheFundsReportIsReplacedOnlyWhenTheAdminAsksForIt() {
+    givenEveryReportCanBeProduced();
+    var refusal =
+        "Fund page links a file that is not this fund's report, so it may be newer: fund=TUK00";
+    given(newerReportCheck.reasonsNotToReplace(any(), eq(MARCH_2026), eq(REFUSE)))
+        .willReturn(List.of(refusal));
+
+    var refused = publisher.publish(MARCH_2026);
+    var replaced = publisher.publishReplacingUnrecognisedFiles(MARCH_2026);
+
+    assertThat(refused)
+        .isEqualTo(new InvestmentReportPublishingResult(Map.of(), false, List.of(refusal)));
+    assertThat(replaced.errors()).isEmpty();
+    assertThat(replaced.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
+    verify(newerReportCheck)
+        .reasonsNotToReplace(List.of(FundReportMapping.TUK00), MARCH_2026, REPLACE);
   }
 
   @Test

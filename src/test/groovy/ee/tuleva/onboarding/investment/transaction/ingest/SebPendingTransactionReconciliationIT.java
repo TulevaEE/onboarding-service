@@ -389,8 +389,9 @@ class SebPendingTransactionReconciliationIT {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(executionRepository.findById(imported.getId()).orElseThrow().getSource())
-        .isEqualTo("SEB_OOTEL");
+    TransactionExecution listed = executionRepository.findById(imported.getId()).orElseThrow();
+    assertThat(listed.getSource()).isEqualTo("SEB_OOTEL");
+    assertThat(listed.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
     assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
         .isEqualTo(LocalDate.of(2026, 2, 16));
   }

@@ -94,9 +94,10 @@ class SebFundConfirmationVerificationServiceTest {
                 null,
                 null,
                 SebFundConfirmationResult.TimingStatus.NOT_CHECKED,
-                0));
+                null));
     assertThat(result.findings()).containsExactly("REGISTRY_MISMATCH hind 12.4 vs 12.3");
     then(reportService).shouldHaveNoInteractions();
+    then(priceResolver).shouldHaveNoInteractions();
     then(parameterRepository).shouldHaveNoInteractions();
   }
 

@@ -244,7 +244,10 @@ class SebFundConfirmationAuditRecorder {
     payload.put("registryDifferences", List.copyOf(result.registry().differences()));
     putIfPresent(payload, "nav", result.nav());
     putIfPresent(payload, "deviationPercent", result.deviationPercent());
-    payload.put("navDatesAfterReceipt", result.navDatesAfterReceipt());
+    Integer navDatesAfterReceipt = result.navDatesAfterReceipt();
+    if (navDatesAfterReceipt != null) {
+      payload.put("navDatesAfterReceipt", navDatesAfterReceipt);
+    }
     return payload;
   }
 

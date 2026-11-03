@@ -13,7 +13,7 @@ record SebFundConfirmationResult(
     @Nullable BigDecimal nav,
     @Nullable BigDecimal deviationPercent,
     TimingStatus timingStatus,
-    int navDatesAfterReceipt) {
+    @Nullable Integer navDatesAfterReceipt) {
 
   static final String REGISTRY_MISMATCH = "REGISTRY_MISMATCH";
 
@@ -56,8 +56,7 @@ record SebFundConfirmationResult(
     NOT_CHECKED
   }
 
-  static SebFundConfirmationResult againstTheRegistryOnly(
-      RegistryComparison registry, int navDatesAfterReceipt) {
+  static SebFundConfirmationResult againstTheRegistryOnly(RegistryComparison registry) {
     return new SebFundConfirmationResult(
         ReportStatus.NOT_CHECKED,
         List.of(),
@@ -66,7 +65,7 @@ record SebFundConfirmationResult(
         null,
         null,
         TimingStatus.NOT_CHECKED,
-        navDatesAfterReceipt);
+        null);
   }
 
   boolean isActionable() {
@@ -81,7 +80,7 @@ record SebFundConfirmationResult(
     if (reportStatus == ReportStatus.NOT_FOUND) {
       findings.add(ReportStatus.NOT_FOUND.name());
     }
-    if (registryDiffersWhereNoReportFindingCoversIt()) {
+    if (registryDiffersWhereTheReportAgreesOrWasNotChecked()) {
       findings.add(registryMismatchFinding());
     }
     if (navStatus == NavStatus.FAR_FROM_NAV || navStatus == NavStatus.NOT_PUBLISHED) {
@@ -93,7 +92,7 @@ record SebFundConfirmationResult(
     return List.copyOf(findings);
   }
 
-  private boolean registryDiffersWhereNoReportFindingCoversIt() {
+  private boolean registryDiffersWhereTheReportAgreesOrWasNotChecked() {
     return registry.status() == RegistryStatus.MISMATCH
         && (reportStatus == ReportStatus.MATCH || reportStatus == ReportStatus.NOT_CHECKED);
   }

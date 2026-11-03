@@ -66,12 +66,12 @@ class SebFundConfirmationVerificationService {
   }
 
   SebFundConfirmationResult verify(SebFundConfirmation confirmation) {
+    if (confirmation.wasReceivedBefore(properties.alertsFrom())) {
+      return againstTheRegistryOnly(registryCheck.compare(confirmation));
+    }
     LocalDate receivedDate = confirmation.orderReceivedOn();
     int navDatesAfterReceipt =
         navDatesBetween(confirmation.isin(), receivedDate, confirmation.pricingDate());
-    if (confirmation.wasReceivedBefore(properties.alertsFrom())) {
-      return againstTheRegistryOnly(registryCheck.compare(confirmation), navDatesAfterReceipt);
-    }
     Optional<SebPendingTransactionRow> row = latestReportRow(confirmation, receivedDate);
     List<String> differences = row.map(found -> differences(confirmation, found)).orElse(List.of());
     Optional<BigDecimal> nav = navOn(confirmation.isin(), confirmation.pricingDate());

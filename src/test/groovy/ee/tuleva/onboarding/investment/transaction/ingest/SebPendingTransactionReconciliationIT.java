@@ -231,7 +231,8 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void reconcile_executedOrderAbsentFromReport_settlesAndPersistsAuditEvent() {
-    TransactionOrder absentOrder = seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10));
+    TransactionOrder absentOrder =
+        seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "SEB_OOTEL");
 
     reconciliationService.reconcile(report);
     entityManager.flush();
@@ -296,7 +297,8 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void replay_orderFirstListedByALaterReport_isNotSettledByAnEarlierReportItIsMissingFrom() {
-    TransactionOrder listedLater = seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 14));
+    TransactionOrder listedLater =
+        seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 14), "SEB_OOTEL");
 
     reconciliationService.replay(report, alert -> {});
     entityManager.flush();
@@ -332,6 +334,63 @@ class SebPendingTransactionReconciliationIT {
 
     assertThat(executionRepository.findById(storedLate.getId()).orElseThrow().getReportedDate())
         .isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 16));
+  }
+
+  @Test
+  void
+      replay_orderImportedFromTheSheetThatNoSebReportHasListed_isNotSettledByAReportItIsMissingFrom() {
+    TransactionOrder imported =
+        seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "HISTORICAL_IMPORT");
+
+    reconciliationService.replay(report, alert -> {});
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(imported.getId())).isEmpty();
+    assertThat(orderRepository.findById(imported.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void reconcile_orderImportedFromTheSheet_settlesOnTheLatestReportItIsMissingFrom() {
+    TransactionOrder imported =
+        seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "HISTORICAL_IMPORT");
+
+    reconciliationService.reconcile(report);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(imported.getId()).orElseThrow().getReportDate())
+        .isEqualTo(report.getReportDate());
+  }
+
+  @Test
+  void replay_executionImportedFromTheSheet_countsOnceASebReportHasListedIt() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    TransactionExecution imported =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .source("HISTORICAL_IMPORT")
+                .reportedDate(LocalDate.of(2026, 2, 10))
+                .build());
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(
+        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {});
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(executionRepository.findById(imported.getId()).orElseThrow().getSource())
+        .isEqualTo("SEB_OOTEL");
     assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
         .isEqualTo(LocalDate.of(2026, 2, 16));
   }
@@ -664,7 +723,8 @@ class SebPendingTransactionReconciliationIT {
     return raw;
   }
 
-  private TransactionOrder seedExecutedOrderAbsentFromReport(LocalDate reportedDate) {
+  private TransactionOrder seedExecutedOrderAbsentFromReport(
+      LocalDate reportedDate, String executionSource) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
     TransactionOrder absentOrder =
@@ -687,7 +747,7 @@ class SebPendingTransactionReconciliationIT {
             .brokerTransactionId("DLA0000099")
             .executionTimestamp(Instant.parse("2026-02-10T10:00:00Z"))
             .executedQuantity(new BigDecimal("100"))
-            .source("SEB_OOTEL")
+            .source(executionSource)
             .reportedDate(reportedDate)
             .build());
     entityManager.flush();

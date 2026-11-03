@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static jakarta.persistence.EnumType.STRING;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -36,6 +39,11 @@ public class TransactionSettlement {
   @NotNull private Instant settledAt;
 
   @NotNull private LocalDate reportDate;
+
+  @NotNull
+  @Enumerated(STRING)
+  @Builder.Default
+  private SettlementSource source = PENDING_REPORT_ABSENCE;
 
   private Instant createdAt;
 

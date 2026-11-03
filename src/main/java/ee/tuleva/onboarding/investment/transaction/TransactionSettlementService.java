@@ -20,7 +20,8 @@ public class TransactionSettlementService {
   private final Clock clock;
 
   @Transactional
-  public TransactionSettlement recordSettlement(TransactionOrder order, LocalDate reportDate) {
+  public TransactionSettlement recordSettlement(
+      TransactionOrder order, LocalDate reportDate, SettlementSource source) {
     Optional<TransactionSettlement> existing = settlementRepository.findByOrderId(order.getId());
     if (existing.isPresent()) {
       log.warn(
@@ -36,15 +37,17 @@ public class TransactionSettlementService {
                 .orderId(order.getId())
                 .settledAt(clock.instant())
                 .reportDate(reportDate)
+                .source(source)
                 .build());
 
     order.setOrderStatus(SETTLED);
     orderRepository.save(order);
 
     log.info(
-        "Recorded settlement: orderId={}, reportDate={}, settlementId={}",
+        "Recorded settlement: orderId={}, reportDate={}, source={}, settlementId={}",
         order.getId(),
         reportDate,
+        source,
         settlement.getId());
     return settlement;
   }

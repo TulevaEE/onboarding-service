@@ -35,16 +35,21 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebReconciliationAlreadyRunningException;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.event.EventListener;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
@@ -63,6 +68,7 @@ class TransactionRegistryControllerTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private ReconciliationLockStandIn reconciliationLock;
 
   @MockitoBean private TransactionAdminService adminService;
   @MockitoBean private FtConfirmationVerificationService ftConfirmationVerificationService;
@@ -95,6 +101,24 @@ class TransactionRegistryControllerTest {
 
     assertThat(applicationEvents.stream(RunSebPendingTransactionReconciliationRequested.class))
         .hasSize(1);
+  }
+
+  @BeforeEach
+  void freeReconciliationLock() {
+    reconciliationLock.held = false;
+  }
+
+  @Test
+  void triggerMatch_whileAnotherReconciliationOrTheReplayHoldsTheLock_answersConflict()
+      throws Exception {
+    reconciliationLock.held = true;
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-registry/match")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isConflict());
   }
 
   @Test
@@ -731,5 +755,27 @@ class TransactionRegistryControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(ftConfirmationVerificationService);
+  }
+
+  @TestConfiguration
+  static class ReconciliationLockConfiguration {
+
+    @Bean
+    ReconciliationLockStandIn reconciliationLockStandIn() {
+      return new ReconciliationLockStandIn();
+    }
+  }
+
+  static class ReconciliationLockStandIn {
+
+    private boolean held;
+
+    @EventListener(RunSebPendingTransactionReconciliationRequested.class)
+    void onMatchingRequested() {
+      if (held) {
+        throw new SebReconciliationAlreadyRunningException(
+            "SebPendingTransactionReconciliationJob");
+      }
+    }
   }
 }

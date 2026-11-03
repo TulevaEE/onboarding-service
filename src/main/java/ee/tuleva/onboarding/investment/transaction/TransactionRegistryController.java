@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
@@ -21,6 +22,7 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebReconciliationAlreadyRunningException;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -216,6 +218,13 @@ public class TransactionRegistryController {
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(BAD_REQUEST)
   public Map<String, Object> handleIllegalArgument(IllegalArgumentException e) {
+    return Map.of("error", String.valueOf(e.getMessage()));
+  }
+
+  @ExceptionHandler(SebReconciliationAlreadyRunningException.class)
+  @ResponseStatus(CONFLICT)
+  public Map<String, Object> handleReconciliationAlreadyRunning(
+      SebReconciliationAlreadyRunningException e) {
     return Map.of("error", String.valueOf(e.getMessage()));
   }
 

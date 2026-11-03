@@ -21,6 +21,7 @@ class SebPendingTransactionReconciliationJobScheduledTest {
   @MockitoBean PipelineTracker pipelineTracker;
   @MockitoBean PipelineNotifier pipelineNotifier;
   @MockitoBean Clock clock;
+  @MockitoBean SebReconciliationLock reconciliationLock;
 
   @Test
   void cronExpressionsResolve() {}

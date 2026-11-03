@@ -3,6 +3,7 @@ const {
   notifySlack,
   processNewEmails,
   processHistoricalEmails,
+  dryRun,
   saveReportsToDrive,
   saveThreadToDrive,
   saveReportToDrive,
@@ -105,7 +106,8 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
   const slack = [];
   const calls = { search: 0, lock: 0, folders: [] };
   const props = Object.assign({}, properties);
-  global.Logger = { log: () => {} };
+  const logs = [];
+  global.Logger = { log: (line) => logs.push(String(line)) };
   global.MimeType = { CSV: "text/csv" };
   global.Utilities = {
     formatDate: () => "2026-11-02",
@@ -169,7 +171,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
       return { getResponseCode: () => response, getContentText: () => "slack says " + response };
     },
   };
-  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses };
+  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses, logs };
 }
 
 const noRecipients = { getTo: () => "", getCc: () => "", getBcc: () => "" };
@@ -1442,6 +1444,21 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
 
     expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00.pdf"]);
     expect(Object.keys(fakes.props).filter((k) => k.startsWith("report_source:"))).toEqual([]);
+  });
+});
+
+describe("dryRun", () => {
+  test("previews a _US.csv attachment beside its plain SEB report as skipped, as the real run skips it", () => {
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])],
+      [],
+    );
+    const { logs } = installAppsScriptFakes({ threads: [thread] });
+
+    dryRun();
+
+    expect(logs.filter((line) => line.includes("Would UPLOAD"))).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020.csv to")]);
+    expect(logs).toContainEqual(expect.stringContaining("Would SKIP: TULEVA_pos_raport_20261020_US.csv"));
   });
 });
 

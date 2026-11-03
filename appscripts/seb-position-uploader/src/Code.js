@@ -1043,11 +1043,16 @@ function dryRunThread(thread) {
         }
 
         var attachments = message.getAttachments();
+        var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
         for (var k = 0; k < attachments.length; k++) {
             var filename = attachments[k].getName();
             var result = getFileConfigAndDate(source, filename);
             if (result) {
                 var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+                if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
+                    Logger.log("    -> Would SKIP: " + filename + ", the e-mail also has the report without the _US ending");
+                    continue;
+                }
                 Logger.log("    -> Would UPLOAD: " + filename + " to s3://" + S3_BUCKET + "/" + s3Key);
             } else {
                 Logger.log("    -> Would SKIP: Unknown file pattern: " + filename);
@@ -1094,6 +1099,7 @@ if (typeof module !== "undefined" && module.exports) {
         notifySlack,
         processNewEmails,
         processHistoricalEmails,
+        dryRun,
         saveReportsToDrive,
         saveThreadToDrive,
         saveReportToDrive,

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -347,8 +346,7 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   private void accrueFor(TulevaFund fund, LocalDate date) {
-    feeCalculationService.calculateFeesForNav(
-        fund, date, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+    feeCalculationService.calculateFeesForNav(fund, date, BASE_VALUE, null);
   }
 
   private void insertManagementFeeCorrection(LocalDate date, BigDecimal amount) {

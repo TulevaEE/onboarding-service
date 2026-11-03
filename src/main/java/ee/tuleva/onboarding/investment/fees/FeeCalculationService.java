@@ -84,7 +84,7 @@ public class FeeCalculationService {
   public FeeResult calculateFeesForNav(
       TulevaFund fund,
       LocalDate positionReportDate,
-      FeeBases bases,
+      BigDecimal baseValue,
       Map<String, ResolvedPrice> securityPrices) {
     LocalDate startDate =
         feeAccrualRepository
@@ -93,10 +93,8 @@ public class FeeCalculationService {
             .filter(d -> d.isBefore(positionReportDate))
             .orElse(positionReportDate);
 
-    FeeBases previousBases =
-        new FeeBases(
-            feeAccrualRepository.findLatestBaseValue(fund, MANAGEMENT).orElse(bases.navFeeBase()),
-            feeAccrualRepository.findLatestBaseValue(fund, DEPOT).orElse(bases.assetValue()));
+    BigDecimal previousBaseValue =
+        feeAccrualRepository.findLatestBaseValue(fund, MANAGEMENT).orElse(baseValue);
 
     log.info(
         "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}",
@@ -115,11 +113,12 @@ public class FeeCalculationService {
       if (!feeMonth.equals(previousFeeMonth)) {
         settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
       }
-      FeeBases dayBases = day.isBefore(positionReportDate) ? previousBases : bases;
-      reconcileDay(fund, day, dayBases, chargedPolicies, securityPrices);
+      BigDecimal dayBaseValue = day.isBefore(positionReportDate) ? previousBaseValue : baseValue;
+      reconcileDay(fund, day, dayBaseValue, chargedPolicies, securityPrices);
       previousFeeMonth = feeMonth;
     }
-    reconcileNonWorkingDaysAfter(fund, positionReportDate, bases, chargedPolicies, securityPrices);
+    reconcileNonWorkingDaysAfter(
+        fund, positionReportDate, baseValue, chargedPolicies, securityPrices);
 
     BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
     BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
@@ -145,7 +144,7 @@ public class FeeCalculationService {
   private void reconcileNonWorkingDaysAfter(
       TulevaFund fund,
       LocalDate positionReportDate,
-      FeeBases bases,
+      BigDecimal baseValue,
       Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies,
       Map<String, ResolvedPrice> securityPrices) {
     LocalDate firstDayAfter = positionReportDate.plusDays(1);
@@ -159,17 +158,17 @@ public class FeeCalculationService {
         .map(FeeAccrual::accrualDate)
         .distinct()
         .sorted()
-        .forEach(day -> reconcileDay(fund, day, bases, chargedPolicies, securityPrices));
+        .forEach(day -> reconcileDay(fund, day, baseValue, chargedPolicies, securityPrices));
   }
 
   private void reconcileDay(
       TulevaFund fund,
       LocalDate date,
-      FeeBases bases,
+      BigDecimal baseValue,
       Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies,
       Map<String, ResolvedPrice> securityPrices) {
     for (FeeCalculator calculator : feeCalculators) {
-      FeeAccrual accrual = calculator.calculate(fund, date, bases);
+      FeeAccrual accrual = calculator.calculate(fund, date, baseValue);
       Optional<FeeAccrual> existing =
           feeAccrualRepository.findByFundAndAccrualDateAndFeeType(fund, date, accrual.feeType());
       if (existing.filter(accrual::sameValuesAs).isEmpty()) {

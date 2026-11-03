@@ -49,13 +49,10 @@ class DepotFeeCalculatorTest {
                 feeRateRepository,
                 fundNavQueryService,
                 feeMonthResolver,
-                navLedgerRepository,
-                publicHolidays));
+                new PublishedFeeBase(fundNavQueryService, navLedgerRepository, publicHolidays)));
   }
 
-  private static final BigDecimal NAV_FEE_BASE = new BigDecimal("480000000");
-  private static final BigDecimal ASSET_VALUE = new BigDecimal("500000000");
-  private static final FeeBases BASES = new FeeBases(NAV_FEE_BASE, ASSET_VALUE);
+  private static final BigDecimal BASE_VALUE = new BigDecimal("480000000");
   private static final LocalDate MAY_END = LocalDate.of(2025, 5, 31);
 
   @Test
@@ -68,7 +65,7 @@ class DepotFeeCalculatorTest {
     given(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .willReturn(Optional.of(fixedRow(TKF100, fundRate, feeMonth)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASE_VALUE);
 
     assertThat(result.fund()).isEqualTo(TKF100);
     assertThat(result.feeType()).isEqualTo(FeeType.DEPOT);
@@ -78,24 +75,8 @@ class DepotFeeCalculatorTest {
     assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyGross =
-        NAV_FEE_BASE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        BASE_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
-  }
-
-  @Test
-  void calculate_chargesTheNetBaseBeforeFeesTheCustodianChargesAndNotTheGrossAssets() {
-    LocalDate date = LocalDate.of(2025, 7, 15);
-    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    BigDecimal fundRate = new BigDecimal("0.01");
-
-    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
-    given(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
-        .willReturn(Optional.of(fixedRow(TKF100, fundRate, feeMonth)));
-
-    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
-
-    assertThat(result.baseValue()).isEqualByComparingTo(NAV_FEE_BASE);
-    assertThat(result.baseValue()).isNotEqualByComparingTo(ASSET_VALUE);
   }
 
   @Test
@@ -108,18 +89,16 @@ class DepotFeeCalculatorTest {
     given(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .willReturn(Optional.of(fixedRow(TKF100, fundRate, feeMonth)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASE_VALUE);
 
     assertThat(result.daysInYear()).isEqualTo(366);
 
     BigDecimal expectedDailyGross =
-        NAV_FEE_BASE.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
+        BASE_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
     assertThat(result.dailyAmountGross())
         .isNotEqualByComparingTo(
-            NAV_FEE_BASE
-                .multiply(fundRate)
-                .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
+            BASE_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
   }
 
   @Test
@@ -131,7 +110,7 @@ class DepotFeeCalculatorTest {
     given(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .willReturn(Optional.of(fixedRow(TKF100, ZERO, feeMonth)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -150,7 +129,7 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
         .willReturn(Optional.of(tierRate));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
   }
@@ -177,7 +156,7 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1000000000"), feeMonth))
         .willReturn(Optional.of(tierRate));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
   }
@@ -194,7 +173,7 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.empty());
     given(tierRepository.findRateForAum(ZERO, feeMonth)).willReturn(Optional.of(ZERO));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
   }
@@ -222,7 +201,7 @@ class DepotFeeCalculatorTest {
         .when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
         .thenReturn(ZERO);
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -254,7 +233,7 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
         .willReturn(Optional.of(tierRate));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
   }
@@ -279,7 +258,7 @@ class DepotFeeCalculatorTest {
     given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
         .willReturn(ZERO);
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -294,7 +273,7 @@ class DepotFeeCalculatorTest {
     given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
     given(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).willReturn(Optional.empty());
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -314,11 +293,11 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
         .willReturn(Optional.empty());
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
-    assertThat(result.baseValue()).isEqualByComparingTo(NAV_FEE_BASE);
+    assertThat(result.baseValue()).isEqualByComparingTo(BASE_VALUE);
   }
 
   @Test
@@ -334,7 +313,7 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
         .willReturn(Optional.of(tinyTierRate));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tinyTierRate);
   }
@@ -357,8 +336,8 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
         .willReturn(Optional.of(tierRate));
 
-    FeeAccrual before = calculator.calculate(TUK75, beforeStart, BASES);
-    FeeAccrual on = calculator.calculate(TUK75, onStart, BASES);
+    FeeAccrual before = calculator.calculate(TUK75, beforeStart, BASE_VALUE);
+    FeeAccrual on = calculator.calculate(TUK75, onStart, BASE_VALUE);
 
     assertThat(before.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(before.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -367,9 +346,7 @@ class DepotFeeCalculatorTest {
     assertThat(on.annualRate()).isEqualByComparingTo(tierRate);
     assertThat(on.dailyAmountGross())
         .isEqualByComparingTo(
-            NAV_FEE_BASE
-                .multiply(tierRate)
-                .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
+            BASE_VALUE.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
     assertThat(on.feeMonth()).isEqualTo(feeMonth);
   }
 
@@ -394,7 +371,7 @@ class DepotFeeCalculatorTest {
     given(tierRepository.findRateForAum(new BigDecimal("1401000000"), feeMonth))
         .willReturn(Optional.of(tierRate));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASE_VALUE);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
   }

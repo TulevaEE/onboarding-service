@@ -300,6 +300,13 @@ class BankOperationProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
             eq(new UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
+    verify(paymentCheckService)
+        .record(
+            eq(UNCLASSIFIED_BANK_OPERATION),
+            eq(WARNING),
+            any(String.class),
+            eq(
+                "cash parked in suspense, fund=TKF100, subFamilyCode=TRAD, reason=unknown ticker or unreadable remittance"));
   }
 
   @Test

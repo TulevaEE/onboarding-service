@@ -14,6 +14,17 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
 
   @Query(
       """
+      select m.id
+      from BankingMessage m
+      where m.processedAt is not null
+        and m.failedAt is null
+        and m.messageType is not null
+      order by m.receivedAt
+      """)
+  List<UUID> findIdsOfProcessedMessages();
+
+  @Query(
+      """
       select new ee.tuleva.onboarding.banking.message.StoredStatement(m.statementFrom, m.statementTo, m.processedAt)
       from BankingMessage m
       where m.bankType = :bankType

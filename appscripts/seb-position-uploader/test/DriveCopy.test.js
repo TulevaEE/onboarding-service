@@ -682,6 +682,23 @@ describe("saveThreadToDrive", () => {
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
   });
 
+  test("a message whose attachments cannot be read does not drop the other messages of its thread", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    const unreadable = {
+      ...sebMessage("m1", []),
+      getAttachments: () => {
+        throw new Error("Gmail unavailable");
+      },
+    };
+    const correction = sebMessage("m2", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"));
+    const thread = fakeThread([unreadable, correction], ["S3-Uploaded-1x"]);
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
   test("a report that keeps failing does not stop the other report of its e-mail", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

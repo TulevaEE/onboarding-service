@@ -495,21 +495,28 @@ function saveReportsToDrive(threads, days, newestUploaded) {
 }
 
 function saveThreadToDrive(thread, folder, newestUploaded, minMessageDate) {
-    driveReportsOfThreadOrNone(thread, minMessageDate).forEach(function (report) {
-        saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded);
+    messagesOfThreadOrNone(thread).forEach(function (message) {
+        driveReportsOfMessageOrNone(message, minMessageDate).forEach(function (report) {
+            saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded);
+        });
     });
 }
 
-function driveReportsOfThreadOrNone(thread, minMessageDate) {
+function messagesOfThreadOrNone(thread) {
     try {
-        var reports = [];
-        thread.getMessages().forEach(function (message) {
-            if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return;
-            reports = reports.concat(driveReportsOf(message));
-        });
-        return reports;
+        return thread.getMessages();
     } catch (e) {
         Logger.log("Drive copy failed, thread not read: threadId=" + thread.getId() + ", error=" + e.message);
+        notifyDriveCopyFailed(e);
+        return [];
+    }
+}
+
+function driveReportsOfMessageOrNone(message, minMessageDate) {
+    try {
+        return isMessageWithinWindow(message.getDate(), minMessageDate) ? driveReportsOf(message) : [];
+    } catch (e) {
+        Logger.log("Drive copy failed, message not read: messageId=" + message.getId() + ", error=" + e.message);
         notifyDriveCopyFailed(e);
         return [];
     }

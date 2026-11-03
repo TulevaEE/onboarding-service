@@ -73,11 +73,11 @@ class UnitReceivableReaderTest {
   }
 
   @Test
-  void theThirdPillarFundMayCountTheReceivableBeforeItArrivesAlready() {
+  void theThirdPillarFundMayNotCountTheReceivableBeforeItArrivesIn2026Either() {
     var reader = readerOn(LAST_DAY_OF_2026);
 
     assertThat(reader.read(TUV100, LAST_DAY_OF_2026.minusDays(1), LAST_DAY_OF_2026))
-        .isEqualTo(new UnitReceivable(ZERO, ZERO, BEFORE_IT_ARRIVES));
+        .isEqualTo(new UnitReceivable(ZERO, ZERO, ONCE_IT_ARRIVES));
   }
 
   private UnitReceivableReader readerOn(LocalDate today) {

@@ -1053,7 +1053,7 @@ class TransactionInputServiceTest {
   @Test
   void
       gatherInput_keepsTheUnitReceivableOutOfTheTradeReceivablesEvenWhenBothCarryTheFundsOwnIsin() {
-    stubEmptyBaseline(TUV100);
+    stubEmptyBaseline(TUV100, DAY_AFTER_THE_REPORT);
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF_DATE, TUV100, LIABILITY))
         .willReturn(List.of());
     given(
@@ -1065,8 +1065,9 @@ class TransactionInputServiceTest {
                 fundIsinRow("Receivables of outstanding units", "8000"),
                 custodianRow(RECEIVABLES, "Other receivables", "500")));
     given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    givenRegistrarReceiptsAfterTheReport(TUV100, "8000");
 
-    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+    var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of());
 
     assertThat(result.liabilityBreakdown().unsettledTradeReceivables())
         .isEqualByComparingTo(new BigDecimal("20000"));
@@ -1077,7 +1078,7 @@ class TransactionInputServiceTest {
   }
 
   @Test
-  void gatherInput_onTheReportCash_forTheThirdPillarFund_countsTheWholeUnitReceivable() {
+  void gatherInput_onTheReportCash_forTheThirdPillarFundBefore2027_countsOnlyWhatHasArrived() {
     stubEmptyBaseline(TUV100, DAY_AFTER_THE_REPORT);
     givenTheReportCarriesOnlyAUnitReceivable(TUV100, "8000");
     givenRegistrarReceiptsAfterTheReport(TUV100, "5000");
@@ -1089,9 +1090,9 @@ class TransactionInputServiceTest {
     assertThat(result.liabilityBreakdown().unitReceivableReceived())
         .isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(result.liabilityBreakdown().unitReceivable())
-        .isEqualByComparingTo(new BigDecimal("8000"));
-    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("8000"));
-    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("8000"));
+        .isEqualByComparingTo(new BigDecimal("5000"));
+    assertThat(result.receivables()).isEqualByComparingTo(new BigDecimal("5000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
   @Test

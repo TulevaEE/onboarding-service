@@ -49,6 +49,7 @@ class JobTriggerPoller {
           Map.entry(
               RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
               RunSebPendingTransactionReconciliationBackfillRequested::new),
+          Map.entry("SettlementFromBankHistoryJob", RunSettlementFromBankHistoryRequested::new),
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
           Map.entry("PortfolioReconciliationJob", RunPortfolioReconciliationRequested::new),

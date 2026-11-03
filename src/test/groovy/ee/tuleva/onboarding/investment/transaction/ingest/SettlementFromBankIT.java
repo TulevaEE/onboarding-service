@@ -180,6 +180,23 @@ class SettlementFromBankIT {
         .hasSize(1);
   }
 
+  @Test
+  void aRun_countsTheOrdersItSettledRedatedAndLeftWithoutABankDate() {
+    TransactionOrder settles = executedOrder(OrderVenue.SEB, "11704");
+    piece(settles, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    TransactionOrder redated = executedOrder(OrderVenue.SEB, "11704");
+    piece(redated, "DLA0553692", "11704");
+    settledEarlier(redated, LocalDate.of(2026, 2, 16), PENDING_REPORT_ABSENCE);
+    bankBooks("DLA0553692", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    TransactionOrder open = executedOrder(OrderVenue.SEB, "11704");
+    piece(open, "DLA0553693", "11704");
+
+    BankSettlementRun run = settlementFromBankService.settleOrdersBookedSince(SINCE);
+
+    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1));
+  }
+
   private void settleFromTheBank() {
     settlementFromBankService.settleOrdersBookedSince(SINCE);
     entityManager.flush();

@@ -396,6 +396,38 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void
+      replay_runTwice_executionImportedFromTheSheet_keepsTheDateSebFirstListedItAndIsNotSettledEarly() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    TransactionExecution imported =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .source("HISTORICAL_IMPORT")
+                .reportedDate(LocalDate.of(2026, 2, 10))
+                .build());
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    InvestmentReport withoutTheImportedTrade =
+        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 12), stillOpen);
+    entityManager.flush();
+
+    for (int run = 0; run < 2; run++) {
+      reconciliationService.replay(withoutTheImportedTrade, alert -> {});
+      reconciliationService.replay(report, alert -> {});
+      entityManager.flush();
+    }
+    entityManager.clear();
+
+    assertThat(executionRepository.findById(imported.getId()).orElseThrow().getReportedDate())
+        .isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);

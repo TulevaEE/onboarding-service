@@ -43,7 +43,6 @@ class FeeBaseCompletenessCheckerTest {
   private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final BigDecimal NAV_TOTAL = new BigDecimal("1000000.00");
   private static final BigDecimal ASSET_TOTAL = new BigDecimal("1080000.00");
-  private static final LocalDate DEPOT_ASSET_BASE_FROM = LocalDate.of(2026, 1, 1);
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private FundNavQueryService fundNavQueryService;
@@ -53,47 +52,18 @@ class FeeBaseCompletenessCheckerTest {
 
   @BeforeEach
   void setUp() {
-    checker = checkerWithDepotAssetBaseFrom(DEPOT_ASSET_BASE_FROM);
-  }
-
-  private FeeBaseCompletenessChecker checkerWithDepotAssetBaseFrom(LocalDate from) {
     var publicHolidays = new PublicHolidays();
     var expectedFeeBases =
-        new ExpectedFeeBases(fundNavQueryService, navLedgerRepository, publicHolidays, from);
-    return new FeeBaseCompletenessChecker(
-        feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));
-  }
-
-  // The funds straddled the deploy that moved the depot base to gross aktiva: each fund's accrual
-  // for 17 August was written by its own NAV run the next morning, two of them before the new code
-  // was live and one after, so no single date describes both. Every depot accrual before the
-  // cutover was zero at a zero rate, so the base behind it is not worth holding to either
-  // definition.
-  @Test
-  void aDepotBaseWrittenBeforeTheCutoverIsNotCheckedAgainstEitherDefinition() {
-    checker = checkerWithDepotAssetBaseFrom(LATER_WORKING_DAY);
-    givenAccruals(
-        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
-        base(WORKING_DAY, DEPOT, new BigDecimal("777777.77")));
-    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
-
-    assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
-  }
-
-  @Test
-  void aDepotBaseOnTheCutoverDayIsAlreadyCheckedAgainstTheAssetValue() {
-    checker = checkerWithDepotAssetBaseFrom(WORKING_DAY);
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
-
-    assertThat(check(TUK75).getFirst().severity()).isEqualTo(FAIL);
+        new ExpectedFeeBases(fundNavQueryService, navLedgerRepository, publicHolidays);
+    checker =
+        new FeeBaseCompletenessChecker(
+            feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));
   }
 
   @Test
   void aBaseMatchingTheNavComponentsPasses() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }
@@ -103,7 +73,7 @@ class FeeBaseCompletenessCheckerTest {
     var missing = new BigDecimal("44980.96");
     var buggyBase = NAV_TOTAL.subtract(missing);
     givenAccruals(base(WORKING_DAY, MANAGEMENT, buggyBase), base(WORKING_DAY, DEPOT, buggyBase));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -119,7 +89,7 @@ class FeeBaseCompletenessCheckerTest {
     givenAccruals(
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(missing)),
         base(WORKING_DAY, DEPOT, NAV_TOTAL.add(missing)));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75).getFirst().deviationAmount()).isEqualByComparingTo(missing);
   }
@@ -128,9 +98,8 @@ class FeeBaseCompletenessCheckerTest {
   void aDayWhoseFeeTypesDivergeByDifferentAmountsReportsTheLarger() {
     givenAccruals(
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(new BigDecimal("500"))),
-        base(WORKING_DAY, DEPOT, ASSET_TOTAL.add(new BigDecimal("1200"))));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
+        base(WORKING_DAY, DEPOT, NAV_TOTAL.add(new BigDecimal("1200"))));
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75).getFirst().deviationAmount())
         .isEqualByComparingTo(new BigDecimal("1200"));
@@ -147,8 +116,8 @@ class FeeBaseCompletenessCheckerTest {
         base(WORKING_DAY, DEPOT, NAV_TOTAL.subtract(tooLow)),
         base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(tooHigh)),
         base(LATER_WORKING_DAY, DEPOT, NAV_TOTAL.add(tooHigh)));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenBothFeeBaseTotalsEqual(LATER_WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(LATER_WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75).getFirst().deviationAmount()).isEqualByComparingTo(tooLow.add(tooHigh));
   }
@@ -158,25 +127,15 @@ class FeeBaseCompletenessCheckerTest {
     givenAccruals(
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(new BigDecimal("0.01"))),
         base(WORKING_DAY, DEPOT, NAV_TOTAL.add(new BigDecimal("0.01"))));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75).getFirst().severity()).isEqualTo(PASS);
   }
 
   @Test
-  void eachFeeTypeIsCheckedAgainstTheBaseItsOwnContractNames() {
+  void aDepotBaseTakenFromTheGrossAssetsInsteadOfTheNetBaseBeforeFeesFails() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, ASSET_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
-
-    assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
-  }
-
-  @Test
-  void aDepotBaseThatIsSilentlyTheNetNavBaseFails() {
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -187,10 +146,8 @@ class FeeBaseCompletenessCheckerTest {
 
   @Test
   void aManagementBaseTakenFromTheGrossAssetsFails() {
-    givenAccruals(
-        base(WORKING_DAY, MANAGEMENT, ASSET_TOTAL), base(WORKING_DAY, DEPOT, ASSET_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
-    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, ASSET_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -219,7 +176,7 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -237,7 +194,7 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -267,7 +224,7 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
     givenNavFeeBaseTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
@@ -284,8 +241,8 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
         base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(LATER_WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
-    givenBothFeeBaseTotalsEqual(LATER_WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(LATER_WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -298,7 +255,7 @@ class FeeBaseCompletenessCheckerTest {
   @Test
   void daysOutsideTheAccrualsTheWindowActuallySawRaiseNothing() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(checker.check(TUK75, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 6, 30)))
         .singleElement()
@@ -321,8 +278,6 @@ class FeeBaseCompletenessCheckerTest {
         base(WORKING_DAY, DEPOT, NAV_TOTAL.add(blackrock)));
     given(fundNavQueryService.findFeeBaseComponentTotal("TKF100", WORKING_DAY))
         .willReturn(Optional.of(NAV_TOTAL));
-    given(fundNavQueryService.findAssetTotal("TKF100", WORKING_DAY))
-        .willReturn(Optional.of(NAV_TOTAL));
     given(navLedgerRepository.getSystemAccountBalanceBefore(any(), any())).willReturn(blackrock);
 
     assertThat(check(TKF100).getFirst().severity()).isEqualTo(PASS);
@@ -340,8 +295,6 @@ class FeeBaseCompletenessCheckerTest {
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(blackrock)),
         base(WORKING_DAY, DEPOT, NAV_TOTAL.add(blackrock)));
     given(fundNavQueryService.findFeeBaseComponentTotal("TKF100", WORKING_DAY))
-        .willReturn(Optional.of(NAV_TOTAL));
-    given(fundNavQueryService.findAssetTotal("TKF100", WORKING_DAY))
         .willReturn(Optional.of(NAV_TOTAL));
     given(
             navLedgerRepository.getSystemAccountBalanceBefore(
@@ -373,8 +326,6 @@ class FeeBaseCompletenessCheckerTest {
                 .toList());
     given(fundNavQueryService.findFeeBaseComponentTotal(eq("TUK75"), any()))
         .willReturn(Optional.of(NAV_TOTAL));
-    given(fundNavQueryService.findAssetTotal(eq("TUK75"), any()))
-        .willReturn(Optional.of(NAV_TOTAL));
 
     var finding = checker.check(TUK75, days.getFirst(), days.getLast()).getFirst();
 
@@ -405,18 +356,9 @@ class FeeBaseCompletenessCheckerTest {
         .willReturn(List.of(values));
   }
 
-  private void givenBothFeeBaseTotalsEqual(LocalDate date, BigDecimal total) {
-    givenNavFeeBaseTotal(date, total);
-    givenAssetTotal(date, total);
-  }
-
   private void givenNavFeeBaseTotal(LocalDate date, BigDecimal total) {
     given(fundNavQueryService.findFeeBaseComponentTotal("TUK75", date))
         .willReturn(Optional.of(total));
-  }
-
-  private void givenAssetTotal(LocalDate date, BigDecimal total) {
-    given(fundNavQueryService.findAssetTotal("TUK75", date)).willReturn(Optional.of(total));
   }
 
   private FeeBaseValue base(LocalDate date, FeeType feeType, BigDecimal baseValue) {

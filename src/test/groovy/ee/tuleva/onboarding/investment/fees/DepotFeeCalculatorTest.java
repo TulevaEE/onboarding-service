@@ -78,12 +78,12 @@ class DepotFeeCalculatorTest {
     assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyGross =
-        ASSET_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        NAV_FEE_BASE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
   }
 
   @Test
-  void calculate_chargesTheGrossAssetValueTheDepoolepingNamesAndNotTheNetNavBase() {
+  void calculate_chargesTheNetBaseBeforeFeesTheCustodianChargesAndNotTheGrossAssets() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
     BigDecimal fundRate = new BigDecimal("0.01");
@@ -94,8 +94,8 @@ class DepotFeeCalculatorTest {
 
     FeeAccrual result = calculator.calculate(TKF100, date, BASES);
 
-    assertThat(result.baseValue()).isEqualByComparingTo(ASSET_VALUE);
-    assertThat(result.baseValue()).isNotEqualByComparingTo(NAV_FEE_BASE);
+    assertThat(result.baseValue()).isEqualByComparingTo(NAV_FEE_BASE);
+    assertThat(result.baseValue()).isNotEqualByComparingTo(ASSET_VALUE);
   }
 
   @Test
@@ -113,11 +113,11 @@ class DepotFeeCalculatorTest {
     assertThat(result.daysInYear()).isEqualTo(366);
 
     BigDecimal expectedDailyGross =
-        ASSET_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
+        NAV_FEE_BASE.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
     assertThat(result.dailyAmountGross())
         .isNotEqualByComparingTo(
-            ASSET_VALUE
+            NAV_FEE_BASE
                 .multiply(fundRate)
                 .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
   }
@@ -168,7 +168,7 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(LocalDate.of(2025, 5, 30)));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(LocalDate.of(2025, 5, 30)));
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(LocalDate.of(2025, 5, 30))))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(LocalDate.of(2025, 5, 30))))
         .willReturn(Optional.of(new BigDecimal("250000000")));
     given(publicHolidays.nextWorkingDay(LocalDate.of(2025, 5, 30)))
         .willReturn(LocalDate.of(2025, 6, 2));
@@ -215,7 +215,7 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(anchorDate));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(anchorDate));
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(anchorDate)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(anchorDate)))
         .willReturn(Optional.empty());
     lenient().when(publicHolidays.nextWorkingDay(anchorDate)).thenReturn(LocalDate.of(2025, 6, 2));
     lenient()
@@ -244,9 +244,9 @@ class DepotFeeCalculatorTest {
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(publishedAnchor));
     lenient()
-        .when(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+        .when(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(MAY_END)))
         .thenReturn(Optional.empty());
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(publishedAnchor)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(publishedAnchor)))
         .willReturn(Optional.of(new BigDecimal("350000000")));
     given(publicHolidays.nextWorkingDay(publishedAnchor)).willReturn(LocalDate.of(2025, 6, 2));
     given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
@@ -271,9 +271,9 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(MAY_END));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(MAY_END));
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(new BigDecimal("350000000")));
-    given(fundNavQueryService.findAssetTotal(eq(TUK00.getCode()), eq(MAY_END)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(eq(TUK00.getCode()), eq(MAY_END)))
         .willReturn(Optional.empty());
     given(publicHolidays.nextWorkingDay(MAY_END)).willReturn(MAY_END.plusDays(1));
     given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
@@ -318,7 +318,7 @@ class DepotFeeCalculatorTest {
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
-    assertThat(result.baseValue()).isEqualByComparingTo(ASSET_VALUE);
+    assertThat(result.baseValue()).isEqualByComparingTo(NAV_FEE_BASE);
   }
 
   @Test
@@ -367,7 +367,7 @@ class DepotFeeCalculatorTest {
     assertThat(on.annualRate()).isEqualByComparingTo(tierRate);
     assertThat(on.dailyAmountGross())
         .isEqualByComparingTo(
-            ASSET_VALUE
+            NAV_FEE_BASE
                 .multiply(tierRate)
                 .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
     assertThat(on.feeMonth()).isEqualTo(feeMonth);
@@ -386,7 +386,7 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(MAY_END));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(MAY_END));
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(new BigDecimal("350000000")));
     given(publicHolidays.nextWorkingDay(MAY_END)).willReturn(MAY_END.plusDays(1));
     given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
@@ -409,7 +409,7 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(anchor));
     given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(anchor)))
         .willReturn(Optional.of(anchor));
-    given(fundNavQueryService.findAssetTotal(anyString(), eq(anchor)))
+    given(fundNavQueryService.findFeeBaseComponentTotal(anyString(), eq(anchor)))
         .willReturn(Optional.of(perFundAssets));
     given(publicHolidays.nextWorkingDay(anchor)).willReturn(anchor.plusDays(1));
     given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))

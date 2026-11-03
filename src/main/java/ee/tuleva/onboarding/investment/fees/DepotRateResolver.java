@@ -91,7 +91,7 @@ public class DepotRateResolver {
 
   private Optional<BigDecimal> publishedAssetsOn(TulevaFund fund, LocalDate navDate) {
     return fundNavQueryService
-        .findAssetTotal(fund.getCode(), navDate)
+        .findFeeBaseComponentTotal(fund.getCode(), navDate)
         .map(assets -> assets.add(savingsFundBlackrockAdjustment(fund, navDate)));
   }
 

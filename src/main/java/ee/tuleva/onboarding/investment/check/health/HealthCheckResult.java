@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public record HealthCheckResult(
@@ -18,6 +19,8 @@ public record HealthCheckResult(
     LocalDate checkDate,
     List<HealthCheckFinding> findings,
     ReportPresence reportPresence) {
+
+  private static final String REPORT_PRESENCE = "reportPresence";
 
   public enum ReportPresence {
     IN_REPORT,
@@ -36,6 +39,17 @@ public record HealthCheckResult(
 
   static HealthCheckResult notReadFromReport(LocalDate checkDate, HealthCheckFinding finding) {
     return new HealthCheckResult(finding.fund(), checkDate, List.of(finding), NOT_READ_FROM_REPORT);
+  }
+
+  Map<String, Object> eventResult(
+      HealthCheckType checkType, List<HealthCheckFinding> checkFindings) {
+    return checkType == FUND_IN_REPORT
+        ? Map.of("findings", checkFindings, REPORT_PRESENCE, reportPresence.name())
+        : Map.of("findings", checkFindings);
+  }
+
+  boolean presenceDiffersFrom(HealthCheckEvent previous) {
+    return !reportPresence.name().equals(previous.getResult().get(REPORT_PRESENCE));
   }
 
   List<HealthCheckType> checkTypes() {

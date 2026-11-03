@@ -45,6 +45,10 @@ public class SebPendingTransactionReconciliationService {
     ON_THIS_REPORT_AS_OF_ITS_DATE(execution -> SOURCE_SEB_OOTEL.equals(execution.getSource()));
 
     private final Predicate<TransactionExecution> countsAsListed;
+
+    private boolean countsAsListed(TransactionExecution execution) {
+      return countsAsListed.test(execution);
+    }
   }
 
   private final SebPendingTransactionExtractor extractor;
@@ -223,7 +227,7 @@ public class SebPendingTransactionReconciliationService {
   private List<TransactionExecution> executionsListedBy(
       TransactionOrder order, LocalDate asOfDate, SettlementByAbsence settlementByAbsence) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .filter(settlementByAbsence.countsAsListed)
+        .filter(settlementByAbsence::countsAsListed)
         .filter(execution -> isListedBy(execution, asOfDate))
         .toList();
   }

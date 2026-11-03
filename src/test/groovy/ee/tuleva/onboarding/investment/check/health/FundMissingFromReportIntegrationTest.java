@@ -96,15 +96,21 @@ class FundMissingFromReportIntegrationTest {
     importReport("2026-10-31T06:35:00Z", complete(TUK75, TUK00, TUV100, TKF100));
     clearInvocations(notificationService);
 
-    var missingReported = importReport("2026-10-31T07:00:00Z", complete(TUK75, TUK00, TKF100));
+    var missingReported =
+        importReport(
+            "2026-10-31T07:00:00Z",
+            complete(TUK75, TUK00, TKF100),
+            Map.of(TUV100, Instant.parse("2026-10-31T06:35:00Z")));
 
     assertThat(missingReported).isTrue();
     verify(notificationService)
         .sendMessage(
             and(
                 and(
-                    contains("Import warning: SEB 2026-10-30\n"),
-                    contains("TUV100 not in the report")),
+                    contains(
+                        "Import warning: SEB 2026-10-30 — TUV100 positions written 2026-10-31"
+                            + " 08:35 stay in use for NAV\n"),
+                    contains("TUV100 not in the report (earlier positions in use)")),
                 and(contains(missingLine(TUV100, "15:20")), not(contains("RECEIVABLES")))),
             eq(INVESTMENT));
 
@@ -215,9 +221,22 @@ class FundMissingFromReportIntegrationTest {
   }
 
   private boolean importReport(String at, List<FundPosition> positions, int reportRows) {
+    return importReport(at, positions, reportRows, Map.of());
+  }
+
+  private boolean importReport(
+      String at, List<FundPosition> positions, Map<TulevaFund, Instant> earlierImports) {
+    return importReport(at, positions, positions.size(), earlierImports);
+  }
+
+  private boolean importReport(
+      String at,
+      List<FundPosition> positions,
+      int reportRows,
+      Map<TulevaFund, Instant> earlierImports) {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
     var results = healthCheckService.check(NAV_DATE, positions, reportRows);
-    return notifier.notify(SEB, NAV_DATE, results, Map.of());
+    return notifier.notify(SEB, NAV_DATE, results, earlierImports);
   }
 
   private static String missingLine(TulevaFund fund, String navTime) {

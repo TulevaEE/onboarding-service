@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.MISSING_FROM_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
@@ -9,6 +12,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.Map.entry;
@@ -443,6 +447,30 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SEB, date);
 
     verify(healthCheckNotifier).notify(SEB, date, results, Map.of(TUK75, importedAt));
+  }
+
+  @Test
+  void
+      importForProviderAndDate_tellsTheNotifierWhenAFundMissingFromTheReportHasPositionsImportedEarlier() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var importedAt = Instant.parse("2026-01-06T07:10:00Z");
+    var results =
+        List.of(
+            new HealthCheckResult(
+                TUK00,
+                date,
+                List.of(
+                    new HealthCheckFinding(
+                        TUK00, FUND_IN_REPORT, WARNING, "TUK00: not in SEB's position report")),
+                MISSING_FROM_REPORT));
+    given(reportService.getReport(SEB, POSITIONS, date))
+        .willReturn(Optional.of(createSebReport(date)));
+    given(healthCheckService.check(any(), anyList(), anyInt())).willReturn(results);
+    given(repository.findLastImportedAt(TUK00, date)).willReturn(Optional.of(importedAt));
+
+    job.importForProviderAndDate(SEB, date);
+
+    verify(healthCheckNotifier).notify(SEB, date, results, Map.of(TUK00, importedAt));
   }
 
   @Test

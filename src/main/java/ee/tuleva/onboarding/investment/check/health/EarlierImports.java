@@ -13,10 +13,10 @@ record EarlierImports(Map<TulevaFund, Instant> importedAt) {
   private static final DateTimeFormatter IMPORT_TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
 
-  String whatBlockingLeft(Set<TulevaFund> blockedFunds) {
+  String whatIsLeftFor(Set<TulevaFund> fundsImportingNothing) {
     var notImported = new ArrayList<String>();
     var stillInUse = new ArrayList<String>();
-    for (var fund : blockedFunds) {
+    for (var fund : fundsImportingNothing) {
       var fundImportedAt = importedAt.get(fund);
       if (fundImportedAt == null) {
         notImported.add(fund.getCode());
@@ -37,8 +37,8 @@ record EarlierImports(Map<TulevaFund, Instant> importedAt) {
   }
 
   String importStatus(HealthCheckResult result) {
-    if (result.hasFails() && importedAt.containsKey(result.fund())) {
-      return "blocked (earlier positions in use)";
+    if (result.importsNothing() && importedAt.containsKey(result.fund())) {
+      return result.importStatus() + " (earlier positions in use)";
     }
     return result.importStatus();
   }

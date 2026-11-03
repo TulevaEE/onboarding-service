@@ -115,7 +115,7 @@ class HealthCheckNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "Import warning: SEB 2026-04-15\n"
+            "Import warning: SEB 2026-04-15 — TUV100 not imported\n"
                 + "Funds: TUK75 imported, TUV100 not in the report\n"
                 + "\n⚠️ [WARNING] FUND_IN_REPORT TUV100: TUV100: not in SEB's position report for"
                 + " navDate=2026-04-15. Ask SEB to resend the report with TUV100 before the 15:20"
@@ -141,11 +141,60 @@ class HealthCheckNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "Import warning: SEB 2026-04-15\n"
+            "Import warning: SEB 2026-04-15 — TUK75, TUV100 not imported\n"
                 + "Funds: TUK75 not read from the report, TUV100 not read from the report\n"
                 + "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUV100: "
                 + rowsNotRead,
             INVESTMENT);
+  }
+
+  @Test
+  void aFundMissingFromTheReportWhosePositionsWereImportedEarlierSaysTheyStayInUse() {
+    var missing =
+        new HealthCheckFinding(
+            TUV100, FUND_IN_REPORT, WARNING, "TUV100: not in SEB's position report");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of()),
+            HealthCheckResult.missingFromReport(DATE, missing)),
+        Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
+
+    verify(notificationService)
+        .sendMessage(
+            startsWith(
+                "Import warning: SEB 2026-04-15 — TUV100 positions written 2026-04-16 09:10 stay"
+                    + " in use for NAV\n"
+                    + "Funds: TUK75 imported, TUV100 not in the report (earlier positions in"
+                    + " use)\n"),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aBlockedImportAlsoSaysWhatIsLeftInUseForAFundMissingFromTheReport() {
+    var failed = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var missing =
+        new HealthCheckFinding(
+            TUV100, FUND_IN_REPORT, WARNING, "TUV100: not in SEB's position report");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(failed)),
+            HealthCheckResult.missingFromReport(DATE, missing)),
+        Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
+
+    verify(notificationService)
+        .sendMessage(
+            startsWith(
+                "IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported; TUV100 positions written"
+                    + " 2026-04-16 09:10 stay in use for NAV, source files need to be fixed\n"
+                    + "Funds: TUK75 blocked, TUV100 not in the report (earlier positions in"
+                    + " use)\n"),
+            eq(INVESTMENT));
   }
 
   @Test

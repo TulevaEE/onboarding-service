@@ -136,10 +136,10 @@ public class FundPositionImportJob {
     }
   }
 
-  private Map<TulevaFund, Instant> earlierImportsOfBlockedFunds(
+  private Map<TulevaFund, Instant> earlierImportsOfFundsImportingNothing(
       List<HealthCheckResult> healthResults) {
     return healthResults.stream()
-        .filter(HealthCheckResult::hasFails)
+        .filter(HealthCheckResult::importsNothing)
         .flatMap(
             result ->
                 importService.lastImportedAt(result.fund(), result.checkDate()).stream()
@@ -178,7 +178,7 @@ public class FundPositionImportJob {
     var healthResults =
         healthCheckService.check(navDate, positions, investmentReport.getRawData().size());
     Set<TulevaFund> blockedFunds = HealthCheckResult.blockedFunds(healthResults);
-    var earlierImports = earlierImportsOfBlockedFunds(healthResults);
+    var earlierImports = earlierImportsOfFundsImportingNothing(healthResults);
 
     if (!blockedFunds.isEmpty()) {
       healthCheckFailed = true;

@@ -1001,6 +1001,23 @@ describe("saveReportsToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
   });
 
+  const gmailDown = () => {
+    throw new Error("Gmail unavailable");
+  };
+  test.each([
+    ["a message", () => fakeThread([{ getDate: gmailDown, getId: gmailDown }], [])],
+    ["a thread", () => ({ getMessages: gmailDown, getId: gmailDown })],
+  ])("%s that cannot even give its id in a Gmail outage does not stop the other threads", (name, brokenThread) => {
+    const drive = fakeDrive();
+    const broken = brokenThread();
+    const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
+    installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, broken] });
+
+    saveReportsToDrive([working, broken], 2);
+
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020")).toHaveLength(1);
+  });
+
   test("the first run copies the e-mails of the last two days, and leaves the reports the old Gmail saver already saved as it is", () => {
     const drive = fakeDrive();
     drive.seedWithContent({

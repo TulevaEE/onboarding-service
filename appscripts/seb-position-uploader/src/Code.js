@@ -509,7 +509,7 @@ function messagesOfThreadOrNone(thread) {
     try {
         return thread.getMessages();
     } catch (e) {
-        Logger.log("Drive copy failed, thread not read: threadId=" + thread.getId() + ", error=" + e.message);
+        Logger.log("Drive copy failed, thread not read: threadId=" + gmailIdOrUnknown(thread) + ", error=" + e.message);
         notifyDriveCopyFailed(e);
         return [];
     }
@@ -519,9 +519,17 @@ function driveReportsOfMessageOrNone(message, minMessageDate) {
     try {
         return isMessageWithinWindow(message.getDate(), minMessageDate) ? driveReportsOf(message) : [];
     } catch (e) {
-        Logger.log("Drive copy failed, message not read: messageId=" + message.getId() + ", error=" + e.message);
+        Logger.log("Drive copy failed, message not read: messageId=" + gmailIdOrUnknown(message) + ", error=" + e.message);
         notifyDriveCopyFailed(e);
         return [];
+    }
+}
+
+function gmailIdOrUnknown(threadOrMessage) {
+    try {
+        return threadOrMessage.getId();
+    } catch (e) {
+        return "unknown";
     }
 }
 

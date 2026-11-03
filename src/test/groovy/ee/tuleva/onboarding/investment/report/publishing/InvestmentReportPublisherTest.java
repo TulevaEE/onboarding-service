@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
@@ -21,11 +21,12 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMedi
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,8 @@ class InvestmentReportPublisherTest {
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
     lenient().when(newerReportCheck.reasonsNotToReplace(any(), any(), any())).thenReturn(List.of());
     lenient()
-        .when(publishingLock.whileNoOtherPublishRuns(any()))
-        .thenAnswer(publish -> Optional.of(publish.<Supplier<?>>getArgument(0).get()));
+        .when(publishingLock.whileNoOtherPublishRuns(any(), any()))
+        .thenAnswer(publish -> publish.<Supplier<?>>getArgument(0).get());
   }
 
   private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
@@ -354,8 +355,14 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
-  void aSecondPublishWhileOneIsRunningPublishesNothing() {
-    willReturn(Optional.empty()).given(publishingLock).whileNoOtherPublishRuns(any());
+  void aSecondPublishWhileOneIsRunningPublishesNothingAndSaysWhenTheLockRunsOut() {
+    willAnswer(
+            refused ->
+                refused
+                    .<Function<Instant, ?>>getArgument(1)
+                    .apply(Instant.parse("2026-04-10T07:43:09Z")))
+        .given(publishingLock)
+        .whileNoOtherPublishRuns(any(), any());
 
     var result = publisher.publish(MARCH_2026);
 
@@ -364,7 +371,9 @@ class InvestmentReportPublisherTest {
             new InvestmentReportPublishingResult(
                 Map.of(),
                 false,
-                List.of("Another investment report publish is running: month=2026-03")));
+                List.of(
+                    "Another investment report publish is running, or stopped without releasing"
+                        + " its lock: month=2026-03, heldUntil=2026-04-10T07:43:09Z")));
     verifyNoInteractions(
         dataService, newerReportCheck, pdfGenerator, wordPressClient, emailService);
   }

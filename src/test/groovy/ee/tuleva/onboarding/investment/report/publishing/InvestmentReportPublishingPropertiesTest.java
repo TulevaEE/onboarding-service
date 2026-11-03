@@ -22,6 +22,7 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class InvestmentReportPublishingPropertiesTest {
 
@@ -39,6 +40,7 @@ class InvestmentReportPublishingPropertiesTest {
           .withBean(WordPressPageReader.class, () -> mock(WordPressPageReader.class))
           .withBean(EmailService.class, () -> mock(EmailService.class))
           .withBean(LockProvider.class, () -> mock(LockProvider.class))
+          .withBean(JdbcClient.class, () -> mock(JdbcClient.class))
           .withBean(Clock.class, Clock::systemUTC);
 
   @Test

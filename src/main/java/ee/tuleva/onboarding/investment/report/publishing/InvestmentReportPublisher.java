@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMedi
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -54,15 +55,22 @@ public class InvestmentReportPublisher {
 
   private InvestmentReportPublishingResult publishUnlessAnotherPublishRuns(
       YearMonth month, UnrecognisedFile unrecognised) {
-    return publishingLock
-        .whileNoOtherPublishRuns(() -> publishWhileNoOtherPublishRuns(month, unrecognised))
-        .orElseGet(() -> anotherPublishIsRunning(month));
+    return publishingLock.whileNoOtherPublishRuns(
+        () -> publishWhileNoOtherPublishRuns(month, unrecognised),
+        heldUntil -> anotherPublishIsRunning(month, heldUntil));
   }
 
-  private static InvestmentReportPublishingResult anotherPublishIsRunning(YearMonth month) {
-    log.warn("Investment report publishing already running, nothing published: month={}", month);
+  private static InvestmentReportPublishingResult anotherPublishIsRunning(
+      YearMonth month, Instant heldUntil) {
+    log.warn(
+        "Investment report publishing already running, nothing published: month={}, heldUntil={}",
+        month,
+        heldUntil);
     return abortedWithoutPublishing(
-        List.of("Another investment report publish is running: month=%s".formatted(month)));
+        List.of(
+            ("Another investment report publish is running, or stopped without releasing its lock:"
+                    + " month=%s, heldUntil=%s")
+                .formatted(month, heldUntil)));
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(

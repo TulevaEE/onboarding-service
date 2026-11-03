@@ -8,6 +8,7 @@ import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpConnectTimeoutException;
+import java.time.Duration;
 import java.util.Base64;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,7 +26,19 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 @Configuration
 @EnableConfigurationProperties(WordPressProperties.class)
-class WordPressConfiguration {
+public class WordPressConfiguration {
+
+  private static final Duration CONNECT_TIMEOUT = ofSeconds(5);
+  private static final Duration READ_TIMEOUT = ofSeconds(30);
+  private static final int MAX_RETRIES = 2;
+  private static final Duration FIRST_RETRY_DELAY = ofMillis(500);
+  private static final Duration LONGEST_RETRY_DELAY = ofSeconds(2);
+
+  public static final Duration CALL_TAKES_AT_MOST =
+      CONNECT_TIMEOUT
+          .plus(READ_TIMEOUT)
+          .multipliedBy(MAX_RETRIES + 1)
+          .plus(LONGEST_RETRY_DELAY.multipliedBy(MAX_RETRIES));
 
   @Bean
   @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
@@ -64,8 +77,8 @@ class WordPressConfiguration {
   private static RestClient.Builder wordPressRestClientBuilder(WordPressProperties properties) {
     var requestFactory =
         new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(ofSeconds(5)).build());
-    requestFactory.setReadTimeout(ofSeconds(30));
+            HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+    requestFactory.setReadTimeout(READ_TIMEOUT);
 
     var builder = RestClient.builder().requestFactory(requestFactory);
     var apiBase = properties.apiBase();
@@ -98,6 +111,11 @@ class WordPressConfiguration {
 
   private static RetryTemplate retrying(RetryPolicy.Builder failures) {
     return new RetryTemplate(
-        failures.maxRetries(2).delay(ofMillis(500)).multiplier(2).maxDelay(ofSeconds(2)).build());
+        failures
+            .maxRetries(MAX_RETRIES)
+            .delay(FIRST_RETRY_DELAY)
+            .multiplier(2)
+            .maxDelay(LONGEST_RETRY_DELAY)
+            .build());
   }
 }

@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMedi
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -46,20 +45,14 @@ public class InvestmentReportPublisher {
       final YearMonth month, final UnrecognisedReportFile unrecognised) {
     return publishingLock.whileNoOtherPublishRuns(
         () -> publishWhileNoOtherPublishRuns(month, unrecognised),
-        heldUntil -> anotherPublishIsRunning(month, heldUntil));
+        refusal -> anotherPublishIsRunning(month, refusal));
   }
 
   private static InvestmentReportPublishingResult anotherPublishIsRunning(
-      YearMonth month, Instant heldUntil) {
-    log.warn(
-        "Investment report publishing already running, nothing published: month={}, heldUntil={}",
-        month,
-        heldUntil);
-    return abortedWithoutPublishing(
-        List.of(
-            ("Another investment report publish is running, or stopped without releasing its lock:"
-                    + " month=%s, heldUntil=%s")
-                .formatted(month, heldUntil)));
+      YearMonth month, String refusal) {
+    var error = "%s, month=%s".formatted(refusal, month);
+    log.warn("Nothing published: {}", error);
+    return abortedWithoutPublishing(List.of(error));
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(

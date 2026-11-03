@@ -21,7 +21,6 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMedi
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -359,8 +358,11 @@ class InvestmentReportPublisherTest {
     willAnswer(
             refused ->
                 refused
-                    .<Function<Instant, ?>>getArgument(1)
-                    .apply(Instant.parse("2026-04-10T07:43:09Z")))
+                    .<Function<String, ?>>getArgument(1)
+                    .apply(
+                        "Another investment report publish holds the lock and extends it while it"
+                            + " runs; one that stopped loses it by heldUntil:"
+                            + " heldUntil=2026-04-10T07:02:00Z"))
         .given(publishingLock)
         .whileNoOtherPublishRuns(any(), any());
 
@@ -372,8 +374,9 @@ class InvestmentReportPublisherTest {
                 Map.of(),
                 false,
                 List.of(
-                    "Another investment report publish is running, or stopped without releasing"
-                        + " its lock: month=2026-03, heldUntil=2026-04-10T07:43:09Z")));
+                    "Another investment report publish holds the lock and extends it while it"
+                        + " runs; one that stopped loses it by heldUntil:"
+                        + " heldUntil=2026-04-10T07:02:00Z, month=2026-03")));
     verifyNoInteractions(
         dataService, newerReportCheck, pdfGenerator, wordPressClient, emailService);
   }

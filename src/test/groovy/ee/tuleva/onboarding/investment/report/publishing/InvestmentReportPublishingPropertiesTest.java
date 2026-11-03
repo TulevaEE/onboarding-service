@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -39,7 +40,7 @@ class InvestmentReportPublishingPropertiesTest {
           .withBean(WordPressMediaClient.class, () -> mock(WordPressMediaClient.class))
           .withBean(WordPressPageReader.class, () -> mock(WordPressPageReader.class))
           .withBean(EmailService.class, () -> mock(EmailService.class))
-          .withBean(LockProvider.class, () -> mock(LockProvider.class))
+          .withBean(LockProvider.class, () -> mock(ExtensibleLockProvider.class))
           .withBean(JdbcClient.class, () -> mock(JdbcClient.class))
           .withBean(Clock.class, Clock::systemUTC);
 

@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -56,6 +57,10 @@ public class TransactionCommand {
   @JdbcTypeCode(JSON)
   private Map<String, Object> manualAdjustments = Map.of();
 
+  @Builder.Default
+  @JdbcTypeCode(JSON)
+  private Set<String> excludeIsins = Set.of();
+
   @NotNull
   @Enumerated(STRING)
   @Builder.Default
@@ -74,6 +79,7 @@ public class TransactionCommand {
   static TransactionCommand requested(CreateTransactionCommandRequest request, String actor) {
     Map<String, Object> manualAdjustments = request.manualAdjustments();
     CashOverride cash = request.cash();
+    Set<String> excludeIsins = request.excludeIsins();
     return TransactionCommand.builder()
         .fund(request.fund())
         .mode(request.mode())
@@ -81,6 +87,7 @@ public class TransactionCommand {
         .manualAdjustments(manualAdjustments == null ? Map.of() : manualAdjustments)
         .cash(cash == null ? null : cash.amount())
         .cashComment(cash == null ? null : cash.comment())
+        .excludeIsins(excludeIsins == null ? Set.of() : Set.copyOf(excludeIsins))
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();

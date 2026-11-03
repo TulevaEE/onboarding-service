@@ -429,6 +429,34 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void reconcile_reportsOldestFirst_auditsAnImportedExecutionsChangeOnceNotOncePerReport() {
+    TransactionExecution imported =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .source("HISTORICAL_IMPORT")
+                .reportedDate(LocalDate.of(2026, 2, 10))
+                .build());
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    entityManager.flush();
+
+    reconciliationService.reconcile(reportListingTheFixtureOrderOn(LocalDate.of(2026, 2, 11)));
+    reconciliationService.reconcile(reportListingTheFixtureOrderOn(LocalDate.of(2026, 2, 12)));
+    reconciliationService.reconcile(report);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "EXECUTION_UPDATED"))
+        .hasSize(1);
+    assertThat(executionRepository.findById(imported.getId()).orElseThrow().getReportedDate())
+        .isEqualTo(LocalDate.of(2026, 2, 10));
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
@@ -812,6 +840,20 @@ class SebPendingTransactionReconciliationIT {
     List<Map<String, Object>> rawData = loadFixtureRawData();
     rawData.get(0).put("Client ref", owner.getOrderUuid().toString());
     rawData.get(0).put("Our ref", "DLA0000001");
+    return reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(reportDate)
+            .rawData(rawData)
+            .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
+            .createdAt(Instant.now())
+            .build());
+  }
+
+  private InvestmentReport reportListingTheFixtureOrderOn(LocalDate reportDate) {
+    List<Map<String, Object>> rawData = loadFixtureRawData();
+    rawData.get(0).put("Client ref", FIXTURE_CLIENT_REF.toString());
     return reportRepository.save(
         InvestmentReport.builder()
             .provider(SEB)

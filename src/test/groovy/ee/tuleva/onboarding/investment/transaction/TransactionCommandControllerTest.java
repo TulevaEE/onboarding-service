@@ -108,12 +108,9 @@ class TransactionCommandControllerTest {
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75,
-                REBALANCE,
-                AS_OF_DATE,
-                Map.of("IE00BFG1TM61", "1000.00"),
-                "shared-admin-token",
-                null))
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null),
+                "shared-admin-token"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -142,7 +139,10 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommand_passesAdminActorToService() throws Exception {
-    given(adminService.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null))
+    given(
+            adminService.createAndProcess(
+                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null),
+                "operator-7"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -159,7 +159,9 @@ class TransactionCommandControllerTest {
 
     then(adminService)
         .should()
-        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null);
+        .createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null),
+            "operator-7");
   }
 
   @Test
@@ -167,7 +169,8 @@ class TransactionCommandControllerTest {
     var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash))
+                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash),
+                "shared-admin-token"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -185,7 +188,9 @@ class TransactionCommandControllerTest {
 
     then(adminService)
         .should()
-        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash);
+        .createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash),
+            "shared-admin-token");
   }
 
   @Test

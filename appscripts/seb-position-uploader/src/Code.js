@@ -591,7 +591,8 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
-    if (isCurrentDriveCopyFrom(s3Key, emailSource)) {
+    var driveRecord = driveRecordOf(s3Key);
+    if (isCompletedDriveCopyFrom(driveRecord, emailSource)) {
         Logger.log("Drive copy skipped, the current copy already comes from this e-mail: file=" + name + ", messageId=" + emailSource.id);
         return;
     }
@@ -613,37 +614,69 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         recordCompletedDriveCopy(s3Key, emailSource);
         return;
     }
-    var keepsOldUsContentAsNewVersion = currentUsContent !== null && currentUsContent !== usContent && !isOldContentAlreadyTheLatestVersion(family, currentUsContent);
-    var version = keepsOldUsContentAsNewVersion ? family.nextVersion : family.usVersionWithoutItsOriginal || family.nextVersion;
+    var version = versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource) || family.nextVersion;
+    recordDriveCopyStarted(s3Key, emailSource, version);
+    var takenNames = family.names.slice();
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
-        updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, keepsOldUsContentAsNewVersion, version, usCopyName(name), usContent);
+        updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, version, takenNames, usCopyName(name), usContent);
     }
-    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version);
+    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version, takenNames);
     recordCompletedDriveCopy(s3Key, emailSource);
     Logger.log("Saved to Drive: file=" + name + ", messageId=" + emailSource.id);
 }
 
-function updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, keepsOldUsContentAsNewVersion, version, usName, usContent) {
+function updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, version, takenNames, usName, usContent) {
     var current = currentUsCopies[0];
-    if (keepsOldUsContentAsNewVersion) current.makeCopy(versionedDriveName(current.getName(), version), folder);
-    if (currentUsContent !== usContent) current.setContent(usContent);
+    if (currentUsContent !== usContent) {
+        keepOldContentAsVersionUnlessAResumedCopyAlreadyDid(folder, current, version, takenNames);
+        current.setContent(usContent);
+    }
     if (current.getName() !== usName) current.setName(usName);
-    currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), version)); });
+    currentUsCopies.slice(1).forEach(function (f) { f.setName(freeVersionedName(f.getName(), version, takenNames)); });
 }
 
-function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version) {
-    currentOriginals.forEach(function (f) { f.setName(versionedDriveName(f.getName(), version)); });
+function keepOldContentAsVersionUnlessAResumedCopyAlreadyDid(folder, current, version, takenNames) {
+    var versionName = versionedDriveName(current.getName(), version);
+    if (takenNames.indexOf(versionName) !== -1) return;
+    current.makeCopy(versionName, folder);
+    takenNames.push(versionName);
+}
+
+function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version, takenNames) {
+    currentOriginals.forEach(function (f) { f.setName(freeVersionedName(f.getName(), version, takenNames)); });
     folder.createFile(attachment.copyBlob());
+}
+
+function freeVersionedName(name, version, takenNames) {
+    var free = version;
+    while (takenNames.indexOf(versionedDriveName(name, free)) !== -1) free++;
+    takenNames.push(versionedDriveName(name, free));
+    return versionedDriveName(name, free);
 }
 
 var DRIVE_SOURCE_PROPERTY_PREFIX = "drive_source:";
 
-function isCurrentDriveCopyFrom(s3Key, emailSource) {
-    var recorded = PropertiesService.getScriptProperties().getProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key);
-    var current = parseEmailSource(s3Key, recorded);
-    return Boolean(current) && current.id === emailSource.id;
+function driveRecordOf(s3Key) {
+    return parseEmailSource(s3Key, PropertiesService.getScriptProperties().getProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key));
+}
+
+function isCompletedDriveCopyFrom(driveRecord, emailSource) {
+    return Boolean(driveRecord) && driveRecord.id === emailSource.id && !driveRecord.unfinishedVersion;
+}
+
+function versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource) {
+    return driveRecord && driveRecord.id === emailSource.id ? driveRecord.unfinishedVersion || null : null;
+}
+
+function recordDriveCopyStarted(s3Key, emailSource, version) {
+    try {
+        var started = { date: emailSource.date, id: emailSource.id, unfinishedVersion: version };
+        PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(started));
+    } catch (e) {
+        Logger.log("Drive record of a started copy not saved, a resume may take a new version number: key=" + s3Key + ", error=" + e.message);
+    }
 }
 
 function recordCompletedDriveCopy(s3Key, emailSource) {
@@ -652,10 +685,6 @@ function recordCompletedDriveCopy(s3Key, emailSource) {
     } catch (e) {
         Logger.log("Drive record not saved, the copy itself went through: key=" + s3Key + ", error=" + e.message);
     }
-}
-
-function isOldContentAlreadyTheLatestVersion(family, content) {
-    return Boolean(family.latestUsVersion) && contentOf(family.latestUsVersion) === content;
 }
 
 var US_NAME_ALERT_PROPERTY_PREFIX = "us_name_alerted:";
@@ -716,8 +745,6 @@ function sourceTime(record) {
 function driveReportFamily(folder, fileConfig, reportDate) {
     var current = [];
     var names = [];
-    var latestUsVersion = null;
-    var originalVersions = [];
     var files = folder.getFiles();
     while (files.hasNext()) {
         var file = files.next();
@@ -725,24 +752,8 @@ function driveReportFamily(folder, fileConfig, reportDate) {
         if (!isSameDriveReport(name, fileConfig, reportDate)) continue;
         names.push(name);
         if (!isVersionedDriveName(name)) current.push(file);
-        else if (!isUsVersionName(name)) originalVersions.push(versionOf(name));
-        else if (!latestUsVersion || versionOf(name) > versionOf(latestUsVersion.getName())) latestUsVersion = file;
     }
-    var latestUsVersionNumber = latestUsVersion ? versionOf(latestUsVersion.getName()) : null;
-    return {
-        current: current,
-        nextVersion: nextDriveVersion(names),
-        latestUsVersion: latestUsVersion,
-        usVersionWithoutItsOriginal: latestUsVersionNumber !== null && originalVersions.indexOf(latestUsVersionNumber) === -1 ? latestUsVersionNumber : null,
-    };
-}
-
-function isUsVersionName(name) {
-    return /_us_v\d+\.csv$/i.test(name);
-}
-
-function versionOf(name) {
-    return parseInt(name.match(/_v(\d+)\.csv$/i)[1], 10);
+    return { current: current, names: names, nextVersion: nextDriveVersion(names) };
 }
 
 function isSameDriveReport(name, fileConfig, reportDate) {

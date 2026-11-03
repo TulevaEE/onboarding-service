@@ -504,6 +504,35 @@ describe("saveReportToDrive", () => {
     ]);
   });
 
+  test("two current _US copies of one name are never versioned onto the same name", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    const names = drive.names();
+    expect(new Set(names).size).toBe(names.length);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("an older _US version with no original of its number does not pull a new save's original onto it", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_US_v2.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_US.csv": "C,3\n",
+      "TULEVA_pos_raport_20261020.csv": "X;0\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "C;3\n"), POSITIONS, "20261020", LATER);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_v3.csv").map((f) => f.content())).toEqual(["X;0\n"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v2.csv")).toEqual([]);
+  });
+
   test("a later correction takes the next version number for both files", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

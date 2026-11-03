@@ -5,14 +5,11 @@
 // ReportImportJob in TulevaEE/onboarding-service then pulls those files and
 // ingests them into investment_report and investment_fund_position.
 //
-// SEB reports are also saved to a Google Drive folder for Tuleva's Google
-// Sheets NAV fallback, so Drive holds the same file as S3 (see saveReportsToDrive).
-//
 // Required Apps Script Properties (Project Settings > Script properties):
 //   AWS_ACCESS_KEY_ID
 //   AWS_SECRET_ACCESS_KEY
 //   AWS_REGION (defaults to eu-central-1)
-//   DRIVE_SEB_REPORT_FOLDER_ID (the Drive copy is skipped when it isn't set)
+//   DRIVE_SEB_REPORT_FOLDER_ID
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview).
@@ -74,9 +71,6 @@ var SOURCES = {
     }
 };
 
-// Every run holds the script lock for its S3 and Drive passes, so an overlapping
-// trigger or catch-up run cannot check a report's e-mail record, upload and record
-// in between and put an older report back.
 var RUN_LOCK_WAIT_MS = 10000;
 
 function processNewEmails() {
@@ -296,7 +290,7 @@ function notifySlack(message) {
     try {
         var webhookUrl = PropertiesService.getScriptProperties().getProperty("SLACK_WEBHOOK_URL");
         if (!webhookUrl) {
-            Logger.log("SLACK_WEBHOOK_URL not configured — would have sent: " + message);
+            Logger.log("Slack alert not sent, SLACK_WEBHOOK_URL not configured: message=" + message);
             return false;
         }
         var response = UrlFetchApp.fetch(webhookUrl, {
@@ -312,7 +306,7 @@ function notifySlack(message) {
         }
         return true;
     } catch (e) {
-        Logger.log("Slack notify threw: " + e.message);
+        Logger.log("Slack alert failed: error=" + e.message);
         return false;
     }
 }
@@ -351,10 +345,10 @@ function processMessage(message, thread, newestUploaded) {
 
             try {
                 uploadToS3(S3_BUCKET, s3Key, content, resolveContentType(result.fileConfig));
-                Logger.log("SUCCESS: Uploaded " + filename + " -> s3://" + S3_BUCKET + "/" + s3Key);
+                Logger.log("Uploaded to S3: file=" + filename + ", bucket=" + S3_BUCKET + ", key=" + s3Key);
                 handledCount++;
             } catch (e) {
-                Logger.log("FAILED: " + filename + " -> " + e.message);
+                Logger.log("S3 upload failed: file=" + filename + ", bucket=" + S3_BUCKET + ", key=" + s3Key + ", error=" + e.message);
                 throw e;
             }
             if (datedReport) {
@@ -378,10 +372,6 @@ function keysOfAttachmentsWithoutUsEnding(source, attachments) {
     return keys;
 }
 
-// A report named by its date keeps one file per date on S3 and in Drive. A Script
-// Property per S3 key records the e-mail (date and Gmail id) whose report that
-// file holds, so a catch-up replay or a retry of an older e-mail never puts an
-// older report back; of two e-mails with the same time the higher Gmail id wins.
 var REPORT_SOURCE_PROPERTY_PREFIX = "report_source:";
 var REPORT_SOURCE_KEEP_DAYS = 45;
 
@@ -395,8 +385,6 @@ function isReplacedByNewerEmail(s3Key, emailSource, newestUploaded) {
     return Boolean(newestUploaded) && isOlderThanCurrentSource(emailSource, newestUploaded[s3Key] || null);
 }
 
-// The run's own memory of the newest uploaded e-mail per report, so a record
-// write that fails cannot let an older e-mail through in the same run.
 function rememberNewest(newestUploaded, s3Key, emailSource) {
     if (!newestUploaded) return;
     var current = newestUploaded[s3Key] || null;
@@ -423,10 +411,6 @@ function recordEmailSource(s3Key, emailSource) {
     }
 }
 
-// An e-mail uploaded without a record (before the record existed, or when its
-// record write failed) still counts: before any upload, each run records the
-// newest already-uploaded e-mail per report, so an older e-mail found later is
-// skipped instead of replacing it.
 function recordSourcesOfUploadedEmails(threads, minMessageDate) {
     var newestUploaded = {};
     for (var i = 0; i < threads.length; i++) {

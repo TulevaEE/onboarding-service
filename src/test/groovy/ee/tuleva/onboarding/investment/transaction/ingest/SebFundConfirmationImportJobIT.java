@@ -412,7 +412,8 @@ class SebFundConfirmationImportJobIT {
             event ->
                 assertThat(event.getPayload())
                     .containsEntry("status", "[NOT_CHECKED, NOT_CHECKED, NOT_CHECKED]")
-                    .containsEntry("registryStatus", "MATCH"));
+                    .containsEntry("registryStatus", "MATCH")
+                    .doesNotContainKey("navDatesAfterReceipt"));
   }
 
   @Test

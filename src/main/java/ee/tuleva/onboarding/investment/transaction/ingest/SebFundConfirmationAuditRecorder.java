@@ -244,17 +244,14 @@ class SebFundConfirmationAuditRecorder {
     payload.put("registryDifferences", List.copyOf(result.registry().differences()));
     putIfPresent(payload, "nav", result.nav());
     putIfPresent(payload, "deviationPercent", result.deviationPercent());
-    Integer navDatesAfterReceipt = result.navDatesAfterReceipt();
-    if (navDatesAfterReceipt != null) {
-      payload.put("navDatesAfterReceipt", navDatesAfterReceipt);
-    }
+    putIfPresent(payload, "navDatesAfterReceipt", result.navDatesAfterReceipt());
     return payload;
   }
 
   private static void putIfPresent(
-      Map<String, Object> payload, String key, @Nullable BigDecimal value) {
+      Map<String, Object> payload, String key, @Nullable Object value) {
     if (value != null) {
-      payload.put(key, value.toPlainString());
+      payload.put(key, value instanceof BigDecimal number ? number.toPlainString() : value);
     }
   }
 }

@@ -102,7 +102,7 @@ class SebFundConfirmationAlertText {
                   + ": hinnapäev "
                   + date(confirmation.pricingDate())
                   + " on "
-                  + result.navDatesAfterReceipt()
+                  + Objects.requireNonNull(result.navDatesAfterReceipt())
                   + " NAV-i päeva pärast korralduse saamist (lubatud "
                   + properties.maxNavDatesAfterReceipt()
                   + ")",

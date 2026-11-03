@@ -44,4 +44,19 @@ class PaymentRatesSpec extends Specification {
     6       | 4       || true
     6       | 6       || false
   }
+
+  def "the pending rate applies over the current one"() {
+    when:
+    PaymentRates paymentRates = new PaymentRates(current, pending)
+    then:
+    paymentRates.rateThatApplies() == rateThatApplies
+    where:
+    current | pending || rateThatApplies
+    null    | null    || null
+    null    | 4       || 4
+    2       | null    || 2
+    6       | null    || 6
+    2       | 6       || 6
+    6       | 4       || 4
+  }
 }

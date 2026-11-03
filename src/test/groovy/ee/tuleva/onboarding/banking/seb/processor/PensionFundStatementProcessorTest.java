@@ -24,7 +24,8 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -143,7 +144,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA1",
                     "IE00BFG1TM61",
                     "BDWTEIA",
@@ -170,7 +171,7 @@ class PensionFundStatementProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
             eq(
-                new FundBankLedger.UnclassifiedEntryDetails(
+                new UnclassifiedEntryDetails(
                     "Mystery OU", "EE001234567890123499", "selgituseta", "OTHR")));
     var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
     verify(paymentCheckService)
@@ -218,7 +219,7 @@ class PensionFundStatementProcessorTest {
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
             eq(
-                new FundBankLedger.UnclassifiedEntryDetails(
+                new UnclassifiedEntryDetails(
                     "Tuleva Fondid AS", "EE001234567890123488", "muu ülekanne", "RCDT")));
     var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
     verify(paymentCheckService)
@@ -305,7 +306,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA1",
                     "IE00BFG1TM61",
                     "BDWTEIA",
@@ -406,7 +407,7 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA1",
                     "IE00BFG1TM61",
                     "BDWTEIA",

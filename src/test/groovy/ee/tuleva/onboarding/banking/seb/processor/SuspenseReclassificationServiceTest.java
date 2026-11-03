@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -62,7 +63,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "TULEVA MAAILMA AKTSIATE PENSIONIFOND",
             OWN_ACCOUNT_IBAN,
             "Ülekanne fondi teisele kontole",
@@ -73,15 +74,14 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3", "ESCT"));
+        new UnclassifiedEntryDetails("Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3", "ESCT"));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("34720.54"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", "TUK75 BR rebate", "ESCT"));
 
     var result = service.reclassify(TUK75);
@@ -115,7 +115,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", remittanceInformation, "RCDT"));
   }
 
@@ -127,7 +127,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine", null));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
@@ -135,15 +135,14 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            "AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine", null));
+        new UnclassifiedEntryDetails("AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine", null));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("99.99"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Mystery Counterparty OU", "EE001234567890123499", "selgituseta", "XXXX"));
 
     var result = service.reclassify(TUK75);
@@ -256,7 +255,7 @@ class SuspenseReclassificationServiceTest {
         externalReference,
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             null,
             null,
             "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd",
@@ -299,7 +298,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             counterpartyName, counterpartyIban, remittanceInformation, subFamilyCode));
   }
 
@@ -311,8 +310,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            null, null, remittanceInformation, subFamilyCode));
+        new UnclassifiedEntryDetails(null, null, remittanceInformation, subFamilyCode));
   }
 
   private BigDecimal instrumentBalance(SystemAccount systemAccount) {

@@ -12,7 +12,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;

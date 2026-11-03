@@ -20,6 +20,8 @@ const {
   messagesFrom,
   backfillQueue,
   backfillTimeIsUp,
+  backfillRequested,
+  finishBackfill,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -305,11 +307,38 @@ describe("backfillQueue", () => {
 describe("backfillTimeIsUp", () => {
   const startedAt = new Date("2026-11-03T10:00:00Z");
 
-  test("keeps uploading within the budget that leaves room before Apps Script's six-minute limit", () => {
-    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:59Z"))).toBe(false);
+  test("keeps uploading within the budget that ends before the next five-minute trigger run", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:03:59Z"))).toBe(false);
   });
   test("pauses once the budget is spent", () => {
-    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:05:00Z"))).toBe(true);
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:00Z"))).toBe(true);
+  });
+});
+
+describe("backfill requested through a Script Property", () => {
+  const properties = (initial) => {
+    const values = { ...initial };
+    return {
+      getProperty: (key) => (key in values ? values[key] : null),
+      deleteProperty: (key) => { delete values[key]; },
+      values,
+    };
+  };
+
+  test("lets the funds mailbox's own trigger run the backfill once an editor sets the request", () => {
+    expect(backfillRequested(properties({ SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes" }))).toBe(true);
+  });
+  test("leaves the trigger to its regular run when no backfill is requested", () => {
+    expect(backfillRequested(properties({}))).toBe(false);
+  });
+  test("clears the request and the resume point once the backfill completes, so the trigger stops running it", () => {
+    const props = properties({
+      SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes",
+      SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-03-02T10:00:00.000Z",
+      SLACK_WEBHOOK_URL: "https://hooks.example/abc",
+    });
+    finishBackfill(props);
+    expect(props.values).toEqual({ SLACK_WEBHOOK_URL: "https://hooks.example/abc" });
   });
 });
 

@@ -331,7 +331,7 @@ function processMessage(message, thread, newestUploaded) {
         if (result) {
             var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
             var datedReport = !result.fileConfig.keyFromCapture;
-            if (isUsCopyName(filename) && keysWithAPlainAttachment.indexOf(s3Key) !== -1) {
+            if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                 Logger.log("S3 upload skipped, the e-mail also has the report without the _US ending: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
                 handledCount++;
                 continue;
@@ -361,6 +361,10 @@ function processMessage(message, thread, newestUploaded) {
     if (handledCount > 0) {
         incrementUploadLabel(thread);
     }
+}
+
+function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAPlainAttachment) {
+    return Boolean(fileConfig.driveKeyword) && isUsCopyName(filename) && keysWithAPlainAttachment.indexOf(s3Key) !== -1;
 }
 
 function keysOfAttachmentsWithoutUsEnding(source, attachments) {

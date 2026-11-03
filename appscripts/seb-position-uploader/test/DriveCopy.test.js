@@ -1300,6 +1300,22 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
   });
 
+  test("a Swedbank e-mail with a _US.csv portfolio file after the plain one uploads both, as before, and the last wins", () => {
+    const portfolio = {
+      ...noRecipients,
+      getId: () => "18f0a00000000001",
+      getDate: () => MORNING,
+      getFrom: () => "Swedbank <" + SOURCES.SWEDBANK.senders[0] + ">",
+      getAttachments: () => [fakeAttachment("TULEVA_PORTFOLIO_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_PORTFOLIO_20261020_US.csv", "X,9\n")],
+    };
+    const fakes = s3Only([fakeThread([portfolio], [])]);
+
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["portfolio/2026-10-20.csv", "portfolio/2026-10-20.csv"]);
+    expect(fakes.s3Bodies["portfolio/2026-10-20.csv"]).toBe("X,9\n");
+  });
+
   test("a lone _US.csv attachment still goes to S3, and not to Drive", () => {
     const drive = fakeDrive();
     const thread = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])], []);

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
+import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
@@ -21,6 +22,8 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -35,6 +38,7 @@ import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -73,6 +77,7 @@ class TransactionPipelineIntegrationTest {
   private static final BigDecimal ESGM_PRICE = new BigDecimal("45.00");
   private static final BigDecimal SNAPSHOT_RESERVED_UNITS = new BigDecimal("500.90162");
   private static final BigDecimal SNAPSHOT_TKF100_NAV = new BigDecimal("1.00320");
+  private static final String EXCLUDED_ISIN = "LU1291099718";
 
   @TestConfiguration
   static class TestClockConfig {
@@ -360,6 +365,66 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Test
+  void
+      processCommand_rebalanceWithAnInstrumentExcluded_givesItsShareToTheOthersAndTradesTheSameNet() {
+    var withoutExclusion = preparationService.processCommand(createCommand(REBALANCE));
+    var withExclusion =
+        preparationService.processCommand(createCommand(REBALANCE, Set.of(EXCLUDED_ISIN)));
+
+    assertThat(withoutExclusion).isNotNull();
+    assertThat(withExclusion).isNotNull();
+    Map<String, BigDecimal> before = signedOrderAmounts(withoutExclusion.orders());
+    Map<String, BigDecimal> after = signedOrderAmounts(withExclusion.orders());
+    assertThat(before).containsKey(EXCLUDED_ISIN);
+    assertThat(after).doesNotContainKey(EXCLUDED_ISIN);
+    assertThat(sum(after)).isCloseTo(sum(before), within(ONE));
+    assertThat(before.keySet())
+        .filteredOn(isin -> !isin.equals(EXCLUDED_ISIN))
+        .allSatisfy(
+            isin -> assertThat(after.getOrDefault(isin, ZERO)).isGreaterThan(before.get(isin)));
+  }
+
+  @Test
+  void processCommand_withAnInstrumentExcluded_storesItOnTheCommandAndInTheCompletedAuditEvent() {
+    var command = createCommand(REBALANCE, Set.of(EXCLUDED_ISIN));
+
+    var result = preparationService.processCommand(command);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(result).isNotNull();
+    assertThat(commandRepository.findById(command.getId()))
+        .get()
+        .extracting(TransactionCommand::getExcludeIsins)
+        .isEqualTo(Set.of(EXCLUDED_ISIN));
+    Map<String, Object> payload =
+        auditEventRepository.findByBatchIdOrderByCreatedAt(result.batch().getId()).stream()
+            .filter(event -> "CALCULATION_COMPLETED".equals(event.getEventType()))
+            .findFirst()
+            .orElseThrow()
+            .getPayload();
+    assertThat(payload.get("excludeIsins")).isEqualTo(List.of(EXCLUDED_ISIN));
+    assertThat(payload.get("input"))
+        .asInstanceOf(MAP)
+        .extractingByKey("excludedPositions")
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asInstanceOf(MAP)
+        .containsEntry("isin", EXCLUDED_ISIN);
+  }
+
+  @Test
+  void processCommand_excludingAnInstrumentTheFundDoesNotHave_failsTheCommand() {
+    var command = createCommand(REBALANCE, Set.of("IE0000000000"));
+
+    var result = preparationService.processCommand(command);
+
+    assertThat(result).isNull();
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getBatchId()).isNull();
+  }
+
+  @Test
   void savingACashFigureWithoutAComment_isRejectedByTheDatabase() {
     var command =
         TransactionCommand.builder()
@@ -402,6 +467,32 @@ class TransactionPipelineIntegrationTest {
             .cashComment("Cash line confirmed with the custodian")
             .build();
     return commandRepository.save(command);
+  }
+
+  private TransactionCommand createCommand(TransactionMode mode, Set<String> excludeIsins) {
+    var command =
+        TransactionCommand.builder()
+            .fund(TKF100)
+            .mode(mode)
+            .asOfDate(TEST_DATE)
+            .excludeIsins(excludeIsins)
+            .build();
+    return commandRepository.save(command);
+  }
+
+  private static Map<String, BigDecimal> signedOrderAmounts(List<TransactionOrder> orders) {
+    return orders.stream()
+        .collect(
+            toMap(
+                TransactionOrder::getInstrumentIsin,
+                order ->
+                    order.getTransactionType() == SELL
+                        ? order.getOrderAmount().negate()
+                        : order.getOrderAmount()));
+  }
+
+  private static BigDecimal sum(Map<String, BigDecimal> amounts) {
+    return amounts.values().stream().reduce(ZERO, BigDecimal::add);
   }
 
   private void assertBuyOrder(

@@ -22,6 +22,12 @@ final class TransactionInputPayloads {
             .toList());
     putIfPresent(
         result,
+        "excludedPositions",
+        input.excludedPositions().stream()
+            .map(position -> serializePosition(position, input.grossPortfolioValue()))
+            .toList());
+    putIfPresent(
+        result,
         "modelWeights",
         input.modelWeights().stream().map(TransactionInputPayloads::serializeModelWeight).toList());
     putIfPresent(result, "grossPortfolioValue", plain(input.grossPortfolioValue()));

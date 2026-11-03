@@ -79,7 +79,7 @@ class TransactionAdminService {
             fund ->
                 createAndProcess(
                     new CreateTransactionCommandRequest(
-                        fund, mode, asOfDate, null, cashOverrides.get(fund)),
+                        fund, mode, asOfDate, null, cashOverrides.get(fund), null),
                     actor))
         .toList();
   }

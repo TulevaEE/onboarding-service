@@ -235,7 +235,8 @@ public class TradeCalculationEngine {
         .grossPortfolioValue()
         .subtract(input.cashBuffer())
         .subtract(input.liabilities())
-        .add(input.receivables());
+        .add(input.receivables())
+        .subtract(input.excludedMarketValue());
   }
 
   private Map<String, BigDecimal> buildWeightMap(List<ModelWeight> modelWeights) {

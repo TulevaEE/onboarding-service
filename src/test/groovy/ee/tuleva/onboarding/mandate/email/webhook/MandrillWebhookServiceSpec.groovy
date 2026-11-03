@@ -201,6 +201,42 @@ class MandrillWebhookServiceSpec extends Specification {
     0 * eventLogRepository.save(_)
   }
 
+  def "passes the email's Mandrill tags on with a delivery failure"() {
+    given:
+    def eventsJson = """[{"event":"hard_bounce","_id":"event123","ts":$eventTimestamp,"msg":{"_id":"$mandrillMessageId","email":"desk@example.com","subject":"TUV100 ostu-/müügikorraldused 15.01.2026","state":"bounced","tags":["trade-order"]}}]"""
+
+    signatureVerifier.verify(request, "valid_signature") >> true
+
+    when:
+    service.handleWebhook(eventsJson, "valid_signature", request)
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.recipient() == "desk@example.com" && e.tags() == ["trade-order"]
+    })
+  }
+
+  def "publishes a delivery failure with no tags when the email had none"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .state("bounced")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e -> e.tags() == [] })
+  }
+
   def "prefers bounce description over diag as the failure reason"() {
     given:
     def event = MandrillWebhookEvent.builder()

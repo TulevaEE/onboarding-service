@@ -2,7 +2,12 @@ package ee.tuleva.onboarding.notification.email;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.BCC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.failed;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.sent;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.unknown;
 import static java.util.Locale.ROOT;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toSet;
@@ -15,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
@@ -31,39 +37,66 @@ record MandrillRecipientStatuses(
     Set<String> mainRecipients = addressesOf(message, false);
     Set<String> copyOnlyRecipients = addressesOf(message, true);
     copyOnlyRecipients.removeAll(mainRecipients);
-    if (statuses.length == 0) {
-      throw new IllegalStateException(
-          "Mandrill answered with no recipient status: mainRecipients=%d, copyRecipients=%d"
-              .formatted(mainRecipients.size(), copyOnlyRecipients.size()));
-    }
     return new MandrillRecipientStatuses(
         Set.copyOf(mainRecipients), Set.copyOf(copyOnlyRecipients), List.of(statuses));
   }
 
   void requireAcceptedByEveryMainRecipient() {
-    statuses.forEach(MandrillRecipientStatuses::logStatus);
-    List<MandrillMessageStatus> notAccepted =
-        statuses.stream().filter(not(MandrillRecipientStatuses::isAccepted)).toList();
-    notAccepted.stream()
-        .filter(this::isOnlyCopy)
-        .forEach(MandrillRecipientStatuses::warnCopyNotAccepted);
-    notAccepted.stream()
-        .filter(not(this::isOnlyCopy))
-        .findFirst()
-        .ifPresent(
-            status -> {
-              throw new EmailDeliveryException(
-                  "Mandrill did not accept email: status=%s, rejectReason=%s, id=%s"
-                      .formatted(status.getStatus(), status.getRejectReason(), status.getId()));
-            });
-    if (!answeredRecipients().containsAll(mainRecipients)) {
-      throw new EmailDeliveryException(
-          "Mandrill gave no status for a main recipient: mainRecipients=%d, statuses=%d, ids=%s"
-              .formatted(
-                  mainRecipients.size(),
-                  statuses.size(),
-                  statuses.stream().map(MandrillMessageStatus::getId).toList()));
+    if (statuses.isEmpty()) {
+      throw new IllegalStateException(noStatusProblem());
     }
+    var result = result();
+    if (result.outcome() != SENT) {
+      throw new EmailDeliveryException(requireNonNull(result.problem()));
+    }
+  }
+
+  EmailSendResult result() {
+    if (statuses.isEmpty()) {
+      return unknown(statuses, noStatusProblem());
+    }
+    statuses.forEach(MandrillRecipientStatuses::logStatus);
+    statuses.stream()
+        .filter(this::isOnlyCopy)
+        .filter(not(MandrillRecipientStatuses::isAccepted))
+        .forEach(MandrillRecipientStatuses::warnCopyNotAccepted);
+    if (!answeredRecipients().containsAll(mainRecipients)) {
+      return unknown(statuses, firstRefusal().orElseGet(this::missingMainRecipientProblem));
+    }
+    if (mainStatuses().allMatch(MandrillRecipientStatuses::isAccepted)) {
+      return sent(statuses);
+    }
+    var problem = firstRefusal().orElseThrow();
+    return mainStatuses().allMatch(MandrillRecipientStatuses::hasFailed)
+        ? failed(statuses, problem)
+        : unknown(statuses, problem);
+  }
+
+  private Stream<MandrillMessageStatus> mainStatuses() {
+    return statuses.stream().filter(not(this::isOnlyCopy));
+  }
+
+  private Optional<String> firstRefusal() {
+    return mainStatuses()
+        .filter(not(MandrillRecipientStatuses::isAccepted))
+        .findFirst()
+        .map(
+            status ->
+                "Mandrill did not accept email: status=%s, rejectReason=%s, id=%s"
+                    .formatted(status.getStatus(), status.getRejectReason(), status.getId()));
+  }
+
+  private String missingMainRecipientProblem() {
+    return "Mandrill gave no status for a main recipient: mainRecipients=%d, statuses=%d, ids=%s"
+        .formatted(
+            mainRecipients.size(),
+            statuses.size(),
+            statuses.stream().map(MandrillMessageStatus::getId).toList());
+  }
+
+  private String noStatusProblem() {
+    return "Mandrill answered with no recipient status: mainRecipients=%d, copyRecipients=%d"
+        .formatted(mainRecipients.size(), copyOnlyRecipients.size());
   }
 
   static void logStatus(MandrillMessageStatus status) {
@@ -103,7 +136,7 @@ record MandrillRecipientStatuses(
     return recipient.getType() == CC || recipient.getType() == BCC;
   }
 
-  private static boolean isAccepted(MandrillMessageStatus status) {
+  static boolean isAccepted(MandrillMessageStatus status) {
     return status.getStatus() != null && ACCEPTED_STATUSES.contains(status.getStatus());
   }
 

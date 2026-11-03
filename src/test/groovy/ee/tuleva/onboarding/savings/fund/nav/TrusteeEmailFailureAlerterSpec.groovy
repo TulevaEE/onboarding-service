@@ -55,7 +55,7 @@ class TrusteeEmailFailureAlerterSpec extends Specification {
   def "ignores delivery failures for non-trustee recipients"() {
     given:
     def event = new EmailDeliveryFailedEvent(
-        "saver@example.com", "Some subject", "hard_bounce", "550 mailbox unavailable", "msg_2", t0)
+        "saver@example.com", "Some subject", "hard_bounce", "550 mailbox unavailable", "msg_2", t0, [])
 
     when:
     alerter.onEmailDeliveryFailed(event)
@@ -73,6 +73,7 @@ class TrusteeEmailFailureAlerterSpec extends Specification {
         "deferral",
         "450 4.7.25 Client host rejected: cannot find your hostname",
         messageId,
-        t0)
+        t0,
+        [])
   }
 }

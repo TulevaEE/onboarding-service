@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.slack;
 
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.TRADING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
@@ -23,5 +24,14 @@ class SlackWebhookConfigurationTest {
     configuration.setWebhooks(Map.of("aml", "https://example.com/aml-webhook"));
 
     assertThat(configuration.getWebhookUrl(INVESTMENT)).isNull();
+  }
+
+  @Test
+  void readsTheTradingChannelWebhookFromTheTradingKey() {
+    SlackWebhookConfiguration configuration = new SlackWebhookConfiguration();
+    configuration.setWebhooks(Map.of("trading", "https://example.com/trading-webhook"));
+
+    assertThat(configuration.getWebhookUrl(TRADING))
+        .isEqualTo("https://example.com/trading-webhook");
   }
 }

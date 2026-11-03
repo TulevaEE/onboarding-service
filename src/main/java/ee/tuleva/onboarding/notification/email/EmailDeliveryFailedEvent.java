@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.notification.email;
 
 import java.time.Instant;
+import java.util.List;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -11,4 +12,10 @@ public record EmailDeliveryFailedEvent(
     String eventType,
     @Nullable String reason,
     String mandrillMessageId,
-    Instant timestamp) {}
+    Instant timestamp,
+    List<String> tags) {
+
+  public EmailDeliveryFailedEvent {
+    tags = List.copyOf(tags);
+  }
+}

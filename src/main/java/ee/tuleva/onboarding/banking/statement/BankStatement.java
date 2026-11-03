@@ -100,21 +100,23 @@ public class BankStatement {
   public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
     var bankStatement = from(report, timezone);
-    return Optional.ofNullable(accountReport.getGrpHdr())
-        .map(header -> header.getMsgPgntn())
-        .filter(pagination -> !pagination.isLastPgInd())
-        .map(pagination -> bankStatement.withMorePagesToFollow())
-        .orElse(bankStatement);
+    var morePagesFollow =
+        Optional.ofNullable(accountReport.getGrpHdr())
+            .map(header -> header.getMsgPgntn())
+            .filter(pagination -> !pagination.isLastPgInd())
+            .isPresent();
+    return morePagesFollow ? bankStatement.withMorePagesToFollow() : bankStatement;
   }
 
   public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
     var statement = Require.exactlyOne(customerStatement.getStmt(), "statement");
     var bankStatement = from(statement, timezone);
-    return Optional.ofNullable(customerStatement.getGrpHdr())
-        .map(header -> header.getMsgPgntn())
-        .filter(pagination -> !pagination.isLastPgInd())
-        .map(pagination -> bankStatement.withMorePagesToFollow())
-        .orElse(bankStatement);
+    var morePagesFollow =
+        Optional.ofNullable(customerStatement.getGrpHdr())
+            .map(header -> header.getMsgPgntn())
+            .filter(pagination -> !pagination.isLastPgInd())
+            .isPresent();
+    return morePagesFollow ? bankStatement.withMorePagesToFollow() : bankStatement;
   }
 
   static BankStatement from(AccountReport11 report, ZoneId timezone) {

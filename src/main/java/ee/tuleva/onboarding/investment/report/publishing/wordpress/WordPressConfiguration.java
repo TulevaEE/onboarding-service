@@ -4,7 +4,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 
+import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.util.Base64;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,13 +38,16 @@ class WordPressConfiguration {
           missingProperties);
     }
     return new WordPressMediaClient(
-        authenticatedRestClient(properties), wordPressRetryTemplate(), missingProperties);
+        authenticatedRestClient(properties),
+        retryingTransientFailures(),
+        retryingRequestsThatNeverReachedWordPress(),
+        missingProperties);
   }
 
   @Bean
   WordPressPageReader wordPressPageReader(WordPressProperties properties) {
     return new WordPressPageReader(
-        wordPressRestClientBuilder(properties).build(), wordPressRetryTemplate());
+        wordPressRestClientBuilder(properties).build(), retryingTransientFailures());
   }
 
   private static RestClient authenticatedRestClient(WordPressProperties properties) {
@@ -74,16 +80,24 @@ class WordPressConfiguration {
     return Base64.getEncoder().encodeToString(credentials.getBytes(UTF_8));
   }
 
-  private RetryTemplate wordPressRetryTemplate() {
-    var policy =
+  static RetryTemplate retryingTransientFailures() {
+    return retrying(
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)
-            .excludes(HttpClientErrorException.class)
-            .maxRetries(2)
-            .delay(ofMillis(500))
-            .multiplier(2)
-            .maxDelay(ofSeconds(2))
-            .build();
-    return new RetryTemplate(policy);
+            .excludes(HttpClientErrorException.class));
+  }
+
+  static RetryTemplate retryingRequestsThatNeverReachedWordPress() {
+    return retrying(
+        RetryPolicy.builder()
+            .includes(
+                ConnectException.class,
+                HttpConnectTimeoutException.class,
+                UnknownHostException.class));
+  }
+
+  private static RetryTemplate retrying(RetryPolicy.Builder failures) {
+    return new RetryTemplate(
+        failures.maxRetries(2).delay(ofMillis(500)).multiplier(2).maxDelay(ofSeconds(2)).build());
   }
 }

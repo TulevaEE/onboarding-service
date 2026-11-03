@@ -20,6 +20,7 @@ public class WordPressMediaClient {
 
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
+  private final RetryTemplate uploadRetryTemplate;
   private final List<String> missingProperties;
 
   public record UploadResult(int attachmentId, String sourceUrl) {}
@@ -31,7 +32,7 @@ public class WordPressMediaClient {
     log.info("Uploading PDF to WordPress: filename={}, size={}bytes", slug, pdfBytes.length);
 
     var response =
-        retryTemplate.invoke(
+        uploadRetryTemplate.invoke(
             () ->
                 restClient
                     .post()

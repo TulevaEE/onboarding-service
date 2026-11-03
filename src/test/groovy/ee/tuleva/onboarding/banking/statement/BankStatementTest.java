@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
 import ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions2;
@@ -299,24 +298,6 @@ class BankStatementTest {
   }
 
   @Test
-  void from_accountReportMessage_isNotTheLastPageWhenSebMarksMorePagesToFollow() {
-    var message = Camt052Fixtures.message(emptyReport(), Camt052Fixtures.firstOfSeveralPages());
-
-    assertThat(BankStatement.from(message, TALLINN).isLastPage()).isFalse();
-  }
-
-  @Test
-  void from_accountReportMessage_isTheLastPageWhenSebMarksItSoOrSendsNoPagination() {
-    var lastPage = Camt052Fixtures.message(emptyReport(), Camt052Fixtures.lastPage());
-    var withoutPagination = Camt052Fixtures.message(emptyReport(), null);
-    var withoutHeader = Camt052Fixtures.messageWithoutHeader(emptyReport());
-
-    assertThat(BankStatement.from(lastPage, TALLINN).isLastPage()).isTrue();
-    assertThat(BankStatement.from(withoutPagination, TALLINN).isLastPage()).isTrue();
-    assertThat(BankStatement.from(withoutHeader, TALLINN).isLastPage()).isTrue();
-  }
-
-  @Test
   void from_statementMessage_isNotTheLastPageWhenSebMarksMorePagesToFollow() {
     var message = Camt053Fixtures.message(emptyStatement(), Camt053Fixtures.firstOfSeveralPages());
 
@@ -332,15 +313,6 @@ class BankStatementTest {
     assertThat(BankStatement.from(lastPage, TALLINN).isLastPage()).isTrue();
     assertThat(BankStatement.from(withoutPagination, TALLINN).isLastPage()).isTrue();
     assertThat(BankStatement.from(withoutHeader, TALLINN).isLastPage()).isTrue();
-  }
-
-  private static AccountReport11 emptyReport() {
-    return Camt052Fixtures.accountReport(
-        Camt052Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701")),
-        List.of(),
-        List.of(),
-        null,
-        ZonedDateTime.parse("2026-01-13T21:28:09.153+02:00"));
   }
 
   private static AccountStatement2 emptyStatement() {

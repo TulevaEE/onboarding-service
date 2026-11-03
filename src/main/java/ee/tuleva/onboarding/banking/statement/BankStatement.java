@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReport
 import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
+import ee.tuleva.onboarding.banking.iso20022.camt053.GroupHeader42;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType;
 import java.math.BigDecimal;
 import java.time.ZoneId;
@@ -99,13 +100,7 @@ public class BankStatement {
 
   public static BankStatement from(BankToCustomerAccountReportV02 accountReport, ZoneId timezone) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
-    var bankStatement = from(report, timezone);
-    var morePagesFollow =
-        Optional.ofNullable(accountReport.getGrpHdr())
-            .map(header -> header.getMsgPgntn())
-            .filter(pagination -> !pagination.isLastPgInd())
-            .isPresent();
-    return morePagesFollow ? bankStatement.withMorePagesToFollow() : bankStatement;
+    return from(report, timezone);
   }
 
   public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
@@ -113,7 +108,7 @@ public class BankStatement {
     var bankStatement = from(statement, timezone);
     var morePagesFollow =
         Optional.ofNullable(customerStatement.getGrpHdr())
-            .map(header -> header.getMsgPgntn())
+            .map(GroupHeader42::getMsgPgntn)
             .filter(pagination -> !pagination.isLastPgInd())
             .isPresent();
     return morePagesFollow ? bankStatement.withMorePagesToFollow() : bankStatement;

@@ -67,7 +67,6 @@ class SebFundConfirmationImportJobTest {
     given(s3Source.get(SECOND_KEY)).willReturn(Optional.of(SECOND_PDF));
     given(parser.parse(FIRST_PDF)).willReturn(confirmation("DLA0000001"));
     given(parser.parse(SECOND_PDF)).willReturn(confirmation("DLA0000002"));
-    given(verificationService.checks(any())).willReturn(true);
     given(verificationService.verify(any())).willReturn(clean());
     given(missingFinder.find(any())).willReturn(NOTHING_MISSING);
   }
@@ -221,18 +220,6 @@ class SebFundConfirmationImportJobTest {
 
     then(navDateWriter).should().write(confirmation("DLA0000001"));
     then(navDateWriter).should().write(confirmation("DLA0000002"));
-  }
-
-  @Test
-  void run_onlyGivesAConfirmationItDoesNotCheckItsPricingDate() {
-    given(verificationService.checks(any())).willReturn(false);
-
-    job.run();
-
-    then(verificationService).should(never()).verify(any());
-    then(navDateWriter).should().write(confirmation("DLA0000001"));
-    then(navDateWriter).should().write(confirmation("DLA0000002"));
-    then(digest).should().publish(List.of(), List.of(), List.of(), List.of(), List.of());
   }
 
   @Test

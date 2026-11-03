@@ -15,6 +15,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirma
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.ReportStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.TimingStatus.LATE;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.TimingStatus.ON_TIME;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebFundConfirmationResult.againstTheRegistryOnly;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -64,19 +65,18 @@ class SebFundConfirmationVerificationService {
     this.properties = properties;
   }
 
-  boolean checks(SebFundConfirmation confirmation) {
-    return !confirmation.wasReceivedBefore(properties.alertsFrom());
-  }
-
   SebFundConfirmationResult verify(SebFundConfirmation confirmation) {
     LocalDate receivedDate = confirmation.orderReceivedOn();
+    int navDatesAfterReceipt =
+        navDatesBetween(confirmation.isin(), receivedDate, confirmation.pricingDate());
+    if (confirmation.wasReceivedBefore(properties.alertsFrom())) {
+      return againstTheRegistryOnly(registryCheck.compare(confirmation), navDatesAfterReceipt);
+    }
     Optional<SebPendingTransactionRow> row = latestReportRow(confirmation, receivedDate);
     List<String> differences = row.map(found -> differences(confirmation, found)).orElse(List.of());
     Optional<BigDecimal> nav = navOn(confirmation.isin(), confirmation.pricingDate());
     @Nullable BigDecimal deviation =
         nav.map(value -> deviationPercent(confirmation.price(), value)).orElse(null);
-    int navDatesAfterReceipt =
-        navDatesBetween(confirmation.isin(), receivedDate, confirmation.pricingDate());
     return new SebFundConfirmationResult(
         reportStatus(confirmation, row, differences),
         differences,

@@ -391,7 +391,7 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
-  void run_onlySetsThePricingDateFromAConfirmationReceivedBeforeAlertsFrom() {
+  void run_checksAConfirmationReceivedBeforeAlertsFromOnlyAgainstTheRegistry() {
     job = jobWith(new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
     seedTwoTradesAndANavBelowTheConfirmedPrice();
     jdbcClient
@@ -406,7 +406,36 @@ class SebFundConfirmationImportJobIT {
     assertThat(executionRepository.findByBrokerTransactionId("DLA0000001"))
         .hasValueSatisfying(
             execution -> assertThat(execution.getNavDate()).isEqualTo(LocalDate.of(2026, 1, 6)));
-    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001")).isEmpty();
+    assertThat(auditEventRepository.findByEventTypeAndDedupKey(VERIFIED, "DLA0000001"))
+        .singleElement()
+        .satisfies(
+            event ->
+                assertThat(event.getPayload())
+                    .containsEntry("status", "[NOT_CHECKED, NOT_CHECKED, NOT_CHECKED]")
+                    .containsEntry("registryStatus", "MATCH"));
+  }
+
+  @Test
+  void run_alertsOnARegistryDifferenceInAConfirmationReceivedBeforeAlertsFrom() {
+    job = jobWith(new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 6)));
+    jdbcClient
+        .sql("DELETE FROM investment_parameter WHERE parameter_name = :name")
+        .param("name", NAV_TOLERANCE)
+        .update();
+    registerExecution("DLA0000001", "12.30000000", "12300.00");
+
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            TUK75 IE00BKPTWY98 ost 06.01.2026: SEB tehingukinnitus ei klapi tehinguregistriga (hind 12.4 vs 12.3; kogumaksumus 12400 vs 12300)
+            Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
+            Kontrolli, kumb on õige, ja paranda täitmine tehinguregistris või küsi SEB-lt parandust""",
+            INVESTMENT);
   }
 
   private SebFundConfirmationImportJob jobWith(SebFundConfirmationProperties properties) {

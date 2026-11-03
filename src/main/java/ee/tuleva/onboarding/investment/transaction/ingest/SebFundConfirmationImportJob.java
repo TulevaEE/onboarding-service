@@ -48,7 +48,6 @@ class SebFundConfirmationImportJob {
 
     List<SebFundConfirmationOutcome> outcomes =
         uploads.latestByReference().values().stream()
-            .filter(verificationService::checks)
             .map(confirmation -> verify(confirmation, failures))
             .flatMap(Optional::stream)
             .toList();

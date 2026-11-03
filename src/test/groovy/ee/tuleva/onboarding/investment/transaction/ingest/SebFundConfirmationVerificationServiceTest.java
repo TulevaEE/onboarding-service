@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
@@ -75,16 +76,28 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   @Test
-  void checks_aConfirmationReceivedOnTheDayAlertsStart() {
-    assertThat(service.checks(confirmation("12.4"))).isTrue();
-  }
+  void verify_comparesAConfirmationReceivedBeforeAlertsFromOnlyWithTheRegistry() {
+    RegistryComparison registryDifference =
+        new RegistryComparison(RegistryStatus.MISMATCH, List.of("hind 12.4 vs 12.3"));
+    given(registryCheck.compare(any())).willReturn(registryDifference);
 
-  @Test
-  void checks_noConfirmationReceivedBeforeAlertsStart() {
-    assertThat(
-            serviceOn(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 1, 6))
-                .checks(confirmation("12.4")))
-        .isFalse();
+    SebFundConfirmationResult result =
+        serviceOn(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 1, 6)).verify(confirmation("12.4"));
+
+    assertThat(result)
+        .isEqualTo(
+            new SebFundConfirmationResult(
+                SebFundConfirmationResult.ReportStatus.NOT_CHECKED,
+                List.of(),
+                registryDifference,
+                SebFundConfirmationResult.NavStatus.NOT_CHECKED,
+                null,
+                null,
+                SebFundConfirmationResult.TimingStatus.NOT_CHECKED,
+                0));
+    assertThat(result.findings()).containsExactly("REGISTRY_MISMATCH hind 12.4 vs 12.3");
+    then(reportService).shouldHaveNoInteractions();
+    then(parameterRepository).shouldHaveNoInteractions();
   }
 
   @Test

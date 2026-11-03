@@ -21,7 +21,8 @@ record SebFundConfirmationResult(
     MATCH,
     MISMATCH,
     NOT_FOUND,
-    PENDING
+    PENDING,
+    NOT_CHECKED
   }
 
   enum RegistryStatus {
@@ -45,12 +46,27 @@ record SebFundConfirmationResult(
     WITHIN_TOLERANCE,
     FAR_FROM_NAV,
     NOT_PUBLISHED_YET,
-    NOT_PUBLISHED
+    NOT_PUBLISHED,
+    NOT_CHECKED
   }
 
   enum TimingStatus {
     ON_TIME,
-    LATE
+    LATE,
+    NOT_CHECKED
+  }
+
+  static SebFundConfirmationResult againstTheRegistryOnly(
+      RegistryComparison registry, int navDatesAfterReceipt) {
+    return new SebFundConfirmationResult(
+        ReportStatus.NOT_CHECKED,
+        List.of(),
+        registry,
+        NavStatus.NOT_CHECKED,
+        null,
+        null,
+        TimingStatus.NOT_CHECKED,
+        navDatesAfterReceipt);
   }
 
   boolean isActionable() {
@@ -65,7 +81,7 @@ record SebFundConfirmationResult(
     if (reportStatus == ReportStatus.NOT_FOUND) {
       findings.add(ReportStatus.NOT_FOUND.name());
     }
-    if (registryDiffersWhereTheReportAgrees()) {
+    if (registryDiffersWhereNoReportFindingCoversIt()) {
       findings.add(registryMismatchFinding());
     }
     if (navStatus == NavStatus.FAR_FROM_NAV || navStatus == NavStatus.NOT_PUBLISHED) {
@@ -77,8 +93,9 @@ record SebFundConfirmationResult(
     return List.copyOf(findings);
   }
 
-  private boolean registryDiffersWhereTheReportAgrees() {
-    return registry.status() == RegistryStatus.MISMATCH && reportStatus == ReportStatus.MATCH;
+  private boolean registryDiffersWhereNoReportFindingCoversIt() {
+    return registry.status() == RegistryStatus.MISMATCH
+        && (reportStatus == ReportStatus.MATCH || reportStatus == ReportStatus.NOT_CHECKED);
   }
 
   String mismatchFinding() {

@@ -18,7 +18,8 @@ import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -125,7 +126,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
-            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
+            eq(new UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
     verify(fundBankLedger, never()).recordBankAdjustment(any(), any(), any(), any(), any());
     verify(paymentCheckService)
         .record(
@@ -195,9 +196,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
-            eq(
-                new FundBankLedger.UnclassifiedEntryDetails(
-                    null, null, "Internal transfer", "BOOK")));
+            eq(new UnclassifiedEntryDetails(null, null, "Internal transfer", "BOOK")));
   }
 
   @Test
@@ -242,7 +241,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
-            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", null)));
+            eq(new UnclassifiedEntryDetails(null, null, "Bank operation", null)));
   }
 
   @Test
@@ -272,7 +271,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA0553690",
                     "LU1291102447",
                     "EJAP",
@@ -300,7 +299,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
-            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
+            eq(new UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
   }
 
   @Test
@@ -345,7 +344,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA0544429",
                     "IE00BFG1TM61",
                     "BDWTEIA",
@@ -381,7 +380,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA0553690",
                     "LU1291102447",
                     "EJAP",
@@ -418,7 +417,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA0553691",
                     "IE00BFG1TM61",
                     "BDWTEIA",
@@ -455,7 +454,7 @@ class BankOperationProcessorTest {
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(
-                new FundBankLedger.TradeSettlementDetails(
+                new TradeSettlementDetails(
                     "DLA0695877",
                     "IE00BFG1TM61",
                     "BDWTEIA",

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -173,7 +174,7 @@ public class BankOperationProcessor {
         externalReference,
         account.ledgerAccount(),
         bookingDate(entry),
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             null, null, entry.remittanceInformation(), entry.subFamilyCode()));
   }
 

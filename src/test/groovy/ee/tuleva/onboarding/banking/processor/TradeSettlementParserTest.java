@@ -7,7 +7,7 @@ import static org.mockito.BDDMockito.given;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
-import ee.tuleva.onboarding.ledger.FundBankLedger.TradeSettlementDetails;
+import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

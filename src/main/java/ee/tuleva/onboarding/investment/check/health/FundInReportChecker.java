@@ -29,7 +29,7 @@ class FundInReportChecker {
   private final Clock clock;
 
   List<HealthCheckResult> fundsNotRead(
-      LocalDate navDate, Set<TulevaFund> fundsRead, int reportRows) {
+      LocalDate navDate, Set<TulevaFund> fundsWithRows, Set<TulevaFund> fundsRead) {
     var fundsNotRead =
         Arrays.stream(TulevaFund.values())
             .filter(TulevaFund::hasNavCalculation)
@@ -39,22 +39,19 @@ class FundInReportChecker {
     if (fundsNotRead.isEmpty()) {
       return List.of();
     }
-    if (!fundsRead.isEmpty()) {
+    if (fundsWithRows.isEmpty()) {
+      var noFundRows = noFundRows(navDate, fundsNotRead);
       return fundsNotRead.stream()
-          .map(fund -> missingFromReport(navDate, fund, notInReport(fund, navDate)))
+          .map(fund -> missingFromReport(navDate, fund, noFundRows))
           .toList();
     }
-    if (reportRows == 0) {
-      var noDataRows = noDataRows(navDate, fundsNotRead);
-      return fundsNotRead.stream()
-          .map(fund -> missingFromReport(navDate, fund, noDataRows))
-          .toList();
-    }
-    var rowsNotRead = rowsNotRead(navDate, reportRows);
     return fundsNotRead.stream()
         .map(
             fund ->
-                HealthCheckResult.notReadFromReport(navDate, presenceWarning(fund, rowsNotRead)))
+                fundsWithRows.contains(fund)
+                    ? HealthCheckResult.notReadFromReport(
+                        navDate, presenceWarning(fund, rowsNotRead(navDate)))
+                    : missingFromReport(navDate, fund, notInReport(fund, navDate)))
         .toList();
   }
 
@@ -75,9 +72,9 @@ class FundInReportChecker {
         List.of(fund));
   }
 
-  private String noDataRows(LocalDate navDate, List<TulevaFund> funds) {
+  private String noFundRows(LocalDate navDate, List<TulevaFund> funds) {
     return beforeTheNavStillToCome(
-        "SEB's position report for navDate=%s has no data rows. Ask SEB to resend it"
+        "SEB's position report for navDate=%s has no fund rows. Ask SEB to resend it"
             .formatted(navDate),
         navDate,
         funds);
@@ -102,9 +99,9 @@ class FundInReportChecker {
         && !fundNavQueryService.hasPublishedNav(fund.getCode(), navDate);
   }
 
-  private static String rowsNotRead(LocalDate navDate, int reportRows) {
-    return ("none of the %d rows in SEB's position report for navDate=%s could be read as fund"
-            + " positions: check the file and the parser")
-        .formatted(reportRows, navDate);
+  private static String rowsNotRead(LocalDate navDate) {
+    return ("rows in SEB's position report for navDate=%s name the fund but none could be read as"
+            + " fund positions: check the file and the parser")
+        .formatted(navDate);
   }
 }

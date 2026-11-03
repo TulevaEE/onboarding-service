@@ -306,6 +306,19 @@ class SebFundPositionParserTest {
   }
 
   @Test
+  void fundsWithRows_namesOnlyTheFundsItsDataRowsBelongTo() {
+    List<Map<String, Object>> rawData =
+        List.of(
+            Map.of("Fund Management Company:", "As of:", "Tuleva Fondid AS", "2026-01-25"),
+            Map.of("Client name", "", "Account", ""),
+            Map.of("Client name", "Some Other Fund", "Name", "Cash account in SEB Pank"),
+            Map.of("Client name", "TKF100", "Account", "EE861010220306591229", "Currency", "EUR"),
+            Map.of("Client name", "TUV100", "Name", "Cash account in SEB Pank"));
+
+    assertThat(parser.fundsWithRows(rawData)).containsExactly(TUV100, TKF100);
+  }
+
+  @Test
   void parse_skipsRowsWithoutName() {
     List<Map<String, Object>> rawData =
         List.of(

@@ -41,7 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class HealthCheckServiceTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 4, 15);
-  private static final int REPORT_ROWS = 40;
+  private static final Set<TulevaFund> FUNDS_WITH_ROWS = Set.of(TUK75, TUK00, TUV100, TKF100);
 
   @Mock FundPositionRepository fundPositionRepository;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -83,7 +83,7 @@ class HealthCheckServiceTest {
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(any(), eq(previousNavDate)))
         .willReturn(Optional.of(previousNavDate));
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(openTradeSource).openTrades(NAV_DATE);
     verify(openTradeSource).openTrades(previousNavDate);
@@ -107,7 +107,7 @@ class HealthCheckServiceTest {
                 TUK75, NAV_DATE, List.of(payables), List.of(), todaysTradeList, previousTradeList))
         .willReturn(List.of(stalePayable));
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results.getFirst().findings()).contains(stalePayable);
     assertThat(HealthCheckResult.blockedFunds(results)).containsExactly(TUK75);
@@ -132,7 +132,7 @@ class HealthCheckServiceTest {
     given(receivablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(eq(TUK75), any(), any(), any(), any())).willReturn(List.of());
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().fund()).isEqualTo(TUK75);
@@ -160,7 +160,7 @@ class HealthCheckServiceTest {
                 NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
         .willReturn(Optional.empty());
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results).hasSize(1);
     verify(completenessChecker).check(eq(TUK75), eq(NAV_DATE), eq(positions));
@@ -204,7 +204,7 @@ class HealthCheckServiceTest {
         .willReturn(Map.of(TUK75, executedSells));
     given(exitMarkResolver.resolve(NAV_DATE, executedSells)).willReturn(exitMarks);
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(navFlowConsistencyChecker)
         .check(TUK75, positions, previousPositions, new BigDecimal("0.001"), exitMarks);
@@ -236,7 +236,7 @@ class HealthCheckServiceTest {
     given(navFlowConsistencyChecker.check(TUK75, positions, previousPositions, threshold, Map.of()))
         .willReturn(List.of(finding));
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results.getFirst().findings()).contains(finding);
     verify(navFlowConsistencyChecker)
@@ -256,7 +256,7 @@ class HealthCheckServiceTest {
     var finding = new HealthCheckFinding(TUK75, BANK_BALANCE, WARNING, "cash differs from bank");
     given(bankBalanceChecker.check(TUK75, NAV_DATE, List.of(cash))).willReturn(List.of(finding));
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results.getFirst().findings()).containsExactly(finding);
   }
@@ -276,7 +276,7 @@ class HealthCheckServiceTest {
     given(liabilityRecognitionChecker.check(TUK75, NAV_DATE, List.of(unrecognised)))
         .willReturn(List.of(finding));
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results.getFirst().findings()).contains(finding);
     verify(liabilityRecognitionChecker).check(TUK75, NAV_DATE, List.of(unrecognised));
@@ -300,7 +300,7 @@ class HealthCheckServiceTest {
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(HealthCheckResult::fund).containsExactlyInAnyOrder(TUK75, TUK00);
@@ -322,7 +322,7 @@ class HealthCheckServiceTest {
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(healthCheckEventRepository, times(HealthCheckType.values().length))
         .save(any(HealthCheckEvent.class));
@@ -333,11 +333,12 @@ class HealthCheckServiceTest {
     var notRead =
         HealthCheckResult.notReadFromReport(
             NAV_DATE,
-            new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "none of the 40 rows read"));
-    given(fundInReportChecker.fundsNotRead(NAV_DATE, Set.of(), REPORT_ROWS))
+            new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "rows could not be read"));
+    given(fundInReportChecker.fundsNotRead(NAV_DATE, FUNDS_WITH_ROWS, Set.of()))
         .willReturn(List.of(notRead));
 
-    assertThat(healthCheckService.check(NAV_DATE, List.of(), REPORT_ROWS)).containsExactly(notRead);
+    assertThat(healthCheckService.check(NAV_DATE, List.of(), FUNDS_WITH_ROWS))
+        .containsExactly(notRead);
   }
 
   @Test
@@ -347,10 +348,10 @@ class HealthCheckServiceTest {
         new HealthCheckFinding(
             TUV100, FUND_IN_REPORT, WARNING, "TUV100: not in SEB's position report");
     var missingResult = HealthCheckResult.missingFromReport(NAV_DATE, missing);
-    given(fundInReportChecker.fundsNotRead(NAV_DATE, Set.of(TUK75), REPORT_ROWS))
+    given(fundInReportChecker.fundsNotRead(NAV_DATE, FUNDS_WITH_ROWS, Set.of(TUK75)))
         .willReturn(List.of(missingResult));
 
-    var results = healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    var results = healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     assertThat(results).contains(missingResult);
     verify(healthCheckEventRepository)
@@ -384,7 +385,7 @@ class HealthCheckServiceTest {
     given(receivablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
     given(payablesChecker.check(any(), any(), any(), any(), any())).willReturn(List.of());
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(healthCheckEventRepository)
         .save(
@@ -423,7 +424,7 @@ class HealthCheckServiceTest {
     given(payablesChecker.check(eq(TUK75), any(), eq(previousSecurities), any(), any()))
         .willReturn(List.of());
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(receivablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
     verify(payablesChecker).check(eq(TUK75), any(), eq(previousSecurities), any(), any());
@@ -453,7 +454,7 @@ class HealthCheckServiceTest {
     given(openTradeSource.openTrades(NAV_DATE))
         .willReturn(Optional.of(new OpenTrades(List.of(newTrade), Set.of(), List.of())));
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(quantityChangeChecker)
         .check(
@@ -491,7 +492,7 @@ class HealthCheckServiceTest {
     given(payablesChecker.check(any(), any(), any(), any(), eq(previousLiabilities)))
         .willReturn(List.of());
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(payablesChecker).check(eq(TUK75), any(), any(), any(), eq(previousLiabilities));
     verify(receivablesChecker).check(eq(TUK75), any(), any(), any(), eq(previousReceivables));
@@ -516,7 +517,7 @@ class HealthCheckServiceTest {
         .willReturn(Optional.of(threshold));
     given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.of(authoritative));
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(unitReconciliationChecker)
         .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(authoritative), eq(threshold), isNull());
@@ -533,7 +534,7 @@ class HealthCheckServiceTest {
     given(unitReconciliationThresholdRepository.findByFundCode(TUK75)).willReturn(Optional.empty());
     given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.empty());
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     verify(unitReconciliationChecker)
         .check(eq(TUK75), eq(NAV_DATE), eq(positions), eq(null), eq(null), isNull());
@@ -574,7 +575,7 @@ class HealthCheckServiceTest {
     given(openTradeSource.openTrades(previousDate)).willReturn(emptyTradeList);
     given(authoritativeUnitsSource.resolve(TUK75, NAV_DATE)).willReturn(Optional.of(episUnits));
 
-    healthCheckService.check(NAV_DATE, positions, REPORT_ROWS);
+    healthCheckService.check(NAV_DATE, positions, FUNDS_WITH_ROWS);
 
     var unitsFromCash = new BigDecimal("1010000.000");
     verify(navUnitImpactChecker)

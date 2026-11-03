@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -9,28 +10,46 @@ import net.javacrumbs.shedlock.core.SimpleLock;
 
 final class RecordingLockProvider implements LockProvider {
 
-  private final List<String> lockNames = new ArrayList<>();
-  private final Optional<SimpleLock> answer;
+  private enum Availability {
+    FREE,
+    HELD_ELSEWHERE
+  }
 
-  private RecordingLockProvider(Optional<SimpleLock> answer) {
-    this.answer = answer;
+  private final Availability availability;
+  private final List<LockConfiguration> requests = new ArrayList<>();
+  private boolean held;
+
+  private RecordingLockProvider(Availability availability) {
+    this.availability = availability;
   }
 
   static RecordingLockProvider free() {
-    return new RecordingLockProvider(Optional.of(() -> {}));
+    return new RecordingLockProvider(Availability.FREE);
   }
 
   static RecordingLockProvider heldElsewhere() {
-    return new RecordingLockProvider(Optional.empty());
+    return new RecordingLockProvider(Availability.HELD_ELSEWHERE);
   }
 
   @Override
   public Optional<SimpleLock> lock(LockConfiguration lockConfiguration) {
-    lockNames.add(lockConfiguration.getName());
-    return answer;
+    requests.add(lockConfiguration);
+    if (availability == Availability.HELD_ELSEWHERE) {
+      return Optional.empty();
+    }
+    held = true;
+    return Optional.of(() -> held = false);
+  }
+
+  boolean isHeld() {
+    return held;
   }
 
   List<String> lockNames() {
-    return List.copyOf(lockNames);
+    return requests.stream().map(LockConfiguration::getName).toList();
+  }
+
+  List<Duration> lockAtMostFor() {
+    return requests.stream().map(LockConfiguration::getLockAtMostFor).toList();
   }
 }

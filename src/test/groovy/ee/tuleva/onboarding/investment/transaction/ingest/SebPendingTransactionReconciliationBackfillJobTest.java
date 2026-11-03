@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -17,7 +18,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -27,19 +27,18 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import net.javacrumbs.shedlock.core.LockProvider;
-import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationBackfillJobTest {
@@ -54,6 +53,11 @@ class SebPendingTransactionReconciliationBackfillJobTest {
       SEB ootel-tehingute raportite uuesti sobitamine peatus ootamatult (põhjus on logis).
       Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
       topelt.""";
+  private static final String LOCK_HELD_MESSAGE =
+      """
+      SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute \
+      sobitamine juba käib.
+      Käivita uuesti, kui see on lõppenud.""";
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
@@ -63,7 +67,13 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   @Mock private TransactionSettlementRepository settlementRepository;
   @Mock private OperationsNotificationService notificationService;
 
-  @InjectMocks private SebPendingTransactionReconciliationBackfillJob job;
+  private final RecordingLockProvider lockProvider = RecordingLockProvider.free();
+  private SebPendingTransactionReconciliationBackfillJob job;
+
+  @BeforeEach
+  void freeReconciliationLock() {
+    job = jobLockedBy(lockProvider);
+  }
 
   @Test
   void run_replaysEveryStoredReportOldestFirstAndNeverAsALiveRun() {
@@ -73,7 +83,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27, 10, day10, 0, day0));
     given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     InOrder inOrder = inOrder(reconciliationService);
     inOrder.verify(reconciliationService).replay(eq(day27), any());
@@ -106,7 +116,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day10), any());
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(notificationService)
         .sendMessage(
@@ -130,7 +140,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 4L);
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(notificationService)
         .sendMessage(
@@ -156,7 +166,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(reconciliationService.replay(eq(day10), any()))
         .willReturn(SettlementCheck.SKIPPED_NO_MATCHED_ROW);
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(notificationService)
         .sendMessage(
@@ -192,7 +202,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .when(reconciliationService)
         .replay(eq(day10), any());
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(reconciliationService).replay(eq(day27), any());
     verify(reconciliationService, never()).replay(eq(day3), any());
@@ -220,7 +230,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day27), any());
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(notificationService)
         .sendMessage(
@@ -245,7 +255,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 3L);
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(reconciliationService, never()).replay(eq(day3), any());
     verify(notificationService)
@@ -266,7 +276,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   void run_whenCountingTheExecutionsBeforeTheReplayFails_saysInSlackThatItStopped() {
     given(executionRepository.count()).willThrow(new IllegalStateException("database unavailable"));
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(reconciliationService, never()).replay(any(), any());
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
@@ -282,7 +292,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .willThrow(new IllegalStateException("database unavailable"));
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
   }
@@ -291,65 +301,56 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   void run_withNoStoredReports_warnsThatNothingWasReplayed() {
     givenStoredReports(Map.of());
 
-    job.run();
+    job.onSebPendingTransactionReconciliationBackfillRequested();
 
     verify(reconciliationService, never()).replay(any(), any());
     verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
   }
 
   @Test
-  void onSebPendingTransactionReconciliationBackfillRequested_triggersRun() {
-    givenStoredReports(Map.of());
+  void aReplayHoldsTheReconciliationLockForEveryReportItReplays() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    List<Boolean> lockHeldDuringReplay = new ArrayList<>();
+    willAnswer(
+            invocation -> {
+              lockHeldDuringReplay.add(lockProvider.isHeld());
+              return SettlementCheck.CHECKED;
+            })
+        .given(reconciliationService)
+        .replay(any(), any());
 
     job.onSebPendingTransactionReconciliationBackfillRequested();
 
-    verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
+    assertThat(lockHeldDuringReplay).containsExactly(true, true);
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    assertThat(lockProvider.isHeld()).isFalse();
   }
 
   @Test
-  void aReplayRequestHoldsTheLiveReconciliationsLockWhileItRuns() {
-    givenStoredReports(Map.of());
-    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+  void aReplayThatFindsTheReconciliationRunningSaysSoAndFailsItsTrigger() {
+    SebPendingTransactionReconciliationBackfillJob lockedOut =
+        jobLockedBy(RecordingLockProvider.heldElsewhere());
 
-    try (var context = lockedContext(lockProvider)) {
-      context.publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
-    }
+    assertThatThrownBy(lockedOut::onSebPendingTransactionReconciliationBackfillRequested)
+        .isInstanceOf(SebReconciliationAlreadyRunningException.class);
 
-    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
-    verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
+    verify(notificationService).sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
+    verifyNoInteractions(
+        reportService, reconciliationService, executionRepository, settlementRepository);
   }
 
-  @Test
-  void aReplayRequestDoesNotRunWhileTheLiveReconciliationHoldsItsLock() {
-    RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
-
-    try (var context = lockedContext(lockProvider)) {
-      context.publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
-    }
-
-    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
-    verifyNoInteractions(reportService, reconciliationService, notificationService);
+  private SebPendingTransactionReconciliationBackfillJob jobLockedBy(LockProvider provider) {
+    return new SebPendingTransactionReconciliationBackfillJob(
+        clock,
+        reportService,
+        reconciliationService,
+        executionRepository,
+        settlementRepository,
+        notificationService,
+        new SebReconciliationLock(provider, clock));
   }
-
-  private AnnotationConfigApplicationContext lockedContext(LockProvider lockProvider) {
-    var context = new AnnotationConfigApplicationContext();
-    context.getEnvironment().setActiveProfiles("production");
-    context.registerBean(LockProvider.class, () -> lockProvider);
-    context.registerBean(Clock.class, () -> clock);
-    context.registerBean(InvestmentReportService.class, () -> reportService);
-    context.registerBean(
-        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
-    context.registerBean(TransactionExecutionRepository.class, () -> executionRepository);
-    context.registerBean(TransactionSettlementRepository.class, () -> settlementRepository);
-    context.registerBean(OperationsNotificationService.class, () -> notificationService);
-    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationBackfillJob.class);
-    context.refresh();
-    return context;
-  }
-
-  @Configuration
-  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
-  static class SchedulerLockOnly {}
 
   private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {
     return new PossibleReportTruncationEvent(

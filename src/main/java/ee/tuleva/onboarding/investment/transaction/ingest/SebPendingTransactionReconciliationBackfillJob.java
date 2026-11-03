@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepositor
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,6 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -39,6 +39,10 @@ class SebPendingTransactionReconciliationBackfillJob {
           SettlementCheck.SKIPPED_NO_MATCHED_ROW, "ükski rida ei sobitunud",
           SettlementCheck.SKIPPED_MALFORMED_ROWS, "vigased read",
           SettlementCheck.SKIPPED_NOT_LATEST_REPORT, "polnud viimane raport");
+  private static final Duration LOCK_AT_MOST_FOR = Duration.ofMinutes(60);
+  private static final String LOCK_HELD_MESSAGE =
+      "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute"
+          + " sobitamine juba käib.\nKäivita uuesti, kui see on lõppenud.";
   private static final String RERUN_ADDS_NOTHING_TWICE =
       "Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.";
 
@@ -48,17 +52,20 @@ class SebPendingTransactionReconciliationBackfillJob {
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementRepository settlementRepository;
   private final OperationsNotificationService notificationService;
+  private final SebReconciliationLock reconciliationLock;
 
   @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
-  @SchedulerLock(
-      name = SebPendingTransactionReconciliationJob.LOCK,
-      lockAtMostFor = "60m",
-      lockAtLeastFor = "0s")
   void onSebPendingTransactionReconciliationBackfillRequested() {
-    run();
+    if (!reconciliationLock.runIfFree(LOCK_AT_MOST_FOR, this::run)) {
+      log.warn(
+          "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
+          SebReconciliationLock.NAME);
+      notificationService.sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
+      throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);
+    }
   }
 
-  void run() {
+  private void run() {
     try {
       announce(replayOldestFirst());
     } catch (RuntimeException e) {

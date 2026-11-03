@@ -94,7 +94,7 @@ function fakeAttachment(name, content) {
   };
 }
 
-function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], lockAvailable = true } = {}) {
+function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], lockAvailable = true, s3Status = 200 } = {}) {
   const slack = [];
   const calls = { search: 0, lock: 0, folders: [] };
   const props = Object.assign({}, properties);
@@ -143,6 +143,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
     },
     getUserLabelByName: (name) => ({ getName: () => name }),
   };
+  const s3 = { status: s3Status };
   const s3Keys = [];
   const s3Bodies = {};
   const slackResponses = [];
@@ -150,6 +151,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
     fetch(url, options) {
       if (url.includes(".amazonaws.com/")) {
         const key = url.split(".amazonaws.com/")[1];
+        if (s3.status !== 200) return { getResponseCode: () => s3.status, getContentText: () => "AccessDenied" };
         s3Keys.push(key);
         s3Bodies[key] = String.fromCharCode(...options.payload);
         return { getResponseCode: () => 200, getContentText: () => "ok" };
@@ -160,7 +162,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
       return { getResponseCode: () => response, getContentText: () => "slack says " + response };
     },
   };
-  return { slack, calls, props, s3Keys, s3Bodies, slackResponses };
+  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses };
 }
 
 const noRecipients = { getTo: () => "", getCc: () => "", getBcc: () => "" };
@@ -481,15 +483,20 @@ describe("driveReportFamily", () => {
 describe("saveThreadToDrive", () => {
   const report = (date) => [fakeAttachment("TULEVA_pos_raport_" + date + ".csv", "A;1\n")];
 
-  test("copies only the messages the S3 pass has uploaded", () => {
+  test("also copies the messages the S3 pass has not uploaded", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
     const thread = fakeThread([sebMessage("m1", report("20261019")), sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
 
     saveThreadToDrive(thread, drive.folder);
 
-    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261019_US.csv", "TULEVA_pos_raport_20261019.csv"]);
-    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+    expect(drive.names()).toEqual([
+      "TULEVA_pos_raport_20261019_US.csv",
+      "TULEVA_pos_raport_20261019.csv",
+      "TULEVA_pos_raport_20261020_US.csv",
+      "TULEVA_pos_raport_20261020.csv",
+    ]);
+    expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-2x"]);
   });
 
   test("skips the messages already in Drive", () => {
@@ -688,6 +695,70 @@ describe("one run: S3 first, then Drive", () => {
     expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
     expect(thread.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+  });
+
+  test.each([
+    ["processNewEmails", () => processNewEmails()],
+    ["processHistoricalEmails", () => processHistoricalEmails()],
+  ])("when S3 rejects the upload, %s still copies the report to Drive and then fails with the S3 error", (name, run) => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread], s3Status: 403 }));
+
+    expect(run).toThrow("S3 upload failed: 403");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(thread.labels).toEqual(["Drive-Saved-1x"]);
+  });
+
+  test("processNewEmails tells Slack about the S3 failure after the Drive copy", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const setup = awsAndDrive(drive);
+    setup.properties.SLACK_WEBHOOK_URL = "https://hooks.example/x";
+    const fakes = installAppsScriptFakes(Object.assign(setup, { threads: [thread], s3Status: 403 }));
+
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+
+    expect(fakes.slack).toEqual([expect.stringContaining("Uncaught error in `processNewEmails`")]);
+  });
+
+  test("once S3 accepts uploads again, the next run uploads the report and leaves its Drive copy as it is", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [thread], s3Status: 403 }));
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+    const namesAfterTheFailedRun = drive.names();
+
+    fakes.s3.status = 200;
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv"]);
+    expect(drive.names()).toEqual(namesAfterTheFailedRun);
+    expect(thread.labels).toEqual(["Drive-Saved-1x", "S3-Uploaded-1x"]);
+  });
+
+  test("when S3 rejects the uploads, an older e-mail still does not replace a newer correction in Drive", () => {
+    const drive = fakeDrive();
+    const correctionUploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const olderNeverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-11-01T08:45:00Z"))],
+      [],
+    );
+    const anotherDate = fakeThread([sebMessage("18f0a00000000003", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "C;3\n")])], []);
+    const fakes = installAppsScriptFakes(
+      Object.assign(awsAndDrive(drive), { threads: [anotherDate, correctionUploadedBeforeTheRecord, olderNeverUploaded], s3Status: 403 }),
+    );
+
+    expect(() => processNewEmails()).toThrow("S3 upload failed");
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021").map((f) => f.content())).toEqual(["C,3\n"]);
   });
 });
 

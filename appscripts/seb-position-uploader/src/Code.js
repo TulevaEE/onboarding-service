@@ -81,15 +81,13 @@ var RUN_LOCK_WAIT_MS = 10000;
 
 function processNewEmails() {
     if (!runAlone(function () {
-        var newestUploaded;
         try {
-            newestUploaded = processEmailsFromDays(2);
+            processEmailsFromDays(2);
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
                 "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
             throw e;
         }
-        saveReportsToDrive(2, newestUploaded);
     })) {
         Logger.log("Skipped, another run holds the script lock; the next trigger retries");
     }
@@ -97,13 +95,13 @@ function processNewEmails() {
 
 function processHistoricalEmails() {
     runAloneOrRefuse("processHistoricalEmails", function () {
-        saveReportsToDrive(7, processEmailsFromDays(7));
+        processEmailsFromDays(7);
     });
 }
 
 function processHistoricalEmails30Days() {
     runAloneOrRefuse("processHistoricalEmails30Days", function () {
-        saveReportsToDrive(30, processEmailsFromDays(30));
+        processEmailsFromDays(30);
     });
 }
 
@@ -136,13 +134,23 @@ function processEmailsFromDays(days, options) {
 
     var newestUploaded = recordSourcesOfUploadedEmails(threads, minMessageDate);
 
+    // A failed upload (expired AWS keys, a rejected file) must not stop the Drive copy
+    // the Google Sheets NAV fallback reads: the Drive pass runs anyway, and the run
+    // then fails with the S3 error.
+    try {
+        uploadThreadsToS3(threads, minMessageDate, newestUploaded);
+    } finally {
+        saveReportsToDrive(days, newestUploaded);
+    }
+
+    Logger.log("Processing complete");
+}
+
+function uploadThreadsToS3(threads, minMessageDate, newestUploaded) {
     // Process oldest threads first so the newest thread's upload wins on S3.
     for (var i = threads.length - 1; i >= 0; i--) {
         processThread(threads[i], minMessageDate, newestUploaded);
     }
-
-    Logger.log("Processing complete");
-    return newestUploaded;
 }
 
 function gmailSearchQuery(days) {
@@ -465,8 +473,11 @@ function recordEmailSourceAfterUpload(s3Key, emailSource) {
 // Drive copy for the Google Sheets NAV fallback. It runs as its own pass after the
 // S3 pass, with its own per-thread "Drive-Saved-Nx" label, so Drive can neither
 // stop nor repeat an S3 upload, and a failed copy is retried on the next run.
-// Only messages the S3 pass has already uploaded are copied, so Drive holds the
-// same reports as S3. The Sheets scripts read the "_US.csv" copy with the newest
+// It does not wait for S3: a message the S3 pass could not upload is copied too,
+// since the fallback is needed exactly when the S3 pipeline fails. The newest-e-mail
+// guard below holds without S3: the S3 pass's scan of earlier uploads runs before
+// any upload, and the Drive pass records each e-mail before writing.
+// The Sheets scripts read the "_US.csv" copy with the newest
 // date in its name, so each report type and date keeps one current "_US.csv";
 // it is updated in place, and its previous content is kept as a "_vN" copy.
 // Creating the new original is the last write: tuleva's seb-import starts its
@@ -505,26 +516,22 @@ function saveThreadToDriveWithoutStoppingTheOthers(thread, folder, newestUploade
         saveThreadToDrive(thread, folder, newestUploaded);
     } catch (e) {
         Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
-        notifyDriveProblemOncePerDay("an SEB report is in S3 but not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
+        notifyDriveProblemOncePerDay("an SEB report is not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
             "for older ones run processHistoricalEmails once the cause is fixed");
     }
 }
 
 function saveThreadToDrive(thread, folder, newestUploaded) {
-    var uploadCount = getUploadCount(thread);
     var driveCount = getDriveCount(thread);
-    var matchingCount = 0;
     var driveMatchingCount = 0;
     var messages = thread.getMessages();
     for (var j = 0; j < messages.length; j++) {
         var message = messages[j];
         if (!messageHasMatchingAttachments(message)) continue;
-        matchingCount++;
         var reports = driveReportsOf(message);
         if (reports.length === 0) continue;
         driveMatchingCount++;
         if (!shouldProcessMessage(driveMatchingCount, driveCount)) continue;
-        if (matchingCount > uploadCount) return;
         var emailSource = emailSourceOf(message);
         for (var k = 0; k < reports.length; k++) {
             saveReportToDrive(folder, reports[k].attachment, reports[k].fileConfig, reports[k].reportDate, emailSource, newestUploaded);
@@ -550,7 +557,7 @@ function driveReportsOf(message) {
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
     var name = attachment.getName();
     if (isUsCopyName(name)) {
-        var alerted = notifyDriveProblemOncePerDay("`" + name + "` is in S3 but was not saved to Drive: its name ends in _US.csv, " +
+        var alerted = notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
             "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
         if (!alerted) throw new Error("Slack alert about " + name + " not delivered, retrying next run");
         return;

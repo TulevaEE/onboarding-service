@@ -620,6 +620,7 @@ describe("saveReportToDrive", () => {
     expect(drive.names()).toEqual([]);
     expect(slack).toHaveLength(1);
     expect(slack[0]).toContain("TULEVA_pos_raport_20261020_US.CSV");
+    expect(slack[0]).toContain("Resend it without the _US ending");
   });
 });
 
@@ -853,6 +854,8 @@ describe("saveThreadToDrive", () => {
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
     expect(drive.byName("TULEVA_pos_raport_20261020_US.csv")[0].content()).toBe("A,1\n");
     expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+    expect(slack[0]).toContain("nothing to resend");
+    expect(slack[0]).not.toContain("Resend it");
   });
 
   test("an alert Slack did not take about a _US.csv attachment is sent by the next run", () => {

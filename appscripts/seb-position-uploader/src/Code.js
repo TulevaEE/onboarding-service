@@ -535,6 +535,11 @@ function gmailIdOrUnknown(threadOrMessage) {
 
 function saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded) {
     try {
+        if (report.usCopyBesideItsPlainReport) {
+            Logger.log("Drive copy skipped, the e-mail's report without the _US ending is used instead: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id);
+            alertOnceAboutUsCopyName(report.attachment.getName(), report.emailSource, US_COPY_BESIDE_ITS_PLAIN_REPORT_ADVICE);
+            return;
+        }
         saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, report.emailSource, newestUploaded);
     } catch (e) {
         Logger.log("Drive copy failed: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id + ", error=" + e.message);
@@ -562,19 +567,27 @@ function driveReportsOf(message) {
 }
 
 function everyUsNamedAttachmentAndTheLastPlainOneOfEachReportAsOnS3(reports) {
+    var plainReports = reports.filter(function (report) { return !isUsCopyName(report.attachment.getName()); });
     return reports.filter(function (report, i) {
-        if (isUsCopyName(report.attachment.getName())) return true;
+        if (isUsCopyName(report.attachment.getName())) {
+            report.usCopyBesideItsPlainReport = plainReports.some(function (plain) { return isSameReport(plain, report); });
+            return true;
+        }
         return !reports.slice(i + 1).some(function (later) {
-            return !isUsCopyName(later.attachment.getName()) && later.fileConfig === report.fileConfig && later.reportDate === report.reportDate;
+            return !isUsCopyName(later.attachment.getName()) && isSameReport(later, report);
         });
     });
+}
+
+function isSameReport(one, other) {
+    return one.fileConfig === other.fileConfig && one.reportDate === other.reportDate;
 }
 
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
     var name = attachment.getName();
     if (isUsCopyName(name)) {
         Logger.log("Drive copy skipped, the Sheets scripts would read a _US.csv name as converted: file=" + name + ", messageId=" + emailSource.id);
-        alertOnceAboutUsCopyName(name, emailSource);
+        alertOnceAboutUsCopyName(name, emailSource, LONE_US_COPY_ADVICE);
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
@@ -646,14 +659,16 @@ function isOldContentAlreadyTheLatestVersion(family, content) {
 }
 
 var US_NAME_ALERT_PROPERTY_PREFIX = "us_name_alerted:";
+var LONE_US_COPY_ADVICE = "Resend it without the _US ending";
+var US_COPY_BESIDE_ITS_PLAIN_REPORT_ADVICE = "The same e-mail has the report without the _US ending, and that one was used: nothing to resend";
 
-function alertOnceAboutUsCopyName(name, emailSource) {
+function alertOnceAboutUsCopyName(name, emailSource, advice) {
     var key = US_NAME_ALERT_PROPERTY_PREFIX + emailSource.id + ":" + simpleHash(name);
     try {
         var props = PropertiesService.getScriptProperties();
         if (props.getProperty(key)) return;
         var delivered = notifyDriveProblemOncePerDay("`" + name + "` from the e-mail of " + emailSource.date + " (Gmail id " + emailSource.id + ") was not saved to Drive: its name ends in _US.csv, " +
-            "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
+            "which the Google Sheets scripts would read unconverted. " + advice);
         if (delivered) props.setProperty(key, JSON.stringify(emailSource));
     } catch (e) {
         Logger.log("Record of the _US.csv alert not saved: key=" + key + ", error=" + e.message);

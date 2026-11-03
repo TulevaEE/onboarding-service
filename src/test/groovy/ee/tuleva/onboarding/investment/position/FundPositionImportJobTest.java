@@ -69,7 +69,9 @@ class FundPositionImportJobTest {
   void setUp() {
     sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate());
     importService = new FundPositionImportService(repository, Clock.systemUTC());
-    lenient().when(healthCheckService.check(any(), anyList(), anySet())).thenReturn(List.of());
+    lenient()
+        .when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of());
     job =
         new FundPositionImportJob(
             sebParser,
@@ -297,12 +299,12 @@ class FundPositionImportJobTest {
     job.onReportImportCompleted(
         new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, storedUnder, 7));
 
-    verify(healthCheckService).check(any(), anyList(), anySet());
+    verify(healthCheckService).check(any(), anyList(), anySet(), anyInt());
     verify(eventPublisher).publishEvent(any(FundPositionsImported.class));
   }
 
   @Test
-  void checksAReportWithNoReadableFundRowsUnderItsAsOfDateWithTheFundsItsDataRowsName() {
+  void checksAReportUnderItsAsOfDateWithTheFundsAndTheCountOfItsPositionRows() {
     var date = LocalDate.of(2026, 1, 5);
     var asOf = LocalDate.of(2026, 1, 2);
     when(reportService.getReport(SEB, POSITIONS, date))
@@ -318,11 +320,11 @@ class FundPositionImportJobTest {
 
     job.importForProviderAndDate(SEB, date);
 
-    verify(healthCheckService).check(asOf, List.of(), Set.of(TUK75));
+    verify(healthCheckService).check(asOf, List.of(), Set.of(), 1);
   }
 
   @Test
-  void checksAReportWithNoDataRowsAsNamingNoFund() {
+  void checksAReportWithNoDataRowsAsHavingNoPositionRows() {
     var date = LocalDate.of(2026, 1, 5);
     var asOf = LocalDate.of(2026, 1, 2);
     when(reportService.getReport(SEB, POSITIONS, date))
@@ -330,7 +332,7 @@ class FundPositionImportJobTest {
 
     job.importForProviderAndDate(SEB, date);
 
-    verify(healthCheckService).check(asOf, List.of(), Set.of());
+    verify(healthCheckService).check(asOf, List.of(), Set.of(), 0);
   }
 
   private static InvestmentReport positionsReport(
@@ -417,7 +419,7 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(any(), anyList(), anySet()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(List.of(isinMatchFail(TUK75, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
@@ -440,7 +442,7 @@ class FundPositionImportJobTest {
     var results = List.of(isinMatchFail(TUK75, date));
     given(reportService.getReport(SEB, POSITIONS, date))
         .willReturn(Optional.of(createSebReport(date)));
-    given(healthCheckService.check(any(), anyList(), anySet())).willReturn(results);
+    given(healthCheckService.check(any(), anyList(), anySet(), anyInt())).willReturn(results);
     given(repository.findLastImportedAt(TUK75, date)).willReturn(Optional.of(importedAt));
 
     job.importForProviderAndDate(SEB, date);
@@ -464,7 +466,7 @@ class FundPositionImportJobTest {
                 MISSING_FROM_REPORT));
     given(reportService.getReport(SEB, POSITIONS, date))
         .willReturn(Optional.of(createSebReport(date)));
-    given(healthCheckService.check(any(), anyList(), anySet())).willReturn(results);
+    given(healthCheckService.check(any(), anyList(), anySet(), anyInt())).willReturn(results);
     given(repository.findLastImportedAt(TUK00, date)).willReturn(Optional.of(importedAt));
 
     job.importForProviderAndDate(SEB, date);
@@ -477,7 +479,7 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(any(), anyList(), anySet()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(List.of(isinMatchFail(TUK75, date), isinMatchFail(TUV100, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
@@ -493,7 +495,7 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(any(), anyList(), anySet()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(
             List.of(
                 new HealthCheckResult(
@@ -516,7 +518,7 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(any(), anyList(), anySet()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(List.of(isinMatchFail(TUK75, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
@@ -551,7 +553,8 @@ class FundPositionImportJobTest {
                     ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN,
                     "NAV flow could not be reconciled: NAV_FLOW_CONSISTENCY_THRESHOLD is not"
                         + " configured yet")));
-    when(healthCheckService.check(any(), anyList(), anySet())).thenReturn(List.of(notRunResult));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(notRunResult));
 
     job.importForProviderAndDate(SEB, date);
 
@@ -576,7 +579,8 @@ class FundPositionImportJobTest {
                     ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS,
                     ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING,
                     "no CASH")));
-    when(healthCheckService.check(any(), anyList(), anySet())).thenReturn(List.of(warningResult));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(warningResult));
 
     job.importForProviderAndDate(SEB, date);
 

@@ -70,10 +70,19 @@ public class SebFundPositionParser implements FundPositionParser {
 
   public Set<TulevaFund> fundsWithRows(List<Map<String, Object>> rawData) {
     return rawData.stream()
+        .filter(this::isPositionRow)
         .map(this::extractFundCode)
         .filter(Objects::nonNull)
         .map(TulevaFund::fromCode)
         .collect(Collectors.toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+  }
+
+  public int positionRows(List<Map<String, Object>> rawData) {
+    return (int) rawData.stream().filter(this::isPositionRow).count();
+  }
+
+  private boolean isPositionRow(Map<String, Object> row) {
+    return isTotalRow(getString(row, "Account")) || getString(row, "Name") != null;
   }
 
   public LocalDate navDate(

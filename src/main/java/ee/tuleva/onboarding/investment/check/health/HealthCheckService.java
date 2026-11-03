@@ -63,7 +63,10 @@ public class HealthCheckService {
   }
 
   public List<HealthCheckResult> check(
-      LocalDate navDate, List<FundPosition> positions, Set<TulevaFund> fundsWithRows) {
+      LocalDate navDate,
+      List<FundPosition> positions,
+      Set<TulevaFund> fundsWithRows,
+      int positionRows) {
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
     var executedSellsByFund = executedPriceSource.executedSellPricesByFund(navDate);
@@ -81,7 +84,8 @@ public class HealthCheckService {
               tradeListsByDate);
       results.add(result);
     }
-    for (var result : fundInReportChecker.fundsNotRead(navDate, fundsWithRows, byFund.keySet())) {
+    for (var result :
+        fundInReportChecker.fundsNotRead(navDate, fundsWithRows, positionRows, byFund.keySet())) {
       saveEvents(result);
       results.add(result);
     }

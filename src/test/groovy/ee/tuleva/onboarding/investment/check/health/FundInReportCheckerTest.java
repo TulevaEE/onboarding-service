@@ -28,6 +28,7 @@ class FundInReportCheckerTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 4, 15);
   private static final String MORNING_OF_THE_NAV_DAY = "2026-04-16T06:00:00Z";
+  private static final int POSITION_ROWS = 40;
   private static final Set<TulevaFund> ALL_BUT_TUV100 = Set.of(TUK75, TUK00, TKF100);
 
   @Mock FundNavQueryService fundNavQueryService;
@@ -35,7 +36,8 @@ class FundInReportCheckerTest {
   @Test
   void warnsAboutANavFundTheReportHasNoRowsFor() {
     var results =
-        checkerAt(MORNING_OF_THE_NAV_DAY).fundsNotRead(NAV_DATE, ALL_BUT_TUV100, ALL_BUT_TUV100);
+        checkerAt(MORNING_OF_THE_NAV_DAY)
+            .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, POSITION_ROWS, ALL_BUT_TUV100);
 
     assertThat(results)
         .containsExactly(
@@ -50,7 +52,8 @@ class FundInReportCheckerTest {
     given(fundNavQueryService.hasPublishedNav("TUV100", NAV_DATE)).willReturn(true);
 
     var results =
-        checkerAt("2026-04-16T14:00:00Z").fundsNotRead(NAV_DATE, ALL_BUT_TUV100, ALL_BUT_TUV100);
+        checkerAt("2026-04-16T14:00:00Z")
+            .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, POSITION_ROWS, ALL_BUT_TUV100);
 
     assertThat(results)
         .containsExactly(
@@ -63,7 +66,8 @@ class FundInReportCheckerTest {
   @Test
   void leavesTheNavDeadlineOutForADateWhoseNavDayHasPassed() {
     var results =
-        checkerAt("2026-04-20T06:00:00Z").fundsNotRead(NAV_DATE, ALL_BUT_TUV100, ALL_BUT_TUV100);
+        checkerAt("2026-04-20T06:00:00Z")
+            .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, POSITION_ROWS, ALL_BUT_TUV100);
 
     assertThat(results)
         .containsExactly(
@@ -74,11 +78,11 @@ class FundInReportCheckerTest {
   }
 
   @Test
-  void aReportWithNoFundRowsAsksSebToResendItBeforeEachFundsOwnNav() {
+  void aReportWithNoPositionRowsAsksSebToResendItBeforeEachFundsOwnNav() {
     var beforeTheMorningNav = NO_FUND_ROWS + " before the 11:00 NAV";
     var beforeTheAfternoonNav = NO_FUND_ROWS + " before the 15:20 NAV";
 
-    assertThat(checkerAt(MORNING_OF_THE_NAV_DAY).fundsNotRead(NAV_DATE, Set.of(), Set.of()))
+    assertThat(checkerAt(MORNING_OF_THE_NAV_DAY).fundsNotRead(NAV_DATE, Set.of(), 0, Set.of()))
         .containsExactly(
             missingFromReport(TUK75, beforeTheMorningNav),
             missingFromReport(TUK00, beforeTheMorningNav),
@@ -87,14 +91,14 @@ class FundInReportCheckerTest {
   }
 
   @Test
-  void aReportWithNoFundRowsGivesNoDeadlineToAFundWhoseNavForThatDateIsPublished() {
+  void aReportWithNoPositionRowsGivesNoDeadlineToAFundWhoseNavForThatDateIsPublished() {
     given(fundNavQueryService.hasPublishedNav("TUK75", NAV_DATE)).willReturn(true);
     given(fundNavQueryService.hasPublishedNav("TUK00", NAV_DATE)).willReturn(true);
     given(fundNavQueryService.hasPublishedNav("TUV100", NAV_DATE)).willReturn(false);
     given(fundNavQueryService.hasPublishedNav("TKF100", NAV_DATE)).willReturn(false);
     var beforeTheAfternoonNav = NO_FUND_ROWS + " before the 15:20 NAV";
 
-    assertThat(checkerAt("2026-04-16T09:00:00Z").fundsNotRead(NAV_DATE, Set.of(), Set.of()))
+    assertThat(checkerAt("2026-04-16T09:00:00Z").fundsNotRead(NAV_DATE, Set.of(), 0, Set.of()))
         .containsExactly(
             missingFromReport(TUK75, NO_FUND_ROWS),
             missingFromReport(TUK00, NO_FUND_ROWS),
@@ -105,7 +109,8 @@ class FundInReportCheckerTest {
   @Test
   void saysTheNavIsNotPublishedYetOncePastItsCutoffOnTheNavDay() {
     var results =
-        checkerAt("2026-04-16T13:00:00Z").fundsNotRead(NAV_DATE, ALL_BUT_TUV100, ALL_BUT_TUV100);
+        checkerAt("2026-04-16T13:00:00Z")
+            .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, POSITION_ROWS, ALL_BUT_TUV100);
 
     assertThat(results)
         .containsExactly(
@@ -122,7 +127,7 @@ class FundInReportCheckerTest {
 
     var results =
         checkerAt("2026-02-02T14:00:00Z")
-            .fundsNotRead(inception, fundsBeforeTkf100, fundsBeforeTkf100);
+            .fundsNotRead(inception, fundsBeforeTkf100, POSITION_ROWS, fundsBeforeTkf100);
 
     assertThat(results)
         .containsExactly(
@@ -141,32 +146,50 @@ class FundInReportCheckerTest {
   void aReportWhoseRowsCouldNotBeReadPointsAtTheFileAndTheParserInsteadOfAskingSebToResend() {
     assertThat(
             checkerAt(MORNING_OF_THE_NAV_DAY)
-                .fundsNotRead(NAV_DATE, EnumSet.allOf(TulevaFund.class), Set.of()))
+                .fundsNotRead(NAV_DATE, EnumSet.allOf(TulevaFund.class), POSITION_ROWS, Set.of()))
         .containsExactly(
-            notReadFromReport(TUK75, ROWS_NOT_READ),
-            notReadFromReport(TUK00, ROWS_NOT_READ),
-            notReadFromReport(TUV100, ROWS_NOT_READ),
-            notReadFromReport(TKF100, ROWS_NOT_READ));
+            notReadFromReport(TUK75, ROWS_NOT_READ + " before the 11:00 NAV"),
+            notReadFromReport(TUK00, ROWS_NOT_READ + " before the 11:00 NAV"),
+            notReadFromReport(TUV100, ROWS_NOT_READ + " before the 15:20 NAV"),
+            notReadFromReport(TKF100, ROWS_NOT_READ + " before the 15:20 NAV"));
+  }
+
+  @Test
+  void aReportWhosePositionRowsNameNoFundIsPutOnTheFileAndTheParserForEveryFund() {
+    var noRowNamesAFund =
+        "none of the 40 position rows in SEB's position report for navDate=2026-04-15 names a"
+            + " fund: check the file and the parser";
+
+    assertThat(
+            checkerAt(MORNING_OF_THE_NAV_DAY)
+                .fundsNotRead(NAV_DATE, Set.of(), POSITION_ROWS, Set.of()))
+        .containsExactly(
+            notReadFromReport(TUK75, noRowNamesAFund + " before the 11:00 NAV"),
+            notReadFromReport(TUK00, noRowNamesAFund + " before the 11:00 NAV"),
+            notReadFromReport(TUV100, noRowNamesAFund + " before the 15:20 NAV"),
+            notReadFromReport(TKF100, noRowNamesAFund + " before the 15:20 NAV"));
   }
 
   @Test
   void aFundWhoseRowsCouldNotBeReadWhileOtherFundsWereIsPutOnTheParserAndAMissingOneOnSeb() {
     assertThat(
             checkerAt(MORNING_OF_THE_NAV_DAY)
-                .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, Set.of(TUK75, TUK00)))
+                .fundsNotRead(NAV_DATE, ALL_BUT_TUV100, POSITION_ROWS, Set.of(TUK75, TUK00)))
         .containsExactly(
             missingFromReport(
                 TUV100,
                 "TUV100: not in SEB's position report for navDate=2026-04-15. Ask SEB to resend"
                     + " the report with TUV100 before the 15:20 NAV"),
-            notReadFromReport(TKF100, ROWS_NOT_READ));
+            notReadFromReport(TKF100, ROWS_NOT_READ + " before the 15:20 NAV"));
   }
 
   @Test
   void noFundIsMissingFromAReportWithEveryNavFund() {
     var everyFund = EnumSet.allOf(TulevaFund.class);
 
-    assertThat(checkerAt(MORNING_OF_THE_NAV_DAY).fundsNotRead(NAV_DATE, everyFund, everyFund))
+    assertThat(
+            checkerAt(MORNING_OF_THE_NAV_DAY)
+                .fundsNotRead(NAV_DATE, everyFund, POSITION_ROWS, everyFund))
         .isEmpty();
   }
 
@@ -177,7 +200,8 @@ class FundInReportCheckerTest {
 
     assertThat(
             checkerAt(MORNING_OF_THE_NAV_DAY)
-                .fundsNotRead(dayBeforeInception, fundsBeforeTkf100, fundsBeforeTkf100))
+                .fundsNotRead(
+                    dayBeforeInception, fundsBeforeTkf100, POSITION_ROWS, fundsBeforeTkf100))
         .isEmpty();
   }
 
@@ -186,7 +210,7 @@ class FundInReportCheckerTest {
           + " as fund positions: check the file and the parser";
 
   private static final String NO_FUND_ROWS =
-      "SEB's position report for navDate=2026-04-15 has no fund rows. Ask SEB to resend it";
+      "SEB's position report for navDate=2026-04-15 has no position rows. Ask SEB to resend it";
 
   private FundInReportChecker checkerAt(String instant) {
     return new FundInReportChecker(

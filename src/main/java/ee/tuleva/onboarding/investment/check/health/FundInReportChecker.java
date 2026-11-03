@@ -28,7 +28,10 @@ class FundInReportChecker {
   private final Clock clock;
 
   List<HealthCheckResult> fundsNotRead(
-      LocalDate navDate, Set<TulevaFund> fundsWithRows, Set<TulevaFund> fundsRead) {
+      LocalDate navDate,
+      Set<TulevaFund> fundsWithRows,
+      int positionRows,
+      Set<TulevaFund> fundsRead) {
     var fundsNotRead =
         Arrays.stream(TulevaFund.values())
             .filter(TulevaFund::hasNavCalculation)
@@ -38,17 +41,23 @@ class FundInReportChecker {
     if (fundsNotRead.isEmpty()) {
       return List.of();
     }
+    if (positionRows == 0) {
+      return fundsNotRead.stream()
+          .map(fund -> missingFromReport(navDate, fund, noPositionRows(fund, navDate)))
+          .toList();
+    }
     if (fundsWithRows.isEmpty()) {
       return fundsNotRead.stream()
-          .map(fund -> missingFromReport(navDate, fund, noFundRows(fund, navDate)))
+          .map(
+              fund ->
+                  notReadFromReport(navDate, fund, noRowNamesAFund(fund, navDate, positionRows)))
           .toList();
     }
     return fundsNotRead.stream()
         .map(
             fund ->
                 fundsWithRows.contains(fund)
-                    ? HealthCheckResult.notReadFromReport(
-                        navDate, presenceWarning(fund, rowsNotRead(navDate)))
+                    ? notReadFromReport(navDate, fund, rowsNotRead(fund, navDate))
                     : missingFromReport(navDate, fund, notInReport(fund, navDate)))
         .toList();
   }
@@ -56,6 +65,11 @@ class FundInReportChecker {
   private static HealthCheckResult missingFromReport(
       LocalDate navDate, TulevaFund fund, String message) {
     return HealthCheckResult.missingFromReport(navDate, presenceWarning(fund, message));
+  }
+
+  private static HealthCheckResult notReadFromReport(
+      LocalDate navDate, TulevaFund fund, String message) {
+    return HealthCheckResult.notReadFromReport(navDate, presenceWarning(fund, message));
   }
 
   private static HealthCheckFinding presenceWarning(TulevaFund fund, String message) {
@@ -70,9 +84,27 @@ class FundInReportChecker {
         navDate);
   }
 
-  private String noFundRows(TulevaFund fund, LocalDate navDate) {
+  private String noPositionRows(TulevaFund fund, LocalDate navDate) {
     return withNavDeadline(
-        "SEB's position report for navDate=%s has no fund rows. Ask SEB to resend it"
+        "SEB's position report for navDate=%s has no position rows. Ask SEB to resend it"
+            .formatted(navDate),
+        fund,
+        navDate);
+  }
+
+  private String noRowNamesAFund(TulevaFund fund, LocalDate navDate, int positionRows) {
+    return withNavDeadline(
+        ("none of the %d position rows in SEB's position report for navDate=%s names a fund:"
+                + " check the file and the parser")
+            .formatted(positionRows, navDate),
+        fund,
+        navDate);
+  }
+
+  private String rowsNotRead(TulevaFund fund, LocalDate navDate) {
+    return withNavDeadline(
+        ("rows in SEB's position report for navDate=%s name the fund but none could be read as"
+                + " fund positions: check the file and the parser")
             .formatted(navDate),
         fund,
         navDate);
@@ -109,11 +141,5 @@ class FundInReportChecker {
     STILL_TO_COME,
     PAST_ITS_CUTOFF_UNPUBLISHED,
     DONE
-  }
-
-  private static String rowsNotRead(LocalDate navDate) {
-    return ("rows in SEB's position report for navDate=%s name the fund but none could be read as"
-            + " fund positions: check the file and the parser")
-        .formatted(navDate);
   }
 }

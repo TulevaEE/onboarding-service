@@ -24,6 +24,7 @@ const PENDING = SOURCES.SEB.files[1];
 
 function fakeDrive() {
   const events = [];
+  const downloads = [];
   const failures = {};
   function fail(action, name) {
     const key = action + " " + name;
@@ -35,7 +36,10 @@ function fakeDrive() {
     const f = {
       getName: () => currentName,
       content: () => currentContent,
-      getBlob: () => ({ getDataAsString: () => currentContent }),
+      getBlob() {
+        downloads.push(currentName);
+        return { getDataAsString: () => currentContent };
+      },
       setName(newName) {
         fail("setName", currentName);
         events.push("rename " + currentName + " -> " + newName);
@@ -75,6 +79,7 @@ function fakeDrive() {
   return {
     folder,
     events,
+    downloads,
     failures,
     seed: (names) => names.forEach((n) => files.push(file(n, "old " + n))),
     seedWithContent: (contents) => Object.keys(contents).forEach((n) => files.push(file(n, contents[n]))),
@@ -458,6 +463,16 @@ describe("saveReportToDrive", () => {
 
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
     expect(drive.events.slice(-1)).toEqual(["create TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a correction downloads the current _US.csv once", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seed(seeded);
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", SOURCE);
+
+    expect(drive.downloads.filter((name) => name === "TULEVA_pos_raport_20261020_US.csv")).toHaveLength(1);
   });
 
   test("a report whose current Drive copy already came from this e-mail is not saved again", () => {

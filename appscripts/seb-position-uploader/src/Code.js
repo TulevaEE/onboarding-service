@@ -599,16 +599,17 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
 
     var content = attachment.getDataAsString();
     var usContent = convertSebCsvToUs(content);
-    if (isTheOnlyCurrentFileWith(currentUsCopies, usContent) && isTheOnlyCurrentFileWith(currentOriginals, content)) {
+    var current = currentUsCopies[0] || null;
+    var currentUsContent = current ? contentOf(current) : null;
+    if (currentUsCopies.length === 1 && currentUsContent === usContent && isTheOnlyCurrentFileWith(currentOriginals, content)) {
         Logger.log("Drive copy unchanged, the folder already holds this content: " + name);
         recordDriveSource(s3Key, emailSource);
         return;
     }
-    if (currentUsCopies.length === 0) {
+    if (!current) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
-        var current = currentUsCopies[0];
-        if (contentOf(current) !== usContent) {
+        if (currentUsContent !== usContent) {
             current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
             current.setContent(usContent);
         }

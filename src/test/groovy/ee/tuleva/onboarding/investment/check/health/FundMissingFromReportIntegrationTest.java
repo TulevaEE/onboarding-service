@@ -31,7 +31,6 @@ import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
 import ee.tuleva.onboarding.investment.transaction.OpenTradeSource;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalendar;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -62,7 +61,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   CompletenessChecker.class,
   HealthCheckNotifier.class,
   FundNavQueryService.class,
-  NavCalendar.class,
   PublicHolidays.class,
   ClockConfig.class
 })
@@ -200,7 +198,7 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aReportWithNoFundRowsAsksSebToResendItInOneLineForEveryStartedNavFund() {
+  void aReportWithNoFundRowsAsksSebToResendItInOneLinePerNavDeadline() {
     var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of());
 
     assertThat(reported).isTrue();
@@ -211,10 +209,15 @@ class FundMissingFromReportIntegrationTest {
                     contains(
                         "Funds: TUK75 not in the report, TUK00 not in the report, TUV100 not in"
                             + " the report, TKF100 not in the report\n"),
-                    contains(
-                        "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: SEB's"
-                            + " position report for navDate=2026-10-30 has no fund rows. Ask SEB"
-                            + " to resend it before the 11:00 NAV")),
+                    and(
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: SEB's position report"
+                                + " for navDate=2026-10-30 has no fund rows. Ask SEB to resend it"
+                                + " before the 11:00 NAV"),
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUV100, TKF100: SEB's position"
+                                + " report for navDate=2026-10-30 has no fund rows. Ask SEB to"
+                                + " resend it before the 15:20 NAV"))),
                 not(contains("TUV100: not in SEB's position report"))),
             eq(INVESTMENT));
   }

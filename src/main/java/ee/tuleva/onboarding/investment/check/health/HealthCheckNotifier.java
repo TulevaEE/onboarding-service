@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -148,8 +150,28 @@ public class HealthCheckNotifier {
     message.append(fundStatuses(results, earlierImports));
     correctionSteps(provider, date, results).ifPresent(message::append);
 
+    message.append(findingLines(active));
+
+    if (!cleared.isEmpty()) {
+      if (!active.isEmpty()) {
+        message.append("\n");
+      }
+      message.append(clearedLines(cleared));
+    }
+
+    return message.toString();
+  }
+
+  private static String findingLines(List<Transition> active) {
+    var lines = new StringBuilder();
     active.stream()
         .flatMap(Transition::activeFindings)
+        .filter(finding -> finding.checkType() != FUND_IN_REPORT)
+        .forEach(
+            finding -> lines.append(FindingLine.of(finding).render(EnumSet.of(finding.fund()))));
+    active.stream()
+        .flatMap(Transition::activeFindings)
+        .filter(finding -> finding.checkType() == FUND_IN_REPORT)
         .collect(
             groupingBy(
                 FindingLine::of,
@@ -157,19 +179,31 @@ public class HealthCheckNotifier {
                 mapping(
                     HealthCheckFinding::fund,
                     toCollection(() -> EnumSet.noneOf(TulevaFund.class)))))
-        .forEach((line, funds) -> message.append(line.render(funds)));
+        .forEach((line, funds) -> lines.append(line.render(funds)));
+    return lines.toString();
+  }
 
-    if (!cleared.isEmpty()) {
-      if (!active.isEmpty()) {
-        message.append("\n");
-      }
-      for (var transition : cleared) {
-        message.append(
-            "\n[CLEARED] %s %s".formatted(transition.checkType, transition.result.fund()));
-      }
+  private static String clearedLines(List<Transition> cleared) {
+    var lines = new StringBuilder();
+    cleared.stream()
+        .filter(transition -> transition.checkType != FUND_IN_REPORT)
+        .forEach(
+            transition ->
+                lines.append(
+                    "\n[CLEARED] %s %s".formatted(transition.checkType, transition.result.fund())));
+    var fundsBackInReport =
+        cleared.stream()
+            .filter(transition -> transition.checkType == FUND_IN_REPORT)
+            .map(transition -> transition.result.fund())
+            .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+    if (!fundsBackInReport.isEmpty()) {
+      lines.append("\n[CLEARED] %s %s".formatted(FUND_IN_REPORT, codes(fundsBackInReport)));
     }
+    return lines.toString();
+  }
 
-    return message.toString();
+  private static String codes(Set<TulevaFund> funds) {
+    return funds.stream().map(TulevaFund::toString).collect(joining(", "));
   }
 
   private String header(
@@ -235,14 +269,8 @@ public class HealthCheckNotifier {
       return new FindingLine(finding.severity(), finding.checkType(), finding.message());
     }
 
-    String render(EnumSet<TulevaFund> funds) {
-      return "\n%s [%s] %s %s: %s"
-          .formatted(
-              emoji(),
-              severity,
-              checkType,
-              funds.stream().map(TulevaFund::toString).collect(joining(", ")),
-              message);
+    String render(Set<TulevaFund> funds) {
+      return "\n%s [%s] %s %s: %s".formatted(emoji(), severity, checkType, codes(funds), message);
     }
 
     private String emoji() {

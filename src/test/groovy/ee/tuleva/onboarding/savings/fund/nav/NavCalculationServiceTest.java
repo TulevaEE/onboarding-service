@@ -91,9 +91,9 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
-    NavFeeBases expectedBases =
-        new NavFeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
-    when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any()))
+    BigDecimal expectedFeeBaseValue = new BigDecimal("970000.00");
+    when(navFees.calculateFeesForNav(
+            eq(TKF100), eq(previousWorkingDay), eq(expectedFeeBaseValue), any()))
         .thenReturn(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
@@ -463,11 +463,7 @@ class NavCalculationServiceTest {
     service.backfillFees(TKF100, friday, sunday);
 
     verify(navFees, times(3))
-        .calculateFeesForNav(
-            eq(TKF100),
-            any(),
-            eq(new NavFeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
-            any());
+        .calculateFeesForNav(eq(TKF100), any(), eq(new BigDecimal("1000000")), any());
     verify(navFees).calculateFeesForNav(eq(TKF100), eq(friday), any(), any());
     verify(navFees).calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any());
     verify(navFees).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any());
@@ -496,11 +492,7 @@ class NavCalculationServiceTest {
 
     // Fee date is Monday, base value uses Monday's position (950M)
     verify(navFees)
-        .calculateFeesForNav(
-            eq(TUK75),
-            eq(monday),
-            eq(new NavFeeBases(new BigDecimal("950000000"), new BigDecimal("950000000"))),
-            any());
+        .calculateFeesForNav(eq(TUK75), eq(monday), eq(new BigDecimal("950000000")), any());
   }
 
   @Test
@@ -535,7 +527,7 @@ class NavCalculationServiceTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().positionReportDate()).isEqualTo(inceptionDate);
-    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo("5500000.00");
+    assertThat(result.get().feeBaseValue()).isEqualByComparingTo("5500000.00");
     verify(publicHolidays, never()).previousWorkingDay(any());
   }
 
@@ -557,7 +549,7 @@ class NavCalculationServiceTest {
     var result = service.computeFeeBaseValue(TUK75, calcDate);
 
     assertThat(result).isPresent();
-    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo("979816.87");
+    assertThat(result.get().feeBaseValue()).isEqualByComparingTo("979816.87");
   }
 
   @Test

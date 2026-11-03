@@ -20,9 +20,6 @@ public class FundNavQueryService {
   private static final List<String> FEE_BASE_ACCOUNT_TYPES =
       List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY");
 
-  private static final List<String> ASSET_ACCOUNT_TYPES =
-      List.of("SECURITY", "CASH", "RECEIVABLES");
-
   private final NavReportRepository navReportRepository;
 
   public boolean hasPublishedNav(String fundCode, LocalDate navDate) {
@@ -61,10 +58,6 @@ public class FundNavQueryService {
 
   public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
     return sumForPublishedCalculation(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
-  }
-
-  public Optional<BigDecimal> findAssetTotal(String fundCode, LocalDate navDate) {
-    return sumForPublishedCalculation(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
   public List<LocalDate> findPublishedNavDatesBetween(

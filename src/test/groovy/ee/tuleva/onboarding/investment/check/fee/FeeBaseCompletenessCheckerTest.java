@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeBaseValue;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.PublishedFeeBase;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -54,7 +55,8 @@ class FeeBaseCompletenessCheckerTest {
   void setUp() {
     var publicHolidays = new PublicHolidays();
     var expectedFeeBases =
-        new ExpectedFeeBases(fundNavQueryService, navLedgerRepository, publicHolidays);
+        new ExpectedFeeBases(
+            new PublishedFeeBase(fundNavQueryService, navLedgerRepository, publicHolidays));
     checker =
         new FeeBaseCompletenessChecker(
             feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));

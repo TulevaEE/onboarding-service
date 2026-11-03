@@ -198,8 +198,8 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aReportWithNoFundRowsAsksSebToResendItInOneLinePerNavDeadline() {
-    var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of());
+  void aReportWithNoPositionRowsAsksSebToResendItInOneLinePerNavDeadline() {
+    var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 0);
 
     assertThat(reported).isTrue();
     verify(notificationService)
@@ -212,20 +212,43 @@ class FundMissingFromReportIntegrationTest {
                     and(
                         contains(
                             "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: SEB's position report"
-                                + " for navDate=2026-10-30 has no fund rows. Ask SEB to resend it"
-                                + " before the 11:00 NAV"),
+                                + " for navDate=2026-10-30 has no position rows. Ask SEB to resend"
+                                + " it before the 11:00 NAV"),
                         contains(
                             "\n⚠️ [WARNING] FUND_IN_REPORT TUV100, TKF100: SEB's position"
-                                + " report for navDate=2026-10-30 has no fund rows. Ask SEB to"
+                                + " report for navDate=2026-10-30 has no position rows. Ask SEB to"
                                 + " resend it before the 15:20 NAV"))),
                 not(contains("TUV100: not in SEB's position report"))),
             eq(INVESTMENT));
   }
 
   @Test
-  void aReportWhoseRowsCouldNotBeReadSaysSoInOneLineAndClearsOnceItsFundRowsCanBeRead() {
+  void aReportWhosePositionRowsNameNoFundIsPutOnTheFileAndTheParserForEveryFund() {
+    var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 412);
+
+    assertThat(reported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                and(
+                    contains("TUK75 not read from the report"),
+                    and(
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: "
+                                + NO_ROW_NAMES_A_FUND
+                                + " before the 11:00 NAV"),
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUV100, TKF100: "
+                                + NO_ROW_NAMES_A_FUND
+                                + " before the 15:20 NAV"))),
+                not(contains("Ask SEB"))),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aReportWhoseRowsCouldNotBeReadSaysSoPerNavDeadlineAndClearsOnceItsFundRowsCanBeRead() {
     var unreadReported =
-        importReport("2026-10-31T07:00:00Z", List.of(), EnumSet.allOf(TulevaFund.class));
+        importReport("2026-10-31T07:00:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
 
     assertThat(unreadReported).isTrue();
     verify(notificationService)
@@ -236,9 +259,15 @@ class FundMissingFromReportIntegrationTest {
                         "Funds: TUK75 not read from the report, TUK00 not read from the report,"
                             + " TUV100 not read from the report, TKF100 not read from the"
                             + " report\n"),
-                    contains(
-                        "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: "
-                            + ROWS_NOT_READ)),
+                    and(
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: "
+                                + ROWS_NOT_READ
+                                + " before the 11:00 NAV"),
+                        contains(
+                            "\n⚠️ [WARNING] FUND_IN_REPORT TUV100, TKF100: "
+                                + ROWS_NOT_READ
+                                + " before the 15:20 NAV"))),
                 not(contains("Ask SEB"))),
             eq(INVESTMENT));
 
@@ -256,21 +285,23 @@ class FundMissingFromReportIntegrationTest {
 
   @Test
   void aReSentReportWhoseRowsCannotBeReadAfterAnEmptyOneIsPostedOnceAsAParserProblem() {
-    importReport("2026-10-31T07:00:00Z", List.of(), Set.of());
+    importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 0);
     clearInvocations(notificationService);
 
     var movedToParser =
-        importReport("2026-10-31T07:30:00Z", List.of(), EnumSet.allOf(TulevaFund.class));
+        importReport("2026-10-31T07:30:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
 
     assertThat(movedToParser).isTrue();
     verify(notificationService)
         .sendMessage(
             contains(
-                "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: " + ROWS_NOT_READ),
+                "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: "
+                    + ROWS_NOT_READ
+                    + " before the 11:00 NAV"),
             eq(INVESTMENT));
 
     var sameAgain =
-        importReport("2026-10-31T07:35:00Z", List.of(), EnumSet.allOf(TulevaFund.class));
+        importReport("2026-10-31T07:35:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
 
     assertThat(sameAgain).isFalse();
   }
@@ -281,7 +312,8 @@ class FundMissingFromReportIntegrationTest {
         importReport(
             "2026-10-31T07:00:00Z",
             complete(TUK75, TUK00, TUV100),
-            EnumSet.allOf(TulevaFund.class));
+            EnumSet.allOf(TulevaFund.class),
+            8);
 
     assertThat(reported).isTrue();
     verify(notificationService)
@@ -289,7 +321,10 @@ class FundMissingFromReportIntegrationTest {
             and(
                 and(
                     contains("TKF100 not read from the report"),
-                    contains("\n⚠️ [WARNING] FUND_IN_REPORT TKF100: " + ROWS_NOT_READ)),
+                    contains(
+                        "\n⚠️ [WARNING] FUND_IN_REPORT TKF100: "
+                            + ROWS_NOT_READ
+                            + " before the 15:20 NAV")),
                 not(contains("Ask SEB"))),
             eq(INVESTMENT));
   }
@@ -298,27 +333,32 @@ class FundMissingFromReportIntegrationTest {
       "rows in SEB's position report for navDate=2026-10-30 name the fund but none could be read"
           + " as fund positions: check the file and the parser";
 
+  private static final String NO_ROW_NAMES_A_FUND =
+      "none of the 412 position rows in SEB's position report for navDate=2026-10-30 names a"
+          + " fund: check the file and the parser";
+
   private boolean importReport(String at, List<FundPosition> positions) {
-    return importReport(at, positions, fundsOf(positions), Map.of());
+    return importReport(at, positions, fundsOf(positions), positions.size(), Map.of());
   }
 
   private boolean importReport(
-      String at, List<FundPosition> positions, Set<TulevaFund> fundsWithRows) {
-    return importReport(at, positions, fundsWithRows, Map.of());
+      String at, List<FundPosition> positions, Set<TulevaFund> fundsWithRows, int positionRows) {
+    return importReport(at, positions, fundsWithRows, positionRows, Map.of());
   }
 
   private boolean importReport(
       String at, List<FundPosition> positions, Map<TulevaFund, Instant> earlierImports) {
-    return importReport(at, positions, fundsOf(positions), earlierImports);
+    return importReport(at, positions, fundsOf(positions), positions.size(), earlierImports);
   }
 
   private boolean importReport(
       String at,
       List<FundPosition> positions,
       Set<TulevaFund> fundsWithRows,
+      int positionRows,
       Map<TulevaFund, Instant> earlierImports) {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
-    var results = healthCheckService.check(NAV_DATE, positions, fundsWithRows);
+    var results = healthCheckService.check(NAV_DATE, positions, fundsWithRows, positionRows);
     return notifier.notify(SEB, NAV_DATE, results, earlierImports);
   }
 

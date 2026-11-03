@@ -362,7 +362,8 @@ class HealthCheckServiceTest {
                 .checkType(FUND_IN_REPORT)
                 .issuesFound(true)
                 .severity(WARNING)
-                .result(Map.of("findings", List.of(missing)))
+                .result(
+                    Map.of("findings", List.of(missing), "reportPresence", "MISSING_FROM_REPORT"))
                 .build());
     verify(healthCheckEventRepository, times(HealthCheckType.values().length + 1))
         .save(any(HealthCheckEvent.class));

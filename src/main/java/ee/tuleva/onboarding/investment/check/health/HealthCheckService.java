@@ -207,7 +207,7 @@ public class HealthCheckService {
               .checkType(checkType)
               .issuesFound(issuesFound)
               .severity(severity)
-              .result(Map.of("findings", checkFindings))
+              .result(result.eventResult(checkType, checkFindings))
               .build();
 
       healthCheckEventRepository.save(event);

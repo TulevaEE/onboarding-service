@@ -255,6 +255,27 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
+  void aReSentReportWhoseRowsCannotBeReadAfterAnEmptyOneIsPostedOnceAsAParserProblem() {
+    importReport("2026-10-31T07:00:00Z", List.of(), Set.of());
+    clearInvocations(notificationService);
+
+    var movedToParser =
+        importReport("2026-10-31T07:30:00Z", List.of(), EnumSet.allOf(TulevaFund.class));
+
+    assertThat(movedToParser).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: " + ROWS_NOT_READ),
+            eq(INVESTMENT));
+
+    var sameAgain =
+        importReport("2026-10-31T07:35:00Z", List.of(), EnumSet.allOf(TulevaFund.class));
+
+    assertThat(sameAgain).isFalse();
+  }
+
+  @Test
   void aFundWhoseRowsCouldNotBeReadWhileTheOtherFundsWereIsPutOnTheParserNotOnSeb() {
     var reported =
         importReport(

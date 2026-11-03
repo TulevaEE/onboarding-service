@@ -409,6 +409,33 @@ class HealthCheckNotifierTest {
   }
 
   @Test
+  void postsAgainWhenAFundsPresenceWarningMovesFromAMissingFundToRowsThatCouldNotBeRead() {
+    givenPreviousPresence(
+        HealthCheckResult.missingFromReport(
+            DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "has no fund rows")));
+    var notRead =
+        HealthCheckResult.notReadFromReport(
+            DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "rows not read"));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(notRead), Map.of())).isTrue();
+    verify(notificationService)
+        .sendMessage(contains("⚠️ [WARNING] FUND_IN_REPORT TUK75: rows not read"), eq(INVESTMENT));
+  }
+
+  @Test
+  void silentWhileAFundStaysMissingFromTheReportEvenAsItsNavDeadlinePasses() {
+    givenPreviousPresence(
+        HealthCheckResult.missingFromReport(
+            DATE,
+            new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "resend before the 11:00 NAV")));
+    var stillMissing =
+        HealthCheckResult.missingFromReport(
+            DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "resend"));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(stillMissing), Map.of())).isFalse();
+  }
+
+  @Test
   void silentWhenTheSameCheckCouldNotRunForTheSameReason() {
     givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
     var finding =
@@ -440,6 +467,19 @@ class HealthCheckNotifierTest {
         .sendMessage(
             contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75, TUV100 not imported"),
             eq(INVESTMENT));
+  }
+
+  private void givenPreviousPresence(HealthCheckResult previous) {
+    var stored =
+        HealthCheckEvent.builder()
+            .severity(WARNING)
+            .result(previous.eventResult(FUND_IN_REPORT, previous.findings()))
+            .build();
+    lenient()
+        .doReturn(List.of(stored, stored))
+        .when(eventRepository)
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+            previous.fund(), DATE, FUND_IN_REPORT);
   }
 
   private void givenPreviousNotRun(HealthCheckType checkType, String message) {

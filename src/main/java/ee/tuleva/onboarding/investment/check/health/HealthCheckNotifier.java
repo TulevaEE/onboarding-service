@@ -91,7 +91,7 @@ public class HealthCheckNotifier {
 
   private boolean reasonChanged(
       HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
-    if (current != NOT_RUN) {
+    if (current != NOT_RUN && checkType != FUND_IN_REPORT) {
       return false;
     }
     var rows =
@@ -100,7 +100,9 @@ public class HealthCheckNotifier {
     if (rows.size() < 2) {
       return false;
     }
-    return !messages(result, checkType).equals(storedMessages(rows.get(1)));
+    return checkType == FUND_IN_REPORT
+        ? result.presenceDiffersFrom(rows.get(1))
+        : !messages(result, checkType).equals(storedMessages(rows.get(1)));
   }
 
   private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {

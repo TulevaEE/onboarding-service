@@ -74,25 +74,54 @@ var SOURCES = {
     }
 };
 
+// Every run holds the script lock for its S3 and Drive passes, so an overlapping
+// trigger or catch-up run cannot check a report's e-mail record, upload and record
+// in between and put an older report back.
+var RUN_LOCK_WAIT_MS = 10000;
+
 function processNewEmails() {
-    try {
-        processEmailsFromDays(2);
-    } catch (e) {
-        notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
-            "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
-        throw e;
+    if (!runAlone(function () {
+        var newestUploaded;
+        try {
+            newestUploaded = processEmailsFromDays(2);
+        } catch (e) {
+            notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
+                "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
+            throw e;
+        }
+        saveReportsToDrive(2, newestUploaded);
+    })) {
+        Logger.log("Skipped, another run holds the script lock; the next trigger retries");
     }
-    saveReportsToDrive(2);
 }
 
 function processHistoricalEmails() {
-    processEmailsFromDays(7);
-    saveReportsToDrive(7);
+    runAloneOrRefuse("processHistoricalEmails", function () {
+        saveReportsToDrive(7, processEmailsFromDays(7));
+    });
 }
 
 function processHistoricalEmails30Days() {
-    processEmailsFromDays(30);
-    saveReportsToDrive(30);
+    runAloneOrRefuse("processHistoricalEmails30Days", function () {
+        saveReportsToDrive(30, processEmailsFromDays(30));
+    });
+}
+
+function runAlone(run) {
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(RUN_LOCK_WAIT_MS)) return false;
+    try {
+        run();
+    } finally {
+        lock.releaseLock();
+    }
+    return true;
+}
+
+function runAloneOrRefuse(name, run) {
+    if (!runAlone(run)) {
+        throw new Error(name + " did not run: another run holds the script lock. Run it again in a minute");
+    }
 }
 
 function processEmailsFromDays(days, options) {
@@ -105,19 +134,22 @@ function processEmailsFromDays(days, options) {
     var threads = GmailApp.search(searchQuery);
     Logger.log("Found " + threads.length + " email threads");
 
+    var newestUploaded = recordSourcesOfUploadedEmails(threads, minMessageDate);
+
     // Process oldest threads first so the newest thread's upload wins on S3.
     for (var i = threads.length - 1; i >= 0; i--) {
-        processThread(threads[i], minMessageDate);
+        processThread(threads[i], minMessageDate, newestUploaded);
     }
 
     Logger.log("Processing complete");
+    return newestUploaded;
 }
 
 function gmailSearchQuery(days) {
     return "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
 }
 
-function processThread(thread, minMessageDate) {
+function processThread(thread, minMessageDate, newestUploaded) {
     var messages = thread.getMessages();
     var uploadCount = getUploadCount(thread);
     var matchingCount = 0;
@@ -127,7 +159,7 @@ function processThread(thread, minMessageDate) {
         if (messageHasMatchingAttachments(message)) {
             matchingCount++;
             if (shouldProcessMessage(matchingCount, uploadCount)) {
-                processMessage(message, thread);
+                processMessage(message, thread, newestUploaded);
             }
         }
     }
@@ -277,7 +309,7 @@ function notifySlack(message) {
     }
 }
 
-function processMessage(message, thread) {
+function processMessage(message, thread, newestUploaded) {
     var source = sourceOf(message);
 
     if (!source) {
@@ -296,7 +328,7 @@ function processMessage(message, thread) {
         if (result) {
             var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
             var datedReport = !result.fileConfig.keyFromCapture;
-            if (datedReport && isReplacedByNewerEmail(s3Key, emailSource)) {
+            if (datedReport && isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
                 Logger.log("SKIPPED: " + filename + ", s3://" + S3_BUCKET + "/" + s3Key + " holds a newer e-mail's report");
                 handledCount++;
                 continue;
@@ -311,7 +343,10 @@ function processMessage(message, thread) {
                 Logger.log("FAILED: " + filename + " -> " + e.message);
                 throw e;
             }
-            if (datedReport) recordEmailSourceAfterUpload(s3Key, emailSource);
+            if (datedReport) {
+                rememberNewest(newestUploaded, s3Key, emailSource);
+                recordEmailSourceAfterUpload(s3Key, emailSource);
+            }
         }
     }
 
@@ -331,9 +366,18 @@ function emailSourceOf(message) {
     return { date: message.getDate().toISOString(), id: message.getId() };
 }
 
-function isReplacedByNewerEmail(s3Key, emailSource) {
+function isReplacedByNewerEmail(s3Key, emailSource, newestUploaded) {
     var recorded = PropertiesService.getScriptProperties().getProperty(REPORT_SOURCE_PROPERTY_PREFIX + s3Key);
-    return isOlderThanCurrentSource(emailSource, parseEmailSource(s3Key, recorded));
+    if (isOlderThanCurrentSource(emailSource, parseEmailSource(s3Key, recorded))) return true;
+    return Boolean(newestUploaded) && isOlderThanCurrentSource(emailSource, newestUploaded[s3Key] || null);
+}
+
+// The run's own memory of the newest uploaded e-mail per report, so a record
+// write that fails cannot let an older e-mail through in the same run.
+function rememberNewest(newestUploaded, s3Key, emailSource) {
+    if (!newestUploaded) return;
+    var current = newestUploaded[s3Key] || null;
+    if (!current || isOlderThanCurrentSource(current, emailSource)) newestUploaded[s3Key] = emailSource;
 }
 
 function parseEmailSource(s3Key, recorded) {
@@ -353,6 +397,60 @@ function recordEmailSource(s3Key, emailSource) {
         forgetOldReportSources(props, new Date());
     } catch (e) {
         Logger.log("Old e-mail records not pruned: " + e.message);
+    }
+}
+
+// An e-mail uploaded without a record (before the record existed, or when its
+// record write failed) still counts: before any upload, each run records the
+// newest already-uploaded e-mail per report, so an older e-mail found later is
+// skipped instead of replacing it.
+function recordSourcesOfUploadedEmails(threads, minMessageDate) {
+    var newestUploaded = {};
+    for (var i = 0; i < threads.length; i++) {
+        var uploadCount = getUploadCount(threads[i]);
+        var matchingCount = 0;
+        var messages = threads[i].getMessages();
+        for (var j = 0; j < messages.length && matchingCount < uploadCount; j++) {
+            if (!isMessageWithinWindow(messages[j].getDate(), minMessageDate)) continue;
+            var keys = datedReportKeysOf(messages[j]);
+            if (keys === null) continue;
+            matchingCount++;
+            for (var k = 0; k < keys.length; k++) {
+                rememberNewest(newestUploaded, keys[k], emailSourceOf(messages[j]));
+                recordEmailSourceIfNewer(keys[k], emailSourceOf(messages[j]));
+            }
+        }
+    }
+    return newestUploaded;
+}
+
+function datedReportKeysOf(message) {
+    var source = sourceOf(message);
+    if (!source) return null;
+    var attachments = message.getAttachments({ includeInlineImages: false });
+    var matched = false;
+    var keys = [];
+    for (var i = 0; i < attachments.length; i++) {
+        var filename = attachments[i].getName();
+        if (isIgnoredFilename(source, filename)) continue;
+        var result = getFileConfigAndDate(source, filename);
+        if (!result) continue;
+        matched = true;
+        if (!result.fileConfig.keyFromCapture) {
+            keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
+        }
+    }
+    return matched ? keys : null;
+}
+
+function recordEmailSourceIfNewer(s3Key, emailSource) {
+    try {
+        var recorded = PropertiesService.getScriptProperties().getProperty(REPORT_SOURCE_PROPERTY_PREFIX + s3Key);
+        var current = parseEmailSource(s3Key, recorded);
+        if (current && !isOlderThanCurrentSource(current, emailSource)) return;
+        recordEmailSource(s3Key, emailSource);
+    } catch (e) {
+        Logger.log("E-mail record of an earlier upload not saved: key=" + s3Key + ", error=" + e.message);
     }
 }
 
@@ -382,7 +480,7 @@ var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
 var DRIVE_LABEL_PREFIX = "Drive-Saved-";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
 
-function saveReportsToDrive(days) {
+function saveReportsToDrive(days, newestUploaded) {
     try {
         var props = PropertiesService.getScriptProperties();
         var folderId = props.getProperty(DRIVE_FOLDER_PROPERTY);
@@ -391,19 +489,10 @@ function saveReportsToDrive(days) {
             notifyDriveProblemOncePerDay("SEB reports are not saved to Drive: the Script Property " + DRIVE_FOLDER_PROPERTY + " is not set");
             return;
         }
-        var lock = LockService.getScriptLock();
-        if (!lock.tryLock(1000)) {
-            Logger.log("Drive copy skipped, another run is saving to Drive");
-            return;
-        }
-        try {
-            var folder = DriveApp.getFolderById(folderId);
-            var threads = GmailApp.search(gmailSearchQuery(days));
-            for (var i = threads.length - 1; i >= 0; i--) {
-                saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder);
-            }
-        } finally {
-            lock.releaseLock();
+        var folder = DriveApp.getFolderById(folderId);
+        var threads = GmailApp.search(gmailSearchQuery(days));
+        for (var i = threads.length - 1; i >= 0; i--) {
+            saveThreadToDriveWithoutStoppingTheOthers(threads[i], folder, newestUploaded);
         }
     } catch (e) {
         Logger.log("FAILED Drive copy run: " + e.message);
@@ -411,9 +500,9 @@ function saveReportsToDrive(days) {
     }
 }
 
-function saveThreadToDriveWithoutStoppingTheOthers(thread, folder) {
+function saveThreadToDriveWithoutStoppingTheOthers(thread, folder, newestUploaded) {
     try {
-        saveThreadToDrive(thread, folder);
+        saveThreadToDrive(thread, folder, newestUploaded);
     } catch (e) {
         Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
         notifyDriveProblemOncePerDay("an SEB report is in S3 but not in Drive yet: `" + e.message + "`. Each run retries e-mails from the last 2 days; " +
@@ -421,7 +510,7 @@ function saveThreadToDriveWithoutStoppingTheOthers(thread, folder) {
     }
 }
 
-function saveThreadToDrive(thread, folder) {
+function saveThreadToDrive(thread, folder, newestUploaded) {
     var uploadCount = getUploadCount(thread);
     var driveCount = getDriveCount(thread);
     var matchingCount = 0;
@@ -438,7 +527,7 @@ function saveThreadToDrive(thread, folder) {
         if (matchingCount > uploadCount) return;
         var emailSource = emailSourceOf(message);
         for (var k = 0; k < reports.length; k++) {
-            saveReportToDrive(folder, reports[k].attachment, reports[k].fileConfig, reports[k].reportDate, emailSource);
+            saveReportToDrive(folder, reports[k].attachment, reports[k].fileConfig, reports[k].reportDate, emailSource, newestUploaded);
         }
         incrementDriveLabel(thread);
         driveCount++;
@@ -458,7 +547,7 @@ function driveReportsOf(message) {
     return reports;
 }
 
-function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource) {
+function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
     var name = attachment.getName();
     if (isUsCopyName(name)) {
         var alerted = notifyDriveProblemOncePerDay("`" + name + "` is in S3 but was not saved to Drive: its name ends in _US.csv, " +
@@ -467,7 +556,7 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
-    if (isReplacedByNewerEmail(s3Key, emailSource)) {
+    if (isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
         Logger.log("Drive copy skipped, the current copy comes from a newer e-mail: " + name);
         return;
     }

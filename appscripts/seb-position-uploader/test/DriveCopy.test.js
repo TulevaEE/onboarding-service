@@ -562,16 +562,27 @@ describe("saveReportsToDrive", () => {
     expect(slack[0]).toContain("DRIVE_SEB_REPORT_FOLDER_ID");
   });
 
-  test("does nothing while another run holds the lock", () => {
+  test("a run does nothing while another run holds the script lock, and the next trigger retries", () => {
     const drive = fakeDrive();
-    const { calls } = installAppsScriptFakes({
-      properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
+    const thread = fakeThread([sebMessage("m1", report("20261020"))], []);
+    const { calls, s3Keys } = installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" },
       folders: { "folder-1": drive.folder },
+      threads: [thread],
       lockAvailable: false,
     });
 
-    saveReportsToDrive(2);
+    processNewEmails();
 
+    expect(calls.search).toBe(0);
+    expect(s3Keys).toEqual([]);
+    expect(thread.labels).toEqual([]);
+  });
+
+  test("a catch-up run refuses to start while another run holds the script lock", () => {
+    const { calls } = installAppsScriptFakes({ lockAvailable: false });
+
+    expect(() => processHistoricalEmails()).toThrow("another run holds the script lock");
     expect(calls.search).toBe(0);
   });
 
@@ -712,6 +723,75 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
   });
 
+  test("a correction uploaded before the e-mail record existed still beats an older e-mail a catch-up finds", () => {
+    const drive = fakeDrive();
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = fakesWith(drive, [uploadedBeforeTheRecord, neverUploaded]);
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x", "Drive-Saved-1x"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("when the record of an earlier correction cannot be saved, Drive does not get the older report either", () => {
+    const drive = fakeDrive();
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = fakesWith(drive, [uploadedBeforeTheRecord, neverUploaded]);
+    const store = PropertiesService.getScriptProperties();
+    let failedOnce = false;
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:") && !failedOnce) {
+            failedOnce = true;
+            throw new Error("properties quota");
+          }
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(drive.events).not.toContain("create TULEVA_pos_raport_20261020.csv");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("an already uploaded older e-mail never lowers the record of a newer one", () => {
+    const drive = fakeDrive();
+    const olderUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const fakes = fakesWith(drive, [olderUploaded]);
+    const newer = JSON.stringify({ date: "2026-11-02T10:15:00.000Z", id: "18f0a00000000002" });
+    fakes.props["report_source:seb/2026-10-20_positions.csv"] = newer;
+
+    processHistoricalEmails();
+
+    expect(fakes.props["report_source:seb/2026-10-20_positions.csv"]).toBe(newer);
+    expect(fakes.s3Keys).toEqual([]);
+  });
+
   test("a newer e-mail for the same date replaces the file on S3 and in Drive", () => {
     const drive = fakeDrive();
     const original = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);
@@ -788,6 +868,33 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(fakes.s3Keys).toEqual(["seb/2026-10-20_positions.csv", "seb/2026-10-21_positions.csv"]);
     expect(first.labels).toEqual(["S3-Uploaded-1x"]);
     expect(second.labels).toEqual(["S3-Uploaded-1x"]);
+  });
+
+  test("a correction uploaded before the record existed beats an older e-mail even when no record can be saved", () => {
+    const uploadedBeforeTheRecord = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const neverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-10-31T08:45:00Z"))],
+      [],
+    );
+    const fakes = s3Only([uploadedBeforeTheRecord, neverUploaded]);
+    const store = PropertiesService.getScriptProperties();
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        ...store,
+        setProperty: (key, value) => {
+          if (key.startsWith("report_source:")) throw new Error("properties quota");
+          store.setProperty(key, value);
+        },
+      }),
+    };
+
+    processHistoricalEmails();
+
+    expect(fakes.s3Keys).toEqual([]);
+    expect(neverUploaded.labels).toEqual(["S3-Uploaded-1x"]);
   });
 
   test("an unreadable record counts as none: the report uploads and the record is rewritten", () => {

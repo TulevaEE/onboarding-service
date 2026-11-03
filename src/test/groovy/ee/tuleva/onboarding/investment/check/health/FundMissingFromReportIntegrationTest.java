@@ -243,14 +243,8 @@ class FundMissingFromReportIntegrationTest {
     verify(notificationService)
         .sendMessage(
             and(
-                and(
-                    contains("✅ Import cleared: SEB 2026-10-30\n"),
-                    and(
-                        contains("[CLEARED] FUND_IN_REPORT TUK75"),
-                        contains("[CLEARED] FUND_IN_REPORT TUK00"))),
-                and(
-                    contains("[CLEARED] FUND_IN_REPORT TUV100"),
-                    contains("[CLEARED] FUND_IN_REPORT TKF100"))),
+                contains("✅ Import cleared: SEB 2026-10-30\n"),
+                contains("\n[CLEARED] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100")),
             eq(INVESTMENT));
   }
 

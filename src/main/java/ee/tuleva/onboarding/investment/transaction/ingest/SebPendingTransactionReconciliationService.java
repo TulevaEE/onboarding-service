@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.SOURCE_SEB_OOTEL;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -41,7 +42,7 @@ public class SebPendingTransactionReconciliationService {
   @RequiredArgsConstructor
   private enum SettlementByAbsence {
     ON_LATEST_REPORT_ONLY(execution -> true),
-    ON_THIS_REPORT_AS_OF_ITS_DATE(execution -> true);
+    ON_THIS_REPORT_AS_OF_ITS_DATE(execution -> SOURCE_SEB_OOTEL.equals(execution.getSource()));
 
     private final Predicate<TransactionExecution> countsAsListed;
   }

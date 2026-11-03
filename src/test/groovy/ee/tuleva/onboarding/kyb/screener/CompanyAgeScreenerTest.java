@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb.screener;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_AGE;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyb.*;
@@ -60,10 +61,11 @@ class CompanyAgeScreenerTest {
 
   private static KybCompanyData companyFoundedOn(LocalDate foundingDate) {
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+        new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
         new PersonalCode("38501010001"),
         CompanyStatus.R,
         List.of(),
+        ZERO,
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

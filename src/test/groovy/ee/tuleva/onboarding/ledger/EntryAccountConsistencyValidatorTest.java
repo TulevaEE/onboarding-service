@@ -27,7 +27,6 @@ class EntryAccountConsistencyValidatorTest {
   @BeforeEach
   void setUp() {
     entryValidator = new EntryAccountConsistencyValidator();
-    entryValidator.initialize(null);
   }
 
   @Test

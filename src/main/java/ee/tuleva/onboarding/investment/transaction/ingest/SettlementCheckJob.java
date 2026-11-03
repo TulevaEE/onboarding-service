@@ -61,11 +61,43 @@ class SettlementCheckJob {
   private final OperationsNotificationService notificationService;
   private final OverdueSettlementDetector detector;
 
+  @Value("${transaction-registry.settlement-check.registry-comparisons-enabled:false}")
+  private final boolean registryComparisonsEnabled;
+
   @Scheduled(cron = "0 0 10 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "SettlementCheckJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);
+    RegistryComparisons comparisons = compareReportWithRegistry(today);
 
+    if (!registryComparisonsEnabled) {
+      log.info(
+          "Settlement check registry comparisons switched off, nothing sent: today={},"
+              + " overdue={}, unmatched={}, inconsistent={}, fresh={}",
+          today,
+          comparisons.overdue().size(),
+          comparisons.unmatched().size(),
+          comparisons.inconsistent().size(),
+          comparisons.fresh());
+      return;
+    }
+    if (comparisons.isClean()) {
+      log.info("Settlement check clean: today={}", today);
+      return;
+    }
+
+    notificationService.sendMessage(buildMessage(today, comparisons), INVESTMENT);
+    log.info(
+        "Sent settlement check digest: today={}, overdue={}, unmatched={}, inconsistent={},"
+            + " fresh={}",
+        today,
+        comparisons.overdue().size(),
+        comparisons.unmatched().size(),
+        comparisons.inconsistent().size(),
+        comparisons.fresh());
+  }
+
+  private RegistryComparisons compareReportWithRegistry(LocalDate today) {
     var latestReport = reportService.getLatestReport(SEB, PENDING_TRANSACTIONS);
     boolean fresh = latestReport.map(report -> detector.isUsable(report, today)).orElse(false);
     LocalDate referenceDate = fresh ? latestReport.get().getReportDate() : today;
@@ -89,40 +121,23 @@ class SettlementCheckJob {
     List<TransactionOrder> registryOrders =
         orderRepository.findByOrderStatusInAndOrderTimestampSince(List.of(SENT, EXECUTED), since);
 
-    List<OverdueLine> overdue =
+    return new RegistryComparisons(
+        fresh,
         detector.collectOverdue(
-            referenceDate, fresh, reportClientRefs, reportOurRefs, registryOrders);
-    List<SebPendingTransactionRow> unmatched =
-        fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of();
-    List<InconsistentMatchedRow> inconsistent =
-        fresh ? unmatchedFinder.collectInconsistent(latestReport.get()) : List.of();
+            referenceDate, fresh, reportClientRefs, reportOurRefs, registryOrders),
+        fresh ? unmatchedFinder.collectUnmatched(latestReport.get()) : List.of(),
+        fresh ? unmatchedFinder.collectInconsistent(latestReport.get()) : List.of());
+  }
 
-    boolean emptyRegistryBootstrap = registryOrders.isEmpty();
-    // TODO: drop emptyRegistryBootstrap once the registry holds real orders — it silences the
-    // stale-report warning during bootstrap but would also mask a broken pipeline on an empty
-    // table.
-    if (overdue.isEmpty()
-        && unmatched.isEmpty()
-        && inconsistent.isEmpty()
-        && (fresh || emptyRegistryBootstrap)) {
-      log.info(
-          "Settlement check clean: today={}, fresh={}, registryEmpty={}",
-          today,
-          fresh,
-          emptyRegistryBootstrap);
-      return;
+  private record RegistryComparisons(
+      boolean fresh,
+      List<OverdueLine> overdue,
+      List<SebPendingTransactionRow> unmatched,
+      List<InconsistentMatchedRow> inconsistent) {
+
+    boolean isClean() {
+      return fresh && overdue.isEmpty() && unmatched.isEmpty() && inconsistent.isEmpty();
     }
-
-    String message = buildMessage(today, fresh, overdue, unmatched, inconsistent);
-    notificationService.sendMessage(message, INVESTMENT);
-    log.info(
-        "Sent settlement check digest: today={}, overdue={}, unmatched={}, inconsistent={},"
-            + " fresh={}",
-        today,
-        overdue.size(),
-        unmatched.size(),
-        inconsistent.size(),
-        fresh);
   }
 
   @EventListener(RunOverdueSettlementRequested.class)
@@ -130,17 +145,13 @@ class SettlementCheckJob {
     run();
   }
 
-  private String buildMessage(
-      LocalDate today,
-      boolean fresh,
-      List<OverdueLine> overdue,
-      List<SebPendingTransactionRow> unmatched,
-      List<InconsistentMatchedRow> inconsistent) {
+  private String buildMessage(LocalDate today, RegistryComparisons comparisons) {
     Map<TulevaFund, List<OverdueLine>> overdueByFund =
-        overdue.stream().collect(Collectors.groupingBy(line -> line.order().getFund()));
+        comparisons.overdue().stream()
+            .collect(Collectors.groupingBy(line -> line.order().getFund()));
     Map<TulevaFund, List<SebPendingTransactionRow>> unmatchedByFund = new LinkedHashMap<>();
     List<SebPendingTransactionRow> unresolved = new ArrayList<>();
-    for (SebPendingTransactionRow row : unmatched) {
+    for (SebPendingTransactionRow row : comparisons.unmatched()) {
       fundResolver
           .resolve(row.clientName())
           .ifPresentOrElse(
@@ -148,11 +159,12 @@ class SettlementCheckJob {
               () -> unresolved.add(row));
     }
     Map<TulevaFund, List<InconsistentMatchedRow>> inconsistentByFund =
-        inconsistent.stream().collect(Collectors.groupingBy(entry -> entry.order().getFund()));
+        comparisons.inconsistent().stream()
+            .collect(Collectors.groupingBy(entry -> entry.order().getFund()));
 
     StringBuilder message = new StringBuilder();
     message.append("⚠️ SEB arveldus- ja tehingukontroll – ").append(today);
-    if (!fresh) {
+    if (!comparisons.fresh()) {
       message.append(
           "\n\nHOIATUS: värske SEB ootel-tehingute raport puudub või on aegunud —"
               + " arveldatud staatust ei saa tuvastada, kõik hilinenud täidetud tellimused"

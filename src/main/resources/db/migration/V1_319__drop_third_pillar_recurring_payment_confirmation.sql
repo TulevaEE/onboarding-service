@@ -1,0 +1,1 @@
+DROP TABLE third_pillar_recurring_payment_confirmation;

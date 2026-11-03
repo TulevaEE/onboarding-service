@@ -10,6 +10,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.instrument.BenchmarkProxy;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -171,7 +174,7 @@ class BenchmarkCheckBuilder {
     return Optional.of(totalReturn.setScale(6, RoundingMode.HALF_UP));
   }
 
-  Optional<TrackingDifferenceResult> buildBenchmarkModelCheck(
+  BenchmarkModelCheck buildBenchmarkModelCheck(
       TulevaFund fund, LocalDate checkDate, List<SecurityData> securities) {
 
     var validSecurities =
@@ -186,7 +189,7 @@ class BenchmarkCheckBuilder {
             .toList();
 
     if (validSecurities.isEmpty()) {
-      return Optional.empty();
+      return new NothingToMeasure();
     }
 
     var maxDailyReturn = calculator.maxDailyReturn(checkDate);
@@ -195,9 +198,10 @@ class BenchmarkCheckBuilder {
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
     var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
+    var benchmarksWithoutPrices = new ArrayList<Map.Entry<SecurityData, String>>();
 
     for (var s : validSecurities) {
-      var benchmarkKey = resolveBenchmarkKey(s.isin());
+      var benchmarkKey = resolveBenchmarkKey(s.isin(), checkDate);
       if (benchmarkKey == null) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
         holdingsReportedAsBenchmarkGap.add(s);
@@ -216,6 +220,7 @@ class BenchmarkCheckBuilder {
             s.isin(),
             benchmarkKey);
         holdingsReportedAsBenchmarkGap.add(s);
+        benchmarksWithoutPrices.add(Map.entry(s, benchmarkKey));
         continue;
       }
       var secReturn =
@@ -236,7 +241,7 @@ class BenchmarkCheckBuilder {
     }
 
     if (totalWeight.signum() == 0) {
-      return Optional.empty();
+      return outcomeWithNoHoldingMeasured(fund, checkDate, benchmarksWithoutPrices);
     }
 
     var benchmarkReturn =
@@ -269,7 +274,7 @@ class BenchmarkCheckBuilder {
               priorBreaches.contributionByIsin(), attributions);
     }
 
-    return Optional.of(
+    return new Measured(
         TrackingDifferenceResult.builder()
             .fund(fund)
             .checkDate(checkDate)
@@ -294,6 +299,20 @@ class BenchmarkCheckBuilder {
             .build());
   }
 
+  private static BenchmarkModelCheck outcomeWithNoHoldingMeasured(
+      TulevaFund fund,
+      LocalDate checkDate,
+      List<Map.Entry<SecurityData, String>> benchmarksWithoutPrices) {
+    var heldWithoutBenchmarkPrices =
+        benchmarksWithoutPrices.stream()
+            .filter(holding -> holding.getKey().actualWeight().signum() > 0)
+            .map(holding -> "%s (%s)".formatted(holding.getKey().isin(), holding.getValue()))
+            .toList();
+    return heldWithoutBenchmarkPrices.isEmpty()
+        ? new NothingToMeasure()
+        : new NoHoldingMeasured(fund, checkDate, heldWithoutBenchmarkPrices);
+  }
+
   private static List<String> isins(List<SecurityData> holdings) {
     return holdings.stream().map(SecurityData::isin).toList();
   }
@@ -302,8 +321,11 @@ class BenchmarkCheckBuilder {
     return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
   }
 
-  private @Nullable String resolveBenchmarkKey(String isin) {
-    return benchmarkLegResolver.resolve(isin).map(BenchmarkProxy::storageKey).orElse(null);
+  private @Nullable String resolveBenchmarkKey(String isin, LocalDate checkDate) {
+    return benchmarkLegResolver
+        .resolve(isin, checkDate)
+        .map(BenchmarkProxy::storageKey)
+        .orElse(null);
   }
 
   private Optional<BigDecimal> lookupReturn(

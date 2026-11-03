@@ -19,8 +19,8 @@ public class MandateDtoDeserializer
 
     JsonNode detailsNode = root.get("details");
     MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asString());
-    if (type == MandateType.UNKNOWN) {
-      throw new IllegalArgumentException("Unknown mandateType: " + type);
+    if (type == MandateType.UNKNOWN || type == MandateType.REJOIN_CANCELLATION) {
+      throw new IllegalArgumentException("Unsupported mandateType: type=" + type);
     }
 
     MandateDetails details =

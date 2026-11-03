@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.Objects.requireNonNull;
@@ -33,6 +34,7 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
+  private final SecondPillarRejoinMergeVars secondPillarRejoinMergeVars;
 
   public void sendMandateBatch(User user, MandateBatch mandateBatch, Locale locale) {
     Long mandateBatchId = mandateBatchIdOf(mandateBatch);
@@ -46,11 +48,15 @@ public class MandateBatchEmailService {
 
     EmailType emailType = MandateEmailType.emailTypeFor(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
+    Map<String, Object> mergeVars = getMergeVars(user, mandateBatch);
+    if (emailType == SECOND_PILLAR_REJOIN) {
+      mergeVars.putAll(secondPillarRejoinMergeVars.of(user, mandateBatch, locale));
+    }
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch),
+            mergeVars,
             getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService

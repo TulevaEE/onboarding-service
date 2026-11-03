@@ -8,12 +8,17 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKIN
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.PastProxy;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -67,27 +72,81 @@ class BenchmarkCheckBuilderTest {
                         new BenchmarkCategoryProxy(
                             2L, "EQUITY_DM", "IE00B4L5Y983", null, DEVELOPED_MARKETS_INDEX)))),
             consecutiveBreachTracker);
-    given(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
-        .willReturn(new BigDecimal("0.5"));
-    given(parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, CHECK_DATE))
-        .willReturn(new BigDecimal("0.001"));
-    given(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, CHECK_DATE))
-        .willReturn(Optional.of(indexValue(CHECK_DATE)));
-    given(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, PREVIOUS_DATE))
-        .willReturn(Optional.of(indexValue(PREVIOUS_DATE)));
+    lenient()
+        .when(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
+        .thenReturn(new BigDecimal("0.5"));
+    lenient()
+        .when(parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, CHECK_DATE))
+        .thenReturn(new BigDecimal("0.001"));
+    lenient()
+        .when(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, CHECK_DATE))
+        .thenReturn(Optional.of(indexValue(CHECK_DATE)));
+    lenient()
+        .when(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, PREVIOUS_DATE))
+        .thenReturn(Optional.of(indexValue(PREVIOUS_DATE)));
+  }
+
+  @Test
+  void aHoldingIsMeasuredAgainstTheProxyInEffectOnTheCheckDate() {
+    var pastProxyKey = "IE00B4L5Y983.XETR";
+    given(fundValueProvider.getLatestValue(pastProxyKey, CHECK_DATE))
+        .willReturn(Optional.of(price(pastProxyKey, CHECK_DATE, "22.00")));
+    given(fundValueProvider.getLatestValue(pastProxyKey, PREVIOUS_DATE))
+        .willReturn(Optional.of(price(pastProxyKey, PREVIOUS_DATE, FLAT_PRICE)));
+    given(consecutiveBreachTracker.countConsecutiveBreaches(TUK75, BENCHMARK_MODEL, CHECK_DATE))
+        .willReturn(streakOf(0, 0, 0));
+    var builderWithAPastProxy =
+        new BenchmarkCheckBuilder(
+            new TrackingDifferenceCalculator(parameterRepository),
+            fundValueProvider,
+            priorityPriceProvider,
+            new BenchmarkLegResolver(
+                instrumentReferenceService(
+                    List.of(
+                        tracked(EMERGING_MARKETS_ISIN, "IE00BKPTWY98.EUFUND", "EQUITY_EM"),
+                        tracked(DEVELOPED_MARKETS_ISIN, "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
+                        tracked("IE00B4L5YC18", "EUNM.XETRA", null),
+                        tracked("IE00B4L5Y983", "EUNL.XETRA", null)),
+                    List.of(
+                        new BenchmarkCategoryProxy(
+                            1L, "EQUITY_EM", "IE00B4L5YC18", null, EMERGING_MARKETS_INDEX),
+                        new BenchmarkCategoryProxy(
+                            2L, "EQUITY_DM", "IE00B4L5Y983", null, DEVELOPED_MARKETS_INDEX)),
+                    List.of(
+                        new PastProxy(DEVELOPED_MARKETS_ISIN, "IE00B4L5YC18", PREVIOUS_DATE),
+                        new PastProxy(DEVELOPED_MARKETS_ISIN, "IE00B4L5Y983", CHECK_DATE)))),
+            consecutiveBreachTracker);
+
+    var result =
+        measured(
+            builderWithAPastProxy.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
+                    flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.50")))));
+
+    assertThat(result.securityAttributions())
+        .filteredOn(attribution -> attribution.isin().equals(DEVELOPED_MARKETS_ISIN))
+        .singleElement()
+        .extracting(SecurityAttribution::benchmarkReturn)
+        .satisfies(benchmarkReturn -> assertThat(benchmarkReturn).isEqualByComparingTo("0.1"));
+  }
+
+  private static FundValue price(String key, LocalDate date, String value) {
+    return new FundValue(key, date, new BigDecimal(value), "TEST", Instant.EPOCH);
   }
 
   @Test
   void aHoldingWithNoBenchmarkProxyIsReportedAsABenchmarkGapRatherThanDropped() {
     var result =
-        builder
-            .buildBenchmarkModelCheck(
+        measured(
+            builder.buildBenchmarkModelCheck(
                 TUK75,
                 CHECK_DATE,
                 List.of(
                     flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.60")),
-                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.40"))))
-            .orElseThrow();
+                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.40")))));
 
     assertThat(result.benchmarkGapIsins()).containsExactly(UNTRACKED_ISIN);
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(new BigDecimal("0.40"));
@@ -101,15 +160,14 @@ class BenchmarkCheckBuilderTest {
         .willReturn(Optional.empty());
 
     var result =
-        builder
-            .buildBenchmarkModelCheck(
+        measured(
+            builder.buildBenchmarkModelCheck(
                 TUK75,
                 CHECK_DATE,
                 List.of(
                     flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
                     flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.30")),
-                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.20"))))
-            .orElseThrow();
+                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.20")))));
 
     assertThat(result.benchmarkGapIsins()).containsExactly(DEVELOPED_MARKETS_ISIN, UNTRACKED_ISIN);
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(new BigDecimal("0.50"));
@@ -118,10 +176,9 @@ class BenchmarkCheckBuilderTest {
   @Test
   void aFullyCoveredSleeveReportsNoBenchmarkGap() {
     var result =
-        builder
-            .buildBenchmarkModelCheck(
-                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE)))
-            .orElseThrow();
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE))));
 
     assertThat(result.benchmarkGapIsins()).isEmpty();
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -133,10 +190,9 @@ class BenchmarkCheckBuilderTest {
         .willReturn(streakOf(3, 0, 0));
 
     var result =
-        builder
-            .buildBenchmarkModelCheck(
-                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE)))
-            .orElseThrow();
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE))));
 
     assertThat(result.breach()).isFalse();
     assertThat(result.consecutiveBreachDays()).isZero();
@@ -149,10 +205,9 @@ class BenchmarkCheckBuilderTest {
         .willReturn(streakOf(2, 0, 1));
 
     var result =
-        builder
-            .buildBenchmarkModelCheck(
-                TUK75, CHECK_DATE, List.of(risingHolding(EMERGING_MARKETS_ISIN)))
-            .orElseThrow();
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(risingHolding(EMERGING_MARKETS_ISIN))));
 
     assertThat(result.breach()).isTrue();
     assertThat(result.consecutiveBreachDays()).isEqualTo(4);
@@ -184,6 +239,66 @@ class BenchmarkCheckBuilderTest {
         BigDecimal.ONE,
         new PriceSnapshot(new BigDecimal("20.20"), CHECK_DATE),
         new PriceSnapshot(new BigDecimal(FLAT_PRICE), PREVIOUS_DATE));
+  }
+
+  @Test
+  void aSleeveWhoseEveryBenchmarkHadNoPriceIsNamedAsMeasuringNoHolding() {
+    var result =
+        builder.buildBenchmarkModelCheck(
+            TUK75,
+            CHECK_DATE,
+            List.of(
+                flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.70")),
+                flatHolding(UNTRACKED_ISIN, new BigDecimal("0.30"))));
+
+    assertThat(result)
+        .isEqualTo(
+            new NoHoldingMeasured(
+                TUK75,
+                CHECK_DATE,
+                List.of(DEVELOPED_MARKETS_ISIN + " (" + DEVELOPED_MARKETS_INDEX + ")")));
+  }
+
+  @Test
+  void anUnheldAllocationWhoseBenchmarkHadNoPriceIsNotNamedSinceItsPriceWouldStillMeasureNothing() {
+    var result =
+        builder.buildBenchmarkModelCheck(
+            TUK75,
+            CHECK_DATE,
+            List.of(
+                flatHolding(DEVELOPED_MARKETS_ISIN, BigDecimal.ZERO),
+                flatHolding(UNTRACKED_ISIN, BigDecimal.ONE)));
+
+    assertThat(result).isEqualTo(new NothingToMeasure());
+  }
+
+  @Test
+  void aSleeveWithNoBenchmarkProxyAtAllHasNothingToMeasureSinceNoPriceWouldEverMeasureIt() {
+    var result =
+        builder.buildBenchmarkModelCheck(
+            TUK75, CHECK_DATE, List.of(flatHolding(UNTRACKED_ISIN, BigDecimal.ONE)));
+
+    assertThat(result).isEqualTo(new NothingToMeasure());
+  }
+
+  @Test
+  void aSleeveWithoutAPricedHoldingHasNothingToMeasure() {
+    var unpriced =
+        new SecurityData(
+            EMERGING_MARKETS_ISIN,
+            BigDecimal.ONE,
+            BigDecimal.ONE,
+            new PriceSnapshot(null, CHECK_DATE),
+            new PriceSnapshot(null, PREVIOUS_DATE));
+
+    var result = builder.buildBenchmarkModelCheck(TUK75, CHECK_DATE, List.of(unpriced));
+
+    assertThat(result).isEqualTo(new NothingToMeasure());
+  }
+
+  private static TrackingDifferenceResult measured(BenchmarkModelCheck check) {
+    assertThat(check).isInstanceOf(Measured.class);
+    return ((Measured) check).result();
   }
 
   private static SecurityData flatHolding(String isin, BigDecimal actualWeight) {

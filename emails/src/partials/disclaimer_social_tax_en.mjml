@@ -1,0 +1,10 @@
+<mj-raw>*|IF:suggestSecondPillarStart|*</mj-raw>
+<mj-section padding="0 24px">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      See how the second pillar affects your first pillar:
+      <a style="color: #212529;" href="https://tuleva.ee/en/analysis/which-is-more-beneficial-pillar-i-or-pillar-ii/">tuleva.ee/en/sotsmaks</a>.
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-raw>*|END:IF|*</mj-raw>

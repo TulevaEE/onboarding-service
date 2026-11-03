@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
@@ -31,9 +32,18 @@ class NudgeDecisionSerializationTest {
 
   private static List<NudgeDecision> everyDecisionShape() {
     var decisions = new ArrayList<NudgeDecision>();
+    decisions.add(NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30)));
     decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     decisions.add(
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16))));
     decisions.add(NudgeDecision.secondPillarTransfer(null));
     decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
     decisions.add(NudgeDecision.of(NudgeKey.THIRD_PILLAR_START));
@@ -92,6 +102,7 @@ class NudgeDecisionSerializationTest {
         NudgeDecision.of(NudgeKey.THIRD_PILLAR_RECURRING).mergeVars(Locale.ENGLISH);
 
     assertThat(vars)
+        .containsEntry("suggestSecondPillarRejoin", false)
         .containsEntry("suggestSecondPillarStart", false)
         .containsEntry("suggestSecondPillar", false)
         .containsEntry("suggestPaymentRate", false)
@@ -104,7 +115,15 @@ class NudgeDecisionSerializationTest {
         .containsEntry("suggestMembership", false)
         .containsEntry("hasFeeComparison", false)
         .containsEntry("anyPillarSuggestion", true)
-        .doesNotContainKeys("savingsFundFee", "secondPillarFeePercent");
+        .containsEntry("taxBenefitSuggestion", false)
+        .containsEntry("taxRefundSuggestion", false)
+        .doesNotContainKeys(
+            "savingsFundFee",
+            "secondPillarFeePercent",
+            "tulevaFeePercent",
+            "secondPillarAssetsAmount",
+            "feeComparisonDate",
+            "secondPillarRejoinDeadline");
   }
 
   @Test
@@ -119,6 +138,7 @@ class NudgeDecisionSerializationTest {
 
     assertThat(flagged)
         .containsExactly(
+            SECOND_PILLAR_REJOIN,
             SECOND_PILLAR_START,
             SECOND_PILLAR_TRANSFER,
             SECOND_PILLAR_PAYMENT_RATE,
@@ -129,9 +149,52 @@ class NudgeDecisionSerializationTest {
   }
 
   @Test
+  void taxBenefitSuggestionIsRaisedOnlyForNudgesWhoseEmailTextClaimsATaxBenefit() {
+    List<NudgeKey> flagged =
+        stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key)
+                            .mergeVars(Locale.ENGLISH)
+                            .get("taxBenefitSuggestion")))
+            .toList();
+
+    assertThat(flagged)
+        .containsExactly(
+            SECOND_PILLAR_REJOIN,
+            SECOND_PILLAR_START,
+            SECOND_PILLAR_PAYMENT_RATE,
+            THIRD_PILLAR_START,
+            THIRD_PILLAR_RAISE);
+  }
+
+  @Test
+  void
+      taxRefundSuggestionIsRaisedOnlyForThirdPillarNudgesBecauseOnlyTheirTaxBenefitNeedsATaxReturn() {
+    List<NudgeKey> flagged =
+        stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key).mergeVars(Locale.ENGLISH).get("taxRefundSuggestion")))
+            .toList();
+
+    assertThat(flagged).containsExactly(THIRD_PILLAR_START, THIRD_PILLAR_RAISE);
+  }
+
+  @Test
   void anyPillarSuggestionStaysRaisedWhenTheSecondPillarNudgeCarriesAFeeComparison() {
     NudgeDecision transfer =
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
 
     assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("anyPillarSuggestion", true);
   }
@@ -147,9 +210,17 @@ class NudgeDecisionSerializationTest {
   }
 
   @Test
-  void feeComparisonAndSavingsFundFeeAreFormattedForTheLocale() {
+  void feeComparisonItsBasisAndSavingsFundFeeAreFormattedForTheLocale() {
     NudgeDecision transfer =
-        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+        NudgeDecision.secondPillarTransfer(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
     NudgeDecision savingsFund = NudgeDecision.savingsFund(new BigDecimal("0.28"));
 
     assertThat(transfer.mergeVars(Locale.of("et")))
@@ -157,9 +228,28 @@ class NudgeDecisionSerializationTest {
         .containsEntry("secondPillarFeePercent", "0,65")
         .containsEntry("secondPillarFeeAmount", 130L)
         .containsEntry("tulevaFeeAmount", 56L)
-        .containsEntry("secondPillarSavingsAmount", 74L);
-    assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("secondPillarFeePercent", "0.65");
+        .containsEntry("secondPillarSavingsAmount", 74L)
+        .containsEntry("tulevaFeePercent", "0,28")
+        .containsEntry("secondPillarAssetsAmount", "20\u00a0000")
+        .containsEntry("feeComparisonDate", "16.10.2026");
+    assertThat(transfer.mergeVars(Locale.ENGLISH))
+        .containsEntry("secondPillarFeePercent", "0.65")
+        .containsEntry("tulevaFeePercent", "0.28")
+        .containsEntry("secondPillarAssetsAmount", "20,000")
+        .containsEntry("feeComparisonDate", "16.10.2026");
     assertThat(savingsFund.mergeVars(Locale.of("et"))).containsEntry("savingsFundFee", "0,28");
     assertThat(savingsFund.mergeVars(Locale.ENGLISH)).containsEntry("savingsFundFee", "0.28");
+  }
+
+  @Test
+  void theRejoinNudgeRaisesItsFlagAndCarriesTheFilingDeadlineFormattedForTheLocale() {
+    NudgeDecision rejoin = NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30));
+
+    assertThat(rejoin.mergeVars(Locale.of("et")))
+        .containsEntry("suggestSecondPillarRejoin", true)
+        .containsEntry("anyPillarSuggestion", true)
+        .containsEntry("secondPillarRejoinDeadline", "30. november 2026");
+    assertThat(rejoin.mergeVars(Locale.ENGLISH))
+        .containsEntry("secondPillarRejoinDeadline", "November 30, 2026");
   }
 }

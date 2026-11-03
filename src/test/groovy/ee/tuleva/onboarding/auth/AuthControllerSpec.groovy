@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.command.AuthenticationType
-import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.mobileid.MobileIdLoginStarter
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
@@ -20,11 +19,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerSpec extends BaseControllerSpec {
 
   MobileIdLoginStarter mobileIdLoginStarter = Mock(MobileIdLoginStarter)
-  IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
   WebEidAuthService webEidAuthService = Mock(WebEidAuthService)
   GenericSessionStore sessionStore = Mock(GenericSessionStore)
   AuthService authService = Mock(AuthService)
-  AuthController controller = new AuthController(mobileIdLoginStarter, idCardAuthService, webEidAuthService, sessionStore, authService)
+  AuthController controller = new AuthController(mobileIdLoginStarter, webEidAuthService, sessionStore, authService)
   private MockMvc mockMvc
 
   def setup() {
@@ -83,77 +81,17 @@ class AuthControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.challengeCode', is(challengeNonce)))
   }
 
-  def "Authenticate: throw exception when no cert sent"() {
+  def "the legacy certificate-based /idLogin endpoint no longer exists"() {
     when:
-    def result = mockMvc.perform(post("/idLogin")
-        .header("ssl-client-verify", "NONE"))
-    then:
-    result.andExpect(status().isBadRequest())
-    0 * idCardAuthService.checkCertificate(_)
-  }
-
-  def "Authenticate: check successfully verified id card certificate (ALB path - already decoded)"() {
-    when:
-    def result = mockMvc.perform(post("/idLogin")
+    def postResult = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", "test_cert"))
+    def getResult = mockMvc.perform(get("/idLogin")
         .header("ssl-client-verify", "SUCCESS")
         .header("ssl-client-cert", "test_cert"))
     then:
-    result.andExpect(status().isOk())
-        .andExpect(jsonPath('$.success', is(true)))
-    1 * idCardAuthService.checkCertificate("test_cert")
-  }
-
-  def "Authenticate: check id card certificate with percent-encoding (NGINX path)"() {
-    given:
-    // NGINX sends percent-encoded certificate with %0A (newline) and %20 (space)
-    def nginxEncodedCert = "-----BEGIN+CERTIFICATE-----%0Atest%20content%0A-----END+CERTIFICATE-----"
-    def expectedDecodedCert = "-----BEGIN CERTIFICATE-----\ntest content\n-----END CERTIFICATE-----"
-
-    when:
-    def result = mockMvc.perform(post("/idLogin")
-        .header("ssl-client-verify", "SUCCESS")
-        .header("ssl-client-cert", nginxEncodedCert))
-    then:
-    result.andExpect(status().isOk())
-    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
-  }
-
-  def "Authenticate: check id card certificate containing only %0A is still decoded (NGINX path)"() {
-    given:
-    def cert = "line-one%0Aline-two"
-    def expectedDecodedCert = "line-one\nline-two"
-
-    when:
-    def result = mockMvc.perform(post("/idLogin")
-        .header("ssl-client-verify", "SUCCESS")
-        .header("ssl-client-cert", cert))
-    then:
-    result.andExpect(status().isOk())
-    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
-  }
-
-  def "Authenticate: check id card certificate containing only %20 is still decoded (NGINX path)"() {
-    given:
-    def cert = "word-one%20word-two"
-    def expectedDecodedCert = "word-one word-two"
-
-    when:
-    def result = mockMvc.perform(post("/idLogin")
-        .header("ssl-client-verify", "SUCCESS")
-        .header("ssl-client-cert", cert))
-    then:
-    result.andExpect(status().isOk())
-    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
-  }
-
-  def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
-    when:
-    def result = mockMvc.perform(get("/idLogin")
-        .header("ssl-client-verify", "SUCCESS")
-        .header("ssl-client-cert", "test_cert"))
-    then:
-    result.andExpect(status().isFound())
-    1 * idCardAuthService.checkCertificate("test_cert")
+    postResult.andExpect(status().isNotFound())
+    getResult.andExpect(status().isNotFound())
   }
 
   def "POST /v1/tokens with valid handover jwt should return an access token"() {

@@ -14,12 +14,14 @@ import org.springframework.stereotype.Component;
 class NavUnitImpactChecker {
 
   private static final BigDecimal UNIT_DIFFERENCE_THRESHOLD = new BigDecimal("0.5");
+  private static final BigDecimal NEAR_ENOUGH_SHARE_OF_THE_GAP = new BigDecimal("0.1");
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
       @Nullable BigDecimal reportedUnits,
       @Nullable BigDecimal authoritativeUnits,
-      @Nullable BigDecimal aum) {
+      @Nullable BigDecimal aum,
+      @Nullable BigDecimal unitsFromCash) {
     if (reportedUnits == null || authoritativeUnits == null) {
       return List.of();
     }
@@ -42,13 +44,14 @@ class NavUnitImpactChecker {
               NAV_UNIT_IMPACT,
               FAIL,
               ("Unit difference %s exceeds threshold %s but NAV impact is indeterminate"
-                      + " (aum=%s, reported=%s, authoritative=%s) — manual check required")
+                      + " (aum=%s, reported=%s, authoritative=%s) — manual check required%s")
                   .formatted(
                       difference.toPlainString(),
                       UNIT_DIFFERENCE_THRESHOLD.toPlainString(),
                       aum == null ? "null" : aum.toPlainString(),
                       reportedUnits.toPlainString(),
-                      authoritativeUnits.toPlainString())));
+                      authoritativeUnits.toPlainString(),
+                      cashComparison(reportedUnits, authoritativeUnits, unitsFromCash))));
     }
 
     var navScale = fund.getNavScale();
@@ -61,7 +64,8 @@ class NavUnitImpactChecker {
               fund,
               NAV_UNIT_IMPACT,
               FAIL,
-              "NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference"
+              ("NAV_SEB=%s vs NAV_EPIS=%s = %s%% NAV difference: unitsSeb=%s, unitsEpis=%s,"
+                      + " unitsDifference=%s%s")
                   .formatted(
                       navWithReported.toPlainString(),
                       navWithAuthoritative.toPlainString(),
@@ -69,8 +73,39 @@ class NavUnitImpactChecker {
                           .subtract(navWithAuthoritative)
                           .divide(navWithAuthoritative, 6, HALF_UP)
                           .multiply(new BigDecimal("100"))
-                          .toPlainString())));
+                          .toPlainString(),
+                      units(reportedUnits),
+                      units(authoritativeUnits),
+                      units(reportedUnits.subtract(authoritativeUnits)),
+                      cashComparison(reportedUnits, authoritativeUnits, unitsFromCash))));
     }
     return List.of();
+  }
+
+  private static String cashComparison(
+      BigDecimal reportedUnits, BigDecimal authoritativeUnits, @Nullable BigDecimal unitsFromCash) {
+    if (unitsFromCash == null) {
+      return "";
+    }
+    var fromSeb = unitsFromCash.subtract(reportedUnits).abs();
+    var fromEpis = unitsFromCash.subtract(authoritativeUnits).abs();
+    var sebToEpis = reportedUnits.subtract(authoritativeUnits).abs();
+    return ", unitsFromCash=%s%s"
+        .formatted(units(unitsFromCash), nearSide(fromSeb, fromEpis, sebToEpis));
+  }
+
+  private static String nearSide(BigDecimal fromSeb, BigDecimal fromEpis, BigDecimal sebToEpis) {
+    var nearEnoughToBeCloserThanTheOther = sebToEpis.multiply(NEAR_ENOUGH_SHARE_OF_THE_GAP);
+    if (fromSeb.compareTo(nearEnoughToBeCloserThanTheOther) <= 0) {
+      return " (closer to SEB)";
+    }
+    if (fromEpis.compareTo(nearEnoughToBeCloserThanTheOther) <= 0) {
+      return " (closer to EPIS)";
+    }
+    return "";
+  }
+
+  private static String units(BigDecimal units) {
+    return units.stripTrailingZeros().toPlainString();
   }
 }

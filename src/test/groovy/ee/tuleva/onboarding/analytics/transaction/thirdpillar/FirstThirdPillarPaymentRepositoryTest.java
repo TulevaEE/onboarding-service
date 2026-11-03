@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction.OWN_CONTRIBUTION_SOURCE;
 import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.CREATE_ANALYTICS_SCHEMA;
 import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.CREATE_THIRD_PILLAR_TABLE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,9 +56,8 @@ class FirstThirdPillarPaymentRepositoryTest {
 
   @Test
   void oldestOwnPaymentDateReturnsTheEarliestOwnMoneyContribution() {
-    insertTransaction(FirstThirdPillarPaymentRepository.OWN_MONEY_SOURCE, LocalDate.of(2024, 6, 1));
-    insertTransaction(
-        FirstThirdPillarPaymentRepository.OWN_MONEY_SOURCE, LocalDate.of(2023, 3, 15));
+    insertTransaction(OWN_CONTRIBUTION_SOURCE, LocalDate.of(2024, 6, 1));
+    insertTransaction(OWN_CONTRIBUTION_SOURCE, LocalDate.of(2023, 3, 15));
     insertTransaction("Osakute väljalase tööandjalt laekumiste alusel", LocalDate.of(2020, 1, 1));
 
     assertThat(repository.oldestOwnPaymentDate()).contains(LocalDate.of(2023, 3, 15));

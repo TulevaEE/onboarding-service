@@ -2,6 +2,10 @@
   "variants": {
     "payment returned": {
       "FNAME": "Mari"
+    },
+    "company payment from a personal account": {
+      "FNAME": "Mari",
+      "companyAccountRequired": true
     }
   }
 }

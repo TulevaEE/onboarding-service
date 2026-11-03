@@ -1,0 +1,43 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
+        <mj-text>
+          Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on tühistatud. Selle alusel
+          sissemaksed ei alga ja praegu ei pea sa rohkem midagi tegema.
+        </mj-text>
+        <mj-text>
+          Otsus on sinu ja on täiesti mõistetav, kui tahad seda veel kaaluda.
+          <a href="https://tuleva.ee/ii-sambaga-taasliitumine/">Taasliitumise lehel</a> oleme
+          kirja pannud, mida taasliitumine sinu jaoks tähendab, nii plussid kui ka piirangud.
+        </mj-text>
+        <mj-text>
+          Kui otsustad siiski uuesti II&nbsp;sambas koguma hakata, saad esitada uue avalduse
+          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a>. Millal sissemaksed
+          algavad, sõltub sellest, millal uue avalduse esitad.
+        </mj-text>
+        <mj-text>
+          Tühistamise avaldus on edastatud Pensionikeskusele ja selle koopia leiad kirja
+          manusest.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Heade soovidega!</mj-text>
+        <mj-text>
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_second_pillar_rejoin_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

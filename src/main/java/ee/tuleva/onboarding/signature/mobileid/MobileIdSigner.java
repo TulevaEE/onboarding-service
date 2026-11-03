@@ -17,6 +17,7 @@ import ee.sk.mid.rest.dao.response.MidCertificateChoiceResponse;
 import ee.sk.mid.rest.dao.response.MidSignatureResponse;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import java.security.cert.X509Certificate;
 import java.util.List;
@@ -41,7 +42,7 @@ public class MobileIdSigner {
   private int pollingSleepTimeoutSeconds;
 
   public MobileIdSignatureSession startSign(
-      List<SignatureFile> files, String personalCode, String phoneNumber) {
+      SignableEntity entity, List<SignatureFile> files, String personalCode, String phoneNumber) {
     X509Certificate certificate = getCertificate(phoneNumber, personalCode);
     Container container = digiDocFacade.buildContainer(files);
 
@@ -66,7 +67,7 @@ public class MobileIdSigner {
     MidSignatureResponse response = mobileIdConnector.sign(request);
 
     return new MobileIdSignatureSession(
-        response.getSessionID(), verificationCode, dataToSign, container);
+        entity, response.getSessionID(), verificationCode, dataToSign, container);
   }
 
   @Nullable

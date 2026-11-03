@@ -20,12 +20,14 @@ import static ee.tuleva.onboarding.auth.AuthenticationTokensFixture.sampleAuthen
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.*
+import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.AUTH_TIME
 import static ee.tuleva.onboarding.auth.principal.AuthenticatedPerson.SMART_ID_DOCUMENT_NUMBER
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
+import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
 class LoginEventBroadcasterSpec extends Specification {
 
@@ -106,18 +108,27 @@ class LoginEventBroadcasterSpec extends Specification {
     1 * eventPublisher.publishEvent(new TrackableEvent(samplePerson, LOGIN, [method: SMART_ID]))
   }
 
-  def "keeps the Smart-ID document number out of the login event"() {
+  def "keeps the Smart-ID document number and the login time out of the login event, its recorded auth attributes included"() {
     given:
+    def broadcaster = new LoginEventBroadcaster(eventPublisher, conversionService, pillarActivations,
+        new ConversionDecorator(), securityContextRunner, secondPillarPaymentRateService, clientConnection)
     def person = sampleAuthenticatedPersonAndMember()
-        .attributes([(GRANT_TYPE): SMART_ID.name(), (SMART_ID_DOCUMENT_NUMBER): "PNOEE-38888888888-MOCK-Q"])
+        .attributes([(GRANT_TYPE): SMART_ID.name(), (SMART_ID_DOCUMENT_NUMBER): "PNOEE-38888888888-MOCK-Q", (AUTH_TIME): "2026-10-08T09:00:00Z"])
         .build()
     def event = new AfterTokenGrantedEvent(this, person, SMART_ID, sampleAuthenticationTokens())
     pillarActivations.forPerson(_) >> new PillarActivation(true, true)
+    conversionService.getConversion(person) >> fullyConverted()
+    secondPillarPaymentRateService.getPaymentRates(person) >> samplePaymentRates()
 
     when:
-    service.onAfterTokenGrantedEvent(event)
+    broadcaster.onAfterTokenGrantedEvent(event)
 
     then:
-    1 * eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, [method: SMART_ID, (GRANT_TYPE): SMART_ID.name()]))
+    1 * eventPublisher.publishEvent({ TrackableEvent published ->
+      !published.data.containsKey(SMART_ID_DOCUMENT_NUMBER) &&
+          !published.data.containsKey(AUTH_TIME) &&
+          published.data.authAttributes == [(GRANT_TYPE): SMART_ID.name()]
+    })
   }
+
 }

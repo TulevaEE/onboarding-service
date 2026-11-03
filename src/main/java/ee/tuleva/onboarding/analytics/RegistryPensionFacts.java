@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,15 +35,24 @@ public class RegistryPensionFacts implements PensionRegistry {
   private static PensionRegistrySnapshot facts(UnitOwner owner) {
     boolean left = LEFT_SECOND_PILLAR.equals(owner.getP2ravaStatus());
     boolean hasSecondPillar = owner.getP2choice() != null || owner.getP2rate() != null;
+    TulevaFund tulevaFundChosen = tulevaSecondPillarFundChosen(owner);
     return new PensionRegistrySnapshot(
         hasSecondPillar && !left,
-        TULEVA_SECOND_PILLAR_FUNDS.contains(owner.getP2choice())
-            || holdsAnyOf(owner, TULEVA_SECOND_PILLAR_FUNDS),
+        tulevaFundChosen != null || holdsAnyOf(owner, TULEVA_SECOND_PILLAR_FUNDS),
         left,
         new PaymentRates(owner.getP2rate(), owner.getP2nextRate()).canIncrease(),
         owner.getP3identifier() != null
             || owner.getP3identificationDate() != null
-            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS));
+            || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS),
+        tulevaFundChosen);
+  }
+
+  private static @Nullable TulevaFund tulevaSecondPillarFundChosen(UnitOwner owner) {
+    String fundChoice = owner.getP2choice();
+    return TulevaFund.getPillar2Funds().stream()
+        .filter(fund -> fund.getCode().equals(fundChoice))
+        .findFirst()
+        .orElse(null);
   }
 
   private static boolean holdsAnyOf(UnitOwner owner, Set<String> fundCodes) {

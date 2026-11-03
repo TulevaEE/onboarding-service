@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
+import static ee.tuleva.onboarding.config.ReadOnlyForWards.unlessWard;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasAuthority;
-import static org.springframework.security.authorization.AuthorizationManagers.allOf;
-import static org.springframework.security.authorization.AuthorizationManagers.not;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
@@ -35,10 +34,22 @@ public class SecurityConfiguration {
     "/v1/hackathon-ideas/**"
   };
 
+  private static final String[] MEMBER_READS_THAT_TRANSACT = {
+    "/v1/capital-transfer-contracts/*/signature/*/status"
+  };
+
+  private static final String[] READS_THAT_TRANSACT = {
+    "/v1/mandates/*/signature/*/status",
+    "/v1/mandate-batches/*/signature/*/status",
+    "/v1/insurance-transfer-forms/*/signature/*/status",
+    "/v1/payments/link",
+    "/v1/kyb/surveys/initial-validation"
+  };
+
   @Bean
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
+      HttpSecurity http, JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
     http.csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(
             authorize ->
@@ -46,6 +57,8 @@ public class SecurityConfiguration {
                     .requestMatchers(
                         "/",
                         "/actuator/health",
+                        "/actuator/health/liveness",
+                        "/actuator/health/readiness",
                         "/swagger-ui/**",
                         "/webjars/**",
                         "/swagger-resources/**",
@@ -57,7 +70,6 @@ public class SecurityConfiguration {
                         "/v1/smart-id/login/**",
                         "/v1/mobile-id/login/remembered",
                         "/v1/mobile-id/login/remembered-person",
-                        "/idLogin",
                         "/notifications/payments",
                         "/v1/emails/webhooks/**",
                         "/admin/**",
@@ -70,10 +82,20 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(POST, "/v1/gift-links/*/payments")
                     .permitAll()
+                    .requestMatchers(GET, "/v1/connect/*")
+                    .permitAll()
+                    .requestMatchers(POST, "/v1/connect/*/deny")
+                    .permitAll()
+                    .requestMatchers(POST, "/v1/t")
+                    .hasAuthority(USER)
+                    .requestMatchers(MEMBER_READS_THAT_TRANSACT)
+                    .access(unlessWard(hasAuthority(MEMBER)))
                     .requestMatchers(writesTo(MEMBER_PATHS))
-                    .access(allOf(hasAuthority(MEMBER), not(hasAuthority(WARD))))
+                    .access(unlessWard(hasAuthority(MEMBER)))
+                    .requestMatchers(READS_THAT_TRANSACT)
+                    .access(unlessWard(hasAuthority(USER)))
                     .requestMatchers(writesTo("/v1/**"))
-                    .access(allOf(hasAuthority(USER), not(hasAuthority(WARD))))
+                    .access(unlessWard(hasAuthority(USER)))
                     .requestMatchers(
                         GET, "/v1/me/capital", "/v1/me/capital/events", "/v1/capital/total")
                     .hasAuthority(MEMBER)
@@ -107,6 +129,8 @@ public class SecurityConfiguration {
                     .hasAuthority(USER)
                     .anyRequest()
                     .authenticated())
+        .exceptionHandling(
+            exceptions -> exceptions.accessDeniedHandler(new ReadOnlyAccessDeniedHandler()))
         .sessionManagement(
             management ->
                 management.sessionCreationPolicy(IF_REQUIRED).sessionFixation().newSession())
@@ -117,7 +141,9 @@ public class SecurityConfiguration {
                         PathPatternRequestMatcher.withDefaults().matcher(GET, "/v1/logout"))
                     .logoutSuccessHandler(
                         (request, response, authentication) -> response.setStatus(200)))
-        .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(
+            new JwtAuthorizationFilter(jwtTokenUtil, principalService),
+            UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
@@ -132,11 +158,5 @@ public class SecurityConfiguration {
                             method ->
                                 PathPatternRequestMatcher.withDefaults().matcher(method, pattern)))
             .toList());
-  }
-
-  @Bean
-  public JwtAuthorizationFilter jwtAuthorizationFilter(
-      JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
-    return new JwtAuthorizationFilter(jwtTokenUtil, principalService);
   }
 }

@@ -8,7 +8,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class EmailVariablesAttachmentsSpec extends Specification {
 
-  def "getAttachments builds a single bdoc attachment named after the user and mandate id"() {
+  def "getAttachments builds a single signed container attachment named after the user and mandate id"() {
     given:
     def user = sampleUser().build()
     def mandate = sampleMandate()
@@ -18,8 +18,8 @@ class EmailVariablesAttachmentsSpec extends Specification {
 
     then:
     attachments.size() == 1
-    attachments.first().name == "jordan_valdma_avaldus_123.bdoc"
-    attachments.first().type == "application/bdoc"
+    attachments.first().name == "jordan_valdma_avaldus_123.asice"
+    attachments.first().type == "application/vnd.etsi.asic-e+zip"
     attachments.first().content == Base64.encoder.encodeToString(mandate.getSignedFile())
   }
 }

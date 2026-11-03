@@ -17,8 +17,15 @@ public class MobileIdSignatureSession implements Serializable {
 
   @Serial private static final long serialVersionUID = -7443368341567864757L;
 
+  private final SignableEntity signableEntity;
   private final String sessionId;
   private final String verificationCode;
   private final DataToSign dataToSign;
   private final Container container;
+
+  public void requireStartedFor(SignableEntity entity) {
+    if (!entity.equals(signableEntity)) {
+      throw SignatureStateException.startedForAnotherEntity(entity);
+    }
+  }
 }

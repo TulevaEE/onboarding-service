@@ -47,8 +47,8 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[1].mimeType == "text/html"
 
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "0b96947969063ca8ddd6e3c7df793fd1"
-    DigestUtils.md5Hex(mandateContentFiles[1].content) == "473aa27aec746dac31489ec02ead6477"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "47a3d7fabf587f29fc907c7d16a23d83"
+    DigestUtils.md5Hex(mandateContentFiles[1].content) == "887fe317a04f0f3cb128c37db7c1ca1d"
   }
 
   def "mandate transfer cancellation mandate can be generated from template"() {
@@ -73,7 +73,7 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles.size() == 1
     mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[0].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "b7534c193bd0633f6e5da091ef29759a"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "da45927915c2bae738697c78c44904a4"
   }
 
   @Unroll

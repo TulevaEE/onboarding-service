@@ -51,6 +51,22 @@ class WebEidConfigurationTest {
   }
 
   @Test
+  void keepsUserCertificateRevocationCheckingWithOcspEnabledOnTheAuthTokenValidator()
+      throws Exception {
+    ReflectionTestUtils.setField(configuration, "origin", "https://tuleva.ee");
+    KeyStore trustStore = trustStoreContaining(sampleCertificate());
+
+    AuthTokenValidator validator = configuration.authTokenValidator(trustStore);
+
+    Object validatorConfiguration = ReflectionTestUtils.getField(validator, "configuration");
+    Boolean ocspEnabled =
+        (Boolean)
+            ReflectionTestUtils.invokeMethod(
+                validatorConfiguration, "isUserCertificateRevocationCheckWithOcspEnabled");
+    assertThat(ocspEnabled).isTrue();
+  }
+
+  @Test
   void loadsEveryCertificateFromTheTrustStoreByAlias() throws Exception {
     X509Certificate certificate = sampleCertificate();
     KeyStore trustStore = trustStoreContaining(certificate);

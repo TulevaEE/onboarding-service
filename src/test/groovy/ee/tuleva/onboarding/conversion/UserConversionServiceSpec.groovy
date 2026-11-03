@@ -18,10 +18,29 @@ class UserConversionServiceSpec extends Specification {
   def conversionHoldings = Mock(ConversionHoldings)
   def conversionCashFlows = Mock(ConversionCashFlows)
   def pendingMandateApplications = Mock(PendingMandateApplications)
+  def thirdPillarRecurringPayments = Mock(ThirdPillarRecurringPayments)
   def clock = Clock.fixed(Instant.parse("2019-12-30T10:06:01Z"), ZoneOffset.UTC)
 
   def service = new UserConversionService(conversionHoldings, conversionCashFlows,
-      clock, pendingMandateApplications)
+      clock, pendingMandateApplications, thirdPillarRecurringPayments)
+
+  def "tells whether the third pillar is paid by a recurring payment and leaves the second pillar unanswered"() {
+    given:
+    conversionHoldings.forPerson(samplePerson) >> []
+    pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
+    conversionCashFlows.forPerson(samplePerson) >> []
+    thirdPillarRecurringPayments.detectedFor(samplePerson) >> detected
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.thirdPillar.recurringPaymentDetected == detected
+    response.secondPillar.recurringPaymentDetected == null
+
+    where:
+    detected << [true, false]
+  }
 
   def "GetConversion: Get conversion response for 2nd pillar withdrawal"() {
     given:

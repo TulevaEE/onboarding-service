@@ -9,4 +9,5 @@ import org.jspecify.annotations.Nullable;
 public record StartSmartIdLoginCommand(
     @NotNull SmartIdLoginFlow flow,
     @Nullable @Pattern(regexp = "[a-z]{2}") String language,
-    @JsonSetter(nulls = Nulls.AS_EMPTY) boolean rememberMe) {}
+    @JsonSetter(nulls = Nulls.AS_EMPTY) boolean rememberMe,
+    @Nullable @Pattern(regexp = "/(?![/\\\\])\\S{0,2047}") String returnPath) {}

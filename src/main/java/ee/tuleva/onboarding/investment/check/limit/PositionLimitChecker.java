@@ -7,11 +7,9 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -29,21 +27,8 @@ class PositionLimitChecker {
       return List.of();
     }
 
-    var result = new ArrayList<>(checkIndividualLimits(fund, positions, totalNav, limits));
-    result.addAll(checkIndexGroupLimits(fund, positions, totalNav, limits));
-    return List.copyOf(result);
-  }
-
-  private List<PositionBreach> checkIndividualLimits(
-      TulevaFund fund,
-      List<FundPosition> positions,
-      BigDecimal totalNav,
-      List<PositionLimit> limits) {
-
     Map<String, PositionLimit> limitsByIsin =
-        limits.stream()
-            .filter(l -> l.getIsin() != null)
-            .collect(Collectors.toMap(PositionLimit::getIsin, Function.identity()));
+        limits.stream().collect(Collectors.toMap(PositionLimit::getIsin, Function.identity()));
 
     return positions.stream()
         .filter(p -> limitsByIsin.containsKey(p.getAccountId()))
@@ -70,63 +55,6 @@ class PositionLimitChecker {
                   actualPercent,
                   limit.getSoftLimitPercent(),
                   limit.getHardLimitPercent(),
-                  severity);
-            })
-        .toList();
-  }
-
-  private List<PositionBreach> checkIndexGroupLimits(
-      TulevaFund fund,
-      List<FundPosition> positions,
-      BigDecimal totalNav,
-      List<PositionLimit> limits) {
-
-    var indexLimits =
-        limits.stream().filter(l -> l.getIsin() == null && l.getIndexGroup() != null).toList();
-
-    if (indexLimits.isEmpty()) {
-      return List.of();
-    }
-
-    Map<String, Set<String>> groupIsins =
-        limits.stream()
-            .filter(l -> l.getIsin() != null && l.getIndexGroup() != null)
-            .collect(
-                Collectors.groupingBy(
-                    PositionLimit::getIndexGroup,
-                    Collectors.mapping(PositionLimit::getIsin, Collectors.toSet())));
-
-    Map<String, BigDecimal> positionsByIsin =
-        positions.stream()
-            .collect(
-                Collectors.toMap(
-                    FundPosition::getAccountId, FundPosition::getMarketValue, BigDecimal::add));
-
-    return indexLimits.stream()
-        .map(
-            indexLimit -> {
-              var isins = groupIsins.getOrDefault(indexLimit.getIndexGroup(), Set.of());
-              var aggregateValue =
-                  isins.stream()
-                      .map(isin -> positionsByIsin.getOrDefault(isin, BigDecimal.ZERO))
-                      .reduce(BigDecimal.ZERO, BigDecimal::add);
-              var actualPercent = percentOf(aggregateValue, totalNav);
-              var severity = determineSeverity(actualPercent, indexLimit);
-              var indexGroup =
-                  Objects.requireNonNull(
-                      indexLimit.getIndexGroup(),
-                      "Position limit missing indexGroup: id=" + indexLimit.getId());
-              var label =
-                  Objects.requireNonNull(
-                      indexLimit.getLabel(),
-                      "Position limit missing label: id=" + indexLimit.getId());
-              return new PositionBreach(
-                  fund,
-                  indexGroup,
-                  label,
-                  actualPercent,
-                  indexLimit.getSoftLimitPercent(),
-                  indexLimit.getHardLimitPercent(),
                   severity);
             })
         .toList();

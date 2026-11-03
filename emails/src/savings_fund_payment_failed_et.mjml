@@ -6,13 +6,23 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-raw>*|IF:companyAccountRequired|*</mj-raw>
         <mj-text>
-          Sinu sissemakse Tuleva Kogumisfondi ebaõnnestus ja me saadame selle tänase
-          päeva jooksul tagasi samale kontole, kust see tuli. Tõenäoliselt valisid makse tegemisel oma
-          kontode seast sellise, mille nimi ei ühti sinu omaga. Makse vastuvõtmiseks peab see
-          tulema kontolt, mille omanikuks oled sina ise. Proovi uuesti siin:
+          Sinu sissemakse ettevõtte Tuleva Täiendava Kogumisfondi kontole ebaõnnestus ja me tagastame peagi selle
+          samale kontole, kust see tuli. Ettevõtte kontole saab
+          sissemakse teha ainult ettevõtte enda pangakontolt, mitte isiklikult kontolt.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Tuleva konto</mj-button>
+        <mj-text>Tee makse uuesti ettevõtte pangakontolt:</mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Sinu sissemakse Tuleva Täiendavasse Kogumisfondi ebaõnnestus ja me tagastame peagi selle samale kontole,
+          kust see tuli. Tõenäoliselt valisid makse tegemisel oma
+          kontode seast sellise, mille nimi ei ühti sinu omaga. Makse vastuvõtmiseks peab see
+          tulema kontolt, mille omanikuks oled sina ise.
+        </mj-text>
+        <mj-text>Proovi uuesti siin:</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen uue sissemakse</mj-button>
       </mj-column>
     </mj-section>
 

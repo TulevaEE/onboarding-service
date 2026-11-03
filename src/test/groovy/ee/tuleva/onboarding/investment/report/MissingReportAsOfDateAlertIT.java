@@ -55,6 +55,9 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 })
 class MissingReportAsOfDateAlertIT {
 
+  private static final org.mockito.ArgumentMatcher<String> AS_OF_ALERT =
+      message -> message.contains("As of");
+
   private static final String STORED_POSITIONS_KEY = "seb/2026-01-26_positions.csv";
   private static final LocalDate STORED_POSITIONS_DATE = LocalDate.of(2026, 1, 26);
   private static final Instant FIRST_UPLOAD = Instant.parse("2026-01-27T06:10:00Z");
@@ -112,7 +115,7 @@ class MissingReportAsOfDateAlertIT {
     reportImportJob.runImport();
     reportImportJob.runImport();
 
-    then(notificationService).should(times(1)).sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should(times(1)).sendMessage(argThat(AS_OF_ALERT), eq(INVESTMENT));
   }
 
   @Test
@@ -123,7 +126,7 @@ class MissingReportAsOfDateAlertIT {
     sebBucketHolds(WITHOUT_AS_OF_LINE, RESEND);
     reportImportJob.runImport();
 
-    then(notificationService).should(times(2)).sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should(times(2)).sendMessage(argThat(AS_OF_ALERT), eq(INVESTMENT));
   }
 
   @Test
@@ -134,7 +137,7 @@ class MissingReportAsOfDateAlertIT {
     sebBucketHolds(WITH_AS_OF_LINE, RESEND);
     reportImportJob.runImport();
 
-    then(notificationService).should(times(1)).sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should(times(1)).sendMessage(argThat(AS_OF_ALERT), eq(INVESTMENT));
   }
 
   @Test
@@ -143,7 +146,7 @@ class MissingReportAsOfDateAlertIT {
 
     reportImportJob.runImport();
 
-    then(notificationService).should().sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should().sendMessage(argThat(AS_OF_ALERT), eq(INVESTMENT));
   }
 
   @Test
@@ -169,7 +172,7 @@ class MissingReportAsOfDateAlertIT {
     then(notificationService)
         .should(times(1))
         .sendMessage(argThat(message -> !message.contains("<!channel>")), eq(INVESTMENT));
-    then(notificationService).should(times(1)).sendMessage(any(), eq(INVESTMENT));
+    then(notificationService).should(times(1)).sendMessage(argThat(AS_OF_ALERT), eq(INVESTMENT));
   }
 
   private void navIsPublishedFor(List<TulevaFund> funds) {

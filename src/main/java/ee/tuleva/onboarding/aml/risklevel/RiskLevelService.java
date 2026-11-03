@@ -38,6 +38,10 @@ public class RiskLevelService implements RiskLevels {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
+  void writeThirdPillarRiskLevels(AssessedRiskLevels riskLevels) {
+    writeFromAmlService("III pillar", RISK_LEVEL, riskLevels);
+  }
+
   @Override
   public boolean isHighRisk(String personalCode) {
     return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
@@ -91,6 +95,10 @@ public class RiskLevelService implements RiskLevels {
     scorePillar("TKF", tkfRiskReader, TKF_RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
+  void writeTkfRiskLevels(AssessedRiskLevels riskLevels) {
+    writeFromAmlService("TKF", TKF_RISK_LEVEL, riskLevels);
+  }
+
   private void scorePillar(
       String label, RiskReader reader, AmlCheckType checkType, double selectionProbability) {
     log.info("Refreshing {} risk views", label);
@@ -105,6 +113,31 @@ public class RiskLevelService implements RiskLevels {
         highRiskRows.size(),
         mediumRiskSamples.size());
 
+    writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
+  }
+
+  private void writeFromAmlService(
+      String label, AmlCheckType checkType, AssessedRiskLevels riskLevels) {
+    List<RiskLevelResult> highRiskRows =
+        riskLevels.results().stream().filter(row -> row.getRiskLevel() == HIGH_RISK_LEVEL).toList();
+    List<RiskLevelResult> mediumRiskSamples =
+        riskLevels.results().stream().filter(row -> row.getRiskLevel() != HIGH_RISK_LEVEL).toList();
+
+    log.info(
+        "Risk levels fetched: pillar={}, assessedAt={}, highRiskRows={}, mediumRiskSamples={}",
+        label,
+        riskLevels.assessedAt(),
+        highRiskRows.size(),
+        mediumRiskSamples.size());
+
+    writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
+  }
+
+  private void writeChecks(
+      String label,
+      AmlCheckType checkType,
+      List<RiskLevelResult> highRiskRows,
+      List<RiskLevelResult> mediumRiskSamples) {
     List<AmlCheck> allChecks =
         Stream.concat(highRiskRows.stream(), mediumRiskSamples.stream())
             .filter(row -> StringUtils.hasText(row.getPersonalId()))

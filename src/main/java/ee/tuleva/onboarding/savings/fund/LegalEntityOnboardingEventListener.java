@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.kyb.KybCheckType.HIGH_RISK_NACE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
@@ -43,13 +44,24 @@ class LegalEntityOnboardingEventListener {
       return;
     }
 
-    if (oldStatus == COMPLETED && isInconclusiveOwnershipFailure(failedGateChecks, event)) {
-      log.error(
-          "KYB ownership verification inconclusive, keeping completed status for manual review: registryCode={}, personalCode={}, failedChecks={}",
-          registryCode,
-          personalCode,
-          formatFailedChecks(event.getChecks()));
-      return;
+    if (oldStatus == COMPLETED) {
+      var failedChecksBesidesActivity = withoutActivityCheck(failedGateChecks);
+      if (failedChecksBesidesActivity.isEmpty()) {
+        log.info(
+            "KYB high-risk business activity at an onboarded company, keeping completed status for manual review: registryCode={}, personalCode={}, failedChecks={}",
+            registryCode,
+            personalCode,
+            formatFailedChecks(event.getChecks()));
+        return;
+      }
+      if (isInconclusiveOwnershipFailure(failedChecksBesidesActivity, event)) {
+        log.error(
+            "KYB ownership verification inconclusive, keeping completed status for manual review: registryCode={}, personalCode={}, failedChecks={}",
+            registryCode,
+            personalCode,
+            formatFailedChecks(event.getChecks()));
+        return;
+      }
     }
 
     var previousStatus =
@@ -120,6 +132,10 @@ class LegalEntityOnboardingEventListener {
     return event.getChecks().stream()
         .filter(check -> check.type().isOnboardingGate() && !check.success())
         .toList();
+  }
+
+  private static List<KybCheck> withoutActivityCheck(List<KybCheck> failedGateChecks) {
+    return failedGateChecks.stream().filter(check -> check.type() != HIGH_RISK_NACE).toList();
   }
 
   private boolean isInconclusiveOwnershipFailure(

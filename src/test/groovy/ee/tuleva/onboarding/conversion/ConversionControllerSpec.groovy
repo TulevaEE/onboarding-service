@@ -22,6 +22,10 @@ class ConversionControllerSpec extends BaseControllerSpec {
                 .transfersComplete(true)
                 .selectionComplete(true)
                 .build()
+            )
+            .thirdPillar(Conversion.builder()
+                .recurringPaymentDetected(true)
+                .build()
             ).build()
 
         def mvc = mockMvc(controller)
@@ -35,5 +39,6 @@ class ConversionControllerSpec extends BaseControllerSpec {
                 is(conversionResponse.secondPillar.transfersComplete)))
             .andExpect(jsonPath('$.secondPillar.selectionComplete',
                 is(conversionResponse.secondPillar.selectionComplete)))
+            .andExpect(jsonPath('$.thirdPillar.recurringPaymentDetected', is(true)))
     }
 }

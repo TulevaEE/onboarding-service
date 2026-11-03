@@ -25,7 +25,4 @@ public class RegistryCodeValidator implements ConstraintValidator<ValidRegistryC
     }
     return registryCode.chars().allMatch(Character::isDigit);
   }
-
-  @Override
-  public void initialize(ValidRegistryCode constraintAnnotation) {}
 }

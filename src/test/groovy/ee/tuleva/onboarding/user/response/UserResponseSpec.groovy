@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user.response
 
 import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.user.SecondPillarContributionStatus
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserContacts.ContactSummary
 import spock.lang.Specification
@@ -23,7 +24,7 @@ class UserResponseSpec extends Specification {
     def paymentRates = new PaymentRates(2, 6)
 
     when:
-    def userResponse = UserResponse.from(user, contactSummary, paymentRates)
+    def userResponse = UserResponse.from(user, contactSummary, paymentRates, unknownContributions())
 
     then:
     userResponse.firstName == responseFirstName
@@ -60,7 +61,7 @@ class UserResponseSpec extends Specification {
         def paymentRates = new PaymentRates(currentPaymentRate, pendingPaymentRate)
 
     when:
-        def userResponse = UserResponse.from(user, contactSummary, paymentRates)
+        def userResponse = UserResponse.from(user, contactSummary, paymentRates, unknownContributions())
 
     then:
         userResponse.secondPillarPaymentRates.current == responseCurrentPaymentRate
@@ -79,11 +80,11 @@ class UserResponseSpec extends Specification {
               .lastName("lastName")
               .build()
           def contactSummary = new ContactSummary(
-              null, null, null, null, null, false, isActive, null, initiatedDate, null)
+              null, null, null, null, null, false, isActive, null, initiatedDate, null, [])
           def paymentRates = new PaymentRates(2, 6)
 
       when:
-          def userResponse = UserResponse.from(user, contactSummary, paymentRates)
+          def userResponse = UserResponse.from(user, contactSummary, paymentRates, unknownContributions())
 
       then:
           userResponse.thirdPillarActive == expectedIsActive
@@ -97,7 +98,42 @@ class UserResponseSpec extends Specification {
           false    |  null                                       || false
   }
 
+  @Unroll
+  def "carries whether second pillar contributions are made, when they restart and when a leaver may rejoin: #contributionStatus"() {
+    given:
+    def user = sampleUser().build()
+
+    when:
+    def userResponse = UserResponse.from(
+        user, emptyContactSummary(), new PaymentRates(2, null), contributionStatus)
+
+    then:
+    userResponse.secondPillarContributions == expectedContributions
+
+    where:
+    contributionStatus                                                                  || expectedContributions
+    new SecondPillarContributionStatus(true, null, null)                               || new SecondPillarContributionsResponse(true, null, null)
+    new SecondPillarContributionStatus(false, LocalDate.parse("2027-05-01"), null)     || new SecondPillarContributionsResponse(false, LocalDate.parse("2027-05-01"), null)
+    new SecondPillarContributionStatus(false, null, LocalDate.parse("2017-01-01"))     || new SecondPillarContributionsResponse(false, null, LocalDate.parse("2017-01-01"))
+  }
+
+  def "leaves second pillar contributions out while contributing is unknown"() {
+    given:
+    def user = sampleUser().build()
+
+    when:
+    def userResponse = UserResponse.from(
+        user, emptyContactSummary(), new PaymentRates(2, null), unknownContributions())
+
+    then:
+    userResponse.secondPillarContributions == null
+  }
+
   private static ContactSummary emptyContactSummary() {
-    new ContactSummary(null, null, null, null, null, false, false, null, null, null)
+    new ContactSummary(null, null, null, null, null, false, false, null, null, null, [])
+  }
+
+  private static SecondPillarContributionStatus unknownContributions() {
+    null
   }
 }

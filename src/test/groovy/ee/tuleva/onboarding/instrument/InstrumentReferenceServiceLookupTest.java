@@ -32,7 +32,9 @@ class InstrumentReferenceServiceLookupTest {
 
     var service =
         new InstrumentReferenceService(
-            new InstrumentSnapshotLoader(instrumentRepository, proxyRepository), Clock.systemUTC());
+            new InstrumentSnapshotLoader(
+                instrumentRepository, proxyRepository, mock(BenchmarkProxyPeriodRepository.class)),
+            Clock.systemUTC());
     service.init();
 
     assertThat(service.getMorningstarFunds()).containsExactly(morningstarFund);

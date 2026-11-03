@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.ariregister.BeneficialOwners;
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -58,7 +59,7 @@ class KybCompanyDataMapper {
         new CompanyDto(
             new RegistryCode(detail.getRegistryCode()),
             detail.getName(),
-            detail.getMainActivity().orElse(null),
+            detail.getActivityCodes(),
             legalForm);
 
     var beneficialOwnerCodes =
@@ -111,11 +112,27 @@ class KybCompanyDataMapper {
         personalCode,
         status,
         relatedPersons,
+        totalOwnership(detail.getShareholdings(), relatedPersons),
         selfCertification,
         countryCode,
         fullAddress,
         foundingDate,
         representationRights);
+  }
+
+  private static BigDecimal totalOwnership(
+      List<Shareholding> shareholdings, List<KybRelatedPerson> relatedPersons) {
+    var shareholderCodes =
+        relatedPersons.stream()
+            .filter(KybRelatedPerson::shareholder)
+            .map(KybRelatedPerson::personalCode)
+            .filter(Objects::nonNull)
+            .map(PersonalCode::value)
+            .collect(toSet());
+    return shareholdings.stream()
+        .filter(shareholding -> shareholding.isHeldEntirelyBy(shareholderCodes))
+        .map(Shareholding::ownershipPercent)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private KybRelatedPerson toRelatedPerson(

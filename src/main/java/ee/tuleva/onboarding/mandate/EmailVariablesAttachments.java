@@ -6,8 +6,8 @@ import static java.util.Objects.requireNonNull;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.notification.email.SignedContainerAttachment;
 import ee.tuleva.onboarding.user.User;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -23,29 +23,18 @@ public class EmailVariablesAttachments {
 
   public static List<MandrillMessage.MessageContent> getAttachments(User user, Mandate mandate) {
     return singletonList(
-        getAttachment(
-            getNameSuffix(user) + "_avaldus_" + mandate.getId() + ".bdoc",
-            mandate.getSignedFile()));
+        SignedContainerAttachment.of(
+            getNameSuffix(user) + "_avaldus_" + mandate.getId(), mandate.getSignedFile()));
   }
 
   public static List<MandrillMessage.MessageContent> getAttachments(
       User user, MandateBatch mandateBatch) {
     return singletonList(
-        getAttachment(
-            getNameSuffix(user) + "_avaldused_" + mandateBatch.getId() + ".bdoc",
+        SignedContainerAttachment.of(
+            getNameSuffix(user) + "_avaldused_" + mandateBatch.getId(),
             requireNonNull(
                 mandateBatch.getFile(),
                 "Mandate batch file missing: mandateBatchId=" + mandateBatch.getId())));
-  }
-
-  private static MandrillMessage.MessageContent getAttachment(String fileName, byte[] file) {
-    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
-
-    attachment.setName(fileName);
-    attachment.setType("application/bdoc");
-    attachment.setContent(Base64.getEncoder().encodeToString(file));
-
-    return attachment;
   }
 
   private static String getNameSuffix(User user) {

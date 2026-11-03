@@ -28,4 +28,25 @@ public class InvalidMandateException extends ErrorsResponseException {
             "invalid.mandate.future.contributions.to.same.fund",
             "Future contributions cannot be made to the same fund."));
   }
+
+  public static InvalidMandateException rejoinNotPending() {
+    return new InvalidMandateException(
+        ErrorsResponse.ofSingleError(
+            "invalid.mandate.rejoin.not.pending",
+            "Only a pending rejoin application can be canceled."));
+  }
+
+  public static InvalidMandateException rejoinCancellationDeadlinePassed() {
+    return new InvalidMandateException(
+        ErrorsResponse.ofSingleError(
+            "invalid.mandate.rejoin.cancellation.deadline.passed",
+            "The rejoin application can no longer be canceled."));
+  }
+
+  public static InvalidMandateException rejoinAlreadyCanceled() {
+    return new InvalidMandateException(
+        ErrorsResponse.ofSingleError(
+            "invalid.mandate.rejoin.already.canceled",
+            "The rejoin application has already been canceled."));
+  }
 }

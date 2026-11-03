@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_NAV;
+import static ee.tuleva.onboarding.investment.check.tracking.GapCause.MISSING_PRICE;
 import static ee.tuleva.onboarding.investment.check.tracking.GapFillRun.NOTHING_TO_FILL;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
@@ -11,16 +13,23 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -29,6 +38,7 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
@@ -66,6 +76,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   BenchmarkLegResolver.class,
   StaleFundReturnDetector.class,
   MissingNavClassifier.class,
+  NavTrackingDifferenceGate.class,
   TrackingDifferenceServiceGapFillIT.FixedClockConfiguration.class
 })
 class TrackingDifferenceServiceGapFillIT {
@@ -82,6 +93,7 @@ class TrackingDifferenceServiceGapFillIT {
       LocalDate.of(2026, 5, 8);
   private static final LocalDate MODEL_EFFECTIVE_DATE = LocalDate.of(2026, 1, 1);
   private static final String HELD_ISIN = "IE00B4L5Y983";
+  private static final String UNHELD_ISIN = "IE00B4L5YC18";
   private static final BigDecimal HOLDING_VALUE = new BigDecimal("1000000.00");
 
   @TestConfiguration
@@ -93,6 +105,7 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   @Autowired TrackingDifferenceService service;
+  @Autowired NavTrackingDifferenceGate gate;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Autowired NavReportRepository navReportRepository;
@@ -102,6 +115,8 @@ class TrackingDifferenceServiceGapFillIT {
   @MockitoBean FundValueProvider fundValueProvider;
   @MockitoBean PriorityPriceProvider priorityPriceProvider;
   @MockitoBean InstrumentReferenceService instrumentReferenceService;
+  @MockitoBean TrackingDifferenceNotifier trackingDifferenceNotifier;
+  @MockitoBean PipelineTracker pipelineTracker;
 
   @BeforeEach
   void storeTheTrackingParameters() {
@@ -149,6 +164,126 @@ class TrackingDifferenceServiceGapFillIT {
         .isEqualTo(
             new GapFillRun(List.of(passingModelPortfolioCheckOn(THURSDAY)), List.of(), Map.of()));
     assertThat(service.fillGaps(LOOKBACK_DAYS)).isEqualTo(NOTHING_TO_FILL);
+  }
+
+  @Test
+  void namesADateOnWhichTheModelCheckMeasuredNoHoldingForWantOfABenchmarkPrice() {
+    storeACheckableThursday();
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS).failures())
+        .containsExactly(
+            new GapFailure(
+                THURSDAY,
+                "fund=TUK75, BENCHMARK_MODEL measured no holding for want of a benchmark price"
+                    + " (insert it, then backfill the date): holdings="
+                    + HELD_ISIN
+                    + " (MSCI_WORLD)",
+                MISSING_PRICE,
+                1,
+                LAST_WORKING_DAY_THURSDAY_STAYS_IN_THE_WINDOW));
+  }
+
+  @Test
+  void
+      namesNothingWhenOnlyAnUnheldModelAllocationLacksABenchmarkPriceSinceItsPriceWouldMeasureNothing() {
+    storeModelPortfolio(HELD_ISIN, new BigDecimal("0.50"));
+    storeModelPortfolio(UNHELD_ISIN, new BigDecimal("0.50"));
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    givenPrice(UNHELD_ISIN, WEDNESDAY, "50.00");
+    givenPrice(UNHELD_ISIN, THURSDAY, "50.50");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenABenchmarkWithoutPricesFor(UNHELD_ISIN);
+
+    assertThat(service.fillGaps(LOOKBACK_DAYS).failures()).isEmpty();
+  }
+
+  @Test
+  void aManualRunWhoseModelCheckMeasuredNoHoldingEndsIncompleteAndKeepsTheOtherChecks() {
+    storeACheckableThursday();
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    assertThatThrownBy(() -> service.runChecksAsOf(THURSDAY))
+        .isInstanceOfSatisfying(
+            TrackingDifferenceService.IncompletePriceDataException.class,
+            incomplete ->
+                assertThat(incomplete.completedResults())
+                    .extracting(TrackingDifferenceResult::checkType)
+                    .containsExactly(MODEL_PORTFOLIO));
+  }
+
+  @Test
+  void theNavGateNamesTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+    storeACheckableThursday();
+    givenTheHoldingsBenchmarkHasNoPrices();
+
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
+
+    then(trackingDifferenceNotifier)
+        .should()
+        .notify(
+            assertArg(
+                results ->
+                    assertThat(results)
+                        .extracting(TrackingDifferenceResult::checkType)
+                        .containsExactly(MODEL_PORTFOLIO)),
+            eq(
+                List.of(
+                    new NoHoldingMeasured(TUK75, THURSDAY, List.of(HELD_ISIN + " (MSCI_WORLD)")))));
+  }
+
+  @Test
+  void insertingTheMissingBenchmarkPriceClearsTheNameAndSavesTheModelCheckOnTheNextRun() {
+    storeACheckableThursday();
+    givenTheHoldingsBenchmarkHasNoPrices();
+    gate.check(TUK75, THURSDAY);
+
+    givenBenchmarkPrice(WEDNESDAY, "200.00");
+    givenBenchmarkPrice(THURSDAY, "202.00");
+    gate.check(TUK75, THURSDAY);
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
+    assertThat(
+            jdbcClient
+                .sql(
+                    "SELECT COUNT(*) FROM investment_tracking_difference_event"
+                        + " WHERE check_type = 'BENCHMARK_MODEL' AND check_date = :checkDate")
+                .param("checkDate", THURSDAY)
+                .query(Long.class)
+                .single())
+        .isEqualTo(1L);
+  }
+
+  @Test
+  void theNavGateNamesNothingWhenOnlyAnUnheldModelAllocationLacksABenchmarkPrice() {
+    storeModelPortfolio(HELD_ISIN, new BigDecimal("0.50"));
+    storeModelPortfolio(UNHELD_ISIN, new BigDecimal("0.50"));
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    givenPrice(UNHELD_ISIN, WEDNESDAY, "50.00");
+    givenPrice(UNHELD_ISIN, THURSDAY, "50.50");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+    givenABenchmarkWithoutPricesFor(UNHELD_ISIN);
+
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
+  }
+
+  @Test
+  void theNavGateNamesNothingForHoldingsWithNoBenchmarkSinceNoPriceWouldEverMeasureThem() {
+    storeACheckableThursday();
+
+    assertThat(gate.check(TUK75, THURSDAY)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(anyList(), eq(List.of()));
   }
 
   @Test
@@ -255,13 +390,50 @@ class TrackingDifferenceServiceGapFillIT {
         .build();
   }
 
+  private void storeACheckableThursday() {
+    storeModelPortfolio();
+    storeHolding(WEDNESDAY);
+    storeHolding(THURSDAY);
+    givenPrice(WEDNESDAY, "100.00");
+    givenPrice(THURSDAY, "101.00");
+    publishNav(WEDNESDAY, "10.0000");
+    publishNav(THURSDAY, "10.1000");
+  }
+
+  private void givenTheHoldingsBenchmarkHasNoPrices() {
+    givenABenchmarkWithoutPricesFor(HELD_ISIN);
+  }
+
+  private void givenABenchmarkWithoutPricesFor(String isin) {
+    given(instrumentReferenceService.findByIsin(isin))
+        .willReturn(Optional.of(instrument(isin).benchmarkCategory("EQUITY_DM").build()));
+    given(instrumentReferenceService.resolveBenchmarkProxy(eq(isin), any(LocalDate.class)))
+        .willReturn(Optional.of(new BenchmarkProxy(null, "MSCI_WORLD")));
+  }
+
+  private void givenBenchmarkPrice(LocalDate priceDate, String price) {
+    given(fundValueProvider.getLatestValue("MSCI_WORLD", priceDate))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "MSCI_WORLD",
+                    priceDate,
+                    new BigDecimal(price),
+                    "TEST",
+                    Instant.parse("2026-04-10T16:00:00Z"))));
+  }
+
   private void storeModelPortfolio() {
+    storeModelPortfolio(HELD_ISIN, BigDecimal.ONE);
+  }
+
+  private void storeModelPortfolio(String isin, BigDecimal weight) {
     modelPortfolioAllocationRepository.save(
         ModelPortfolioAllocation.builder()
             .fund(TUK75)
             .effectiveDate(MODEL_EFFECTIVE_DATE)
-            .isin(HELD_ISIN)
-            .weight(BigDecimal.ONE)
+            .isin(isin)
+            .weight(weight)
             .build());
   }
 
@@ -292,7 +464,11 @@ class TrackingDifferenceServiceGapFillIT {
   }
 
   private void givenPrice(LocalDate priceDate, String price) {
-    given(positionPriceResolver.resolve(eq(HELD_ISIN), eq(priceDate), any(Instant.class)))
+    givenPrice(HELD_ISIN, priceDate, price);
+  }
+
+  private void givenPrice(String isin, LocalDate priceDate, String price) {
+    given(positionPriceResolver.resolve(eq(isin), eq(priceDate), any(Instant.class)))
         .willReturn(
             Optional.of(
                 ResolvedPrice.builder()

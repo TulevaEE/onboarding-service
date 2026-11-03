@@ -75,7 +75,7 @@ class TrackingDifferenceJobTest {
   void adHocPartialRunNamesTheFundsItCouldNotCheck() {
     doThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
-                "Incomplete security price data:\nTUK75: IE00MISSING1", List.of()))
+                "Incomplete price data:\nTUK75: IE00MISSING1", List.of()))
         .when(service)
         .runChecksForFunds(anyList());
 
@@ -83,7 +83,7 @@ class TrackingDifferenceJobTest {
 
     then(notifier)
         .should()
-        .notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING1");
+        .notifyRunIncomplete("TD check", "Incomplete price data:\nTUK75: IE00MISSING1");
   }
 
   @Test

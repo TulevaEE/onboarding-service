@@ -13,6 +13,7 @@ import ee.sk.smartid.NotificationAuthenticationResponseValidator;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.SmartIdProperties;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import jakarta.ws.rs.ServerErrorException;
 import java.time.Clock;
@@ -32,7 +33,7 @@ public class SmartIdAuthService {
   private final SmartIdConnector smartIdConnector;
   private final DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   private final NotificationAuthenticationResponseValidator notificationResponseValidator;
-  private final SmartIdCertificateRevocationCheck certificateRevocationCheck;
+  private final CertificateRevocationCheck smartIdCertificateRevocationCheck;
   private final SmartIdProperties properties;
   private final Clock clock;
 
@@ -50,7 +51,7 @@ public class SmartIdAuthService {
       FlowType flowType = SmartIdFlowTypes.ofAProducedSignature(status);
       AuthenticationIdentity identity = validate(session, status, flowType);
       requireEstonianAccount(identity);
-      certificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
+      smartIdCertificateRevocationCheck.requireNotRevoked(identity.getAuthCertificate());
       SmartIdPerson authenticated =
           new SmartIdPerson(
               identity, status.getResult().getDocumentNumber(), SmartIdCompletedFlow.of(flowType));

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.Emailable;
+import ee.tuleva.onboarding.user.SecondPillarContributionStatus;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserContacts.ContactSummary;
 import ee.tuleva.onboarding.user.member.Member;
@@ -38,6 +39,7 @@ public class UserResponse implements Person, Emailable {
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
   private @Nullable PaymentRatesResponse secondPillarPaymentRates;
+  private @Nullable SecondPillarContributionsResponse secondPillarContributions;
   private @Nullable Instant memberJoinDate;
   private @Nullable Instant secondPillarOpenDate;
   private @Nullable Instant thirdPillarInitDate;
@@ -49,12 +51,19 @@ public class UserResponse implements Person, Emailable {
   }
 
   public static UserResponse from(
-      User user, ContactSummary contactSummary, PaymentRates paymentRates) {
-    return from(user, contactSummary, paymentRates, null);
+      User user,
+      ContactSummary contactSummary,
+      PaymentRates paymentRates,
+      @Nullable SecondPillarContributionStatus contributionStatus) {
+    return from(user, contactSummary, paymentRates, contributionStatus, null);
   }
 
   public static UserResponse from(
-      User user, ContactSummary contactSummary, PaymentRates paymentRates, @Nullable Role role) {
+      User user,
+      ContactSummary contactSummary,
+      PaymentRates paymentRates,
+      @Nullable SecondPillarContributionStatus contributionStatus,
+      @Nullable Role role) {
     return responseBuilder(user)
         .role(role)
         .pensionAccountNumber(contactSummary.pensionAccountNumber())
@@ -65,6 +74,7 @@ public class UserResponse implements Person, Emailable {
         .secondPillarPaymentRates(
             new PaymentRatesResponse(
                 paymentRates.getCurrent(), paymentRates.getPending().orElse(null)))
+        .secondPillarContributions(toContributionsResponse(contributionStatus))
         .memberJoinDate(user.getMember().map(Member::getCreatedDate).orElse(null))
         .secondPillarOpenDate(contactSummary.secondPillarOpenDate())
         .thirdPillarInitDate(contactSummary.thirdPillarInitDate())
@@ -74,6 +84,16 @@ public class UserResponse implements Person, Emailable {
 
   private static @Nullable Country toAddress(@Nullable String countryCode) {
     return countryCode != null ? Country.builder().countryCode(countryCode).build() : null;
+  }
+
+  private static @Nullable SecondPillarContributionsResponse toContributionsResponse(
+      @Nullable SecondPillarContributionStatus contributionStatus) {
+    return contributionStatus != null
+        ? new SecondPillarContributionsResponse(
+            contributionStatus.contributing(),
+            contributionStatus.restartDate(),
+            contributionStatus.rejoinPossibleFrom())
+        : null;
   }
 
   private static boolean checkIfThirdPillarIsActive(ContactSummary contactSummary) {

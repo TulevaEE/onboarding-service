@@ -76,6 +76,30 @@ class MobileIdAuthProviderSpec extends Specification {
     0 * rememberedPhones.forgetOnThisBrowser(_)
   }
 
+  def "a completed Mobile-ID login is redeemed for tokens only once"() {
+    given:
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    mobileIdAuthService.isLoginComplete(session) >> true
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    principalService.getFrom(session, _ as Map) >> sampleAuthenticatedPersonAndMember().build()
+    when:
+    mobileIdAuthProvider.authenticate("dummy")
+    then:
+    1 * genericSessionStore.remove(MobileIDSession)
+  }
+
+  def "a Mobile-ID login still in progress keeps its session for the next poll"() {
+    given:
+    MobileIDSession session = new MobileIDSession("12345", "challenge", MobileIdFixture.hash, "+37255555555")
+    mobileIdAuthService.isLoginComplete(session) >> false
+    genericSessionStore.get(MobileIDSession) >> Optional.of(session)
+    when:
+    mobileIdAuthProvider.authenticate("dummy")
+    then:
+    thrown(AuthNotCompleteException)
+    0 * genericSessionStore.remove(_)
+  }
+
   def "a login not asked to be remembered forgets the person's phone on this browser and remembers none"() {
     given:
     AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build()

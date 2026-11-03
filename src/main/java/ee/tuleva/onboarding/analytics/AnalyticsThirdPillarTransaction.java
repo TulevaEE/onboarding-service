@@ -14,6 +14,11 @@ import lombok.*;
 @AllArgsConstructor
 public class AnalyticsThirdPillarTransaction {
 
+  public static final String OWN_CONTRIBUTION_SOURCE =
+      "Osakute väljalase isikult laekumiste alusel";
+  public static final String EMPLOYER_CONTRIBUTION_SOURCE =
+      "Osakute väljalase tööandjalt laekumiste alusel";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;

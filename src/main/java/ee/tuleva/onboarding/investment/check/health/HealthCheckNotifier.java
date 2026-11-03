@@ -4,17 +4,21 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -27,7 +31,11 @@ public class HealthCheckNotifier {
   private final OperationsNotificationService notificationService;
   private final HealthCheckEventRepository eventRepository;
 
-  public boolean notify(ReportProvider provider, LocalDate date, List<HealthCheckResult> results) {
+  public boolean notify(
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> results,
+      Map<TulevaFund, Instant> earlierImports) {
     try {
       var transitions = new ArrayList<Transition>();
       for (var result : results) {
@@ -48,7 +56,14 @@ public class HealthCheckNotifier {
       var activeTransitions = transitions.stream().filter(t -> t.current != PASS).toList();
       var clearedTransitions = transitions.stream().filter(t -> t.current == PASS).toList();
 
-      var message = buildMessage(provider, date, results, activeTransitions, clearedTransitions);
+      var message =
+          buildMessage(
+              provider,
+              date,
+              results,
+              new EarlierImports(earlierImports),
+              activeTransitions,
+              clearedTransitions);
       notificationService.sendMessage(message, INVESTMENT);
       return true;
 
@@ -119,10 +134,13 @@ public class HealthCheckNotifier {
       ReportProvider provider,
       LocalDate date,
       List<HealthCheckResult> results,
+      EarlierImports earlierImports,
       List<Transition> active,
       List<Transition> cleared) {
     var message = new StringBuilder();
-    message.append(header(provider, date, results, active));
+    message.append(header(provider, date, results, earlierImports, active));
+    message.append(fundStatuses(results, earlierImports));
+    correctionSteps(provider, date, results).ifPresent(message::append);
 
     for (var transition : active) {
       for (var finding : transition.result.findings()) {
@@ -156,14 +174,12 @@ public class HealthCheckNotifier {
       ReportProvider provider,
       LocalDate date,
       List<HealthCheckResult> results,
+      EarlierImports earlierImports,
       List<Transition> active) {
-    var blockedFunds =
-        HealthCheckResult.blockedFunds(results).stream()
-            .map(TulevaFund::getCode)
-            .collect(joining(", "));
+    var blockedFunds = HealthCheckResult.blockedFunds(results);
     if (!blockedFunds.isEmpty()) {
-      return "IMPORT BLOCKED: %s %s — %s not imported, source files need to be fixed\n"
-          .formatted(provider, date, blockedFunds);
+      return "IMPORT BLOCKED: %s %s — %s, source files need to be fixed\n"
+          .formatted(provider, date, earlierImports.whatBlockingLeft(blockedFunds));
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);
@@ -172,6 +188,27 @@ public class HealthCheckNotifier {
       return "Import check could not run: %s %s\n".formatted(provider, date);
     }
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
+  }
+
+  private String fundStatuses(List<HealthCheckResult> results, EarlierImports earlierImports) {
+    return "Funds: %s\n"
+        .formatted(
+            results.stream()
+                .map(result -> result.fund().getCode() + " " + earlierImports.importStatus(result))
+                .collect(joining(", ")));
+  }
+
+  private static Optional<String> correctionSteps(
+      ReportProvider provider, LocalDate date, List<HealthCheckResult> results) {
+    if (provider != SEB || HealthCheckResult.blockedFunds(results).isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        ("Fix: ask SEB to resend the file, or email a corrected"
+                + " TULEVA_pos_raport_%s_korrigeeritud.csv from funds@tuleva.ee to"
+                + " funds@tuleva.ee only; a report up to 7 days old is picked up within 10 minutes"
+                + " between 08:00 and 18:00, an older one needs /admin/reimport-positions\n")
+            .formatted(date.format(BASIC_ISO_DATE)));
   }
 
   private String severityEmoji(HealthCheckSeverity severity) {

@@ -62,16 +62,18 @@ class KybSurveyServiceTest {
   }
 
   private CompanyDetail sampleDetail() {
-    return new CompanyDetail(
-        "Test OÜ",
-        REGISTRY_CODE,
-        "R",
-        "OÜ",
-        null,
-        new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-        "Fondide valitsemine",
-        "6630",
-        List.of());
+    return sampleDetailBuilder().build();
+  }
+
+  private CompanyDetail.CompanyDetailBuilder sampleDetailBuilder() {
+    return CompanyDetail.builder()
+        .name("Test OÜ")
+        .registryCode(REGISTRY_CODE)
+        .status("R")
+        .legalForm("OÜ")
+        .address(new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)))
+        .mainActivity("Fondide valitsemine")
+        .naceCode("6630");
   }
 
   private void stubInitialValidation(
@@ -84,17 +86,7 @@ class KybSurveyServiceTest {
 
   @Test
   void initialValidation_returnsLegalEntityDataWithFieldErrors() {
-    var detail =
-        new CompanyDetail(
-            "Test OÜ",
-            REGISTRY_CODE,
-            "R",
-            "OÜ",
-            java.time.LocalDate.of(2020, 1, 15),
-            new CompanyAddress("Tallinn", new AddressDetails(null, null, null, null)),
-            "Fondide valitsemine",
-            "6630",
-            List.of());
+    var detail = sampleDetailBuilder().foundingDate(java.time.LocalDate.of(2020, 1, 15)).build();
     var relationships = sampleRelationships();
     stubInitialValidation(
         relationships,
@@ -118,7 +110,10 @@ class KybSurveyServiceTest {
     assertThat(result.businessActivity().value()).isEqualTo("Fondide valitsemine");
     assertThat(result.naceCode().value()).isEqualTo("6630");
     assertThat(result.naceCode().errors())
-        .containsExactly(new ValidationError("UNSUPPORTED_NACE", "See tegevusala ei ole toetatud"));
+        .containsExactly(
+            new ValidationError(
+                "UNSUPPORTED_NACE",
+                "Kahjuks sinu ettevõtte registreeritud tegevusala viitab kõrgema riskiga tegevusele, mis ei vasta meie fondi tingimustele."));
     assertThat(result.relatedPersons().value()).hasSize(1);
     assertThat(result.relatedPersons().value().getFirst().name()).isEqualTo("Jaan Tamm");
     assertThat(result.relatedPersons().errors())

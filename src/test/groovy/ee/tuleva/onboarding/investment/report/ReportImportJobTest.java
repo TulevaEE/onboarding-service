@@ -2,10 +2,13 @@ package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.io.ByteArrayInputStream;
@@ -33,6 +36,7 @@ class ReportImportJobTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
   @Mock private PipelineNotifier pipelineNotifier;
+  @Mock private OperationsNotificationService notificationService;
 
   private InvestmentReportService reportService;
   private ReportImportJob job;
@@ -53,7 +57,130 @@ class ReportImportJobTest {
             FIXED_CLOCK,
             eventPublisher,
             pipelineTracker,
-            pipelineNotifier);
+            pipelineNotifier,
+            notificationService);
+  }
+
+  @Test
+  void aResentFileIdenticalToTheStoredOneSaysNothingChanges() {
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebResends(date, storedWithFingerprintOf(SAMPLE_CSV));
+
+    job.importForDate(date);
+
+    verify(notificationService)
+        .sendMessage(
+            "SEB re-sent seb/" + date + "_positions.csv: identical to the stored file", INVESTMENT);
+  }
+
+  @Test
+  void theResendNoticeComesBeforeTheReImportItIntroduces() {
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebResends(date, storedWithFingerprintOf("col1;col2\nval1;other"));
+
+    job.importForDate(date);
+
+    var inOrder = inOrder(notificationService, eventPublisher);
+    inOrder.verify(notificationService).sendMessage(any(), eq(INVESTMENT));
+    inOrder.verify(eventPublisher).publishEvent(any(Object.class));
+  }
+
+  @Test
+  void aSlackFailureOnTheResendNoticeDoesNotStopTheImport() {
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebResends(date, storedWithFingerprintOf(SAMPLE_CSV));
+    doThrow(new IllegalStateException("Slack is down"))
+        .when(notificationService)
+        .sendMessage(any(), eq(INVESTMENT));
+
+    job.importForDate(date);
+
+    verify(reportRepository).save(any(InvestmentReport.class));
+    verify(eventPublisher)
+        .publishEvent(
+            new ee.tuleva.onboarding.investment.event.ReportImportCompleted(
+                SEB, POSITIONS, date, 1));
+  }
+
+  @Test
+  void aResentFileThatDiffersFromTheStoredOneSaysSo() {
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebResends(date, storedWithFingerprintOf("col1;col2\nval1;other"));
+
+    job.importForDate(date);
+
+    verify(notificationService)
+        .sendMessage(
+            "SEB re-sent seb/" + date + "_positions.csv: it differs from the stored file",
+            INVESTMENT);
+  }
+
+  @Test
+  void aResendOfAFileStoredBeforeFingerprintsSaysItCannotCompare() {
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebResends(date, new HashMap<>(Map.of("s3LastModified", "2026-02-05T08:00:00Z")));
+
+    job.importForDate(date);
+
+    verify(notificationService)
+        .sendMessage(
+            "SEB re-sent seb/"
+                + date
+                + "_positions.csv: the stored file has no fingerprint to"
+                + " compare with",
+            INVESTMENT);
+  }
+
+  @Test
+  void theFirstImportOfAFileIsNotAResendButStoresItsFingerprint() {
+    setupReportRepositoryMocks();
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    sebBucketHolds(date, Instant.parse("2026-02-05T14:00:00Z"));
+
+    job.importForDate(date);
+
+    verifyNoInteractions(notificationService);
+    verify(reportRepository)
+        .save(
+            argThat(
+                (InvestmentReport report) ->
+                    fingerprintOf(SAMPLE_CSV).equals(report.getMetadata().get("csvSha256"))));
+  }
+
+  private void sebResends(LocalDate date, Map<String, Object> storedMetadata) {
+    when(reportRepository.save(any(InvestmentReport.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(reportRepository.findByProviderAndReportTypeAndReportDate(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(InvestmentReport.builder().metadata(storedMetadata).build()));
+    sebBucketHolds(date, Instant.parse("2026-02-05T14:00:00Z"));
+  }
+
+  private void sebBucketHolds(LocalDate date, Instant lastModified) {
+    when(source.getProvider()).thenReturn(SEB);
+    when(source.getSupportedReportTypes()).thenReturn(List.of(POSITIONS));
+    when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.of(lastModified));
+    when(source.fetch(POSITIONS, date))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/" + date + "_positions.csv");
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+  }
+
+  private Map<String, Object> storedWithFingerprintOf(String csv) {
+    return new HashMap<>(
+        Map.of("s3LastModified", "2026-02-05T08:00:00Z", "csvSha256", fingerprintOf(csv)));
+  }
+
+  private static String fingerprintOf(String csv) {
+    try {
+      return java.util.HexFormat.of()
+          .formatHex(
+              java.security.MessageDigest.getInstance("SHA-256")
+                  .digest(csv.getBytes(StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private void setupReportRepositoryMocks() {
@@ -200,6 +327,28 @@ class ReportImportJobTest {
 
     verify(reportRepository, times(7))
         .findByProviderAndReportTypeAndReportDate(any(), any(), any());
+  }
+
+  @Test
+  void aTradeListThatFailsToImportDoesNotStopThatDaysPositions() {
+    setupReportRepositoryMocks();
+    var date = LocalDate.now(FIXED_CLOCK).minusDays(1);
+    when(source.getProvider()).thenReturn(SEB);
+    when(source.getSupportedReportTypes())
+        .thenReturn(List.of(ReportType.PENDING_TRANSACTIONS, POSITIONS));
+    when(source.fetch(ReportType.PENDING_TRANSACTIONS, date))
+        .thenThrow(new RuntimeException("S3 error"));
+    when(source.fetch(POSITIONS, date))
+        .thenReturn(
+            Optional.of(new ByteArrayInputStream(SAMPLE_CSV.getBytes(StandardCharsets.UTF_8))));
+    when(source.getBucket()).thenReturn("tuleva-investment-reports");
+    when(source.getKey(POSITIONS, date)).thenReturn("seb/" + date + "_positions.csv");
+    when(source.getLastModified(POSITIONS, date)).thenReturn(Optional.empty());
+    when(source.extractCsvMetadata(any())).thenReturn(Map.of());
+
+    job.importForDate(date);
+
+    verify(reportRepository).save(any(InvestmentReport.class));
   }
 
   @Test

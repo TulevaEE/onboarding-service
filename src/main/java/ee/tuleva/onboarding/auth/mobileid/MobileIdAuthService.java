@@ -9,6 +9,8 @@ import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
 import ee.sk.mid.rest.dao.request.MidAuthenticationRequest;
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class MobileIdAuthService {
   private final MidConnector connector;
   private final MidSessionStatusPoller poller;
   private final MobileNumberNormalizer normalizer;
+  private final CertificateRevocationCheck mobileIdCertificateRevocationCheck;
 
   public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
@@ -67,6 +70,8 @@ public class MobileIdAuthService {
         if (!authenticationResult.isValid()) {
           throw MobileIdException.ofErrors(authenticationResult.getErrors());
         }
+
+        requireCertificateNotRevoked(authentication);
 
         MidAuthenticationIdentity authenticationIdentity =
             authenticationResult.getAuthenticationIdentity();
@@ -117,6 +122,16 @@ public class MobileIdAuthService {
     }
 
     return false;
+  }
+
+  private void requireCertificateNotRevoked(MidAuthentication authentication) {
+    try {
+      mobileIdCertificateRevocationCheck.requireNotRevoked(authentication.getCertificate());
+    } catch (CertificateRevokedException e) {
+      throw new MobileIdException(
+          ofSingleError(
+              "mobile.id.certificates.revoked", "Your Mobile-ID certificate is revoked."));
+    }
   }
 
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(

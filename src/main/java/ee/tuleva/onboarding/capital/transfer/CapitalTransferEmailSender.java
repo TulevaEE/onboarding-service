@@ -8,8 +8,8 @@ import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.notification.email.SignedContainerAttachment;
 import ee.tuleva.onboarding.user.User;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,10 +81,8 @@ public class CapitalTransferEmailSender {
 
   private static List<MandrillMessage.MessageContent> contractAttachments(
       CapitalTransferContract contract) {
-    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
-    attachment.setName("liikmekapitali_avaldus" + contract.getId() + ".bdoc");
-    attachment.setType("application/bdoc");
-    attachment.setContent(Base64.getEncoder().encodeToString(contract.getDigiDocContainer()));
-    return List.of(attachment);
+    return List.of(
+        SignedContainerAttachment.of(
+            "liikmekapitali_avaldus" + contract.getId(), contract.getDigiDocContainer()));
   }
 }

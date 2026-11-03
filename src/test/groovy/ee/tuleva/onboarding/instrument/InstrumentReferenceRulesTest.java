@@ -6,11 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@JdbcTest
 @Transactional
 class InstrumentReferenceRulesTest {
 

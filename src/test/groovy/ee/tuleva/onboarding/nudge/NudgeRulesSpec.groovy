@@ -2,11 +2,17 @@ package ee.tuleva.onboarding.nudge
 
 import spock.lang.Specification
 
+import java.time.LocalDate
+
+import static ee.tuleva.onboarding.nudge.ActingFor.CHILD
+import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY
 import static ee.tuleva.onboarding.nudge.Known.NO
 import static ee.tuleva.onboarding.nudge.Known.UNKNOWN
 import static ee.tuleva.onboarding.nudge.Known.YES
 import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.everythingSorted
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.leaverWhoMayRejoin
 import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleFeeComparison
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleRejoinWindow
 import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleSeason
 import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.CLOSED
 import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.LAST_DAYS
@@ -71,12 +77,56 @@ class NudgeRulesSpec extends Specification {
     NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(THIRD_PILLAR_RECURRING)
   }
 
-  def "a company payer goes through the same chain as everyone else"() {
+  def "a company payment suggests only the company standing order: #description"() {
     given:
-    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
+    def inputs = everythingSorted()
+        .actingFor(COMPANY)
+        .secondPillarActive(false)
+        .thirdPillarActive(false)
+        .member(false)
+        .savingsFundRecurring(recurring)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == expected
+
+    where:
+    description                     | recurring || expected
+    "no standing order yet"         | NO        || NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    "already has a standing order"  | YES       || NudgeDecision.of(NONE)
+    "standing order unknown"        | UNKNOWN   || NudgeDecision.of(NONE)
+  }
+
+  def "a child payment suggests the child's standing order before the parent's own pillars"() {
+    given:
+    def inputs = everythingSorted().actingFor(CHILD).secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+  }
+
+  def "a child payment goes on to the parent's own nudges when the child's standing order is #description"() {
+    given:
+    def inputs = everythingSorted().actingFor(CHILD).secondPillarActive(false).savingsFundRecurring(recurring).build()
 
     expect:
     NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+
+    where:
+    description      | recurring
+    "already set up" | YES
+    "unknown"        | UNKNOWN
+  }
+
+  def "acting for a #actingFor outside a savings fund payment goes through the usual chain"() {
+    given:
+    def inputs = everythingSorted().actingFor(actingFor).secondPillarActive(false).savingsFundRecurring(NO).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_START)
+
+    where:
+    actingFor << [CHILD, COMPANY]
   }
 
   def "second pillar start: #description"() {
@@ -106,6 +156,42 @@ class NudgeRulesSpec extends Specification {
     "never a leaver"                                    | true  | false   | YES              | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
     "nothing while the leaver status is unknown"        | true  | false   | UNKNOWN          | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(NONE)
     "not with a pending withdrawal"                     | true  | false   | NO               | true              | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+  }
+
+  def "second pillar rejoin: #description"() {
+    given:
+    def inputs = leaverWhoMayRejoin()
+        .mayRejoinSecondPillar(mayRejoin)
+        .pendingSecondPillarRejoin(pendingRejoin)
+        .reachedRetirementAge(retired)
+        .secondPillarRejoinWindow(sampleRejoinWindow(windowOpen))
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                                         | mayRejoin | pendingRejoin | retired | windowOpen | context                                 || expected
+    "a leaver whose rejoin date has come is asked before the deadline"  | YES       | false         | false   | true       | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.secondPillarRejoin(LocalDate.parse("2026-11-30"))
+    "also after joining as a member"                                    | YES       | false         | false   | true       | NudgeContext.MEMBERSHIP                 || NudgeDecision.secondPillarRejoin(LocalDate.parse("2026-11-30"))
+    "also after a savings fund payment"                                 | YES       | false         | false   | true       | NudgeContext.SAVINGS_FUND_PAYMENT       || NudgeDecision.secondPillarRejoin(LocalDate.parse("2026-11-30"))
+    "never before the last weeks before the deadline"                   | YES       | false         | false   | false      | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(NONE)
+    "not before the rejoin date has come"                               | NO        | false         | false   | true       | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(NONE)
+    "not while the rejoin date is unknown"                              | UNKNOWN   | false         | false   | true       | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(NONE)
+    "not once a rejoin is filed"                                        | YES       | true          | false   | true       | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(NONE)
+    "not at retirement age"                                             | YES       | false         | true    | true       | NudgeContext.THIRD_PILLAR_PAYMENT       || NudgeDecision.of(NONE)
+    "not on the account page, whose status box shows the leaver row"    | YES       | false         | false   | true       | NudgeContext.ACCOUNT                    || NudgeDecision.of(NONE)
+    "not right after a second pillar mandate"                           | YES       | false         | false   | true       | NudgeContext.SECOND_PILLAR_MANDATE      || NudgeDecision.of(NONE)
+    "not right after a payment rate change"                             | YES       | false         | false   | true       | NudgeContext.SECOND_PILLAR_PAYMENT_RATE || NudgeDecision.of(NONE)
+  }
+
+  def "a rejoin before the deadline outranks the third pillar and savings fund suggestions, which return once the window closes"() {
+    given:
+    def inputs = leaverWhoMayRejoin().thirdPillarActive(false).savesInSavingsFund(NO)
+
+    expect:
+    NudgeRules.decide(inputs.build(), NudgeContext.MEMBERSHIP) == NudgeDecision.secondPillarRejoin(LocalDate.parse("2026-11-30"))
+    NudgeRules.decide(inputs.secondPillarRejoinWindow(sampleRejoinWindow(false)).build(), NudgeContext.MEMBERSHIP) == NudgeDecision.of(THIRD_PILLAR_START)
   }
 
   def "second pillar transfer: #description"() {

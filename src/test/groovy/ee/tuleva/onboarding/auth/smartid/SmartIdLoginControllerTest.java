@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -24,8 +25,11 @@ import ee.tuleva.onboarding.auth.browser.PushLoginStartedTooSoonException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -52,7 +56,7 @@ class SmartIdLoginControllerTest {
   @Test
   void startingADeviceLinkLoginAsksToBeRememberedOnlyWhenThePersonTickedRememberMe()
       throws Exception {
-    given(smartIdLoginStarter.startDeviceLinkLogin("et", true)).willReturn(deviceLinkSession);
+    given(smartIdLoginStarter.startDeviceLinkLogin("et", true, null)).willReturn(deviceLinkSession);
     given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
         .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
 
@@ -64,13 +68,14 @@ class SmartIdLoginControllerTest {
                 .content("{\"flow\":\"DEVICE_LINK\",\"language\":\"et\",\"rememberMe\":true}"))
         .andExpect(status().isOk());
 
-    verify(smartIdLoginStarter).startDeviceLinkLogin("et", true);
+    verify(smartIdLoginStarter).startDeviceLinkLogin("et", true, null);
   }
 
   @Test
   void startingADeviceLinkLoginReturnsTheSameDeviceLinkAndDoesNotAskToBeRememberedByDefault()
       throws Exception {
-    given(smartIdLoginStarter.startDeviceLinkLogin("et", false)).willReturn(deviceLinkSession);
+    given(smartIdLoginStarter.startDeviceLinkLogin("et", false, null))
+        .willReturn(deviceLinkSession);
     given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
         .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
 
@@ -192,6 +197,71 @@ class SmartIdLoginControllerTest {
         .andExpect(jsonPath("$.errors[0].code").value("auth.session.not.found"));
 
     verify(smartIdLoginStarter, never()).startNotificationLogin(any());
+  }
+
+  @Test
+  void startingADeviceLinkLoginPassesOnThePageThePersonStartedFrom() throws Exception {
+    given(smartIdLoginStarter.startDeviceLinkLogin("et", false, "/3rd-pillar-payment?a=1"))
+        .willReturn(deviceLinkSession);
+    given(smartIdDeviceLinks.web2AppLink(deviceLinkSession))
+        .willReturn(URI.create("https://smart-id.com/device-link/?deviceLinkType=Web2App"));
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    "{\"flow\":\"DEVICE_LINK\",\"language\":\"et\",\"returnPath\":\"/3rd-pillar-payment?a=1\"}"))
+        .andExpect(status().isOk());
+
+    verify(smartIdLoginStarter).startDeviceLinkLogin("et", false, "/3rd-pillar-payment?a=1");
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "//evil.example/login",
+        "/\\evil.example/login",
+        "https://evil.example/login",
+        "3rd-pillar-payment",
+        "/3rd-pillar payment",
+        ""
+      })
+  void startingALoginWithAReturnPathThatIsNotAPathOnThisSiteIsABadRequest(String returnPath)
+      throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("flow", "DEVICE_LINK", "language", "et", "returnPath", returnPath))))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(smartIdLoginStarter);
+  }
+
+  @Test
+  void startingALoginWithAReturnPathLongerThanAnyPageAddressIsABadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of(
+                            "flow",
+                            "DEVICE_LINK",
+                            "language",
+                            "et",
+                            "returnPath",
+                            "/" + "a".repeat(2048)))))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(smartIdLoginStarter);
   }
 
   @Test

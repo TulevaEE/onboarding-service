@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -11,8 +9,6 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toUnmodifiableMap;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
-import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.investment.transaction.ExecutedPrice;
 import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -33,16 +29,15 @@ import org.springframework.stereotype.Component;
 class SebExecutedPriceSource implements ExecutedPriceSource {
 
   private static final int PRICE_SCALE = 8;
-  private static final int SEND_LAG_DAYS = 3;
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
-  private final InvestmentReportService reportService;
+  private final SebTradeListLookup tradeListLookup;
   private final SebPendingTransactionExtractor extractor;
   private final SebClientNameToFundResolver fundResolver;
 
   @Override
   public Map<TulevaFund, Map<String, ExecutedPrice>> executedSellPricesByFund(LocalDate navDate) {
-    Optional<InvestmentReport> report = reportFor(navDate);
+    Optional<InvestmentReport> report = tradeListLookup.describing(navDate);
     if (report.isEmpty()) {
       log.info("No SEB pending transactions report for nav date: navDate={}", navDate);
       return Map.of();
@@ -63,19 +58,6 @@ class SebExecutedPriceSource implements ExecutedPriceSource {
       Map<String, List<Sell>> sellsByIsin) {
     return sellsByIsin.entrySet().stream()
         .collect(toUnmodifiableMap(Map.Entry::getKey, entry -> volumeWeighted(entry.getValue())));
-  }
-
-  private Optional<InvestmentReport> reportFor(LocalDate navDate) {
-    for (int offset = 0; offset <= SEND_LAG_DAYS; offset++) {
-      Optional<InvestmentReport> candidate =
-          reportService
-              .getReport(SEB, PENDING_TRANSACTIONS, navDate.plusDays(offset))
-              .filter(report -> navDate.equals(SebReportHeaders.asOfDate(report)));
-      if (candidate.isPresent()) {
-        return candidate;
-      }
-    }
-    return Optional.empty();
   }
 
   private Optional<Sell> sell(SebPendingTransactionRow row) {

@@ -1,5 +1,11 @@
 {
   "variants": {
+    "II sambaga taasliitumise soovitus": {
+      "FNAME": "Mari",
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "30. november 2026",
+      "anyPillarSuggestion": true
+    },
     "II samba avamise soovitus": {
       "FNAME": "Mari",
       "suggestSecondPillarStart": true,
@@ -18,6 +24,9 @@
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
       "secondPillarSavingsAmount": 74,
+      "tulevaFeePercent": "0,28",
+      "secondPillarAssetsAmount": "20\u00a0000",
+      "feeComparisonDate": "16.10.2026",
       "anyPillarSuggestion": true
     },
     "II samba määra tõstmise soovitus": {
@@ -61,6 +70,19 @@
     },
     "ilma soovituseta": {
       "FNAME": "Mari"
+    },
+    "kingitus": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
+    },
+    "kingitus, kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

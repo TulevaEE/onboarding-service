@@ -41,6 +41,7 @@ public class MobileIdAuthProvider implements AuthProvider {
     if (!isLoginComplete(mobileIdSession)) {
       throw new AuthNotCompleteException();
     }
+    genericSessionStore.remove(MobileIDSession.class);
     releaseThisBrowserForTheNextLogin(mobileIdSession);
 
     AuthenticatedPerson authenticatedPerson =

@@ -29,6 +29,18 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
 
   @Query(
       """
+      SELECT COUNT(uo) > 0 FROM UnitOwner uo
+      WHERE uo.personalId = :personalCode
+        AND (uo.p2fpaaDate IS NOT NULL
+          OR uo.p2plavDate IS NOT NULL
+          OR uo.p2ykvaDate IS NOT NULL
+          OR (uo.p2dutyEnd IS NOT NULL AND uo.p2ravaDate IS NULL AND uo.p2mmteDate IS NULL))
+        AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
+      """)
+  boolean contributionsCannotRestart(String personalCode);
+
+  @Query(
+      """
       SELECT uo FROM UnitOwner uo
       WHERE uo.personalId = :personalCode
         AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)

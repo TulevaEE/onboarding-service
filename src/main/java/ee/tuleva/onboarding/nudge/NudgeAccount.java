@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static ee.tuleva.onboarding.nudge.ActingFor.CHILD;
+import static ee.tuleva.onboarding.nudge.ActingFor.COMPANY;
+import static ee.tuleva.onboarding.nudge.ActingFor.SELF;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -25,7 +28,10 @@ public record NudgeAccount(RoleType type, String code) {
     return new NudgeAccount(role.type(), role.code());
   }
 
-  public boolean isLegalEntity() {
-    return type == LEGAL_ENTITY;
+  ActingFor actingFor(Person person) {
+    return switch (type) {
+      case LEGAL_ENTITY -> COMPANY;
+      case PERSON -> code.equals(person.getPersonalCode()) ? SELF : CHILD;
+    };
   }
 }

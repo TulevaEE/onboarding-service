@@ -267,11 +267,11 @@ public class PeriodicTdAttributionService {
             .collect(Collectors.toMap(InstrumentRate::isin, InstrumentRate::netOcf));
 
     var accumulator =
-        new EtfLayerAccumulator(benchmarkLegResolver, fund, measuredIsins, rateByIsin);
+        new EtfLayerAccumulator(benchmarkLegResolver, fund, periodEnd, measuredIsins, rateByIsin);
     for (var allocation : allocations) {
       accumulator.accumulate(allocation);
     }
-    accumulator.logWarnings(periodEnd);
+    accumulator.logWarnings();
 
     return accumulator.toEtfLayer(
         measuredSum, coveredDays, etfLayerCoveredYearFraction(bmModelEvents));

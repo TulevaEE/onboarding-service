@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.math.BigDecimal;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SingleBoardMemberOwnershipScreenerTest {
@@ -126,7 +127,19 @@ class SingleBoardMemberOwnershipScreenerTest {
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
         .containsExactly(tuple(SINGLE_BOARD_MEMBER_OWNERSHIP, true));
-    assertThat(result.getFirst().metadata()).doesNotContainKey("boardMemberPersonalCode");
+    assertThat(result.getFirst().metadata()).isEqualTo(Map.of("totalOwnership", "100.0"));
+  }
+
+  @Test
+  void recordsTheOwnershipTotalSoAFailureCanBeExplained() {
+    var boardMember = boardMemberOwner("38501010001", 50.0).build();
+    var otherPerson = shareholderOwner("38501010002", 30.0).build();
+    var data = companyWith(boardMember, otherPerson);
+
+    var result = screener.screen(data);
+
+    assertThat(result.getFirst().metadata())
+        .isEqualTo(Map.of("boardMemberPersonalCode", "38501010001", "totalOwnership", "80.0"));
   }
 
   @Test

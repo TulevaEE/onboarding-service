@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.fundbalance;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,6 +18,11 @@ public interface FundBalanceRepository extends JpaRepository<FundBalance, Long> 
 
   @Query("SELECT MAX(fb.requestDate) FROM FundBalance fb")
   Optional<LocalDate> findLatestRequestDate();
+
+  @Query(
+      "SELECT fb FROM FundBalance fb"
+          + " WHERE fb.requestDate = (SELECT MAX(latest.requestDate) FROM FundBalance latest)")
+  List<FundBalance> findAllOnLatestRequestDate();
 
   Optional<FundBalance> findByIsinAndRequestDate(String isin, LocalDate requestDate);
 

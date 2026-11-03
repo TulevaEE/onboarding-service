@@ -9,6 +9,10 @@ import org.digidoc4j.DataToSign
 import org.digidoc4j.DigestAlgorithm
 import org.digidoc4j.Signature
 import org.digidoc4j.SignatureProfile
+import org.digidoc4j.exceptions.CertificateValidationException
+import org.digidoc4j.exceptions.OCSPRequestFailedException
+import org.digidoc4j.exceptions.ServiceUnreachableException
+import org.digidoc4j.exceptions.TechnicalException
 import spock.lang.Specification
 
 import java.security.MessageDigest
@@ -16,6 +20,8 @@ import java.security.MessageDigest
 import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER
 import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.HTML
 import static org.digidoc4j.Configuration.Mode.TEST
+import static org.digidoc4j.ServiceType.TSP
+import static org.digidoc4j.exceptions.CertificateValidationException.CertificateValidationStatus.REVOKED
 
 class DigiDocFacadeSpec extends Specification {
 
@@ -128,5 +134,54 @@ class DigiDocFacadeSpec extends Specification {
 
     then:
     result == containerBytes
+  }
+
+  def "reports signing as unavailable and adds nothing to the container when the signature gets no OCSP response"() {
+    given:
+    def signatureValue = "signature-value".bytes
+    def dataToSign = Mock(DataToSign)
+    def container = Mock(Container)
+    def noOcspResponse = new OCSPRequestFailedException("S-1")
+    dataToSign.finalize(signatureValue) >> { throw noOcspResponse }
+
+    when:
+    digiDocFacade.addSignatureToContainer(signatureValue, dataToSign, container)
+
+    then:
+    def thrown = thrown(SigningServiceUnavailableException)
+    thrown.cause.is(noOcspResponse)
+    0 * container._
+  }
+
+  def "names the unreachable timestamping service, not the wrapper digidoc4j puts around it, so Sentry can tell the outages apart"() {
+    given:
+    def signatureValue = "signature-value".bytes
+    def dataToSign = Mock(DataToSign)
+    def unreachableTimestampingService = new ServiceUnreachableException("http://tsa.example.com", TSP)
+    def wrapped = new TechnicalException("Got error in signing process", unreachableTimestampingService)
+    dataToSign.finalize(signatureValue) >> { throw wrapped }
+
+    when:
+    digiDocFacade.addSignatureToContainer(signatureValue, dataToSign, Mock(Container))
+
+    then:
+    def thrown = thrown(SigningServiceUnavailableException)
+    thrown.cause.is(wrapped)
+    thrown.causeName() == "ServiceUnreachableException"
+  }
+
+  def "leaves a signing certificate the OCSP service reports revoked to the signer's own error"() {
+    given:
+    def signatureValue = "signature-value".bytes
+    def dataToSign = Mock(DataToSign)
+    def revoked = CertificateValidationException.of(REVOKED, "Certificate status is revoked")
+    dataToSign.finalize(signatureValue) >> { throw revoked }
+
+    when:
+    digiDocFacade.addSignatureToContainer(signatureValue, dataToSign, Mock(Container))
+
+    then:
+    def thrown = thrown(CertificateValidationException)
+    thrown.is(revoked)
   }
 }

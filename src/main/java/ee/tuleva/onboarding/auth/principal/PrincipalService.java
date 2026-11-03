@@ -4,12 +4,15 @@ import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
 import ee.tuleva.onboarding.auth.role.Role;
-import ee.tuleva.onboarding.personalcode.PersonalCode;
 import jakarta.validation.Valid;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,23 +21,33 @@ import org.springframework.stereotype.Service;
 @NullMarked
 public class PrincipalService {
 
-  private static final int SELF_SERVICE_MINIMUM_AGE = 18;
-
   private final PrincipalUsers principalUsers;
 
+  @Value("${minor-self-service.enabled}")
+  private final boolean minorSelfServiceEnabled;
+
+  private final Clock clock;
+
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
-    if (PersonalCode.getAge(person.getPersonalCode()) < SELF_SERVICE_MINIMUM_AGE) {
+    var ownRole = new Role(PERSON, person.getPersonalCode(), formatted(person.getFullName()));
+    if (refusesSelfServiceTo(person, ownRole)) {
       log.info("Blocked self-authentication for minor: personalCode={}", person.getPersonalCode());
       throw new MinorCannotSelfAuthenticateException(person.getPersonalCode());
     }
-    return getFrom(
-        person,
-        attributes,
-        new Role(PERSON, person.getPersonalCode(), formatted(person.getFullName())));
+    return getFrom(person, attributes, ownRole);
+  }
+
+  public boolean refusesSelfServiceTo(Person person, @Nullable Role role) {
+    return !minorSelfServiceEnabled
+        && AuthenticatedPerson.builder()
+            .personalCode(person.getPersonalCode())
+            .role(role)
+            .build()
+            .isMinorActingAsSelf(LocalDate.now(clock));
   }
 
   public AuthenticatedPerson getFrom(
-      @Valid Person person, Map<String, String> attributes, Role role) {
+      @Valid Person person, Map<String, String> attributes, @Nullable Role role) {
 
     var user = principalUsers.findOrCreate(person);
 
@@ -54,13 +67,6 @@ public class PrincipalService {
   }
 
   public AuthenticatedPerson withRole(AuthenticatedPerson person, Role role) {
-    return AuthenticatedPerson.builder()
-        .personalCode(person.getPersonalCode())
-        .firstName(person.getFirstName())
-        .lastName(person.getLastName())
-        .userId(person.getUserId())
-        .attributes(person.getAttributes())
-        .role(role)
-        .build();
+    return person.toBuilder().role(role).build();
   }
 }

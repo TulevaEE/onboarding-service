@@ -59,6 +59,7 @@ public class ConversionResponse {
     private boolean selectionComplete;
     private boolean pendingWithdrawal;
     private @Nullable Boolean paymentComplete;
+    private @Nullable Boolean recurringPaymentDetected;
     private Amount contribution;
     private Amount subtraction;
     private BigDecimal weightedAverageFee;

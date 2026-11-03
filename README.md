@@ -200,8 +200,10 @@ Download `test-seb-keystore.p12` from `tuleva-secrets` in S3 and place it in `te
 
 ### Testing ID-card Authentication
 
-ID-card authentication is implemented using AWS ALB mutual TLS in production and staging environments.
-Use or production environment such as `id-staging.tuleva.ee/idLogin` for tests.
+ID-card authentication uses Web eID: the browser extension talks to the native application,
+which signs a challenge nonce, and the backend validates the returned authentication token in
+`WebEidConfiguration`. Test with a real ID card and the Web eID browser extension on the login
+screen; there is no mutual-TLS `/idLogin` endpoint.
 
 ### AWS Profile
 WE use AWS SSO, to get it working properly you need to configure the profile first either by running `aws configure sso` or

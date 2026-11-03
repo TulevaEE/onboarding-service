@@ -44,7 +44,7 @@ public class CapitalTransferSignatureService {
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     SmartIdSignatureSession signatureSession =
-        signService.startSmartIdSign(files, authenticatedPerson);
+        signService.startSmartIdSign(signableContract(contractId), files, authenticatedPerson);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -61,7 +61,7 @@ public class CapitalTransferSignatureService {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
-    byte[] signedFile = signService.getSignedFile(session);
+    byte[] signedFile = signService.getSignedFile(session, signableContract(contractId));
 
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
@@ -141,7 +141,8 @@ public class CapitalTransferSignatureService {
             authenticatedPerson.getAttribute(PHONE_NUMBER),
             "Phone number missing: contractId=" + contractId);
     MobileIdSignatureSession signatureSession =
-        signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
+        signService.startMobileIdSign(
+            signableContract(contractId), files, user.getPersonalCode(), phoneNumber);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -158,7 +159,7 @@ public class CapitalTransferSignatureService {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
-    byte[] signedFile = signService.getSignedFile(session);
+    byte[] signedFile = signService.getSignedFile(session, signableContract(contractId));
 
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);

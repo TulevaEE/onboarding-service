@@ -18,20 +18,22 @@ public class SignatureService {
   private final IdCardSigner idCardSigner;
 
   public SmartIdSignatureSession startSmartIdSign(
-      List<SignatureFile> files, AuthenticatedPerson signer) {
-    return smartIdSigner.startSign(files, signer);
+      SignableEntity entity, List<SignatureFile> files, AuthenticatedPerson signer) {
+    return smartIdSigner.startSign(entity, files, signer);
   }
 
-  public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(SmartIdSignatureSession session, SignableEntity entity) {
+    session.requireStartedFor(entity);
     return smartIdSigner.getSignedFile(session);
   }
 
   public MobileIdSignatureSession startMobileIdSign(
-      List<SignatureFile> files, String personalCode, String phoneNumber) {
-    return mobileIdSigner.startSign(files, personalCode, phoneNumber);
+      SignableEntity entity, List<SignatureFile> files, String personalCode, String phoneNumber) {
+    return mobileIdSigner.startSign(entity, files, personalCode, phoneNumber);
   }
 
-  public byte @Nullable [] getSignedFile(MobileIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(MobileIdSignatureSession session, SignableEntity entity) {
+    session.requireStartedFor(entity);
     return mobileIdSigner.getSignedFile(session);
   }
 

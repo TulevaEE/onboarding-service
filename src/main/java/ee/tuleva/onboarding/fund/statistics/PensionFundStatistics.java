@@ -11,7 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -33,5 +33,9 @@ public class PensionFundStatistics implements Serializable {
 
   public static PensionFundStatistics getNull() {
     return new PensionFundStatistics();
+  }
+
+  public PensionFundStatistics withActiveCount(int count) {
+    return toBuilder().activeCount(count).build();
   }
 }

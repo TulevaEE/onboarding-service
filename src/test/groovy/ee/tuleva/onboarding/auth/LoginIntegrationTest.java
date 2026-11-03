@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
 import static ee.tuleva.onboarding.auth.browser.ThisBrowser.COOKIE_NAME;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessionResponse;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionSecret;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.anAuthenticationIdentity;
@@ -12,6 +13,8 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.runningStatus;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sessionSecretDigest;
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -57,14 +60,21 @@ import ee.sk.smartid.rest.dao.NotificationAuthenticationSessionResponse;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevocationCheck;
-import ee.tuleva.onboarding.auth.smartid.SmartIdCertificateRevokedException;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.net.URLDecoder;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -72,6 +82,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.StreamSupport;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -87,6 +98,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
@@ -99,6 +111,8 @@ class LoginIntegrationTest {
   private static final String SESSION_ID = "test-session-id";
   private static final String PUSH_SESSION_ID = "push-session-id";
   private static final String MOBILE_ID_SESSION_ID = "mobile-id-session-id";
+  private static final String MINOR = "61506150006";
+  private static final Instant WHILE_THE_MINOR_IS_ELEVEN = Instant.parse("2026-10-26T10:00:00Z");
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JsonMapper objectMapper;
@@ -109,12 +123,21 @@ class LoginIntegrationTest {
   @MockitoBean private SmartIdConnector smartIdConnector;
   @MockitoBean private DeviceLinkAuthenticationResponseValidator deviceLinkResponseValidator;
   @MockitoBean private NotificationAuthenticationResponseValidator notificationResponseValidator;
-  @MockitoBean private SmartIdCertificateRevocationCheck certificateRevocationCheck;
+
+  @MockitoBean(name = "smartIdCertificateRevocationCheck")
+  private CertificateRevocationCheck certificateRevocationCheck;
+
+  @MockitoBean(name = "mobileIdCertificateRevocationCheck")
+  private CertificateRevocationCheck mobileIdCertificateRevocationCheck;
+
   @MockitoBean private MidClient midClient;
   @MockitoBean private MidConnector midConnector;
   @MockitoBean private MidSessionStatusPoller midSessionStatusPoller;
   @MockitoBean private MidAuthenticationResponseValidator midResponseValidator;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private PrincipalService principalService;
+  @Autowired private TokenService tokenService;
+  @Autowired private Clock clock;
 
   @TestConfiguration
   static class SmartIdTestConfig {
@@ -127,6 +150,11 @@ class LoginIntegrationTest {
       client.setRelyingPartyName("DEMO");
       return client;
     }
+  }
+
+  @AfterEach
+  void resetTheClock() {
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -164,6 +192,7 @@ class LoginIntegrationTest {
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
         .willReturn(anAuthenticationIdentity());
+    Instant beforeGrant = clock.instant().truncatedTo(SECONDS);
 
     MvcResult granted =
         mockMvc
@@ -178,6 +207,90 @@ class LoginIntegrationTest {
     assertThat(claims.get("attributes").get("smartIdDocumentNumber").asText())
         .isEqualTo(documentNumber);
     assertThat(claims.get("attributes").get("grantType").asText()).isEqualTo("SMART_ID");
+    var authTime = claims.get("attributes").get("authTime").asText();
+    assertThat(Instant.parse(authTime)).isBetween(beforeGrant, clock.instant());
+
+    MvcResult refreshed =
+        mockMvc
+            .perform(
+                post("/oauth/refresh-token")
+                    .contentType(APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            Map.of("refresh_token", refreshToken(granted)))))
+            .andExpect(status().isOk())
+            .andReturn();
+    assertThat(claimsOf(accessToken(refreshed)).get("attributes").get("authTime").asText())
+        .isEqualTo(authTime);
+  }
+
+  @Test
+  void aMinorIsRefusedTheirOwnLoginWhileMinorSelfServiceIsDisabled() throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    MvcResult start = startDeviceLinkLogin();
+    var minor = anAuthenticationIdentity("MARI", "MAASIKAS");
+    minor.setIdentityNumber(MINOR);
+    givenTheQrLoginCompletesAs(minor);
+
+    mockMvc
+        .perform(smartIdToken(start))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("MINOR_CANNOT_SELF_AUTHENTICATE"))
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    assertThat(userRepository.findByPersonalCode(MINOR)).isEmpty();
+  }
+
+  @Test
+  void aMinorsSessionStartedWhileMinorSelfServiceWasEnabledIsNotRefreshedOnceItIsDisabled()
+      throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    var minor =
+        PersonImpl.builder().personalCode(MINOR).firstName("Mari").lastName("Maasikas").build();
+    var minorActingAsSelf =
+        principalService.getFrom(
+            minor, Map.of("grantType", "SMART_ID"), new Role(PERSON, MINOR, "Mari Maasikas"));
+    var tokensFromWhenItWasEnabled = tokenService.generateTokens(minorActingAsSelf);
+
+    mockMvc
+        .perform(
+            post("/oauth/refresh-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("refresh_token", tokensFromWhenItWasEnabled.refreshToken()))))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("REFRESH_TOKEN_EXPIRED"))
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+  }
+
+  @Test
+  void aMinorsAccessTokenFromWhenMinorSelfServiceWasEnabledReadsAsExpiredOnceItIsDisabled()
+      throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    var minor =
+        PersonImpl.builder().personalCode(MINOR).firstName("Mari").lastName("Maasikas").build();
+    var minorActingAsSelf =
+        principalService.getFrom(
+            minor, Map.of("grantType", "SMART_ID"), new Role(PERSON, MINOR, "Mari Maasikas"));
+    var tokensFromWhenItWasEnabled = tokenService.generateTokens(minorActingAsSelf);
+
+    mockMvc
+        .perform(
+            get("/v1/me")
+                .header("Authorization", "Bearer " + tokensFromWhenItWasEnabled.accessToken()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error").value("TOKEN_EXPIRED"));
+  }
+
+  @Test
+  void aSmartIdLoginEventKeepsTheSmartIdDocumentNumberOutOfEverythingItRecords() throws Exception {
+    completeQrLogin(anAuthenticationIdentity(), false);
+
+    assertThat(objectMapper.writeValueAsString(loginEventDataOf(personalCode)))
+        .contains("authAttributes")
+        .doesNotContain(documentNumber);
   }
 
   @Test
@@ -264,7 +377,7 @@ class LoginIntegrationTest {
     given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(status);
     given(deviceLinkResponseValidator.validate(eq(status), any(), isNull(), eq("smart-id-demo")))
         .willReturn(identity);
-    willThrow(new SmartIdCertificateRevokedException("REVOKED"))
+    willThrow(new CertificateRevokedException("REVOKED"))
         .given(certificateRevocationCheck)
         .requireNotRevoked(identity.getAuthCertificate());
 
@@ -316,6 +429,30 @@ class LoginIntegrationTest {
             .andReturn();
 
     givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+    mockMvc
+        .perform(smartIdToken(session, authenticationHashOf(callback)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.access_token").isNotEmpty());
+  }
+
+  @Test
+  void aWeb2AppLoginCarriesThePageItStartedFromInTheCallbackUrlAndStillCompletes()
+      throws Exception {
+    String returnPath = "/3rd-pillar-payment?amount=50&note={b}|c+d%20e";
+    var request = new AtomicReference<DeviceLinkAuthenticationSessionRequest>();
+    MvcResult start =
+        startWeb2AppLogin(
+            request, Map.of("flow", "DEVICE_LINK", "language", "et", "returnPath", returnPath));
+    Cookie session = sessionCookie(start);
+    given(smartIdConnector.getSessionStatus(SESSION_ID)).willReturn(completeStatus("Web2App"));
+    givenTheWeb2AppLoginValidatesWithVerifier("verifier");
+
+    assertThat(callbackParameterOf(request, "returnPath")).isEqualTo(returnPath);
+    MvcResult callback =
+        mockMvc
+            .perform(smartIdCallback(session, callbackValueOf(request), "verifier"))
+            .andExpect(status().isOk())
+            .andReturn();
     mockMvc
         .perform(smartIdToken(session, authenticationHashOf(callback)))
         .andExpect(status().isOk())
@@ -1088,18 +1225,35 @@ class LoginIntegrationTest {
 
   private MvcResult startWeb2AppLogin(
       AtomicReference<DeviceLinkAuthenticationSessionRequest> request) throws Exception {
+    return startWeb2AppLogin(request, Map.of("flow", "DEVICE_LINK", "language", "et"));
+  }
+
+  private MvcResult startWeb2AppLogin(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request, Map<String, Object> body)
+      throws Exception {
     given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
         .willAnswer(
             invocation -> {
               request.set(invocation.getArgument(0));
               return aDeviceLinkSessionResponse(SESSION_ID);
             });
-    return startDeviceLinkLogin();
+    return startDeviceLinkLogin(body);
   }
 
   private static String callbackValueOf(
       AtomicReference<DeviceLinkAuthenticationSessionRequest> request) {
-    return request.get().initialCallbackUrl().split("\\?value=")[1];
+    return callbackParameterOf(request, "value");
+  }
+
+  private static String callbackParameterOf(
+      AtomicReference<DeviceLinkAuthenticationSessionRequest> request, String name) {
+    String encoded =
+        UriComponentsBuilder.fromUriString(request.get().initialCallbackUrl())
+            .build()
+            .getQueryParams()
+            .getFirst(name);
+    assertThat(encoded).isNotNull();
+    return URLDecoder.decode(encoded, UTF_8);
   }
 
   private void givenTheWeb2AppLoginValidatesWithVerifier(String verifier) {
@@ -1148,6 +1302,13 @@ class LoginIntegrationTest {
             .findFirst()
             .orElseThrow();
     return new Cookie(COOKIE_NAME, header.substring(COOKIE_NAME.length() + 1, header.indexOf(';')));
+  }
+
+  private String refreshToken(MvcResult result) throws Exception {
+    return objectMapper
+        .readTree(result.getResponse().getContentAsString())
+        .get("refresh_token")
+        .asText();
   }
 
   private String accessToken(MvcResult result) throws Exception {

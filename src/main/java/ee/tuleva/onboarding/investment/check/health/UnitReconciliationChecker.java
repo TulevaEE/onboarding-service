@@ -19,7 +19,8 @@ class UnitReconciliationChecker {
       LocalDate navDate,
       List<FundPosition> unitsPositions,
       @Nullable BigDecimal authoritativeUnits,
-      @Nullable UnitReconciliationThreshold threshold) {
+      @Nullable UnitReconciliationThreshold threshold,
+      @Nullable BigDecimal unitsFromCash) {
     if (unitsPositions.isEmpty()) {
       return List.of();
     }
@@ -36,8 +37,8 @@ class UnitReconciliationChecker {
           finding(
               fund,
               WARNING,
-              "Unit reconciliation authoritative units unavailable: fund=%s, navDate=%s"
-                  .formatted(fund, navDate)));
+              "Unit reconciliation authoritative units unavailable: fund=%s, navDate=%s%s"
+                  .formatted(fund, navDate, unitsBesideCash(unitsPositions, unitsFromCash))));
     }
 
     var reported = unitsPositions.getFirst().getQuantity();
@@ -65,6 +66,18 @@ class UnitReconciliationChecker {
                     authoritativeUnits.toPlainString(),
                     difference.toPlainString(),
                     threshold.getWarningUnits().toPlainString())));
+  }
+
+  private static String unitsBesideCash(
+      List<FundPosition> unitsPositions, @Nullable BigDecimal unitsFromCash) {
+    var reported = unitsPositions.getFirst().getQuantity();
+    if (reported == null || unitsFromCash == null) {
+      return "";
+    }
+    return ", reported=%s, unitsFromCash=%s"
+        .formatted(
+            reported.stripTrailingZeros().toPlainString(),
+            unitsFromCash.stripTrailingZeros().toPlainString());
   }
 
   private HealthCheckFinding finding(TulevaFund fund, HealthCheckSeverity severity, String msg) {

@@ -11,15 +11,17 @@ import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.ExecutedPrice;
 import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
+import ee.tuleva.onboarding.investment.transaction.OpenTradeSource;
+import ee.tuleva.onboarding.investment.transaction.OpenTrades;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -42,13 +44,15 @@ public class HealthCheckService {
   private final AuthoritativeUnitsSource authoritativeUnitsSource;
   private final ReceivablesChecker receivablesChecker;
   private final QuantityChangeChecker quantityChangeChecker;
-  private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
   private final LiabilityRecognitionChecker liabilityRecognitionChecker;
   private final InvestmentParameterRepository investmentParameterRepository;
   private final ExecutedPriceSource executedPriceSource;
   private final ExitMarkResolver exitMarkResolver;
+  private final OpenTradeSource openTradeSource;
+  private final UnsettledTradesChecker unsettledTradesChecker;
+  private final BankBalanceChecker bankBalanceChecker;
 
   private @Nullable BigDecimal navFlowThreshold(LocalDate navDate) {
     return investmentParameterRepository
@@ -62,21 +66,30 @@ public class HealthCheckService {
     }
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
-    var executedSellsByFund =
-        executedPriceSource.executedSellPricesByFund(positions.getFirst().getNavDate());
+    var navDate = positions.getFirst().getNavDate();
+    var executedSellsByFund = executedPriceSource.executedSellPricesByFund(navDate);
+    Map<LocalDate, Optional<OpenTrades>> tradeListsByDate = new HashMap<>();
 
     var results = new ArrayList<HealthCheckResult>();
     for (var entry : byFund.entrySet()) {
       var fund = entry.getKey();
       var fundPositions = entry.getValue();
-      var result = checkFund(fund, fundPositions, executedSellsByFund.getOrDefault(fund, Map.of()));
+      var result =
+          checkFund(
+              fund,
+              fundPositions,
+              executedSellsByFund.getOrDefault(fund, Map.of()),
+              tradeListsByDate);
       results.add(result);
     }
     return results;
   }
 
   private HealthCheckResult checkFund(
-      TulevaFund fund, List<FundPosition> positions, Map<String, ExecutedPrice> executedSells) {
+      TulevaFund fund,
+      List<FundPosition> positions,
+      Map<String, ExecutedPrice> executedSells,
+      Map<LocalDate, Optional<OpenTrades>> tradeListsByDate) {
     var navDate = positions.getFirst().getNavDate();
 
     var securities = filterByType(positions, SECURITY);
@@ -115,16 +128,28 @@ public class HealthCheckService {
             .map(date -> fundPositionRepository.findByNavDateAndFund(date, fund))
             .orElse(List.of());
 
-    var tradedQuantities =
+    var tradeList =
+        tradeListsByDate.computeIfAbsent(navDate, openTradeSource::openTrades).orElse(null);
+    var previousTradeList =
         previousNavDate
-            .map(date -> tradedQuantitySource.resolve(fund, date, navDate))
-            .orElse(Map.of());
+            .flatMap(date -> tradeListsByDate.computeIfAbsent(date, openTradeSource::openTrades))
+            .orElse(null);
+    var tradeChanges =
+        previousNavDate
+            .map(
+                date -> OpenTradeChanges.between(fund, date, previousTradeList, navDate, tradeList))
+            .orElseGet(
+                () ->
+                    OpenTradeChanges.unavailable(
+                        "no position report before %s".formatted(navDate)));
 
     var threshold = unitReconciliationThresholdRepository.findByFundCode(fund).orElse(null);
     var authoritativeUnits = authoritativeUnitsSource.resolve(fund, navDate).orElse(null);
 
     var reportedUnits = unitsPositions.isEmpty() ? null : unitsPositions.getFirst().getQuantity();
-    var aum = resolveAum(positions, securities, receivables, liabilities);
+    var aum = PositionTotals.aum(positions);
+    var unitsFromCash =
+        UnitsFromCash.of(fund, positions, previousPositions, tradeChanges).orElse(null);
 
     var findings = new ArrayList<HealthCheckFinding>();
     findings.addAll(completenessChecker.check(fund, navDate, positions));
@@ -132,17 +157,22 @@ public class HealthCheckService {
     findings.addAll(outstandingUnitsChecker.check(fund, navDate, unitsPositions));
     findings.addAll(
         unitReconciliationChecker.check(
-            fund, navDate, unitsPositions, authoritativeUnits, threshold));
-    findings.addAll(navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum));
+            fund, navDate, unitsPositions, authoritativeUnits, threshold, unitsFromCash));
+    findings.addAll(
+        navUnitImpactChecker.check(fund, reportedUnits, authoritativeUnits, aum, unitsFromCash));
     findings.addAll(
         receivablesChecker.check(
             fund, securities, previousSecurities, receivables, previousReceivables));
     findings.addAll(
         payablesChecker.check(
             fund, securities, previousSecurities, liabilities, previousLiabilities));
-    findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
     findings.addAll(
-        quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
+        unsettledTradesChecker.check(
+            fund, navDate, liabilities, receivables, tradeList, previousTradeList));
+    findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
+    findings.addAll(bankBalanceChecker.check(fund, navDate, filterByType(positions, CASH)));
+    findings.addAll(
+        quantityChangeChecker.check(fund, securities, previousSecurities, tradeChanges));
     findings.addAll(
         navFlowConsistencyChecker.check(
             fund,
@@ -154,24 +184,6 @@ public class HealthCheckService {
     saveEvents(fund, navDate, findings);
 
     return new HealthCheckResult(fund, navDate, findings);
-  }
-
-  private BigDecimal resolveAum(
-      List<FundPosition> positions,
-      List<FundPosition> securities,
-      List<FundPosition> receivables,
-      List<FundPosition> liabilities) {
-    var navPositions = filterByType(positions, NAV);
-    if (!navPositions.isEmpty() && navPositions.getFirst().getMarketValue() != null) {
-      return navPositions.getFirst().getMarketValue();
-    }
-    var cashPositions = filterByType(positions, CASH);
-    // Liabilities have negative marketValue — simple sum is correct
-    return Stream.of(securities, cashPositions, receivables, liabilities)
-        .flatMap(List::stream)
-        .map(FundPosition::getMarketValue)
-        .filter(Objects::nonNull)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private List<FundPosition> filterByType(List<FundPosition> positions, AccountType type) {

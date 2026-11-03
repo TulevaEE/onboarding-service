@@ -137,7 +137,14 @@ class CapitalTransferEmailSenderTest {
             eq("capital_transfer_confirmed_by_seller_et"),
             any(),
             eq(List.of("capital-transfer")),
-            argThat(attachments -> attachments.size() == 1));
+            argThat(
+                attachments ->
+                    attachments.size() == 1
+                        && attachments.getFirst().getName().equals("liikmekapitali_avaldus1.asice")
+                        && attachments
+                            .getFirst()
+                            .getType()
+                            .equals("application/vnd.etsi.asic-e+zip")));
     verify(emailPersistenceService)
         .save(eq(recipient), any(), eq(CAPITAL_TRANSFER_CONFIRMED_BY_SELLER), any());
   }

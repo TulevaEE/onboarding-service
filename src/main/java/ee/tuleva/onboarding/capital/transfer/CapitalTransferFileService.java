@@ -68,8 +68,8 @@ public class CapitalTransferFileService {
   private String getFileName(CapitalTransferContract contract) {
     if (contract.getState() == CapitalTransferContractState.SELLER_SIGNED
         && contract.getDigiDocContainer() != null) {
-      return "liikmekapital-%d.bdoc".formatted(contract.getId());
+      return DIGIDOC_CONTAINER.fileName("liikmekapital-" + contract.getId());
     }
-    return "liikmekapital-%d.html".formatted(contract.getId());
+    return HTML.fileName("liikmekapital-" + contract.getId());
   }
 }

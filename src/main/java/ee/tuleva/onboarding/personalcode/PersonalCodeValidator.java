@@ -63,7 +63,4 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
 
     return mod == 10 ? 0 : mod;
   }
-
-  @Override
-  public void initialize(ValidPersonalCode constraintAnnotation) {}
 }

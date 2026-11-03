@@ -7,6 +7,8 @@ import ee.sk.mid.exception.*
 import ee.sk.mid.rest.MidConnector
 import ee.sk.mid.rest.MidSessionStatusPoller
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck
+import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.*
@@ -19,9 +21,10 @@ class MobileIdAuthServiceSpec extends Specification {
     MidConnector connector = Mock()
     MidSessionStatusPoller poller = Mock()
     MobileNumberNormalizer normalizer = new MobileNumberNormalizer()
+    CertificateRevocationCheck certificateRevocationCheck = Mock()
 
     def setup() {
-        mobileIdAuthService = new MobileIdAuthService(client, validator, connector, poller, normalizer)
+        mobileIdAuthService = new MobileIdAuthService(client, validator, connector, poller, normalizer, certificateRevocationCheck)
     }
 
     def "StartLogin: Start mobile id login with a phone number"() {
@@ -88,6 +91,19 @@ class MobileIdAuthServiceSpec extends Specification {
         session.firstName == "Teet"
         session.lastName == "Pauskar"
         session.personalCode == sampleIdCode
+    }
+
+    def "IsLoginComplete: a revoked Mobile-ID certificate does not log the person in"() {
+        given:
+        1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionComplete()
+        1 * client.createMobileIdAuthentication(_, _) >> new MidAuthentication.MobileIdAuthenticationBuilder().withResult("OK").withSignatureValueInBase64("bGVhc3VyZS4=").build()
+        1 * validator.validate(_) >> getSampleMidAuthResult(true)
+        1 * certificateRevocationCheck.requireNotRevoked(_) >> { throw new CertificateRevokedException("REVOKED") }
+        when:
+        mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
+        then:
+        def exception = thrown(MobileIdException)
+        exception.errorsResponse.errors*.code == ["mobile.id.certificates.revoked"]
     }
 
     def "IsLoginComplete: Fetch invalid state of mobile id login"() {

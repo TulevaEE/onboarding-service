@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb.screener;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWithTotalOwnership;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -74,7 +75,38 @@ class SoleMemberOwnershipScreenerTest {
     var result = screener.screen(data);
 
     assertThat(result.getFirst().metadata())
-        .isEqualTo(Map.of("personalCode", "38501010001", "ownershipPercent", "100.0"));
+        .isEqualTo(
+            Map.of(
+                "personalCode",
+                "38501010001",
+                "ownershipPercent",
+                "100.0",
+                "totalOwnership",
+                "100.0"));
+  }
+
+  @Test
+  void failsWhenTheRegistryDoesNotShowTheSoleMembersSharesAsWhollyTheirs() {
+    var person = boardMemberOwner("38501010001", 100.0).build();
+    var data = companyWithTotalOwnership(BigDecimal.ZERO, person);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_MEMBER_OWNERSHIP, false));
+  }
+
+  @Test
+  void passesWhenTheSoleMemberHoldsTheWholeCompanyInSeveralShares() {
+    var person = boardMemberOwner("38501010001", 60.0).build();
+    var data = companyWithTotalOwnership(BigDecimal.valueOf(100), person);
+
+    var result = screener.screen(data);
+
+    assertThat(result)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(SOLE_MEMBER_OWNERSHIP, true));
   }
 
   @Test

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,4 +14,7 @@ public interface PaymentRepository extends CrudRepository<Payment, Long> {
 
   List<Payment> findAllByRecipientPersonalCodeAndPaymentTypeNot(
       String personalCode, PaymentType paymentType);
+
+  List<Payment> findAllByRecipientPersonalCodeAndPaymentTypeInAndCreatedTimeGreaterThanEqual(
+      String personalCode, Collection<PaymentType> paymentTypes, Instant since);
 }

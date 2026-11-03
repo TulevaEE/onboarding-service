@@ -44,11 +44,16 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         if (!List.of(ACCESS, HANDOVER).contains(tokenType)) {
           return;
         }
+        var person = jwtTokenUtil.getPersonFromToken(accessToken);
+        var role = jwtTokenUtil.getRoleFromToken(accessToken);
+        if (tokenType == ACCESS && principalService.refusesSelfServiceTo(person, role)) {
+          SecurityContextHolder.clearContext();
+          respondWithTokenExpired(response);
+          return;
+        }
         AuthenticatedPerson principal =
             principalService.getFrom(
-                jwtTokenUtil.getPersonFromToken(accessToken),
-                jwtTokenUtil.getAttributesFromToken(accessToken),
-                jwtTokenUtil.getRoleFromToken(accessToken));
+                person, jwtTokenUtil.getAttributesFromToken(accessToken), role);
 
         final var authorities =
             jwtTokenUtil.getAuthorities(accessToken).stream()

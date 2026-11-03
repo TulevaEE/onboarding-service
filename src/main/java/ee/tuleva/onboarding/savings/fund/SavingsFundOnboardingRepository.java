@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -64,7 +64,8 @@ public class SavingsFundOnboardingRepository {
         .map(SavingsFundOnboardingStatus::valueOf);
   }
 
-  public List<String> findCompletedLegalEntitiesWithFailedOwnershipChecksSince(Instant since) {
+  public List<String> findCompletedLegalEntitiesWithFailedChecksSince(
+      Instant since, Collection<KybCheckType> checkTypes) {
     return jdbcClient
         .sql(
             """
@@ -77,13 +78,13 @@ public class SavingsFundOnboardingRepository {
                 FROM aml_check ac
                 JOIN company c ON ac.company_id = c.id
                 WHERE c.registry_code = o.code
-                  AND ac.type IN (:ownershipCheckTypes)
+                  AND ac.type IN (:checkTypes)
                   AND ac.success = false
                   AND ac.created_time >= :since
               )
             ORDER BY o.code
             """)
-        .param("ownershipCheckTypes", ownershipCheckTypeNames())
+        .param("checkTypes", amlCheckTypeNames(checkTypes))
         .param("since", Timestamp.from(since))
         .query(String.class)
         .list()
@@ -92,11 +93,8 @@ public class SavingsFundOnboardingRepository {
         .toList();
   }
 
-  private static List<String> ownershipCheckTypeNames() {
-    return Arrays.stream(KybCheckType.values())
-        .filter(KybCheckType::isOwnershipCheck)
-        .map(type -> "KYB_" + type.name())
-        .toList();
+  private static List<String> amlCheckTypeNames(Collection<KybCheckType> checkTypes) {
+    return checkTypes.stream().map(type -> "KYB_" + type.name()).toList();
   }
 
   @Transactional

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.fundbalance;
 
 import static ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.sql.Connection;
@@ -79,6 +80,25 @@ class FundBalanceRepositoryTest {
 
     // then
     assertThat(latestDate).isPresent().hasValue(DATE_2);
+  }
+
+  @Test
+  void findAllOnLatestRequestDateReturnsEachFundsBalanceFromTheLatestDayOnly() {
+    var olderStockFund = entityBuilder(creationTime).requestDate(DATE_1).isin(ISIN_1).build();
+    var latestStockFund =
+        entityBuilder(creationTime).requestDate(DATE_2).isin(ISIN_1).countInvestors(40983).build();
+    var latestThirdPillarFund =
+        entityBuilder(creationTime).requestDate(DATE_2).isin(ISIN_2).countInvestors(74292).build();
+    repository.saveAll(List.of(olderStockFund, latestStockFund, latestThirdPillarFund));
+
+    assertThat(repository.findAllOnLatestRequestDate())
+        .extracting(FundBalance::getIsin, FundBalance::getCountInvestors)
+        .containsExactlyInAnyOrder(tuple(ISIN_1, 40983), tuple(ISIN_2, 74292));
+  }
+
+  @Test
+  void findAllOnLatestRequestDateIsEmptyBeforeTheFirstSynchronization() {
+    assertThat(repository.findAllOnLatestRequestDate()).isEmpty();
   }
 
   @Test

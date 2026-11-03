@@ -10,9 +10,13 @@ import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
+
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.role.RoleType.*
+import static java.time.ZoneOffset.UTC
 
 class AuthServiceSpec extends Specification {
   private final AuthProvider authProvider = Mock()
@@ -20,9 +24,29 @@ class AuthServiceSpec extends Specification {
   private final JwtTokenUtil jwtTokenUtil = Mock()
   private final TokenService tokenService = Mock()
   private final PrincipalService principalService = Mock()
+  private final Instant now = Instant.parse("2026-10-08T09:00:00.123456789Z")
   private final AuthService authService = new AuthService(
-      [authProvider], eventPublisher, jwtTokenUtil, tokenService, principalService
+      [authProvider], eventPublisher, jwtTokenUtil, tokenService, principalService, Clock.fixed(now, UTC)
   )
+
+  def "a login records the second it happened"() {
+    given:
+        def person = sampleAuthenticatedPersonAndMember().attributes([grantType: "SMART_ID"]).build()
+        def personWithLoginTime = sampleAuthenticatedPersonAndMember()
+            .attributes([grantType: "SMART_ID", authTime: "2026-10-08T09:00:00Z"])
+            .build()
+        def tokens = new AuthenticationTokens("jwtToken", "refreshToken")
+        authProvider.supports(SMART_ID) >> true
+        authProvider.authenticate("dummy") >> person
+
+    when:
+        def result = authService.authenticate(SMART_ID, "dummy")
+
+    then:
+        1 * tokenService.generateTokens(personWithLoginTime) >> tokens
+        1 * eventPublisher.publishEvent({ AfterTokenGrantedEvent event -> event.person == personWithLoginTime })
+        result == tokens
+  }
 
   def "successful authentication generates access and refresh tokens"() {
     given:
@@ -32,7 +56,7 @@ class AuthServiceSpec extends Specification {
         def tokens = new AuthenticationTokens("jwtToken", "refreshToken")
         authProvider.supports(grantType) >> true
         authProvider.authenticate(authenticationHash) >> authenticatedPerson
-        tokenService.generateTokens(authenticatedPerson) >> tokens
+        tokenService.generateTokens(authenticatedPerson.withAuthTime(now)) >> tokens
 
     when:
         AuthenticationTokens result = authService.authenticate(grantType, authenticationHash)
@@ -85,6 +109,26 @@ class AuthServiceSpec extends Specification {
   }
 
 
+  def "refreshing a session that is refused self-service reads as an expired refresh token"() {
+    given:
+        String refreshToken = "validRefreshToken"
+        def minor = sampleAuthenticatedPersonAndMember().personalCode("61506150006").build()
+        def ownRole = new Role(PERSON, "61506150006", "Mari Maasikas")
+        jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
+        jwtTokenUtil.getPersonFromToken(refreshToken) >> minor
+        jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
+        jwtTokenUtil.getRoleFromToken(refreshToken) >> ownRole
+        principalService.refusesSelfServiceTo(minor, ownRole) >> true
+
+    when:
+        authService.refreshToken(refreshToken)
+
+    then:
+        thrown(ExpiredRefreshJwtException)
+        0 * principalService.getFrom(_, _, _)
+        0 * tokenService._
+  }
+
   def "provider is not used when it does not support the grant type"() {
     given:
     def grantType = SMART_ID
@@ -106,9 +150,9 @@ class AuthServiceSpec extends Specification {
     authService.authenticate(grantType, authenticationHash)
     then:
     1 * authProvider.authenticate(authenticationHash) >> authenticatedPerson
-    1 * tokenService.generateTokens(authenticatedPerson) >> new AuthenticationTokens("dummyToken", "refreshToken")
+    1 * tokenService.generateTokens(authenticatedPerson.withAuthTime(now)) >> new AuthenticationTokens("dummyToken", "refreshToken")
     1 * eventPublisher.publishEvent(_ as AfterTokenGrantedEvent) >> { AfterTokenGrantedEvent event ->
-      assert event.person == authenticatedPerson
+      assert event.person == authenticatedPerson.withAuthTime(now)
       assert event.tokens.accessToken() == "dummyToken"
       assert event.tokens.refreshToken() == "refreshToken"
     }

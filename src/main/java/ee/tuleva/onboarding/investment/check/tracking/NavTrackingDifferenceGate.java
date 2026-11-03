@@ -27,11 +27,12 @@ public class NavTrackingDifferenceGate implements NavPublicationGate {
   public Optional<String> check(TulevaFund fund, LocalDate navDate) {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {
-      var results = trackingDifferenceService.checkFund(fund, navDate);
+      var check = trackingDifferenceService.checkFund(fund, navDate);
+      var results = check.results();
       if (results.isEmpty()) {
         trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
       } else {
-        trackingDifferenceNotifier.notify(results);
+        trackingDifferenceNotifier.notify(results, check.checksNotMeasured());
       }
       pipelineTracker.stepCompleted(TRACKING_DIFFERENCE);
 

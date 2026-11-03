@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static ee.tuleva.onboarding.mandate.MandateFixture.*;
+import static ee.tuleva.onboarding.mandate.MandateType.REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.mandate.MandateType.UNKNOWN;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import au.com.origin.snapshots.junit5.SnapshotExtension;
-import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.content.MandateFileCreator;
+import java.util.EnumSet;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,33 +21,20 @@ public class GenericCompositeMandateIntegrationTest {
   @Autowired private List<MandateFactory> mandateFactories;
 
   @Test
-  @DisplayName("all mandate types have required services")
-  void testAllMandateTypesHaveSnapshotTest() {
-    var allMandateTypes = MandateType.values();
+  void everyMandateTypeHasAFileCreator() {
+    assertThat(EnumSet.complementOf(EnumSet.of(UNKNOWN)))
+        .allSatisfy(
+            mandateType ->
+                assertThat(mandateFileCreators)
+                    .anyMatch(fileCreator -> fileCreator.supports(mandateType)));
+  }
 
-    for (var mandateType : allMandateTypes) {
-      if (mandateType == UNKNOWN) {
-        continue;
-      }
-      var fileCreator =
-          mandateFileCreators.stream()
-              .filter(mandateFileCreator -> mandateFileCreator.supports(mandateType))
-              .findFirst()
-              .orElse(null);
-
-      if (fileCreator == null) {
-        fail("No file creator for mandate type " + mandateType);
-      }
-
-      var mandateFactory =
-          mandateFactories.stream()
-              .filter(factory -> factory.supports(mandateType))
-              .findFirst()
-              .orElse(null);
-
-      if (mandateFactory == null) {
-        fail("No mandate factory for mandate type " + mandateType);
-      }
-    }
+  @Test
+  void
+      everyMandateTypeHasAMandateFactoryButTheRejoinCancellationOnlyCancelingAPendingRejoinFiles() {
+    assertThat(EnumSet.complementOf(EnumSet.of(UNKNOWN, REJOIN_CANCELLATION)))
+        .allSatisfy(
+            mandateType ->
+                assertThat(mandateFactories).anyMatch(factory -> factory.supports(mandateType)));
   }
 }

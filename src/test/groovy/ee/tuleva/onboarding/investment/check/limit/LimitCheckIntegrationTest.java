@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -229,42 +228,6 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
-  void tuk00IndexGroupAggregation() {
-    insertTuk00Data();
-
-    var results = limitCheckService.runChecks().results();
-
-    var tuk00 = results.stream().filter(r -> r.fund() == TUK00).findFirst().orElseThrow();
-
-    // Euro Aggregate indeks: (2_800_000 + 2_700_000) / 10_000_000 = 55.00%
-    // 55.00% > soft 54.50% → SOFT, but not > hard 55.00% (strict >)
-    var euroAgg =
-        tuk00.positionBreaches().stream()
-            .filter(b -> b.isin().equals("Euro Aggregate indeks"))
-            .findFirst()
-            .orElseThrow();
-    assertThat(euroAgg.severity()).isEqualTo(SOFT);
-    assertThat(euroAgg.actualPercent()).isEqualByComparingTo(new BigDecimal("55"));
-
-    // Global Aggregate indeks: (2_200_000 + 2_200_000) / 10_000_000 = 44.00% → OK
-    var globalAgg =
-        tuk00.positionBreaches().stream()
-            .filter(b -> b.isin().equals("Global Aggregate indeks"))
-            .findFirst()
-            .orElseThrow();
-    assertThat(globalAgg.severity()).isEqualTo(OK);
-    assertThat(globalAgg.actualPercent()).isEqualByComparingTo(new BigDecimal("44"));
-
-    // Individual position: LU0826455353 = 2_800_000 / 10_000_000 = 28.00% > soft 26.75% → SOFT
-    var euroAggBond =
-        tuk00.positionBreaches().stream()
-            .filter(b -> "LU0826455353".equals(b.isin()))
-            .findFirst()
-            .orElseThrow();
-    assertThat(euroAggBond.severity()).isEqualTo(SOFT);
-  }
-
-  @Test
   void theTwoXtrackersIssuersAreCheckedSeparately() {
     insertTkf100XtrackersData();
 
@@ -360,7 +323,7 @@ class LimitCheckIntegrationTest {
 
     for (var s : securities) {
       insertFundPosition("TUK75", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionLimit("TUK75", s.isin, s.label, null, s.soft, s.hard);
+      insertPositionLimit("TUK75", s.isin, s.label, s.soft, s.hard);
     }
 
     // Cash and liabilities (FundPosition only — stored as negative per production convention)
@@ -376,68 +339,6 @@ class LimitCheckIntegrationTest {
     // Model portfolio allocations (all ISHARES for TUK75)
     for (var s : securities) {
       insertModelPortfolioAllocation("TUK75", s.isin, "ISHARES");
-    }
-  }
-
-  // -- TUK00 test data: bond fund with index groups --
-  // Total NAV = 10_000_000 (securities 9_900_000 + cash 105_000 + liabilities -5_000)
-  private void insertTuk00Data() {
-    record Security(
-        String isin, String label, long marketValue, String indexGroup, double soft, double hard) {}
-
-    var securities =
-        new Security[] {
-          new Security(
-              "LU0826455353",
-              "iShares Euro Aggregate Bond",
-              2_800_000,
-              "Euro Aggregate indeks",
-              26.75,
-              28.75),
-          new Security(
-              "IE0031080751",
-              "iShares Euro Government Bond",
-              2_700_000,
-              "Euro Aggregate indeks",
-              26.75,
-              28.75),
-          new Security(
-              "LU0839970364",
-              "iShares Global Government Bond",
-              2_200_000,
-              "Global Aggregate indeks",
-              26.75,
-              28.75),
-          new Security(
-              "IE0005032192",
-              "iShares Euro Credit Bond",
-              2_200_000,
-              "Global Aggregate indeks",
-              26.75,
-              28.75),
-        };
-
-    for (var s : securities) {
-      insertFundPosition("TUK00", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionLimit("TUK00", s.isin, s.label, s.indexGroup, s.soft, s.hard);
-    }
-
-    // Index aggregate limits (isin = NULL)
-    insertPositionLimit(
-        "TUK00", null, "Euro Aggregate indeks", "Euro Aggregate indeks", 54.50, 55.0);
-    insertPositionLimit(
-        "TUK00", null, "Global Aggregate indeks", "Global Aggregate indeks", 54.50, 55.0);
-
-    insertFundPosition("TUK00", NAV_DATE, "CASH", "CASH_ACCOUNT", 105_000);
-    insertFundPosition("TUK00", NAV_DATE, "LIABILITY", "LIABILITY_ACCOUNT", -5_000);
-
-    // nav_report UNITS row: total calculated AUM = 10_000_000
-    insertNavReportUnits("TUK00", NAV_DATE, 10_000_000);
-
-    insertFundLimit("TUK00", 100_000, 50_000, 1_000_000);
-
-    for (var s : securities) {
-      insertModelPortfolioAllocation("TUK00", s.isin, "ISHARES");
     }
   }
 
@@ -501,24 +402,18 @@ class LimitCheckIntegrationTest {
   }
 
   private void insertPositionLimit(
-      String fund,
-      String isin,
-      String label,
-      String indexGroup,
-      double softPercent,
-      double hardPercent) {
+      String fund, String isin, String label, double softPercent, double hardPercent) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_position_limit
-            (effective_date, fund_code, isin, label, index_group, soft_limit_percent, hard_limit_percent)
-            VALUES (:effectiveDate, :fund, :isin, :label, :indexGroup, :soft, :hard)
+            (effective_date, fund_code, isin, label, soft_limit_percent, hard_limit_percent)
+            VALUES (:effectiveDate, :fund, :isin, :label, :soft, :hard)
             """)
         .param("effectiveDate", LocalDate.of(2025, 6, 30))
         .param("fund", fund)
         .param("isin", isin)
         .param("label", label)
-        .param("indexGroup", indexGroup)
         .param("soft", BigDecimal.valueOf(softPercent))
         .param("hard", BigDecimal.valueOf(hardPercent))
         .update();
@@ -580,7 +475,7 @@ class LimitCheckIntegrationTest {
 
     for (var s : securities) {
       insertFundPosition("TKF100", NAV_DATE, "SECURITY", s.isin, s.marketValue);
-      insertPositionLimit("TKF100", s.isin, s.isin, null, 19.65, 20.0);
+      insertPositionLimit("TKF100", s.isin, s.isin, 19.65, 20.0);
       insertModelPortfolioAllocation("TKF100", s.isin, s.provider);
       insertProviderLimit("TKF100", s.provider, 19.65, 20.0);
     }

@@ -1,0 +1,52 @@
+{
+  "variants": {
+    "aktsiafond-6": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "selectedTulevaStockFund": true,
+      "paymentRate": 6,
+      "paymentRateChange": true
+    },
+    "volakirjafond-4": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "selectedTulevaBondFund": true,
+      "paymentRate": 4,
+      "paymentRateChange": true
+    },
+    "muu-fond": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "selectedOtherFund": true,
+      "selectedFundName": "LHV Pensionifond Indeks",
+      "paymentRate": 6,
+      "paymentRateChange": true
+    },
+    "jai-vanasse-fondi-2": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "paymentRate": 2,
+      "paymentRateChange": false
+    },
+    "jai-tuleva-aktsiafondi": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "paymentRate": 2,
+      "paymentRateChange": false,
+      "keptTulevaStockFund": true
+    },
+    "jai-tuleva-volakirjafondi": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1. mai 2027",
+      "cancellationDeadline": "30. november 2026",
+      "paymentRate": 2,
+      "paymentRateChange": false,
+      "keptTulevaBondFund": true
+    }
+  }
+}

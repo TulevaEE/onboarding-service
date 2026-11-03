@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixt
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.ThirdPillarContribution;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -248,5 +250,49 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
     int months = repository.countContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
 
     assertThat(months).isEqualTo(2);
+  }
+
+  @Test
+  void findOwnContributionsSince_returnsOnlyTheSaversOwnPaymentsInReportingOrder() {
+    repository.saveAll(
+        List.of(
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 7, 10))
+                .transactionValue(new BigDecimal("100.00"))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 5, 1))
+                .transactionValue(new BigDecimal("50.00"))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 4, 30))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(EMPLOYER_SOURCE)
+                .reportingDate(LocalDate.of(2026, 6, 10))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("49999999999")
+                .transactionSource(OWN_SOURCE)
+                .reportingDate(LocalDate.of(2026, 6, 10))
+                .build()));
+
+    List<ThirdPillarContribution> contributions =
+        repository.findOwnContributionsSince("38888888888", LocalDate.of(2026, 5, 1));
+
+    assertThat(contributions)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new ThirdPillarContribution(LocalDate.of(2026, 5, 1), new BigDecimal("50.00")),
+                new ThirdPillarContribution(LocalDate.of(2026, 7, 10), new BigDecimal("100.00"))));
   }
 }

@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
@@ -18,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -28,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -131,10 +135,11 @@ class KybScreeningIntegrationTest {
 
     var changedData =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             CompanyStatus.L,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -211,10 +216,11 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -258,6 +264,44 @@ class KybScreeningIntegrationTest {
   }
 
   @Test
+  void aCompletedCompanyIsNotRejectedJustBecauseItsOwnershipCheckStartsRecordingTheTotal() {
+    var registryCode = "12345678";
+    var boardMember = boardMemberOwner(PERSONAL_CODE, 50.0).build();
+    var otherOwner = shareholderOwner("40404049996", 50.0).build();
+    kybScreeningService.screen(companyWith(boardMember, otherOwner), SUBMISSION);
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
+    entityManager.flush();
+    recordedWithoutTheTotal(KYB_SINGLE_BOARD_MEMBER_OWNERSHIP);
+    entityManager.flush();
+    entityManager.clear();
+
+    var results =
+        kybScreeningService.screen(
+            companyWith(
+                boardMemberOwner(PERSONAL_CODE, 50.0).beneficialOwner(false).build(),
+                shareholderOwner("40404049996", 50.0).beneficialOwner(false).build()),
+            RESCREENING);
+
+    assertThat(results)
+        .anyMatch(
+            check ->
+                check.type() == KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP && !check.success());
+    assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
+  }
+
+  private void recordedWithoutTheTotal(AmlCheckType type) {
+    amlCheckRepository.findAll().stream()
+        .filter(check -> check.getType() == type)
+        .forEach(
+            check -> {
+              var metadata = new HashMap<>(check.getMetadata());
+              metadata.remove("totalOwnership");
+              check.setMetadata(metadata);
+              amlCheckRepository.save(check);
+            });
+  }
+
+  @Test
   void ownerChangeStillRejectsCompletedCompany() {
     var registryCode = "12345678";
     var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
@@ -280,10 +324,11 @@ class KybScreeningIntegrationTest {
     var person2 = boardMemberOwner("49001010001", 50.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person1, person2),
+            totalOwnershipOf(List.of(person1, person2)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -333,10 +378,11 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data =
         new KybCompanyData(
-            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ),
+            new CompanyDto(new RegistryCode("12345678"), "Test OÜ", List.of("62011"), LegalForm.OÜ),
             PERSONAL_CODE,
             R,
             List.of(person),
+            totalOwnershipOf(List.of(person)),
             new SelfCertification(true, true, true),
             "EE",
             "Harju maakond, Tallinn, Pärnu mnt 1",
@@ -388,12 +434,15 @@ class KybScreeningIntegrationTest {
     assertThat((List<Map<String, Object>>) dataChanged.metadata().get("changes")).isEmpty();
   }
 
-  private KybCompanyData companyFor(String registryCode, String naceCode, KybRelatedPerson owner) {
+  private KybCompanyData companyFor(
+      String registryCode, String activityCode, KybRelatedPerson owner) {
     return new KybCompanyData(
-        new CompanyDto(new RegistryCode(registryCode), "Test OÜ", naceCode, LegalForm.OÜ),
+        new CompanyDto(
+            new RegistryCode(registryCode), "Test OÜ", List.of(activityCode), LegalForm.OÜ),
         PERSONAL_CODE,
         R,
         List.of(owner),
+        totalOwnershipOf(List.of(owner)),
         new SelfCertification(true, true, true),
         "EE",
         "Harju maakond, Tallinn, Pärnu mnt 1",

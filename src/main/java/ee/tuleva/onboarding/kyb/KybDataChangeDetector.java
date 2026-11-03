@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -89,6 +90,12 @@ public class KybDataChangeDetector {
 
   private boolean metadataChanged(KybCheck previous, KybCheck current) {
     return !AUDIT_ONLY_METADATA.contains(current.type())
-        && !previous.metadata().equals(current.metadata());
+        && !previous.metadata().equals(keysRecordedBefore(previous, current));
+  }
+
+  private static Map<String, Object> keysRecordedBefore(KybCheck previous, KybCheck current) {
+    var recordedBefore = new HashMap<>(current.metadata());
+    recordedBefore.keySet().retainAll(previous.metadata().keySet());
+    return recordedBefore;
   }
 }

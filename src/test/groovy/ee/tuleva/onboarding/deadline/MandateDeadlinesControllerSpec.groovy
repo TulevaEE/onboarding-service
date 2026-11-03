@@ -34,5 +34,36 @@ class MandateDeadlinesControllerSpec extends BaseControllerSpec {
       .andExpect(jsonPath('$.earlyWithdrawalFulfillmentDate', is("2021-09-01")))
       .andExpect(jsonPath('$.withdrawalCancellationDeadline', is("2021-03-31T20:59:59.999999999Z")))
       .andExpect(jsonPath('$.withdrawalFulfillmentDate', is("2021-04-16")))
+      .andExpect(jsonPath('$.secondPillarRejoinDeadline', is("2021-03-31T20:59:59.999999999Z")))
+      .andExpect(jsonPath('$.secondPillarRejoinContributionStartDate', is("2021-09-01")))
+  }
+
+  def "returns exactly the published deadlines, so a getter added for server-side use stays out of the response"() {
+    given:
+    mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+
+    when:
+    def response = mockMvc.perform(get('/v1/mandate-deadlines')).andReturn().response
+
+    then:
+    mapper.readValue(response.contentAsString, Map).keySet() == [
+        'periodEnding',
+        'currentPeriodStartDate',
+        'secondPillarContributionEndDate',
+        'secondPillarRejoinDeadline',
+        'secondPillarRejoinContributionStartDate',
+        'thirdPillarWithdrawalFulfillmentDate',
+        'thirdPillarPaymentDeadline',
+        'nonCancellableApplicationDeadline',
+        'transferMandateCancellationDeadline',
+        'transferMandateFulfillmentDate',
+        'earlyWithdrawalCancellationDeadline',
+        'earlyWithdrawalFulfillmentDate',
+        'withdrawalCancellationDeadline',
+        'withdrawalFulfillmentDate',
+        'withdrawalLatestFulfillmentDate',
+        'paymentRateDeadline',
+        'paymentRateFulfillmentDate',
+    ] as Set
   }
 }

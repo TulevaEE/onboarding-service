@@ -9,6 +9,10 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
 
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
@@ -27,7 +31,8 @@ class UserControllerSpec extends BaseControllerSpec {
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
 
   UserController controller = new UserController(
-      userService, userContacts, secondPillarPaymentRateService)
+      userService, userContacts, secondPillarPaymentRateService,
+      new SecondPillarContributions(Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneOffset.UTC)))
 
   def "/me endpoint works with non member"() {
     given:

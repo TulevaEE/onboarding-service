@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyDetail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,8 +13,8 @@ import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
-import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
+import ee.tuleva.onboarding.ariregister.Shareholding;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -46,8 +47,11 @@ class BeneficialOwnerScreeningIntegrationTest {
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE))
         .willReturn(
             Optional.of(
-                new CompanyDetail(
-                    "Test OÜ", REGISTRY_CODE, "R", "OÜ", null, null, null, null, List.of())));
+                companyDetail()
+                    .registryCode(REGISTRY_CODE)
+                    .shareholding(
+                        new Shareholding(new BigDecimal("100.00"), List.of(OWNER.value())))
+                    .build()));
     given(ariregisterClient.getActiveCompanyRelationships(eq(REGISTRY_CODE), any()))
         .willReturn(List.of(boardMemberRow(), shareholderRow()));
   }

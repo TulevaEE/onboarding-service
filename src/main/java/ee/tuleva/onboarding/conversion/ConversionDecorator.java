@@ -27,6 +27,6 @@ public class ConversionDecorator {
     metadata.put("isThirdPillarFullyConverted", conversion.isThirdPillarFullyConverted());
     metadata.put("thirdPillarWeightedAverageFee", conversion.getThirdPillarWeightedAverageFee());
 
-    metadata.put("authAttributes", authenticatedPerson.getAttributes());
+    metadata.put("authAttributes", authenticatedPerson.getAttributesToRecord());
   }
 }

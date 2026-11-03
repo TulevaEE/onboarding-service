@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 public class SmartIdSignatureSession implements Serializable {
   @Serial private static final long serialVersionUID = -5454823973379414072L;
 
+  private final SignableEntity signableEntity;
   private final String personalCode;
   private final List<SignatureFile> files;
   private @Nullable String certificateSessionId;
@@ -20,4 +21,10 @@ public class SmartIdSignatureSession implements Serializable {
   private @Nullable String verificationCode;
   private @Nullable DataToSign dataToSign;
   private @Nullable Container container;
+
+  public void requireStartedFor(SignableEntity entity) {
+    if (!entity.equals(signableEntity)) {
+      throw SignatureStateException.startedForAnotherEntity(entity);
+    }
+  }
 }

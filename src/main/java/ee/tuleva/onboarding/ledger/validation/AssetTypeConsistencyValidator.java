@@ -10,11 +10,6 @@ public class AssetTypeConsistencyValidator
     implements ConstraintValidator<AssetTypeConsistency, LedgerTransaction> {
 
   @Override
-  public void initialize(AssetTypeConsistency constraintAnnotation) {
-    // No initialization needed
-  }
-
-  @Override
   public boolean isValid(LedgerTransaction transaction, ConstraintValidatorContext context) {
     if (transaction == null || transaction.getEntries() == null) {
       return true; // Let @NotNull handle null cases

@@ -90,6 +90,10 @@ public class Fund implements Comparable<Fund> {
     return riskLevel == LOW_RISK;
   }
 
+  public boolean isThirdPillar() {
+    return Integer.valueOf(3).equals(pillar);
+  }
+
   public boolean isOwnFund() {
     return fundManager.isTuleva();
   }

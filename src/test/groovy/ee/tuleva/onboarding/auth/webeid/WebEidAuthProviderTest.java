@@ -13,7 +13,6 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import eu.webeid.security.authtoken.WebEidAuthToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,6 @@ import tools.jackson.databind.json.JsonMapper;
 class WebEidAuthProviderTest {
 
   @Mock WebEidAuthService webEidAuthService;
-  @Mock GenericSessionStore sessionStore;
   @Mock PrincipalService principalService;
 
   JsonMapper objectMapper = JsonMapper.builder().build();
@@ -34,8 +32,7 @@ class WebEidAuthProviderTest {
 
   @BeforeEach
   void setUp() {
-    webEidAuthProvider =
-        new WebEidAuthProvider(webEidAuthService, sessionStore, principalService, objectMapper);
+    webEidAuthProvider = new WebEidAuthProvider(webEidAuthService, principalService, objectMapper);
   }
 
   @Test
@@ -78,36 +75,14 @@ class WebEidAuthProviderTest {
   }
 
   @Test
-  void returnsNullWhenAuthTokenIsNull() {
-    assertThat(webEidAuthProvider.authenticate(null)).isNull();
+  void throwsExceptionWhenAuthTokenIsNull() {
+    assertThatThrownBy(() -> webEidAuthProvider.authenticate(null))
+        .isInstanceOf(WebEidAuthException.class);
   }
 
   @Test
   void throwsExceptionWhenAuthTokenIsInvalidJson() {
     assertThatThrownBy(() -> webEidAuthProvider.authenticate("invalid-json"))
         .isInstanceOf(WebEidAuthException.class);
-  }
-
-  @Test
-  void savesIdCardSessionToSessionStore() {
-    String authTokenJson =
-        """
-        {"format":"web-eid:1","unverifiedCertificate":"test","algorithm":"ES384","signature":"sig"}
-        """;
-    var idCardSession =
-        IdCardSession.builder()
-            .firstName("John")
-            .lastName("Doe")
-            .personalCode("38001085718")
-            .documentType(OLD_ID_CARD)
-            .build();
-    var expectedPerson = sampleAuthenticatedPersonAndMember().build();
-
-    when(webEidAuthService.authenticate(any())).thenReturn(idCardSession);
-    when(principalService.getFrom(any(), any())).thenReturn(expectedPerson);
-
-    webEidAuthProvider.authenticate(authTokenJson);
-
-    verify(sessionStore).save(idCardSession);
   }
 }

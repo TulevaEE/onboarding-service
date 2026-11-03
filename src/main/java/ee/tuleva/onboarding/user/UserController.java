@@ -28,6 +28,7 @@ public class UserController {
   private final UserService userService;
   private final UserContacts userContacts;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
+  private final SecondPillarContributions secondPillarContributions;
 
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
@@ -39,6 +40,7 @@ public class UserController {
         user,
         contactSummary,
         secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
+        secondPillarContributions.statusOf(contactSummary.secondPillarContributionPeriods()),
         authenticatedPerson.getRole());
   }
 
@@ -68,7 +70,8 @@ public class UserController {
       return UserResponse.from(
           user,
           contactSummary,
-          secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
+          secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
+          secondPillarContributions.statusOf(contactSummary.secondPillarContributionPeriods()));
     }
 
     return UserResponse.from(user);

@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewGiftPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentToken
@@ -163,6 +164,16 @@ class PaymentControllerSpec extends BaseControllerSpec {
     mvc.perform(get("/v1/payments/success")
         .param("order-token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-success"))
+  }
+
+  def "GET /success redirects a gift to the gift success screen"() {
+    given:
+    def mvc = mockMvc(paymentController)
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.of(aNewGiftPayment())
+    expect:
+    mvc.perform(get("/v1/payments/success")
+        .param("order-token", aSerializedSinglePaymentFinishedToken))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-gift-success"))
   }
 
   def "GET /success redirects back to payment screen on cancelled payment"() {

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.time;
 
+import java.io.Serializable;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -16,7 +17,7 @@ public class ClockConfig {
   }
 
   @RequiredArgsConstructor
-  private static class ClockHolderDelegatingClock extends Clock {
+  private static class ClockHolderDelegatingClock extends Clock implements Serializable {
 
     @Override
     public ZoneId getZone() {

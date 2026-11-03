@@ -51,6 +51,15 @@ class MockEpisServiceSpec extends Specification {
     response != null
   }
 
+  def "getContactDetails mocks a saver who makes second pillar contributions"() {
+    when:
+    ContactDetails response = episService.getContactDetails(samplePerson())
+    then:
+    response.secondPillarContributionPeriods == [
+        new ContactDetails.ContributionPeriod(
+            ContactDetails.ContributionStatus.CONTRIBUTING, LocalDate.parse("2017-01-01"), null)]
+  }
+
   def "getContactDetails with token has a mock response"() {
     when:
     ContactDetails response = episService.getContactDetails(samplePerson(), "some-token")

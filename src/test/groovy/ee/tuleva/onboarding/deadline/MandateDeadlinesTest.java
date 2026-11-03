@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class MandateDeadlinesTest {
+
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
@@ -298,30 +301,24 @@ public class MandateDeadlinesTest {
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
 
-    assertEquals(
-        deadlines.getTransferMandateFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.TRANSFER));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getWithdrawalLatestFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.PARTIAL_WITHDRAWAL));
-    assertEquals(
-        deadlines.getThirdPillarWithdrawalFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getEarlyWithdrawalFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.EARLY_WITHDRAWAL));
-    assertEquals(
-        deadlines.getPaymentRateFulfillmentDate(),
-        deadlines.getFulfillmentDate(ApplicationType.PAYMENT_RATE));
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.TRANSFER))
+        .isEqualTo(deadlines.getTransferMandateFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.PARTIAL_WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalLatestFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.WITHDRAWAL_THIRD_PILLAR))
+        .isEqualTo(deadlines.getThirdPillarWithdrawalFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.EARLY_WITHDRAWAL))
+        .isEqualTo(deadlines.getEarlyWithdrawalFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.PAYMENT_RATE))
+        .isEqualTo(deadlines.getPaymentRateFulfillmentDate());
+    assertThat(deadlines.getFulfillmentDate(ApplicationType.REJOIN))
+        .isEqualTo(deadlines.getSecondPillarRejoinContributionStartDate());
   }
 
   @Test
@@ -330,30 +327,24 @@ public class MandateDeadlinesTest {
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
 
-    assertEquals(
-        deadlines.getTransferMandateCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.TRANSFER));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.PARTIAL_WITHDRAWAL));
-    assertEquals(
-        deadlines.getNonCancellableApplicationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL_THIRD_PILLAR));
-    assertEquals(
-        deadlines.getEarlyWithdrawalCancellationDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.EARLY_WITHDRAWAL));
-    assertEquals(
-        deadlines.getPaymentRateDeadline(),
-        deadlines.getCancellationDeadline(ApplicationType.PAYMENT_RATE));
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.TRANSFER))
+        .isEqualTo(deadlines.getTransferMandateCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.PARTIAL_WITHDRAWAL))
+        .isEqualTo(deadlines.getWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.WITHDRAWAL_THIRD_PILLAR))
+        .isEqualTo(deadlines.getNonCancellableApplicationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.EARLY_WITHDRAWAL))
+        .isEqualTo(deadlines.getEarlyWithdrawalCancellationDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.PAYMENT_RATE))
+        .isEqualTo(deadlines.getPaymentRateDeadline());
+    assertThat(deadlines.getCancellationDeadline(ApplicationType.REJOIN))
+        .isEqualTo(deadlines.getSecondPillarRejoinDeadline());
   }
 
   @Test
@@ -469,5 +460,39 @@ public class MandateDeadlinesTest {
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
 
     assertThat(deadlines.getThirdPillarPaymentDeadline()).isEqualTo(expectedDeadline);
+  }
+
+  static Stream<Arguments> secondPillarRejoinFilingWindows() {
+    return Stream.of(
+        Arguments.of("2027-01-15T10:00:00", "2027-03-31T23:59:59.999999999", "2027-09-01"),
+        Arguments.of(
+            "2027-03-31T23:59:59.999999999", "2027-03-31T23:59:59.999999999", "2027-09-01"),
+        Arguments.of("2027-04-01T00:00:00", "2027-07-31T23:59:59.999999999", "2028-01-01"),
+        Arguments.of(
+            "2027-07-31T23:59:59.999999999", "2027-07-31T23:59:59.999999999", "2028-01-01"),
+        Arguments.of("2027-08-01T00:00:00", "2027-11-30T23:59:59.999999999", "2028-05-01"),
+        Arguments.of(
+            "2027-11-30T23:59:59.999999999", "2027-11-30T23:59:59.999999999", "2028-05-01"),
+        Arguments.of("2027-12-01T00:00:00", "2028-03-31T23:59:59.999999999", "2028-09-01"));
+  }
+
+  @ParameterizedTest(name = "filed {0} in Tallinn: deadline {1}, contributions start {2}")
+  @MethodSource("secondPillarRejoinFilingWindows")
+  void secondPillarRejoinStartsContributionsAfterTheFilingWindowItIsFiledIn(
+      String filedInTallinn, String deadlineInTallinn, String contributionStartDate) {
+    Instant applicationDate = inTallinn(filedInTallinn);
+    MandateDeadlines deadlines =
+        new MandateDeadlines(
+            Clock.fixed(applicationDate, TALLINN), publicHolidays, applicationDate);
+
+    assertThat(deadlines.getSecondPillarRejoinDeadline()).isEqualTo(inTallinn(deadlineInTallinn));
+    assertThat(deadlines.getSecondPillarRejoinDeadlineDate())
+        .isEqualTo(LocalDateTime.parse(deadlineInTallinn).toLocalDate());
+    assertThat(deadlines.getSecondPillarRejoinContributionStartDate())
+        .isEqualTo(LocalDate.parse(contributionStartDate));
+  }
+
+  private static Instant inTallinn(String localDateTime) {
+    return LocalDateTime.parse(localDateTime).atZone(TALLINN).toInstant();
   }
 }

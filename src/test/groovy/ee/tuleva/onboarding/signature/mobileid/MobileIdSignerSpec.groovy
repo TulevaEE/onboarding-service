@@ -10,6 +10,7 @@ import ee.sk.mid.rest.dao.response.MidCertificateChoiceResponse
 import ee.sk.mid.rest.dao.response.MidSignatureResponse
 import ee.tuleva.onboarding.signature.DigiDocFacade
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SignableEntity
 import ee.tuleva.onboarding.signature.SignatureFile
 import org.digidoc4j.Container
 import org.digidoc4j.DigestAlgorithm
@@ -27,6 +28,7 @@ class MobileIdSignerSpec extends Specification {
 
     def personalCode = "38888888888"
     def phoneNumber = "+37255555555"
+    def mandate = new SignableEntity("Mandate", 1L)
 
     def setup() {
         mobileIdClient = Mock(MidClient)
@@ -54,9 +56,10 @@ class MobileIdSignerSpec extends Specification {
         1 * mobileIdConnector.sign({ it.phoneNumber == phoneNumber && it.nationalIdentityNumber == personalCode }) >> new MidSignatureResponse(sessionId)
 
         when:
-        def signatureSession = mobileIdSigner.startSign(files, personalCode, phoneNumber)
+        def signatureSession = mobileIdSigner.startSign(mandate, files, personalCode, phoneNumber)
 
         then:
+        signatureSession.signableEntity == mandate
         signatureSession.sessionId == sessionId
         signatureSession.dataToSign == dataToSign
         signatureSession.container == container
@@ -65,7 +68,7 @@ class MobileIdSignerSpec extends Specification {
 
     def "can get signed file"() {
         given:
-        def signatureSession = new MobileIdSignatureSession("sessionId", "1234", Mock(DataToSign), Mock(Container))
+        def signatureSession = new MobileIdSignatureSession(mandate, "sessionId", "1234", Mock(DataToSign), Mock(Container))
         def sessionStatus = new MidSessionStatus(state: "COMPLETE")
         def signature = MidSignature.newBuilder()
             .withValueInBase64("IA==")

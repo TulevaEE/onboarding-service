@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybCheckType.DUAL_MEMBER_OWNERSHIP;
+import static ee.tuleva.onboarding.kyb.KybCheckType.HIGH_RISK_NACE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.SINGLE_BOARD_MEMBER_OWNERSHIP;
+import static ee.tuleva.onboarding.kyb.KybCheckType.SOLE_MEMBER_OWNERSHIP;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
@@ -15,6 +19,7 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,7 +65,36 @@ class SavingsFundOnboardingRepositoryTest {
     repository.saveOnboardingStatus("55555555", LEGAL_ENTITY, COMPLETED);
     amlCheck(nonOwnershipFailure, KYB_COMPANY_ACTIVE, false, since.plusSeconds(60));
 
-    var result = repository.findCompletedLegalEntitiesWithFailedOwnershipChecksSince(since);
+    var result =
+        repository.findCompletedLegalEntitiesWithFailedChecksSince(
+            since,
+            List.of(SOLE_MEMBER_OWNERSHIP, DUAL_MEMBER_OWNERSHIP, SINGLE_BOARD_MEMBER_OWNERSHIP));
+
+    assertThat(result).containsExactly("11111111");
+  }
+
+  @Test
+  void findsCompletedLegalEntitiesWithAFailedActivityCheckSince() {
+    var since = Instant.parse("2026-07-02T00:00:00Z");
+
+    var highRiskActivity = company("11111111");
+    repository.saveOnboardingStatus("11111111", LEGAL_ENTITY, COMPLETED);
+    amlCheck(highRiskActivity, KYB_HIGH_RISK_NACE, false, since.plusSeconds(60));
+
+    var reviewedAndOverridden = company("22222222");
+    repository.saveOnboardingStatus("22222222", LEGAL_ENTITY, COMPLETED);
+    amlCheck(reviewedAndOverridden, KYB_HIGH_RISK_NACE, true, since.plusSeconds(60));
+
+    var stillApplying = company("33333333");
+    repository.saveOnboardingStatus("33333333", LEGAL_ENTITY, PENDING);
+    amlCheck(stillApplying, KYB_HIGH_RISK_NACE, false, since.plusSeconds(60));
+
+    var ownershipFailure = company("44444444");
+    repository.saveOnboardingStatus("44444444", LEGAL_ENTITY, COMPLETED);
+    amlCheck(ownershipFailure, KYB_DUAL_MEMBER_OWNERSHIP, false, since.plusSeconds(60));
+
+    var result =
+        repository.findCompletedLegalEntitiesWithFailedChecksSince(since, List.of(HIGH_RISK_NACE));
 
     assertThat(result).containsExactly("11111111");
   }

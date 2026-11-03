@@ -17,12 +17,20 @@ const TEMPLATE_SCOPED_VARIABLES = {
 };
 
 const PENSION_PILLAR_NUDGE_FLAGS = [
+  'suggestSecondPillarRejoin',
   'suggestSecondPillarStart',
   'suggestSecondPillar',
   'suggestPaymentRate',
   'suggestThirdPillar',
   'suggestThirdPillarRecurringPayment',
   'suggestThirdPillarRaise',
+];
+
+const FEE_COMPARISON_BASIS = [
+  'secondPillarAssetsAmount',
+  'feeComparisonDate',
+  'secondPillarFeePercent',
+  'tulevaFeePercent',
 ];
 
 const distTemplates = readdirSync(distDir)
@@ -80,6 +88,35 @@ for (const name of distTemplates.filter((template) =>
       assert.equal(Boolean(vars.anyPillarSuggestion), showsPensionPillarNudge, `variant "${variant}"`);
     }
   });
+
+  test(`${name}: a variant with a nudge shows exactly one nudge button, and a variant without one shows none`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants)) {
+      const nudgeFlags = Object.keys(vars).filter((key) => key.startsWith('suggest') && vars[key]);
+      const nudgeLinks = renderMergeLanguage(html, vars).match(/utm_content=nudge_\w+/g) ?? [];
+      assert.equal(nudgeLinks.length, nudgeFlags.length > 0 ? 1 : 0, `variant "${variant}": ${nudgeLinks.join(', ')}`);
+    }
+  });
+}
+
+for (const name of distTemplates.filter((template) =>
+  readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:hasFeeComparison|*'),
+)) {
+  test(`${name}: the fee comparison states the assets, both fee rates and the date it is calculated from`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const start = html.indexOf('*|IF:hasFeeComparison|*');
+    const branch = html.slice(start, html.indexOf('*|ELSE:|*', start));
+    for (const variable of FEE_COMPARISON_BASIS) {
+      assert.ok(branch.includes(`*|${variable}|*`), `the fee comparison does not show *|${variable}|*`);
+    }
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    for (const [variant, vars] of Object.entries(fixture.variants).filter(([, vars]) => vars.hasFeeComparison)) {
+      for (const variable of FEE_COMPARISON_BASIS) {
+        assert.ok(vars[variable] !== undefined, `variant "${variant}" has no ${variable}`);
+      }
+    }
+  });
 }
 
 for (const name of distTemplates) {
@@ -130,6 +167,15 @@ test('manifest entries have sources, dist output, and fixtures', () => {
     const meta = manifest.templates[name];
     assert.ok(meta.subject, `${name}: manifest entry needs a subject`);
     assert.ok(meta.from_email, `${name}: manifest entry needs a from_email`);
+  }
+});
+
+test('every source template is in the manifest, because CI publishes only manifest entries', () => {
+  const sources = readdirSync(join(root, 'src'))
+    .filter((file) => file.endsWith('.mjml'))
+    .map((file) => basename(file, '.mjml'));
+  for (const name of sources) {
+    assert.ok(manifest.templates[name], `${name}: src template has no manifest entry`);
   }
 });
 

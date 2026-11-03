@@ -1,5 +1,11 @@
 {
   "variants": {
+    "second pillar rejoin suggestion": {
+      "FNAME": "Mari",
+      "suggestSecondPillarRejoin": true,
+      "secondPillarRejoinDeadline": "November 30, 2026",
+      "anyPillarSuggestion": true
+    },
     "second pillar start suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillarStart": true,
@@ -18,6 +24,9 @@
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
       "secondPillarSavingsAmount": 74,
+      "tulevaFeePercent": "0.28",
+      "secondPillarAssetsAmount": "20,000",
+      "feeComparisonDate": "16.10.2026",
       "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {
@@ -61,6 +70,13 @@
     },
     "no nudge": {
       "FNAME": "Mari"
+    },
+    "gift": {
+      "FNAME": "Mari",
+      "gift": true,
+      "recipientPersonalCode": "38888888888",
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     }
   }
 }

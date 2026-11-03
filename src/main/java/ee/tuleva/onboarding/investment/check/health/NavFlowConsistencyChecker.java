@@ -94,7 +94,8 @@ class NavFlowConsistencyChecker {
             NAV_FLOW_CONSISTENCY,
             WARNING,
             ("NAV flow does not reconcile: unexplained=%s EUR, fraction=%s, marketPnl=%s,"
-                    + " unitFlow=%s, unitsChange=%s, quantitiesChanged=%s%s"
+                    + " unitFlow=%s, unitsChange=%s, securitiesChange=%s, cashChange=%s,"
+                    + " receivablesChange=%s, payablesChange=%s, quantitiesChanged=%s%s"
                     + " (the SEB report carries no fees, so a small residual is expected)")
                 .formatted(
                     unexplained.toPlainString(),
@@ -102,10 +103,32 @@ class NavFlowConsistencyChecker {
                     marketPnl.amount().setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitFlow.setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitsChange.toPlainString(),
+                    change(SECURITY, previousPositions, todayPositions),
+                    change(CASH, previousPositions, todayPositions),
+                    change(RECEIVABLES, previousPositions, todayPositions),
+                    change(LIABILITY, previousPositions, todayPositions),
                     SecurityQuantities.changedBetween(previousPositions, todayPositions),
                     marketPnl.exitLegs().isEmpty()
                         ? ""
                         : ", exitLegs=[%s]".formatted(ExitLeg.describeAll(marketPnl.exitLegs())))));
+  }
+
+  private String change(
+      AccountType accountType,
+      List<FundPosition> previousPositions,
+      List<FundPosition> todayPositions) {
+    return marketValueOf(accountType, todayPositions)
+        .subtract(marketValueOf(accountType, previousPositions))
+        .setScale(EUR_SCALE, HALF_UP)
+        .toPlainString();
+  }
+
+  private BigDecimal marketValueOf(AccountType accountType, List<FundPosition> positions) {
+    return positions.stream()
+        .filter(position -> position.getAccountType() == accountType)
+        .map(FundPosition::getMarketValue)
+        .filter(Objects::nonNull)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private boolean isSilent(

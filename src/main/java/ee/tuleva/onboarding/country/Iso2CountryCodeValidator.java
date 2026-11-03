@@ -15,6 +15,10 @@ public class Iso2CountryCodeValidator implements ConstraintValidator<ValidIso2Co
   @Override
   public boolean isValid(
       @Nullable String countryCode, @Nullable ConstraintValidatorContext context) {
+    return isIso2CountryCode(countryCode);
+  }
+
+  public static boolean isIso2CountryCode(@Nullable String countryCode) {
     if (countryCode == null) {
       return false;
     }

@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_INS
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_TRANSFER;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_WITHDRAWAL;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction.EMPLOYER_CONTRIBUTION_SOURCE;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction.OWN_CONTRIBUTION_SOURCE;
 
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.math.BigDecimal;
@@ -17,9 +19,6 @@ import org.springframework.stereotype.Component;
 public class ThirdPillarAlertEvaluator {
 
   private static final String INHERITANCE_SOURCE = "Pärimine";
-  private static final String DEPOSIT_PERSON_SOURCE = "Osakute väljalase isikult laekumiste alusel";
-  private static final String DEPOSIT_EMPLOYER_SOURCE =
-      "Osakute väljalase tööandjalt laekumiste alusel";
   private static final String DEPOSIT_TRANSFER_SOURCE = "Osakute vahetamine (väljalase) 3. sammas";
   private static final String DEPOSIT_INSURANCE_SOURCE =
       "Osakute väljalase kindlustuslepingust laekumiste alusel";
@@ -40,10 +39,10 @@ public class ThirdPillarAlertEvaluator {
     BigDecimal amount = transaction.getTransactionValue();
     var alerts = new ArrayList<AmlAlertType>();
 
-    if (DEPOSIT_PERSON_SOURCE.equals(source) && atLeast(amount, DEPOSIT_THRESHOLD)) {
+    if (OWN_CONTRIBUTION_SOURCE.equals(source) && atLeast(amount, DEPOSIT_THRESHOLD)) {
       alerts.add(III_PILLAR_DEPOSIT_PERSON);
     }
-    if (DEPOSIT_EMPLOYER_SOURCE.equals(source) && atLeast(amount, DEPOSIT_THRESHOLD)) {
+    if (EMPLOYER_CONTRIBUTION_SOURCE.equals(source) && atLeast(amount, DEPOSIT_THRESHOLD)) {
       alerts.add(III_PILLAR_DEPOSIT_EMPLOYER);
     }
     if (DEPOSIT_TRANSFER_SOURCE.equals(source) && atLeast(amount, TRANSFER_THRESHOLD)) {

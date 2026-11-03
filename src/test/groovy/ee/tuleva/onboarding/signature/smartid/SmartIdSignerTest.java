@@ -38,6 +38,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignableEntity;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import eu.webeid.security.certificate.CertificateData;
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.Test;
 
 class SmartIdSignerTest {
 
+  private static final SignableEntity MANDATE = new SignableEntity("Mandate", 1L);
   private static final String CERTIFICATE_SESSION_ID = "certificate-session-id";
   private static final String SIGNING_SESSION_ID = "signing-session-id";
 
@@ -150,8 +152,9 @@ class SmartIdSignerTest {
     givenContainerIsBuilt();
     givenSigningSessionStarts();
 
-    SmartIdSignatureSession session = signer.startSign(files, signerWithDocumentNumber());
+    SmartIdSignatureSession session = signer.startSign(MANDATE, files, signerWithDocumentNumber());
 
+    assertThat(session.getSignableEntity()).isEqualTo(MANDATE);
     assertThat(session.getPersonalCode()).isEqualTo(signerWithDocumentNumber().getPersonalCode());
     assertThat(session.getFiles()).isEqualTo(files);
     assertThat(session.getCertificateSessionId()).isNull();
@@ -169,7 +172,7 @@ class SmartIdSignerTest {
     givenContainerIsBuilt();
     givenSigningSessionStarts();
 
-    signer.startSign(files, signerWithDocumentNumber());
+    signer.startSign(MANDATE, files, signerWithDocumentNumber());
 
     verify(connector)
         .initNotificationSignature(
@@ -197,7 +200,7 @@ class SmartIdSignerTest {
                         identifier.getIdentifier().equals("PNOEE-" + person.getPersonalCode()))))
         .willReturn(new NotificationCertificateChoiceSessionResponse(CERTIFICATE_SESSION_ID));
 
-    SmartIdSignatureSession session = signer.startSign(files, person);
+    SmartIdSignatureSession session = signer.startSign(MANDATE, files, person);
 
     assertThat(session.getCertificateSessionId()).isEqualTo(CERTIFICATE_SESSION_ID);
     assertThat(session.getSigningSessionId()).isNull();
@@ -207,7 +210,7 @@ class SmartIdSignerTest {
 
   @Test
   void getSignedFileReturnsNothingWhileTheCertificateChoiceIsRunning() {
-    var session = new SmartIdSignatureSession(certificateOwner, files);
+    var session = new SmartIdSignatureSession(MANDATE, certificateOwner, files);
     session.setCertificateSessionId(CERTIFICATE_SESSION_ID);
     given(connector.getSessionStatus(CERTIFICATE_SESSION_ID)).willReturn(runningStatus());
 
@@ -217,7 +220,7 @@ class SmartIdSignerTest {
 
   @Test
   void getSignedFileStartsSigningOnceTheCertificateIsChosen() {
-    var session = new SmartIdSignatureSession(certificateOwner, files);
+    var session = new SmartIdSignatureSession(MANDATE, certificateOwner, files);
     session.setCertificateSessionId(CERTIFICATE_SESSION_ID);
     var certificateStatus = completeStatus();
     var choice = new CertificateChoiceResponse();
@@ -246,7 +249,8 @@ class SmartIdSignerTest {
   void startSignRefusesASigningCertificateThatBelongsToSomeoneElse() {
     givenTheSigningCertificateIsOnFile();
 
-    assertThatThrownBy(() -> signer.startSign(files, signerWithDocumentNumber("38888888888")))
+    assertThatThrownBy(
+            () -> signer.startSign(MANDATE, files, signerWithDocumentNumber("38888888888")))
         .isInstanceOf(SmartIdSigningCertificateMismatchException.class);
     verify(digiDocFacade, never()).buildContainer(any());
     verify(connector, never())
@@ -256,7 +260,7 @@ class SmartIdSignerTest {
 
   @Test
   void getSignedFileRefusesAChosenCertificateThatBelongsToSomeoneElse() {
-    var session = new SmartIdSignatureSession("38888888888", files);
+    var session = new SmartIdSignatureSession(MANDATE, "38888888888", files);
     session.setCertificateSessionId(CERTIFICATE_SESSION_ID);
     var certificateStatus = completeStatus();
     var choice = new CertificateChoiceResponse();
@@ -315,7 +319,7 @@ class SmartIdSignerTest {
   }
 
   private SmartIdSignatureSession signingSession() {
-    var session = new SmartIdSignatureSession(certificateOwner, files);
+    var session = new SmartIdSignatureSession(MANDATE, certificateOwner, files);
     session.setDocumentNumber(documentNumber);
     session.setSigningSessionId(SIGNING_SESSION_ID);
     session.setVerificationCode("4321");

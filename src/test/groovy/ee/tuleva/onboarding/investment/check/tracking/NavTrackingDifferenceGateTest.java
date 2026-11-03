@@ -3,11 +3,14 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
+import ee.tuleva.onboarding.investment.check.tracking.FundCheck.Checked;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,11 +51,11 @@ class NavTrackingDifferenceGateTest {
             .residual(ZERO)
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
   }
 
   @Test
@@ -89,11 +92,11 @@ class NavTrackingDifferenceGateTest {
                     0))
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
   }
 
   @Test
@@ -118,13 +121,13 @@ class NavTrackingDifferenceGateTest {
             .residual(ZERO)
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     var failure = gate.check(TUK75, NAV_DATE);
     assertThat(failure).isPresent();
     assertThat(failure.get()).contains("TD breach").contains("TUK75").contains("navResidual");
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
   }
 
   @Test
@@ -152,33 +155,49 @@ class NavTrackingDifferenceGateTest {
             .residual(ZERO)
             .build();
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
   }
 
   @Test
   void passes_whenOnlyBenchmarkBreach() {
     var result = breachResult(TrackingCheckType.BENCHMARK);
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
   }
 
   @Test
   void passes_whenOnlyBenchmarkModelBreach() {
     var result = breachResult(TrackingCheckType.BENCHMARK_MODEL);
 
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of(result));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(checked(result));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notify(List.of(result));
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of());
+  }
+
+  @Test
+  void passes_andNamesTheHoldingsTheModelCheckMeasuredNoneOfForWantOfABenchmarkPrice() {
+    var result = breachResult(TrackingCheckType.MODEL_PORTFOLIO);
+    var noHoldingMeasured = new NoHoldingMeasured(TUK75, NAV_DATE, List.of("IE00B4L5Y983"));
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
+        .willReturn(new Checked(List.of(result), List.of(noHoldingMeasured)));
+
+    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier).should().notify(List.of(result), List.of(noHoldingMeasured));
+  }
+
+  private static Checked checked(TrackingDifferenceResult result) {
+    return new Checked(List.of(result), List.of());
   }
 
   private static TrackingDifferenceResult breachResult(TrackingCheckType checkType) {
@@ -201,12 +220,14 @@ class NavTrackingDifferenceGateTest {
 
   @Test
   void passes_butAlertsCheckCouldNotRun_whenNoResults() {
-    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE)).willReturn(List.of());
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
+        .willReturn(new Checked(List.of(), List.of()));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
     then(trackingDifferenceNotifier).should().notifyCheckCouldNotRun(TUK75, NAV_DATE);
-    then(trackingDifferenceNotifier).should(never()).notify(List.of());
+    then(trackingDifferenceNotifier).should(never()).notify(anyList());
+    then(trackingDifferenceNotifier).should(never()).notify(anyList(), anyList());
   }
 
   @Test

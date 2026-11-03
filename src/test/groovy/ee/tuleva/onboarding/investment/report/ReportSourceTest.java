@@ -84,9 +84,9 @@ class ReportSourceTest {
   }
 
   @Test
-  void sebSource_getSupportedReportTypes_returnsPositionsAndPendingTransactions() {
+  void sebSource_importsTheTradeListBeforeThePositionsSoThePositionCheckCanCompareThem() {
     SebReportSource source = new SebReportSource(s3Client);
-    assertThat(source.getSupportedReportTypes()).containsExactly(POSITIONS, PENDING_TRANSACTIONS);
+    assertThat(source.getSupportedReportTypes()).containsExactly(PENDING_TRANSACTIONS, POSITIONS);
   }
 
   @Test

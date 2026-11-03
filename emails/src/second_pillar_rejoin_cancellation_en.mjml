@@ -1,0 +1,32 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          You canceled your II&nbsp;pillar application for making contributions. Contributions to
+          your II&nbsp;pillar will not start.
+        </mj-text>
+        <mj-text>
+          If you want to start saving again later, you can file a new application through Tuleva.
+        </mj-text>
+        <mj-text>
+          To cancel it, you filed a II&nbsp;pillar application for exemption from contributions. A copy
+          of it, as sent to Pensionikeskus, is attached to this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_second_pillar_rejoin_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

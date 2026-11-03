@@ -1,0 +1,77 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
+        <mj-text>
+          Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad
+          laekuma automaatselt ja nende alguskuupäev on <strong>*|contributionStartDate|*</strong>.
+        </mj-text>
+        <mj-text>
+          Tore, et alustad taas kogumist! Nüüd saad uuesti kasutada II&nbsp;samba maksueeliseid ja
+          kasvatada järjekindlalt oma vara.
+        </mj-text>
+        <mj-raw>*|IF:selectedTulevaStockFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad <strong>Tuleva Maailma Aktsiate Pensionifondi</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedTulevaBondFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad <strong>Tuleva Maailma Võlakirjade Pensionifondi</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedOtherFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad fondi <strong>*|selectedFundName|*</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:keptTulevaStockFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad jälle <strong>Tuleva Maailma Aktsiate Pensionifondi</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:keptTulevaBondFund|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad jälle <strong>Tuleva Maailma Võlakirjade Pensionifondi</strong>.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Sinu sissemaksed lähevad fondi, milles kogusid ka varem. Fondi näed
+          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          *|IF:paymentRateChange|*Valisid II&nbsp;samba <strong>sissemaksete suuruseks *|paymentRate|*%</strong> oma
+          brutopalgast.*|ELSE:|*Sinu II&nbsp;samba <strong>sissemaksete suurus on *|paymentRate|*%</strong> brutopalgast.*|END:IF|*
+          Oma sissemakse suurust saad muuta igal aastal novembri lõpuni.
+        </mj-text>
+        <mj-text>
+          II&nbsp;samba vara saad kasutada alates eelpensionieast ehk viis aastat enne
+          vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Kogutud raha on sinu oma ja seda saab
+          pärandada.
+        </mj-text>
+        <mj-text>
+          Avaldused on edastatud Pensionikeskusele ja koopiad leiad selle kirja manusest.
+        </mj-text>
+        <mj-text>
+          Kui mõtled ümber, saad avalduse
+          <a href="https://pension.tuleva.ee/account">oma Tuleva kontol</a> tühistada. Viimane
+          päev selleks on *|cancellationDeadline|*.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Head kogumist!</mj-text>
+        <mj-text>
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_second_pillar_rejoin_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

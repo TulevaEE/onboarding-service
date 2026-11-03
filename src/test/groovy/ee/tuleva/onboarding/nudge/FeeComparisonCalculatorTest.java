@@ -10,6 +10,10 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,15 +30,17 @@ class FeeComparisonCalculatorTest {
   @Mock private FundRepository fundRepository;
 
   private final User user = sampleUser().build();
+  private final Clock clock =
+      Clock.fixed(Instant.parse("2026-10-15T22:30:00Z"), ZoneId.of("Europe/Tallinn"));
   private FeeComparisonCalculator calculator;
 
   @BeforeEach
   void setUp() {
-    calculator = new FeeComparisonCalculator(conversionHoldings, fundRepository);
+    calculator = new FeeComparisonCalculator(conversionHoldings, fundRepository, clock);
   }
 
   @Test
-  void comparesTheYearlyFeeOfTheCurrentSecondPillarHoldingsWithTulevasFund() {
+  void comparesTheYearlyFeeOfTheCurrentSecondPillarHoldingsWithTulevasFundAndStatesItsBasis() {
     given(conversionHoldings.forPerson(user))
         .willReturn(
             List.of(
@@ -46,7 +52,16 @@ class FeeComparisonCalculatorTest {
 
     var comparison = calculator.forSecondPillar(user, new BigDecimal("0.0065"));
 
-    assertThat(comparison).contains(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+    assertThat(comparison)
+        .contains(
+            new FeeComparison(
+                new BigDecimal("0.65"),
+                130,
+                56,
+                74,
+                new BigDecimal("0.28"),
+                20000,
+                LocalDate.of(2026, 10, 16)));
   }
 
   @Test

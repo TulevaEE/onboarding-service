@@ -1,0 +1,39 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Alustasid oma ettevõttele *|RECIPIENTNAME|* Täiendava Kogumisfondi konto avamist. <strong>Saame konto
+          avada, kui ka ettevõtte teine osanik on end tuvastanud.</strong>
+        </mj-text>
+        <mj-text>
+          Ta saab seda teha, kui ta logib Tulevasse sisse ja täidab samamoodi lühikese küsimustiku selle lingi kaudu:
+          <a href="https://pension.tuleva.ee/savings-fund/onboarding/identity">pension.tuleva.ee/savings-fund/onboarding/identity</a>
+        </mj-text>
+        <mj-text>
+          Kui teine osanik on end tuvastanud, on konto avatud ja saad selle kohta kinnituskirja.
+          Seejärel saad juba teha esimese sissemakse.
+        </mj-text>
+        <mj-text>
+          Me ei küsi sinult kunagi kirja või telefoni teel paroole ega PIN-koode. Kui kahtled, ava pension.tuleva.ee ise brauseris
+          või kirjuta <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

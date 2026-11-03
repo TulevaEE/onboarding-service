@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account.transaction;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,10 +13,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -160,5 +163,77 @@ class TransactionControllerTest {
         .perform(get("/v1/transactions"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].counterpartyIban").value("EE651010220306497226"));
+  }
+
+  @Test
+  void servesWhoPaidAContributionWithoutTheirPersonalCode() throws Exception {
+    var transaction =
+        Transaction.builder()
+            .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"))
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2025-02-01T10:00:00Z"))
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("1.0000"))
+            .remitterName("Leida Tamm")
+            .paidFromOwnAccount(false)
+            .build();
+
+    when(transactionService.getTransactions(any())).thenReturn(List.of(transaction));
+
+    String body =
+        mockMvc
+            .perform(get("/v1/transactions"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].remitterName").value("Leida Tamm"))
+            .andExpect(jsonPath("$[0].paidFromOwnAccount").value(false))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    Map<String, Object> contribution = JsonPath.read(body, "$[0]");
+    assertThat(contribution.keySet())
+        .containsExactlyInAnyOrder(
+            "id",
+            "amount",
+            "currency",
+            "time",
+            "navDate",
+            "priceCalculationDate",
+            "settledTime",
+            "applicationTime",
+            "counterpartyIban",
+            "isin",
+            "type",
+            "units",
+            "nav",
+            "acquisition",
+            "remitterName",
+            "paidFromOwnAccount");
+  }
+
+  @Test
+  void leavesThePayerOffATransactionThatCarriesNone() throws Exception {
+    var transaction =
+        Transaction.builder()
+            .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"))
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2025-02-01T10:00:00Z"))
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("1.0000"))
+            .build();
+
+    when(transactionService.getTransactions(any())).thenReturn(List.of(transaction));
+
+    mockMvc
+        .perform(get("/v1/transactions"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0]", not(hasKey("remitterName"))))
+        .andExpect(jsonPath("$[0]", not(hasKey("paidFromOwnAccount"))));
   }
 }

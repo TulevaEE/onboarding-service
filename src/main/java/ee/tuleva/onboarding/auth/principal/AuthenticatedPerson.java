@@ -2,29 +2,36 @@ package ee.tuleva.onboarding.auth.principal;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static java.time.temporal.ChronoUnit.SECONDS;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
-@Builder
+@Builder(toBuilder = true)
 @Value
 public class AuthenticatedPerson implements Person, Serializable {
 
   @Serial private static final long serialVersionUID = 2461411670790444975L;
 
   public static final String SMART_ID_DOCUMENT_NUMBER = "smartIdDocumentNumber";
+  public static final String AUTH_TIME = "authTime";
 
   @ValidPersonalCode String personalCode;
 
@@ -75,9 +82,24 @@ public class AuthenticatedPerson implements Person, Serializable {
     return role == null || role.code().equals(personalCode);
   }
 
+  public boolean isMinorActingAsSelf(LocalDate today) {
+    return isActingAsSelf() && PersonalCode.isMinor(personalCode, today);
+  }
+
   @JsonIgnore
   public Long getUserIdOrThrow() {
     return requireNonNull(userId, "User id missing for authenticated person");
+  }
+
+  public AuthenticatedPerson withAuthTime(Instant authTime) {
+    var attributesWithAuthTime = new HashMap<>(attributes);
+    attributesWithAuthTime.put(AUTH_TIME, authTime.truncatedTo(SECONDS).toString());
+    return toBuilder().attributes(unmodifiableMap(attributesWithAuthTime)).build();
+  }
+
+  @JsonIgnore
+  public Optional<Instant> getAuthTime() {
+    return Optional.ofNullable(attributes.get(AUTH_TIME)).map(Instant::parse);
   }
 
   public @Nullable String getAttribute(String attribute) {
@@ -87,5 +109,13 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public Optional<String> getSmartIdDocumentNumber() {
     return Optional.ofNullable(attributes.get(SMART_ID_DOCUMENT_NUMBER));
+  }
+
+  @JsonIgnore
+  public Map<String, String> getAttributesToRecord() {
+    Map<String, String> recorded = new HashMap<>(attributes);
+    recorded.remove(SMART_ID_DOCUMENT_NUMBER);
+    recorded.remove(AUTH_TIME);
+    return recorded;
   }
 }

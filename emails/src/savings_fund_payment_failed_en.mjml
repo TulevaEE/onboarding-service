@@ -6,14 +6,23 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-raw>*|IF:companyAccountRequired|*</mj-raw>
         <mj-text>
-          Your payment to Tuleva Additional Investment Fund failed and we will send it back to the same
-          account it came from by the end of today. Most likely you chose an account whose
-          name does not match yours when making the payment. For safety and compliance,
-          the payment has to come from your personal account. Please try again here:
+          Your contribution to your company's Tuleva Additional Investment Fund account failed and we
+          will soon return it to the same account it came from. Contributions to a company account can
+          only be made from the company's own bank account, not from a personal account.
         </mj-text>
+        <mj-text>Please make the contribution again from the company's bank account:</mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Your contribution to Tuleva Additional Investment Fund failed and we will soon return it to
+          the same account it came from. Most likely you chose an account whose name does not match
+          yours when making the payment. The payment has to come from an account that you own.
+        </mj-text>
+        <mj-text>Please try again here:</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
-          Tuleva account
+          Make a new contribution
         </mj-button>
       </mj-column>
     </mj-section>

@@ -169,8 +169,15 @@ function isIgnoredFilename(source, filename) {
     return false;
 }
 
-function shouldAlertOnUnmatched(matchedCount, unmatchedCount) {
-    return unmatchedCount > 0;
+function shouldAlertOnUnmatched(sender, matchedCount, unmatchedFilenames) {
+    if (addressOf(sender) !== FUNDS_MAILBOX) {
+        return unmatchedFilenames.length > 0;
+    }
+    return unmatchedFilenames.some(looksLikeAMisnamedPositionReport);
+}
+
+function looksLikeAMisnamedPositionReport(filename) {
+    return /^TULEVA_/i.test(filename);
 }
 
 function shouldNotifyAboutSkipped(messageId, filenames, alreadyNotified) {
@@ -203,7 +210,7 @@ function simpleHash(str) {
 
 function messageHasMatchingAttachments(message) {
     var sender = message.getFrom();
-    var source = getSourceForSender(sender);
+    var source = sourceOf(message);
     if (!source) return false;
 
     var filenames = message.getAttachments({ includeInlineImages: false })
@@ -214,7 +221,7 @@ function messageHasMatchingAttachments(message) {
         ", matched=[" + partition.matched.join(",") +
         "], unmatched=[" + partition.unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(partition.matched.length, partition.unmatched.length)) {
+    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched)) {
         notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
     }
     return partition.matched.length > 0;
@@ -259,8 +266,7 @@ function notifySlack(message) {
 }
 
 function processMessage(message, thread) {
-    var sender = message.getFrom();
-    var source = getSourceForSender(sender);
+    var source = sourceOf(message);
 
     if (!source) {
         return;
@@ -294,11 +300,50 @@ function processMessage(message, thread) {
     }
 }
 
+var FUNDS_MAILBOX = "funds@tuleva.ee";
+
+function sourceOf(message) {
+    var sender = message.getFrom();
+    var sentByFundsMailbox = addressOf(sender) === FUNDS_MAILBOX && wasSentByFundsMailbox(message);
+    return getSourceForMessage(sender, recipientsOf(message), sentByFundsMailbox);
+}
+
+function wasSentByFundsMailbox(message) {
+    var messageId = (message.getHeader("Message-ID") || "").replace(/^<|>$/g, "");
+    return messageId !== "" && GmailApp.search("in:sent rfc822msgid:" + messageId).length > 0;
+}
+
+function getSourceForMessage(sender, recipients, sentByFundsMailbox) {
+    if (addressOf(sender) === FUNDS_MAILBOX) {
+        return isCorrectionTheFundsMailboxSentItself(recipients, sentByFundsMailbox) ? SOURCES.SEB : null;
+    }
+    return getSourceForSender(sender);
+}
+
+function isCorrectionTheFundsMailboxSentItself(recipients, sentByFundsMailbox) {
+    return sentByFundsMailbox && isAddressedOnlyTo(recipients, FUNDS_MAILBOX);
+}
+
+function recipientsOf(message) {
+    return [message.getTo(), message.getCc(), message.getBcc()].join(", ");
+}
+
+function addressOf(mailbox) {
+    var bracketed = mailbox.match(/<([^>]*)>\s*$/);
+    return (bracketed ? bracketed[1] : mailbox).trim().toLowerCase();
+}
+
+function isAddressedOnlyTo(recipients, address) {
+    var addresses = recipients.match(/[^\s<>,;"]+@[^\s<>,;"]+/g) || [];
+    return addresses.length > 0 && addresses.every(function (a) { return a.toLowerCase() === address; });
+}
+
 function getSourceForSender(sender) {
+    var address = addressOf(sender);
     for (var key in SOURCES) {
         var senders = SOURCES[key].senders;
         for (var i = 0; i < senders.length; i++) {
-            if (sender.indexOf(senders[i]) !== -1) {
+            if (senders[i].toLowerCase() === address) {
                 return SOURCES[key];
             }
         }
@@ -505,7 +550,7 @@ function dryRunThread(thread) {
     for (var j = 0; j < messages.length; j++) {
         var message = messages[j];
         var sender = message.getFrom();
-        var source = getSourceForSender(sender);
+        var source = sourceOf(message);
 
         Logger.log("  Message from: " + sender + " at " + message.getDate());
 
@@ -549,6 +594,7 @@ if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         SOURCES,
         getSourceForSender,
+        getSourceForMessage,
         getFileConfigAndDate,
         isMessageWithinWindow,
         shouldProcessMessage,

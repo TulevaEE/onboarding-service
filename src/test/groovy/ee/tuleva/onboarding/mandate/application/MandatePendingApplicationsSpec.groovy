@@ -60,4 +60,15 @@ class MandatePendingApplicationsSpec extends Specification {
     where:
     hasPending << [true, false]
   }
+
+  def "hasPendingRejoin delegates to the application service"() {
+    given:
+    applicationService.hasPendingRejoin(person) >> hasPending
+
+    expect:
+    mandatePendingApplications.hasPendingRejoin(person) == hasPending
+
+    where:
+    hasPending << [true, false]
+  }
 }

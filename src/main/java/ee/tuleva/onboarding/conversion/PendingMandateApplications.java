@@ -9,4 +9,6 @@ public interface PendingMandateApplications {
   List<PendingExchange> getPendingExchanges(Pillar pillar, Person person);
 
   boolean hasPendingWithdrawals(Person person, Pillar pillar);
+
+  boolean hasPendingRejoin(Person person);
 }

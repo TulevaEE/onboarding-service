@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -169,6 +171,73 @@ class FundPositionRepositoryTest {
     var result = fundPositionRepository.findDistinctNavDatesByFund(TUV100);
 
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void findLastImportedAt_returnsTheLatestWriteOfTheFundsPositionsForTheDate() {
+    LocalDate navDate = LocalDate.of(2026, 10, 20);
+    saveWrittenPosition(TUK75, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
+    saveWrittenPosition(
+        TUK75,
+        navDate,
+        "Total payables of unsettled transactions",
+        "2026-10-21T06:05:00Z",
+        "2026-10-21T07:30:00Z");
+    saveWrittenPosition(TUV100, navDate, "Cash account in SEB Pank", "2026-10-21T09:00:00Z", null);
+    saveWrittenPosition(
+        TUK75, navDate.plusDays(1), "Cash account in SEB Pank", "2026-10-22T06:10:00Z", null);
+
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
+
+    assertThat(result).contains(Instant.parse("2026-10-21T07:30:00Z"));
+  }
+
+  @Test
+  void findLastImportedAt_leavesOutTheFeeAccrualRowsWrittenAfterTheImport() {
+    LocalDate navDate = LocalDate.of(2026, 10, 20);
+    saveWrittenPosition(TUK75, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(navDate)
+            .accountType(AccountType.FEE)
+            .accountName("Management Fee Accrual")
+            .marketValue(new BigDecimal("-100.00"))
+            .createdAt(Instant.parse("2026-10-21T06:11:00Z"))
+            .updatedAt(Instant.parse("2026-10-23T08:00:00Z"))
+            .build());
+
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
+
+    assertThat(result).contains(Instant.parse("2026-10-21T06:10:00Z"));
+  }
+
+  @Test
+  void findLastImportedAt_returnsEmptyWhenTheFundHasNoPositionsForTheDate() {
+    LocalDate navDate = LocalDate.of(2026, 10, 20);
+    saveWrittenPosition(TUV100, navDate, "Cash account in SEB Pank", "2026-10-21T06:10:00Z", null);
+
+    var result = fundPositionRepository.findLastImportedAt(TUK75, navDate);
+
+    assertThat(result).isEmpty();
+  }
+
+  private void saveWrittenPosition(
+      TulevaFund fund,
+      LocalDate navDate,
+      String accountName,
+      String createdAt,
+      @Nullable String updatedAt) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .fund(fund)
+            .navDate(navDate)
+            .accountType(AccountType.CASH)
+            .accountName(accountName)
+            .marketValue(new BigDecimal("1000.00"))
+            .createdAt(Instant.parse(createdAt))
+            .updatedAt(updatedAt == null ? null : Instant.parse(updatedAt))
+            .build());
   }
 
   private void savePosition(

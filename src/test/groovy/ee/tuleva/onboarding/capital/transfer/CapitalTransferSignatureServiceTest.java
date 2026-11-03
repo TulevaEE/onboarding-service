@@ -65,12 +65,13 @@ class CapitalTransferSignatureServiceTest {
     List<SignatureFile> files = List.of(signatureFile);
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(contract(contractId), user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
-    when(signService.startSmartIdSign(files, authenticatedPerson)).thenReturn(signatureSession);
+    when(signService.startSmartIdSign(contract(contractId), files, authenticatedPerson))
+        .thenReturn(signatureSession);
 
     // when
     MobileSignatureResponse response =
@@ -96,14 +97,14 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(contract(contractId), user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(signedFile);
 
     // when
     MobileSignatureStatusResponse response =
@@ -130,13 +131,13 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(contract(contractId), user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(null);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(null);
 
     // when
     MobileSignatureStatusResponse response =
@@ -189,14 +190,14 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(contract(contractId), user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(buyerUser.getId())).thenReturn(buyerUser);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(signedFile);
 
     // when
     MobileSignatureStatusResponse response =
@@ -222,14 +223,14 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(contract(contractId), user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(signedFile);
 
     // when & then
     assertThatThrownBy(
@@ -468,11 +469,15 @@ class CapitalTransferSignatureServiceTest {
     List<SignatureFile> files = List.of(signatureFile);
 
     MobileIdSignatureSession signatureSession =
-        MobileIdSignatureSession.builder().verificationCode("98765").build();
+        MobileIdSignatureSession.builder()
+            .signableEntity(contract(contractId))
+            .verificationCode("98765")
+            .build();
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
-    when(signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber))
+    when(signService.startMobileIdSign(
+            contract(contractId), files, user.getPersonalCode(), phoneNumber))
         .thenReturn(signatureSession);
 
     // when
@@ -499,14 +504,17 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     MobileIdSignatureSession signatureSession =
-        MobileIdSignatureSession.builder().verificationCode("98765").build();
+        MobileIdSignatureSession.builder()
+            .signableEntity(contract(contractId))
+            .verificationCode("98765")
+            .build();
     byte[] signedFile = "signed content".getBytes();
 
     when(sessionStore.get(MobileIdSignatureSession.class))
         .thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(signedFile);
 
     // when
     MobileSignatureStatusResponse response =
@@ -533,13 +541,16 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     MobileIdSignatureSession signatureSession =
-        MobileIdSignatureSession.builder().verificationCode("98765").build();
+        MobileIdSignatureSession.builder()
+            .signableEntity(contract(contractId))
+            .verificationCode("98765")
+            .build();
 
     when(sessionStore.get(MobileIdSignatureSession.class))
         .thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession)).thenReturn(null);
+    when(signService.getSignedFile(signatureSession, contract(contractId))).thenReturn(null);
 
     // when
     MobileSignatureStatusResponse response =
@@ -548,5 +559,9 @@ class CapitalTransferSignatureServiceTest {
     // then
     assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.OUTSTANDING_TRANSACTION);
     assertThat(response.getChallengeCode()).isEqualTo("98765");
+  }
+
+  private static SignableEntity contract(Long contractId) {
+    return new SignableEntity("Capital transfer contract", contractId);
   }
 }

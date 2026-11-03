@@ -33,4 +33,14 @@ class SignatureFileTest {
     assertThat(file.getMimeType()).isEqualTo("text/html");
     assertThat(file.getContent()).isEqualTo(content);
   }
+
+  @Test
+  void aSignedContainerIsNamedWithTheAsicEExtension() {
+    assertThat(DIGIDOC_CONTAINER.fileName("Tuleva_avaldus")).isEqualTo("Tuleva_avaldus.asice");
+  }
+
+  @Test
+  void anHtmlFileIsNamedWithTheHtmlExtension() {
+    assertThat(HTML.fileName("liikmekapital-1")).isEqualTo("liikmekapital-1.html");
+  }
 }

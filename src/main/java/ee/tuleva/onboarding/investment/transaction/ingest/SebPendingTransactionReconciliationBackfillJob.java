@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,10 @@ class SebPendingTransactionReconciliationBackfillJob {
   private final OperationsNotificationService notificationService;
 
   @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
+  @SchedulerLock(
+      name = SebPendingTransactionReconciliationJob.LOCK,
+      lockAtMostFor = "60m",
+      lockAtLeastFor = "0s")
   void onSebPendingTransactionReconciliationBackfillRequested() {
     run();
   }

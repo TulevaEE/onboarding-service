@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -14,7 +15,9 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -26,6 +29,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -33,6 +38,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationBackfillJobTest {
@@ -260,6 +267,51 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
     verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
   }
+
+  @Test
+  void aReplayRequestHoldsTheLiveReconciliationsLockWhileItRuns() {
+    givenStoredReports(Map.of());
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+
+    try (var context = lockedContext(lockProvider)) {
+      context.publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
+    }
+
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
+  }
+
+  @Test
+  void aReplayRequestDoesNotRunWhileTheLiveReconciliationHoldsItsLock() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
+
+    try (var context = lockedContext(lockProvider)) {
+      context.publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
+    }
+
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verifyNoInteractions(reportService, reconciliationService, notificationService);
+  }
+
+  private AnnotationConfigApplicationContext lockedContext(LockProvider lockProvider) {
+    var context = new AnnotationConfigApplicationContext();
+    context.getEnvironment().setActiveProfiles("production");
+    context.registerBean(LockProvider.class, () -> lockProvider);
+    context.registerBean(Clock.class, () -> clock);
+    context.registerBean(InvestmentReportService.class, () -> reportService);
+    context.registerBean(
+        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
+    context.registerBean(TransactionExecutionRepository.class, () -> executionRepository);
+    context.registerBean(TransactionSettlementRepository.class, () -> settlementRepository);
+    context.registerBean(OperationsNotificationService.class, () -> notificationService);
+    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationBackfillJob.class);
+    context.refresh();
+    return context;
+  }
+
+  @Configuration
+  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
+  static class SchedulerLockOnly {}
 
   private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {
     return new PossibleReportTruncationEvent(

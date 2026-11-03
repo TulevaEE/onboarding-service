@@ -144,6 +144,29 @@ class TransactionExecutionMapperTest {
     assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
   }
 
+  @Test
+  void mutableFieldsForDeltaAudit_coversTheReportedDateAndSourceAnUpsertCanRewrite() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionExecution execution =
+        mapper.toExecution(sampleRow(clientRef), fundOrder(clientRef), LocalDate.of(2026, 5, 11));
+
+    Map<String, Object> snapshot = mapper.mutableFieldsForDeltaAudit(execution);
+
+    assertThat(snapshot)
+        .isEqualTo(
+            Map.of(
+                "brokerTransactionId", "DLA0799512",
+                "executionTimestamp", "2026-05-11T10:26:04Z",
+                "executedQuantity", "15007",
+                "unitPrice", "4.7255",
+                "totalConsideration", "70915.58",
+                "settlementAmount", "70915.58",
+                "commissionAmount", "0.00",
+                "scheduledSettlementDate", "2026-05-13",
+                "reportedDate", "2026-05-11",
+                "source", "SEB_OOTEL"));
+  }
+
   private static TransactionOrder fundOrder(UUID clientRef) {
     return TransactionOrder.builder()
         .id(123L)

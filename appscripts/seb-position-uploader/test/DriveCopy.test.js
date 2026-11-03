@@ -202,6 +202,7 @@ function fakeThread(messages, labelNames) {
   const labels = labelNames.slice();
   return {
     labels,
+    getId: () => "thread-1",
     getMessages: () => messages,
     getFirstMessageSubject: () => "SEB reports",
     getLabels: () => labels.map((name) => ({ getName: () => name })),
@@ -917,7 +918,7 @@ describe("saveReportsToDrive", () => {
       getMessages: () => {
         throw new Error("Gmail unavailable");
       },
-      getFirstMessageSubject: () => "SEB reports",
+      getId: () => "thread-2",
     };
     const working = fakeThread([sebMessage("m2", report("20261020"))], ["S3-Uploaded-1x"]);
     installAppsScriptFakes({ properties: { DRIVE_SEB_REPORT_FOLDER_ID: "folder-1" }, folders: { "folder-1": drive.folder }, threads: [working, unreadable] });

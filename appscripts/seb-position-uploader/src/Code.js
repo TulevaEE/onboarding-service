@@ -118,7 +118,7 @@ function runAlone(run) {
 
 function runAloneOrRefuse(name, run) {
     if (!runAlone(run)) {
-        throw new Error(name + " did not run: another run holds the script lock. Run it again in a minute");
+        throw new Error("Run refused, another run holds the script lock; run it again in a minute: run=" + name);
     }
 }
 
@@ -133,17 +133,17 @@ function processEmailsFromDays(days, options) {
     Logger.log("Found " + threads.length + " email threads");
 
     var newestUploaded = recordSourcesOfUploadedEmails(threads, minMessageDate);
+    uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, newestUploaded);
 
-    // A failed upload (expired AWS keys, a rejected file) must not stop the Drive copy
-    // the Google Sheets NAV fallback reads: the Drive pass runs anyway, and the run
-    // then fails with the S3 error.
+    Logger.log("Processing complete");
+}
+
+function uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, newestUploaded) {
     try {
         uploadThreadsToS3(threads, minMessageDate, newestUploaded);
     } finally {
         saveReportsToDrive(threads, days, newestUploaded);
     }
-
-    Logger.log("Processing complete");
 }
 
 function uploadThreadsToS3(threads, minMessageDate, newestUploaded) {
@@ -337,7 +337,7 @@ function processMessage(message, thread, newestUploaded) {
             var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
             var datedReport = !result.fileConfig.keyFromCapture;
             if (datedReport && isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
-                Logger.log("SKIPPED: " + filename + ", s3://" + S3_BUCKET + "/" + s3Key + " holds a newer e-mail's report");
+                Logger.log("S3 upload skipped, the file holds a newer e-mail's report: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
                 handledCount++;
                 continue;
             }
@@ -404,7 +404,7 @@ function recordEmailSource(s3Key, emailSource) {
     try {
         forgetOldReportSources(props, new Date());
     } catch (e) {
-        Logger.log("Old e-mail records not pruned: " + e.message);
+        Logger.log("Old e-mail records not pruned: error=" + e.message);
     }
 }
 
@@ -470,29 +470,6 @@ function recordEmailSourceAfterUpload(s3Key, emailSource) {
     }
 }
 
-// Drive copy for the Google Sheets NAV fallback. It runs as its own pass after the
-// S3 pass, so Drive can neither stop nor repeat an S3 upload. It does not wait for
-// S3: a message the S3 pass could not upload is copied too, since the fallback is
-// needed exactly when the S3 pipeline fails. The newest-e-mail guard below holds
-// without S3: the S3 pass's scan of earlier uploads runs before any upload, and the
-// Drive pass records each e-mail before writing.
-// Each run copies the reports of the e-mails within its own window (the last 2 days
-// for processNewEmails) that are not in Drive yet. Progress is the Drive record per
-// report (see recordDriveSource), not a Gmail label, so a failed copy is retried by
-// every run while its e-mail is in the window, without holding up the later e-mails
-// of its thread.
-// The Sheets scripts read the "_US.csv" copy with the newest
-// date in its name, so each report type and date keeps one current "_US.csv";
-// it is updated in place, and its previous content is kept as a "_vN" copy.
-// Creating the new original is the last write: tuleva's seb-import starts its
-// Sheets import when the SEB report file names change, and its settlement recheck
-// reads the last updated pending report of each date.
-// A report whose current files already hold its content gets no new version, so the
-// files tuleva's earlier Gmail saver wrote, and a resumed copy, are not versioned again.
-// The S3 pass's e-mail record per report (see recordEmailSource) also guards Drive:
-// an older e-mail never replaces it, and the same e-mail resumes a copy that
-// failed half way. The Drive pass writes it before any Drive write, for files
-// that were on S3 before the record existed.
 var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
 var DAY_MS = 24 * 60 * 60 * 1000;
@@ -502,7 +479,7 @@ function saveReportsToDrive(threads, days, newestUploaded) {
         var props = PropertiesService.getScriptProperties();
         var folderId = props.getProperty(DRIVE_FOLDER_PROPERTY);
         if (!folderId) {
-            Logger.log("Drive copy skipped, " + DRIVE_FOLDER_PROPERTY + " is not set");
+            Logger.log("Drive copy skipped, folder Script Property not set: property=" + DRIVE_FOLDER_PROPERTY);
             notifyDriveProblemOncePerDay("SEB reports are not saved to Drive: the Script Property " + DRIVE_FOLDER_PROPERTY + " is not set");
             return;
         }
@@ -512,7 +489,7 @@ function saveReportsToDrive(threads, days, newestUploaded) {
             saveThreadToDrive(threads[i], folder, newestUploaded, minMessageDate);
         }
     } catch (e) {
-        Logger.log("FAILED Drive copy run: " + e.message);
+        Logger.log("Drive copy run failed: error=" + e.message);
         notifyDriveProblemOncePerDay("SEB reports could not be saved to Drive: `" + e.message + "`");
     }
 }
@@ -532,7 +509,7 @@ function driveReportsOfThreadOrNone(thread, minMessageDate) {
         });
         return reports;
     } catch (e) {
-        Logger.log("FAILED Drive copy: thread=" + thread.getFirstMessageSubject() + " -> " + e.message);
+        Logger.log("Drive copy failed, thread not read: threadId=" + thread.getId() + ", error=" + e.message);
         notifyDriveCopyFailed(e);
         return [];
     }
@@ -542,7 +519,7 @@ function saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploade
     try {
         saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, report.emailSource, newestUploaded);
     } catch (e) {
-        Logger.log("FAILED Drive copy: messageId=" + report.emailSource.id + " -> " + e.message);
+        Logger.log("Drive copy failed: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id + ", error=" + e.message);
         notifyDriveCopyFailed(e);
     }
 }
@@ -577,17 +554,17 @@ function lastAttachmentOfEachReportAsOnS3(reports) {
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
     var name = attachment.getName();
     if (isUsCopyName(name)) {
-        Logger.log("NOT SAVED to Drive, the name ends in _US.csv and the Google Sheets scripts would read it unconverted: " + name);
+        Logger.log("Drive copy skipped, the Sheets scripts would read a _US.csv name as converted: file=" + name + ", messageId=" + emailSource.id);
         alertOnceAboutUsCopyName(name, emailSource);
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
     if (isCurrentDriveCopyFrom(s3Key, emailSource)) {
-        Logger.log("Drive copy skipped, the current copy already comes from this e-mail: " + name);
+        Logger.log("Drive copy skipped, the current copy already comes from this e-mail: file=" + name + ", messageId=" + emailSource.id);
         return;
     }
     if (isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
-        Logger.log("Drive copy skipped, the current copy comes from a newer e-mail: " + name);
+        Logger.log("Drive copy skipped, the current copy comes from a newer e-mail: file=" + name + ", messageId=" + emailSource.id);
         return;
     }
     recordEmailSource(s3Key, emailSource);
@@ -598,33 +575,37 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
 
     var content = attachment.getDataAsString();
     var usContent = convertSebCsvToUs(content);
-    var current = currentUsCopies[0] || null;
-    var currentUsContent = current ? contentOf(current) : null;
+    var currentUsContent = currentUsCopies.length > 0 ? contentOf(currentUsCopies[0]) : null;
     if (currentUsCopies.length === 1 && currentUsContent === usContent && isTheOnlyCurrentFileWith(currentOriginals, content)) {
-        Logger.log("Drive copy unchanged, the folder already holds this content: " + name);
-        recordDriveSource(s3Key, emailSource);
+        Logger.log("Drive copy unchanged, the folder already holds this content: file=" + name + ", messageId=" + emailSource.id);
+        recordCompletedDriveCopy(s3Key, emailSource);
         return;
     }
-    if (!current) {
+    if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
-        if (currentUsContent !== usContent) {
-            if (!isLatestUsVersionWith(family, currentUsContent)) current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
-            current.setContent(usContent);
-        }
-        if (current.getName() !== usCopyName(name)) current.setName(usCopyName(name));
-        currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
+        updateTheOneCurrentUsCopyInPlace(folder, family, currentUsCopies, currentUsContent, usCopyName(name), usContent);
     }
-
-    currentOriginals.forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
-    folder.createFile(attachment.copyBlob());
-    recordDriveSource(s3Key, emailSource);
-    Logger.log("SUCCESS: Saved " + name + " to Drive");
+    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, family.nextVersion);
+    recordCompletedDriveCopy(s3Key, emailSource);
+    Logger.log("Saved to Drive: file=" + name + ", messageId=" + emailSource.id);
 }
 
-// A Script Property per report records the e-mail its current Drive copy came
-// from, written once the copy is complete. A retry of a message whose copy failed
-// half way then skips the reports already saved instead of versioning them again.
+function updateTheOneCurrentUsCopyInPlace(folder, family, currentUsCopies, currentUsContent, usName, usContent) {
+    var current = currentUsCopies[0];
+    if (currentUsContent !== usContent) {
+        if (!isOldContentAlreadyTheLatestVersion(family, currentUsContent)) current.makeCopy(versionedDriveName(current.getName(), family.nextVersion), folder);
+        current.setContent(usContent);
+    }
+    if (current.getName() !== usName) current.setName(usName);
+    currentUsCopies.slice(1).forEach(function (f) { f.setName(versionedDriveName(f.getName(), family.nextVersion)); });
+}
+
+function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version) {
+    currentOriginals.forEach(function (f) { f.setName(versionedDriveName(f.getName(), version)); });
+    folder.createFile(attachment.copyBlob());
+}
+
 var DRIVE_SOURCE_PROPERTY_PREFIX = "drive_source:";
 
 function isCurrentDriveCopyFrom(s3Key, emailSource) {
@@ -633,7 +614,7 @@ function isCurrentDriveCopyFrom(s3Key, emailSource) {
     return Boolean(current) && current.id === emailSource.id;
 }
 
-function recordDriveSource(s3Key, emailSource) {
+function recordCompletedDriveCopy(s3Key, emailSource) {
     try {
         PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(emailSource));
     } catch (e) {
@@ -641,7 +622,7 @@ function recordDriveSource(s3Key, emailSource) {
     }
 }
 
-function isLatestUsVersionWith(family, content) {
+function isOldContentAlreadyTheLatestVersion(family, content) {
     return Boolean(family.latestUsVersion) && contentOf(family.latestUsVersion) === content;
 }
 
@@ -761,7 +742,7 @@ function alertsSentToday(stored, today) {
         var alerted = JSON.parse(stored);
         if (alerted && alerted.day === today && Array.isArray(alerted.problems)) return alerted;
     } catch (e) {
-        Logger.log("Drive alert record unreadable, starting a new one: " + e.message);
+        Logger.log("Drive alert record unreadable, starting a new one: error=" + e.message);
     }
     return { day: today, problems: [] };
 }
@@ -778,7 +759,7 @@ function notifyDriveProblemOncePerDay(problem) {
         props.setProperty(DRIVE_ALERTS_PROPERTY, JSON.stringify(alerted));
         return true;
     } catch (e) {
-        Logger.log("Drive alert failed: " + e.message + ", problem=" + problem);
+        Logger.log("Drive alert failed: error=" + e.message + ", problem=" + problem);
         return false;
     }
 }

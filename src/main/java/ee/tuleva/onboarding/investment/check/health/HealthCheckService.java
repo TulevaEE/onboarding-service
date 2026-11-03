@@ -61,7 +61,8 @@ public class HealthCheckService {
         .orElse(null);
   }
 
-  public List<HealthCheckResult> check(LocalDate navDate, List<FundPosition> positions) {
+  public List<HealthCheckResult> check(
+      LocalDate navDate, List<FundPosition> positions, int reportRows) {
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
     var executedSellsByFund = executedPriceSource.executedSellPricesByFund(navDate);
@@ -79,8 +80,7 @@ public class HealthCheckService {
               tradeListsByDate);
       results.add(result);
     }
-    for (var finding : fundInReportChecker.fundsMissingFromReport(navDate, byFund.keySet())) {
-      var result = HealthCheckResult.missingFromReport(navDate, finding);
+    for (var result : fundInReportChecker.fundsNotRead(navDate, byFund.keySet(), reportRows)) {
       saveEvents(result);
       results.add(result);
     }

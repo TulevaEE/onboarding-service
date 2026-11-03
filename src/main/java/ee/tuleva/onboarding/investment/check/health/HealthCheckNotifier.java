@@ -7,7 +7,10 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.W
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -15,10 +18,13 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -142,20 +148,16 @@ public class HealthCheckNotifier {
     message.append(fundStatuses(results, earlierImports));
     correctionSteps(provider, date, results).ifPresent(message::append);
 
-    for (var transition : active) {
-      for (var finding : transition.result.findings()) {
-        if (finding.checkType() == transition.checkType && finding.severity() != PASS) {
-          message.append(
-              "\n%s [%s] %s %s: %s"
-                  .formatted(
-                      severityEmoji(finding.severity()),
-                      finding.severity(),
-                      finding.checkType(),
-                      finding.fund(),
-                      finding.message()));
-        }
-      }
-    }
+    active.stream()
+        .flatMap(Transition::activeFindings)
+        .collect(
+            groupingBy(
+                FindingLine::of,
+                LinkedHashMap::new,
+                mapping(
+                    HealthCheckFinding::fund,
+                    toCollection(() -> EnumSet.noneOf(TulevaFund.class)))))
+        .forEach((line, funds) -> message.append(line.render(funds)));
 
     if (!cleared.isEmpty()) {
       if (!active.isEmpty()) {
@@ -211,18 +213,42 @@ public class HealthCheckNotifier {
             .formatted(date.format(BASIC_ISO_DATE)));
   }
 
-  private String severityEmoji(HealthCheckSeverity severity) {
-    return switch (severity) {
-      case FAIL -> "🛑";
-      case WARNING -> "⚠️";
-      case NOT_RUN -> "⏸";
-      case PASS -> "✅";
-    };
-  }
-
   private record Transition(
       HealthCheckResult result,
       HealthCheckType checkType,
       HealthCheckSeverity current,
-      HealthCheckSeverity previous) {}
+      HealthCheckSeverity previous) {
+
+    Stream<HealthCheckFinding> activeFindings() {
+      return result.findings().stream()
+          .filter(finding -> finding.checkType() == checkType && finding.severity() != PASS);
+    }
+  }
+
+  private record FindingLine(
+      HealthCheckSeverity severity, HealthCheckType checkType, String message) {
+
+    static FindingLine of(HealthCheckFinding finding) {
+      return new FindingLine(finding.severity(), finding.checkType(), finding.message());
+    }
+
+    String render(EnumSet<TulevaFund> funds) {
+      return "\n%s [%s] %s %s: %s"
+          .formatted(
+              emoji(),
+              severity,
+              checkType,
+              funds.stream().map(TulevaFund::toString).collect(joining(", ")),
+              message);
+    }
+
+    private String emoji() {
+      return switch (severity) {
+        case FAIL -> "🛑";
+        case WARNING -> "⚠️";
+        case NOT_RUN -> "⏸";
+        case PASS -> "✅";
+      };
+    }
+  }
 }

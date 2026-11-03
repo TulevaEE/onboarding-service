@@ -153,23 +153,70 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aReportWithNoFundRowsAtAllReportsEveryStartedNavFundMissing() {
-    var reported = importReport("2026-10-31T07:00:00Z", List.of());
+  void aReportWithNoDataRowsAsksSebToResendItInOneLineForEveryStartedNavFund() {
+    var reported = importReport("2026-10-31T07:00:00Z", List.of(), 0);
 
     assertThat(reported).isTrue();
     verify(notificationService)
         .sendMessage(
             and(
-                and(contains(missingLine(TUK75, "11:00")), contains(missingLine(TUK00, "11:00"))),
                 and(
-                    contains(missingLine(TUV100, "15:20")),
-                    contains(missingLine(TKF100, "15:20")))),
+                    contains(
+                        "Funds: TUK75 not in the report, TUK00 not in the report, TUV100 not in"
+                            + " the report, TKF100 not in the report\n"),
+                    contains(
+                        "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: SEB's"
+                            + " position report for navDate=2026-10-30 has no data rows. Ask SEB"
+                            + " to resend it before the 11:00 NAV")),
+                not(contains("TUV100: not in SEB's position report"))),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aReportWhoseRowsCouldNotBeReadSaysSoInOneLineAndClearsOnceItsFundRowsCanBeRead() {
+    var unreadReported = importReport("2026-10-31T07:00:00Z", List.of(), 412);
+
+    assertThat(unreadReported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                and(
+                    contains(
+                        "Funds: TUK75 not read from the report, TUK00 not read from the report,"
+                            + " TUV100 not read from the report, TKF100 not read from the"
+                            + " report\n"),
+                    contains(
+                        "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00, TUV100, TKF100: none of the"
+                            + " 412 rows in SEB's position report for navDate=2026-10-30 could be"
+                            + " read as fund positions: check the file and the parser")),
+                not(contains("Ask SEB"))),
+            eq(INVESTMENT));
+
+    clearInvocations(notificationService);
+    var readReported = importReport("2026-10-31T07:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+
+    assertThat(readReported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                and(
+                    contains("✅ Import cleared: SEB 2026-10-30\n"),
+                    and(
+                        contains("[CLEARED] FUND_IN_REPORT TUK75"),
+                        contains("[CLEARED] FUND_IN_REPORT TUK00"))),
+                and(
+                    contains("[CLEARED] FUND_IN_REPORT TUV100"),
+                    contains("[CLEARED] FUND_IN_REPORT TKF100"))),
             eq(INVESTMENT));
   }
 
   private boolean importReport(String at, List<FundPosition> positions) {
+    return importReport(at, positions, positions.size());
+  }
+
+  private boolean importReport(String at, List<FundPosition> positions, int reportRows) {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
-    var results = healthCheckService.check(NAV_DATE, positions);
+    var results = healthCheckService.check(NAV_DATE, positions, reportRows);
     return notifier.notify(SEB, NAV_DATE, results, Map.of());
   }
 

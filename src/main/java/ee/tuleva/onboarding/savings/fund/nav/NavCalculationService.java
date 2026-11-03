@@ -150,7 +150,7 @@ public class NavCalculationService implements NavFeeBackfill {
     return result;
   }
 
-  static LocalDate expectedPositionReportDate(
+  public static LocalDate expectedPositionReportDate(
       TulevaFund fund, LocalDate calculationDate, PublicHolidays publicHolidays) {
     return calculationDate.equals(fund.getInceptionDate())
         ? calculationDate

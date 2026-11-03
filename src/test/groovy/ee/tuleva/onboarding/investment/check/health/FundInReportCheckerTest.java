@@ -12,7 +12,6 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalendar;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Instant;
@@ -75,35 +74,67 @@ class FundInReportCheckerTest {
   }
 
   @Test
-  void aReportWithNoFundRowsAsksSebToResendItWithOneMessageForEveryStartedNavFund() {
-    var noDataRows =
-        "SEB's position report for navDate=2026-04-15 has no fund rows. Ask SEB to resend it"
-            + " before the 11:00 NAV";
+  void aReportWithNoFundRowsAsksSebToResendItBeforeEachFundsOwnNav() {
+    var beforeTheMorningNav = NO_FUND_ROWS + " before the 11:00 NAV";
+    var beforeTheAfternoonNav = NO_FUND_ROWS + " before the 15:20 NAV";
 
     assertThat(checkerAt(MORNING_OF_THE_NAV_DAY).fundsNotRead(NAV_DATE, Set.of(), Set.of()))
         .containsExactly(
-            missingFromReport(TUK75, noDataRows),
-            missingFromReport(TUK00, noDataRows),
-            missingFromReport(TUV100, noDataRows),
-            missingFromReport(TKF100, noDataRows));
+            missingFromReport(TUK75, beforeTheMorningNav),
+            missingFromReport(TUK00, beforeTheMorningNav),
+            missingFromReport(TUV100, beforeTheAfternoonNav),
+            missingFromReport(TKF100, beforeTheAfternoonNav));
   }
 
   @Test
-  void aReportWithNoFundRowsGivesTheEarliestNavOfItsDateThatIsStillToCome() {
+  void aReportWithNoFundRowsGivesNoDeadlineToAFundWhoseNavForThatDateIsPublished() {
     given(fundNavQueryService.hasPublishedNav("TUK75", NAV_DATE)).willReturn(true);
     given(fundNavQueryService.hasPublishedNav("TUK00", NAV_DATE)).willReturn(true);
     given(fundNavQueryService.hasPublishedNav("TUV100", NAV_DATE)).willReturn(false);
     given(fundNavQueryService.hasPublishedNav("TKF100", NAV_DATE)).willReturn(false);
-    var noDataRows =
-        "SEB's position report for navDate=2026-04-15 has no fund rows. Ask SEB to resend it"
-            + " before the 15:20 NAV";
+    var beforeTheAfternoonNav = NO_FUND_ROWS + " before the 15:20 NAV";
 
     assertThat(checkerAt("2026-04-16T09:00:00Z").fundsNotRead(NAV_DATE, Set.of(), Set.of()))
         .containsExactly(
-            missingFromReport(TUK75, noDataRows),
-            missingFromReport(TUK00, noDataRows),
-            missingFromReport(TUV100, noDataRows),
-            missingFromReport(TKF100, noDataRows));
+            missingFromReport(TUK75, NO_FUND_ROWS),
+            missingFromReport(TUK00, NO_FUND_ROWS),
+            missingFromReport(TUV100, beforeTheAfternoonNav),
+            missingFromReport(TKF100, beforeTheAfternoonNav));
+  }
+
+  @Test
+  void saysTheNavIsNotPublishedYetOncePastItsCutoffOnTheNavDay() {
+    var results =
+        checkerAt("2026-04-16T13:00:00Z").fundsNotRead(NAV_DATE, ALL_BUT_TUV100, ALL_BUT_TUV100);
+
+    assertThat(results)
+        .containsExactly(
+            missingFromReport(
+                TUV100,
+                "TUV100: not in SEB's position report for navDate=2026-04-15. Ask SEB to resend"
+                    + " the report with TUV100; the 15:20 NAV for this date is not published yet"));
+  }
+
+  @Test
+  void onAFundsInceptionDayItsNavForThatDateIsTheSameDaysNav() {
+    var inception = TKF100.getInceptionDate();
+    var fundsBeforeTkf100 = Set.of(TUK75, TUK00, TUV100);
+
+    var results =
+        checkerAt("2026-02-02T14:00:00Z")
+            .fundsNotRead(inception, fundsBeforeTkf100, fundsBeforeTkf100);
+
+    assertThat(results)
+        .containsExactly(
+            HealthCheckResult.missingFromReport(
+                inception,
+                new HealthCheckFinding(
+                    TKF100,
+                    FUND_IN_REPORT,
+                    WARNING,
+                    "TKF100: not in SEB's position report for navDate=2026-02-02. Ask SEB to"
+                        + " resend the report with TKF100; the 15:20 NAV for this date is not"
+                        + " published yet")));
   }
 
   @Test
@@ -154,11 +185,12 @@ class FundInReportCheckerTest {
       "rows in SEB's position report for navDate=2026-04-15 name the fund but none could be read"
           + " as fund positions: check the file and the parser";
 
+  private static final String NO_FUND_ROWS =
+      "SEB's position report for navDate=2026-04-15 has no fund rows. Ask SEB to resend it";
+
   private FundInReportChecker checkerAt(String instant) {
     return new FundInReportChecker(
-        fundNavQueryService,
-        new NavCalendar(new PublicHolidays()),
-        Clock.fixed(Instant.parse(instant), UTC));
+        fundNavQueryService, new PublicHolidays(), Clock.fixed(Instant.parse(instant), UTC));
   }
 
   private static HealthCheckResult missingFromReport(TulevaFund fund, String message) {

@@ -327,6 +327,7 @@ function processMessage(message, thread, newestUploaded) {
     var attachments = message.getAttachments();
     var handledCount = 0;
     var emailSource = emailSourceOf(message);
+    var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
 
     for (var k = 0; k < attachments.length; k++) {
         var attachment = attachments[k];
@@ -336,6 +337,11 @@ function processMessage(message, thread, newestUploaded) {
         if (result) {
             var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
             var datedReport = !result.fileConfig.keyFromCapture;
+            if (isUsCopyName(filename) && keysWithAPlainAttachment.indexOf(s3Key) !== -1) {
+                Logger.log("S3 upload skipped, the e-mail also has the report without the _US ending: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
+                handledCount++;
+                continue;
+            }
             if (datedReport && isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
                 Logger.log("S3 upload skipped, the file holds a newer e-mail's report: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
                 handledCount++;
@@ -361,6 +367,15 @@ function processMessage(message, thread, newestUploaded) {
     if (handledCount > 0) {
         incrementUploadLabel(thread);
     }
+}
+
+function keysOfAttachmentsWithoutUsEnding(source, attachments) {
+    var keys = [];
+    attachments.forEach(function (attachment) {
+        var result = getFileConfigAndDate(source, attachment.getName());
+        if (result && !isUsCopyName(attachment.getName())) keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
+    });
+    return keys;
 }
 
 // A report named by its date keeps one file per date on S3 and in Drive. A Script
@@ -547,13 +562,14 @@ function driveReportsOf(message) {
             reports.push({ attachment: attachment, fileConfig: result.fileConfig, reportDate: result.keyStem.replace(/-/g, ""), emailSource: emailSource });
         }
     });
-    return lastAttachmentOfEachReportAsOnS3(reports);
+    return everyUsNamedAttachmentAndTheLastPlainOneOfEachReportAsOnS3(reports);
 }
 
-function lastAttachmentOfEachReportAsOnS3(reports) {
+function everyUsNamedAttachmentAndTheLastPlainOneOfEachReportAsOnS3(reports) {
     return reports.filter(function (report, i) {
+        if (isUsCopyName(report.attachment.getName())) return true;
         return !reports.slice(i + 1).some(function (later) {
-            return later.fileConfig === report.fileConfig && later.reportDate === report.reportDate;
+            return !isUsCopyName(later.attachment.getName()) && later.fileConfig === report.fileConfig && later.reportDate === report.reportDate;
         });
     });
 }
@@ -640,7 +656,7 @@ function alertOnceAboutUsCopyName(name, emailSource) {
     try {
         var props = PropertiesService.getScriptProperties();
         if (props.getProperty(key)) return;
-        var delivered = notifyDriveProblemOncePerDay("`" + name + "` goes to S3 but was not saved to Drive: its name ends in _US.csv, " +
+        var delivered = notifyDriveProblemOncePerDay("`" + name + "` was not saved to Drive: its name ends in _US.csv, " +
             "which the Google Sheets scripts would read unconverted. Resend it without the _US ending");
         if (delivered) props.setProperty(key, JSON.stringify(emailSource));
     } catch (e) {

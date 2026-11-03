@@ -799,6 +799,21 @@ describe("saveThreadToDrive", () => {
     expect(slack).toHaveLength(2);
   });
 
+  test("a _US.csv attachment next to the plain report is still alerted about, and the plain report is saved", () => {
+    const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])],
+      ["S3-Uploaded-1x"],
+    );
+
+    saveThreadToDrive(thread, drive.folder);
+
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_US.csv")[0].content()).toBe("A,1\n");
+    expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US.csv")]);
+  });
+
   test("an alert Slack did not take about a _US.csv attachment is sent by the next run", () => {
     const { slack, slackResponses } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
     slackResponses.push(503);
@@ -1229,6 +1244,32 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
 
     expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("B;2\n");
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test.each([
+    ["after", ["TULEVA_pos_raport_20261020.csv", "TULEVA_pos_raport_20261020_US.csv"]],
+    ["before", ["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]],
+  ])("with a _US.csv attachment %s the plain report in one e-mail, S3 and Drive both keep the plain report", (position, order) => {
+    const drive = fakeDrive();
+    const contents = { "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "X,9\n" };
+    const thread = fakeThread([sebMessage("18f0a00000000001", order.map((name) => fakeAttachment(name, contents[name])))], []);
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("A;1\n");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["A,1\n"]);
+  });
+
+  test("a lone _US.csv attachment still goes to S3, and not to Drive", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n")])], []);
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("X,9\n");
+    expect(drive.names()).toEqual([]);
   });
 
   const s3Only = (threads, properties = {}) =>

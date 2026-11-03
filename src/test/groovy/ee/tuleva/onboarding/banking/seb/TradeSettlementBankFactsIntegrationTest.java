@@ -12,6 +12,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
@@ -43,6 +44,7 @@ class TradeSettlementBankFactsIntegrationTest {
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private NavLedgerRepository navLedgerRepository;
   @Autowired private PaymentCheckService paymentCheckService;
+  @Autowired private StoredTradeReferences storedTradeReferences;
 
   @Test
   void tkf100TradeEntryKeepsItsSebReferenceAndPriceOnTheLedgerTransaction() {
@@ -157,6 +159,33 @@ class TradeSettlementBankFactsIntegrationTest {
 
   private BigDecimal instrumentBalance(SystemAccount systemAccount, TulevaFund fund, String isin) {
     return navLedgerRepository.getSystemAccountBalance(systemAccount.getAccountName(fund, isin));
+  }
+
+  @Test
+  void storedStatementsGiveEachTradeEntrysSebReferenceUnderItsLedgerReference() {
+    persistMessage(
+        statement(
+            TKF100,
+            "TKF100-TRAD-REF",
+            "209080.26",
+            "DBIT",
+            "TRAD",
+            "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"));
+    persistMessage(
+        statement(
+            TUK75,
+            "TUK75-TRAD-REF",
+            "995377.50",
+            "DBIT",
+            "TRAD",
+            "DLA0553685/XRSM GY/19422/51.25/Buy/ Euroclear, ABNCNL2AXXX, 14448"));
+    persistMessage(statement(TKF100, "TKF100-FEE-REF", "5.00", "DBIT", "FEES", "teenustasu"));
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(storedTradeReferences.byLedgerExternalReference())
+        .containsEntry(externalReference(TKF100, "TKF100-TRAD-REF"), "DLA0553690")
+        .containsEntry(externalReference(TUK75, "TUK75-TRAD-REF"), "DLA0553685")
+        .doesNotContainKey(externalReference(TKF100, "TKF100-FEE-REF"));
   }
 
   private Map<String, Object> tradeSettlementMetadata(TulevaFund fund, String entryReference) {

@@ -50,8 +50,7 @@ public class SebFundPositionParser implements FundPositionParser {
       return List.of();
     }
 
-    LocalDate navDate =
-        asOfDate.resolveOrFallBackToReportDate(POSITIONS, reportDate, metadata, rawData);
+    LocalDate navDate = navDate(rawData, reportDate, metadata);
     LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
     if (sentDate == null) {
@@ -65,6 +64,11 @@ public class SebFundPositionParser implements FundPositionParser {
         .map(row -> parseRow(row, effectiveNavDate, effectiveReportDate))
         .flatMap(Optional::stream)
         .toList();
+  }
+
+  public LocalDate navDate(
+      List<Map<String, Object>> rawData, LocalDate reportDate, Map<String, Object> metadata) {
+    return asOfDate.resolveOrFallBackToReportDate(POSITIONS, reportDate, metadata, rawData);
   }
 
   private Optional<FundPosition> parseRow(

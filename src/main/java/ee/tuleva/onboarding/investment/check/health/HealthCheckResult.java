@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.IN_REPORT;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.MISSING_FROM_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -10,7 +13,30 @@ import java.util.List;
 import java.util.Set;
 
 public record HealthCheckResult(
-    TulevaFund fund, LocalDate checkDate, List<HealthCheckFinding> findings) {
+    TulevaFund fund,
+    LocalDate checkDate,
+    List<HealthCheckFinding> findings,
+    ReportPresence reportPresence) {
+
+  public enum ReportPresence {
+    IN_REPORT,
+    MISSING_FROM_REPORT
+  }
+
+  public HealthCheckResult(
+      TulevaFund fund, LocalDate checkDate, List<HealthCheckFinding> findings) {
+    this(fund, checkDate, findings, IN_REPORT);
+  }
+
+  static HealthCheckResult missingFromReport(LocalDate checkDate, HealthCheckFinding finding) {
+    return new HealthCheckResult(finding.fund(), checkDate, List.of(finding), MISSING_FROM_REPORT);
+  }
+
+  List<HealthCheckType> checkTypes() {
+    return reportPresence == MISSING_FROM_REPORT
+        ? List.of(FUND_IN_REPORT)
+        : List.of(HealthCheckType.values());
+  }
 
   public static Set<TulevaFund> blockedFunds(List<HealthCheckResult> results) {
     return results.stream()
@@ -32,6 +58,9 @@ public record HealthCheckResult(
   }
 
   public String importStatus() {
+    if (reportPresence == MISSING_FROM_REPORT) {
+      return "not in the report";
+    }
     if (hasFails()) {
       return "blocked";
     }

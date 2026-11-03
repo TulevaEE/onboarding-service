@@ -170,7 +170,12 @@ public class FundPositionImportJob {
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
-    var healthResults = healthCheckService.check(positions);
+    var navDate =
+        parser.navDate(
+            investmentReport.getRawData(),
+            investmentReport.getReportDate(),
+            investmentReport.getMetadata());
+    var healthResults = healthCheckService.check(navDate, positions);
     Set<TulevaFund> blockedFunds = HealthCheckResult.blockedFunds(healthResults);
     var earlierImports = earlierImportsOfBlockedFunds(healthResults);
 

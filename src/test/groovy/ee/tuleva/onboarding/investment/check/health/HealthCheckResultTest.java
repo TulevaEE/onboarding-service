@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
@@ -50,5 +52,30 @@ class HealthCheckResultTest {
     assertThat(result.hasIssues()).isFalse();
     assertThat(result.hasFails()).isFalse();
     assertThat(result.hasWarnings()).isFalse();
+  }
+
+  @Test
+  void aFundInTheReportIsCheckedByEveryCheck() {
+    var result = new HealthCheckResult(TUK75, CHECK_DATE, List.of());
+
+    assertThat(result.checkTypes()).containsExactly(HealthCheckType.values());
+    assertThat(result.importStatus()).isEqualTo("imported");
+  }
+
+  @Test
+  void aFundMissingFromTheReportIsCheckedForItsPresenceAloneAndSaysItIsNotInTheReport() {
+    var finding = new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "not in the report");
+
+    var result = HealthCheckResult.missingFromReport(CHECK_DATE, finding);
+
+    assertThat(result)
+        .isEqualTo(
+            new HealthCheckResult(
+                TUV100,
+                CHECK_DATE,
+                List.of(finding),
+                HealthCheckResult.ReportPresence.MISSING_FROM_REPORT));
+    assertThat(result.checkTypes()).containsExactly(FUND_IN_REPORT);
+    assertThat(result.importStatus()).isEqualTo("not in the report");
   }
 }

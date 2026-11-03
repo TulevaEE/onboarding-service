@@ -35,6 +35,7 @@ public class HealthCheckService {
   private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final HealthCheckEventRepository healthCheckEventRepository;
+  private final FundInReportChecker fundInReportChecker;
   private final CompletenessChecker completenessChecker;
   private final IsinMatchChecker isinMatchChecker;
   private final OutstandingUnitsChecker outstandingUnitsChecker;
@@ -60,13 +61,9 @@ public class HealthCheckService {
         .orElse(null);
   }
 
-  public List<HealthCheckResult> check(List<FundPosition> positions) {
-    if (positions.isEmpty()) {
-      return List.of();
-    }
+  public List<HealthCheckResult> check(LocalDate navDate, List<FundPosition> positions) {
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
-    var navDate = positions.getFirst().getNavDate();
     var executedSellsByFund = executedPriceSource.executedSellPricesByFund(navDate);
     Map<LocalDate, Optional<OpenTrades>> tradeListsByDate = new HashMap<>();
 
@@ -80,6 +77,11 @@ public class HealthCheckService {
               fundPositions,
               executedSellsByFund.getOrDefault(fund, Map.of()),
               tradeListsByDate);
+      results.add(result);
+    }
+    for (var finding : fundInReportChecker.fundsMissingFromReport(navDate, byFund.keySet())) {
+      var result = HealthCheckResult.missingFromReport(navDate, finding);
+      saveEvents(result);
       results.add(result);
     }
     return results;
@@ -181,25 +183,26 @@ public class HealthCheckService {
             navFlowThreshold(navDate),
             exitMarkResolver.resolve(navDate, executedSells)));
 
-    saveEvents(fund, navDate, findings);
-
-    return new HealthCheckResult(fund, navDate, findings);
+    var result = new HealthCheckResult(fund, navDate, findings);
+    saveEvents(result);
+    return result;
   }
 
   private List<FundPosition> filterByType(List<FundPosition> positions, AccountType type) {
     return positions.stream().filter(p -> p.getAccountType() == type).toList();
   }
 
-  private void saveEvents(TulevaFund fund, LocalDate checkDate, List<HealthCheckFinding> findings) {
-    for (var checkType : HealthCheckType.values()) {
-      var checkFindings = findings.stream().filter(f -> f.checkType() == checkType).toList();
+  private void saveEvents(HealthCheckResult result) {
+    for (var checkType : result.checkTypes()) {
+      var checkFindings =
+          result.findings().stream().filter(f -> f.checkType() == checkType).toList();
       var severity = maxSeverity(checkFindings);
       var issuesFound = severity != PASS;
 
       var event =
           HealthCheckEvent.builder()
-              .fund(fund)
-              .checkDate(checkDate)
+              .fund(result.fund())
+              .checkDate(result.checkDate())
               .checkType(checkType)
               .issuesFound(issuesFound)
               .severity(severity)

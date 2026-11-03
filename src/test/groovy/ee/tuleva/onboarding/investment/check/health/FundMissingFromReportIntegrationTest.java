@@ -21,6 +21,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -28,6 +29,11 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
 import ee.tuleva.onboarding.investment.transaction.OpenTradeSource;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalendar;
+import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
+import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -38,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +57,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   HealthCheckService.class,
   FundInReportChecker.class,
   CompletenessChecker.class,
-  HealthCheckNotifier.class
+  HealthCheckNotifier.class,
+  FundNavQueryService.class,
+  NavCalendar.class,
+  PublicHolidays.class,
+  ClockConfig.class
 })
 class FundMissingFromReportIntegrationTest {
 
@@ -58,6 +69,7 @@ class FundMissingFromReportIntegrationTest {
 
   @Autowired HealthCheckService healthCheckService;
   @Autowired HealthCheckNotifier notifier;
+  @Autowired NavReportRepository navReportRepository;
 
   @MockitoBean OperationsNotificationService notificationService;
   @MockitoBean ReceivablesChecker receivablesChecker;
@@ -155,6 +167,32 @@ class FundMissingFromReportIntegrationTest {
     verify(notificationService)
         .sendMessage(
             and(contains("\n\n[CLEARED] FUND_IN_REPORT TUV100"), not(contains("COMPLETENESS"))),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aFundMissingFromAReSentReportAfterItsNavIsPublishedIsNotGivenANavDeadline() {
+    navReportRepository.save(
+        NavReportRow.builder()
+            .navDate(NAV_DATE)
+            .fundCode("TUV100")
+            .accountType("NAV")
+            .accountName("Net Asset Value")
+            .calculationId(UUID.randomUUID())
+            .publishedAt(Instant.parse("2026-11-02T13:21:00Z"))
+            .build());
+    importReport("2026-11-02T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+
+    var reported = importReport("2026-11-02T15:00:00Z", complete(TUK75, TUK00, TKF100));
+
+    assertThat(reported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                contains(
+                    "\n⚠️ [WARNING] FUND_IN_REPORT TUV100: TUV100: not in SEB's position report"
+                        + " for navDate=2026-10-30. Ask SEB to resend the report with TUV100"),
+                not(contains("before the"))),
             eq(INVESTMENT));
   }
 

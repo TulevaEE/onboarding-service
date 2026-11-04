@@ -37,7 +37,7 @@ public record TransactionCommandResponse(
         command.getBatchId(),
         command.getCash(),
         command.getCashComment(),
-        command.getExcludeIsins().stream().sorted().toList(),
+        command.sortedExcludeIsins(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

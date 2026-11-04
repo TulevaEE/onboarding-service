@@ -68,17 +68,7 @@ public class TradeCalculationEngine {
                             position.marketValue().toPlainString()));
               }
             });
-    input
-        .modelWeights()
-        .forEach(
-            weight -> {
-              if (weight.weight().signum() < 0) {
-                throw new IllegalArgumentException(
-                    "Model weight cannot be negative: fund=%s, isin=%s, weight=%s"
-                        .formatted(
-                            input.fund().name(), weight.isin(), weight.weight().toPlainString()));
-              }
-            });
+    input.requireNoNegativeModelWeights();
     if (input.grossPortfolioValue().signum() < 0) {
       throw new IllegalArgumentException(
           "Gross portfolio value cannot be negative: fund=%s, grossPortfolioValue=%s"

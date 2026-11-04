@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Named.named;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -11,13 +12,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.net.UnknownHostException;
 import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.UnresolvedAddressException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -38,7 +42,7 @@ class WordPressMediaClientTest {
   void setUp() {
     var builder = RestClient.builder().baseUrl("https://tuleva.ee/wp-json/wp/v2");
     server = MockRestServiceServer.bindTo(builder).build();
-    var configuration = new WordPressConfiguration();
+    var configuration = new WordPressConfiguration(Duration.ofMillis(1));
     client =
         new WordPressMediaClient(
             builder.build(),
@@ -145,11 +149,23 @@ class WordPressMediaClientTest {
     server.verify();
   }
 
-  static Stream<IOException> failuresBeforeTheRequestReachedWordPress() {
+  static Stream<Named<IOException>> failuresBeforeTheRequestReachedWordPress() {
     return Stream.of(
-        new ConnectException("Connection refused"),
-        new HttpConnectTimeoutException("HTTP connect timed out"),
-        new UnknownHostException("tuleva.ee"));
+        named("connection refused", connectException(new ClosedChannelException())),
+        named("host not resolved", connectException(new UnresolvedAddressException())),
+        named("connect timed out", connectTimeout()));
+  }
+
+  private static IOException connectException(Throwable cause) {
+    var refused = new ConnectException();
+    refused.initCause(cause);
+    return refused;
+  }
+
+  private static IOException connectTimeout() {
+    var timedOut = new HttpConnectTimeoutException("HTTP connect timed out");
+    timedOut.initCause(new ConnectException("HTTP connect timed out"));
+    return timedOut;
   }
 
   @Test

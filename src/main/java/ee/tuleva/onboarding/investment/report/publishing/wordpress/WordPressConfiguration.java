@@ -5,9 +5,9 @@ import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 
 import java.net.ConnectException;
-import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpConnectTimeoutException;
+import java.time.Duration;
 import java.util.Base64;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,6 +26,18 @@ import org.springframework.web.client.RestClient;
 @Configuration
 @EnableConfigurationProperties(WordPressProperties.class)
 class WordPressConfiguration {
+
+  private static final Duration FIRST_RETRY_DELAY = ofMillis(500);
+
+  private final Duration firstRetryDelay;
+
+  WordPressConfiguration() {
+    this(FIRST_RETRY_DELAY);
+  }
+
+  WordPressConfiguration(Duration firstRetryDelay) {
+    this.firstRetryDelay = firstRetryDelay;
+  }
 
   @Bean
   @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
@@ -89,15 +101,11 @@ class WordPressConfiguration {
 
   RetryTemplate retryingRequestsThatNeverReachedWordPress() {
     return retrying(
-        RetryPolicy.builder()
-            .includes(
-                ConnectException.class,
-                HttpConnectTimeoutException.class,
-                UnknownHostException.class));
+        RetryPolicy.builder().includes(ConnectException.class, HttpConnectTimeoutException.class));
   }
 
-  private static RetryTemplate retrying(RetryPolicy.Builder failures) {
+  private RetryTemplate retrying(RetryPolicy.Builder failures) {
     return new RetryTemplate(
-        failures.maxRetries(2).delay(ofMillis(500)).multiplier(2).maxDelay(ofSeconds(2)).build());
+        failures.maxRetries(2).delay(firstRetryDelay).multiplier(2).maxDelay(ofSeconds(2)).build());
   }
 }

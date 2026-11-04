@@ -19,7 +19,6 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Order(SebPriceVsNavCheckListener.LISTENER_ORDER)
 @RequiredArgsConstructor
 class SebPriceVsNavCheckListener {
 
@@ -32,6 +31,7 @@ class SebPriceVsNavCheckListener {
   private final SebPriceVsNavCheckService checkService;
 
   @EventListener
+  @Order(LISTENER_ORDER)
   public void onReportImportCompleted(ReportImportCompleted event) {
     if (event.provider() != SEB || event.reportType() != PENDING_TRANSACTIONS) {
       return;

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Order(SebPendingTransactionReconciliationListener.LISTENER_ORDER)
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationListener {
 
@@ -25,6 +24,7 @@ class SebPendingTransactionReconciliationListener {
   private final SebPendingTransactionReconciliationService reconciliationService;
 
   @EventListener
+  @Order(LISTENER_ORDER)
   public void onReportImportCompleted(ReportImportCompleted event) {
     if (event.provider() != SEB || event.reportType() != PENDING_TRANSACTIONS) {
       return;

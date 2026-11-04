@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
+import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
@@ -31,6 +32,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +80,7 @@ class KybScreeningIntegrationTest {
 
     var results = kybScreeningService.screen(data, SUBMISSION);
 
-    assertThat(results).hasSize(11).allMatch(KybCheck::success);
+    assertThat(results).hasSize(12).allMatch(KybCheck::success);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -96,6 +98,7 @@ class KybScreeningIntegrationTest {
             KYB_COMPANY_LEGAL_FORM,
             KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
+            KYB_COMPANY_PARTIES,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }
@@ -432,6 +435,126 @@ class KybScreeningIntegrationTest {
             .orElseThrow();
     assertThat(dataChanged.success()).isTrue();
     assertThat((List<Map<String, Object>>) dataChanged.metadata().get("changes")).isEmpty();
+  }
+
+  @Test
+  void rescreeningUnchangedPartiesRecordsThemAndFlagsNoCompanyPartiesChange() {
+    var boardMemberOwner = boardMemberOwner(PERSONAL_CODE, 60.0).build();
+    var legalEntityShareholder =
+        shareholderOwner("18888888", 40.0).naturalPerson(false).beneficialOwner(false).build();
+    var unidentifiedBoardMember =
+        kybPerson().boardMember(true).kycStatus(KybKycStatus.COMPLETED).build();
+    var data = companyWith(boardMemberOwner, legalEntityShareholder, unidentifiedBoardMember);
+
+    screenOnDay(0, data, SUBMISSION);
+    var dataChanged = dataChangedOf(screenOnDay(1, data, RESCREENING));
+
+    assertThat(dataChanged.success()).isTrue();
+    assertThat(changesOf(dataChanged)).isEmpty();
+    assertThat(latestCompanyPartiesMetadata())
+        .isEqualTo(
+            Map.of(
+                "parties",
+                List.of(
+                    Map.of(
+                        "code",
+                        "18888888",
+                        "naturalPerson",
+                        false,
+                        "roles",
+                        List.of("SHAREHOLDER")),
+                    Map.of(
+                        "code",
+                        PERSONAL_CODE.value(),
+                        "naturalPerson",
+                        true,
+                        "roles",
+                        List.of("BOARD_MEMBER", "SHAREHOLDER", "BENEFICIAL_OWNER")),
+                    Map.of("naturalPerson", true, "roles", List.of("BOARD_MEMBER")))));
+  }
+
+  @Test
+  void replacingABoardMemberFlagsCompanyPartiesChangedUntilTheNewBoardIsRescreened() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    var newBoard = companyWith(owner, boardMemberOnly("48888888888").build());
+    screenOnDay(0, companyWith(owner, boardMemberOnly("38888888888").build()), SUBMISSION);
+
+    var afterReplacement = dataChangedOf(screenOnDay(1, newBoard, RESCREENING));
+    var afterRescreening = dataChangedOf(screenOnDay(2, newBoard, RESCREENING));
+
+    assertThat(changesOf(afterReplacement)).contains(COMPANY_PARTIES_METADATA_CHANGED);
+    assertThat(changesOf(afterRescreening)).doesNotContain(COMPANY_PARTIES_METADATA_CHANGED);
+  }
+
+  @Test
+  void aPartyGainingTheBeneficialOwnerRoleFlagsCompanyPartiesChanged() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    screenOnDay(0, companyWith(owner, boardMemberOnly("38888888888").build()), SUBMISSION);
+
+    var dataChanged =
+        dataChangedOf(
+            screenOnDay(
+                1,
+                companyWith(owner, boardMemberOnly("38888888888").beneficialOwner(true).build()),
+                RESCREENING));
+
+    assertThat(changesOf(dataChanged)).contains(COMPANY_PARTIES_METADATA_CHANGED);
+  }
+
+  @Test
+  void theFirstScreeningAfterAScreeningWithoutCompanyPartiesFlagsNoCompanyPartiesChange() {
+    var data =
+        companyWith(
+            boardMemberOwner(PERSONAL_CODE, 100.0).build(), boardMemberOnly("38888888888").build());
+    screenOnDay(0, data, SUBMISSION);
+    amlCheckRepository.findAll().stream()
+        .filter(check -> check.getType() == KYB_COMPANY_PARTIES)
+        .forEach(amlCheckRepository::delete);
+
+    var dataChanged = dataChangedOf(screenOnDay(1, data, RESCREENING));
+
+    assertThat(dataChanged.success()).isTrue();
+    assertThat(changesOf(dataChanged)).isEmpty();
+  }
+
+  private static final Map<String, Object> COMPANY_PARTIES_METADATA_CHANGED =
+      Map.of(
+          "check",
+          "COMPANY_PARTIES",
+          "previousSuccess",
+          true,
+          "currentSuccess",
+          true,
+          "metadataChanged",
+          true);
+
+  private List<KybCheck> screenOnDay(
+      final int day, final KybCompanyData data, final KybScreeningTrigger trigger) {
+    ClockHolder.setClock(Clock.fixed(NOW.plus(day, DAYS), ZoneOffset.UTC));
+    var results = kybScreeningService.screen(data, trigger);
+    entityManager.flush();
+    entityManager.clear();
+    return results;
+  }
+
+  private static KybCheck dataChangedOf(final List<KybCheck> results) {
+    return results.stream()
+        .filter(check -> check.type() == KybCheckType.DATA_CHANGED)
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Map<String, Object>> changesOf(final KybCheck dataChanged) {
+    return (List<Map<String, Object>>) dataChanged.metadata().get("changes");
+  }
+
+  private Map<String, Object> latestCompanyPartiesMetadata() {
+    return amlCheckRepository.findAll().stream()
+        .filter(check -> check.getType() == KYB_COMPANY_PARTIES)
+        .max(Comparator.comparing(AmlCheck::getCreatedTime))
+        .orElseThrow()
+        .getMetadata();
   }
 
   private KybCompanyData companyFor(

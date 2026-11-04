@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.then;
 import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +38,7 @@ class SettlementFromBankHistoryJobTest {
   void run_settlesTheWholeHistoryWithTheReferencesOfOlderBookingsAndPostsTheCounts() {
     given(storedTradeReferences.byLedgerExternalReference()).willReturn(OLDER_REFERENCES);
     given(settlementFromBankService.settleOrdersBookedSince(EPOCH, OLDER_REFERENCES))
-        .willReturn(new BankSettlementRun(12, 192, 6, 4, 0));
+        .willReturn(Optional.of(new BankSettlementRun(12, 192, 6, 4, 0)));
 
     job().run();
 
@@ -58,7 +59,7 @@ class SettlementFromBankHistoryJobTest {
   void run_withOrdersThatFailed_warnsAndCountsThem() {
     given(storedTradeReferences.byLedgerExternalReference()).willReturn(OLDER_REFERENCES);
     given(settlementFromBankService.settleOrdersBookedSince(EPOCH, OLDER_REFERENCES))
-        .willReturn(new BankSettlementRun(1, 0, 0, 1, 1));
+        .willReturn(Optional.of(new BankSettlementRun(1, 0, 0, 1, 1)));
 
     job().run();
 
@@ -73,6 +74,27 @@ class SettlementFromBankHistoryJobTest {
                 + " public.investment_transaction_order o LEFT JOIN public.transaction_settlement"
                 + " s ON s.order_id = o.id WHERE o.order_status IN ('EXECUTED', 'SETTLED') AND"
                 + " s.source IS DISTINCT FROM 'BANK_STATEMENT'",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void run_withoutAUsableSebPendingReport_saysSoAndChangesNothing() {
+    given(storedTradeReferences.byLedgerExternalReference()).willReturn(OLDER_REFERENCES);
+    given(settlementFromBankService.settleOrdersBookedSince(EPOCH, OLDER_REFERENCES))
+        .willReturn(Optional.empty());
+
+    job().run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "Registri tellimused ei saanud panga kuupäeva: viimane SEB ootel-tehingute raport on"
+                + " tühi, vigaste ridadega või võib olla kärbitud (vt logi).\n"
+                + "Midagi ei muudetud.\n"
+                + "Käivita uuesti pärast järgmist raportit: INSERT INTO"
+                + " public.investment_job_trigger (job_name) VALUES"
+                + " ('SettlementFromBankHistoryJob')",
             INVESTMENT,
             WARNING);
   }

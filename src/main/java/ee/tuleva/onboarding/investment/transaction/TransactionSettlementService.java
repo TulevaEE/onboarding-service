@@ -69,15 +69,22 @@ public class TransactionSettlementService {
   }
 
   @Transactional
-  public Optional<PreviousSettlement> settleFromTheBank(
-      TransactionOrder order, LocalDate bookingDate) {
-    TransactionSettlement settlement =
-        settlementRepository
-            .findByOrderId(order.getId())
-            .orElseGet(() -> recordSettlement(order, bookingDate, BANK_STATEMENT));
-    if (settlement.getSource() == BANK_STATEMENT) {
-      return Optional.empty();
+  public BankDating settleFromTheBank(TransactionOrder order, LocalDate bookingDate) {
+    Optional<TransactionSettlement> existing = settlementRepository.findByOrderId(order.getId());
+    if (existing.isEmpty()) {
+      TransactionSettlement recorded = recordSettlement(order, bookingDate, BANK_STATEMENT);
+      return recorded.getSource() == BANK_STATEMENT
+          ? new BankDating.Settled()
+          : redate(order, recorded, bookingDate);
     }
+    if (existing.get().getSource() == BANK_STATEMENT) {
+      return new BankDating.AlreadyByTheBank();
+    }
+    return redate(order, existing.get(), bookingDate);
+  }
+
+  private BankDating redate(
+      TransactionOrder order, TransactionSettlement settlement, LocalDate bookingDate) {
     PreviousSettlement previous =
         new PreviousSettlement(settlement.getReportDate(), settlement.getSource());
     settlement.setReportDate(bookingDate);
@@ -90,6 +97,6 @@ public class TransactionSettlementService {
         bookingDate,
         previous.reportDate(),
         previous.source());
-    return Optional.of(previous);
+    return new BankDating.Redated(previous);
   }
 }

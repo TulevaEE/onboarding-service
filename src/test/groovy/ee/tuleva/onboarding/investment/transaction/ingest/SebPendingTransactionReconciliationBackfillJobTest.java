@@ -470,6 +470,44 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             WARNING);
   }
 
+  @Test
+  void aReplayStopsBeforeTheJobTriggerPollersLockCanLapseAndSaysHowToResume() {
+    MutableClock evening = new MutableClock(at("2026-05-18T22:00"));
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    willAnswer(
+            invocation -> {
+              evening.tick(45, MINUTES);
+              return SettlementCheck.CHECKED;
+            })
+        .given(reconciliationService)
+        .replay(eq(day27), any());
+    SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
+
+    assertThatThrownBy(
+            () -> eveningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(reconciliationService, never()).replay(eq(day10), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
+            see on kestnud 45 minutit ja käivitajate lukk kehtib 60 minutit.
+            Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hinnaerinevusi: 0).
+            Jätka raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            WARNING);
+  }
+
   private SebPendingTransactionReconciliationBackfillJob jobLockedBy(
       ExtensibleLockProvider provider) {
     return jobAt(clock, provider);
@@ -477,15 +515,19 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
   private SebPendingTransactionReconciliationBackfillJob jobAt(
       Clock clock, ExtensibleLockProvider provider) {
+    SebReplayWindow window = new SebReplayWindow("07:45", "18:15");
     return new SebPendingTransactionReconciliationBackfillJob(
         clock,
-        reportService,
-        reconciliationService,
-        executionRepository,
-        settlementRepository,
         notificationService,
         new SebReconciliationLock(provider, clock),
-        new SebReplayWindow("07:45", "18:15"));
+        window,
+        new SebPendingReportReplayer(
+            clock,
+            reportService,
+            reconciliationService,
+            executionRepository,
+            settlementRepository,
+            window));
   }
 
   private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {

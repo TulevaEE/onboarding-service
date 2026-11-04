@@ -151,7 +151,11 @@ final class SebPendingReplayMessages {
         "raportil %s (põhjus on logis).\n", "Paranda põhjus ja jätka raportist %s:\n", ERROR),
     IMPORT_WINDOW_OPENS(
         "enne raportit %s, sest algas SEB raportite impordi aeg.\n",
-        "Jätka õhtul raportist %s:\n", WARNING);
+        "Jätka õhtul raportist %s:\n", WARNING),
+    TIME_BUDGET_SPENT(
+        "enne raportit %s, sest see on kestnud 45 minutit ja käivitajate lukk kehtib 60"
+            + " minutit.\n",
+        "Jätka raportist %s:\n", WARNING);
 
     private final String where;
     private final String advice;

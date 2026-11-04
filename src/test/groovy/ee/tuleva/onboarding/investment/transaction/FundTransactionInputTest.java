@@ -110,6 +110,18 @@ class FundTransactionInputTest {
   }
 
   @Test
+  void excluding_anInstrumentWithANegativeModelWeight_isRejectedLikeTheEngineRejectsIt() {
+    var input =
+        input()
+            .positions(List.of(HOLDING_A, HOLDING_B, HOLDING_C))
+            .modelWeights(modelWeights("1.10", "0.00", "-0.10"))
+            .build();
+
+    assertThatThrownBy(() -> input.excluding(Set.of("IE00C")))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void excluding_everyInstrumentWithAModelWeight_isRejected() {
     var input =
         input()

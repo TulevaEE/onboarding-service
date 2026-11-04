@@ -27,7 +27,6 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.MutableClock;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,7 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,9 +64,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
       Käivita uuesti, kui see on lõppenud.""";
   private static final String SCHEDULED_RUNS_MESSAGE =
       """
-      SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB raportite import või \
-      igapäevane sobitamine käib või algab peagi.
-      Käivita uuesti õhtul, kui SEB raporteid ei impordita.""";
+      SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest kell 07:45–18:15 \
+      imporditakse SEB raporteid ja käib igapäevane sobitamine.
+      Käivita uuesti pärast kella 18:15.""";
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
@@ -352,15 +351,6 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
-  void aReplayHoldsTheLockUntilFiveMinutesBeforeTheNextImportOrLiveRun() {
-    givenStoredReports(Map.of());
-
-    job.onSebPendingTransactionReconciliationBackfillRequested();
-
-    assertThat(lockProvider.lockAtMostFor()).containsExactly(Duration.ofHours(7).plusMinutes(55));
-  }
-
-  @Test
   void aReplayIsRefusedWhileSebReportsAreImportedAndFailsItsTrigger() {
     Clock businessHours = Clock.fixed(at("2026-05-18T10:00"), TALLINN);
     SebPendingTransactionReconciliationBackfillJob duringImports =
@@ -375,7 +365,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   }
 
   @Test
-  void aReplayStopsCleanlyBeforeItsLockIsFreedAndSaysToRunItAgainInTheEvening() {
+  void aReplayStopsBeforeTheNextReportOnceTheImportWindowOpens() {
     MutableClock morning = new MutableClock(at("2026-05-18T07:40"));
     InvestmentReport day27 = report(TODAY.minusDays(27));
     InvestmentReport day10 = report(TODAY.minusDays(10));
@@ -397,7 +387,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .sendMessage(
             """
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
-            peagi algab SEB raportite import või igapäevane sobitamine.
+            algas SEB raportite impordi aeg.
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
             hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
             hinnaerinevusi: 0).
@@ -407,11 +397,13 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             WARNING);
   }
 
-  private SebPendingTransactionReconciliationBackfillJob jobLockedBy(LockProvider provider) {
+  private SebPendingTransactionReconciliationBackfillJob jobLockedBy(
+      ExtensibleLockProvider provider) {
     return jobAt(clock, provider);
   }
 
-  private SebPendingTransactionReconciliationBackfillJob jobAt(Clock clock, LockProvider provider) {
+  private SebPendingTransactionReconciliationBackfillJob jobAt(
+      Clock clock, ExtensibleLockProvider provider) {
     return new SebPendingTransactionReconciliationBackfillJob(
         clock,
         reportService,
@@ -419,7 +411,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         executionRepository,
         settlementRepository,
         notificationService,
-        new SebReconciliationLock(provider, clock));
+        new SebReconciliationLock(provider, clock),
+        new SebReplayWindow("07:45", "18:15"));
   }
 
   private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {

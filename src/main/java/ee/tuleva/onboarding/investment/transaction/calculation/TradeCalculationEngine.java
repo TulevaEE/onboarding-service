@@ -44,6 +44,7 @@ public class TradeCalculationEngine {
         };
 
     List<TradeCalculation> trades = applyLimits(input, rawTrades);
+    ExclusionFunding.requireFunded(input, mode, trades);
     return new FundCalculationResult(
         input.fund(),
         mode,

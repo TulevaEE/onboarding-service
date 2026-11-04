@@ -64,12 +64,13 @@ public class TransactionSettlementService {
   @Transactional
   public Optional<PreviousSettlement> settleFromTheBank(
       TransactionOrder order, LocalDate bookingDate) {
-    Optional<TransactionSettlement> existing = settlementRepository.findByOrderId(order.getId());
-    if (existing.isEmpty()) {
-      recordSettlement(order, bookingDate, BANK_STATEMENT);
+    TransactionSettlement settlement =
+        settlementRepository
+            .findByOrderId(order.getId())
+            .orElseGet(() -> recordSettlement(order, bookingDate, BANK_STATEMENT));
+    if (settlement.getSource() == BANK_STATEMENT) {
       return Optional.empty();
     }
-    TransactionSettlement settlement = existing.get();
     PreviousSettlement previous =
         new PreviousSettlement(settlement.getReportDate(), settlement.getSource());
     settlement.setReportDate(bookingDate);

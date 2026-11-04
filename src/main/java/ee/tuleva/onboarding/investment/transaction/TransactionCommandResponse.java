@@ -5,7 +5,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -20,7 +19,7 @@ public record TransactionCommandResponse(
     @Nullable Long batchId,
     @Nullable BigDecimal cash,
     @Nullable String cashComment,
-    Set<String> excludeIsins,
+    List<String> excludeIsins,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -38,7 +37,7 @@ public record TransactionCommandResponse(
         command.getBatchId(),
         command.getCash(),
         command.getCashComment(),
-        command.getExcludeIsins(),
+        command.getExcludeIsins().stream().sorted().toList(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

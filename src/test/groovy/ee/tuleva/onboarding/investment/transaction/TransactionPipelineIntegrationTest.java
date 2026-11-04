@@ -422,6 +422,33 @@ class TransactionPipelineIntegrationTest {
     assertThat(result).isNull();
     assertThat(command.getStatus()).isEqualTo(FAILED);
     assertThat(command.getBatchId()).isNull();
+    assertThat(auditEventRepository.findAll())
+        .filteredOn(event -> String.valueOf(command.getId()).equals(event.getDedupKey()))
+        .singleElement()
+        .satisfies(
+            event -> {
+              assertThat(event.getEventType()).isEqualTo("CALCULATION_FAILED");
+              assertThat(event.getPayload())
+                  .containsKey("input")
+                  .containsEntry("excludeIsins", List.of("IE0000000000"));
+            });
+  }
+
+  @Test
+  void aCommandRowWrittenWithoutTheJsonColumns_loadsWithNoAdjustmentsAndNoExclusions() {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO investment_transaction_command (fund_code, mode, as_of_date, status)"
+                + " VALUES ('TKF100', 'BUY', DATE '2026-02-10', 'PENDING')")
+        .executeUpdate();
+
+    assertThat(commandRepository.findByStatus(CommandStatus.PENDING))
+        .singleElement()
+        .satisfies(
+            command -> {
+              assertThat(command.getManualAdjustments()).isEmpty();
+              assertThat(command.getExcludeIsins()).isEmpty();
+            });
   }
 
   @Test

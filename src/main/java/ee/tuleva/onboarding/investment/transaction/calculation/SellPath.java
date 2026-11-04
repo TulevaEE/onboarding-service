@@ -42,6 +42,7 @@ final class SellPath {
     }
 
     BigDecimal targetSellAmount = input.freeCash().abs();
+    requireExclusionLeavesEnoughToSell(input, targetSellAmount);
 
     List<BigDecimal> standardScores =
         input.positions().stream()
@@ -125,6 +126,7 @@ final class SellPath {
     }
 
     BigDecimal targetAmount = input.freeCash().abs();
+    requireExclusionLeavesEnoughToSell(input, targetAmount);
     List<BigDecimal> targetValues = normalizedTargetValues(input, netInvestable, weightMap);
     BigDecimal[] results = new BigDecimal[size];
     Arrays.fill(results, ZERO);
@@ -143,6 +145,25 @@ final class SellPath {
     }
 
     return finalizeSells(input, results, targetValues, targetAmount);
+  }
+
+  private static void requireExclusionLeavesEnoughToSell(
+      FundTransactionInput input, BigDecimal targetSellAmount) {
+    if (input.excludedPositions().isEmpty()) {
+      return;
+    }
+    BigDecimal sellable =
+        input.positions().stream().map(PositionSnapshot::marketValue).reduce(ZERO, BigDecimal::add);
+    if (targetSellAmount.subtract(sellable).compareTo(MIN_MEANINGFUL_AMOUNT) > 0) {
+      throw new IllegalStateException(
+          ("Excluded instruments leave too little to sell: fund=%s, targetSellAmount=%s,"
+                  + " sellableMarketValue=%s, excludedMarketValue=%s")
+              .formatted(
+                  input.fund().name(),
+                  targetSellAmount.toPlainString(),
+                  sellable.toPlainString(),
+                  input.excludedMarketValue().toPlainString()));
+    }
   }
 
   static List<BigDecimal> normalizedTargetValues(

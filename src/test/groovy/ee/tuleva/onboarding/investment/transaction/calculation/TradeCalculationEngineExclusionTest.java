@@ -9,6 +9,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
 import ee.tuleva.onboarding.investment.transaction.FundCalculationResult;
@@ -99,6 +100,41 @@ class TradeCalculationEngineExclusionTest {
 
     assertThat(tradeAmounts(withExclusion)).doesNotContainKey("IE00C");
     assertThat(netTraded(withExclusion)).isEqualByComparingTo("-100000");
+  }
+
+  @Test
+  void sellFast_withAnExclusionThatLeavesTooLittleToSell_isRejected() {
+    var input = fund("600000", "300000", "100000", "0", new BigDecimal("500000"));
+
+    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00A")), SELL_FAST))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void sell_withAnExclusionThatLeavesTooLittleToSell_isRejected() {
+    var input = fund("600000", "300000", "100000", "0", new BigDecimal("500000"));
+
+    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00A")), SELL))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void anExcludedHoldingWithANegativeMarketValue_isRejected() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("600000"))))
+            .excludedPositions(List.of(new PositionSnapshot("IE00C", new BigDecimal("-1"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("600000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, REBALANCE))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   private static FundTransactionInput fund(

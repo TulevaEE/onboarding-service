@@ -29,6 +29,14 @@ class SebReplayWindowTest {
   }
 
   @Test
+  void aReplayStopsFortyFiveMinutesInBeforeTheJobTriggerPollersLockCanLapse() {
+    Instant startedAt = tallinn("2026-05-18T22:00");
+
+    assertThat(SebReplayWindow.stopByForAReplayStartedAt(startedAt))
+        .isEqualTo(tallinn("2026-05-18T22:45"));
+  }
+
+  @Test
   void aClosedWindowThatDoesNotEndAfterItStartsIsRefusedAtStartup() {
     assertThatThrownBy(() -> new SebReplayWindow("18:15", "07:45"))
         .isInstanceOf(IllegalStateException.class);

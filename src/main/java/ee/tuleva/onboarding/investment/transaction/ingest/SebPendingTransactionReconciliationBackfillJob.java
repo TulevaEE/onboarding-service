@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
-import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.LOCK_HELD_MESSAGE;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.completedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.noReportsMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.resumeTrigger;
-import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.skippedCheckReason;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedOutsideAReportMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.windowClosedMessage;
@@ -16,20 +13,12 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
-import ee.tuleva.onboarding.investment.report.InvestmentReport;
-import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
-import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.ReplaySummary;
-import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.SkippedCheck;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.Stop;
-import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.StopReason;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,13 +34,10 @@ class SebPendingTransactionReconciliationBackfillJob {
 
   private static final int BACKFILL_DAYS = 365;
   private final Clock clock;
-  private final InvestmentReportService reportService;
-  private final SebPendingTransactionReconciliationService reconciliationService;
-  private final TransactionExecutionRepository executionRepository;
-  private final TransactionSettlementRepository settlementRepository;
   private final OperationsNotificationService notificationService;
   private final SebReconciliationLock reconciliationLock;
   private final SebReplayWindow replayWindow;
+  private final SebPendingReportReplayer replayer;
 
   @EventListener
   void onSebPendingTransactionReconciliationBackfillRequested(
@@ -80,7 +66,7 @@ class SebPendingTransactionReconciliationBackfillJob {
   private void run(LocalDate firstReportDate) {
     ReplaySummary summary;
     try {
-      summary = replayOldestFirst(firstReportDate);
+      summary = replayer.replayOldestFirst(firstReportDate);
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: from={}", firstReportDate, e);
@@ -100,53 +86,6 @@ class SebPendingTransactionReconciliationBackfillJob {
             + stop.reason()
             + ", resumeWith="
             + resumeTrigger(stop.reportDate()));
-  }
-
-  private ReplaySummary replayOldestFirst(LocalDate firstReportDate) {
-    long executionsBefore = executionRepository.count();
-    long settlementsBefore = settlementRepository.count();
-    List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
-    List<SkippedCheck> skippedChecks = new ArrayList<>();
-    List<LocalDate> replayed = new ArrayList<>();
-    Optional<Stop> stop = Optional.empty();
-    for (LocalDate date : firstReportDate.datesUntil(LocalDate.now(clock).plusDays(1)).toList()) {
-      List<ReconciliationAlert> reportAlerts = new ArrayList<>();
-      SettlementCheck check;
-      try {
-        Optional<InvestmentReport> report =
-            reportService.getReport(SEB, PENDING_TRANSACTIONS, date);
-        if (report.isEmpty()) {
-          continue;
-        }
-        if (!replayWindow.isOpenAt(clock.instant())) {
-          log.warn(
-              "SEB pending transactions replay stopped as the import window opens: reportDate={},"
-                  + " closedHours={}",
-              date,
-              replayWindow.closedHours());
-          stop = Optional.of(new Stop(date, StopReason.IMPORT_WINDOW_OPENS));
-          break;
-        }
-        check = reconciliationService.replay(report.get(), reportAlerts::add);
-      } catch (RuntimeException e) {
-        log.error("SEB pending transactions replay stopped: reportDate={}", date, e);
-        stop = Optional.of(new Stop(date, StopReason.REPORT_FAILED));
-        break;
-      }
-      reportAlerts.forEach(
-          alert -> log.info("SEB pending transactions replay held back alert: alert={}", alert));
-      heldBackAlerts.addAll(reportAlerts);
-      skippedCheckReason(check)
-          .ifPresent(reason -> skippedChecks.add(new SkippedCheck(date, reason)));
-      replayed.add(date);
-    }
-    return new ReplaySummary(
-        List.copyOf(replayed),
-        executionRepository.count() - executionsBefore,
-        settlementRepository.count() - settlementsBefore,
-        List.copyOf(heldBackAlerts),
-        List.copyOf(skippedChecks),
-        stop);
   }
 
   private void announce(ReplaySummary summary, LocalDate firstReportDate) {

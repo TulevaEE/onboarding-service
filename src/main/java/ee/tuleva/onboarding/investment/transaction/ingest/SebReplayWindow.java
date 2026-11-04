@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 class SebReplayWindow {
 
   private static final ZoneId SCHEDULE_ZONE = ZoneId.of(TIMEZONE);
+  private static final Duration STOPS_BEFORE_THE_JOB_TRIGGER_POLLERS_60_MINUTE_LOCK_LAPSES =
+      Duration.ofMinutes(45);
 
   private final LocalTime closesAt;
   private final LocalTime opensAt;
@@ -36,6 +39,10 @@ class SebReplayWindow {
   boolean isOpenAt(Instant instant) {
     LocalTime scheduleTime = instant.atZone(SCHEDULE_ZONE).toLocalTime();
     return scheduleTime.isBefore(closesAt) || !scheduleTime.isBefore(opensAt);
+  }
+
+  static Instant stopByForAReplayStartedAt(Instant startedAt) {
+    return startedAt.plus(STOPS_BEFORE_THE_JOB_TRIGGER_POLLERS_60_MINUTE_LOCK_LAPSES);
   }
 
   String closedHours() {

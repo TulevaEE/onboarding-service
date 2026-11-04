@@ -168,6 +168,33 @@ class TradeCalculationEngineExclusionTest {
   }
 
   @Test
+  void sellAndSellFast_whoseSellsFallShortAfterExcludingAModelInstrumentNotHeld_areRejected() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00OFF", new BigDecimal("400000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("1000000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00B", new BigDecimal("0.50")),
+                    new ModelWeight("IE00C", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1400000"))
+            .cashBuffer(ZERO)
+            .liabilities(new BigDecimal("440000"))
+            .freeCash(new BigDecimal("-440000"))
+            .minTransactionThreshold(new BigDecimal("50000"))
+            .build();
+
+    assertThat(netTraded(engine.calculate(input, SELL))).isEqualByComparingTo("-440000");
+    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL_FAST))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void anExcludedHoldingWithANegativeMarketValue_isRejected() {
     var input =
         FundTransactionInput.builder()

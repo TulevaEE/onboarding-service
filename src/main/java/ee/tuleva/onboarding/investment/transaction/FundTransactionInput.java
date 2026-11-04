@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -51,10 +52,7 @@ public record FundTransactionInput(
     return new FundTransactionInput(
         fund,
         positions.stream().filter(position -> !isExcluded(position, isins)).toList(),
-        Stream.concat(
-                excludedPositions.stream(),
-                positions.stream().filter(position -> isExcluded(position, isins)))
-            .toList(),
+        setAside(isins),
         spreadExcludedWeight(remainingWeights, isins),
         grossPortfolioValue,
         cashBuffer,
@@ -73,6 +71,20 @@ public record FundTransactionInput(
         positionDate,
         modelEffectiveDate,
         inputWarnings);
+  }
+
+  private List<PositionSnapshot> setAside(Set<String> isins) {
+    Set<String> heldIsins =
+        positions.stream().map(PositionSnapshot::isin).filter(Objects::nonNull).collect(toSet());
+    return Stream.of(
+            excludedPositions.stream(),
+            positions.stream().filter(position -> isExcluded(position, isins)),
+            isins.stream()
+                .filter(isin -> !heldIsins.contains(isin))
+                .sorted()
+                .map(isin -> new PositionSnapshot(isin, ZERO)))
+        .flatMap(identity())
+        .toList();
   }
 
   public BigDecimal excludedMarketValue() {

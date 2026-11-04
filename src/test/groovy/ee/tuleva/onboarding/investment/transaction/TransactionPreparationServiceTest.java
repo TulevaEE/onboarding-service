@@ -1724,6 +1724,44 @@ class TransactionPreparationServiceTest {
 
   @Test
   @SuppressWarnings("unchecked")
+  void serializeModelDrift_listsAnExcludedHoldingWithItsWeightUnchanged() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("600000"))))
+            .excludedPositions(List.of(new PositionSnapshot("IE00C", new BigDecimal("200000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("200000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .build();
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00A", new BigDecimal("200000"), new BigDecimal("0.800000"), LimitStatus.OK));
+    var result =
+        new FundCalculationResult(
+            TUV100, REBALANCE, input, trades, new BigDecimal("800000"), null, List.of());
+
+    var drift = TransactionAuditPayloads.serializeModelDrift(input, result);
+
+    assertThat(drift)
+        .containsEntry("totalAbsoluteDriftBefore", "0.200000")
+        .containsEntry("totalAbsoluteDriftAfter", "0.000000");
+    assertThat((List<Map<String, Object>>) drift.get("positions"))
+        .last()
+        .isEqualTo(
+            Map.of(
+                "isin", "IE00C",
+                "excluded", true,
+                "weightBefore", "0.200000",
+                "weightAfter", "0.200000"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
   void serializeModelDrift_normalizesTargetWeightByModelWeightSumWhenNotFullyAllocated() {
     var input =
         FundTransactionInput.builder()

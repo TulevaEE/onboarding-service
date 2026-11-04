@@ -41,6 +41,7 @@ public class TransactionPreparationService {
           command.getMode());
 
       input = gatherInput(command);
+      input = input.excluding(command.getExcludeIsins());
 
       var result = calculationEngine.calculate(input, command.getMode());
 
@@ -101,10 +102,6 @@ public class TransactionPreparationService {
   }
 
   private FundTransactionInput gatherInput(TransactionCommand command) {
-    return gatherFundInput(command).excluding(command.getExcludeIsins());
-  }
-
-  private FundTransactionInput gatherFundInput(TransactionCommand command) {
     BigDecimal cash = command.getCash();
     if (cash == null) {
       return inputService.gatherInput(

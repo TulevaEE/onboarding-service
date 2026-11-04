@@ -184,7 +184,7 @@ class TransactionAdminServiceTest {
     TransactionCommandResponse response =
         service.createAndProcess(
             new CreateTransactionCommandRequest(
-                TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61")),
+                TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BMDBMY19", "IE00BFG1TM61")),
             "operator-9");
 
     then(commandRepository)
@@ -195,11 +195,11 @@ class TransactionAdminServiceTest {
                 .mode(REBALANCE)
                 .asOfDate(AS_OF_DATE)
                 .manualAdjustments(Map.of())
-                .excludeIsins(Set.of("IE00BFG1TM61"))
+                .excludeIsins(Set.of("IE00BMDBMY19", "IE00BFG1TM61"))
                 .actor("operator-9")
                 .status(PROCESSING)
                 .build());
-    assertThat(response.excludeIsins()).containsExactly("IE00BFG1TM61");
+    assertThat(response.excludeIsins()).containsExactly("IE00BFG1TM61", "IE00BMDBMY19");
   }
 
   @Test

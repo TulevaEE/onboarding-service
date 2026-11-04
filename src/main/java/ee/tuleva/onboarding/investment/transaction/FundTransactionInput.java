@@ -100,6 +100,9 @@ public record FundTransactionInput(
   private List<ModelWeight> spreadExcludedWeight(
       List<ModelWeight> remainingWeights, Set<String> isins) {
     BigDecimal totalWeight = sumOfWeights(modelWeights);
+    if (totalWeight.signum() == 0) {
+      return remainingWeights;
+    }
     BigDecimal remainingWeight = sumOfWeights(remainingWeights);
     if (remainingWeight.signum() <= 0) {
       throw new IllegalArgumentException(

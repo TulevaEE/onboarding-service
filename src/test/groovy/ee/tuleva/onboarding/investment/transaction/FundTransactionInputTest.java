@@ -75,6 +75,17 @@ class FundTransactionInputTest {
   }
 
   @Test
+  void excluding_aHoldingOfAFundWithoutModelWeights_setsItAsideAndLeavesTheWeightsEmpty() {
+    var input = input().positions(List.of(HOLDING_A, HOLDING_C)).modelWeights(List.of()).build();
+
+    var excluded = input.excluding(Set.of("IE00C"));
+
+    assertThat(excluded.positions()).containsExactly(HOLDING_A);
+    assertThat(excluded.excludedPositions()).containsExactly(HOLDING_C);
+    assertThat(excluded.modelWeights()).isEmpty();
+  }
+
+  @Test
   void excluding_nothing_returnsTheInputUnchanged() {
     var input =
         input()

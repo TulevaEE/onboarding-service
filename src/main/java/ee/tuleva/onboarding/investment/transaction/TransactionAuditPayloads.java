@@ -59,12 +59,27 @@ class TransactionAuditPayloads {
       }
       positions.add(map);
     }
+    input
+        .excludedPositions()
+        .forEach(
+            position -> positions.add(excludedPosition(position, input.grossPortfolioValue())));
 
     Map<String, Object> drift = new LinkedHashMap<>();
     putIfPresent(drift, "totalAbsoluteDriftBefore", plain(totalBefore));
     putIfPresent(drift, "totalAbsoluteDriftAfter", plain(totalAfter));
     putIfPresent(drift, "positions", positions);
     return drift;
+  }
+
+  private static Map<String, Object> excludedPosition(
+      PositionSnapshot position, BigDecimal grossPortfolioValue) {
+    BigDecimal weight = currentWeight(position, grossPortfolioValue);
+    Map<String, Object> map = new LinkedHashMap<>();
+    putIfPresent(map, "isin", position.isin());
+    map.put("excluded", true);
+    putIfPresent(map, "weightBefore", plain(weight));
+    putIfPresent(map, "weightAfter", plain(weight));
+    return map;
   }
 
   private static Map<String, BigDecimal> targetWeights(

@@ -88,7 +88,7 @@ class TransactionCommandControllerTest {
         10L,
         null,
         null,
-        Set.of(),
+        List.of(),
         List.of(orderResponse()),
         null);
   }
@@ -217,6 +217,24 @@ class TransactionCommandControllerTest {
         .andExpect(status().isOk());
 
     then(adminService).should().createAndProcess(request, "shared-admin-token");
+  }
+
+  @Test
+  void createCommand_excludedInstrumentThatIsNotAnIsin_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "excludeIsins": ["ie00bfg1tm61 "]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -488,7 +506,7 @@ class TransactionCommandControllerTest {
                     11L,
                     null,
                     null,
-                    Set.of(),
+                    List.of(),
                     List.of(),
                     null)));
 

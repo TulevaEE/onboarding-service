@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.util.Comparator.naturalOrder;
 
+import ee.tuleva.onboarding.investment.transaction.BankDating;
 import ee.tuleva.onboarding.investment.transaction.PreviousSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -62,15 +63,19 @@ class OrderBankSettlement {
           piece.execution().setNetSettlementAmount(piece.booking().cashAmount().abs());
           executionRepository.save(piece.execution());
         });
-    Optional<PreviousSettlement> previous = settlementService.settleFromTheBank(order, bookingDate);
-    if (previous.isEmpty()) {
-      auditRecorder.recordSettlementFromBank(order, bookingDate);
-      return BankSettlementOutcome.SETTLED;
-    }
-    auditRecorder.recordSettlementRedatedByBank(order, bookingDate, previous.get());
-    return previous.get().reportDate().equals(bookingDate)
-        ? BankSettlementOutcome.SAME_DATE
-        : BankSettlementOutcome.NEW_DATE;
+    return switch (settlementService.settleFromTheBank(order, bookingDate)) {
+      case BankDating.Settled() -> {
+        auditRecorder.recordSettlementFromBank(order, bookingDate);
+        yield BankSettlementOutcome.SETTLED;
+      }
+      case BankDating.AlreadyByTheBank() -> BankSettlementOutcome.ALREADY_FROM_BANK;
+      case BankDating.Redated(PreviousSettlement previous) -> {
+        auditRecorder.recordSettlementRedatedByBank(order, bookingDate, previous);
+        yield previous.reportDate().equals(bookingDate)
+            ? BankSettlementOutcome.SAME_DATE
+            : BankSettlementOutcome.NEW_DATE;
+      }
+    };
   }
 
   private static Optional<BookedPiece> bookedPiece(

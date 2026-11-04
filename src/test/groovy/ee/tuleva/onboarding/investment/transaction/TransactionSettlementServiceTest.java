@@ -100,9 +100,7 @@ class TransactionSettlementServiceTest {
     given(settlementRepository.save(any(TransactionSettlement.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
-    Optional<PreviousSettlement> previous = service().settleFromTheBank(order, REPORT_DATE);
-
-    assertThat(previous).isEmpty();
+    assertThat(service().settleFromTheBank(order, REPORT_DATE)).isEqualTo(new BankDating.Settled());
     verify(settlementRepository)
         .save(
             argThat(
@@ -118,10 +116,10 @@ class TransactionSettlementServiceTest {
     TransactionSettlement existing = settlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE);
     given(settlementRepository.findByOrderId(42L)).willReturn(Optional.of(existing));
 
-    Optional<PreviousSettlement> previous = service().settleFromTheBank(order, REPORT_DATE);
-
-    assertThat(previous)
-        .contains(new PreviousSettlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE));
+    assertThat(service().settleFromTheBank(order, REPORT_DATE))
+        .isEqualTo(
+            new BankDating.Redated(
+                new PreviousSettlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE)));
     assertThat(existing.getReportDate()).isEqualTo(REPORT_DATE);
     assertThat(existing.getSource()).isEqualTo(BANK_STATEMENT);
     verify(settlementRepository).save(existing);
@@ -135,12 +133,24 @@ class TransactionSettlementServiceTest {
     given(settlementRepository.findByOrderId(42L))
         .willReturn(Optional.empty(), Optional.of(writtenMeanwhile));
 
-    Optional<PreviousSettlement> previous = service().settleFromTheBank(order, REPORT_DATE);
-
-    assertThat(previous)
-        .contains(new PreviousSettlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE));
+    assertThat(service().settleFromTheBank(order, REPORT_DATE))
+        .isEqualTo(
+            new BankDating.Redated(
+                new PreviousSettlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE)));
     assertThat(writtenMeanwhile.getReportDate()).isEqualTo(REPORT_DATE);
     assertThat(writtenMeanwhile.getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  @Test
+  void settleFromTheBank_leavesASettlementTheBankAlreadyDated() {
+    TransactionOrder order = order(42L);
+    TransactionSettlement byTheBank = settlement(LocalDate.of(2026, 5, 11), BANK_STATEMENT);
+    given(settlementRepository.findByOrderId(42L)).willReturn(Optional.of(byTheBank));
+
+    assertThat(service().settleFromTheBank(order, REPORT_DATE))
+        .isEqualTo(new BankDating.AlreadyByTheBank());
+    assertThat(byTheBank.getReportDate()).isEqualTo(LocalDate.of(2026, 5, 11));
+    verify(settlementRepository, never()).save(any());
   }
 
   @Test

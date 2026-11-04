@@ -108,6 +108,15 @@ class CompanyPartiesMetadataTest {
   }
 
   @Test
+  void ordersCodelessPartiesWithTheSameRolesByNaturalPersonhood() {
+    var naturalShareholder = kybPerson().shareholder(true).build();
+    var legalShareholder = kybPerson().naturalPerson(false).shareholder(true).build();
+
+    assertThat(CompanyPartiesMetadata.of(List.of(naturalShareholder, legalShareholder)))
+        .isEqualTo(CompanyPartiesMetadata.of(List.of(legalShareholder, naturalShareholder)));
+  }
+
+  @Test
   void ignoresTheOwnershipPercentBecauseOnlyWhoTheyAreAndTheirRolesMatter() {
     var before = shareholderOwner("38888888888", 40.0).build();
     var after = shareholderOwner("38888888888", 60.0).build();

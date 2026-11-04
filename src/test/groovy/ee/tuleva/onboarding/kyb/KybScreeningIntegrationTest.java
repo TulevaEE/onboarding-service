@@ -51,6 +51,16 @@ class KybScreeningIntegrationTest {
 
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
   private static final Instant NOW = Instant.parse("2025-06-01T00:00:00Z");
+  private static final Map<String, Object> COMPANY_PARTIES_METADATA_CHANGED =
+      Map.of(
+          "check",
+          "COMPANY_PARTIES",
+          "previousSuccess",
+          true,
+          "currentSuccess",
+          true,
+          "metadataChanged",
+          true);
 
   @Autowired private KybScreeningService kybScreeningService;
   @Autowired private AmlCheckRepository amlCheckRepository;
@@ -482,8 +492,40 @@ class KybScreeningIntegrationTest {
     var afterReplacement = dataChangedOf(screenOnDay(1, newBoard, RESCREENING));
     var afterRescreening = dataChangedOf(screenOnDay(2, newBoard, RESCREENING));
 
-    assertThat(changesOf(afterReplacement)).contains(COMPANY_PARTIES_METADATA_CHANGED);
-    assertThat(changesOf(afterRescreening)).doesNotContain(COMPANY_PARTIES_METADATA_CHANGED);
+    assertThat(afterReplacement.success()).isFalse();
+    assertThat(changesOf(afterReplacement)).containsExactly(COMPANY_PARTIES_METADATA_CHANGED);
+    assertThat(afterRescreening.success()).isTrue();
+    assertThat(changesOf(afterRescreening)).isEmpty();
+  }
+
+  @Test
+  void aPartyLeavingWithoutAReplacementFlagsCompanyPartiesChanged() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    screenOnDay(0, companyWith(owner, boardMemberOnly("38888888888").build()), SUBMISSION);
+
+    var dataChanged = dataChangedOf(screenOnDay(1, companyWith(owner), RESCREENING));
+
+    assertThat(changesOf(dataChanged))
+        .containsExactlyInAnyOrder(
+            COMPANY_PARTIES_METADATA_CHANGED,
+            Map.of(
+                "check",
+                "COMPANY_STRUCTURE",
+                "previousSuccess",
+                true,
+                "currentSuccess",
+                true,
+                "metadataChanged",
+                true),
+            Map.of(
+                "check",
+                "DUAL_MEMBER_OWNERSHIP",
+                "previousSuccess",
+                true,
+                "currentSuccess",
+                "N/A",
+                "metadataChanged",
+                true));
   }
 
   @Test
@@ -498,35 +540,41 @@ class KybScreeningIntegrationTest {
                 companyWith(owner, boardMemberOnly("38888888888").beneficialOwner(true).build()),
                 RESCREENING));
 
-    assertThat(changesOf(dataChanged)).contains(COMPANY_PARTIES_METADATA_CHANGED);
+    assertThat(changesOf(dataChanged)).containsExactly(COMPANY_PARTIES_METADATA_CHANGED);
   }
 
   @Test
-  void theFirstScreeningAfterAScreeningWithoutCompanyPartiesFlagsNoCompanyPartiesChange() {
-    var data =
-        companyWith(
-            boardMemberOwner(PERSONAL_CODE, 100.0).build(), boardMemberOnly("38888888888").build());
-    screenOnDay(0, data, SUBMISSION);
+  void aPartyLosingTheBeneficialOwnerRoleFlagsCompanyPartiesChanged() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    screenOnDay(
+        0,
+        companyWith(owner, boardMemberOnly("38888888888").beneficialOwner(true).build()),
+        SUBMISSION);
+
+    var dataChanged =
+        dataChangedOf(
+            screenOnDay(
+                1, companyWith(owner, boardMemberOnly("38888888888").build()), RESCREENING));
+
+    assertThat(changesOf(dataChanged)).containsExactly(COMPANY_PARTIES_METADATA_CHANGED);
+  }
+
+  @Test
+  void aChangedBoardAfterAScreeningWithoutCompanyPartiesFlagsNoCompanyPartiesChange() {
+    var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
+    screenOnDay(0, companyWith(owner, boardMemberOnly("38888888888").build()), SUBMISSION);
     amlCheckRepository.findAll().stream()
         .filter(check -> check.getType() == KYB_COMPANY_PARTIES)
         .forEach(amlCheckRepository::delete);
 
-    var dataChanged = dataChangedOf(screenOnDay(1, data, RESCREENING));
+    var dataChanged =
+        dataChangedOf(
+            screenOnDay(
+                1, companyWith(owner, boardMemberOnly("48888888888").build()), RESCREENING));
 
     assertThat(dataChanged.success()).isTrue();
     assertThat(changesOf(dataChanged)).isEmpty();
   }
-
-  private static final Map<String, Object> COMPANY_PARTIES_METADATA_CHANGED =
-      Map.of(
-          "check",
-          "COMPANY_PARTIES",
-          "previousSuccess",
-          true,
-          "currentSuccess",
-          true,
-          "metadataChanged",
-          true);
 
   private List<KybCheck> screenOnDay(
       final int day, final KybCompanyData data, final KybScreeningTrigger trigger) {

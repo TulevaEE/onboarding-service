@@ -119,7 +119,7 @@ class TradeCalculationEngineExclusionTest {
   }
 
   @Test
-  void sellAndSellFast_withEveryHoldingExcluded_areRejectedWhenThereIsAShortfall() {
+  void sellSellFastAndRebalance_withEveryHoldingExcluded_areRejectedWhenThereIsAShortfall() {
     var input =
         FundTransactionInput.builder()
             .fund(TUV100)
@@ -137,6 +137,28 @@ class TradeCalculationEngineExclusionTest {
         .isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(() -> engine.calculate(input, SELL_FAST))
         .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> engine.calculate(input, REBALANCE))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void rebalance_withAnExclusionThatLeavesTheShortfallUnfunded_isRejected() {
+    var input = fund("600000", "300000", "100000", "0", new BigDecimal("500000"));
+
+    assertThat(netTraded(engine.calculate(input, REBALANCE))).isEqualByComparingTo("-500000");
+    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00A")), REBALANCE))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void rebalance_withAnExclusionWhoseNetMissesTheCashByLessThanAMinimumTrade_isAccepted() {
+    var input = fund("592666.67", "287333.33", "120000", "6000", ZERO);
+
+    var result = engine.calculate(input.excluding(Set.of("IE00C")), REBALANCE);
+
+    assertThat(tradeAmounts(result))
+        .containsExactly(
+            entry("IE00A", new BigDecimal("0.00")), entry("IE00B", new BigDecimal("8000.00")));
   }
 
   @Test

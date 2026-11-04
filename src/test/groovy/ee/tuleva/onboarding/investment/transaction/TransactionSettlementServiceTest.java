@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,7 +23,6 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -103,11 +103,12 @@ class TransactionSettlementServiceTest {
     Optional<PreviousSettlement> previous = service().settleFromTheBank(order, REPORT_DATE);
 
     assertThat(previous).isEmpty();
-    ArgumentCaptor<TransactionSettlement> saved =
-        ArgumentCaptor.forClass(TransactionSettlement.class);
-    verify(settlementRepository).save(saved.capture());
-    assertThat(saved.getValue().getReportDate()).isEqualTo(REPORT_DATE);
-    assertThat(saved.getValue().getSource()).isEqualTo(BANK_STATEMENT);
+    verify(settlementRepository)
+        .save(
+            argThat(
+                saved ->
+                    saved.getReportDate().equals(REPORT_DATE)
+                        && saved.getSource() == BANK_STATEMENT));
     assertThat(order.getOrderStatus()).isEqualTo(SETTLED);
   }
 

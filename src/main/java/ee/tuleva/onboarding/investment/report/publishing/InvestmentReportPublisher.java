@@ -74,7 +74,7 @@ public class InvestmentReportPublisher {
     }
 
     var refusals =
-        newerReportCheck.reasonsNotToReplace(
+        newerReportCheck.reasonsNotToPublish(
             configuredReports(), month, unrecognisedFilesToReplace);
     if (!refusals.isEmpty()) {
       log.warn("Fund page check refused the publish: month={}, errors={}", month, refusals);
@@ -209,8 +209,7 @@ public class InvestmentReportPublisher {
       var upload = entry.getValue();
       var refusedSinceTheCheck =
           lockStillHeld.getAsBoolean()
-              ? newerReportCheck.reasonsNotToReplace(
-                  List.of(mapping), month, unrecognisedFilesToReplace)
+              ? newerReportCheck.reasonsNotToRepoint(mapping, month, unrecognisedFilesToReplace)
               : List.of(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
       if (!refusedSinceTheCheck.isEmpty()) {
         errors.addAll(refusedSinceTheCheck);

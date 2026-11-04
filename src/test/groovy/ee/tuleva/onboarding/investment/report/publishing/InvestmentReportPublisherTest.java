@@ -54,7 +54,8 @@ class InvestmentReportPublisherTest {
   void setUp() {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
-    lenient().when(newerReportCheck.reasonsNotToReplace(any(), any(), any())).thenReturn(List.of());
+    lenient().when(newerReportCheck.reasonsNotToPublish(any(), any(), any())).thenReturn(List.of());
+    lenient().when(newerReportCheck.reasonsNotToRepoint(any(), any(), any())).thenReturn(List.of());
     lenient()
         .when(publishingLock.whileNoOtherPublishRuns(any(), any()))
         .thenAnswer(
@@ -343,7 +344,7 @@ class InvestmentReportPublisherTest {
     var refusal =
         "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
     given(
-            newerReportCheck.reasonsNotToReplace(
+            newerReportCheck.reasonsNotToPublish(
                 List.of(FundReportMapping.TUK75, FundReportMapping.TUK00, FundReportMapping.TUV100),
                 MARCH_2026,
                 NOTHING_TO_REPLACE))
@@ -362,8 +363,8 @@ class InvestmentReportPublisherTest {
     var refusal =
         "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
     given(
-            newerReportCheck.reasonsNotToReplace(
-                List.of(FundReportMapping.TUK00), MARCH_2026, NOTHING_TO_REPLACE))
+            newerReportCheck.reasonsNotToRepoint(
+                FundReportMapping.TUK00, MARCH_2026, NOTHING_TO_REPLACE))
         .willReturn(List.of(refusal));
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
@@ -385,7 +386,7 @@ class InvestmentReportPublisherTest {
     givenEveryReportCanBeProduced();
     var refusal =
         "Fund page links a file that is not this fund's report, so it may be newer: fund=TUK00";
-    given(newerReportCheck.reasonsNotToReplace(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
+    given(newerReportCheck.reasonsNotToPublish(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
         .willReturn(List.of(refusal));
 
     var refused = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
@@ -396,7 +397,7 @@ class InvestmentReportPublisherTest {
     assertThat(replaced.errors()).isEmpty();
     assertThat(replaced.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
     verify(newerReportCheck)
-        .reasonsNotToReplace(List.of(FundReportMapping.TUK00), MARCH_2026, Set.of(HAND_NAMED_FILE));
+        .reasonsNotToRepoint(FundReportMapping.TUK00, MARCH_2026, Set.of(HAND_NAMED_FILE));
   }
 
   @Test

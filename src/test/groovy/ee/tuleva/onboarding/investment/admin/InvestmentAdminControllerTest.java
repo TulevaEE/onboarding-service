@@ -366,6 +366,21 @@ class InvestmentAdminControllerTest {
   }
 
   @Test
+  void publishInvestmentReports_rejectsReplaceUnrecognisedValuesThatAreNotUrls() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/publish-investment-reports")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("month", "3")
+                .param("year", "2026")
+                .param("replaceUnrecognised", "true"))
+        .andExpect(status().isBadRequest());
+
+    verify(investmentReportPublisher, never()).publish(any(), any());
+  }
+
+  @Test
   void publishInvestmentReports_withInvalidToken_returnsUnauthorized() throws Exception {
     mockMvc
         .perform(

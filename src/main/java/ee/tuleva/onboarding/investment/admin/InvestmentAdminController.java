@@ -168,8 +168,9 @@ public class InvestmentAdminController {
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(required = false) @Nullable Integer month,
       @RequestParam(required = false) @Nullable Integer year,
-      @RequestParam(defaultValue = "") Set<String> replaceUnrecognised) {
+      @RequestParam(required = false) @Nullable Set<String> replaceUnrecognised) {
     tokenValidator.validate(token);
+    var filesToReplace = unrecognisedFilesToReplace(replaceUnrecognised);
 
     var publisher =
         investmentReportPublisher.orElseThrow(
@@ -185,8 +186,8 @@ public class InvestmentAdminController {
     log.info(
         "Admin triggered investment report publishing: month={}, replaceUnrecognised={}",
         targetMonth,
-        replaceUnrecognised);
-    return publisher.publish(targetMonth, replaceUnrecognised);
+        filesToReplace);
+    return publisher.publish(targetMonth, filesToReplace);
   }
 
   @GetMapping("/preview-investment-report")
@@ -317,6 +318,14 @@ public class InvestmentAdminController {
     tokenValidator.validate(token);
     ocfCalculationService.backfillMonths(monthsBack, clock);
     return "OCF backfilled for last %d months".formatted(monthsBack);
+  }
+
+  private static Set<String> unrecognisedFilesToReplace(@Nullable Set<String> replaceUnrecognised) {
+    var files = requireNonNullElse(replaceUnrecognised, Set.<String>of());
+    if (!files.stream().allMatch(file -> file.matches("https?://\\S+"))) {
+      throw new ResponseStatusException(BAD_REQUEST, "replaceUnrecognised takes URLs: " + files);
+    }
+    return files;
   }
 
   private YearMonth parseReportMonth(int year, int month) {

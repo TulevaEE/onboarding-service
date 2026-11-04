@@ -61,7 +61,7 @@ class SettlementFromBankIT {
 
   @BeforeEach
   void sebsLatestPendingReportListsNoneOfTheOrders() {
-    pendingReport(LocalDate.of(2026, 2, 20), List.of());
+    pendingReport(LocalDate.of(2026, 2, 20), List.of(anotherOrdersRow()));
   }
 
   @Test
@@ -220,6 +220,32 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void anEmptyLatestPendingReport_settlesNothing() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    reportRepository.deleteAll();
+    pendingReport(LocalDate.of(2026, 2, 21), List.of());
+
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
+  void aLatestPendingReportThatLostHalfItsRows_settlesNothing() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    pendingReport(
+        LocalDate.of(2026, 2, 21),
+        List.of(anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow()));
+    pendingReport(LocalDate.of(2026, 2, 22), List.of(anotherOrdersRow()));
+
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
   void aSaleWhoseCashCameIn_settles() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704", SELL);
     piece(order, "DLA0553690", "11704");
@@ -269,9 +295,8 @@ class SettlementFromBankIT {
     TransactionOrder open = executedOrder(OrderVenue.SEB, "11704");
     piece(open, "DLA0553693", "11704");
 
-    BankSettlementRun run = settlementFromBankService.settleOrdersBookedSince(SINCE);
-
-    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1, 1, 0));
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE))
+        .contains(new BankSettlementRun(1, 1, 1, 1, 0));
   }
 
   private void settleFromTheBank() {
@@ -324,6 +349,10 @@ class SettlementFromBankIT {
                 .build());
     entityManager.flush();
     return execution;
+  }
+
+  private static Map<String, Object> anotherOrdersRow() {
+    return Map.of("Client ref", UUID.randomUUID().toString());
   }
 
   private void pendingReport(LocalDate asOfDate, List<Map<String, Object>> rows) {

@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebPendingTransactionReconciliationService {
 
-  private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
+  static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
 
   private final SebPendingTransactionExtractor extractor;
   private final QuantityAmountValidator quantityAmountValidator;

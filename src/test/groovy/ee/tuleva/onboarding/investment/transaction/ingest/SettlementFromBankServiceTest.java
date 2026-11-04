@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
@@ -53,19 +53,16 @@ class SettlementFromBankServiceTest {
     given(orderBankSettlement.settle(eq(2L), any(), any(), any()))
         .willReturn(BankSettlementOutcome.SETTLED);
 
-    BankSettlementRun run = service().settleOrdersBookedSince(SINCE);
-
-    assertThat(run).isEqualTo(new BankSettlementRun(1, 0, 0, 0, 1));
+    assertThat(service().settleOrdersBookedSince(SINCE))
+        .contains(new BankSettlementRun(1, 0, 0, 0, 1));
   }
 
   @Test
-  void withoutACompleteSebPendingReport_nothingSettles() {
-    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyList(), any()))
-        .willReturn(List.of(order(1L)));
+  void withoutAUsableSebPendingReport_nothingSettles() {
     given(latestPendingReport.listing()).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service().settleOrdersBookedSince(SINCE))
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(service().settleOrdersBookedSince(SINCE)).isEmpty();
+    then(orderBankSettlement).shouldHaveNoInteractions();
   }
 
   private static TransactionOrder order(Long id) {

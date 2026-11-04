@@ -1,3 +1,12 @@
 package ee.tuleva.onboarding.investment.event;
 
-public record RunSebPendingTransactionReconciliationBackfillRequested() {}
+import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
+
+public record RunSebPendingTransactionReconciliationBackfillRequested(
+    @Nullable LocalDate resumeFrom) {
+
+  public RunSebPendingTransactionReconciliationBackfillRequested() {
+    this(null);
+  }
+}

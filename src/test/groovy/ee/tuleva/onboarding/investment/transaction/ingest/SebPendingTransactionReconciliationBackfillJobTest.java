@@ -19,6 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -50,8 +51,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18);
   private static final int BACKFILL_DAYS = 365;
+  private static final RunSebPendingTransactionReconciliationBackfillRequested A_YEAR_BACK =
+      new RunSebPendingTransactionReconciliationBackfillRequested();
   private static final String NO_REPORTS_MESSAGE =
-      "SEB ootel-tehingute raporteid pole viimase 365 päeva kohta, midagi ei sobitatud uuesti.";
+      "SEB ootel-tehingute raporteid pole alates 2025-05-18, midagi ei sobitatud uuesti.";
   private static final String STOPPED_OUTSIDE_A_REPORT_MESSAGE =
       """
       SEB ootel-tehingute raportite uuesti sobitamine peatus ootamatult (põhjus on logis).
@@ -92,7 +95,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27, 10, day10, 0, day0));
     given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     InOrder inOrder = inOrder(reconciliationService);
     inOrder.verify(reconciliationService).replay(eq(day27), any());
@@ -125,7 +128,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day10), any());
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     verify(notificationService)
         .sendMessage(
@@ -149,7 +152,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 4L);
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     verify(notificationService)
         .sendMessage(
@@ -175,7 +178,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(reconciliationService.replay(eq(day10), any()))
         .willReturn(SettlementCheck.SKIPPED_NO_MATCHED_ROW);
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     verify(notificationService)
         .sendMessage(
@@ -211,7 +214,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .when(reconciliationService)
         .replay(eq(day10), any());
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService).replay(eq(day27), any());
@@ -224,8 +228,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
             hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
             hinnaerinevusi: 0).
-            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
-            topelt.""",
+            Paranda põhjus ja jätka raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             ERROR);
   }
@@ -240,7 +246,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day27), any());
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService)
@@ -249,8 +256,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             SEB ootel-tehingute raportite uuesti sobitamine peatus raportil 2026-04-21 \
             (põhjus on logis).
             Enne seda ei sobitatud ühtki raportit.
-            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
-            topelt.""",
+            Paranda põhjus ja jätka raportist 2026-04-21:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-04-21');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             ERROR);
   }
@@ -266,7 +275,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 3L);
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(eq(day3), any());
@@ -278,8 +288,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
             hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
             hinnaerinevusi: 0).
-            Paranda põhjus ja käivita uuesti. Uuesti käivitamine ei lisa täitmisi ega arveldusi \
-            topelt.""",
+            Paranda põhjus ja jätka raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             ERROR);
   }
@@ -288,7 +300,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   void run_whenCountingTheExecutionsBeforeTheReplayFails_saysInSlackThatItStopped() {
     given(executionRepository.count()).willThrow(new IllegalStateException("database unavailable"));
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(any(), any());
@@ -305,7 +318,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .willThrow(new IllegalStateException("database unavailable"));
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
@@ -320,7 +334,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(notificationService)
         .sendMessage(any(), eq(INVESTMENT));
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     verify(notificationService, never()).sendMessage(any(), eq(INVESTMENT), eq(ERROR));
   }
@@ -333,17 +347,36 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(notificationService)
         .sendMessage(any(), any(), any());
 
-    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class)
         .cause()
         .isSameAs(databaseDown);
   }
 
   @Test
+  void aReplayResumedFromADateStartsThereInsteadOfAYearBack() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    InvestmentReport day3 = report(TODAY.minusDays(3));
+    givenStoredReports(Map.of(27, day27, 10, day10, 3, day3));
+    given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
+
+    job.onSebPendingTransactionReconciliationBackfillRequested(
+        new RunSebPendingTransactionReconciliationBackfillRequested(TODAY.minusDays(10)));
+
+    InOrder inOrder = inOrder(reconciliationService);
+    inOrder.verify(reconciliationService).replay(eq(day10), any());
+    inOrder.verify(reconciliationService).replay(eq(day3), any());
+    verify(reconciliationService, never()).replay(eq(day27), any());
+    verify(reportService, never()).getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(27));
+  }
+
+  @Test
   void run_withNoStoredReports_warnsThatNothingWasReplayed() {
     givenStoredReports(Map.of());
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     verify(reconciliationService, never()).replay(any(), any());
     verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
@@ -363,7 +396,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(any(), any());
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     assertThat(lockHeldDuringReplay).containsExactly(true, true);
     assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
@@ -375,7 +408,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     SebPendingTransactionReconciliationBackfillJob lockedOut =
         jobLockedBy(RecordingLockProvider.heldElsewhere());
 
-    assertThatThrownBy(lockedOut::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> lockedOut.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isInstanceOf(SebReconciliationAlreadyRunningException.class);
 
     verify(notificationService).sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
@@ -389,7 +423,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     SebPendingTransactionReconciliationBackfillJob duringImports =
         jobAt(businessHours, lockProvider);
 
-    assertThatThrownBy(duringImports::onSebPendingTransactionReconciliationBackfillRequested)
+    assertThatThrownBy(
+            () -> duringImports.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService).sendMessage(SCHEDULED_RUNS_MESSAGE, INVESTMENT, WARNING);
@@ -413,8 +448,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day27), any());
 
+    SebPendingTransactionReconciliationBackfillJob morningJob = jobAt(morning, lockProvider);
     assertThatThrownBy(
-            jobAt(morning, lockProvider)::onSebPendingTransactionReconciliationBackfillRequested)
+            () -> morningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(eq(day10), any());
@@ -426,8 +462,10 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
             hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
             hinnaerinevusi: 0).
-            Käivita uuesti õhtul, kui SEB raporteid ei impordita. Uuesti käivitamine ei lisa \
-            täitmisi ega arveldusi topelt.""",
+            Jätka õhtul raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             WARNING);
   }

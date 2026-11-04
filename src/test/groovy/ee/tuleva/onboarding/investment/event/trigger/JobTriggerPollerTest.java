@@ -14,8 +14,10 @@ import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -96,6 +98,67 @@ class JobTriggerPollerTest {
 
     assertThat(trigger.getStatus()).isEqualTo("FAILED");
     assertThat(trigger.getErrorMessage()).isEqualTo("boom");
+  }
+
+  @Test
+  void aPlainBackfillTriggerReplaysTheWholeWindow() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
+  }
+
+  @Test
+  void aBackfillTriggerNamingADateResumesTheReplayFromThatDate() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob:2026-05-08")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(
+            new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(2026, 5, 8)));
+    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void aBackfillTriggerWithAnUnreadableDateIsMarkedFailed() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob:yesterday")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(eventPublisher).should(never()).publishEvent(any());
+  }
+
+  @Test
+  void aDateOnAJobThatCannotResumeIsMarkedFailed() {
+    var trigger =
+        JobTrigger.builder().jobName("LimitCheckJob:2026-05-08").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(eventPublisher).should(never()).publishEvent(any());
   }
 
   @Test

@@ -22,6 +22,7 @@ final class SebPendingReplayMessages {
   static final String LOCK_HELD_MESSAGE =
       "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute"
           + " sobitamine juba käib.\nKäivita uuesti, kui see on lõppenud.";
+  private static final String RESUMABLE_JOB = "SebPendingTransactionReconciliationBackfillJob";
   private static final String RERUN_ADDS_NOTHING_TWICE =
       "Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.";
 
@@ -39,10 +40,12 @@ final class SebPendingReplayMessages {
         + ".";
   }
 
-  static String noReportsMessage() {
-    return "SEB ootel-tehingute raporteid pole viimase "
-        + SebPendingTransactionReconciliationBackfillJob.BACKFILL_DAYS
-        + " päeva kohta, midagi ei sobitatud uuesti.";
+  static String noReportsMessage(LocalDate from) {
+    return "SEB ootel-tehingute raporteid pole alates " + from + ", midagi ei sobitatud uuesti.";
+  }
+
+  static String resumeTrigger(LocalDate from) {
+    return RESUMABLE_JOB + ":" + from;
   }
 
   static String stoppedOutsideAReportMessage() {
@@ -69,7 +72,10 @@ final class SebPendingReplayMessages {
                 + reportsAndRange(summary.replayed())
                 + ". "
                 + outcome(summary))
-        + stop.reason().advice
+        + stop.reason().advice.formatted(stop.reportDate())
+        + "INSERT INTO investment_job_trigger (job_name) VALUES ('"
+        + resumeTrigger(stop.reportDate())
+        + "');\n"
         + RERUN_ADDS_NOTHING_TWICE;
   }
 
@@ -141,10 +147,11 @@ final class SebPendingReplayMessages {
 
   @RequiredArgsConstructor
   enum StopReason {
-    REPORT_FAILED("raportil %s (põhjus on logis).\n", "Paranda põhjus ja käivita uuesti. ", ERROR),
+    REPORT_FAILED(
+        "raportil %s (põhjus on logis).\n", "Paranda põhjus ja jätka raportist %s:\n", ERROR),
     IMPORT_WINDOW_OPENS(
         "enne raportit %s, sest algas SEB raportite impordi aeg.\n",
-        "Käivita uuesti õhtul, kui SEB raporteid ei impordita. ", WARNING);
+        "Jätka õhtul raportist %s:\n", WARNING);
 
     private final String where;
     private final String advice;

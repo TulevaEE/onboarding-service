@@ -33,13 +33,6 @@ class SettlementFromBankListenerTest {
   }
 
   @Test
-  void bankStatementsProcessed_settlesTheOrdersOfTheLookback() {
-    listener().onBankMessagesProcessed();
-
-    then(settlementFromBankService).should().settleOrdersBookedSince(SIXTY_DAYS_AGO);
-  }
-
-  @Test
   void sebPendingReportImported_settlesTheOrdersOfTheLookback() {
     listener()
         .onReportImportCompleted(
@@ -62,11 +55,17 @@ class SettlementFromBankListenerTest {
   }
 
   @Test
-  void aFailureToSettle_doesNotFailTheBankStatementRun() {
+  void aFailureToSettle_doesNotFailTheReportImport() {
     willThrow(new IllegalStateException("boom"))
         .given(settlementFromBankService)
         .settleOrdersBookedSince(any());
 
-    assertThatCode(() -> listener().onBankMessagesProcessed()).doesNotThrowAnyException();
+    assertThatCode(
+            () ->
+                listener()
+                    .onReportImportCompleted(
+                        new ReportImportCompleted(
+                            SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 11, 3), 1)))
+        .doesNotThrowAnyException();
   }
 }

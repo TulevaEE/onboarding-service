@@ -11,7 +11,7 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 import org.springframework.scheduling.support.CronExpression;
 
-record SebReplayLease(Instant lockFreedAt) {
+record SebReplayLease(Instant startedAt, Instant lockFreedAt) {
 
   private static final ZoneId SCHEDULE_ZONE = ZoneId.of(TIMEZONE);
   private static final CronExpression REPORT_IMPORTS = CronExpression.parse(IMPORT_BUSINESS_HOURS);
@@ -28,12 +28,12 @@ record SebReplayLease(Instant lockFreedAt) {
     }
     SebReplayLease lease =
         new SebReplayLease(
-            nextScheduledRun(scheduleTime).minus(LOCK_FREED_BEFORE_THE_NEXT_SCHEDULED_RUN));
+            now, nextScheduledRun(scheduleTime).minus(LOCK_FREED_BEFORE_THE_NEXT_SCHEDULED_RUN));
     return lease.isOver(now) ? Optional.empty() : Optional.of(lease);
   }
 
-  Duration lockAtMostFor(Instant now) {
-    return Duration.between(now, lockFreedAt);
+  Duration lockAtMostFor() {
+    return Duration.between(startedAt, lockFreedAt);
   }
 
   boolean isOver(Instant now) {

@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementReposito
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,24 +59,23 @@ class SebPendingTransactionReconciliationBackfillJob {
 
   @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
   void onSebPendingTransactionReconciliationBackfillRequested() {
-    Instant now = clock.instant();
-    Optional<SebReplayLease> lease = SebReplayLease.startingAt(now);
+    Optional<SebReplayLease> lease = SebReplayLease.startingAt(clock.instant());
     if (lease.isEmpty()) {
       log.warn(
           "SEB pending transactions replay refused, an import or the live reconciliation may run:"
               + " now={}",
-          now);
+          clock.instant());
       notificationService.sendMessage(SCHEDULED_RUNS_MESSAGE, INVESTMENT, WARNING);
       throw new IllegalStateException(
           "SEB pending transactions replay refused, an import or the live reconciliation may run:"
               + " now="
-              + now);
+              + clock.instant());
     }
-    replayHolding(lease.get(), now);
+    replayHolding(lease.get());
   }
 
-  private void replayHolding(SebReplayLease lease, Instant now) {
-    if (!reconciliationLock.runIfFree(lease.lockAtMostFor(now), () -> run(lease))) {
+  private void replayHolding(SebReplayLease lease) {
+    if (!reconciliationLock.runIfFree(lease.lockAtMostFor(), () -> run(lease))) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);

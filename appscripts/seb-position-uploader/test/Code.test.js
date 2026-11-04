@@ -20,6 +20,9 @@ const {
   messagesFrom,
   backfillQueue,
   backfillTimeIsUp,
+  backfillRequested,
+  requestBackfill,
+  finishBackfill,
 } = require("../src/Code");
 
 describe("getSourceForSender", () => {
@@ -282,11 +285,17 @@ describe("backfillQueue", () => {
     expect(backfillQueue([thread(may), thread(march, april)], SOURCES.SEB_CONFIRMATION, new Date("2026-02-01T22:00:00Z")))
       .toEqual([march, april, may]);
   });
-  test("leaves out the confirmations a paused run already uploaded", () => {
-    const uploaded = message(confirmationSender, "2026-03-02T10:00:00Z");
+  test("leaves out the confirmations a paused run uploaded before its resume point", () => {
+    const uploaded = message(confirmationSender, "2026-03-01T10:00:00Z");
     const next = message(confirmationSender, "2026-03-03T10:00:00Z");
     expect(backfillQueue([thread(uploaded, next)], SOURCES.SEB_CONFIRMATION, new Date("2026-03-02T10:00:00Z")))
       .toEqual([next]);
+  });
+  test("takes the confirmations at the resume point again, so one sharing the last upload's timestamp is not skipped", () => {
+    const lastUploaded = message(confirmationSender, "2026-03-02T10:00:00Z");
+    const sameSecond = message(confirmationSender, "2026-03-02T10:00:00Z");
+    expect(backfillQueue([thread(lastUploaded, sameSecond)], SOURCES.SEB_CONFIRMATION, new Date("2026-03-02T10:00:00Z")))
+      .toEqual([lastUploaded, sameSecond]);
   });
   test("leaves out a confirmation older than the backfill start in a thread still active since then", () => {
     const january = message(confirmationSender, "2026-01-15T10:00:00Z");
@@ -305,11 +314,47 @@ describe("backfillQueue", () => {
 describe("backfillTimeIsUp", () => {
   const startedAt = new Date("2026-11-03T10:00:00Z");
 
-  test("keeps uploading within the budget that leaves room before Apps Script's six-minute limit", () => {
-    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:59Z"))).toBe(false);
+  test("keeps uploading within the budget that leaves the cron run room inside Apps Script's six-minute limit", () => {
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:03:59Z"))).toBe(false);
   });
   test("pauses once the budget is spent", () => {
-    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:05:00Z"))).toBe(true);
+    expect(backfillTimeIsUp(startedAt, new Date("2026-11-03T10:04:00Z"))).toBe(true);
+  });
+});
+
+describe("backfill requested through a Script Property", () => {
+  const properties = (initial) => {
+    const values = { ...initial };
+    return {
+      getProperty: (key) => (key in values ? values[key] : null),
+      deleteProperty: (key) => { delete values[key]; },
+      setProperty: (key, value) => { values[key] = value; },
+      values,
+    };
+  };
+
+  test("lets the funds mailbox's own trigger run the backfill once an editor sets the request", () => {
+    expect(backfillRequested(properties({ SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes" }))).toBe(true);
+  });
+  test("a run from the editor only requests the backfill, keeping the resume point, so the funds mailbox's trigger does the reading", () => {
+    const props = properties({ SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-03-02T10:00:00.000Z" });
+    requestBackfill(props);
+    expect(props.values).toEqual({
+      SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-03-02T10:00:00.000Z",
+      SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes",
+    });
+  });
+  test("leaves the trigger to its regular run when no backfill is requested", () => {
+    expect(backfillRequested(properties({}))).toBe(false);
+  });
+  test("clears the request and the resume point once the backfill completes, so the trigger stops running it", () => {
+    const props = properties({
+      SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes",
+      SEB_CONFIRMATION_BACKFILL_RESUME_FROM: "2026-03-02T10:00:00.000Z",
+      SLACK_WEBHOOK_URL: "https://hooks.example/abc",
+    });
+    finishBackfill(props);
+    expect(props.values).toEqual({ SLACK_WEBHOOK_URL: "https://hooks.example/abc" });
   });
 });
 

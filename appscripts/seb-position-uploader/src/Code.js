@@ -12,11 +12,9 @@
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
 // Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
-//                   backfillSebConfirmations() (every SEB trade confirmation since 02.02.2026,
-//                   oldest first; touches no upload labels. It pauses before Apps Script's time
-//                   limit and the next run continues from the Script Property
-//                   SEB_CONFIRMATION_BACKFILL_RESUME_FROM; a finished run clears it, so the run
-//                   after that uploads every PDF again).
+//                   backfillSebConfirmations() (requests an upload of every SEB trade confirmation
+//                   since 02.02.2026; the cron run carries it out over as many runs as it needs
+//                   and clears the request when done).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
@@ -25,7 +23,8 @@ var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
 var SEB_CONFIRMATION_BACKFILL_START = new Date("2026-02-02T00:00:00+02:00");
 var SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY = "SEB_CONFIRMATION_BACKFILL_RESUME_FROM";
-var BACKFILL_TIME_BUDGET_MILLIS = 5 * 60 * 1000;
+var SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY = "SEB_CONFIRMATION_BACKFILL_REQUESTED";
+var BACKFILL_TIME_BUDGET_MILLIS = 4 * 60 * 1000;
 var DAY_MILLIS = 24 * 60 * 60 * 1000;
 
 var SOURCES = {
@@ -95,6 +94,7 @@ var SOURCES = {
 function processNewEmails() {
     try {
         processEmailsFromDays(2);
+        continueRequestedBackfill();
     } catch (e) {
         notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
             "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
@@ -111,12 +111,31 @@ function processHistoricalEmails30Days() {
 }
 
 function backfillSebConfirmations() {
+    requestBackfill(PropertiesService.getScriptProperties());
+    Logger.log("SEB confirmation backfill requested: the next cron run of processNewEmails starts it.");
+}
+
+function continueRequestedBackfill() {
+    var props = PropertiesService.getScriptProperties();
+    if (!backfillRequested(props)) return;
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(0)) {
+        Logger.log("SEB confirmation backfill skipped: another run holds the lock");
+        return;
+    }
+    try {
+        runBackfill(props);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+function runBackfill(props) {
     var startedAt = new Date();
     var source = SOURCES.SEB_CONFIRMATION;
-    var props = PropertiesService.getScriptProperties();
     var resumeFrom = props.getProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
     var uploadedUntil = resumeFrom ? new Date(resumeFrom) : SEB_CONFIRMATION_BACKFILL_START;
-    var searchQuery = gmailSearchQuery(daysToReach(SEB_CONFIRMATION_BACKFILL_START, startedAt), source.senders);
+    var searchQuery = gmailSearchQuery(daysToReach(uploadedUntil, startedAt), source.senders);
     var queue = backfillQueue(GmailApp.search(searchQuery), source, uploadedUntil);
     Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery +
         ", resumeFrom=" + uploadedUntil.toISOString() + ", messages=" + queue.length);
@@ -125,21 +144,34 @@ function backfillSebConfirmations() {
     for (var i = 0; i < queue.length; i++) {
         if (backfillTimeIsUp(startedAt, new Date())) {
             Logger.log("Backfill paused: uploaded=" + uploaded + ", remaining=" + (queue.length - i) +
-                ", resumeFrom=" + uploadedUntil.toISOString() + ". Run backfillSebConfirmations again to continue.");
+                ", resumeFrom=" + uploadedUntil.toISOString() + ". The next cron run continues from there.");
             return;
         }
         uploaded += uploadMatchingAttachments(queue[i], source);
         uploadedUntil = queue[i].getDate();
         props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, uploadedUntil.toISOString());
     }
-    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
+    finishBackfill(props);
     Logger.log("Backfill complete: uploaded=" + uploaded);
+}
+
+function requestBackfill(props) {
+    props.setProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY, "yes");
+}
+
+function backfillRequested(props) {
+    return props.getProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY) !== null;
+}
+
+function finishBackfill(props) {
+    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
+    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY);
 }
 
 function backfillQueue(threads, source, uploadedUntil) {
     return threads
         .reduce(function (messages, thread) { return messages.concat(messagesFrom(thread.getMessages(), source)); }, [])
-        .filter(function (message) { return message.getDate().getTime() > uploadedUntil.getTime(); })
+        .filter(function (message) { return message.getDate().getTime() >= uploadedUntil.getTime(); })
         .sort(function (a, b) { return a.getDate().getTime() - b.getDate().getTime(); });
 }
 
@@ -687,5 +719,8 @@ if (typeof module !== "undefined" && module.exports) {
         messagesFrom,
         backfillQueue,
         backfillTimeIsUp,
+        backfillRequested,
+        requestBackfill,
+        finishBackfill,
     };
 }

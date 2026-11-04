@@ -25,7 +25,7 @@ class SettlementFromBankListener {
   private int scanLookbackDays = 60;
 
   @EventListener
-  @Order(SebPendingTransactionReconciliationListener.LISTENER_ORDER + 1)
+  @Order(SebPriceVsNavCheckListener.LISTENER_ORDER + 10)
   public void onReportImportCompleted(ReportImportCompleted event) {
     if (event.provider() == SEB && event.reportType() == PENDING_TRANSACTIONS) {
       settleTheLookback();

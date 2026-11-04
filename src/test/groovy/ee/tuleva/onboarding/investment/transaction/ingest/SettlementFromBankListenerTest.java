@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.event.ApplicationListenerMethodAdapter;
 
 @ExtendWith(MockitoExtension.class)
 class SettlementFromBankListenerTest {
@@ -30,6 +32,24 @@ class SettlementFromBankListenerTest {
 
   private SettlementFromBankListener listener() {
     return new SettlementFromBankListener(CLOCK, settlementFromBankService);
+  }
+
+  @Test
+  void afterAReportImport_reconciliationRunsBeforeTheBankSettles() throws Exception {
+    var reconciliation =
+        new ApplicationListenerMethodAdapter(
+            "reconciliation",
+            SebPendingTransactionReconciliationListener.class,
+            SebPendingTransactionReconciliationListener.class.getMethod(
+                "onReportImportCompleted", ReportImportCompleted.class));
+    var bankSettlement =
+        new ApplicationListenerMethodAdapter(
+            "bankSettlement",
+            SettlementFromBankListener.class,
+            SettlementFromBankListener.class.getMethod(
+                "onReportImportCompleted", ReportImportCompleted.class));
+
+    assertThat(reconciliation.getOrder()).isLessThan(bankSettlement.getOrder());
   }
 
   @Test

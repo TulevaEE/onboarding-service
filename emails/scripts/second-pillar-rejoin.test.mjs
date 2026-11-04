@@ -11,15 +11,14 @@ const DISCLAIMER_TEXT_COLOR = '#212529';
 const languages = {
   et: {
     sotsmaksHref: 'https://tuleva.ee/sotsmaks',
-    sotsmaksText: 'tuleva.ee/sotsmaks',
+    sotsmaksText: 'vähendab veidi I&nbsp;sammast',
     required: [
       'Sinu avaldus II&nbsp;sambas kogumise jätkamiseks on esitatud. Sissemaksed hakkavad laekuma automaatselt ja nende alguskuupäev on *|contributionStartDate|*.',
       'Kui mõtled ümber, saad avalduse oma Tuleva kontol tühistada. Viimane päev selleks on *|cancellationDeadline|*.',
       'II&nbsp;samba vara saad kasutada alates eelpensionieast ehk viis aastat enne vanaduspensioniiga (praegu 60.&nbsp;eluaastast). Kogutud raha on sinu oma ja seda saab pärandada.',
       'Oma sissemakse suurust saad muuta igal aastal novembri lõpuni.',
       'Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.',
-      'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast.',
-      'Vaata II&nbsp;samba mõju I&nbsp;sambale',
+      'II&nbsp;sambasse makstud sotsiaalmaks vähendab veidi I&nbsp;sammast',
     ],
     forbidden: ['30.&nbsp;novembril', 'Mineviku tootlus', 'Tulumaksu tagasisaamiseks'],
     fundBranches: {
@@ -41,14 +40,13 @@ const languages = {
   },
   en: {
     sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
-    sotsmaksText: 'tuleva.ee/en/sotsmaks',
+    sotsmaksText: 'slightly reduces your I&nbsp;pillar',
     required: [
       'Contributions start on *|contributionStartDate|*.',
       'If you change your mind, you can cancel the application in your Tuleva account until *|cancellationDeadline|*.',
       'You can use the money from age 60. After rejoining, you can\'t stop contributions again or withdraw the money a second time.',
       'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
-      'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar.',
-      'See how the II&nbsp;pillar affects your I&nbsp;pillar at',
+      'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar',
     ],
     forbidden: ['30&nbsp;November', 'Past performance', 'tax return'],
     alwaysFiled: 'Application for making contributions',

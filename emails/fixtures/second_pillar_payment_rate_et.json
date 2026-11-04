@@ -2,34 +2,34 @@
   "variants": {
     "II sambaga taasliitumise soovitus (ei esine)": {
       "FNAME": "Jaan",
-      "increased": false,
+      "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "2",
+      "newPaymentRate": "4",
       "suggestSecondPillarRejoin": true,
-      "secondPillarRejoinDeadline": "30. november 2026",
+      "secondPillarRejoinDeadline": "30. november",
       "anyPillarSuggestion": true
     },
     "II samba avamise soovitus (ei esine)": {
       "FNAME": "Jaan",
-      "increased": false,
+      "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "2",
+      "newPaymentRate": "4",
       "suggestSecondPillarStart": true,
       "anyPillarSuggestion": true
     },
     "II samba soovitus": {
       "FNAME": "Jaan",
-      "increased": false,
+      "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "2",
+      "newPaymentRate": "4",
       "suggestSecondPillar": true,
       "anyPillarSuggestion": true
     },
     "II samba tasude võrdlus": {
       "FNAME": "Jaan",
-      "increased": false,
+      "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "2",
+      "newPaymentRate": "4",
       "suggestSecondPillar": true,
       "hasFeeComparison": true,
       "secondPillarFeePercent": "0,65",
@@ -113,9 +113,20 @@
       "newPaymentRate": "6",
       "suggestMembership": true
     },
-    "ilma soovituseta": {
+    "määr tõusis, ilma soovituseta": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4"
+    },
+    "määr langes": {
       "FNAME": "Jaan",
-      "increased": false,
+      "decreased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2"
+    },
+    "määr jääb samaks": {
+      "FNAME": "Jaan",
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2"
     }

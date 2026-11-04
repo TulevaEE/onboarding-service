@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.ledger.TradeSettlementBookings;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,33 +27,34 @@ class SettlementFromBankService {
   private final LatestPendingReport latestPendingReport;
   private final OrderBankSettlement orderBankSettlement;
 
-  BankSettlementRun settleOrdersBookedSince(LocalDate since) {
+  Optional<BankSettlementRun> settleOrdersBookedSince(LocalDate since) {
     return settleOrdersBookedSince(since, Map.of());
   }
 
-  BankSettlementRun settleOrdersBookedSince(
+  Optional<BankSettlementRun> settleOrdersBookedSince(
       LocalDate since, Map<UUID, String> referencesOfOlderBookings) {
+    Optional<PendingListing> listing = latestPendingReport.listing();
+    if (listing.isEmpty()) {
+      return Optional.empty();
+    }
     List<TransactionOrder> orders =
         orderRepository.findByOrderStatusInAndOrderTimestampSince(
             List.of(EXECUTED, SETTLED), since.atStartOfDay(UTC).toInstant());
-    PendingListing listing =
-        latestPendingReport
-            .listing()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException("No complete SEB pending report to settle against"));
     BookingsByReference bookings =
         new BookingsByReference(
             tradeSettlementBookings.bookedSince(since), referencesOfOlderBookings);
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     List<BankSettlementOutcome> outcomes =
-        orders.stream().map(order -> settle(order, bookings, listing, matchingProperties)).toList();
-    return new BankSettlementRun(
-        count(outcomes, BankSettlementOutcome.SETTLED),
-        count(outcomes, BankSettlementOutcome.SAME_DATE),
-        count(outcomes, BankSettlementOutcome.NEW_DATE),
-        count(outcomes, BankSettlementOutcome.NO_BANK_DATE),
-        count(outcomes, BankSettlementOutcome.FAILED));
+        orders.stream()
+            .map(order -> settle(order, bookings, listing.get(), matchingProperties))
+            .toList();
+    return Optional.of(
+        new BankSettlementRun(
+            count(outcomes, BankSettlementOutcome.SETTLED),
+            count(outcomes, BankSettlementOutcome.SAME_DATE),
+            count(outcomes, BankSettlementOutcome.NEW_DATE),
+            count(outcomes, BankSettlementOutcome.NO_BANK_DATE),
+            count(outcomes, BankSettlementOutcome.FAILED)));
   }
 
   private BankSettlementOutcome settle(

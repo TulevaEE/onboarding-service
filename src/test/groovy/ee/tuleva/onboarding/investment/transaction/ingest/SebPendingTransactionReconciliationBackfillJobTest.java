@@ -211,7 +211,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .when(reconciliationService)
         .replay(eq(day10), any());
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService).replay(eq(day27), any());
     verify(reconciliationService, never()).replay(eq(day3), any());
@@ -239,7 +240,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day27), any());
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService)
         .sendMessage(
@@ -264,7 +266,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 3L);
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(eq(day3), any());
     verify(notificationService)
@@ -285,7 +288,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   void run_whenCountingTheExecutionsBeforeTheReplayFails_saysInSlackThatItStopped() {
     given(executionRepository.count()).willThrow(new IllegalStateException("database unavailable"));
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(any(), any());
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
@@ -301,9 +305,38 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .willThrow(new IllegalStateException("database unavailable"));
     given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
 
-    job.onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
+  }
+
+  @Test
+  void aCompletionNoticeThatCannotBeSentIsNotReportedAsAStopAndLeavesTheTriggerCompleted() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    givenStoredReports(Map.of(27, day27));
+    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    willThrow(new IllegalStateException("slack unavailable"))
+        .given(notificationService)
+        .sendMessage(any(), eq(INVESTMENT));
+
+    job.onSebPendingTransactionReconciliationBackfillRequested();
+
+    verify(notificationService, never()).sendMessage(any(), eq(INVESTMENT), eq(ERROR));
+  }
+
+  @Test
+  void aStopWhoseSlackNoticeAlsoFailsStillFailsTheTriggerWithTheStopsCause() {
+    IllegalStateException databaseDown = new IllegalStateException("database unavailable");
+    given(executionRepository.count()).willThrow(databaseDown);
+    willThrow(new IllegalStateException("slack unavailable"))
+        .given(notificationService)
+        .sendMessage(any(), any(), any());
+
+    assertThatThrownBy(job::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class)
+        .cause()
+        .isSameAs(databaseDown);
   }
 
   @Test
@@ -380,7 +413,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .given(reconciliationService)
         .replay(eq(day27), any());
 
-    jobAt(morning, lockProvider).onSebPendingTransactionReconciliationBackfillRequested();
+    assertThatThrownBy(
+            jobAt(morning, lockProvider)::onSebPendingTransactionReconciliationBackfillRequested)
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(reconciliationService, never()).replay(eq(day10), any());
     verify(notificationService)

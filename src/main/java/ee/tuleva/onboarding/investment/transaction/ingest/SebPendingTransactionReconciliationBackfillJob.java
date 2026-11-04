@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.util.stream.Collectors.joining;
 
@@ -60,7 +61,7 @@ class SebPendingTransactionReconciliationBackfillJob {
       log.warn(
           "SEB pending transactions replay refused inside the import window: closedHours={}",
           replayWindow.closedHours());
-      notificationService.sendMessage(windowClosedMessage(), INVESTMENT, WARNING);
+      notify(windowClosedMessage(), WARNING);
       throw new IllegalStateException(
           "SEB pending transactions replay refused inside the import window: closedHours="
               + replayWindow.closedHours());
@@ -69,21 +70,34 @@ class SebPendingTransactionReconciliationBackfillJob {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
-      notificationService.sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
+      notify(LOCK_HELD_MESSAGE, WARNING);
       throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);
     }
   }
 
   private void run() {
+    ReplaySummary summary;
     try {
-      announce(replayOldestFirst());
+      summary = replayOldestFirst();
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: backfillDays={}",
           BACKFILL_DAYS,
           e);
-      notificationService.sendMessage(stoppedOutsideAReportMessage(), INVESTMENT, ERROR);
+      notify(stoppedOutsideAReportMessage(), ERROR);
+      throw new IllegalStateException(
+          "SEB pending transactions replay stopped outside a report, see the log", e);
     }
+    announce(summary);
+    summary.stop().ifPresent(SebPendingTransactionReconciliationBackfillJob::failTheTrigger);
+  }
+
+  private static void failTheTrigger(Stop stop) {
+    throw new IllegalStateException(
+        "SEB pending transactions replay stopped: reportDate="
+            + stop.reportDate()
+            + ", reason="
+            + stop.reason());
   }
 
   private ReplaySummary replayOldestFirst() {
@@ -146,23 +160,34 @@ class SebPendingTransactionReconciliationBackfillJob {
         summary.stop().map(Stop::reportDate).orElse(null));
     if (summary.replayed().isEmpty() && summary.stop().isEmpty()) {
       log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
-      notificationService.sendMessage(noReportsMessage(), INVESTMENT, WARNING);
+      notify(noReportsMessage(), WARNING);
       return;
     }
     summary
         .stop()
         .ifPresentOrElse(
-            stop ->
-                notificationService.sendMessage(
-                    stoppedMessage(stop, summary), INVESTMENT, stop.reason().severity),
+            stop -> notify(stoppedMessage(stop, summary), stop.reason().severity),
             () -> sendCompleted(summary));
   }
 
   private void sendCompleted(ReplaySummary summary) {
-    if (summary.alerts().isEmpty() && summary.skippedChecks().isEmpty()) {
-      notificationService.sendMessage(completedMessage(summary), INVESTMENT);
-    } else {
-      notificationService.sendMessage(completedMessage(summary), INVESTMENT, WARNING);
+    notify(
+        completedMessage(summary),
+        summary.alerts().isEmpty() && summary.skippedChecks().isEmpty() ? INFO : WARNING);
+  }
+
+  private void notify(String message, Severity severity) {
+    try {
+      if (severity == INFO) {
+        notificationService.sendMessage(message, INVESTMENT);
+      } else {
+        notificationService.sendMessage(message, INVESTMENT, severity);
+      }
+    } catch (RuntimeException e) {
+      log.error(
+          "SEB pending transactions replay could not post its Slack notice: severity={}",
+          severity,
+          e);
     }
   }
 

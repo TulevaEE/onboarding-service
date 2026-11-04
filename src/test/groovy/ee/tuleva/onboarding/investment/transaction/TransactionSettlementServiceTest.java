@@ -128,6 +128,22 @@ class TransactionSettlementServiceTest {
   }
 
   @Test
+  void settleFromTheBank_redatesAnAbsenceSettlementThatWasWrittenJustBeforeIt() {
+    TransactionOrder order = order(42L);
+    TransactionSettlement writtenMeanwhile =
+        settlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE);
+    given(settlementRepository.findByOrderId(42L))
+        .willReturn(Optional.empty(), Optional.of(writtenMeanwhile));
+
+    Optional<PreviousSettlement> previous = service().settleFromTheBank(order, REPORT_DATE);
+
+    assertThat(previous)
+        .contains(new PreviousSettlement(LocalDate.of(2026, 5, 15), PENDING_REPORT_ABSENCE));
+    assertThat(writtenMeanwhile.getReportDate()).isEqualTo(REPORT_DATE);
+    assertThat(writtenMeanwhile.getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  @Test
   void isSettledByTheBank_onlyForASettlementTheBankDated() {
     given(settlementRepository.findByOrderId(1L))
         .willReturn(Optional.of(settlement(REPORT_DATE, BANK_STATEMENT)));

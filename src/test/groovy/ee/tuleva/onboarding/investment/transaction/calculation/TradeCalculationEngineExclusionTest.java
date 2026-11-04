@@ -119,6 +119,27 @@ class TradeCalculationEngineExclusionTest {
   }
 
   @Test
+  void sellAndSellFast_withEveryHoldingExcluded_areRejectedWhenThereIsAShortfall() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00C", new BigDecimal("100000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("100000"))
+            .cashBuffer(ZERO)
+            .liabilities(new BigDecimal("50000"))
+            .freeCash(new BigDecimal("-50000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .build()
+            .excluding(Set.of("IE00C"));
+
+    assertThatThrownBy(() -> engine.calculate(input, SELL))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> engine.calculate(input, SELL_FAST))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void anExcludedHoldingWithANegativeMarketValue_isRejected() {
     var input =
         FundTransactionInput.builder()

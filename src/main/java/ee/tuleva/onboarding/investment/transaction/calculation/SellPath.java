@@ -32,6 +32,7 @@ final class SellPath {
 
   static List<BigDecimal> calculateSell(
       FundTransactionInput input, BigDecimal targetNet, Map<String, BigDecimal> weightMap) {
+    requireExclusionLeavesEnoughToSell(input);
     int size = input.positions().size();
     if (size == 0) {
       return List.of();
@@ -42,7 +43,6 @@ final class SellPath {
     }
 
     BigDecimal targetSellAmount = input.freeCash().abs();
-    requireExclusionLeavesEnoughToSell(input, targetSellAmount);
 
     List<BigDecimal> standardScores =
         input.positions().stream()
@@ -116,6 +116,7 @@ final class SellPath {
 
   static List<BigDecimal> calculateSellFast(
       FundTransactionInput input, BigDecimal netInvestable, Map<String, BigDecimal> weightMap) {
+    requireExclusionLeavesEnoughToSell(input);
     int size = input.positions().size();
     if (size == 0) {
       return List.of();
@@ -126,7 +127,6 @@ final class SellPath {
     }
 
     BigDecimal targetAmount = input.freeCash().abs();
-    requireExclusionLeavesEnoughToSell(input, targetAmount);
     List<BigDecimal> targetValues = normalizedTargetValues(input, netInvestable, weightMap);
     BigDecimal[] results = new BigDecimal[size];
     Arrays.fill(results, ZERO);
@@ -147,11 +147,11 @@ final class SellPath {
     return finalizeSells(input, results, targetValues, targetAmount);
   }
 
-  private static void requireExclusionLeavesEnoughToSell(
-      FundTransactionInput input, BigDecimal targetSellAmount) {
+  private static void requireExclusionLeavesEnoughToSell(FundTransactionInput input) {
     if (input.excludedPositions().isEmpty()) {
       return;
     }
+    BigDecimal targetSellAmount = input.freeCash().negate();
     BigDecimal sellable =
         input.positions().stream().map(PositionSnapshot::marketValue).reduce(ZERO, BigDecimal::add);
     if (targetSellAmount.subtract(sellable).compareTo(MIN_MEANINGFUL_AMOUNT) > 0) {

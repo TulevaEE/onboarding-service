@@ -25,7 +25,7 @@ class SettlementFromBankServiceTest {
 
   private static final LocalDate SINCE = LocalDate.of(2026, 2, 1);
   private static final PendingListing LISTING =
-      new PendingListing(LocalDate.of(2026, 2, 20), Set.of(), Set.of());
+      new PendingListing(LocalDate.of(2026, 2, 20), Set.of(), Set.of(), Set.of());
 
   @Mock private TradeSettlementBookings tradeSettlementBookings;
   @Mock private TransactionOrderRepository orderRepository;

@@ -190,8 +190,11 @@ class InvestmentReportPublisherTest {
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     verify(wordPressClient, times(3)).upload(any(), any());
-    assertThat(result.errors()).hasSize(1);
-    assertThat(result.errors().getFirst()).contains("TUK00");
+    assertThat(result.errors())
+        .containsExactly(
+            "WordPress page update failed, so the uploaded report was not linked; link it or delete"
+                + " it from the media library: fund=TUK00,"
+                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf, error=ACF down");
     assertThat(result.wordPressUrls()).hasSize(2).doesNotContainKey("TUK00");
     assertThat(result.emailSent()).isFalse();
     verify(emailService)
@@ -283,6 +286,41 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
+  void aFailedUploadNamesTheFileWordPressMayHaveStoredAndTheUploadsLeftUnlinked() {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    var context = sampleContext("Test Fund");
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(FundReportMapping.TUK75.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willReturn(new UploadResult(41, "https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf"));
+    given(wordPressClient.upload(FundReportMapping.TUK00.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willThrow(new IllegalStateException("request timed out"));
+    given(wordPressClient.upload(FundReportMapping.TUV100.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willReturn(
+            new UploadResult(43, "https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf"));
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(),
+                false,
+                List.of(
+                    "WordPress upload failed but may have stored the file anyway, possibly with a"
+                        + " -N suffix; delete it from the media library if it is there: fund=TUK00,"
+                        + " file=tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf,"
+                        + " error=request timed out",
+                    "Uploaded report was not linked; link it or delete it from the media library:"
+                        + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf",
+                    "Uploaded report was not linked; link it or delete it from the media library:"
+                        + " fund=TUV100,"
+                        + " file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf")));
+    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
+  }
+
+  @Test
   void publishRejectsMissingNavDateForFund() {
     var navDates =
         Map.of(
@@ -329,7 +367,11 @@ class InvestmentReportPublisherTest {
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUV100");
-    assertThat(result.errors()).containsExactly(refusal);
+    assertThat(result.errors())
+        .containsExactly(
+            refusal,
+            "Uploaded report was not linked; link it or delete it from the media library:"
+                + " fund=TUK00, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
     verify(wordPressClient, never())
         .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
     verify(emailService)

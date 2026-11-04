@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -32,6 +33,9 @@ public class InvestmentReportPublisher {
   private static final int MIN_END_OF_MONTH_DAY = 25;
   private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
   private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
+  private static final String UPLOAD_NOT_LINKED =
+      "Uploaded report was not linked; link it or delete it from the media library:"
+          + " fund=%s, file=%s";
 
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
@@ -92,6 +96,10 @@ public class InvestmentReportPublisher {
     var uploadErrors = new ArrayList<String>();
     var uploads = uploadAllReports(month, pdfs, uploadErrors);
     if (!uploadErrors.isEmpty()) {
+      uploads.forEach(
+          (mapping, upload) ->
+              uploadErrors.add(
+                  UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl())));
       log.warn("Uploads failed, no fund pages changed, website unchanged: {}", uploadErrors);
       return abortedWithoutPublishing(uploadErrors);
     }
@@ -169,8 +177,13 @@ public class InvestmentReportPublisher {
       } catch (Exception e) {
         log.error("WordPress upload failed for {}", mapping.fund().getCode(), e);
         errors.add(
-            "WordPress upload failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage()));
+            ("WordPress upload failed but may have stored the file anyway, possibly with a -N"
+                    + " suffix; delete it from the media library if it is there: fund=%s,"
+                    + " file=%s, error=%s")
+                .formatted(
+                    mapping.fund().getCode(),
+                    WordPressSlug.of(mapping.buildPdfFilename(month)),
+                    e.getMessage()));
       }
     }
     return uploads;
@@ -189,6 +202,7 @@ public class InvestmentReportPublisher {
           newerReportCheck.reasonsNotToReplace(List.of(mapping), month, unrecognisedFilesToReplace);
       if (!refusedSinceTheCheck.isEmpty()) {
         errors.addAll(refusedSinceTheCheck);
+        errors.add(UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()));
         continue;
       }
       try {
@@ -197,8 +211,9 @@ public class InvestmentReportPublisher {
       } catch (Exception e) {
         log.error("WordPress page update failed for {}", mapping.fund().getCode(), e);
         errors.add(
-            "WordPress page update failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage()));
+            ("WordPress page update failed, so the uploaded report was not linked; link it or"
+                    + " delete it from the media library: fund=%s, file=%s, error=%s")
+                .formatted(mapping.fund().getCode(), upload.sourceUrl(), e.getMessage()));
       }
     }
     return publishedUrls;

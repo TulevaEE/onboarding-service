@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -545,18 +544,56 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     verifyNoInteractions(reportService, reconciliationService);
   }
 
+  @Test
+  void aReplayThatLosesItsLockStopsBeforeTheNextReportAndFailsItsTrigger() {
+    MutableClock evening = new MutableClock(at("2026-05-18T22:00"));
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    willAnswer(
+            invocation -> {
+              evening.tick(3, MINUTES);
+              return SettlementCheck.CHECKED;
+            })
+        .given(reconciliationService)
+        .replay(eq(day27), any());
+    SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
+
+    assertThatThrownBy(
+            () -> eveningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(reconciliationService, never()).replay(eq(day10), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
+            sobitamise lukk läks kaotsi (põhjus on logis) ja sobitada võib nüüd keegi teine.
+            Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hinnaerinevusi: 0).
+            Jätka raportist 2026-05-08, kui teine sobitamine on lõppenud:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            ERROR);
+  }
+
   private SebPendingTransactionReconciliationBackfillJob jobLockedBy(
-      ExtensibleLockProvider provider) {
+      RecordingLockProvider provider) {
     return jobAt(clock, provider);
   }
 
   private SebPendingTransactionReconciliationBackfillJob jobAt(
-      Clock clock, ExtensibleLockProvider provider) {
+      Clock clock, RecordingLockProvider provider) {
     SebReplayWindow window = new SebReplayWindow("07:45", "18:15");
     return new SebPendingTransactionReconciliationBackfillJob(
         clock,
         notificationService,
-        new SebReconciliationLock(provider, clock),
+        provider.reconciliationLockAt(clock),
         window,
         new SebPendingReportReplayer(
             clock,

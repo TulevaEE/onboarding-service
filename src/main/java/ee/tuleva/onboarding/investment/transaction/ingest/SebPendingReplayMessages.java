@@ -163,6 +163,10 @@ final class SebPendingReplayMessages {
     IMPORT_WINDOW_OPENS(
         "enne raportit %s, sest algas SEB raportite impordi aeg.\n",
         "Jätka õhtul raportist %s:\n", WARNING),
+    LOCK_LOST(
+        "enne raportit %s, sest sobitamise lukk läks kaotsi (põhjus on logis) ja sobitada võib"
+            + " nüüd keegi teine.\n",
+        "Jätka raportist %s, kui teine sobitamine on lõppenud:\n", ERROR),
     TIME_BUDGET_SPENT(
         "enne raportit %s, sest see on kestnud 45 minutit ja käivitajate lukk kehtib 60"
             + " minutit.\n",

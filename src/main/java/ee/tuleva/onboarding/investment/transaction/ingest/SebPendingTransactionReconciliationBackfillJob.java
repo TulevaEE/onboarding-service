@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -53,7 +54,7 @@ class SebPendingTransactionReconciliationBackfillJob {
               + replayWindow.closedHours());
     }
     LocalDate firstReportDate = firstReportDateWithinTheWindow(request);
-    if (!reconciliationLock.runIfFree(() -> run(firstReportDate))) {
+    if (!reconciliationLock.runIfFree(stillHeld -> run(firstReportDate, stillHeld))) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
@@ -83,10 +84,10 @@ class SebPendingTransactionReconciliationBackfillJob {
     return firstReportDate;
   }
 
-  private void run(LocalDate firstReportDate) {
+  private void run(LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
     ReplaySummary summary;
     try {
-      summary = replayer.replayOldestFirst(firstReportDate);
+      summary = replayer.replayOldestFirst(firstReportDate, stillHoldsTheLock);
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: from={}", firstReportDate, e);

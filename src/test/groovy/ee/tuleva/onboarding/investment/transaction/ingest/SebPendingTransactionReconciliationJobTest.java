@@ -17,22 +17,18 @@ import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineRun;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
-import net.javacrumbs.shedlock.core.LockProvider;
-import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationJobTest {
@@ -63,7 +59,7 @@ class SebPendingTransactionReconciliationJobTest {
     given(clock.getZone()).willReturn(saturdayClock.getZone());
     given(publicHolidays.isWorkingDay(SATURDAY)).willReturn(false);
 
-    job.run();
+    job.runOnSchedule();
 
     verifyNoInteractions(reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
@@ -79,7 +75,7 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
     verify(pipelineTracker).start(PipelineRun.PipelineType.IMPORT, "Execution Matching");
     verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
@@ -106,7 +102,7 @@ class SebPendingTransactionReconciliationJobTest {
         .given(reconciliationService)
         .reconcile(today);
 
-    job.run();
+    job.runOnSchedule();
 
     verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
     verify(pipelineTracker).stepFailed(EXECUTION_MATCHING, "boom");
@@ -134,7 +130,7 @@ class SebPendingTransactionReconciliationJobTest {
       given(reportService.getReport(SEB, PENDING_TRANSACTIONS, date)).willReturn(r);
     }
 
-    job.run();
+    job.runOnSchedule();
 
     verify(reconciliationService).reconcile(day0);
     verify(reconciliationService).reconcile(day1);
@@ -151,7 +147,7 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(i == 0 ? Optional.of(today) : Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
     verify(reconciliationService).reconcile(today);
   }
@@ -164,7 +160,7 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
     verify(reconciliationService, never()).reconcile(any());
   }
@@ -187,7 +183,7 @@ class SebPendingTransactionReconciliationJobTest {
         .given(reconciliationService)
         .reconcile(day1);
 
-    job.run();
+    job.runOnSchedule();
 
     verify(reconciliationService).reconcile(day1);
     verify(reconciliationService).reconcile(day2);
@@ -249,28 +245,34 @@ class SebPendingTransactionReconciliationJobTest {
               return false;
             });
 
-    try (var context = lockedContext(lockProvider)) {
-      context.getBean(SebPendingTransactionReconciliationJob.class).run();
-    }
+    jobLockedBy(lockProvider).runOnSchedule();
 
     assertThat(lockHeldWhileRunning).containsExactly(true);
     assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
   }
 
   @Test
+  void theScheduledRunKeepsAnotherNodesFiringOfTheSameScheduleOutForAMinute() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(false);
+
+    jobLockedBy(lockProvider).runOnSchedule();
+
+    assertThat(lockProvider.lockAtLeastFor()).containsExactly(Duration.ofMinutes(1));
+  }
+
+  @Test
   void theScheduledRunDoesNotRunWhileTheReplayHoldsTheLock() {
     RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
 
-    try (var context = lockedContext(lockProvider)) {
-      context.getBean(SebPendingTransactionReconciliationJob.class).run();
-    }
+    jobLockedBy(lockProvider).runOnSchedule();
 
     assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
     verifyNoInteractions(
         publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
 
-  private SebPendingTransactionReconciliationJob jobLockedBy(ExtensibleLockProvider provider) {
+  private SebPendingTransactionReconciliationJob jobLockedBy(RecordingLockProvider provider) {
     return new SebPendingTransactionReconciliationJob(
         clock,
         publicHolidays,
@@ -278,30 +280,8 @@ class SebPendingTransactionReconciliationJobTest {
         reconciliationService,
         pipelineTracker,
         pipelineNotifier,
-        new SebReconciliationLock(provider, clock));
+        provider.reconciliationLockAt(clock));
   }
-
-  private AnnotationConfigApplicationContext lockedContext(LockProvider lockProvider) {
-    var context = new AnnotationConfigApplicationContext();
-    context.getEnvironment().setActiveProfiles("production");
-    context.registerBean(LockProvider.class, () -> lockProvider);
-    context.registerBean(Clock.class, () -> clock);
-    context.registerBean(PublicHolidays.class, () -> publicHolidays);
-    context.registerBean(InvestmentReportService.class, () -> reportService);
-    context.registerBean(
-        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
-    context.registerBean(PipelineTracker.class, () -> pipelineTracker);
-    context.registerBean(PipelineNotifier.class, () -> pipelineNotifier);
-    context.registerBean(
-        SebReconciliationLock.class, () -> new SebReconciliationLock(lockProvider, clock));
-    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationJob.class);
-    context.refresh();
-    return context;
-  }
-
-  @Configuration
-  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
-  static class SchedulerLockOnly {}
 
   private static InvestmentReport report(LocalDate date) {
     return InvestmentReport.builder()

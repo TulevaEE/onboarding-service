@@ -17,7 +17,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -40,8 +39,16 @@ class SebPendingTransactionReconciliationJob {
   private final SebReconciliationLock reconciliationLock;
 
   @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
-  @SchedulerLock(name = SebReconciliationLock.NAME, lockAtMostFor = "30m", lockAtLeastFor = "1m")
-  public void run() {
+  void runOnSchedule() {
+    if (!reconciliationLock.runScheduledIfFree(stillHeld -> run())) {
+      log.info(
+          "Scheduled SEB pending transactions reconciliation skipped, another run holds its lock:"
+              + " lock={}",
+          SebReconciliationLock.NAME);
+    }
+  }
+
+  private void run() {
     LocalDate today = LocalDate.now(clock);
     if (!publicHolidays.isWorkingDay(today)) {
       log.info(
@@ -94,7 +101,7 @@ class SebPendingTransactionReconciliationJob {
 
   @EventListener(RunSebPendingTransactionReconciliationRequested.class)
   void onSebPendingTransactionReconciliationRequested() {
-    if (!reconciliationLock.runIfFree(this::run)) {
+    if (!reconciliationLock.runIfFree(stillHeld -> run())) {
       log.warn(
           "SEB pending transactions reconciliation skipped, its lock is held: lock={}",
           SebReconciliationLock.NAME);

@@ -38,20 +38,22 @@ which the AML channel hears about with the request id. A PEP hit is held at once
 unset `AML_SERVICE_HIGH_RISK_ENABLED` rather than deploying an older build: once a payout is held
 with `RISK_LEVEL_UNAVAILABLE`, a build without that hold reason cannot load the redemption.
 
-`AmlServiceKycChecker` assesses a person's KYC onboarding risk while they submit their KYC survey,
-with aml-service's `POST /v1/kyc-onboarding/assessments`; there is no flag and no fallback to the
-SQL `kyc_ob_assess_user_risk`. aml-service reads in its own transaction, so `KycSurveyService`
-commits the survey and the sanction/PEP screenings `BeforeKycCheckedEvent` writes (the subject's,
-and a minor's guardians') before asking, and the checker refuses to ask inside a transaction. The
-result is published only if the survey is still the person's latest (`created_time`, then `id`, as
-aml-service orders them), so an older submission's late answer does not overwrite a newer one's;
-without a lock, both are still written if the older one's publishing stalls through the newer one's
-whole call. The call has its own timeouts (`kyc-onboarding-connect-timeout` 1s,
-`kyc-onboarding-read-timeout` 3s) and the 5xx/I/O retry of the nightly fetch, so a hanging
-aml-service adds at most about 8.5 seconds to the submission. Open-in-view holds the request's
-connection through the call, so with the screening before it a slow submission can still exceed
-Hikari's 10 s leak-detection threshold (a warning). A failure fails the submission, with the survey
-and screenings already committed and no `KYC_CHECK` row; a 404 (no such user or no KYC survey) is
-not retried.
+A person's KYC onboarding risk is assessed while they submit their KYC survey.
+`aml-service.enabled`, the nightly job's flag, chooses how: on, `AmlServiceKycChecker` asks
+aml-service's `POST /v1/kyc-onboarding/assessments`; off (staging, which does not set it),
+`KycCheckRepository` runs the SQL `kyc_ob_assess_user_risk`. Neither falls back to the other.
+aml-service reads in its own transaction, so `KycSurveyService` commits the survey and the
+sanction/PEP screenings `BeforeKycCheckedEvent` writes (the subject's, and a minor's guardians')
+before asking, and `AmlServiceKycChecker` refuses to ask inside a transaction; the SQL runs after
+that commit too, outside a transaction. The result is published only if the survey is still the
+person's latest (`created_time`, then `id`, as aml-service orders them), so an older submission's
+late answer does not overwrite a newer one's; without a lock, both are still written if the older
+one's publishing stalls through the newer one's whole call. The aml-service call has its own
+timeouts (`kyc-onboarding-connect-timeout` 1s, `kyc-onboarding-read-timeout` 3s) and the 5xx/I/O
+retry of the nightly fetch, so a hanging aml-service adds at most about 8.5 seconds to the
+submission. Open-in-view holds the request's connection through the call, so with the screening
+before it a slow submission can still exceed Hikari's 10 s leak-detection threshold (a warning). A
+failure fails the submission, with the survey and screenings already committed and no `KYC_CHECK`
+row; a 404 (no such user or no KYC survey) is not retried.
 
 `ScheduledAmlRiskMetadataRefreshJob` refreshes the views at 12:00 and 16:00 for Metabase.

@@ -47,6 +47,7 @@ public record FundTransactionInput(
       return this;
     }
     requireInFund(isins);
+    requireNoNegativeModelWeight();
     List<ModelWeight> remainingWeights =
         modelWeights.stream().filter(weight -> !isins.contains(weight.isin())).toList();
     return new FundTransactionInput(
@@ -107,6 +108,18 @@ public record FundTransactionInput(
           "Excluded instrument is neither held nor in the model portfolio: fund=%s, isins=%s"
               .formatted(fund.name(), unknown));
     }
+  }
+
+  private void requireNoNegativeModelWeight() {
+    modelWeights.stream()
+        .filter(weight -> weight.weight().signum() < 0)
+        .findFirst()
+        .ifPresent(
+            weight -> {
+              throw new IllegalArgumentException(
+                  "Model weight cannot be negative: fund=%s, isin=%s, weight=%s"
+                      .formatted(fund.name(), weight.isin(), weight.weight().toPlainString()));
+            });
   }
 
   private List<ModelWeight> spreadExcludedWeight(

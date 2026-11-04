@@ -18,7 +18,7 @@ class SebReplayLeaseTest {
 
     SebReplayLease lease = SebReplayLease.startingAt(sundayEvening).orElseThrow();
 
-    assertThat(lease.lockAtMostFor(sundayEvening)).isEqualTo(Duration.ofHours(9).plusMinutes(55));
+    assertThat(lease.lockAtMostFor()).isEqualTo(Duration.ofHours(9).plusMinutes(55));
   }
 
   @Test

@@ -59,7 +59,7 @@ class KycCountryServiceTest {
 
   @Test
   void getCountries_returnsEmptyWhenNoSurveyFound() {
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.empty());
 
     Optional<Set<Country>> result = kycCountryService.getCountries(USER_ID);
@@ -83,7 +83,7 @@ class KycCountryServiceTest {
   }
 
   private void givenLatestSurvey(KycSurveyResponseItem... answers) {
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(
             Optional.of(
                 KycSurvey.builder()

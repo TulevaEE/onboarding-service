@@ -46,12 +46,11 @@ import org.springframework.transaction.annotation.Transactional;
  * screening and persists the KYC_CHECK aml_check that KYB's RELATED_PERSONS_KYC reads, but leaves
  * PERSON onboarding untouched.
  *
- * <p>Note: the risk level itself is produced by the external SQL function {@code
- * kyc_ob_assess_user_risk} (deployed from the database-administration repo, not present in this
- * service's schema), so it is stubbed by {@link TestKycCheckerConfiguration} here. The profile
- * fields' irrelevance to the risk score is a property of that external function and is out of scope
- * for this service test. What this test guarantees is the service-side contract: no validation
- * requires the profile items, and the downstream onboarding-completion path is agnostic to them.
+ * <p>Note: the risk level itself is assessed by aml-service, so it is stubbed by {@link
+ * TestKycCheckerConfiguration} here. The profile fields' irrelevance to the risk score is a
+ * property of aml-service's KYC onboarding rules and is out of scope for this service test. What
+ * this test guarantees is the service-side contract: no validation requires the profile items, and
+ * the downstream onboarding-completion path is agnostic to them.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

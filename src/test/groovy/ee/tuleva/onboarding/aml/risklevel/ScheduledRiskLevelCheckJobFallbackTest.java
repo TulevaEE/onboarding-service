@@ -75,7 +75,9 @@ class ScheduledRiskLevelCheckJobFallbackTest {
               ofSeconds(60),
               false,
               ofSeconds(1),
-              ofSeconds(2)));
+              ofSeconds(2),
+              ofSeconds(1),
+              ofSeconds(5)));
 
   @BeforeEach
   void setUp() {

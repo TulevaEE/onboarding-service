@@ -64,7 +64,9 @@ class ConfiguredRiskLevelsTest {
             ofSeconds(60),
             false,
             ofSeconds(1),
-            ofSeconds(2)));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5)));
   }
 
   private RiskLevels withHighRiskFromAmlService() {
@@ -77,7 +79,9 @@ class ConfiguredRiskLevelsTest {
             ofSeconds(60),
             true,
             ofSeconds(1),
-            ofSeconds(2)));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5)));
   }
 
   private RiskLevels riskLevelsWith(AmlServiceProperties properties) {

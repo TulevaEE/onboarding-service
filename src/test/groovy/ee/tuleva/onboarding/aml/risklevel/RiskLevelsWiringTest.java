@@ -112,6 +112,8 @@ class RiskLevelsWiringTest {
             "aml-service.connect-timeout=5s",
             "aml-service.read-timeout=60s",
             "aml-service.high-risk-connect-timeout=1s",
-            "aml-service.high-risk-read-timeout=2s");
+            "aml-service.high-risk-read-timeout=2s",
+            "aml-service.kyc-onboarding-connect-timeout=1s",
+            "aml-service.kyc-onboarding-read-timeout=3s");
   }
 }

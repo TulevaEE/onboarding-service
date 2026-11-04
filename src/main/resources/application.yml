@@ -80,6 +80,8 @@ aml-service:
   high-risk-enabled: ${AML_SERVICE_HIGH_RISK_ENABLED:false}
   high-risk-connect-timeout: 1s
   high-risk-read-timeout: 2s
+  kyc-onboarding-connect-timeout: 1s
+  kyc-onboarding-read-timeout: 3s
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}

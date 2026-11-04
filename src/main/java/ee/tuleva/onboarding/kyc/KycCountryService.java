@@ -19,7 +19,7 @@ public class KycCountryService {
 
   public Optional<Set<Country>> getCountries(Long userId) {
     return kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDesc(userId)
+        .findFirstByUserIdOrderByCreatedTimeDescIdDesc(userId)
         .map(KycSurvey::getSurvey)
         .filter(survey -> survey.address().isPresent())
         .map(KycSurveyResponse::countries);

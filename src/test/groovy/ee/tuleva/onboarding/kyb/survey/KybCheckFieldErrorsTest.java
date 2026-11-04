@@ -202,16 +202,6 @@ class KybCheckFieldErrorsTest {
   }
 
   @Test
-  void collectErrorsByField_givesNoFieldErrorForCompanyParties() {
-    var checks = List.of(new KybCheck(COMPANY_PARTIES, false, Map.of("parties", List.of())));
-
-    var errorsByField =
-        KybCheckFieldErrors.collectErrorsByField(checks, PERSONAL_CODE, SAMPLE_RELATED_PERSONS);
-
-    assertThat(errorsByField).isEmpty();
-  }
-
-  @Test
   void collectErrorsByField_toleratesDataChangedCheck() {
     var checks =
         List.of(

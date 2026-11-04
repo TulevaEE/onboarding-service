@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class CompanyPartiesScreenerTest {
@@ -31,6 +32,16 @@ class CompanyPartiesScreenerTest {
 
     var result = screener.screen(companyWith(rejectedOwner));
 
-    assertThat(result).extracting(KybCheck::success).containsExactly(true);
+    assertThat(result)
+        .containsExactly(
+            new KybCheck(COMPANY_PARTIES, true, CompanyPartiesMetadata.of(List.of(rejectedOwner))));
+  }
+
+  @Test
+  void emitsACompanyPartiesCheckWithAnEmptyPartyListForACompanyWithoutRelatedPersons() {
+    var result = screener.screen(companyWith(List.of()));
+
+    assertThat(result)
+        .containsExactly(new KybCheck(COMPANY_PARTIES, true, Map.of("parties", List.of())));
   }
 }

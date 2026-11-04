@@ -21,7 +21,9 @@ final class CompanyPartiesMetadata {
   private static final Comparator<KybRelatedPerson> PARTY_ORDER =
       comparing(CompanyPartiesMetadata::code, nullsLast(naturalOrder()))
           .thenComparing(KybRelatedPerson::naturalPerson)
-          .thenComparing(person -> CompanyPartyRole.heldBy(person).toString());
+          .thenComparing(KybRelatedPerson::boardMember)
+          .thenComparing(KybRelatedPerson::shareholder)
+          .thenComparing(KybRelatedPerson::beneficialOwner);
 
   private CompanyPartiesMetadata() {}
 

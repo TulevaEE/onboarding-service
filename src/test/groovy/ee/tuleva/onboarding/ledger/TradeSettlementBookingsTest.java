@@ -47,6 +47,7 @@ class TradeSettlementBookingsTest {
               assertThat(booking.bookingDate()).isEqualTo(LocalDate.of(2026, 5, 28));
               assertThat(booking.cashAmount()).isEqualByComparingTo("-209025.86");
               assertThat(booking.externalReference()).isEqualTo(externalReference);
+              assertThat(booking.fund()).isEqualTo(TKF100);
             });
   }
 

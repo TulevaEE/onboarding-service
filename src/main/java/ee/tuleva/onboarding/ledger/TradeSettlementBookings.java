@@ -5,11 +5,14 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.BROKER_R
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.INSTRUMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
 
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,7 @@ public class TradeSettlementBookings {
 
   private static TradeSettlementBooking booking(LedgerTransaction transaction) {
     return new TradeSettlementBooking(
+        fund(transaction),
         transaction.getExternalReference(),
         (String) transaction.getMetadata().get(BROKER_REFERENCE.getKey()),
         (String) transaction.getMetadata().get(INSTRUMENT.getKey()),
@@ -46,6 +50,18 @@ public class TradeSettlementBookings {
         .map(LedgerEntry::getAmount)
         .reduce(BigDecimal.ZERO, BigDecimal::add)
         .negate();
+  }
+
+  private static @Nullable TulevaFund fund(LedgerTransaction transaction) {
+    return transaction.getEntries().stream()
+        .filter(TradeSettlementBookings::isTradeCash)
+        .map(entry -> entry.getAccount().getName())
+        .filter(Objects::nonNull)
+        .map(accountName -> accountName.split(":"))
+        .filter(segments -> segments.length > 1)
+        .map(segments -> TulevaFund.valueOf(segments[1]))
+        .findFirst()
+        .orElse(null);
   }
 
   private static boolean isTradeCash(LedgerEntry entry) {

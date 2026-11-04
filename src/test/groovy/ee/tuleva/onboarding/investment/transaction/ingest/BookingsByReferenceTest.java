@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
@@ -52,6 +53,7 @@ class BookingsByReferenceTest {
 
   private static TradeSettlementBooking booking(UUID externalReference, String brokerReference) {
     return new TradeSettlementBooking(
+        TKF100,
         externalReference,
         brokerReference,
         "LU1291102447",

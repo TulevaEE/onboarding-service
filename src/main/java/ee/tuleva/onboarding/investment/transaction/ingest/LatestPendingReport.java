@@ -7,7 +7,8 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -22,7 +23,6 @@ class LatestPendingReport {
 
   private final InvestmentReportService reportService;
   private final SebPendingTransactionExtractor extractor;
-  private final SebReportAsOfDate sebReportAsOfDate;
 
   Optional<PendingListing> listing() {
     return reportService.getLatestReport(SEB, PENDING_TRANSACTIONS).flatMap(this::listingOf);
@@ -39,6 +39,14 @@ class LatestPendingReport {
           extraction.malformedCount());
       return Optional.empty();
     }
+    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
+    if (asOfDate == null) {
+      log.warn(
+          "Latest SEB pending report has no readable 'As of' date, no settlement from the bank:"
+              + " reportDate={}",
+          report.getReportDate());
+      return Optional.empty();
+    }
     List<SebPendingTransactionRow> rows = extraction.rows();
     if (rows.isEmpty() || lostRowsSincePriorReport(report, rows.size())) {
       log.warn(
@@ -50,11 +58,7 @@ class LatestPendingReport {
     }
     return Optional.of(
         new PendingListing(
-            sebReportAsOfDate.resolveOrFallBackToReportDate(
-                PENDING_TRANSACTIONS,
-                report.getReportDate(),
-                report.getMetadata(),
-                report.getRawData()),
+            asOfDate,
             rows.stream()
                 .map(SebPendingTransactionRow::clientRef)
                 .filter(Objects::nonNull)

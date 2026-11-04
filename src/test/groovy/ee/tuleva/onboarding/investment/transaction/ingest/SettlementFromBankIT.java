@@ -246,6 +246,25 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void aLatestPendingReportWithoutAnAsOfDate_settlesNothing() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 2, 22))
+            .rawData(List.of(anotherOrdersRow()))
+            .metadata(Map.of())
+            .createdAt(Instant.now())
+            .build());
+    entityManager.flush();
+
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+  }
+
+  @Test
   void aSaleWhoseCashCameIn_settles() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704", SELL);
     piece(order, "DLA0553690", "11704");

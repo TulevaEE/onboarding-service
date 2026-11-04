@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.seb;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
 import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_CASH_SETTLEMENT;
@@ -162,7 +163,7 @@ class TradeSettlementBankFactsIntegrationTest {
   }
 
   @Test
-  void storedStatementsGiveEachTradeEntrysSebReferenceUnderItsLedgerReference() {
+  void storedStatementsGiveEachTradeEntrysSebReferenceUnderTheLedgerReferenceItWasBookedWith() {
     persistMessage(
         statement(
             TKF100,
@@ -183,9 +184,53 @@ class TradeSettlementBankFactsIntegrationTest {
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     assertThat(storedTradeReferences.byLedgerExternalReference())
-        .containsEntry(externalReference(TKF100, "TKF100-TRAD-REF"), "DLA0553690")
-        .containsEntry(externalReference(TUK75, "TUK75-TRAD-REF"), "DLA0553685")
-        .doesNotContainKey(externalReference(TKF100, "TKF100-FEE-REF"));
+        .containsEntry(bookedExternalReference("DLA0553690"), "DLA0553690")
+        .containsEntry(bookedExternalReference("DLA0553685"), "DLA0553685")
+        .doesNotContainValue("teenustasu");
+  }
+
+  @Test
+  void aStoredMessageThatCannotBeRead_isSkipped() {
+    persistMessage(
+        statement(
+            TKF100,
+            "TKF100-TRAD-REF",
+            "209080.26",
+            "DBIT",
+            "TRAD",
+            "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448"));
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    var unreadable = UUID.randomUUID().toString();
+    bankingMessageRepository.save(
+        BankingMessage.builder()
+            .bankType(SEB)
+            .requestId(unreadable)
+            .trackingId(unreadable)
+            .rawResponse("<Document>not a statement</Document>")
+            .timezone("Europe/Tallinn")
+            .messageType(HISTORIC_STATEMENT)
+            .processedAt(Instant.parse("2026-02-11T02:00:00Z"))
+            .build());
+
+    assertThat(storedTradeReferences.byLedgerExternalReference())
+        .containsEntry(bookedExternalReference("DLA0553690"), "DLA0553690");
+  }
+
+  private UUID bookedExternalReference(String brokerReference) {
+    entityManager.flush();
+    entityManager.clear();
+    return entityManager
+        .createQuery(
+            "select t from LedgerTransaction t where t.transactionType = :transactionType",
+            LedgerTransaction.class)
+        .setParameter("transactionType", TRADE_SETTLEMENT)
+        .getResultList()
+        .stream()
+        .filter(
+            transaction -> brokerReference.equals(transaction.getMetadata().get("brokerReference")))
+        .map(LedgerTransaction::getExternalReference)
+        .findFirst()
+        .orElseThrow();
   }
 
   private Map<String, Object> tradeSettlementMetadata(TulevaFund fund, String entryReference) {

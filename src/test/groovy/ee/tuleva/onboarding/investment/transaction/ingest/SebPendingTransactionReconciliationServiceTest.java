@@ -1223,6 +1223,54 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_liveRun_settlesOnAnExecutionReportedAfterTheReportsAsOfDateAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder reportedLater = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(reportedLater));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "100", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    assertThat(reportedLater.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void reconcile_liveRun_countsAPieceReportedAfterTheAsOfDateTowardsTheFillAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder splitOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(splitOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "60", "2026-05-10T10:00:00Z", LocalDate.of(2026, 5, 11)),
+                pieceListedOn(
+                    2456L, "DLA456B", "40", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    assertThat(splitOrder.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
   void replay_nearMissOrder_holdsTheMismatchBackInsteadOfPublishingIt() {
     service = newService();
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");

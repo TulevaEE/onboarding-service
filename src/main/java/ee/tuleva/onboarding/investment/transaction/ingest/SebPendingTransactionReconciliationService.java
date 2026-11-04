@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,13 +41,15 @@ public class SebPendingTransactionReconciliationService {
 
   @RequiredArgsConstructor
   private enum SettlementByAbsence {
-    ON_LATEST_REPORT_ONLY(execution -> true),
-    ON_THIS_REPORT_AS_OF_ITS_DATE(execution -> SOURCE_SEB_OOTEL.equals(execution.getSource()));
+    ON_LATEST_REPORT_ONLY((execution, asOfDate) -> true),
+    ON_THIS_REPORT_AS_OF_ITS_DATE(
+        (execution, asOfDate) ->
+            SOURCE_SEB_OOTEL.equals(execution.getSource()) && isListedBy(execution, asOfDate));
 
-    private final Predicate<TransactionExecution> countsAsListed;
+    private final BiPredicate<TransactionExecution, LocalDate> countsAsListed;
 
-    private boolean countsAsListed(TransactionExecution execution) {
-      return countsAsListed.test(execution);
+    private boolean countsAsListed(TransactionExecution execution, LocalDate asOfDate) {
+      return countsAsListed.test(execution, asOfDate);
     }
   }
 
@@ -227,8 +229,7 @@ public class SebPendingTransactionReconciliationService {
   private List<TransactionExecution> executionsListedBy(
       TransactionOrder order, LocalDate asOfDate, SettlementByAbsence settlementByAbsence) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .filter(settlementByAbsence::countsAsListed)
-        .filter(execution -> isListedBy(execution, asOfDate))
+        .filter(execution -> settlementByAbsence.countsAsListed(execution, asOfDate))
         .toList();
   }
 

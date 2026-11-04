@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.LOCK_HELD_MESSAGE;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.completedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.noReportsMessage;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.resumeDateOutOfRangeMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.resumeTrigger;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedOutsideAReportMessage;
@@ -51,9 +52,7 @@ class SebPendingTransactionReconciliationBackfillJob {
           "SEB pending transactions replay refused inside the import window: closedHours="
               + replayWindow.closedHours());
     }
-    LocalDate firstReportDate =
-        Optional.ofNullable(request.resumeFrom())
-            .orElseGet(() -> LocalDate.now(clock).minusDays(BACKFILL_DAYS));
+    LocalDate firstReportDate = firstReportDateWithinTheWindow(request);
     if (!reconciliationLock.runIfFree(() -> run(firstReportDate))) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
@@ -61,6 +60,27 @@ class SebPendingTransactionReconciliationBackfillJob {
       notify(LOCK_HELD_MESSAGE, WARNING);
       throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);
     }
+  }
+
+  private LocalDate firstReportDateWithinTheWindow(
+      RunSebPendingTransactionReconciliationBackfillRequested request) {
+    LocalDate today = LocalDate.now(clock);
+    LocalDate earliest = today.minusDays(BACKFILL_DAYS);
+    LocalDate firstReportDate = Optional.ofNullable(request.resumeFrom()).orElse(earliest);
+    if (firstReportDate.isBefore(earliest) || firstReportDate.isAfter(today)) {
+      log.warn(
+          "SEB pending transactions replay refused, resume date outside the replayed year:"
+              + " resumeFrom={}, earliest={}, today={}",
+          firstReportDate,
+          earliest,
+          today);
+      notify(resumeDateOutOfRangeMessage(firstReportDate, earliest, today), WARNING);
+      throw new IllegalStateException(
+          "SEB pending transactions replay refused, resume date outside the replayed year:"
+              + " resumeFrom="
+              + firstReportDate);
+    }
+    return firstReportDate;
   }
 
   private void run(LocalDate firstReportDate) {

@@ -15,7 +15,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -29,7 +28,6 @@ class StoredStatementTradeReferences implements StoredTradeReferences {
   private final TradeSettlementParser tradeSettlementParser;
 
   @Override
-  @Transactional(readOnly = true)
   public Map<UUID, String> byLedgerExternalReference() {
     Map<UUID, String> references = new HashMap<>();
     for (UUID messageId : messageRepository.findIdsOfProcessedMessages()) {

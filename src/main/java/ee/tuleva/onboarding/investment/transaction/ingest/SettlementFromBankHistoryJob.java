@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.time.LocalDate.EPOCH;
 
 import ee.tuleva.onboarding.banking.StoredTradeReferences;
@@ -19,6 +20,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SettlementFromBankHistoryJob {
 
+  private static final String FAILED_MESSAGE =
+      "Registri tellimuste arveldamine panga kuupäevadega katkes (põhjus on logis).\n"
+          + "Ükski tellimus ei saanud selle käivitusega panga kuupäeva.\n"
+          + "Paranda põhjus ja käivita uuesti: INSERT INTO public.investment_job_trigger"
+          + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
+
   private final StoredTradeReferences storedTradeReferences;
   private final SettlementFromBankService settlementFromBankService;
   private final OperationsNotificationService notificationService;
@@ -31,36 +38,38 @@ class SettlementFromBankHistoryJob {
           settlementFromBankService.settleOrdersBookedSince(
               EPOCH, storedTradeReferences.byLedgerExternalReference());
     } catch (RuntimeException e) {
-      log.error("Settling the registry's history from the bank failed", e);
-      notificationService.sendMessage(failedMessage(), INVESTMENT, ERROR);
-      return;
+      notificationService.sendMessage(FAILED_MESSAGE, INVESTMENT, ERROR);
+      throw e;
     }
     log.info("Settled the registry's history from the bank: run={}", run);
-    notificationService.sendMessage(completedMessage(run), INVESTMENT);
+    if (run.failed() == 0) {
+      notificationService.sendMessage(completedMessage(run), INVESTMENT);
+    } else {
+      notificationService.sendMessage(completedMessage(run), INVESTMENT, WARNING);
+    }
   }
 
   private static String completedMessage(BankSettlementRun run) {
-    return "Registri tellimuste arveldused said kogu ajaloo ulatuses panga kirjenduse kuupäeva.\n"
-        + "Panga järgi arveldati "
+    return "Registri tellimuste arveldusi võrreldi panga kirjendustega kogu ajaloo ulatuses.\n"
+        + "Panga kuupäeva said "
+        + orders(run.settled() + run.sameDate() + run.newDate())
+        + ": "
         + run.settled()
-        + " tellimust; varem arveldatutest jäi "
+        + " arveldati alles nüüd, "
         + run.sameDate()
-        + " kuupäev samaks ja "
+        + " varasem kuupäev oli sama, "
         + run.newDate()
-        + " oma muutus. Pangakuupäevata jäi "
-        + run.withoutBankDate()
-        + " tellimust.\n"
-        + "Need, mille tükki pank pole kirjendanud, mis on täitmata või mille SEB viide ei klapi:"
-        + " SELECT o.id, o.order_status, s.source FROM public.investment_transaction_order o"
-        + " LEFT JOIN public.transaction_settlement s ON s.order_id = o.id"
-        + " WHERE o.order_status IN ('EXECUTED', 'SETTLED')"
+        + "-l see muutus. Pangakuupäevata jäi "
+        + orders(run.withoutBankDate())
+        + (run.failed() == 0 ? "" : ", ebaõnnestus " + orders(run.failed()) + " (põhjus on logis)")
+        + ".\n"
+        + "Pangakuupäevata tellimused: SELECT o.id, o.order_status, s.source FROM"
+        + " public.investment_transaction_order o LEFT JOIN public.transaction_settlement s"
+        + " ON s.order_id = o.id WHERE o.order_status IN ('EXECUTED', 'SETTLED')"
         + " AND s.source IS DISTINCT FROM 'BANK_STATEMENT'";
   }
 
-  private static String failedMessage() {
-    return "Registri tellimuste arvelduste täitmine panga kuupäevadega katkes (põhjus on logis).\n"
-        + "Midagi ei salvestatud.\n"
-        + "Paranda põhjus ja käivita uuesti: INSERT INTO public.investment_job_trigger (job_name)"
-        + " VALUES ('SettlementFromBankHistoryJob')";
+  private static String orders(int count) {
+    return count == 1 ? "1 tellimus" : count + " tellimust";
   }
 }

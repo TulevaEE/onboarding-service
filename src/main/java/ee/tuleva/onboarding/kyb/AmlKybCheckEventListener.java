@@ -39,6 +39,7 @@ public class AmlKybCheckEventListener {
               KybCheckType.COMPANY_REGISTERED_IN_ESTONIA,
               AmlCheckType.KYB_COMPANY_REGISTERED_IN_ESTONIA),
           entry(KybCheckType.SELF_CERTIFICATION, AmlCheckType.KYB_SELF_CERTIFICATION),
+          entry(KybCheckType.COMPANY_PARTIES, AmlCheckType.KYB_COMPANY_PARTIES),
           entry(KybCheckType.DATA_CHANGED, AmlCheckType.KYB_DATA_CHANGED));
 
   private final AmlService amlService;

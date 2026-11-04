@@ -4,7 +4,11 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.JOB_TRIGGER_POLL;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.investment.event.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +60,11 @@ class JobTriggerPoller {
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 
+  static final Map<String, Function<LocalDate, Object>> RESUMABLE_FROM_A_DATE =
+      Map.of(
+          "SebPendingTransactionReconciliationBackfillJob",
+          RunSebPendingTransactionReconciliationBackfillRequested::new);
+
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -70,21 +79,39 @@ class JobTriggerPoller {
     log.info("Found pending job triggers: count={}", pending.size());
 
     for (var trigger : pending) {
-      var eventFactory = EVENTS.get(trigger.getJobName());
-      if (eventFactory == null) {
+      var eventFactory = eventFor(trigger.getJobName());
+      if (eventFactory.isEmpty()) {
         markFailed(trigger, "Unknown job: " + trigger.getJobName());
         continue;
       }
 
       markProcessing(trigger);
       try {
-        eventPublisher.publishEvent(eventFactory.get());
+        eventPublisher.publishEvent(eventFactory.get().get());
         markCompleted(trigger);
         log.info("Job trigger completed: jobName={}", trigger.getJobName());
       } catch (Exception e) {
         markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
         log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
       }
+    }
+  }
+
+  private static Optional<Supplier<Object>> eventFor(String jobName) {
+    Supplier<Object> event = EVENTS.get(jobName);
+    if (event != null) {
+      return Optional.of(event);
+    }
+    String[] jobAndDate = jobName.split(":", 2);
+    if (jobAndDate.length < 2 || !RESUMABLE_FROM_A_DATE.containsKey(jobAndDate[0])) {
+      return Optional.empty();
+    }
+    try {
+      LocalDate from = LocalDate.parse(jobAndDate[1]);
+      Function<LocalDate, Object> resumed = RESUMABLE_FROM_A_DATE.get(jobAndDate[0]);
+      return Optional.of(() -> resumed.apply(from));
+    } catch (DateTimeParseException e) {
+      return Optional.empty();
     }
   }
 

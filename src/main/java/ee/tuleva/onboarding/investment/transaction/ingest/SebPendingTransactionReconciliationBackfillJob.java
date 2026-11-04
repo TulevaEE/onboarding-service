@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.LOCK_HELD_MESSAGE;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.completedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.noReportsMessage;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.resumeTrigger;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.skippedCheckReason;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedMessage;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.stoppedOutsideAReportMessage;
@@ -42,7 +43,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationBackfillJob {
 
-  static final int BACKFILL_DAYS = 365;
+  private static final int BACKFILL_DAYS = 365;
   private final Clock clock;
   private final InvestmentReportService reportService;
   private final SebPendingTransactionReconciliationService reconciliationService;
@@ -52,8 +53,9 @@ class SebPendingTransactionReconciliationBackfillJob {
   private final SebReconciliationLock reconciliationLock;
   private final SebReplayWindow replayWindow;
 
-  @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
-  void onSebPendingTransactionReconciliationBackfillRequested() {
+  @EventListener
+  void onSebPendingTransactionReconciliationBackfillRequested(
+      RunSebPendingTransactionReconciliationBackfillRequested request) {
     if (!replayWindow.isOpenAt(clock.instant())) {
       log.warn(
           "SEB pending transactions replay refused inside the import window: closedHours={}",
@@ -63,7 +65,10 @@ class SebPendingTransactionReconciliationBackfillJob {
           "SEB pending transactions replay refused inside the import window: closedHours="
               + replayWindow.closedHours());
     }
-    if (!reconciliationLock.runIfFree(this::run)) {
+    LocalDate firstReportDate =
+        Optional.ofNullable(request.resumeFrom())
+            .orElseGet(() -> LocalDate.now(clock).minusDays(BACKFILL_DAYS));
+    if (!reconciliationLock.runIfFree(() -> run(firstReportDate))) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
@@ -72,20 +77,18 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
   }
 
-  private void run() {
+  private void run(LocalDate firstReportDate) {
     ReplaySummary summary;
     try {
-      summary = replayOldestFirst();
+      summary = replayOldestFirst(firstReportDate);
     } catch (RuntimeException e) {
       log.error(
-          "SEB pending transactions replay stopped outside a report: backfillDays={}",
-          BACKFILL_DAYS,
-          e);
+          "SEB pending transactions replay stopped outside a report: from={}", firstReportDate, e);
       notify(stoppedOutsideAReportMessage(), ERROR);
       throw new IllegalStateException(
           "SEB pending transactions replay stopped outside a report, see the log", e);
     }
-    announce(summary);
+    announce(summary, firstReportDate);
     summary.stop().ifPresent(SebPendingTransactionReconciliationBackfillJob::failTheTrigger);
   }
 
@@ -94,19 +97,19 @@ class SebPendingTransactionReconciliationBackfillJob {
         "SEB pending transactions replay stopped: reportDate="
             + stop.reportDate()
             + ", reason="
-            + stop.reason());
+            + stop.reason()
+            + ", resumeWith="
+            + resumeTrigger(stop.reportDate()));
   }
 
-  private ReplaySummary replayOldestFirst() {
+  private ReplaySummary replayOldestFirst(LocalDate firstReportDate) {
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
     List<SkippedCheck> skippedChecks = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
     Optional<Stop> stop = Optional.empty();
-    LocalDate today = LocalDate.now(clock);
-    for (int daysAgo = BACKFILL_DAYS; daysAgo >= 0; daysAgo--) {
-      LocalDate date = today.minusDays(daysAgo);
+    for (LocalDate date : firstReportDate.datesUntil(LocalDate.now(clock).plusDays(1)).toList()) {
       List<ReconciliationAlert> reportAlerts = new ArrayList<>();
       SettlementCheck check;
       try {
@@ -146,7 +149,7 @@ class SebPendingTransactionReconciliationBackfillJob {
         stop);
   }
 
-  private void announce(ReplaySummary summary) {
+  private void announce(ReplaySummary summary, LocalDate firstReportDate) {
     log.info(
         "SEB pending transactions replay completed: reports={}, newExecutions={},"
             + " newSettlements={}, heldBackAlerts={}, stoppedAt={}",
@@ -156,8 +159,8 @@ class SebPendingTransactionReconciliationBackfillJob {
         summary.alerts().size(),
         summary.stop().map(Stop::reportDate).orElse(null));
     if (summary.replayed().isEmpty() && summary.stop().isEmpty()) {
-      log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
-      notify(noReportsMessage(), WARNING);
+      log.warn("SEB pending transactions replay found no reports: from={}", firstReportDate);
+      notify(noReportsMessage(firstReportDate), WARNING);
       return;
     }
     summary

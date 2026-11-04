@@ -7,14 +7,16 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your second pillar contribution rate has been changed. *|IF:increased|*From
+          *|IF:increased|*Your second pillar contribution rate has been changed. From
           <strong>*|paymentRateFulfillmentDate|*</strong> you will start saving
           <strong>*|newPaymentRate|*%</strong> of your monthly gross income into your second pillar.*|IF:maxPaymentRate|*
           This means you are making full use of the second pillar tax benefit.*|ELSE:|* This puts
-          a little more aside for your future every month.*|END:IF|**|ELSE:|*From
+          a little more aside for your future every month.*|END:IF|**|ELSEIF:decreased|*Your second
+          pillar contribution rate has been changed. From
           <strong>*|paymentRateFulfillmentDate|*</strong> your second pillar contribution will
           decrease and you will start contributing <strong>*|newPaymentRate|*%</strong> of your
-          gross salary.*|END:IF|*
+          gross salary.*|ELSE:|*Your second pillar contribution rate stays the same: you keep
+          contributing <strong>*|newPaymentRate|*%</strong> of your gross salary.*|END:IF|*
         </mj-text>
         <mj-text>
           Attached is a copy of the application you just made on our website and which we have
@@ -22,7 +24,11 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_en.mjml" />
-
+        <mj-text>
+          Tuleva exists so that as many people in Estonia as possible can save for their future
+          effectively and confidently, and get as much as possible out of every euro they set aside.
+          If you have any questions or doubts, let us know, we are glad to help.
+        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

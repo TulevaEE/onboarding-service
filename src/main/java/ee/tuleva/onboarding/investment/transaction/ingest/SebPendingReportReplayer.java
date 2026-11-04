@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -36,7 +37,7 @@ class SebPendingReportReplayer {
   private final TransactionSettlementRepository settlementRepository;
   private final SebReplayWindow replayWindow;
 
-  ReplaySummary replayOldestFirst(LocalDate firstReportDate) {
+  ReplaySummary replayOldestFirst(LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
     Instant stopBy = SebReplayWindow.stopByForAReplayStartedAt(clock.instant());
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
@@ -53,7 +54,7 @@ class SebPendingReportReplayer {
         if (report.isEmpty()) {
           continue;
         }
-        Optional<StopReason> mustStop = mustStopBeforeTheNextReport(stopBy);
+        Optional<StopReason> mustStop = mustStopBeforeTheNextReport(stopBy, stillHoldsTheLock);
         if (mustStop.isPresent()) {
           log.warn(
               "SEB pending transactions replay stopped before a report: reportDate={}, reason={}",
@@ -84,11 +85,15 @@ class SebPendingReportReplayer {
         stop);
   }
 
-  private Optional<StopReason> mustStopBeforeTheNextReport(Instant stopBy) {
+  private Optional<StopReason> mustStopBeforeTheNextReport(
+      Instant stopBy, BooleanSupplier stillHoldsTheLock) {
     Instant now = clock.instant();
     if (!replayWindow.isOpenAt(now)) {
       return Optional.of(StopReason.IMPORT_WINDOW_OPENS);
     }
-    return now.isBefore(stopBy) ? Optional.empty() : Optional.of(StopReason.TIME_BUDGET_SPENT);
+    if (!now.isBefore(stopBy)) {
+      return Optional.of(StopReason.TIME_BUDGET_SPENT);
+    }
+    return stillHoldsTheLock.getAsBoolean() ? Optional.empty() : Optional.of(StopReason.LOCK_LOST);
   }
 }

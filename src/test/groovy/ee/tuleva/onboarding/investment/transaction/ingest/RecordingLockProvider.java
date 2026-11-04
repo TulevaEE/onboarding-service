@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,5 +52,14 @@ final class RecordingLockProvider implements ExtensibleLockProvider {
 
   List<Duration> lockAtMostFor() {
     return requests.stream().map(LockConfiguration::getLockAtMostFor).toList();
+  }
+
+  List<Duration> lockAtLeastFor() {
+    return requests.stream().map(LockConfiguration::getLockAtLeastFor).toList();
+  }
+
+  SebReconciliationLock reconciliationLockAt(Clock clock) {
+    return new SebReconciliationLock(
+        Optional.of(this), clock, SebReconciliationLock::keepAliveThread);
   }
 }

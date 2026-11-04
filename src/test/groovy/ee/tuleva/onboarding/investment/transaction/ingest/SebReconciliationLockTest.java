@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.time.MutableClock;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,18 +39,23 @@ class SebReconciliationLockTest {
 
   @Mock private ExtensibleLockProvider lockProvider;
   @Mock private SimpleLock lock;
+  @Mock private SimpleLock extendedLock;
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+  private final ScheduledExecutorService keepAliveExecutor = mock(ScheduledExecutorService.class);
+  private final AtomicReference<Runnable> keepAlive = new AtomicReference<>();
 
   @Test
   void aRunHoldsTheLockThatAStoppedRunHoldsForTwoMinutesAtMostAndReleasesIt() {
     given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-    List<String> ran = new ArrayList<>();
+    List<Boolean> heldWhileRunning = new ArrayList<>();
 
-    boolean wasRun = new SebReconciliationLock(lockProvider, clock).runIfFree(() -> ran.add("run"));
+    boolean ran =
+        lockOver(lockProvider, clock)
+            .runIfFree(stillHeld -> heldWhileRunning.add(stillHeld.getAsBoolean()));
 
-    assertThat(wasRun).isTrue();
-    assertThat(ran).containsExactly("run");
+    assertThat(ran).isTrue();
+    assertThat(heldWhileRunning).containsExactly(true);
     verify(lockProvider)
         .lock(
             argThat(
@@ -59,6 +66,19 @@ class SebReconciliationLockTest {
                             .equals(NOW.plus(Duration.ofMinutes(2)))
                         && configuration.getLockAtLeastFor().isZero()));
     verify(lock).unlock();
+    verify(keepAliveExecutor).shutdownNow();
+  }
+
+  @Test
+  void aScheduledRunKeepsAnotherNodesFiringOfTheSameScheduleOutForAMinute() {
+    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
+
+    lockOver(lockProvider, clock).runScheduledIfFree(stillHeld -> {});
+
+    verify(lockProvider)
+        .lock(
+            argThat(
+                configuration -> configuration.getLockAtLeastFor().equals(Duration.ofMinutes(1))));
   }
 
   @Test
@@ -66,7 +86,7 @@ class SebReconciliationLockTest {
     given(lockProvider.lock(any())).willReturn(Optional.empty());
     List<String> ran = new ArrayList<>();
 
-    boolean wasRun = new SebReconciliationLock(lockProvider, clock).runIfFree(() -> ran.add("run"));
+    boolean wasRun = lockOver(lockProvider, clock).runIfFree(stillHeld -> ran.add("run"));
 
     assertThat(wasRun).isFalse();
     assertThat(ran).isEmpty();
@@ -75,12 +95,12 @@ class SebReconciliationLockTest {
   @Test
   void theLockIsReleasedWhenTheRunFails() {
     given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-    SebReconciliationLock reconciliationLock = new SebReconciliationLock(lockProvider, clock);
+    SebReconciliationLock reconciliationLock = lockOver(lockProvider, clock);
 
     assertThatThrownBy(
             () ->
                 reconciliationLock.runIfFree(
-                    () -> {
+                    stillHeld -> {
                       throw new IllegalStateException("database down");
                     }))
         .isInstanceOf(IllegalStateException.class);
@@ -88,9 +108,102 @@ class SebReconciliationLockTest {
   }
 
   @Test
-  void theLockIsExtendedEveryMinuteWhileTheRunGoesOnAndTheKeepAliveStopsAfterIt() {
-    ScheduledExecutorService keepAliveExecutor = mock(ScheduledExecutorService.class);
-    AtomicReference<Runnable> keepAlive = new AtomicReference<>();
+  void theLockIsExtendedEveryMinuteWhileTheRunGoesOn() {
+    givenTheKeepAliveIsScheduledEveryMinute();
+    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
+    given(lock.extend(Duration.ofMinutes(2), Duration.ZERO)).willReturn(Optional.of(extendedLock));
+    List<Boolean> heldAfterExtending = new ArrayList<>();
+
+    lockOver(lockProvider, clock)
+        .runIfFree(
+            stillHeld -> {
+              keepAlive.get().run();
+              heldAfterExtending.add(stillHeld.getAsBoolean());
+            });
+
+    assertThat(heldAfterExtending).containsExactly(true);
+    verify(extendedLock).unlock();
+  }
+
+  @Test
+  void aRefusedExtensionTellsTheRunItLostTheLockAndLeavesTheLockToItsNewHolder() {
+    givenTheKeepAliveIsScheduledEveryMinute();
+    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
+    given(lock.extend(Duration.ofMinutes(2), Duration.ZERO)).willReturn(Optional.empty());
+    List<Boolean> heldAfterExtending = new ArrayList<>();
+
+    lockOver(lockProvider, clock)
+        .runIfFree(
+            stillHeld -> {
+              keepAlive.get().run();
+              heldAfterExtending.add(stillHeld.getAsBoolean());
+            });
+
+    assertThat(heldAfterExtending).containsExactly(false);
+    verify(lock, never()).unlock();
+  }
+
+  @Test
+  void aFailingExtensionTellsTheRunItLostTheLock() {
+    givenTheKeepAliveIsScheduledEveryMinute();
+    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
+    given(lock.extend(Duration.ofMinutes(2), Duration.ZERO))
+        .willThrow(new IllegalStateException("database down"));
+    List<Boolean> heldAfterExtending = new ArrayList<>();
+
+    lockOver(lockProvider, clock)
+        .runIfFree(
+            stillHeld -> {
+              keepAlive.get().run();
+              heldAfterExtending.add(stillHeld.getAsBoolean());
+            });
+
+    assertThat(heldAfterExtending).containsExactly(false);
+  }
+
+  @Test
+  void aLockThatWasNotExtendedForTwoMinutesCountsAsLost() {
+    MutableClock running = new MutableClock(NOW);
+    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
+    List<Boolean> heldTwoMinutesIn = new ArrayList<>();
+
+    lockOver(lockProvider, running)
+        .runIfFree(
+            stillHeld -> {
+              running.tick(2, MINUTES);
+              heldTwoMinutesIn.add(stillHeld.getAsBoolean());
+            });
+
+    assertThat(heldTwoMinutesIn).containsExactly(false);
+  }
+
+  @Test
+  void aNodeWithoutALockProviderRefusesToRunInsteadOfRunningUnlocked() {
+    SebReconciliationLock withoutProvider =
+        new SebReconciliationLock(Optional.empty(), clock, () -> keepAliveExecutor);
+    List<String> ran = new ArrayList<>();
+
+    assertThatThrownBy(() -> withoutProvider.runIfFree(stillHeld -> ran.add("run")))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(ran).isEmpty();
+  }
+
+  @Test
+  void aLockProviderThatCannotKeepTheLockAliveIsRefusedAtStartup() {
+    LockProvider providerThatCannotExtend = mock(LockProvider.class);
+
+    assertThatThrownBy(
+            () ->
+                new SebReconciliationLock(
+                    Optional.of(providerThatCannotExtend), clock, () -> keepAliveExecutor))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  private SebReconciliationLock lockOver(LockProvider provider, Clock clock) {
+    return new SebReconciliationLock(Optional.of(provider), clock, () -> keepAliveExecutor);
+  }
+
+  private void givenTheKeepAliveIsScheduledEveryMinute() {
     willAnswer(
             schedule -> {
               keepAlive.set(schedule.getArgument(0));
@@ -98,33 +211,5 @@ class SebReconciliationLockTest {
             })
         .given(keepAliveExecutor)
         .scheduleAtFixedRate(any(), eq(60_000L), eq(60_000L), eq(MILLISECONDS));
-    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-    SebReconciliationLock reconciliationLock =
-        new SebReconciliationLock(lockProvider, Clock.systemUTC(), () -> keepAliveExecutor);
-
-    reconciliationLock.runIfFree(() -> keepAlive.get().run());
-
-    verify(lock).extend(Duration.ofMinutes(2), Duration.ZERO);
-    verify(lock).unlock();
-    verify(keepAliveExecutor).shutdownNow();
-  }
-
-  @Test
-  void aSkippedRunStopsItsKeepAliveToo() {
-    ScheduledExecutorService keepAliveExecutor = mock(ScheduledExecutorService.class);
-    given(lockProvider.lock(any())).willReturn(Optional.empty());
-
-    new SebReconciliationLock(lockProvider, clock, () -> keepAliveExecutor).runIfFree(() -> {});
-
-    verify(keepAliveExecutor).shutdownNow();
-    verify(lock, never()).unlock();
-  }
-
-  @Test
-  void aLockProviderThatCannotKeepTheLockAliveIsRefusedAtStartup() {
-    LockProvider providerThatCannotExtend = mock(LockProvider.class);
-
-    assertThatThrownBy(() -> new SebReconciliationLock(providerThatCannotExtend, clock))
-        .isInstanceOf(IllegalStateException.class);
   }
 }

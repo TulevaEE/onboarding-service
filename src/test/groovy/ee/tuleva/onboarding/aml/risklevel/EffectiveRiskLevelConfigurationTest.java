@@ -32,7 +32,9 @@ class EffectiveRiskLevelConfigurationTest {
               ofSeconds(60),
               true,
               ofMillis(500),
-              ofMillis(250));
+              ofMillis(250),
+              ofSeconds(1),
+              ofSeconds(5));
       var restClient = EffectiveRiskLevelConfiguration.effectiveRiskLevelRestClient(properties);
 
       assertThatThrownBy(
@@ -57,7 +59,9 @@ class EffectiveRiskLevelConfigurationTest {
             ofSeconds(60),
             true,
             ofSeconds(1),
-            ofSeconds(2));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5));
 
     assertThat(configuration.effectiveRiskLevelClient(properties)).isNotNull();
   }

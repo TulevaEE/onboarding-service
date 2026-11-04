@@ -331,7 +331,9 @@ class EffectiveRiskLevelsTest {
               ofSeconds(60),
               true,
               ofSeconds(1),
-              ofSeconds(1));
+              ofSeconds(1),
+              ofSeconds(1),
+              ofSeconds(5));
       var effectiveRiskLevels =
           new EffectiveRiskLevels(
               new EffectiveRiskLevelClient(
@@ -411,7 +413,9 @@ class EffectiveRiskLevelsTest {
                 ofSeconds(60),
                 true,
                 ofSeconds(1),
-                ofSeconds(2))),
+                ofSeconds(2),
+                ofSeconds(1),
+                ofSeconds(5))),
         clock);
   }
 }

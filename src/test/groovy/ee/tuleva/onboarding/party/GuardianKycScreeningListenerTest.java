@@ -56,7 +56,7 @@ class GuardianKycScreeningListenerTest {
     given(userService.findByPersonalCode(GUARDIAN)).willReturn(Optional.of(guardian));
     given(userService.findByPersonalCode(OTHER_GUARDIAN)).willReturn(Optional.of(otherGuardian));
 
-    listener.beforeKycChecked(
+    listener.screenGuardiansInTheSurveysTransactionBeforeTheMinorIsAssessed(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
     verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(guardian);
@@ -65,7 +65,7 @@ class GuardianKycScreeningListenerTest {
 
   @Test
   void doesNothingForAnAdultKycSubject() {
-    listener.beforeKycChecked(
+    listener.screenGuardiansInTheSurveysTransactionBeforeTheMinorIsAssessed(
         new BeforeKycCheckedEvent(new PersonImpl(ADULT, "Jordan", "Valdma"), Countries.of("EE")));
 
     verifyNoInteractions(parentChildLinkService, userService, sanctionAndPepScreener);
@@ -76,7 +76,7 @@ class GuardianKycScreeningListenerTest {
     given(parentChildLinkService.findGuardianCodes(CHILD)).willReturn(List.of(GUARDIAN));
     given(userService.findByPersonalCode(GUARDIAN)).willReturn(Optional.empty());
 
-    listener.beforeKycChecked(
+    listener.screenGuardiansInTheSurveysTransactionBeforeTheMinorIsAssessed(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
     verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(User.class));

@@ -32,7 +32,9 @@ class AmlServiceConfigurationTest {
               ofMillis(250),
               false,
               ofMillis(500),
-              ofSeconds(60));
+              ofSeconds(60),
+              ofSeconds(1),
+              ofSeconds(5));
       var restClient =
           AmlServiceConfiguration.amlServiceRestClient(RestClient.builder(), properties);
 
@@ -53,7 +55,9 @@ class AmlServiceConfigurationTest {
             ofSeconds(60),
             false,
             ofSeconds(1),
-            ofSeconds(2));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
@@ -69,7 +73,9 @@ class AmlServiceConfigurationTest {
             ofSeconds(60),
             false,
             ofSeconds(1),
-            ofSeconds(2));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
@@ -85,7 +91,9 @@ class AmlServiceConfigurationTest {
             ofSeconds(60),
             true,
             ofSeconds(1),
-            ofSeconds(2));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }
@@ -101,7 +109,9 @@ class AmlServiceConfigurationTest {
             ofSeconds(60),
             true,
             ofSeconds(1),
-            ofSeconds(2));
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5));
 
     assertThat(configuration.amlServiceClient(RestClient.builder(), properties)).isNotNull();
   }

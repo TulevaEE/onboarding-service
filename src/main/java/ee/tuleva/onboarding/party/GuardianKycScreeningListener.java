@@ -12,8 +12,6 @@ import org.jspecify.annotations.NullMarked;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-// Must stay synchronous: the guardian screening has to land before the minor's risk
-// assessment (check_24 in kyc_ob_assess_user_risk) reads it in the same request.
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,7 +24,8 @@ class GuardianKycScreeningListener {
   private final Clock clock;
 
   @EventListener
-  public void beforeKycChecked(BeforeKycCheckedEvent event) {
+  public void screenGuardiansInTheSurveysTransactionBeforeTheMinorIsAssessed(
+      BeforeKycCheckedEvent event) {
     String subjectPersonalCode = event.person().getPersonalCode();
     if (!PersonalCode.isMinor(subjectPersonalCode, LocalDate.now(clock))) {
       return;

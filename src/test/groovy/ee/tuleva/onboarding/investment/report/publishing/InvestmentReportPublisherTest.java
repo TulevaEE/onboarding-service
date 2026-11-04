@@ -24,8 +24,9 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,7 +57,8 @@ class InvestmentReportPublisherTest {
     lenient().when(newerReportCheck.reasonsNotToReplace(any(), any(), any())).thenReturn(List.of());
     lenient()
         .when(publishingLock.whileNoOtherPublishRuns(any(), any()))
-        .thenAnswer(publish -> publish.<Supplier<?>>getArgument(0).get());
+        .thenAnswer(
+            publish -> publish.<Function<BooleanSupplier, ?>>getArgument(0).apply(() -> true));
   }
 
   private InvestmentReportPublisher publisherFor(List<TulevaFund> funds) {
@@ -423,6 +425,58 @@ class InvestmentReportPublisherTest {
                         + " heldUntil=2026-04-10T07:02:00Z, month=2026-03")));
     verifyNoInteractions(
         dataService, newerReportCheck, pdfGenerator, wordPressClient, emailService);
+  }
+
+  @Test
+  void aPublishThatLostItsLockRepointsNoFurtherPageAndAlerts() {
+    givenEveryReportCanBeProduced();
+    givenTheLockIsHeldFor(1);
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75");
+    assertThat(result.errors())
+        .containsExactly(
+            "The publish lost its lock, so this fund page was not repointed: fund=TUK00",
+            "Uploaded report was not linked; link it or delete it from the media library:"
+                + " fund=TUK00, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf",
+            "The publish lost its lock, so this fund page was not repointed: fund=TUV100",
+            "Uploaded report was not linked; link it or delete it from the media library:"
+                + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
+    verify(wordPressClient).updateAcfReportField(eq(FundReportMapping.TUK75.pageSlug()), anyInt());
+    verify(wordPressClient, times(1)).updateAcfReportField(any(), anyInt());
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+    verify(emailService, times(1)).sendSystemEmail(any());
+  }
+
+  @Test
+  void aPublishThatLostItsLockBeforeTheEmailAlertsInsteadOfEmailingTheReports() {
+    givenEveryReportCanBeProduced();
+    givenTheLockIsHeldFor(3);
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
+    assertThat(result.emailSent()).isFalse();
+    assertThat(result.errors())
+        .containsExactly(
+            "The publish lost its lock after repointing the fund pages, so the reports were not"
+                + " e-mailed: month=2026-03");
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+    verify(emailService, times(1)).sendSystemEmail(any());
+  }
+
+  private void givenTheLockIsHeldFor(int checks) {
+    var checksLeft = new AtomicInteger(checks);
+    willAnswer(
+            publish ->
+                publish
+                    .<Function<BooleanSupplier, ?>>getArgument(0)
+                    .apply(() -> checksLeft.getAndDecrement() > 0))
+        .given(publishingLock)
+        .whileNoOtherPublishRuns(any(), any());
   }
 
   private void givenEveryReportCanBeProduced() {

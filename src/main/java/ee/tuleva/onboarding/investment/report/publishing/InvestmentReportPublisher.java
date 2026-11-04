@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -27,6 +28,11 @@ public class InvestmentReportPublisher {
   private static final int MIN_END_OF_MONTH_DAY = 25;
   private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
   private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
+  private static final String LOST_THE_LOCK_BEFORE_THE_REPOINT =
+      "The publish lost its lock, so this fund page was not repointed: fund=%s";
+  private static final String LOST_THE_LOCK_BEFORE_THE_EMAIL =
+      "The publish lost its lock after repointing the fund pages, so the reports were not"
+          + " e-mailed: month=%s";
   private static final String UPLOAD_NOT_LINKED =
       "Uploaded report was not linked; link it or delete it from the media library:"
           + " fund=%s, file=%s";
@@ -42,7 +48,8 @@ public class InvestmentReportPublisher {
   public InvestmentReportPublishingResult publish(
       final YearMonth month, final Set<String> unrecognisedFilesToReplace) {
     return publishingLock.whileNoOtherPublishRuns(
-        () -> publishWhileNoOtherPublishRuns(month, unrecognisedFilesToReplace),
+        lockStillHeld ->
+            publishWhileNoOtherPublishRuns(month, unrecognisedFilesToReplace, lockStillHeld),
         refusal -> anotherPublishIsRunning(month, refusal));
   }
 
@@ -54,7 +61,7 @@ public class InvestmentReportPublisher {
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(
-      YearMonth month, Set<String> unrecognisedFilesToReplace) {
+      YearMonth month, Set<String> unrecognisedFilesToReplace, BooleanSupplier lockStillHeld) {
     log.info(
         "Starting investment report publishing: month={}, unrecognisedFilesToReplace={}",
         month,
@@ -99,7 +106,8 @@ public class InvestmentReportPublisher {
     }
 
     var repointErrors = new ArrayList<String>();
-    var publishedUrls = repointFundPages(month, unrecognisedFilesToReplace, uploads, repointErrors);
+    var publishedUrls =
+        repointFundPages(month, unrecognisedFilesToReplace, lockStillHeld, uploads, repointErrors);
     if (!repointErrors.isEmpty()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
@@ -107,6 +115,12 @@ public class InvestmentReportPublisher {
           repointErrors);
       mailer.alertPartialPublish(month, publishedUrls, repointErrors);
       return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
+    }
+    if (!lockStillHeld.getAsBoolean()) {
+      var lostTheLock = List.of(LOST_THE_LOCK_BEFORE_THE_EMAIL.formatted(month));
+      log.error("Pages repointed but the reports not e-mailed: {}", lostTheLock);
+      mailer.alertPartialPublish(month, publishedUrls, lostTheLock);
+      return new InvestmentReportPublishingResult(publishedUrls, false, lostTheLock);
     }
 
     var emailErrors = new ArrayList<String>();
@@ -186,6 +200,7 @@ public class InvestmentReportPublisher {
   private Map<String, String> repointFundPages(
       YearMonth month,
       Set<String> unrecognisedFilesToReplace,
+      BooleanSupplier lockStillHeld,
       Map<FundReportMapping, UploadResult> uploads,
       List<String> errors) {
     var publishedUrls = new LinkedHashMap<String, String>();
@@ -193,7 +208,10 @@ public class InvestmentReportPublisher {
       var mapping = entry.getKey();
       var upload = entry.getValue();
       var refusedSinceTheCheck =
-          newerReportCheck.reasonsNotToReplace(List.of(mapping), month, unrecognisedFilesToReplace);
+          lockStillHeld.getAsBoolean()
+              ? newerReportCheck.reasonsNotToReplace(
+                  List.of(mapping), month, unrecognisedFilesToReplace)
+              : List.of(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
       if (!refusedSinceTheCheck.isEmpty()) {
         errors.addAll(refusedSinceTheCheck);
         errors.add(UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()));

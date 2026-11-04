@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.admin;
 
-import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REFUSE;
-import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REPLACE;
 import static java.util.Objects.requireNonNullElse;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -31,8 +29,8 @@ import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -135,7 +133,7 @@ public class InvestmentAdminController {
     tokenValidator.validate(token);
 
     TulevaFund fund = TulevaFund.fromCode(fundCode);
-    List<LocalDate> dates =
+    var dates =
         fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
             .filter(date -> from == null || !date.isBefore(from))
             .filter(date -> to == null || !date.isAfter(to))
@@ -170,7 +168,7 @@ public class InvestmentAdminController {
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(required = false) @Nullable Integer month,
       @RequestParam(required = false) @Nullable Integer year,
-      @RequestParam(defaultValue = "false") boolean replaceUnrecognised) {
+      @RequestParam(defaultValue = "") Set<String> replaceUnrecognised) {
     tokenValidator.validate(token);
 
     var publisher =
@@ -188,7 +186,7 @@ public class InvestmentAdminController {
         "Admin triggered investment report publishing: month={}, replaceUnrecognised={}",
         targetMonth,
         replaceUnrecognised);
-    return publisher.publish(targetMonth, replaceUnrecognised ? REPLACE : REFUSE);
+    return publisher.publish(targetMonth, replaceUnrecognised);
   }
 
   @GetMapping("/preview-investment-report")

@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REFUSE;
-import static ee.tuleva.onboarding.investment.report.publishing.UnrecognisedReportFile.REPLACE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -25,6 +23,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +45,9 @@ class InvestmentReportPublisherTest {
 
   private static final YearMonth MARCH_2026 = YearMonth.of(2026, 3);
   private static final List<TulevaFund> PENSION_FUNDS = List.of(TUK75, TUK00, TUV100);
+  private static final Set<String> NOTHING_TO_REPLACE = Set.of();
+  private static final String HAND_NAMED_FILE =
+      "https://tuleva.ee/wp-content/uploads/2026/04/aruanne-marts.pdf";
 
   @BeforeEach
   void setUp() {
@@ -88,7 +90,7 @@ class InvestmentReportPublisherTest {
     given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
     given(emailService.sendSystemEmail(any())).willReturn(true);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).hasSize(3);
     assertThat(result.emailSent()).isTrue();
@@ -103,7 +105,7 @@ class InvestmentReportPublisherTest {
   void aFundLeftOutOfTheConfigurationIsNeitherGeneratedNorPublished() {
     givenEveryReportCanBeProduced();
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
     verify(dataService, never()).getReportData(eq(TKF100), any());
@@ -132,7 +134,7 @@ class InvestmentReportPublisherTest {
     given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
     given(emailService.sendSystemEmail(any())).willReturn(true);
 
-    publisher.publish(MARCH_2026, REFUSE);
+    publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     verify(emailService)
         .sendSystemEmail(
@@ -160,7 +162,7 @@ class InvestmentReportPublisherTest {
         .willReturn(context);
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).isEmpty();
     assertThat(result.errors()).hasSize(1);
@@ -185,7 +187,7 @@ class InvestmentReportPublisherTest {
         .when(wordPressClient)
         .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     verify(wordPressClient, times(3)).upload(any(), any());
     assertThat(result.errors()).hasSize(1);
@@ -205,7 +207,7 @@ class InvestmentReportPublisherTest {
             "TUV100", LocalDate.of(2026, 3, 31));
     given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.errors()).hasSize(1);
     assertThat(result.wordPressUrls()).isEmpty();
@@ -222,7 +224,7 @@ class InvestmentReportPublisherTest {
             "TUV100", LocalDate.of(2026, 3, 15));
     given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.errors()).hasSize(1);
     assertThat(result.wordPressUrls()).isEmpty();
@@ -236,7 +238,7 @@ class InvestmentReportPublisherTest {
     var badContext = sampleContext("Test Fund", new BigDecimal("0.950000"));
     given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(badContext);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.errors()).isNotEmpty();
     assertThat(result.errors().getFirst()).contains("allocation");
@@ -255,7 +257,7 @@ class InvestmentReportPublisherTest {
     given(wordPressClient.upload(any(), eq(pdfBytes))).willReturn(SAMPLE_UPLOAD);
     given(emailService.sendSystemEmail(any())).willReturn(true);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.errors()).isEmpty();
     assertThat(result.wordPressUrls()).hasSize(3);
@@ -271,7 +273,7 @@ class InvestmentReportPublisherTest {
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
     given(wordPressClient.upload(any(), any())).willThrow(new RuntimeException("WP unavailable"));
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).isEmpty();
     assertThat(result.errors()).hasSize(3);
@@ -288,7 +290,7 @@ class InvestmentReportPublisherTest {
             "TUV100", LocalDate.of(2026, 3, 31));
     given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(navDates);
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.errors()).hasSize(1);
     assertThat(result.errors().getFirst()).contains("TUK00");
@@ -304,10 +306,10 @@ class InvestmentReportPublisherTest {
             newerReportCheck.reasonsNotToReplace(
                 List.of(FundReportMapping.TUK75, FundReportMapping.TUK00, FundReportMapping.TUV100),
                 MARCH_2026,
-                REFUSE))
+                NOTHING_TO_REPLACE))
         .willReturn(List.of(refusal));
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result)
         .isEqualTo(new InvestmentReportPublishingResult(Map.of(), false, List.of(refusal)));
@@ -321,10 +323,10 @@ class InvestmentReportPublisherTest {
         "Fund page already links a newer report: fund=TUK00, linked=2026-04, publishing=2026-03";
     given(
             newerReportCheck.reasonsNotToReplace(
-                List.of(FundReportMapping.TUK00), MARCH_2026, REFUSE))
+                List.of(FundReportMapping.TUK00), MARCH_2026, NOTHING_TO_REPLACE))
         .willReturn(List.of(refusal));
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUV100");
     assertThat(result.errors()).containsExactly(refusal);
@@ -335,22 +337,22 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
-  void aFileThePageLinksThatIsNotTheFundsReportIsReplacedOnlyWhenTheAdminAsksForIt() {
+  void aFileThePageLinksThatIsNotTheFundsReportIsReplacedOnlyWhenTheAdminNamesIt() {
     givenEveryReportCanBeProduced();
     var refusal =
         "Fund page links a file that is not this fund's report, so it may be newer: fund=TUK00";
-    given(newerReportCheck.reasonsNotToReplace(any(), eq(MARCH_2026), eq(REFUSE)))
+    given(newerReportCheck.reasonsNotToReplace(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
         .willReturn(List.of(refusal));
 
-    var refused = publisher.publish(MARCH_2026, REFUSE);
-    var replaced = publisher.publish(MARCH_2026, REPLACE);
+    var refused = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+    var replaced = publisher.publish(MARCH_2026, Set.of(HAND_NAMED_FILE));
 
     assertThat(refused)
         .isEqualTo(new InvestmentReportPublishingResult(Map.of(), false, List.of(refusal)));
     assertThat(replaced.errors()).isEmpty();
     assertThat(replaced.wordPressUrls()).containsOnlyKeys("TUK75", "TUK00", "TUV100");
     verify(newerReportCheck)
-        .reasonsNotToReplace(List.of(FundReportMapping.TUK00), MARCH_2026, REPLACE);
+        .reasonsNotToReplace(List.of(FundReportMapping.TUK00), MARCH_2026, Set.of(HAND_NAMED_FILE));
   }
 
   @Test
@@ -366,7 +368,7 @@ class InvestmentReportPublisherTest {
         .given(publishingLock)
         .whileNoOtherPublishRuns(any(), any());
 
-    var result = publisher.publish(MARCH_2026, REFUSE);
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     assertThat(result)
         .isEqualTo(

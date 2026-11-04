@@ -42,9 +42,9 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPublishingProperties properties;
 
   public InvestmentReportPublishingResult publish(
-      final YearMonth month, final UnrecognisedReportFile unrecognised) {
+      final YearMonth month, final Set<String> unrecognisedFilesToReplace) {
     return publishingLock.whileNoOtherPublishRuns(
-        () -> publishWhileNoOtherPublishRuns(month, unrecognised),
+        () -> publishWhileNoOtherPublishRuns(month, unrecognisedFilesToReplace),
         refusal -> anotherPublishIsRunning(month, refusal));
   }
 
@@ -56,11 +56,11 @@ public class InvestmentReportPublisher {
   }
 
   private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(
-      YearMonth month, UnrecognisedReportFile unrecognised) {
+      YearMonth month, Set<String> unrecognisedFilesToReplace) {
     log.info(
-        "Starting investment report publishing: month={}, unrecognisedFile={}",
+        "Starting investment report publishing: month={}, unrecognisedFilesToReplace={}",
         month,
-        unrecognised);
+        unrecognisedFilesToReplace);
 
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
@@ -68,7 +68,9 @@ public class InvestmentReportPublisher {
       return abortedWithoutPublishing(navDateErrors);
     }
 
-    var refusals = newerReportCheck.reasonsNotToReplace(configuredReports(), month, unrecognised);
+    var refusals =
+        newerReportCheck.reasonsNotToReplace(
+            configuredReports(), month, unrecognisedFilesToReplace);
     if (!refusals.isEmpty()) {
       log.warn("Fund page check refused the publish: month={}, errors={}", month, refusals);
       return abortedWithoutPublishing(refusals);
@@ -95,7 +97,7 @@ public class InvestmentReportPublisher {
     }
 
     var repointErrors = new ArrayList<String>();
-    var publishedUrls = repointFundPages(month, unrecognised, uploads, repointErrors);
+    var publishedUrls = repointFundPages(month, unrecognisedFilesToReplace, uploads, repointErrors);
     if (!repointErrors.isEmpty()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
@@ -176,7 +178,7 @@ public class InvestmentReportPublisher {
 
   private Map<String, String> repointFundPages(
       YearMonth month,
-      UnrecognisedReportFile unrecognised,
+      Set<String> unrecognisedFilesToReplace,
       Map<FundReportMapping, UploadResult> uploads,
       List<String> errors) {
     var publishedUrls = new LinkedHashMap<String, String>();
@@ -184,7 +186,7 @@ public class InvestmentReportPublisher {
       var mapping = entry.getKey();
       var upload = entry.getValue();
       var refusedSinceTheCheck =
-          newerReportCheck.reasonsNotToReplace(List.of(mapping), month, unrecognised);
+          newerReportCheck.reasonsNotToReplace(List.of(mapping), month, unrecognisedFilesToReplace);
       if (!refusedSinceTheCheck.isEmpty()) {
         errors.addAll(refusedSinceTheCheck);
         continue;

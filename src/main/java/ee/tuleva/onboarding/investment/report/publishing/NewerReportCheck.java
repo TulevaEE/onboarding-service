@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPage
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,19 +17,20 @@ class NewerReportCheck {
   private final WordPressPageReader pageReader;
 
   List<String> reasonsNotToReplace(
-      List<FundReportMapping> reports, YearMonth month, UnrecognisedReportFile unrecognised) {
+      List<FundReportMapping> reports, YearMonth month, Set<String> unrecognisedFilesToReplace) {
     return reports.stream()
-        .flatMap(mapping -> reasonNotToReplace(mapping, month, unrecognised).stream())
+        .flatMap(mapping -> reasonNotToReplace(mapping, month, unrecognisedFilesToReplace).stream())
         .toList();
   }
 
   private Optional<String> reasonNotToReplace(
-      FundReportMapping mapping, YearMonth month, UnrecognisedReportFile unrecognised) {
+      FundReportMapping mapping, YearMonth month, Set<String> unrecognisedFilesToReplace) {
     var fundCode = mapping.fund().getCode();
     try {
       return pageReader
           .investmentReportUrl(mapping.pageSlug())
-          .flatMap(linked -> reasonNotToReplace(mapping, linked, month, unrecognised));
+          .flatMap(
+              linked -> reasonNotToReplace(mapping, linked, month, unrecognisedFilesToReplace));
     } catch (RuntimeException e) {
       log.error("Could not read fund page to check for a newer report: fund={}", fundCode, e);
       return Optional.of(
@@ -41,15 +43,15 @@ class NewerReportCheck {
       FundReportMapping mapping,
       String linked,
       YearMonth month,
-      UnrecognisedReportFile unrecognised) {
+      Set<String> unrecognisedFilesToReplace) {
     var fundCode = mapping.fund().getCode();
     var linkedPeriod = mapping.reportPeriodLinkedBy(linked);
     if (linkedPeriod.isEmpty()) {
-      return unrecognised == UnrecognisedReportFile.REPLACE
+      return unrecognisedFilesToReplace.contains(linked)
           ? Optional.empty()
           : Optional.of(
               ("Fund page links a file that is not this fund's report, so it may be newer; check"
-                      + " it, then publish with replaceUnrecognised=true to replace it: fund=%s,"
+                      + " it, then pass its URL as replaceUnrecognised to replace it: fund=%s,"
                       + " linked=%s, publishing=%s")
                   .formatted(fundCode, linked, month));
     }

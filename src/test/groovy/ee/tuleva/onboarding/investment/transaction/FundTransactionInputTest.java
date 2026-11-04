@@ -42,7 +42,7 @@ class FundTransactionInputTest {
   }
 
   @Test
-  void excluding_aModelInstrumentTheFundDoesNotHold_spreadsItsWeightAndSetsNoHoldingAside() {
+  void excluding_aModelInstrumentTheFundDoesNotHold_spreadsItsWeightAndRecordsItWithNoHolding() {
     var input =
         input()
             .positions(List.of(HOLDING_A, HOLDING_B))
@@ -56,7 +56,8 @@ class FundTransactionInputTest {
         .containsExactly(
             new ModelWeight("IE00A", new BigDecimal("0.6666666667")),
             new ModelWeight("IE00B", new BigDecimal("0.3333333333")));
-    assertThat(excluded.excludedPositions()).isEmpty();
+    assertThat(excluded.excludedPositions()).containsExactly(new PositionSnapshot("IE00C", ZERO));
+    assertThat(excluded.excludedMarketValue()).isEqualByComparingTo(ZERO);
   }
 
   @Test

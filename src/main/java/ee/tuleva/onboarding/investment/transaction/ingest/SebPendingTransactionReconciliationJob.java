@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineRun;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +29,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
-  static final String SCHEDULE = "0 0 9 * * MON-FRI";
   private static final int LOOKBACK_DAYS = 7;
-  private static final Duration LOCK_AT_MOST_FOR = Duration.ofMinutes(30);
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -42,7 +39,7 @@ class SebPendingTransactionReconciliationJob {
   private final PipelineNotifier pipelineNotifier;
   private final SebReconciliationLock reconciliationLock;
 
-  @Scheduled(cron = SCHEDULE, zone = TIMEZONE)
+  @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
   @SchedulerLock(name = SebReconciliationLock.NAME, lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);
@@ -97,7 +94,7 @@ class SebPendingTransactionReconciliationJob {
 
   @EventListener(RunSebPendingTransactionReconciliationRequested.class)
   void onSebPendingTransactionReconciliationRequested() {
-    if (!reconciliationLock.runIfFree(LOCK_AT_MOST_FOR, this::run)) {
+    if (!reconciliationLock.runIfFree(this::run)) {
       log.warn(
           "SEB pending transactions reconciliation skipped, its lock is held: lock={}",
           SebReconciliationLock.NAME);

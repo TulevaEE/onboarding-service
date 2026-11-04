@@ -4,11 +4,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import net.javacrumbs.shedlock.core.LockConfiguration;
-import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 
-final class RecordingLockProvider implements LockProvider {
+final class RecordingLockProvider implements ExtensibleLockProvider {
 
   private enum Availability {
     FREE,

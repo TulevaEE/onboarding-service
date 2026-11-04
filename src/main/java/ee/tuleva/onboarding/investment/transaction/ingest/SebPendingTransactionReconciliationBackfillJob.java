@@ -39,10 +39,6 @@ class SebPendingTransactionReconciliationBackfillJob {
           SettlementCheck.SKIPPED_NO_MATCHED_ROW, "ükski rida ei sobitunud",
           SettlementCheck.SKIPPED_MALFORMED_ROWS, "vigased read",
           SettlementCheck.SKIPPED_NOT_LATEST_REPORT, "polnud viimane raport");
-  private static final String SCHEDULED_RUNS_MESSAGE =
-      "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB raportite import või"
-          + " igapäevane sobitamine käib või algab peagi.\nKäivita uuesti õhtul, kui SEB raporteid"
-          + " ei impordita.";
   private static final String LOCK_HELD_MESSAGE =
       "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute"
           + " sobitamine juba käib.\nKäivita uuesti, kui see on lõppenud.";
@@ -56,26 +52,20 @@ class SebPendingTransactionReconciliationBackfillJob {
   private final TransactionSettlementRepository settlementRepository;
   private final OperationsNotificationService notificationService;
   private final SebReconciliationLock reconciliationLock;
+  private final SebReplayWindow replayWindow;
 
   @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
   void onSebPendingTransactionReconciliationBackfillRequested() {
-    Optional<SebReplayLease> lease = SebReplayLease.startingAt(clock.instant());
-    if (lease.isEmpty()) {
+    if (!replayWindow.isOpenAt(clock.instant())) {
       log.warn(
-          "SEB pending transactions replay refused, an import or the live reconciliation may run:"
-              + " now={}",
-          clock.instant());
-      notificationService.sendMessage(SCHEDULED_RUNS_MESSAGE, INVESTMENT, WARNING);
+          "SEB pending transactions replay refused inside the import window: closedHours={}",
+          replayWindow.closedHours());
+      notificationService.sendMessage(windowClosedMessage(), INVESTMENT, WARNING);
       throw new IllegalStateException(
-          "SEB pending transactions replay refused, an import or the live reconciliation may run:"
-              + " now="
-              + clock.instant());
+          "SEB pending transactions replay refused inside the import window: closedHours="
+              + replayWindow.closedHours());
     }
-    replayHolding(lease.get());
-  }
-
-  private void replayHolding(SebReplayLease lease) {
-    if (!reconciliationLock.runIfFree(lease.lockAtMostFor(), () -> run(lease))) {
+    if (!reconciliationLock.runIfFree(this::run)) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
@@ -84,9 +74,9 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
   }
 
-  private void run(SebReplayLease lease) {
+  private void run() {
     try {
-      announce(replayOldestFirst(lease));
+      announce(replayOldestFirst());
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: backfillDays={}",
@@ -96,7 +86,7 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
   }
 
-  private ReplaySummary replayOldestFirst(SebReplayLease lease) {
+  private ReplaySummary replayOldestFirst() {
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
@@ -114,13 +104,13 @@ class SebPendingTransactionReconciliationBackfillJob {
         if (report.isEmpty()) {
           continue;
         }
-        if (lease.isOver(clock.instant())) {
+        if (!replayWindow.isOpenAt(clock.instant())) {
           log.warn(
-              "SEB pending transactions replay stopped before its lock is freed: reportDate={},"
-                  + " lockFreedAt={}",
+              "SEB pending transactions replay stopped as the import window opens: reportDate={},"
+                  + " closedHours={}",
               date,
-              lease.lockFreedAt());
-          stop = Optional.of(new Stop(date, StopReason.SCHEDULED_RUNS_DUE));
+              replayWindow.closedHours());
+          stop = Optional.of(new Stop(date, StopReason.IMPORT_WINDOW_OPENS));
           break;
         }
         check = reconciliationService.replay(report.get(), reportAlerts::add);
@@ -174,6 +164,14 @@ class SebPendingTransactionReconciliationBackfillJob {
     } else {
       notificationService.sendMessage(completedMessage(summary), INVESTMENT, WARNING);
     }
+  }
+
+  private String windowClosedMessage() {
+    return "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest kell "
+        + replayWindow.closedHours()
+        + " imporditakse SEB raporteid ja käib igapäevane sobitamine.\nKäivita uuesti pärast kella "
+        + replayWindow.opensAt()
+        + ".";
   }
 
   private static String noReportsMessage() {
@@ -279,8 +277,8 @@ class SebPendingTransactionReconciliationBackfillJob {
   @RequiredArgsConstructor
   private enum StopReason {
     REPORT_FAILED("raportil %s (põhjus on logis).\n", "Paranda põhjus ja käivita uuesti. ", ERROR),
-    SCHEDULED_RUNS_DUE(
-        "enne raportit %s, sest peagi algab SEB raportite import või igapäevane sobitamine.\n",
+    IMPORT_WINDOW_OPENS(
+        "enne raportit %s, sest algas SEB raportite impordi aeg.\n",
         "Käivita uuesti õhtul, kui SEB raporteid ei impordita. ", WARNING);
 
     private final String where;

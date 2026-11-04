@@ -22,6 +22,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.BeforeEach;
@@ -269,7 +270,7 @@ class SebPendingTransactionReconciliationJobTest {
         publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
 
-  private SebPendingTransactionReconciliationJob jobLockedBy(LockProvider provider) {
+  private SebPendingTransactionReconciliationJob jobLockedBy(ExtensibleLockProvider provider) {
     return new SebPendingTransactionReconciliationJob(
         clock,
         publicHolidays,

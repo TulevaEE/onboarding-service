@@ -32,7 +32,16 @@ final class SellPath {
 
   static List<BigDecimal> calculateSell(
       FundTransactionInput input, BigDecimal targetNet, Map<String, BigDecimal> weightMap) {
-    requireExclusionLeavesEnoughToSell(input);
+    return requireExclusionSellsTheShortfall(input, sell(input, targetNet, weightMap));
+  }
+
+  static List<BigDecimal> calculateSellFast(
+      FundTransactionInput input, BigDecimal netInvestable, Map<String, BigDecimal> weightMap) {
+    return requireExclusionSellsTheShortfall(input, sellFast(input, netInvestable, weightMap));
+  }
+
+  private static List<BigDecimal> sell(
+      FundTransactionInput input, BigDecimal targetNet, Map<String, BigDecimal> weightMap) {
     int size = input.positions().size();
     if (size == 0) {
       return List.of();
@@ -114,9 +123,8 @@ final class SellPath {
     return List.of(relief);
   }
 
-  static List<BigDecimal> calculateSellFast(
+  private static List<BigDecimal> sellFast(
       FundTransactionInput input, BigDecimal netInvestable, Map<String, BigDecimal> weightMap) {
-    requireExclusionLeavesEnoughToSell(input);
     int size = input.positions().size();
     if (size == 0) {
       return List.of();
@@ -147,23 +155,24 @@ final class SellPath {
     return finalizeSells(input, results, targetValues, targetAmount);
   }
 
-  private static void requireExclusionLeavesEnoughToSell(FundTransactionInput input) {
+  private static List<BigDecimal> requireExclusionSellsTheShortfall(
+      FundTransactionInput input, List<BigDecimal> trades) {
     if (input.excludedPositions().isEmpty()) {
-      return;
+      return trades;
     }
-    BigDecimal targetSellAmount = input.freeCash().negate();
-    BigDecimal sellable =
-        input.positions().stream().map(PositionSnapshot::marketValue).reduce(ZERO, BigDecimal::add);
-    if (targetSellAmount.subtract(sellable).compareTo(MIN_MEANINGFUL_AMOUNT) > 0) {
+    BigDecimal shortfall = input.freeCash().negate();
+    BigDecimal sold = trades.stream().reduce(ZERO, BigDecimal::add).negate();
+    if (shortfall.subtract(sold).compareTo(MIN_MEANINGFUL_AMOUNT) > 0) {
       throw new IllegalStateException(
-          ("Excluded instruments leave too little to sell: fund=%s, targetSellAmount=%s,"
-                  + " sellableMarketValue=%s, excludedMarketValue=%s")
+          ("Excluded instruments leave the sell short of the cash shortfall: fund=%s,"
+                  + " shortfall=%s, sold=%s, excludedMarketValue=%s")
               .formatted(
                   input.fund().name(),
-                  targetSellAmount.toPlainString(),
-                  sellable.toPlainString(),
+                  shortfall.toPlainString(),
+                  sold.toPlainString(),
                   input.excludedMarketValue().toPlainString()));
     }
+    return trades;
   }
 
   static List<BigDecimal> normalizedTargetValues(

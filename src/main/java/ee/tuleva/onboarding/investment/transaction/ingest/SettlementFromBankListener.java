@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -24,11 +23,6 @@ class SettlementFromBankListener {
 
   @Value("${transaction-registry.settlement-check.scan-lookback-days:60}")
   private int scanLookbackDays = 60;
-
-  @EventListener(BankMessagesProcessingCompleted.class)
-  public void onBankMessagesProcessed() {
-    settleTheLookback();
-  }
 
   @EventListener
   @Order(SebPendingTransactionReconciliationListener.LISTENER_ORDER + 1)

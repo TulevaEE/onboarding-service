@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.SETTLEMENT_FROM_BANK;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -13,6 +16,8 @@ import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
+import ee.tuleva.onboarding.investment.report.InvestmentReport;
+import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.SettlementSource;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
@@ -24,13 +29,17 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -48,6 +57,12 @@ class SettlementFromBankIT {
   @Autowired private TransactionSettlementRepository settlementRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private InvestmentReportRepository reportRepository;
+
+  @BeforeEach
+  void sebsLatestPendingReportListsNoneOfTheOrders() {
+    pendingReport(LocalDate.of(2026, 2, 20), List.of());
+  }
 
   @Test
   void anOrderWhoseCashTheBankBooked_settlesOnTheBookingDateWithTheBankAsItsSource() {
@@ -181,6 +196,64 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void anOrderSebStillLists_staysOpenAlthoughTheBankBookedItsCash() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    pendingReport(
+        LocalDate.of(2026, 2, 21), List.of(Map.of("Client ref", order.getOrderUuid().toString())));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
+  void aBookingAfterTheLatestPendingReport_waitsForTheNextOne() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 23));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
+  void aSaleWhoseCashCameIn_settles() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704", SELL);
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "209025.86", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(settlementOf(order).getReportDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+  }
+
+  @Test
+  void aBuyWhoseCashCameIn_doesNotSettle() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "209025.86", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
+  void aReferenceTheBankBookedTwice_settlesNothing() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 13));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
   void aRun_countsTheOrdersItSettledConfirmedRedatedAndLeftWithoutABankDate() {
     TransactionOrder settles = executedOrder(OrderVenue.SEB, "11704");
     piece(settles, "DLA0553690", "11704");
@@ -198,7 +271,7 @@ class SettlementFromBankIT {
 
     BankSettlementRun run = settlementFromBankService.settleOrdersBookedSince(SINCE);
 
-    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1, 1));
+    assertThat(run).isEqualTo(new BankSettlementRun(1, 1, 1, 1, 0));
   }
 
   private void settleFromTheBank() {
@@ -212,6 +285,11 @@ class SettlementFromBankIT {
   }
 
   private TransactionOrder executedOrder(OrderVenue venue, String quantity) {
+    return executedOrder(venue, quantity, BUY);
+  }
+
+  private TransactionOrder executedOrder(
+      OrderVenue venue, String quantity, TransactionType transactionType) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
     TransactionOrder order =
@@ -220,7 +298,7 @@ class SettlementFromBankIT {
                 .batch(batch)
                 .fund(TKF100)
                 .instrumentIsin(EJAP)
-                .transactionType(BUY)
+                .transactionType(transactionType)
                 .instrumentType(ETF)
                 .orderQuantity(new BigDecimal(quantity))
                 .orderVenue(venue)
@@ -246,6 +324,19 @@ class SettlementFromBankIT {
                 .build());
     entityManager.flush();
     return execution;
+  }
+
+  private void pendingReport(LocalDate asOfDate, List<Map<String, Object>> rows) {
+    reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(asOfDate.plusDays(1))
+            .rawData(rows)
+            .metadata(Map.of("asOfDate", asOfDate.toString()))
+            .createdAt(Instant.now())
+            .build());
+    entityManager.flush();
   }
 
   private void settledEarlier(

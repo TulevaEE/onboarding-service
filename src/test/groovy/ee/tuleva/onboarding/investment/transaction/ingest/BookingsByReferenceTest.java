@@ -41,6 +41,15 @@ class BookingsByReferenceTest {
     assertThat(bookings.booking(null)).isEmpty();
   }
 
+  @Test
+  void aReferenceBookedTwice_findsNeither() {
+    BookingsByReference bookings =
+        new BookingsByReference(
+            List.of(booking(OLDER, "DLA0553690"), booking(NEWER, "DLA0553690")), Map.of());
+
+    assertThat(bookings.booking("DLA0553690")).isEmpty();
+  }
+
   private static TradeSettlementBooking booking(UUID externalReference, String brokerReference) {
     return new TradeSettlementBooking(
         externalReference,

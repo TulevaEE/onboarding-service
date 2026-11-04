@@ -508,6 +508,43 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             WARNING);
   }
 
+  @Test
+  void aResumeDateAfterTodayIsRefusedNamingIt() {
+    RunSebPendingTransactionReconciliationBackfillRequested tomorrow =
+        new RunSebPendingTransactionReconciliationBackfillRequested(TODAY.plusDays(1));
+
+    assertThatThrownBy(() -> job.onSebPendingTransactionReconciliationBackfillRequested(tomorrow))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine ei alanud: jätkamise kuupäev \
+            2026-05-19 pole vahemikus 2025-05-18 kuni 2026-05-18.""",
+            INVESTMENT,
+            WARNING);
+    assertThat(lockProvider.lockNames()).isEmpty();
+    verifyNoInteractions(reportService, reconciliationService);
+  }
+
+  @Test
+  void aResumeDateWithAMistypedYearIsRefusedNamingIt() {
+    RunSebPendingTransactionReconciliationBackfillRequested mistyped =
+        new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(206, 5, 8));
+
+    assertThatThrownBy(() -> job.onSebPendingTransactionReconciliationBackfillRequested(mistyped))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine ei alanud: jätkamise kuupäev \
+            0206-05-08 pole vahemikus 2025-05-18 kuni 2026-05-18.""",
+            INVESTMENT,
+            WARNING);
+    verifyNoInteractions(reportService, reconciliationService);
+  }
+
   private SebPendingTransactionReconciliationBackfillJob jobLockedBy(
       ExtensibleLockProvider provider) {
     return jobAt(clock, provider);

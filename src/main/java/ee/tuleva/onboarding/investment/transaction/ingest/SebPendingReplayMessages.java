@@ -40,6 +40,17 @@ final class SebPendingReplayMessages {
         + ".";
   }
 
+  static String resumeDateOutOfRangeMessage(
+      LocalDate resumeFrom, LocalDate earliest, LocalDate today) {
+    return "SEB ootel-tehingute raportite uuesti sobitamine ei alanud: jätkamise kuupäev "
+        + resumeFrom
+        + " pole vahemikus "
+        + earliest
+        + " kuni "
+        + today
+        + ".";
+  }
+
   static String noReportsMessage(LocalDate from) {
     return "SEB ootel-tehingute raporteid pole alates " + from + ", midagi ei sobitatud uuesti.";
   }

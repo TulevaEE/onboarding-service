@@ -65,7 +65,7 @@ class InvestmentReportPublisherTest {
         pdfGenerator,
         wordPressClient,
         newerReportCheck,
-        emailService,
+        new InvestmentReportMailer(emailService),
         publishingLock,
         new InvestmentReportPublishingProperties(funds));
   }

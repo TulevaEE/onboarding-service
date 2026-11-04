@@ -32,6 +32,7 @@ class InvestmentReportPublishingPropertiesTest {
           .withUserConfiguration(
               InvestmentReportPublisher.class,
               InvestmentReportPublishingLock.class,
+              InvestmentReportMailer.class,
               NewerReportCheck.class)
           .withBean(
               InvestmentReportDataService.class, () -> mock(InvestmentReportDataService.class))

@@ -1,17 +1,11 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
-
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
-import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -41,7 +35,7 @@ public class InvestmentReportPublisher {
   private final InvestmentReportPdfGenerator pdfGenerator;
   private final WordPressMediaClient wordPressClient;
   private final NewerReportCheck newerReportCheck;
-  private final EmailService emailService;
+  private final InvestmentReportMailer mailer;
   private final InvestmentReportPublishingLock publishingLock;
   private final InvestmentReportPublishingProperties properties;
 
@@ -111,12 +105,12 @@ public class InvestmentReportPublisher {
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
           publishedUrls.keySet(),
           repointErrors);
-      alertPartialPublish(month, publishedUrls, repointErrors);
+      mailer.alertPartialPublish(month, publishedUrls, repointErrors);
       return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
     }
 
     var emailErrors = new ArrayList<String>();
-    var emailSent = emailReports(month, pdfs, emailErrors);
+    var emailSent = mailer.emailReports(month, pdfs, emailErrors);
     log.info(
         "Investment report publishing completed: publishedFunds={}, emailSent={}",
         publishedUrls.size(),
@@ -217,68 +211,6 @@ public class InvestmentReportPublisher {
       }
     }
     return publishedUrls;
-  }
-
-  private boolean emailReports(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
-    try {
-      var message = new MandrillMessage();
-      message.setFromEmail("funds@tuleva.ee");
-      message.setFromName("Tuleva");
-      message.setSubject("Tuleva investeeringute aruanded " + month);
-      message.setHtml(
-          "<p>Tere,</p>"
-              + "<p>Manuses on Tuleva pensionifondide investeeringute aruanded.</p>"
-              + "<p>See on automaatne kiri.</p>"
-              + "<p>Parimat,<br>Tuleva robot</p>");
-      var recipient = new Recipient();
-      recipient.setEmail("funds@tuleva.ee");
-      recipient.setType(TO);
-      message.setTo(List.of(recipient));
-      message.setAttachments(emailAttachments(month, pdfs));
-      return emailService.sendSystemEmail(message);
-    } catch (Exception e) {
-      log.error("Email send failed", e);
-      errors.add("Email send failed: " + e.getMessage());
-      return false;
-    }
-  }
-
-  private static List<MessageContent> emailAttachments(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs) {
-    var attachments = new ArrayList<MessageContent>();
-    for (var entry : pdfs.entrySet()) {
-      if (entry.getKey().includeInEmail()) {
-        var attachment = new MessageContent();
-        attachment.setName(entry.getKey().buildPdfFilename(month));
-        attachment.setType("application/pdf");
-        attachment.setContent(Base64.getEncoder().encodeToString(entry.getValue()));
-        attachments.add(attachment);
-      }
-    }
-    return attachments;
-  }
-
-  private void alertPartialPublish(
-      YearMonth month, Map<String, String> publishedUrls, List<String> errors) {
-    try {
-      var message = new MandrillMessage();
-      message.setFromEmail("funds@tuleva.ee");
-      message.setFromName("Tuleva");
-      message.setSubject("Investeeringute aruannete avaldamine jäi pooleli: " + month);
-      message.setText(
-          ("Investment report publish for %s left the website in a partial state.%n"
-                  + "Fund pages updated: %s%nErrors: %s%n"
-                  + "Manual attention needed to make all fund pages consistent.")
-              .formatted(month, publishedUrls.keySet(), errors));
-      var recipient = new Recipient();
-      recipient.setEmail("funds@tuleva.ee");
-      recipient.setType(TO);
-      message.setTo(List.of(recipient));
-      emailService.sendSystemEmail(message);
-    } catch (Exception e) {
-      log.error("Failed to send partial-publish alert: {}", e.getMessage(), e);
-    }
   }
 
   private List<String> validateNavDates(YearMonth month) {

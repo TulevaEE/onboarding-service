@@ -13,8 +13,9 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.Clock;
-import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,10 @@ class SebPendingTransactionReconciliationBackfillJob {
           SettlementCheck.SKIPPED_NO_MATCHED_ROW, "ükski rida ei sobitunud",
           SettlementCheck.SKIPPED_MALFORMED_ROWS, "vigased read",
           SettlementCheck.SKIPPED_NOT_LATEST_REPORT, "polnud viimane raport");
-  private static final Duration LOCK_AT_MOST_FOR = Duration.ofMinutes(60);
+  private static final String SCHEDULED_RUNS_MESSAGE =
+      "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB raportite import või"
+          + " igapäevane sobitamine käib või algab peagi.\nKäivita uuesti õhtul, kui SEB raporteid"
+          + " ei impordita.";
   private static final String LOCK_HELD_MESSAGE =
       "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute"
           + " sobitamine juba käib.\nKäivita uuesti, kui see on lõppenud.";
@@ -56,7 +60,24 @@ class SebPendingTransactionReconciliationBackfillJob {
 
   @EventListener(RunSebPendingTransactionReconciliationBackfillRequested.class)
   void onSebPendingTransactionReconciliationBackfillRequested() {
-    if (!reconciliationLock.runIfFree(LOCK_AT_MOST_FOR, this::run)) {
+    Instant now = clock.instant();
+    Optional<SebReplayLease> lease = SebReplayLease.startingAt(now);
+    if (lease.isEmpty()) {
+      log.warn(
+          "SEB pending transactions replay refused, an import or the live reconciliation may run:"
+              + " now={}",
+          now);
+      notificationService.sendMessage(SCHEDULED_RUNS_MESSAGE, INVESTMENT, WARNING);
+      throw new IllegalStateException(
+          "SEB pending transactions replay refused, an import or the live reconciliation may run:"
+              + " now="
+              + now);
+    }
+    replayHolding(lease.get(), now);
+  }
+
+  private void replayHolding(SebReplayLease lease, Instant now) {
+    if (!reconciliationLock.runIfFree(lease.lockAtMostFor(now), () -> run(lease))) {
       log.warn(
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
@@ -65,9 +86,9 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
   }
 
-  private void run() {
+  private void run(SebReplayLease lease) {
     try {
-      announce(replayOldestFirst());
+      announce(replayOldestFirst(lease));
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: backfillDays={}",
@@ -77,13 +98,13 @@ class SebPendingTransactionReconciliationBackfillJob {
     }
   }
 
-  private ReplaySummary replayOldestFirst() {
+  private ReplaySummary replayOldestFirst(SebReplayLease lease) {
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
     List<SkippedCheck> skippedChecks = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
-    Optional<LocalDate> stoppedAt = Optional.empty();
+    Optional<Stop> stop = Optional.empty();
     LocalDate today = LocalDate.now(clock);
     for (int daysAgo = BACKFILL_DAYS; daysAgo >= 0; daysAgo--) {
       LocalDate date = today.minusDays(daysAgo);
@@ -95,10 +116,19 @@ class SebPendingTransactionReconciliationBackfillJob {
         if (report.isEmpty()) {
           continue;
         }
+        if (lease.isOver(clock.instant())) {
+          log.warn(
+              "SEB pending transactions replay stopped before its lock is freed: reportDate={},"
+                  + " lockFreedAt={}",
+              date,
+              lease.lockFreedAt());
+          stop = Optional.of(new Stop(date, StopReason.SCHEDULED_RUNS_DUE));
+          break;
+        }
         check = reconciliationService.replay(report.get(), reportAlerts::add);
       } catch (RuntimeException e) {
         log.error("SEB pending transactions replay stopped: reportDate={}", date, e);
-        stoppedAt = Optional.of(date);
+        stop = Optional.of(new Stop(date, StopReason.REPORT_FAILED));
         break;
       }
       reportAlerts.forEach(
@@ -114,7 +144,7 @@ class SebPendingTransactionReconciliationBackfillJob {
         settlementRepository.count() - settlementsBefore,
         List.copyOf(heldBackAlerts),
         List.copyOf(skippedChecks),
-        stoppedAt);
+        stop);
   }
 
   private void announce(ReplaySummary summary) {
@@ -125,17 +155,18 @@ class SebPendingTransactionReconciliationBackfillJob {
         summary.newExecutions(),
         summary.newSettlements(),
         summary.alerts().size(),
-        summary.stoppedAt().orElse(null));
-    if (summary.replayed().isEmpty() && summary.stoppedAt().isEmpty()) {
+        summary.stop().map(Stop::reportDate).orElse(null));
+    if (summary.replayed().isEmpty() && summary.stop().isEmpty()) {
       log.warn("SEB pending transactions replay found no reports: backfillDays={}", BACKFILL_DAYS);
       notificationService.sendMessage(noReportsMessage(), INVESTMENT, WARNING);
       return;
     }
     summary
-        .stoppedAt()
+        .stop()
         .ifPresentOrElse(
-            date ->
-                notificationService.sendMessage(stoppedMessage(date, summary), INVESTMENT, ERROR),
+            stop ->
+                notificationService.sendMessage(
+                    stoppedMessage(stop, summary), INVESTMENT, stop.reason().severity),
             () -> sendCompleted(summary));
   }
 
@@ -168,17 +199,16 @@ class SebPendingTransactionReconciliationBackfillJob {
         + RERUN_ADDS_NOTHING_TWICE;
   }
 
-  private static String stoppedMessage(LocalDate stoppedAt, ReplaySummary summary) {
-    return "SEB ootel-tehingute raportite uuesti sobitamine peatus raportil "
-        + stoppedAt
-        + " (põhjus on logis).\n"
+  private static String stoppedMessage(Stop stop, ReplaySummary summary) {
+    return "SEB ootel-tehingute raportite uuesti sobitamine peatus "
+        + stop.reason().where.formatted(stop.reportDate())
         + (summary.replayed().isEmpty()
             ? "Enne seda ei sobitatud ühtki raportit.\n"
             : "Enne seda raporteid: "
                 + reportsAndRange(summary.replayed())
                 + ". "
                 + outcome(summary))
-        + "Paranda põhjus ja käivita uuesti. "
+        + stop.reason().advice
         + RERUN_ADDS_NOTHING_TWICE;
   }
 
@@ -242,7 +272,21 @@ class SebPendingTransactionReconciliationBackfillJob {
       long newSettlements,
       List<ReconciliationAlert> alerts,
       List<SkippedCheck> skippedChecks,
-      Optional<LocalDate> stoppedAt) {}
+      Optional<Stop> stop) {}
 
   private record SkippedCheck(LocalDate reportDate, String reason) {}
+
+  private record Stop(LocalDate reportDate, StopReason reason) {}
+
+  @RequiredArgsConstructor
+  private enum StopReason {
+    REPORT_FAILED("raportil %s (põhjus on logis).\n", "Paranda põhjus ja käivita uuesti. ", ERROR),
+    SCHEDULED_RUNS_DUE(
+        "enne raportit %s, sest peagi algab SEB raportite import või igapäevane sobitamine.\n",
+        "Käivita uuesti õhtul, kui SEB raporteid ei impordita. ", WARNING);
+
+    private final String where;
+    private final String advice;
+    private final Severity severity;
+  }
 }

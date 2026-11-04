@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
+  static final String SCHEDULE = "0 0 9 * * MON-FRI";
   private static final int LOOKBACK_DAYS = 7;
   private static final Duration LOCK_AT_MOST_FOR = Duration.ofMinutes(30);
 
@@ -41,7 +42,7 @@ class SebPendingTransactionReconciliationJob {
   private final PipelineNotifier pipelineNotifier;
   private final SebReconciliationLock reconciliationLock;
 
-  @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
+  @Scheduled(cron = SCHEDULE, zone = TIMEZONE)
   @SchedulerLock(name = SebReconciliationLock.NAME, lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void run() {
     LocalDate today = LocalDate.now(clock);

@@ -285,7 +285,9 @@ class InvestmentReportPublisherTest {
     assertThat(result.errors()).hasSize(3);
     assertThat(result.emailSent()).isFalse();
     verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
-    verify(emailService, never()).sendSystemEmail(any());
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+    verify(emailService, times(1)).sendSystemEmail(any());
   }
 
   @Test
@@ -311,16 +313,25 @@ class InvestmentReportPublisherTest {
                 Map.of(),
                 false,
                 List.of(
-                    "WordPress upload failed but may have stored the file anyway, possibly with a"
-                        + " -N suffix; delete it from the media library if it is there: fund=TUK00,"
-                        + " file=tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf,"
-                        + " error=request timed out",
+                    "WordPress upload failed but may have stored the file anyway, under this"
+                        + " name's slug and possibly a -N suffix; delete it from the media library"
+                        + " if it is there: fund=TUK00, file=Tuleva Maailma Võlakirjade"
+                        + " Pensionifondi investeeringute aruanne 2026-03.pdf, error=request timed"
+                        + " out",
                     "Uploaded report was not linked; link it or delete it from the media library:"
                         + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf",
                     "Uploaded report was not linked; link it or delete it from the media library:"
                         + " fund=TUV100,"
                         + " file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf")));
     verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
+    verify(emailService)
+        .sendSystemEmail(
+            argThat(
+                alert ->
+                    alert.getSubject().contains("pooleli")
+                        && alert.getText().contains("Võlakirjade Pensionifondi")
+                        && alert.getText().contains("uploads/2026/04/tuk75.pdf")
+                        && alert.getText().contains("uploads/2026/04/tuv100.pdf")));
   }
 
   @Test

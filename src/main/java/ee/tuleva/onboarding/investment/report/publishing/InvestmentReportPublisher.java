@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportCon
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
-import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -102,6 +101,7 @@ public class InvestmentReportPublisher {
               uploadErrors.add(
                   UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl())));
       log.warn("Uploads failed, no fund pages changed, website unchanged: {}", uploadErrors);
+      mailer.alertPartialPublish(month, Map.of(), uploadErrors);
       return abortedWithoutPublishing(uploadErrors);
     }
 
@@ -179,19 +179,16 @@ public class InvestmentReportPublisher {
     var uploads = new LinkedHashMap<FundReportMapping, UploadResult>();
     for (var entry : pdfs.entrySet()) {
       var mapping = entry.getKey();
+      var filename = mapping.buildPdfFilename(month);
       try {
-        uploads.put(
-            mapping, wordPressClient.upload(mapping.buildPdfFilename(month), entry.getValue()));
+        uploads.put(mapping, wordPressClient.upload(filename, entry.getValue()));
       } catch (Exception e) {
         log.error("WordPress upload failed for {}", mapping.fund().getCode(), e);
         errors.add(
-            ("WordPress upload failed but may have stored the file anyway, possibly with a -N"
-                    + " suffix; delete it from the media library if it is there: fund=%s,"
-                    + " file=%s, error=%s")
-                .formatted(
-                    mapping.fund().getCode(),
-                    WordPressSlug.of(mapping.buildPdfFilename(month)),
-                    e.getMessage()));
+            ("WordPress upload failed but may have stored the file anyway, under this name's"
+                    + " slug and possibly a -N suffix; delete it from the media library if it is"
+                    + " there: fund=%s, file=%s, error=%s")
+                .formatted(mapping.fund().getCode(), filename, e.getMessage()));
       }
     }
     return uploads;

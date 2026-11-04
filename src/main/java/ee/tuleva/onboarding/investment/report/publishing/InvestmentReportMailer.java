@@ -69,9 +69,10 @@ class InvestmentReportMailer {
       message.setFromName("Tuleva");
       message.setSubject("Investeeringute aruannete avaldamine jäi pooleli: " + month);
       message.setText(
-          ("Investment report publish for %s left the website in a partial state.%n"
+          ("Investment report publish for %s did not finish.%n"
                   + "Fund pages updated: %s%nErrors: %s%n"
-                  + "Manual attention needed to make all fund pages consistent.")
+                  + "Manual attention needed: make all fund pages consistent, and link or delete"
+                  + " the uploaded files named above.")
               .formatted(month, publishedUrls.keySet(), errors));
       var recipient = new Recipient();
       recipient.setEmail("funds@tuleva.ee");

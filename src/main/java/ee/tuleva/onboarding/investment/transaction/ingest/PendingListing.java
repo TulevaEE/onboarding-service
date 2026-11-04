@@ -7,11 +7,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-record PendingListing(LocalDate asOfDate, Set<UUID> clientRefs, Set<String> ourRefs) {
+record PendingListing(
+    LocalDate asOfDate,
+    Set<UUID> clientRefs,
+    Set<String> ourRefs,
+    Set<String> isinsOfRowsWithoutReferences) {
 
   boolean settlesOn(
       LocalDate bookingDate, TransactionOrder order, List<TransactionExecution> executions) {
     return !asOfDate.isBefore(bookingDate)
+        && !isinsOfRowsWithoutReferences.contains(order.getInstrumentIsin())
         && !clientRefs.contains(order.getOrderUuid())
         && executions.stream()
             .map(TransactionExecution::getBrokerTransactionId)

@@ -209,6 +209,18 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void aPendingRowWithNeitherReference_holdsBackEveryOrderInItsInstrument() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    pendingReport(LocalDate.of(2026, 2, 21), List.of(Map.of("ISIN", EJAP)));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
   void aBookingAfterTheLatestPendingReport_waitsForTheNextOne() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");

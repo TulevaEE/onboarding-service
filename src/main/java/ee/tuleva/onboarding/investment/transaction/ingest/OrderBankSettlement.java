@@ -85,13 +85,16 @@ class OrderBankSettlement {
       return Optional.empty();
     }
     TradeSettlementBooking booking = found.get();
-    if (!order.getInstrumentIsin().equals(booking.isin())
+    if (order.getFund() != booking.fund()
+        || !order.getInstrumentIsin().equals(booking.isin())
         || cashLeftTheFund(booking) != (order.getTransactionType() == BUY)) {
       log.warn(
-          "Bank booking does not fit its order: orderId={}, brokerReference={}, orderIsin={},"
-              + " bookingIsin={}, side={}, cash={}",
+          "Bank booking does not fit its order: orderId={}, brokerReference={}, orderFund={},"
+              + " bookingFund={}, orderIsin={}, bookingIsin={}, side={}, cash={}",
           order.getId(),
           execution.getBrokerTransactionId(),
+          order.getFund(),
+          booking.fund(),
           order.getInstrumentIsin(),
           booking.isin(),
           order.getTransactionType(),

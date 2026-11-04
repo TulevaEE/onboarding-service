@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.SETTLEMENT_FROM_BANK;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +33,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -139,6 +141,17 @@ class SettlementFromBankIT {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", "IE00BJZ2DC62", "-209025.86", LocalDate.of(2026, 2, 12));
+
+    settleFromTheBank();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+  }
+
+  @Test
+  void aBookingOfAnotherFund_doesNotSettleTheOrder() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks(TUK75, "DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
 
     settleFromTheBank();
 
@@ -414,9 +427,14 @@ class SettlementFromBankIT {
   }
 
   private void bankBooks(String brokerReference, String isin, String cash, LocalDate bookingDate) {
+    bankBooks(TKF100, brokerReference, isin, cash, bookingDate);
+  }
+
+  private void bankBooks(
+      TulevaFund fund, String brokerReference, String isin, String cash, LocalDate bookingDate) {
     BigDecimal amount = new BigDecimal(cash);
     fundBankLedger.recordTradeSettlement(
-        TKF100,
+        fund,
         amount,
         new BigDecimal("11704"),
         randomUUID(),

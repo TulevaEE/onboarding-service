@@ -162,7 +162,7 @@ class TradeCalculationEngineExclusionTest {
   }
 
   @Test
-  void sellAndSellFast_whoseSellsFallShortOfTheShortfallAfterAnExclusion_areRejected() {
+  void sellAndSellFast_whoseSellsFallShortByLessThanAMinimumTradeAfterAnExclusion_areAccepted() {
     var input =
         FundTransactionInput.builder()
             .fund(TUV100)
@@ -183,37 +183,22 @@ class TradeCalculationEngineExclusionTest {
             .build();
 
     assertThat(netTraded(engine.calculate(input, SELL))).isEqualByComparingTo("-440000");
-    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL))
-        .isInstanceOf(IllegalStateException.class);
-    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL_FAST))
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(netTraded(engine.calculate(input.excluding(Set.of("IE00C")), SELL)))
+        .isEqualByComparingTo("-400000");
+    assertThat(netTraded(engine.calculate(input.excluding(Set.of("IE00C")), SELL_FAST)))
+        .isEqualByComparingTo("-400000");
   }
 
   @Test
-  void sellAndSellFast_whoseSellsFallShortAfterExcludingAModelInstrumentNotHeld_areRejected() {
-    var input =
-        FundTransactionInput.builder()
-            .fund(TUV100)
-            .positions(
-                List.of(
-                    new PositionSnapshot("IE00OFF", new BigDecimal("400000")),
-                    new PositionSnapshot("IE00B", new BigDecimal("1000000"))))
-            .modelWeights(
-                List.of(
-                    new ModelWeight("IE00B", new BigDecimal("0.50")),
-                    new ModelWeight("IE00C", new BigDecimal("0.50"))))
-            .grossPortfolioValue(new BigDecimal("1400000"))
-            .cashBuffer(ZERO)
-            .liabilities(new BigDecimal("440000"))
-            .freeCash(new BigDecimal("-440000"))
-            .minTransactionThreshold(new BigDecimal("50000"))
-            .build();
+  void sell_withAShortfallBelowTheMinimumTradeAndAnExclusion_tradesNothingAsWithoutTheExclusion() {
+    var input = fund("600000", "300000", "100000", "0", new BigDecimal("1000"));
 
-    assertThat(netTraded(engine.calculate(input, SELL))).isEqualByComparingTo("-440000");
-    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL))
-        .isInstanceOf(IllegalStateException.class);
-    assertThatThrownBy(() -> engine.calculate(input.excluding(Set.of("IE00C")), SELL_FAST))
-        .isInstanceOf(IllegalStateException.class);
+    var withoutExclusion = engine.calculate(input, SELL);
+    var withExclusion = engine.calculate(input.excluding(Set.of("IE00C")), SELL);
+
+    assertThat(netTraded(withoutExclusion)).isEqualByComparingTo(ZERO);
+    assertThat(netTraded(withExclusion)).isEqualByComparingTo(ZERO);
+    assertThat(withExclusion.noTradeReason()).isEqualTo(withoutExclusion.noTradeReason());
   }
 
   @Test

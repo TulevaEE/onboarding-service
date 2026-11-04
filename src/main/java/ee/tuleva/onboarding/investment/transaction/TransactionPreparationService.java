@@ -187,7 +187,7 @@ public class TransactionPreparationService {
 
   private static void putExcludeIsins(Map<String, Object> payload, TransactionCommand command) {
     if (!command.getExcludeIsins().isEmpty()) {
-      payload.put("excludeIsins", command.getExcludeIsins().stream().sorted().toList());
+      payload.put("excludeIsins", command.sortedExcludeIsins());
     }
   }
 

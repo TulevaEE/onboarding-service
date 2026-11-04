@@ -47,7 +47,7 @@ public record FundTransactionInput(
       return this;
     }
     requireInFund(isins);
-    requireNoNegativeModelWeight();
+    requireNoNegativeModelWeights();
     List<ModelWeight> remainingWeights =
         modelWeights.stream().filter(weight -> !isins.contains(weight.isin())).toList();
     return new FundTransactionInput(
@@ -110,7 +110,7 @@ public record FundTransactionInput(
     }
   }
 
-  private void requireNoNegativeModelWeight() {
+  public void requireNoNegativeModelWeights() {
     modelWeights.stream()
         .filter(weight -> weight.weight().signum() < 0)
         .findFirst()
@@ -124,10 +124,10 @@ public record FundTransactionInput(
 
   private List<ModelWeight> spreadExcludedWeight(
       List<ModelWeight> remainingWeights, Set<String> isins) {
-    BigDecimal totalWeight = sumOfWeights(modelWeights);
-    if (totalWeight.signum() == 0) {
-      return remainingWeights;
+    if (remainingWeights.size() == modelWeights.size()) {
+      return modelWeights;
     }
+    BigDecimal totalWeight = sumOfWeights(modelWeights);
     BigDecimal remainingWeight = sumOfWeights(remainingWeights);
     if (remainingWeight.signum() <= 0) {
       throw new IllegalArgumentException(

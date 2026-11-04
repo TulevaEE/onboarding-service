@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
-import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
-import static ee.tuleva.onboarding.investment.transaction.calculation.TradeDistribution.MIN_MEANINGFUL_AMOUNT;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.transaction.FundTransactionInput;
@@ -25,21 +23,19 @@ final class ExclusionFunding {
     BigDecimal netTraded =
         trades.stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
     BigDecimal unfunded = netTraded.subtract(input.freeCash());
-    if (unfunded.compareTo(acceptedGap(input, mode)) > 0) {
+    if (unfunded.compareTo(input.minTransactionThreshold()) > 0) {
       throw new IllegalStateException(
           ("Excluded instruments leave the fund's cash needs unfunded: fund=%s, mode=%s,"
-                  + " freeCash=%s, netTraded=%s, unfunded=%s, excludedMarketValue=%s")
+                  + " freeCash=%s, netTraded=%s, unfunded=%s, minTransactionThreshold=%s,"
+                  + " excludedMarketValue=%s")
               .formatted(
                   input.fund().name(),
                   mode.name(),
                   input.freeCash().toPlainString(),
                   netTraded.toPlainString(),
                   unfunded.toPlainString(),
+                  input.minTransactionThreshold().toPlainString(),
                   input.excludedMarketValue().toPlainString()));
     }
-  }
-
-  private static BigDecimal acceptedGap(FundTransactionInput input, TransactionMode mode) {
-    return mode == REBALANCE ? input.minTransactionThreshold() : MIN_MEANINGFUL_AMOUNT;
   }
 }

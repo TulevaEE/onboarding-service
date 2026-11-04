@@ -87,6 +87,22 @@ class FundTransactionInputTest {
   }
 
   @Test
+  void excluding_aHeldInstrumentOutsideTheModel_leavesTheModelWeightsAsTheyAre() {
+    var offModel = new PositionSnapshot("IE00OFF", new BigDecimal("10000"));
+    var weights = modelWeights("0.60", "0.30", "0.10");
+    var input =
+        input()
+            .positions(List.of(HOLDING_A, HOLDING_B, HOLDING_C, offModel))
+            .modelWeights(weights)
+            .build();
+
+    var excluded = input.excluding(Set.of("IE00OFF"));
+
+    assertThat(excluded.modelWeights()).isEqualTo(weights);
+    assertThat(excluded.excludedPositions()).containsExactly(offModel);
+  }
+
+  @Test
   void excluding_nothing_returnsTheInputUnchanged() {
     var input =
         input()

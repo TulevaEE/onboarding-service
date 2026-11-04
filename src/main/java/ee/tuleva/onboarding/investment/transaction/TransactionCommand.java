@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -91,6 +92,10 @@ public class TransactionCommand {
         .actor(actor)
         .status(CommandStatus.PROCESSING)
         .build();
+  }
+
+  List<String> sortedExcludeIsins() {
+    return excludeIsins.stream().sorted().toList();
   }
 
   @PrePersist

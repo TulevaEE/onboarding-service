@@ -34,8 +34,9 @@ class AmlServiceConfiguration {
     if (properties.configuredApiToken().isPresent()) {
       return;
     }
-    List<String> stopped = new ArrayList<>(List.of("every KYC survey submission fails"));
+    List<String> stopped = new ArrayList<>();
     if (properties.enabled()) {
+      stopped.add("every KYC survey submission fails");
       stopped.add("the 05:30 risk level run falls back to the materialized views each night");
     }
     if (properties.highRiskEnabled()) {
@@ -43,10 +44,12 @@ class AmlServiceConfiguration {
           "every person redemption that screening does not freeze is held, at its screening"
               + " deadline at the latest");
     }
-    log.warn(
-        "aml-service API token is not configured, so {} until it is: missing=api-token"
-            + " (AML_SERVICE_API_TOKEN)",
-        String.join(", and ", stopped));
+    if (!stopped.isEmpty()) {
+      log.warn(
+          "aml-service API token is not configured, so {} until it is: missing=api-token"
+              + " (AML_SERVICE_API_TOKEN)",
+          String.join(", and ", stopped));
+    }
   }
 
   static RestClient amlServiceRestClient(

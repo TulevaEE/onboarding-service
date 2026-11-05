@@ -100,7 +100,7 @@ function processNewEmails() {
     if (!runAlone(function () {
         try {
             processEmailsFromDays(2);
-            continueRequestedBackfill();
+            continueRequestedBackfillUnderTheRunsLock();
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
                 "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
@@ -158,6 +158,11 @@ function continueRequestedBackfill() {
     } finally {
         lock.releaseLock();
     }
+}
+
+function continueRequestedBackfillUnderTheRunsLock() {
+    var props = PropertiesService.getScriptProperties();
+    if (backfillRequested(props)) runBackfill(props);
 }
 
 function runBackfill(props) {

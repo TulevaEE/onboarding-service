@@ -129,13 +129,19 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
       },
     }),
   };
+  const lock = { held: false, releases: 0 };
   global.LockService = {
     getScriptLock: () => ({
       tryLock: () => {
         calls.lock++;
-        return lockAvailable;
+        if (!lockAvailable || lock.held) return false;
+        lock.held = true;
+        return true;
       },
-      releaseLock: () => {},
+      releaseLock: () => {
+        lock.held = false;
+        lock.releases++;
+      },
     }),
   };
   global.DriveApp = {
@@ -171,7 +177,7 @@ function installAppsScriptFakes({ properties = {}, folders = {}, threads = [], l
       return { getResponseCode: () => response, getContentText: () => "slack says " + response };
     },
   };
-  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses, logs };
+  return { slack, calls, props, s3, s3Keys, s3Bodies, slackResponses, logs, lock };
 }
 
 const noRecipients = { getTo: () => "", getCc: () => "", getBcc: () => "" };
@@ -1601,6 +1607,29 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
 
     expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00.pdf"]);
     expect(Object.keys(fakes.props).filter((k) => k.startsWith("report_source:"))).toEqual([]);
+  });
+});
+
+describe("the SEB confirmation backfill in processNewEmails", () => {
+  const confirmation = () => ({
+    ...noRecipients,
+    getId: () => "18f0a00000000007",
+    getDate: () => MORNING,
+    getFrom: () => "SEB <" + SOURCES.SEB_CONFIRMATION.senders[0] + ">",
+    getAttachments: () => [{ getName: () => "DLA1234567-001.pdf", getBytes: () => [37, 80, 68, 70] }],
+  });
+
+  test("runs under the run's own lock, which a second lock attempt cannot take, and the lock is released once", () => {
+    const fakes = installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SEB_CONFIRMATION_BACKFILL_REQUESTED: "yes" },
+      threads: [fakeThread([confirmation()], ["S3-Uploaded-1x"])],
+    });
+
+    processNewEmails();
+
+    expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBeUndefined();
+    expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
+    expect(fakes.lock.releases).toBe(1);
   });
 });
 

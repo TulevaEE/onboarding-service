@@ -36,10 +36,10 @@ class ScheduledAmlCheckJobTest {
   }
 
   @Test
-  void screenNewThirdPillarHolders_screensTheUnscreenedThirdPillarHolders() {
-    scheduledAmlCheckJob.screenNewThirdPillarHolders();
+  void screenThirdPillarHoldersWithoutRecentScreening_screensThem() {
+    scheduledAmlCheckJob.screenThirdPillarHoldersWithoutRecentScreening();
 
-    verify(amlBatchScreener).runAmlChecksOnUnscreenedThirdPillarHolders();
+    verify(amlBatchScreener).runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
     verifyNoMoreInteractions(amlBatchScreener);
   }
 }

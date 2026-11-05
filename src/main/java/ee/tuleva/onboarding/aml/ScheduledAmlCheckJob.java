@@ -26,10 +26,10 @@ public class ScheduledAmlCheckJob {
       cron = "${aml.jobs.third-pillar-joiners.cron:0 30 5 * * *}",
       zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}")
   @SchedulerLock(
-      name = "ScheduledAmlCheckJob_screenNewThirdPillarHolders",
+      name = "ScheduledAmlCheckJob_screenThirdPillarHoldersWithoutRecentScreening",
       lockAtMostFor = "2h",
       lockAtLeastFor = "5m")
-  public void screenNewThirdPillarHolders() {
-    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+  public void screenThirdPillarHoldersWithoutRecentScreening() {
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
   }
 }

@@ -35,6 +35,6 @@ class ScheduledAmlCheckJobIntegrationTest {
         .untilAsserted(
             () ->
                 verify(amlBatchScreener, atLeastOnce())
-                    .runAmlChecksOnUnscreenedThirdPillarHolders());
+                    .runAmlChecksOnThirdPillarHoldersWithoutRecentScreening());
   }
 }

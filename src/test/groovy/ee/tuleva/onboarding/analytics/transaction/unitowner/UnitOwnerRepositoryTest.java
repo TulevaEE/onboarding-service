@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerFixt
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
+import ee.tuleva.onboarding.analytics.ThirdPillarHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.sql.Connection;
 import java.sql.Statement;
@@ -332,7 +332,7 @@ class UnitOwnerRepositoryTest {
             .build());
 
     assertThat(repository.findThirdPillarHoldersInLatestSnapshot())
-        .containsExactly(new RecentThirdPillarCustomer(PERSON_ID_2, "Mari", "Maasikas", "LV"));
+        .containsExactly(new ThirdPillarHolder(PERSON_ID_2, "Mari", "Maasikas", "LV"));
   }
 
   private UnitOwner.UnitOwnerBuilder thirdPillarHolder(String personId, LocalDate snapshotDate) {

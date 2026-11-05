@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPill
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
@@ -16,8 +17,12 @@ public class ThirdPillarAnalytics {
   private final AnalyticsThirdPillarTransactionRepository transactionRepository;
   private final UnitOwnerRepository unitOwnerRepository;
 
-  public List<RecentThirdPillarCustomer> holdersInLatestSnapshot() {
+  public List<ThirdPillarHolder> holdersInLatestSnapshot() {
     return unitOwnerRepository.findThirdPillarHoldersInLatestSnapshot();
+  }
+
+  public Optional<LocalDate> latestSnapshotDate() {
+    return unitOwnerRepository.findLatestSnapshotDate();
   }
 
   public List<AnalyticsThirdPillarTransaction> findTransactionsReportedOnOrAfter(LocalDate cutoff) {

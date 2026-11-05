@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_AUTO;
+import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static java.time.ZoneOffset.UTC;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -14,21 +18,25 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
+import ee.tuleva.onboarding.analytics.ThirdPillarHolder;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,8 +66,16 @@ class AmlBatchScreenerTest {
 
   private AmlBatchScreener amlBatchScreener;
 
+  private static final LocalDate TODAY = LocalDate.of(2026, 11, 5);
+
+  @AfterEach
+  void resetClock() {
+    ClockHolder.setDefaultClock();
+  }
+
   @BeforeEach
   void setUp() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-11-05T03:30:00Z"), UTC));
     AmlService amlService =
         new AmlService(amlCheckRepository, eventPublisher, mock(UserConversionService.class));
     SanctionAndPepScreener sanctionAndPepScreener =
@@ -107,16 +123,16 @@ class AmlBatchScreenerTest {
                     .build()));
   }
 
-  private RecentThirdPillarCustomer thirdPillarRecord(String personalCode, String country) {
-    return new RecentThirdPillarCustomer(personalCode, "First", "Last", country);
+  private ThirdPillarHolder thirdPillarRecord(String personalCode, String country) {
+    return new ThirdPillarHolder(personalCode, "First", "Last", country);
   }
 
   @Test
   void runAmlChecksOnThirdPillarCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
     // given
-    RecentThirdPillarCustomer ok = thirdPillarRecord("ok", "EE");
-    RecentThirdPillarCustomer fail1 = thirdPillarRecord("fail1", "EE");
-    RecentThirdPillarCustomer fail2 = thirdPillarRecord("fail2", "EE");
+    ThirdPillarHolder ok = thirdPillarRecord("ok", "EE");
+    ThirdPillarHolder fail1 = thirdPillarRecord("fail1", "EE");
+    ThirdPillarHolder fail2 = thirdPillarRecord("fail2", "EE");
     when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(fail1, ok, fail2));
 
     MatchResponse emptyMatchResponse =
@@ -148,8 +164,8 @@ class AmlBatchScreenerTest {
   @Test
   void runAmlChecksOnThirdPillarCustomers_slackFailureDoesNotAbortBatch() {
     // given
-    RecentThirdPillarCustomer c1 = thirdPillarRecord("c1", "EE");
-    RecentThirdPillarCustomer c2 = thirdPillarRecord("c2", "EE");
+    ThirdPillarHolder c1 = thirdPillarRecord("c1", "EE");
+    ThirdPillarHolder c2 = thirdPillarRecord("c2", "EE");
     when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(c1, c2));
     when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
@@ -169,7 +185,7 @@ class AmlBatchScreenerTest {
   @Test
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given
-    RecentThirdPillarCustomer record1 = new RecentThirdPillarCustomer("p1", "F1", "L1", "EE");
+    ThirdPillarHolder record1 = new ThirdPillarHolder("p1", "F1", "L1", "EE");
     when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(record1));
 
     MatchResponse emptyMatchResponse =
@@ -198,68 +214,131 @@ class AmlBatchScreenerTest {
   }
 
   @Test
-  void
-      runAmlChecksOnUnscreenedThirdPillarHolders_screensOnlyHoldersWithoutASanctionCheckThisYear() {
-    RecentThirdPillarCustomer screened = thirdPillarRecord("screened", "EE");
-    RecentThirdPillarCustomer joiner = thirdPillarRecord("joiner", "LV");
-    given(thirdPillarAnalytics.holdersInLatestSnapshot()).willReturn(List.of(screened, joiner));
-    given(
-            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
-                eq(AmlCheckType.SANCTION), any(Instant.class)))
-        .willReturn(List.of("screened"));
-    given(pepAndSanctionCheckService.match(eq(joiner), anySet())).willReturn(emptyMatchResponse());
+  void runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_skipsOnlyHoldersWithBothChecks() {
+    ThirdPillarHolder screened = thirdPillarRecord("screened", "EE");
+    ThirdPillarHolder sanctionOnly = thirdPillarRecord("sanctionOnly", "EE");
+    ThirdPillarHolder joiner = thirdPillarRecord("joiner", "LV");
+    givenTodaysSnapshotWith(screened, sanctionOnly, joiner);
+    givenScreenedThisYear(SANCTION, "screened", "sanctionOnly");
+    givenScreenedThisYear(POLITICALLY_EXPOSED_PERSON_AUTO, "screened");
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(emptyMatchResponse());
 
-    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
 
     verify(pepAndSanctionCheckService).match(joiner, Countries.of("LV"));
+    verify(pepAndSanctionCheckService).match(sanctionOnly, Countries.of("EE"));
     verify(pepAndSanctionCheckService, never()).match(eq(screened), anySet());
-    verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
   }
 
   @Test
-  void runAmlChecksOnUnscreenedThirdPillarHolders_postsUnscreenedScreenedAndFailedCountsToSlack() {
-    RecentThirdPillarCustomer screened = thirdPillarRecord("screened", "EE");
-    RecentThirdPillarCustomer joiner = thirdPillarRecord("joiner", "EE");
-    RecentThirdPillarCustomer failing = thirdPillarRecord("failing", "EE");
-    given(thirdPillarAnalytics.holdersInLatestSnapshot())
-        .willReturn(List.of(screened, joiner, failing));
-    given(
-            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
-                eq(AmlCheckType.SANCTION), any(Instant.class)))
-        .willReturn(List.of("screened"));
+  void runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_postsSnapshotDateAndCounts() {
+    ThirdPillarHolder screened = thirdPillarRecord("screened", "EE");
+    ThirdPillarHolder joiner = thirdPillarRecord("joiner", "EE");
+    ThirdPillarHolder failing = thirdPillarRecord("failing", "EE");
+    givenTodaysSnapshotWith(screened, joiner, failing);
+    givenScreenedThisYear(SANCTION, "screened");
+    givenScreenedThisYear(POLITICALLY_EXPOSED_PERSON_AUTO, "screened");
     given(pepAndSanctionCheckService.match(eq(joiner), anySet())).willReturn(emptyMatchResponse());
     given(pepAndSanctionCheckService.match(eq(failing), anySet()))
         .willThrow(new RuntimeException("Match service error"));
 
-    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
 
     verify(notificationService)
         .sendMessage(
             "AML batch: sanction/PEP screening failed for 1 of 2 third-pillar customers this run",
-            OperationsNotificationService.Channel.AML);
+            AML);
     verify(notificationService)
         .sendMessage(
-            "III sammas: registris 2 kontrollimata omanikku, kontrollitud 1, tõrkeid 1",
-            OperationsNotificationService.Channel.AML);
+            "III sammas (registri seis 05.11.2026): viimase 12 kuu jooksul kontrollimata 2,"
+                + " kontrollitud 1, tõrkeid 1",
+            AML);
   }
 
   @Test
-  void runAmlChecksOnUnscreenedThirdPillarHolders_reportsZeroWhenEveryHolderIsScreened() {
-    given(thirdPillarAnalytics.holdersInLatestSnapshot())
-        .willReturn(List.of(thirdPillarRecord("screened", "EE")));
-    given(
-            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
-                eq(AmlCheckType.SANCTION), any(Instant.class)))
-        .willReturn(List.of("screened"));
+  void
+      runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_reportsZeroWhenEveryHolderIsScreened() {
+    givenTodaysSnapshotWith(thirdPillarRecord("screened", "EE"));
+    givenScreenedThisYear(SANCTION, "screened");
+    givenScreenedThisYear(POLITICALLY_EXPOSED_PERSON_AUTO, "screened");
 
-    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
 
     verifyNoInteractions(pepAndSanctionCheckService);
     verify(notificationService)
         .sendMessage(
-            "III sammas: registris 0 kontrollimata omanikku, kontrollitud 0, tõrkeid 0",
-            OperationsNotificationService.Channel.AML);
+            "III sammas (registri seis 05.11.2026): viimase 12 kuu jooksul kontrollimata 0,"
+                + " kontrollitud 0, tõrkeid 0",
+            AML);
     verifyNoMoreInteractions(notificationService);
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_flagsASnapshotOlderThanToday() {
+    given(thirdPillarAnalytics.latestSnapshotDate()).willReturn(Optional.of(TODAY.minusDays(1)));
+    given(thirdPillarAnalytics.holdersInLatestSnapshot()).willReturn(List.of());
+
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
+
+    verify(notificationService)
+        .sendMessage(
+            "III sammas (registri seis 04.11.2026, ei ole tänane): viimase 12 kuu jooksul"
+                + " kontrollimata 0, kontrollitud 0, tõrkeid 0",
+            AML);
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_postsAFailureLineWhenItCannotRun() {
+    given(thirdPillarAnalytics.latestSnapshotDate()).willReturn(Optional.of(TODAY));
+    given(thirdPillarAnalytics.holdersInLatestSnapshot())
+        .willThrow(new IllegalStateException("database unavailable"));
+
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
+
+    verify(notificationService)
+        .sendMessage(
+            "III sammas: igapäevane kontroll ebaõnnestus:"
+                + " reason=java.lang.IllegalStateException: database unavailable",
+            AML);
+  }
+
+  @Test
+  void runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_postsAFailureLineWithoutASnapshot() {
+    given(thirdPillarAnalytics.latestSnapshotDate()).willReturn(Optional.empty());
+
+    amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening();
+
+    verify(notificationService)
+        .sendMessage(
+            "III sammas: igapäevane kontroll ebaõnnestus:"
+                + " reason=java.lang.IllegalStateException: No unit owner snapshot",
+            AML);
+  }
+
+  @Test
+  void
+      runAmlChecksOnThirdPillarHoldersWithoutRecentScreening_slackFailureOnTheSummaryDoesNotThrow() {
+    givenTodaysSnapshotWith();
+    doThrow(new RuntimeException("Slack is down"))
+        .when(notificationService)
+        .sendMessage(anyString(), any());
+
+    assertDoesNotThrow(
+        () -> amlBatchScreener.runAmlChecksOnThirdPillarHoldersWithoutRecentScreening());
+    verify(notificationService, times(1)).sendMessage(anyString(), any());
+  }
+
+  private void givenTodaysSnapshotWith(ThirdPillarHolder... holders) {
+    given(thirdPillarAnalytics.latestSnapshotDate()).willReturn(Optional.of(TODAY));
+    given(thirdPillarAnalytics.holdersInLatestSnapshot()).willReturn(List.of(holders));
+  }
+
+  private void givenScreenedThisYear(AmlCheckType type, String... personalCodes) {
+    given(
+            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
+                eq(type), any(Instant.class)))
+        .willReturn(List.of(personalCodes));
   }
 
   private MatchResponse emptyMatchResponse() {

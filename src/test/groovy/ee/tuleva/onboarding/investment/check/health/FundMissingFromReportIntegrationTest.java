@@ -146,6 +146,36 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
+  void twoFundsMissingThenOnlyOneBackStillWarnsThatTheOtherKeepsItsEarlierPositions() {
+    var writtenEarlier = Instant.parse("2026-10-31T06:35:00Z");
+    importReport("2026-10-31T06:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    importReport("2026-10-31T06:35:00Z", complete(TUK75, TUK00, TUV100, TKF100));
+    importReport(
+        "2026-10-31T07:00:00Z",
+        complete(TUK75, TUK00),
+        Map.of(TUV100, writtenEarlier, TKF100, writtenEarlier));
+    clearInvocations(notificationService);
+
+    var oneBackReported =
+        importReport(
+            "2026-10-31T07:30:00Z", complete(TUK75, TUK00, TKF100), Map.of(TUV100, writtenEarlier));
+
+    assertThat(oneBackReported).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            and(
+                and(
+                    contains(
+                        "Import warning: SEB 2026-10-30 — TUV100 positions written 2026-10-31"
+                            + " 08:35 stay in use for NAV\n"),
+                    contains("TUV100 not in the report (earlier positions in use)")),
+                and(
+                    contains("\n[CLEARED] FUND_IN_REPORT TKF100"),
+                    not(contains("Import cleared")))),
+            eq(INVESTMENT));
+  }
+
+  @Test
   void aFundWithACompletenessWarningIsStillReportedMissingAndClearsWhenItIsBackWithThatWarning() {
     var withoutTuv100Cash = new ArrayList<>(complete(TUK75, TUK00, TKF100));
     withoutTuv100Cash.add(security(TUV100));

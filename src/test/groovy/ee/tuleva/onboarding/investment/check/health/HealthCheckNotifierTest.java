@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNSETTLED_TRADES;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -433,6 +434,31 @@ class HealthCheckNotifierTest {
             DATE, new HealthCheckFinding(TUK75, FUND_IN_REPORT, WARNING, "resend"));
 
     assertThat(notifier.notify(SEB, DATE, List.of(stillMissing), Map.of())).isFalse();
+  }
+
+  @Test
+  void aFundBackInTheReportIsNoClearedImportWhileAnotherFundIsStillMissing() {
+    givenPreviousSeverity(TKF100, FUND_IN_REPORT, WARNING);
+    var stillMissing =
+        HealthCheckResult.missingFromReport(
+            DATE, new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "resend"));
+    givenPreviousPresence(stillMissing);
+
+    var notified =
+        notifier.notify(
+            SEB,
+            DATE,
+            List.of(new HealthCheckResult(TKF100, DATE, List.of()), stillMissing),
+            Map.of(TUV100, Instant.parse("2026-04-16T06:10:00Z")));
+
+    assertThat(notified).isTrue();
+    verify(notificationService)
+        .sendMessage(
+            "Import warning: SEB 2026-04-15 — TUV100 positions written 2026-04-16 09:10 stay in"
+                + " use for NAV\n"
+                + "Funds: TKF100 imported, TUV100 not in the report (earlier positions in use)\n"
+                + "\n[CLEARED] FUND_IN_REPORT TKF100",
+            INVESTMENT);
   }
 
   @Test

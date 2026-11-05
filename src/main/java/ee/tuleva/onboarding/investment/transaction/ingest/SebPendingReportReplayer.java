@@ -64,7 +64,12 @@ class SebPendingReportReplayer {
           break;
         }
         skippedCheck =
-            skippedCheckReason(reconciliationService.replay(report.get(), reportAlerts::add));
+            skippedCheckReason(
+                reconciliationService.replay(report.get(), reportAlerts::add, stillHoldsTheLock));
+      } catch (SebReconciliationLockLostException e) {
+        log.error("SEB pending transactions replay lost its lock: reportDate={}", date, e);
+        stop = Optional.of(new Stop(date, StopReason.LOCK_LOST));
+        break;
       } catch (RuntimeException e) {
         log.error("SEB pending transactions replay stopped: reportDate={}", date, e);
         stop = Optional.of(new Stop(date, StopReason.REPORT_FAILED));

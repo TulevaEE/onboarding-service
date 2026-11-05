@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
 import net.javacrumbs.shedlock.core.ExtensibleLockProvider;
 import net.javacrumbs.shedlock.core.LockConfiguration;
 import net.javacrumbs.shedlock.core.SimpleLock;
@@ -61,5 +62,9 @@ final class RecordingLockProvider implements ExtensibleLockProvider {
   SebReconciliationLock reconciliationLockAt(Clock clock) {
     return new SebReconciliationLock(
         Optional.of(this), clock, SebReconciliationLock::keepAliveThread);
+  }
+
+  SebReconciliationLock reconciliationLockAt(Clock clock, ScheduledExecutorService keepAlive) {
+    return new SebReconciliationLock(Optional.of(this), clock, () -> keepAlive);
   }
 }

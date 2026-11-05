@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 class SebPendingTransactionReconciliationIdempotencyIT {
+
+  private static final BooleanSupplier LOCK_HELD = () -> true;
 
   private static final UUID CLIENT_REF = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
   private static final String ISIN = "IE000F60HVH9";
@@ -82,11 +85,11 @@ class SebPendingTransactionReconciliationIdempotencyIT {
 
   @Test
   void reconcile_runTwice_producesExactlyOneExecution() {
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 

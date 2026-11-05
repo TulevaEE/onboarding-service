@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -40,7 +41,7 @@ class SebPendingTransactionReconciliationJob {
 
   @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
   void runOnSchedule() {
-    if (!reconciliationLock.runScheduledIfFree(stillHeld -> run())) {
+    if (!reconciliationLock.runScheduledIfFree(this::run)) {
       log.info(
           "Scheduled SEB pending transactions reconciliation skipped, another run holds its lock:"
               + " lock={}",
@@ -48,7 +49,7 @@ class SebPendingTransactionReconciliationJob {
     }
   }
 
-  private void run() {
+  private void run(BooleanSupplier stillHoldsTheLock) {
     LocalDate today = LocalDate.now(clock);
     if (!publicHolidays.isWorkingDay(today)) {
       log.info(
@@ -62,12 +63,16 @@ class SebPendingTransactionReconciliationJob {
     pipelineTracker.start(PipelineRun.PipelineType.IMPORT, EXECUTION_MATCHING);
     try {
       pipelineTracker.stepStarted(EXECUTION_MATCHING);
-      Optional<String> firstError = reconcileLookback(today);
+      Optional<String> firstError = reconcileLookback(today, stillHoldsTheLock);
       if (firstError.isPresent()) {
         pipelineTracker.stepFailed(EXECUTION_MATCHING, firstError.get());
       } else {
         pipelineTracker.stepCompleted(EXECUTION_MATCHING);
       }
+    } catch (SebReconciliationLockLostException e) {
+      log.error("SEB pending transactions reconciliation stopped, its lock is lost", e);
+      pipelineTracker.stepFailed(EXECUTION_MATCHING, e.getMessage());
+      throw e;
     } finally {
       PipelineRun pipelineRun = pipelineTracker.current();
       if (pipelineRun != null) {
@@ -77,17 +82,22 @@ class SebPendingTransactionReconciliationJob {
     }
   }
 
-  private Optional<String> reconcileLookback(LocalDate today) {
+  private Optional<String> reconcileLookback(LocalDate today, BooleanSupplier stillHoldsTheLock) {
     String firstError = null;
     for (int i = 0; i <= LOOKBACK_DAYS; i++) {
       LocalDate date = today.minusDays(i);
+      if (!stillHoldsTheLock.getAsBoolean()) {
+        throw new SebReconciliationLockLostException(date);
+      }
       try {
         Optional<InvestmentReport> report =
             reportService.getReport(SEB, PENDING_TRANSACTIONS, date);
         if (report.isEmpty()) {
           continue;
         }
-        reconciliationService.reconcile(report.get());
+        reconciliationService.reconcile(report.get(), stillHoldsTheLock);
+      } catch (SebReconciliationLockLostException e) {
+        throw e;
       } catch (Exception e) {
         log.error(
             "SEB pending transactions reconciliation failed, continuing: reportDate={}", date, e);
@@ -101,7 +111,7 @@ class SebPendingTransactionReconciliationJob {
 
   @EventListener(RunSebPendingTransactionReconciliationRequested.class)
   void onSebPendingTransactionReconciliationRequested() {
-    if (!reconciliationLock.runIfFree(stillHeld -> run())) {
+    if (!reconciliationLock.runIfFree(this::run)) {
       log.warn(
           "SEB pending transactions reconciliation skipped, its lock is held: lock={}",
           SebReconciliationLock.NAME);

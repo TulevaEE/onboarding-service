@@ -36,6 +36,6 @@ class SebPendingTransactionReconciliationListener {
           "SEB pending transactions report not found for event: reportDate={}", event.reportDate());
       return;
     }
-    reconciliationService.reconcile(report.get());
+    reconciliationService.reconcile(report.get(), () -> true);
   }
 }

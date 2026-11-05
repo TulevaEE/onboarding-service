@@ -12,7 +12,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
-import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -156,9 +156,7 @@ public class PensionFundStatementProcessor {
               trade.signedUnits(amount),
               externalReference,
               account.ledgerAccount(),
-              trade.isin(),
-              trade.ticker(),
-              trade.displayName(),
+              trade.details(),
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(

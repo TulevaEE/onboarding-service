@@ -128,7 +128,7 @@ public class PensionFundEntryClassifier {
     return tradeSettlementParser
         .parse(entry.remittanceInformation())
         .<Classification>map(TradeSettlement::new)
-        .orElseGet(() -> new Unclassified("unknown ticker"));
+        .orElseGet(() -> new Unclassified("unknown ticker or unreadable remittance"));
   }
 
   private static boolean isAdjustmentWithoutDetails(String code, BankStatementEntry entry) {

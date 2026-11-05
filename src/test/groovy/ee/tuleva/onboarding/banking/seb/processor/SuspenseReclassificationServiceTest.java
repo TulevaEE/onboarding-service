@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMENT;
@@ -13,12 +14,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.ledger.UnclassifiedEntryDetails;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +46,7 @@ class SuspenseReclassificationServiceTest {
   @Autowired private FundBankLedger fundBankLedger;
   @Autowired private LedgerService ledgerService;
   @Autowired private NavLedgerRepository navLedgerRepository;
+  @Autowired private EntityManager entityManager;
 
   @DynamicPropertySource
   static void counterpartyIbans(DynamicPropertyRegistry registry) {
@@ -56,7 +63,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "TULEVA MAAILMA AKTSIATE PENSIONIFOND",
             OWN_ACCOUNT_IBAN,
             "Ülekanne fondi teisele kontole",
@@ -67,15 +74,14 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3", "ESCT"));
+        new UnclassifiedEntryDetails("Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3", "ESCT"));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("34720.54"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", "TUK75 BR rebate", "ESCT"));
 
     var result = service.reclassify(TUK75);
@@ -109,7 +115,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", remittanceInformation, "RCDT"));
   }
 
@@ -121,7 +127,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine", null));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
@@ -129,15 +135,14 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            "AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine", null));
+        new UnclassifiedEntryDetails("AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine", null));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("99.99"),
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             "Mystery Counterparty OU", "EE001234567890123499", "selgituseta", "XXXX"));
 
     var result = service.reclassify(TUK75);
@@ -241,6 +246,46 @@ class SuspenseReclassificationServiceTest {
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
+  @Test
+  void reclassify_keepsTheSebReferenceAndPriceOfAParkedTradeOnItsSettlement() {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("1969232.78"),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new UnclassifiedEntryDetails(
+            null,
+            null,
+            "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd",
+            "REDM"));
+
+    service.reclassify(TUK75);
+
+    assertThat(tradeSettlementMetadata(externalReference))
+        .containsEntry("brokerReference", "DLA0695877")
+        .hasEntrySatisfying(
+            "price",
+            price ->
+                assertThat(new BigDecimal(price.toString()))
+                    .isEqualByComparingTo(new BigDecimal("33.295")));
+  }
+
+  private Map<String, Object> tradeSettlementMetadata(UUID externalReference) {
+    entityManager.flush();
+    entityManager.clear();
+    return entityManager
+        .createQuery(
+            "select t from LedgerTransaction t where t.externalReference = :externalReference"
+                + " and t.transactionType = :transactionType",
+            LedgerTransaction.class)
+        .setParameter("externalReference", externalReference)
+        .setParameter("transactionType", TRADE_SETTLEMENT)
+        .getSingleResult()
+        .getMetadata();
+  }
+
   private void parkFromCounterparty(
       String amount,
       @Nullable String counterpartyName,
@@ -253,7 +298,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
+        new UnclassifiedEntryDetails(
             counterpartyName, counterpartyIban, remittanceInformation, subFamilyCode));
   }
 
@@ -265,8 +310,7 @@ class SuspenseReclassificationServiceTest {
         randomUUID(),
         FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
-        new FundBankLedger.UnclassifiedEntryDetails(
-            null, null, remittanceInformation, subFamilyCode));
+        new UnclassifiedEntryDetails(null, null, remittanceInformation, subFamilyCode));
   }
 
   private BigDecimal instrumentBalance(SystemAccount systemAccount) {

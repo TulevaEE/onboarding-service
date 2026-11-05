@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
 
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
@@ -95,7 +96,7 @@ public class HistoricalRegistryImportService {
         executionsCreated++;
       }
       if (row.orderStatus() == OrderStatus.SETTLED) {
-        settlementService.recordSettlement(order, row.settlementReportDate());
+        settlementService.recordSettlement(order, row.settlementReportDate(), HISTORICAL_IMPORT);
         settlementsCreated++;
       }
     }

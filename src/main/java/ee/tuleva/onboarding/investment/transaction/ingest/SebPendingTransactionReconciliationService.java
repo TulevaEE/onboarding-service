@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -35,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebPendingTransactionReconciliationService {
 
-  private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
+  static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
 
   private final SebPendingTransactionExtractor extractor;
   private final QuantityAmountValidator quantityAmountValidator;
@@ -200,7 +201,7 @@ public class SebPendingTransactionReconciliationService {
         "Settlement detected by absence from pending report: orderId={}, reportDate={}",
         order.getId(),
         reportDate);
-    settlementService.recordSettlement(order, reportDate);
+    settlementService.recordSettlement(order, reportDate, PENDING_REPORT_ABSENCE);
     auditRecorder.recordSettlementDetected(order, reportDate);
   }
 }

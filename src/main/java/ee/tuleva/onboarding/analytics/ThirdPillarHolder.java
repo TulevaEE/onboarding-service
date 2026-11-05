@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.analytics;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 
-public record RecentThirdPillarCustomer(
+public record ThirdPillarHolder(
     String personalCode, String firstName, String lastName, String country) implements Person {
 
   @Override

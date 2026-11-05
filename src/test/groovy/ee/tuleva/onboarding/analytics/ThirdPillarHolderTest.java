@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-class RecentThirdPillarCustomerTest {
+class ThirdPillarHolderTest {
 
-  private final RecentThirdPillarCustomer customer =
-      new RecentThirdPillarCustomer("38888888888", "First", "Last", "EE");
+  private final ThirdPillarHolder customer =
+      new ThirdPillarHolder("38888888888", "First", "Last", "EE");
 
   @Test
   void getPersonalCodeReturnsThePersonalCode() {

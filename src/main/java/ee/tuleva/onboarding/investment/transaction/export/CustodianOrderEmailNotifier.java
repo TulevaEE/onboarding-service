@@ -29,7 +29,7 @@ class CustodianOrderEmailNotifier {
   private final PlatformTransactionManager transactionManager;
   private final Clock clock;
 
-  void reportSendResult(MandrillMessage message, EmailSendResult result) {
+  void reportSendResult(long batchId, MandrillMessage message, EmailSendResult result) {
     var everyoneAccepted = result.notAccepted().isEmpty();
     var text =
         switch (result.outcome()) {
@@ -45,7 +45,7 @@ class CustodianOrderEmailNotifier {
               "🔴 Orders email result UNKNOWN: %s\n%s\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
                   .formatted(message.getSubject(), cause(result));
         };
-    record(message, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
+    record(batchId, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
   }
 
   private static String summary(MandrillMessage message) {
@@ -69,7 +69,7 @@ class CustodianOrderEmailNotifier {
         : refusal + " (" + status.getRejectReason() + ")";
   }
 
-  private void record(MandrillMessage message, String text, Severity severity) {
+  private void record(long batchId, String text, Severity severity) {
     try {
       inATransactionOfItsOwnSinceTheBatchHasCommitted()
           .executeWithoutResult(
@@ -77,7 +77,7 @@ class CustodianOrderEmailNotifier {
                   eventLogRepository.save(
                       notYetPosted(
                           SEND_RESULT_TYPE,
-                          message.getSubject(),
+                          String.valueOf(batchId),
                           clock.instant(),
                           text,
                           severity)));

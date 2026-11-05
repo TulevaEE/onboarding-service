@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CustodianOrderEmailSenderTest {
 
+  private static final long BATCH_ID = 42L;
   private static final Instant TIMESTAMP = Instant.parse("2026-01-15T10:00:00Z");
   private static final Map<String, byte[]> EXPORTS = Map.of("sebFundXlsx", new byte[] {1, 2});
 
@@ -44,11 +45,11 @@ class CustodianOrderEmailSenderTest {
     given(orderEmailTransport.send(any())).willReturn(accepted);
     var expected = factory.create(TUV100, TIMESTAMP, EXPORTS);
 
-    boolean sent = sender.send(TUV100, TIMESTAMP, EXPORTS);
+    boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
     assertThat(sent).isTrue();
     verify(orderEmailTransport).send(messageMatching(expected));
-    verify(notifier).reportSendResult(messageMatching(expected), eq(accepted));
+    verify(notifier).reportSendResult(eq(BATCH_ID), messageMatching(expected), eq(accepted));
   }
 
   @Test
@@ -57,10 +58,10 @@ class CustodianOrderEmailSenderTest {
     var unknown = new EmailSendResult(UNKNOWN, List.of(), "SocketTimeoutException: Read timed out");
     given(orderEmailTransport.send(any())).willReturn(unknown);
 
-    boolean sent = sender.send(TUV100, TIMESTAMP, EXPORTS);
+    boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
     assertThat(sent).isFalse();
-    verify(notifier).reportSendResult(any(), eq(unknown));
+    verify(notifier).reportSendResult(eq(BATCH_ID), any(), eq(unknown));
   }
 
   @Test
@@ -72,7 +73,7 @@ class CustodianOrderEmailSenderTest {
         new CustodianOrderEmailSender(
             disabled, new CustodianOrderMessageFactory(disabled), orderEmailTransport, notifier);
 
-    boolean sent = sender.send(TUV100, TIMESTAMP, EXPORTS);
+    boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
     assertThat(sent).isFalse();
     verifyNoInteractions(orderEmailTransport, notifier);
@@ -88,7 +89,7 @@ class CustodianOrderEmailSenderTest {
             orderEmailTransport,
             notifier);
 
-    boolean sent = sender.send(TUV100, TIMESTAMP, EXPORTS);
+    boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
     assertThat(sent).isFalse();
     verifyNoInteractions(orderEmailTransport, notifier);
@@ -98,7 +99,7 @@ class CustodianOrderEmailSenderTest {
   void send_doesNothingWhenAllExportsEmpty() {
     var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
 
-    boolean sent = sender.send(TUV100, TIMESTAMP, Map.of());
+    boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, Map.of());
 
     assertThat(sent).isFalse();
     verify(orderEmailTransport, never()).send(any());

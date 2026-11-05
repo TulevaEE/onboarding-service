@@ -20,7 +20,8 @@ public class CustodianOrderEmailSender {
   private final AtMostOnceEmailSender custodianOrderEmailTransport;
   private final CustodianOrderEmailNotifier notifier;
 
-  public boolean send(TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
+  public boolean send(
+      long batchId, TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
     if (!properties.isSendable()) {
       log.info(
           "Custodian order email not sent (inert): enabled={}, recipients={}, fund={}",
@@ -38,7 +39,7 @@ public class CustodianOrderEmailSender {
 
     var message = messageFactory.create(fund, timestamp, exports);
     var result = custodianOrderEmailTransport.send(message);
-    notifier.reportSendResult(message, result);
+    notifier.reportSendResult(batchId, message, result);
     if (result.outcome() != SENT) {
       log.error(
           "Custodian order email not confirmed as sent: fund={}, outcome={}, problem={}",

@@ -90,7 +90,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
       ) v ORDER BY v.date ASC
       """;
 
-  private static final String FIND_LATEST_DATE_BY_KEYS_QUERY =
+  static final String FIND_LATEST_DATE_BY_KEYS_QUERY =
       """
       SELECT key, MAX(date) AS latest_date
       FROM index_values
@@ -157,7 +157,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         });
   }
 
-  private static class FundValueRowMapper implements RowMapper<FundValue> {
+  static class FundValueRowMapper implements RowMapper<FundValue> {
 
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {

@@ -35,6 +35,22 @@ class CustodianOrderMessageFactoryTest {
   }
 
   @Test
+  void create_turnsOffOpenAndClickTrackingAndKeepsTheCopiesVisible() {
+    var message = factory.create(TUV100, TIMESTAMP, Map.of("sebFundXlsx", new byte[] {1, 2}));
+
+    assertThat(message.getTrackOpens()).isFalse();
+    assertThat(message.getTrackClicks()).isFalse();
+    assertThat(message.getPreserveRecipients()).isTrue();
+  }
+
+  @Test
+  void create_tagsTheEmailAsATradeOrder() {
+    var message = factory.create(TUV100, TIMESTAMP, Map.of("sebFundXlsx", new byte[] {1, 2}));
+
+    assertThat(message.getTags()).containsExactly("trade-order");
+  }
+
+  @Test
   void create_attachesAllNonEmptyExportWorkbooks() {
     var message =
         factory.create(

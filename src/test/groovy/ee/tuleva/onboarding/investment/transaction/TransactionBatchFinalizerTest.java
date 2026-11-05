@@ -508,7 +508,7 @@ class TransactionBatchFinalizerTest {
 
     finalizer.finalizeConfirmedBatch(batch);
 
-    verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
+    verify(custodianOrderEmailSender).send(eq(batch.getId()), eq(TUV100), any(), any());
     verify(eventPublisher)
         .publishEvent(new BatchFinalizedEvent(1L, 0, "2026-01-15", driveFileUrls));
   }
@@ -579,7 +579,7 @@ class TransactionBatchFinalizerTest {
                 "driveFileUrls",
                 Map.of("sebFundXlsx", "https://drive.google.com/file1")));
     verify(batchRepository).save(committedBatch);
-    verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
+    verify(custodianOrderEmailSender).send(eq(batch.getId()), eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }
 

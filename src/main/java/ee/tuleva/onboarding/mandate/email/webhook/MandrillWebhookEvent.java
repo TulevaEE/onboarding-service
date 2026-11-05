@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.email.webhook;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * @see <a href="https://mailchimp.com/developer/transactional/docs/webhooks/">Mandrill Webhook
@@ -57,7 +58,8 @@ public record MandrillWebhookEvent(
       String state,
       String diag,
       @JsonProperty("bounce_description") String bounceDescription,
-      @JsonProperty("smtp_events") List<SmtpEvent> smtpEvents) {
+      @JsonProperty("smtp_events") List<SmtpEvent> smtpEvents,
+      @Nullable List<String> tags) {
 
     @Builder
     public record SmtpEvent(Long ts, String type, String diag) {}

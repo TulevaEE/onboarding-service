@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent.TRADE_ORDER_TAG;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
@@ -41,6 +42,9 @@ class CustodianOrderMessageFactory {
         """
             .formatted(fund.getCode()));
     message.setPreserveRecipients(true);
+    message.setTrackOpens(false);
+    message.setTrackClicks(false);
+    message.setTags(List.of(TRADE_ORDER_TAG));
     message.setTo(buildRecipients());
     message.setAttachments(buildAttachments(fund, timestamp, exports));
     return message;

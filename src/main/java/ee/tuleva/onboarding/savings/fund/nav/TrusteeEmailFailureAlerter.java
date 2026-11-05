@@ -26,7 +26,7 @@ class TrusteeEmailFailureAlerter {
 
   @EventListener
   void onEmailDeliveryFailed(EmailDeliveryFailedEvent event) {
-    if (!TRUSTEE_EMAIL.equalsIgnoreCase(event.recipient())) {
+    if (event.isTradeOrder() || !TRUSTEE_EMAIL.equalsIgnoreCase(event.recipient())) {
       return;
     }
 

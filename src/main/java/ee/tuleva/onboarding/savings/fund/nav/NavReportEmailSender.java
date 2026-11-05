@@ -86,7 +86,13 @@ class NavReportEmailSender {
   }
 
   private List<Recipient> depositaryRecipients() {
-    return Stream.concat(Stream.of(recipient("trustee@seb.ee", TO)), reviewers().stream()).toList();
+    return Stream.concat(
+            Stream.of(recipient("trustee@seb.ee", TO)), reviewers().stream().map(this::asCopy))
+        .toList();
+  }
+
+  private Recipient asCopy(Recipient reviewer) {
+    return reviewer.getType() == TO ? recipient(reviewer.getEmail(), CC) : reviewer;
   }
 
   private Recipient recipient(String email, Recipient.Type type) {

@@ -28,9 +28,21 @@ public class SlackService implements OperationsNotificationService {
     WITHDRAWALS("withdrawals"),
     CAPITAL_TRANSFER("capital_transfer"),
     INVESTMENT("investment"),
-    SAVINGS("savings");
+    SAVINGS("savings"),
+    TRADING("trading");
 
     private final String configurationKey;
+
+    static SlackChannel of(Channel channel) {
+      return switch (channel) {
+        case AML -> AML;
+        case WITHDRAWALS -> WITHDRAWALS;
+        case CAPITAL_TRANSFER -> CAPITAL_TRANSFER;
+        case INVESTMENT -> INVESTMENT;
+        case SAVINGS -> SAVINGS;
+        case TRADING -> TRADING;
+      };
+    }
   }
 
   public SlackService(
@@ -49,14 +61,7 @@ public class SlackService implements OperationsNotificationService {
 
   @Override
   public void sendMessage(String message, Channel channel, Severity severity) {
-    SlackChannel slackChannel =
-        switch (channel) {
-          case AML -> SlackChannel.AML;
-          case WITHDRAWALS -> SlackChannel.WITHDRAWALS;
-          case CAPITAL_TRANSFER -> SlackChannel.CAPITAL_TRANSFER;
-          case INVESTMENT -> SlackChannel.INVESTMENT;
-          case SAVINGS -> SlackChannel.SAVINGS;
-        };
+    SlackChannel slackChannel = SlackChannel.of(channel);
     String webhookUrl = configuration.getWebhookUrl(slackChannel);
 
     if (webhookUrl == null) {

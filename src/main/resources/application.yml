@@ -481,6 +481,7 @@ slack:
     "capital_transfer": ${SLACK_CAPITAL_TRANSFER_WEBHOOK_URL}
     "investment": ${SLACK_INVESTMENT_WEBHOOK_URL:}
     "savings": ${SLACK_SAVINGS_WEBHOOK_URL:}
+    "trading": ${SLACK_TRADING_WEBHOOK_URL:}
 
 google-drive:
   enabled: ${GOOGLE_DRIVE_ENABLED:false}

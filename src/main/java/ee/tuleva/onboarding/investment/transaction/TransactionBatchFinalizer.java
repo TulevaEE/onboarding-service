@@ -148,7 +148,7 @@ public class TransactionBatchFinalizer {
     if (!driveFileUrls.isEmpty()) {
       persistDriveFileUrls(batch.getId(), driveFileUrls);
     }
-    custodianOrderEmailSender.send(batch.getFund(), timestamp, exports);
+    custodianOrderEmailSender.send(batch.getId(), batch.getFund(), timestamp, exports);
     eventPublisher.publishEvent(
         new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
   }

@@ -14,7 +14,8 @@ public interface OperationsNotificationService {
     WITHDRAWALS,
     CAPITAL_TRANSFER,
     INVESTMENT,
-    SAVINGS
+    SAVINGS,
+    TRADING
   }
 
   enum Severity {

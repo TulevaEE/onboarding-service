@@ -59,7 +59,9 @@ class SebPendingTransactionReconciliationBackfillJob {
           "SEB pending transactions replay skipped, the reconciliation lock is held: lock={}",
           SebReconciliationLock.NAME);
       notify(LOCK_HELD_MESSAGE, WARNING);
-      throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);
+      throw new IllegalStateException(
+          "SEB pending transactions replay skipped, the reconciliation lock is held: lock="
+              + SebReconciliationLock.NAME);
     }
   }
 

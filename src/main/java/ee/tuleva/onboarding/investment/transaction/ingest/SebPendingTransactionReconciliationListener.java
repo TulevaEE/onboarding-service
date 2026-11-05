@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import java.util.Optional;
@@ -23,6 +24,8 @@ class SebPendingTransactionReconciliationListener {
 
   private final InvestmentReportService reportService;
   private final SebPendingTransactionReconciliationService reconciliationService;
+  private final SebReconciliationLock reconciliationLock;
+  private final JobTriggerQueue jobTriggerQueue;
 
   @EventListener
   public void onReportImportCompleted(ReportImportCompleted event) {
@@ -36,6 +39,14 @@ class SebPendingTransactionReconciliationListener {
           "SEB pending transactions report not found for event: reportDate={}", event.reportDate());
       return;
     }
-    reconciliationService.reconcile(report.get(), () -> true);
+    if (!reconciliationLock.runIfFree(
+        stillHeld -> reconciliationService.reconcile(report.get(), stillHeld))) {
+      log.info(
+          "SEB pending transactions report reconciliation deferred, its lock is held:"
+              + " reportDate={}, trigger={}",
+          event.reportDate(),
+          SebPendingTransactionReconciliationJob.TRIGGER);
+      jobTriggerQueue.enqueueUnlessPending(SebPendingTransactionReconciliationJob.TRIGGER);
+    }
   }
 }

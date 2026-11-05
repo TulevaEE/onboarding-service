@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.pipeline.PipelineStep.EXECUTION_MATCHING;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
+  static final String TRIGGER = "SebPendingTransactionReconciliationJob";
   private static final int LOOKBACK_DAYS = 7;
 
   private final Clock clock;
@@ -38,14 +41,21 @@ class SebPendingTransactionReconciliationJob {
   private final PipelineTracker pipelineTracker;
   private final PipelineNotifier pipelineNotifier;
   private final SebReconciliationLock reconciliationLock;
+  private final JobTriggerQueue jobTriggerQueue;
 
   @Scheduled(cron = "0 0 9 * * MON-FRI", zone = TIMEZONE)
+  @SchedulerLock(
+      name = "SebPendingTransactionReconciliationJob.daily",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "5m")
   void runOnSchedule() {
-    if (!reconciliationLock.runScheduledIfFree(this::run)) {
+    if (!reconciliationLock.runIfFree(this::run)) {
       log.info(
-          "Scheduled SEB pending transactions reconciliation skipped, another run holds its lock:"
-              + " lock={}",
-          SebReconciliationLock.NAME);
+          "Scheduled SEB pending transactions reconciliation deferred, its lock is held: lock={},"
+              + " trigger={}",
+          SebReconciliationLock.NAME,
+          TRIGGER);
+      jobTriggerQueue.enqueueUnlessPending(TRIGGER);
     }
   }
 

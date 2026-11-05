@@ -34,8 +34,7 @@ class SebMatchedRowProcessor {
       LocalDate reportDate,
       LocalDate asOfDate,
       TransactionMatchingProperties matchingProperties,
-      ReconciliationAlerts alerts,
-      ReconciliationMode mode) {
+      ReconciliationRun run) {
     if (!consistencyChecker.isConsistent(order, row, reportDate)) {
       return RowOutcome.MATCHED;
     }
@@ -47,7 +46,7 @@ class SebMatchedRowProcessor {
     Optional<QuantityAmountMismatchEvent> blankEconomics =
         quantityAmountValidator.detectBlankEconomics(order, row, matchingProperties);
     if (blankEconomics.isPresent()) {
-      reportMismatch(blankEconomics.get().withReportDate(reportDate), row, alerts);
+      reportMismatch(blankEconomics.get().withReportDate(reportDate), row, run);
       return RowOutcome.MATCHED;
     }
     List<TransactionExecution> existingExecutions =
@@ -58,13 +57,13 @@ class SebMatchedRowProcessor {
         quantityAmountValidator.validateCumulative(
             order, normalizedRow, existingExecutions, matchingProperties);
     if (mismatch.isPresent()) {
-      reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow, alerts);
+      reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow, run);
       return RowOutcome.MATCHED;
     }
     BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
     if (executionUpserter.upsert(
-        normalizedRow, order, reportDate, asOfDate, reportedQuantity, mode)) {
-      checkPriceConsistency(order, reportDate, matchingProperties, alerts);
+        normalizedRow, order, reportDate, asOfDate, reportedQuantity, run.mode())) {
+      checkPriceConsistency(order, reportDate, matchingProperties, run);
       return RowOutcome.MATCHED;
     }
     return RowOutcome.SKIPPED;
@@ -84,7 +83,7 @@ class SebMatchedRowProcessor {
       TransactionOrder order,
       LocalDate reportDate,
       TransactionMatchingProperties properties,
-      ReconciliationAlerts alerts) {
+      ReconciliationRun run) {
     priceConsistencyChecker
         .check(
             order,
@@ -102,14 +101,12 @@ class SebMatchedRowProcessor {
                   event.relativeSpread(),
                   event.tolerance(),
                   reportDate);
-              alerts.raise(event.withReportDate(reportDate));
+              run.raise(event.withReportDate(reportDate));
             });
   }
 
   private void reportMismatch(
-      QuantityAmountMismatchEvent event,
-      SebPendingTransactionRow row,
-      ReconciliationAlerts alerts) {
+      QuantityAmountMismatchEvent event, SebPendingTransactionRow row, ReconciliationRun run) {
     log.info(
         "Quantity/amount mismatch: clientRef={}, ourRef={}, isin={}, kind={}, expected={},"
             + " actual={}, reportDate={}",
@@ -121,7 +118,7 @@ class SebMatchedRowProcessor {
         event.actual(),
         event.reportDate());
     auditRecorder.recordQuantityAmountMismatch(event);
-    alerts.raise(event);
+    run.raise(event);
   }
 
   private void handleSettledOrderReappearance(

@@ -414,7 +414,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
     assertThatThrownBy(
             () -> lockedOut.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
-        .isInstanceOf(SebReconciliationAlreadyRunningException.class);
+        .isExactlyInstanceOf(IllegalStateException.class);
 
     verify(notificationService).sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
     verifyNoInteractions(

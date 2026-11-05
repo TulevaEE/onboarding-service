@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.transaction.export;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
-import static ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent.TRADE_ORDER_TAG;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
@@ -12,6 +11,7 @@ import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,23 +35,23 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class CustodianOrderEmailFailureAlerter {
 
+  static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
   private static final String DEFERRAL = "deferral";
   private static final List<String> RECORDED_TYPES =
       List.of(
           "TRADE_ORDER_EMAIL_HARD_BOUNCE",
           "TRADE_ORDER_EMAIL_SOFT_BOUNCE",
           "TRADE_ORDER_EMAIL_REJECT",
-          "TRADE_ORDER_EMAIL_DEFERRAL");
+          "TRADE_ORDER_EMAIL_DEFERRAL",
+          SEND_RESULT_TYPE);
   private static final Duration RETRY_WINDOW = Duration.ofHours(24);
   private static final Duration GIVE_UP_LOOKBACK = Duration.ofHours(24);
   private static final int SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH = 4;
   private static final Duration LATE_POST_AFTER = Duration.ofMinutes(5);
   private static final DateTimeFormatter EVENT_TIME =
       DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
-  private static final String RECIPIENT = "recipient";
-  private static final String SUBJECT = "subject";
-  private static final String EVENT_TYPE = "eventType";
-  private static final String REASON = "reason";
+  private static final String TEXT = "text";
+  private static final String SEVERITY = "severity";
   private static final String ALERT = "alert";
   private static final String NOT_POSTED = "NOT_POSTED";
   private static final String POSTED = "POSTED";
@@ -84,15 +84,22 @@ class CustodianOrderEmailFailureAlerter {
         event.eventType(),
         event.reason(),
         event.mandrillMessageId());
-    eventLogRepository.save(notYetPosted(event, recordedType));
+    var delayed = DEFERRAL.equals(event.eventType());
+    eventLogRepository.save(
+        notYetPosted(
+            recordedType,
+            event.mandrillMessageId(),
+            event.timestamp(),
+            alertText(event),
+            delayed ? WARNING : ERROR));
   }
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
-      name = "CustodianOrderEmailFailureAlerter_postFailuresNotYetPosted",
+      name = "CustodianOrderEmailFailureAlerter_postAlertsNotYetPosted",
       lockAtMostFor = "5m",
       lockAtLeastFor = "30s")
-  void postFailuresNotYetPosted() {
+  void postAlertsNotYetPosted() {
     var now = clock.instant();
     var retryFrom = now.minus(RETRY_WINDOW);
     var notYetPosted =
@@ -120,15 +127,14 @@ class CustodianOrderEmailFailureAlerter {
 
   private void post(EventLog failure, Instant now) {
     try {
-      var event = deliveryFailure(failure);
-      var delayed = DEFERRAL.equals(event.eventType());
-      notificationService.sendMessage(text(event, now), TRADING, delayed ? WARNING : ERROR);
+      notificationService.sendMessage(postedText(failure, now), TRADING, severity(failure));
       markAs(POSTED, failure);
     } catch (RuntimeException e) {
       log.warn(
-          "Order email delivery failure not posted to Slack, trying again next run:"
-              + " eventLogId={}, mandrillMessageId={}, error={}",
+          "Order email alert not posted to Slack, trying again next run:"
+              + " eventLogId={}, type={}, principal={}, error={}",
           failure.getId(),
+          failure.getType(),
           failure.getPrincipal(),
           e.toString());
     }
@@ -138,8 +144,8 @@ class CustodianOrderEmailFailureAlerter {
     try {
       markAs(GIVEN_UP, failure);
       log.error(
-          "Order email delivery failure given up, never posted to Slack: why={}, eventLogId={},"
-              + " type={}, mandrillMessageId={}, failedAt={}",
+          "Order email alert given up, never posted to Slack: why={}, eventLogId={}, type={},"
+              + " principal={}, at={}",
           why,
           failure.getId(),
           failure.getType(),
@@ -147,7 +153,7 @@ class CustodianOrderEmailFailureAlerter {
           failure.getTimestamp());
     } catch (RuntimeException e) {
       log.warn(
-          "Order email delivery failure not marked as given up, trying again next run:"
+          "Order email alert not marked as given up, trying again next run:"
               + " eventLogId={}, error={}",
           failure.getId(),
           e.toString());
@@ -163,7 +169,8 @@ class CustodianOrderEmailFailureAlerter {
 
   private static boolean isReadable(EventLog failure) {
     try {
-      deliveryFailure(failure);
+      severity(failure);
+      text(failure);
       return true;
     } catch (RuntimeException e) {
       return false;
@@ -174,50 +181,46 @@ class CustodianOrderEmailFailureAlerter {
     return failure.getData() != null && NOT_POSTED.equals(failure.getData().get(ALERT));
   }
 
-  private static EventLog notYetPosted(EmailDeliveryFailedEvent event, String recordedType) {
+  static EventLog notYetPosted(
+      String type, String principal, Instant at, String text, Severity severity) {
     Map<String, @Nullable Object> data = new HashMap<>();
-    data.put(RECIPIENT, event.recipient());
-    data.put(SUBJECT, event.subject());
-    data.put(EVENT_TYPE, event.eventType());
-    data.put(REASON, event.reason());
+    data.put(TEXT, text);
+    data.put(SEVERITY, severity.name());
     data.put(ALERT, NOT_POSTED);
-    return EventLog.builder()
-        .type(recordedType)
-        .principal(event.mandrillMessageId())
-        .timestamp(event.timestamp())
-        .data(data)
-        .build();
+    return EventLog.builder().type(type).principal(principal).timestamp(at).data(data).build();
   }
 
-  private static EmailDeliveryFailedEvent deliveryFailure(EventLog failure) {
-    var data = failure.getData();
-    return new EmailDeliveryFailedEvent(
-        (String) requireNonNull(data.get(RECIPIENT)),
-        (String) data.get(SUBJECT),
-        (String) requireNonNull(data.get(EVENT_TYPE)),
-        (String) data.get(REASON),
-        failure.getPrincipal(),
-        failure.getTimestamp(),
-        List.of(TRADE_ORDER_TAG));
+  private static Severity severity(EventLog failure) {
+    return Severity.valueOf((String) requireNonNull(failure.getData().get(SEVERITY)));
   }
 
-  private static String text(EmailDeliveryFailedEvent event, Instant now) {
+  private static String text(EventLog failure) {
+    return (String) requireNonNull(failure.getData().get(TEXT));
+  }
+
+  private static String postedText(EventLog failure, Instant now) {
+    var text = text(failure);
+    if (!failure.getTimestamp().plus(LATE_POST_AFTER).isBefore(now)) {
+      return text;
+    }
+    var lines = text.split("\n", 2);
+    var firstLine = "%s (at %s)".formatted(lines[0], EVENT_TIME.format(failure.getTimestamp()));
+    return lines.length == 1 ? firstLine : firstLine + "\n" + lines[1];
+  }
+
+  private static String alertText(EmailDeliveryFailedEvent event) {
     return DEFERRAL.equals(event.eventType())
         ? "🟠 Order email delayed: %s\n%s\nMandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off, check with the desk."
-            .formatted(addressLine(event), causeLine(event, now))
+            .formatted(addressLine(event), causeLine(event))
         : "🔴 Order email NOT delivered: %s\n%s\nThe orders did not reach this address. Check with the desk before sending them again."
-            .formatted(addressLine(event), causeLine(event, now));
+            .formatted(addressLine(event), causeLine(event));
   }
 
   private static String addressLine(EmailDeliveryFailedEvent event) {
     return "to=%s, subject=%s".formatted(event.recipient(), event.subject());
   }
 
-  private static String causeLine(EmailDeliveryFailedEvent event, Instant now) {
-    var cause =
-        event.timestamp().plus(LATE_POST_AFTER).isBefore(now)
-            ? "%s at %s".formatted(event.eventType(), EVENT_TIME.format(event.timestamp()))
-            : event.eventType();
-    return "%s: %s (id=%s)".formatted(cause, event.reason(), event.mandrillMessageId());
+  private static String causeLine(EmailDeliveryFailedEvent event) {
+    return "%s: %s (id=%s)".formatted(event.eventType(), event.reason(), event.mandrillMessageId());
   }
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -25,7 +26,7 @@ import org.springframework.stereotype.Component;
 @Component
 class SebReconciliationLock {
 
-  static final String NAME = "SebPendingTransactionReconciliationJob";
+  static final String NAME = RunSebPendingTransactionReconciliationRequested.JOB_NAME;
   private static final Duration A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST = Duration.ofMinutes(2);
   private static final Duration EXTENDED_EVERY = A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST.dividedBy(2);
 

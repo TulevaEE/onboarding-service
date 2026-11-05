@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -309,7 +308,7 @@ class SebPendingTransactionReconciliationJobTest {
         .scheduleAtFixedRate(any(), anyLong(), anyLong(), any());
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day0 = report(TODAY);
-    givenLiveReports(day0, day1);
+    givenTodaysLiveReport(day0);
     willAnswer(
             invocation -> {
               keepAlive.get().run();
@@ -336,7 +335,7 @@ class SebPendingTransactionReconciliationJobTest {
     MutableClock running = new MutableClock(TODAY.atTime(7, 0).atZone(ZoneOffset.UTC).toInstant());
     InvestmentReport day1 = report(TODAY.minusDays(1));
     InvestmentReport day0 = report(TODAY);
-    givenLiveReports(day0, day1);
+    givenTodaysLiveReport(day0);
     willAnswer(
             invocation -> {
               running.tick(3, MINUTES);
@@ -362,19 +361,9 @@ class SebPendingTransactionReconciliationJobTest {
     verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
   }
 
-  private void givenLiveReports(InvestmentReport day0, InvestmentReport day1) {
-    lenient().when(publicHolidays.isWorkingDay(TODAY)).thenReturn(true);
-    for (int i = 0; i <= 7; i++) {
-      Optional<InvestmentReport> stored =
-          switch (i) {
-            case 0 -> Optional.of(day0);
-            case 1 -> Optional.of(day1);
-            default -> Optional.empty();
-          };
-      lenient()
-          .when(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(i)))
-          .thenReturn(stored);
-    }
+  private void givenTodaysLiveReport(InvestmentReport day0) {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY)).willReturn(Optional.of(day0));
   }
 
   private SebPendingTransactionReconciliationJob jobWith(SebReconciliationLock reconciliationLock) {

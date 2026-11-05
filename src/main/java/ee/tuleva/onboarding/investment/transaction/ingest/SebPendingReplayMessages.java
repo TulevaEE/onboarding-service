@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,7 +23,8 @@ final class SebPendingReplayMessages {
   static final String LOCK_HELD_MESSAGE =
       "SEB ootel-tehingute raportite uuesti sobitamine ei alanud, sest SEB ootel-tehingute"
           + " sobitamine juba käib.\nKäivita uuesti, kui see on lõppenud.";
-  private static final String RESUMABLE_JOB = "SebPendingTransactionReconciliationBackfillJob";
+  private static final String RESUMABLE_JOB =
+      RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME;
   private static final String RERUN_ADDS_NOTHING_TWICE =
       "Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.";
 

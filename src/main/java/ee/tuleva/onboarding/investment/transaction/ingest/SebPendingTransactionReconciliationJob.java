@@ -48,14 +48,23 @@ class SebPendingTransactionReconciliationJob {
       lockAtMostFor = "10m",
       lockAtLeastFor = "5m")
   void runOnSchedule() {
-    if (!reconciliationLock.runIfFree(this::run)) {
+    if (!runsUnderTheLock()) {
       log.info(
-          "Scheduled SEB pending transactions reconciliation deferred, its lock is held: lock={},"
+          "Scheduled SEB pending transactions reconciliation deferred, its lock is held or was"
+              + " lost: lock={},"
               + " trigger={}",
           SebReconciliationLock.NAME,
           RunSebPendingTransactionReconciliationRequested.JOB_NAME);
       jobTriggerQueue.enqueueUnlessPending(
           RunSebPendingTransactionReconciliationRequested.JOB_NAME);
+    }
+  }
+
+  private boolean runsUnderTheLock() {
+    try {
+      return reconciliationLock.runIfFree(this::run);
+    } catch (SebReconciliationLockLostException e) {
+      return false;
     }
   }
 

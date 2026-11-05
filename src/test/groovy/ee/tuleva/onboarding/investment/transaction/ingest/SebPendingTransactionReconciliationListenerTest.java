@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -131,6 +132,41 @@ class SebPendingTransactionReconciliationListenerTest {
         .isInstanceOf(JobBusyException.class);
 
     verify(reconciliationService, never()).reconcile(any(), any());
+  }
+
+  @Test
+  void anImportWhoseReconciliationLosesTheLockIsDeferredWithoutStoppingTheLaterListeners() {
+    InvestmentReport report = sebPendingReport(REPORT_DATE);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(report));
+    willThrow(new SebReconciliationLockLostException(REPORT_DATE))
+        .given(reconciliationService)
+        .reconcile(eq(report), any());
+
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
+
+    verify(jobTriggerQueue)
+        .enqueueUnlessPending("SebPendingTransactionReportReconciliationJob:2026-05-13");
+  }
+
+  @Test
+  void aDeferredReportReconciliationThatLosesTheLockWaitsAsBusy() {
+    InvestmentReport report = sebPendingReport(REPORT_DATE);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(report));
+    willThrow(new SebReconciliationLockLostException(REPORT_DATE))
+        .given(reconciliationService)
+        .reconcile(eq(report), any());
+    SebPendingTransactionReconciliationListener listener =
+        listenerLockedBy(RecordingLockProvider.free());
+
+    assertThatThrownBy(
+            () ->
+                listener.onReportReconciliationRequested(
+                    new RunSebPendingTransactionReportReconciliationRequested(REPORT_DATE)))
+        .isInstanceOf(JobBusyException.class);
   }
 
   @Test

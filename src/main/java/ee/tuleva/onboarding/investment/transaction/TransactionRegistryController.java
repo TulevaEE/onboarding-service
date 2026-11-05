@@ -18,11 +18,11 @@ import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
-import ee.tuleva.onboarding.investment.transaction.ingest.SebReconciliationAlreadyRunningException;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -221,10 +221,9 @@ public class TransactionRegistryController {
     return Map.of("error", String.valueOf(e.getMessage()));
   }
 
-  @ExceptionHandler(SebReconciliationAlreadyRunningException.class)
+  @ExceptionHandler(JobBusyException.class)
   @ResponseStatus(CONFLICT)
-  public Map<String, Object> handleReconciliationAlreadyRunning(
-      SebReconciliationAlreadyRunningException e) {
+  public Map<String, Object> handleReconciliationAlreadyRunning(JobBusyException e) {
     return Map.of("error", String.valueOf(e.getMessage()));
   }
 

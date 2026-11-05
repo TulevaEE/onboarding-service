@@ -584,6 +584,69 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["C,3\n"]);
   });
 
+  test("a correction whose writes all went through but whose completion was not recorded keeps its own pair together when a newer one comes", () => {
+    const { props } = installAppsScriptFakes({
+      properties: {
+        "drive_source:seb/2026-10-20_positions.csv": JSON.stringify(Object.assign({ unfinishedVersion: 1 }, correctionB)),
+        "report_source:seb/2026-10-20_positions.csv": JSON.stringify(correctionB),
+      },
+    });
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_v1.csv": "A;1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud.csv": "B;2\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(JSON.parse(props["drive_source:seb/2026-10-20_positions.csv"])).toEqual(correctionC);
+  });
+
+  test("the original left current joins the unfinished version whichever of its _US copies is found first", () => {
+    installAppsScriptFakes({
+      properties: { "drive_source:seb/2026-10-20_positions.csv": JSON.stringify(Object.assign({ unfinishedVersion: 1 }, correctionB)) },
+    });
+    const drive = fakeDrive();
+    drive.seedWithContent({
+      "TULEVA_pos_raport_20261020_teine_US_v1.csv": "E,5\n",
+      "TULEVA_pos_raport_20261020_US_v1.csv": "A,1\n",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US.csv": "B,2\n",
+      "TULEVA_pos_raport_20261020.csv": "A;1\n",
+    });
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+  });
+
+  test("a newer correction after one that failed at its new original leaves that correction's _US version alone, as it has no original", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["createFile TULEVA_pos_raport_20261020_korrigeeritud.csv"] = true;
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    delete drive.failures["createFile TULEVA_pos_raport_20261020_korrigeeritud.csv"];
+
+    saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n"), POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+  });
+
   test("a later correction takes the next version number for both files", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

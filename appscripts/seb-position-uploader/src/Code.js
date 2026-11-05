@@ -749,12 +749,15 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
     }
     var takenNames = family.names.slice();
     var version = versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource);
-    var unfinishedByAnother = version ? null : usVersionOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family);
-    if (unfinishedByAnother && contentOf(unfinishedByAnother.file) === currentUsContent) {
+    var unfinishedByAnother = version ? null : usVersionsOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family);
+    if (unfinishedByAnother && unfinishedByAnother.usContents.indexOf(currentUsContent) !== -1) {
         version = unfinishedByAnother.version;
     } else if (unfinishedByAnother) {
-        renameToVersion(currentOriginals, unfinishedByAnother.version, takenNames);
-        currentOriginals = [];
+        var originalsOfThatVersion = currentOriginals.filter(function (f) {
+            return unfinishedByAnother.usContents.indexOf(convertSebCsvToUs(contentOf(f))) !== -1;
+        });
+        renameToVersion(originalsOfThatVersion, unfinishedByAnother.version, takenNames);
+        currentOriginals = currentOriginals.filter(function (f) { return originalsOfThatVersion.indexOf(f) === -1; });
     }
     version = version || family.nextVersion;
     recordDriveCopyStarted(s3Key, emailSource, version);
@@ -811,10 +814,11 @@ function isCompletedDriveCopyFrom(driveRecord, emailSource) {
     return Boolean(driveRecord) && driveRecord.id === emailSource.id && !driveRecord.unfinishedVersion;
 }
 
-function usVersionOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family) {
+function usVersionsOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family) {
     if (!driveRecord || !driveRecord.unfinishedVersion || driveRecord.id === emailSource.id) return null;
     var usVersions = family.versioned.filter(function (f) { return isUsCopyVersionName(f.getName(), driveRecord.unfinishedVersion); });
-    return usVersions.length > 0 ? { file: usVersions[0], version: driveRecord.unfinishedVersion } : null;
+    if (usVersions.length === 0) return null;
+    return { version: driveRecord.unfinishedVersion, usContents: usVersions.map(contentOf) };
 }
 
 function isUsCopyVersionName(name, version) {

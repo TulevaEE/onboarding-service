@@ -21,9 +21,11 @@ const languages = {
   },
   en: {
     required: [
-      'You canceled your II&nbsp;pillar application for making contributions. Contributions to your II&nbsp;pillar will not start.',
-      'If you want to start saving again later, you can file a new application through Tuleva.',
-      'To cancel it, you filed a II&nbsp;pillar application for exemption from contributions. A copy of it, as sent to Pensionikeskus, is attached to this email.',
+      'Your application to continue saving in the second pillar has been cancelled. Contributions will not start, and there is nothing more you need to do right now.',
+      'If you do decide to start saving in the second pillar again, you can submit a new application in your Tuleva account',
+      'When contributions start depends on when you submit the new application.',
+      'On our rejoining page we\'ve set out what rejoining means for you, both the benefits and the limits.',
+      'The cancellation application has been sent to Pensionikeskus and a copy is attached to this email.',
       'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
       'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar',
     ],

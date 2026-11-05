@@ -5,30 +5,60 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>Your II&nbsp;pillar applications have been submitted.</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*!</mj-text>
         <mj-text>
-          Contributions to your II&nbsp;pillar will start again, and you get the tax win again.
+          Your application to continue saving in the second pillar has been submitted.
+          Contributions will start automatically on <strong>*|contributionStartDate|*</strong>.
         </mj-text>
-        <mj-text><strong>Submitted applications:</strong></mj-text>
-        <mj-text>Application for making contributions</mj-text>
-        <mj-raw>*|IF:paymentRateChange|*</mj-raw>
-        <mj-text>Contribution rate change application</mj-text>
+        <mj-text>
+          It's great that you're saving again! You can now make use of the second pillar's tax
+          benefits and steadily grow your assets.
+        </mj-text>
+        <mj-raw>*|IF:selectedTulevaStockFund|*</mj-raw>
+        <mj-text>
+          Your contributions will go to the <strong>Tuleva World Stocks Pension Fund</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedTulevaBondFund|*</mj-raw>
+        <mj-text>
+          Your contributions will go to the <strong>Tuleva World Bonds Pension Fund</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:selectedOtherFund|*</mj-raw>
+        <mj-text>
+          Your contributions will go to <strong>*|selectedFundName|*</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:keptTulevaStockFund|*</mj-raw>
+        <mj-text>
+          Your contributions will again go to the <strong>Tuleva World Stocks Pension Fund</strong>.
+        </mj-text>
+        <mj-raw>*|ELSEIF:keptTulevaBondFund|*</mj-raw>
+        <mj-text>
+          Your contributions will again go to the <strong>Tuleva World Bonds Pension Fund</strong>.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Your contributions will go to the fund you saved in before. You can see your fund in
+          <a href="https://pension.tuleva.ee/account">your Tuleva account</a>.
+        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
-        <mj-raw>*|IF:fundSelection|*</mj-raw>
-        <mj-text>Fund selection application</mj-text>
-        <mj-raw>*|END:IF|*</mj-raw>
-        <mj-text>Contributions start on *|contributionStartDate|*.</mj-text>
         <mj-text>
-          If you change your mind, you can cancel the application in your Tuleva account until
-          *|cancellationDeadline|*.
+          *|IF:paymentRateChange|*You chose a <strong>contribution rate of *|paymentRate|*%</strong> of your
+          gross salary.*|ELSE:|*Your second pillar <strong>contribution rate is *|paymentRate|*%</strong> of
+          your gross salary.*|END:IF|* You can change your contribution rate every year until the
+          end of November.
         </mj-text>
         <mj-text>
-          You can use the money from age 60. After rejoining, you can't stop contributions again
-          or withdraw the money a second time.
+          You can use your second pillar savings from early retirement age, which is five years
+          before the official retirement age (currently from age 60). The money you save is yours
+          and can be inherited.
         </mj-text>
         <mj-text>
-          A copy of your applications, as sent to Pensionikeskus, is attached to this email.
+          Your applications have been sent to Pensionikeskus and copies are attached to this
+          email.
+        </mj-text>
+        <mj-text>
+          If you change your mind, you can cancel the application in
+          <a href="https://pension.tuleva.ee/account">your Tuleva account</a>. The last day to do
+          so is *|cancellationDeadline|*.
         </mj-text>
       </mj-column>
     </mj-section>
@@ -36,7 +66,11 @@
     <mj-include path="./partials/contact_en.mjml" />
     <mj-section padding="0 24px">
       <mj-column>
-        <mj-text padding-top="12px">Tuleva</mj-text>
+        <mj-text padding-top="12px">Happy saving!</mj-text>
+        <mj-text>
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
       </mj-column>
     </mj-section>
     <mj-include path="./partials/disclaimer_second_pillar_rejoin_en.mjml" />

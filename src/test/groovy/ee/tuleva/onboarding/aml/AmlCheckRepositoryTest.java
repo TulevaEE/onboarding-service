@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
+import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_AUTO;
+import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -91,10 +93,28 @@ class AmlCheckRepositoryTest {
     assertThat(latest).contains(newerFailure);
   }
 
+  @Test
+  void findsEachPersonWithACheckOfTheTypeAfterTheCutoffOnce() {
+    persistCheckAt("38001085718", SANCTION, false, Instant.now().minus(10, DAYS));
+    persistCheckAt("38001085718", SANCTION, true, Instant.now().minus(5, DAYS));
+    persistCheckAt("39901019992", SANCTION, true, Instant.now().minus(400, DAYS));
+    persistCheckAt("40404049996", POLITICALLY_EXPOSED_PERSON_AUTO, true, Instant.now());
+
+    assertThat(
+            repository.findPersonalCodesByTypeAndCreatedTimeAfter(
+                SANCTION, Instant.now().minus(365, DAYS)))
+        .containsExactly("38001085718");
+  }
+
   private AmlCheck persistKycCheckAt(String personalCode, boolean success, Instant createdTime) {
+    return persistCheckAt(personalCode, KYC_CHECK, success, createdTime);
+  }
+
+  private AmlCheck persistCheckAt(
+      String personalCode, AmlCheckType type, boolean success, Instant createdTime) {
     ClockHolder.setClock(Clock.fixed(createdTime, UTC));
     AmlCheck check =
-        AmlCheck.builder().personalCode(personalCode).type(KYC_CHECK).success(success).build();
+        AmlCheck.builder().personalCode(personalCode).type(type).success(success).build();
     entityManager.persist(check);
     entityManager.flush();
     ClockHolder.setDefaultClock();

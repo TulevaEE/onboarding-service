@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
@@ -9,6 +13,7 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -28,11 +33,28 @@ class AmlBatchScreener {
   private final UserRepository userRepository;
   private final OperationsNotificationService notificationService;
   private final SanctionAndPepScreener sanctionAndPepScreener;
+  private final AmlCheckRepository amlCheckRepository;
 
   void runAmlChecksOnThirdPillarCustomers() {
-    List<RecentThirdPillarCustomer> customers = thirdPillarAnalytics.recentCustomers();
+    List<RecentThirdPillarCustomer> customers = thirdPillarAnalytics.holdersInLatestSnapshot();
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, customers.size()));
     screenBatch(ScreeningBatch.THIRD_PILLAR, customers, c -> Countries.of(c.country()));
+  }
+
+  void runAmlChecksOnUnscreenedThirdPillarHolders() {
+    Set<String> screenedThisYear =
+        new HashSet<>(
+            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(SANCTION, aYearAgo()));
+    List<RecentThirdPillarCustomer> unscreened =
+        thirdPillarAnalytics.holdersInLatestSnapshot().stream()
+            .filter(holder -> !screenedThisYear.contains(holder.personalCode()))
+            .toList();
+    int failureCount =
+        screenBatch(ScreeningBatch.THIRD_PILLAR, unscreened, c -> Countries.of(c.country()));
+    notificationService.sendMessage(
+        "III sammas: registris %d kontrollimata omanikku, kontrollitud %d, tõrkeid %d"
+            .formatted(unscreened.size(), unscreened.size() - failureCount, failureCount),
+        AML);
   }
 
   void runAmlChecksOnSavingsFundCustomers() {
@@ -47,7 +69,7 @@ class AmlBatchScreener {
     screenBatch(ScreeningBatch.SAVINGS_FUND, customers, sanctionAndPepScreener::knownCountries);
   }
 
-  private <T extends Person> void screenBatch(
+  private <T extends Person> int screenBatch(
       ScreeningBatch batch, List<T> people, Function<T, Set<Country>> countriesOf) {
     log.info(
         "Running AML screening batch: population={}, people={}", batch.population, people.size());
@@ -73,6 +95,7 @@ class AmlBatchScreener {
         batch.population,
         people.size(),
         failureCount);
+    return failureCount;
   }
 
   private void alertOnBatchScreeningFailures(
@@ -84,7 +107,7 @@ class AmlBatchScreener {
       notificationService.sendMessage(
           "AML batch: sanction/PEP screening failed for %d of %d %s customers this run"
               .formatted(failureCount, peopleCount, batch.population),
-          OperationsNotificationService.Channel.AML);
+          AML);
     } catch (RuntimeException e) {
       log.error(
           "Failed to send aggregated AML batch screening-failure alert: population={}",

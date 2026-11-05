@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
 
@@ -40,4 +41,9 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
       String personalCode, Collection<AmlCheckType> types);
 
   List<AmlCheck> findAllByPersonalCodeAndType(String personalCode, AmlCheckType type);
+
+  @Query(
+      "SELECT DISTINCT amlCheck.personalCode FROM AmlCheck amlCheck"
+          + " WHERE amlCheck.type = :type AND amlCheck.createdTime > :createdAfter")
+  List<String> findPersonalCodesByTypeAndCreatedTimeAfter(AmlCheckType type, Instant createdAfter);
 }

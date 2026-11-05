@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,5 +33,13 @@ class ScheduledAmlCheckJobTest {
 
     // then
     verify(amlBatchScreener, times(1)).runAmlChecksOnSavingsFundCustomers();
+  }
+
+  @Test
+  void screenNewThirdPillarHolders_screensTheUnscreenedThirdPillarHolders() {
+    scheduledAmlCheckJob.screenNewThirdPillarHolders();
+
+    verify(amlBatchScreener).runAmlChecksOnUnscreenedThirdPillarHolders();
+    verifyNoMoreInteractions(amlBatchScreener);
   }
 }

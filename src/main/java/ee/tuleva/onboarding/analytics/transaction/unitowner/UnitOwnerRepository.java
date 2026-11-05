@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.unitowner;
 
+import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,16 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
         AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
       """)
   Optional<UnitOwner> findInLatestSnapshot(String personalCode);
+
+  @Query(
+      """
+      SELECT DISTINCT new ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer(
+          uo.personalId, uo.firstName, uo.lastName, uo.country)
+      FROM UnitOwner uo JOIN uo.balances balance
+      WHERE balance.securityShortName = 'TUV100'
+        AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
+      """)
+  List<RecentThirdPillarCustomer> findThirdPillarHoldersInLatestSnapshot();
 
   @Query("SELECT DISTINCT uo.snapshotDate FROM UnitOwner uo")
   List<LocalDate> findDistinctSnapshotDates();

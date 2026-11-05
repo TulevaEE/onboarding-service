@@ -13,7 +13,6 @@ public class ScheduledAmlCheckJob {
 
   private final AmlBatchScreener amlBatchScreener;
 
-  // once per week on Sunday at 19:10
   @Scheduled(
       cron = "${aml.jobs.third-pillar.cron:0 10 19 * * SUN}",
       zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}")
@@ -21,5 +20,16 @@ public class ScheduledAmlCheckJob {
   public void run() {
     amlBatchScreener.runAmlChecksOnThirdPillarCustomers();
     amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
+  }
+
+  @Scheduled(
+      cron = "${aml.jobs.third-pillar-joiners.cron:0 30 5 * * *}",
+      zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}")
+  @SchedulerLock(
+      name = "ScheduledAmlCheckJob_screenNewThirdPillarHolders",
+      lockAtMostFor = "2h",
+      lockAtLeastFor = "5m")
+  public void screenNewThirdPillarHolders() {
+    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
   }
 }

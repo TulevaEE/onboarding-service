@@ -37,7 +37,7 @@ class WordPressConfigurationTest {
                         () ->
                             context
                                 .getBean(WordPressMediaClient.class)
-                                .updateAcfReportField("any-slug", 42))
+                                .updateAcfReportField("any-slug", 42, () -> true))
                     .isInstanceOf(IllegalStateException.class));
   }
 
@@ -69,7 +69,7 @@ class WordPressConfigurationTest {
                         () ->
                             context
                                 .getBean(WordPressMediaClient.class)
-                                .updateAcfReportField("any-slug", 42))
+                                .updateAcfReportField("any-slug", 42, () -> true))
                     .isInstanceOf(IllegalStateException.class));
   }
 

@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Named.named;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.PageUpdateOutcomeUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -19,20 +21,26 @@ import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 class WordPressMediaClientTest {
+
+  private static final BooleanSupplier LOCK_HELD = () -> true;
 
   private WordPressMediaClient client;
   private MockRestServiceServer server;
@@ -199,9 +207,103 @@ class WordPressMediaClientTest {
         .andRespond(failingWith(new HttpTimeoutException("request timed out")));
     expectPageLookupAndUpdate(pageWithStoredReportFile(42));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
+  }
+
+  @Test
+  void aPageUpdateIsNotSentOnceThePublishLockIsNoLongerHeld() throws Exception {
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(List.of(Map.of("id", 123))),
+                MediaType.APPLICATION_JSON));
+
+    expectReadBack(pageWithStoredReportFile(41));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, () -> false))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
+  void aPageUpdateRetryIsNotSentOnceThePublishLockIsLost() throws Exception {
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(List.of(Map.of("id", 123))),
+                MediaType.APPLICATION_JSON));
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(POST))
+        .andRespond(withServerError());
+    expectReadBack(pageWithStoredReportFile(41));
+    var lockChecks = new AtomicInteger();
+
+    assertThatThrownBy(
+            () ->
+                client.updateAcfReportField(
+                    "test-page", 42, () -> lockChecks.incrementAndGet() == 1))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(lockChecks).hasValue(2);
+    server.verify();
+  }
+
+  @Test
+  void aPageUpdateWordPressStoredButWhoseResponseCouldNotBeReadCountsAsDone() throws Exception {
+    expectPageLookupAndAnUnreadableUpdateResponse();
+    expectReadBack(pageWithStoredReportFile(42));
+
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
+
+    server.verify();
+  }
+
+  @Test
+  void aFailedPageUpdateThePageDoesNotShowFailsWithTheUpdatesError() throws Exception {
+    expectPageLookupAndAnUnreadableUpdateResponse();
+    expectReadBack(pageWithStoredReportFile(41));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
+        .isInstanceOf(RestClientException.class)
+        .isNotInstanceOf(PageUpdateOutcomeUnknown.class);
+    server.verify();
+  }
+
+  @Test
+  void aFailedPageUpdateWhosePageCannotBeReadBackHasAnUnknownOutcome() throws Exception {
+    expectPageLookupAndAnUnreadableUpdateResponse();
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
+        .isInstanceOf(PageUpdateOutcomeUnknown.class);
+    server.verify();
+  }
+
+  private void expectPageLookupAndAnUnreadableUpdateResponse() throws Exception {
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(List.of(Map.of("id", 123))),
+                MediaType.APPLICATION_JSON));
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(POST))
+        .andRespond(withSuccess("{\"id\": 123, \"acf\":", MediaType.APPLICATION_JSON));
+  }
+
+  private void expectReadBack(Map<String, Object> page) throws Exception {
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(List.of(page)), MediaType.APPLICATION_JSON));
   }
 
   private static ResponseCreator failingWith(IOException failure) {
@@ -214,7 +316,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldFindsPageAndUpdates() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(42));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
   }
@@ -223,7 +325,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldAcceptsAttachmentIdReturnedAsString() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile("42"));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
   }
@@ -232,7 +334,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldAcceptsAttachmentIdReturnedAsDecimalNumber() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(42.0));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
   }
@@ -243,7 +345,7 @@ class WordPressMediaClientTest {
         pageWithStoredReportFile(
             Map.of("ID", 42, "url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
   }
@@ -252,7 +354,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldAcceptsAttachmentIdNestedInAttachmentArray() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(List.of(Map.of("id", 42))));
 
-    client.updateAcfReportField("test-page", 42);
+    client.updateAcfReportField("test-page", 42, LOCK_HELD);
 
     server.verify();
   }
@@ -261,7 +363,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfSilentlyDroppedTheWrite() throws Exception {
     expectPageLookupAndUpdate(Map.of("id", 123));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
 
     server.verify();
@@ -271,7 +373,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfReportFieldIsEmpty() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(""));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
 
     server.verify();
@@ -281,7 +383,7 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfHoldsADifferentAttachment() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(41));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
 
     server.verify();
@@ -293,7 +395,7 @@ class WordPressMediaClientTest {
         pageWithStoredReportFile(
             Map.of("url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
 
     server.verify();
@@ -310,7 +412,7 @@ class WordPressMediaClientTest {
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
         .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -322,7 +424,7 @@ class WordPressMediaClientTest {
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=nonexistent"))
         .andRespond(withSuccess(emptyResponse, MediaType.APPLICATION_JSON));
 
-    assertThatThrownBy(() -> client.updateAcfReportField("nonexistent", 42))
+    assertThatThrownBy(() -> client.updateAcfReportField("nonexistent", 42, LOCK_HELD))
         .isInstanceOf(IllegalStateException.class);
   }
 

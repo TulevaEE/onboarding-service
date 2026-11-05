@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDa
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.PageUpdateOutcomeUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -32,6 +33,13 @@ public class InvestmentReportPublisher {
   private static final String LOST_THE_LOCK_BEFORE_THE_EMAIL =
       "The publish lost its lock after repointing the fund pages, so the reports were not"
           + " e-mailed: month=%s";
+  private static final String UPDATE_NOT_LINKED =
+      "WordPress page update failed, so the uploaded report was not linked; link it or delete it"
+          + " from the media library: fund=%s, file=%s, error=%s";
+  private static final String UPDATE_OUTCOME_UNKNOWN =
+      "WordPress page update failed and the page could not be read back, so whether it links"
+          + " the uploaded report is unknown; check the fund page before deleting anything:"
+          + " fund=%s, file=%s, error=%s";
   private static final String UPLOAD_NOT_LINKED =
       "Uploaded report was not linked; link it or delete it from the media library:"
           + " fund=%s, file=%s";
@@ -214,13 +222,13 @@ public class InvestmentReportPublisher {
         continue;
       }
       try {
-        wordPressClient.updateAcfReportField(mapping.pageSlug(), upload.attachmentId());
+        wordPressClient.updateAcfReportField(
+            mapping.pageSlug(), upload.attachmentId(), lockStillHeld);
         publishedUrls.put(mapping.fund().getCode(), upload.sourceUrl());
       } catch (Exception e) {
         log.error("WordPress page update failed for {}", mapping.fund().getCode(), e);
         errors.add(
-            ("WordPress page update failed, so the uploaded report was not linked; link it or"
-                    + " delete it from the media library: fund=%s, file=%s, error=%s")
+            (e instanceof PageUpdateOutcomeUnknown ? UPDATE_OUTCOME_UNKNOWN : UPDATE_NOT_LINKED)
                 .formatted(mapping.fund().getCode(), upload.sourceUrl(), e.getMessage()));
       }
     }

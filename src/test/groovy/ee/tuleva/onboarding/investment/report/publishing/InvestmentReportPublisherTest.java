@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDa
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.PageUpdateOutcomeUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.ResourceAccessException;
 
 @ExtendWith(MockitoExtension.class)
 class InvestmentReportPublisherTest {
@@ -100,7 +102,7 @@ class InvestmentReportPublisherTest {
     assertThat(result.errors()).isEmpty();
 
     verify(wordPressClient, times(3)).upload(any(), any());
-    verify(wordPressClient, times(3)).updateAcfReportField(any(), eq(42));
+    verify(wordPressClient, times(3)).updateAcfReportField(any(), eq(42), any());
     verify(emailService).sendSystemEmail(any());
   }
 
@@ -115,7 +117,7 @@ class InvestmentReportPublisherTest {
     verify(wordPressClient, never())
         .upload(eq(FundReportMapping.TKF100.buildPdfFilename(MARCH_2026)), any());
     verify(wordPressClient, never())
-        .updateAcfReportField(eq(FundReportMapping.TKF100.pageSlug()), anyInt());
+        .updateAcfReportField(eq(FundReportMapping.TKF100.pageSlug()), anyInt(), any());
   }
 
   @Test
@@ -148,7 +150,7 @@ class InvestmentReportPublisherTest {
                 }));
 
     verify(wordPressClient, times(4)).upload(any(), any());
-    verify(wordPressClient, times(4)).updateAcfReportField(any(), eq(42));
+    verify(wordPressClient, times(4)).updateAcfReportField(any(), eq(42), any());
   }
 
   @Test
@@ -172,7 +174,7 @@ class InvestmentReportPublisherTest {
     assertThat(result.errors().getFirst()).contains("TUK00");
     assertThat(result.emailSent()).isFalse();
     verify(wordPressClient, never()).upload(any(), any());
-    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
+    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt(), any());
     verify(emailService, never()).sendSystemEmail(any());
   }
 
@@ -188,7 +190,7 @@ class InvestmentReportPublisherTest {
     lenient()
         .doThrow(new RuntimeException("ACF down"))
         .when(wordPressClient)
-        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt(), any());
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
@@ -284,7 +286,7 @@ class InvestmentReportPublisherTest {
     assertThat(result.wordPressUrls()).isEmpty();
     assertThat(result.errors()).hasSize(3);
     assertThat(result.emailSent()).isFalse();
-    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
+    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt(), any());
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
     verify(emailService, times(1)).sendSystemEmail(any());
@@ -323,7 +325,7 @@ class InvestmentReportPublisherTest {
                     "Uploaded report was not linked; link it or delete it from the media library:"
                         + " fund=TUV100,"
                         + " file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf")));
-    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt());
+    verify(wordPressClient, never()).updateAcfReportField(any(), anyInt(), any());
     verify(emailService)
         .sendSystemEmail(
             argThat(
@@ -387,7 +389,7 @@ class InvestmentReportPublisherTest {
             "Uploaded report was not linked; link it or delete it from the media library:"
                 + " fund=TUK00, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
     verify(wordPressClient, never())
-        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt());
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt(), any());
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
   }
@@ -455,8 +457,9 @@ class InvestmentReportPublisherTest {
             "The publish lost its lock, so this fund page was not repointed: fund=TUV100",
             "Uploaded report was not linked; link it or delete it from the media library:"
                 + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
-    verify(wordPressClient).updateAcfReportField(eq(FundReportMapping.TUK75.pageSlug()), anyInt());
-    verify(wordPressClient, times(1)).updateAcfReportField(any(), anyInt());
+    verify(wordPressClient)
+        .updateAcfReportField(eq(FundReportMapping.TUK75.pageSlug()), anyInt(), any());
+    verify(wordPressClient, times(1)).updateAcfReportField(any(), anyInt(), any());
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
     verify(emailService, times(1)).sendSystemEmail(any());
@@ -478,6 +481,63 @@ class InvestmentReportPublisherTest {
     verify(emailService)
         .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
     verify(emailService, times(1)).sendSystemEmail(any());
+  }
+
+  @Test
+  void aPublishThatLosesItsLockWhileReadingAPageDoesNotUpdateItAndAlerts() {
+    givenEveryReportCanBeProduced();
+    givenTheLockIsHeldFor(3);
+    willAnswer(
+            update -> {
+              if (!update.<BooleanSupplier>getArgument(2).getAsBoolean()) {
+                throw new IllegalStateException("lock no longer held");
+              }
+              return null;
+            })
+        .given(wordPressClient)
+        .updateAcfReportField(any(), anyInt(), any());
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75");
+    assertThat(result.errors())
+        .containsExactly(
+            "WordPress page update failed, so the uploaded report was not linked; link it or delete"
+                + " it from the media library: fund=TUK00,"
+                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
+                + " error=lock no longer held",
+            "The publish lost its lock, so this fund page was not repointed: fund=TUV100",
+            "Uploaded report was not linked; link it or delete it from the media library:"
+                + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
+    verify(emailService)
+        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+    verify(emailService, times(1)).sendSystemEmail(any());
+  }
+
+  @Test
+  void aPageUpdateWhoseOutcomeCannotBeReadBackIsReportedAsUnknownNotUnlinked() {
+    givenEveryReportCanBeProduced();
+    lenient()
+        .doThrow(new PageUpdateOutcomeUnknown(new ResourceAccessException("read timed out")))
+        .when(wordPressClient)
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt(), any());
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUV100");
+    assertThat(result.errors())
+        .containsExactly(
+            "WordPress page update failed and the page could not be read back, so whether it"
+                + " links the uploaded report is unknown; check the fund page before deleting"
+                + " anything: fund=TUK00,"
+                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
+                + " error=read timed out");
+    verify(emailService)
+        .sendSystemEmail(
+            argThat(
+                alert ->
+                    alert.getSubject().contains("pooleli")
+                        && alert.getText().contains("check the fund page before deleting")));
   }
 
   private void givenTheLockIsHeldFor(int checks) {

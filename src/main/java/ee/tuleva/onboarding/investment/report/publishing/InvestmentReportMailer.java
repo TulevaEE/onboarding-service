@@ -72,7 +72,8 @@ class InvestmentReportMailer {
           ("Investment report publish for %s did not finish.%n"
                   + "Fund pages updated: %s%nErrors: %s%n"
                   + "Manual attention needed: make all fund pages consistent, and link or delete"
-                  + " the uploaded files named above.")
+                  + " the uploaded files named above; where a link is unknown, check the fund"
+                  + " page before deleting anything.")
               .formatted(month, publishedUrls.keySet(), errors));
       var recipient = new Recipient();
       recipient.setEmail("funds@tuleva.ee");

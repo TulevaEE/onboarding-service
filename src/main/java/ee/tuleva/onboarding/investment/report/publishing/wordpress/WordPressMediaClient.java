@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,20 +63,29 @@ public class WordPressMediaClient {
     return new UploadResult(attachmentId, sourceUrl);
   }
 
-  public void updateAcfReportField(String pageSlug, int attachmentId) {
+  public void updateAcfReportField(
+      String pageSlug, int attachmentId, BooleanSupplier publishLockStillHeld) {
     refuseWhenUnconfigured();
     var pageId = findPageIdBySlug(pageSlug);
 
-    var response =
-        retryTemplate.invoke(
-            () ->
-                restClient
+    Map<String, Object> response;
+    try {
+      response =
+          retryTemplate.invoke(
+              () -> {
+                refuseOnceThePublishLockIsLost(pageSlug, publishLockStillHeld);
+                return restClient
                     .post()
                     .uri("/pages/{pageId}", pageId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(AcfReportField.pageUpdate(attachmentId))
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {}));
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+              });
+    } catch (RuntimeException failure) {
+      confirmStoredDespite(pageSlug, attachmentId, failure);
+      return;
+    }
 
     assertReportFileStored(pageSlug, pageId, attachmentId, AcfReportField.storedIn(response));
 
@@ -84,6 +94,39 @@ public class WordPressMediaClient {
         pageSlug,
         pageId,
         attachmentId);
+  }
+
+  public static final class PageUpdateOutcomeUnknown extends RuntimeException {
+
+    public PageUpdateOutcomeUnknown(RuntimeException failure) {
+      super(failure.getMessage(), failure);
+    }
+  }
+
+  private void confirmStoredDespite(String pageSlug, int attachmentId, RuntimeException failure) {
+    boolean stored;
+    try {
+      stored = AcfReportField.readFrom(findPageBySlug(pageSlug)).holds(attachmentId);
+    } catch (RuntimeException readBack) {
+      failure.addSuppressed(readBack);
+      throw new PageUpdateOutcomeUnknown(failure);
+    }
+    if (!stored) {
+      throw failure;
+    }
+    log.warn(
+        "The page update failed but the page links the report: pageSlug={}, attachmentId={}",
+        pageSlug,
+        attachmentId,
+        failure);
+  }
+
+  private static void refuseOnceThePublishLockIsLost(
+      String pageSlug, BooleanSupplier publishLockStillHeld) {
+    if (!publishLockStillHeld.getAsBoolean()) {
+      throw new IllegalStateException(
+          "Not updating the fund page, the publish no longer holds its lock: pageSlug=" + pageSlug);
+    }
   }
 
   private void refuseWhenUnconfigured() {
@@ -110,6 +153,14 @@ public class WordPressMediaClient {
   }
 
   private int findPageIdBySlug(String slug) {
+    var id = (Integer) findPageBySlug(slug).get("id");
+    if (id == null) {
+      throw new IllegalStateException("WordPress page missing id: slug=" + slug);
+    }
+    return id;
+  }
+
+  private Map<String, Object> findPageBySlug(String slug) {
     var pages =
         retryTemplate.invoke(
             () ->
@@ -129,12 +180,7 @@ public class WordPressMediaClient {
               + ", count="
               + pages.size());
     }
-
-    var id = (Integer) pages.getFirst().get("id");
-    if (id == null) {
-      throw new IllegalStateException("WordPress page missing id: slug=" + slug);
-    }
-    return id;
+    return pages.getFirst();
   }
 
   private static String truncate(String s, int maxLen) {

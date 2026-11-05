@@ -15,7 +15,13 @@ public record EmailDeliveryFailedEvent(
     Instant timestamp,
     List<String> tags) {
 
+  public static final String TRADE_ORDER_TAG = "trade-order";
+
   public EmailDeliveryFailedEvent {
     tags = List.copyOf(tags);
+  }
+
+  public boolean isTradeOrder() {
+    return tags.contains(TRADE_ORDER_TAG);
   }
 }

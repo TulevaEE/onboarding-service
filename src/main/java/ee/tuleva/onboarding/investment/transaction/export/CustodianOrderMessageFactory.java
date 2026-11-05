@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent.TRADE_ORDER_TAG;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
@@ -20,8 +21,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class CustodianOrderMessageFactory {
-
-  static final String TRADE_ORDER_TAG = "trade-order";
 
   private static final DateTimeFormatter SUBJECT_DATE =
       DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneOffset.UTC);

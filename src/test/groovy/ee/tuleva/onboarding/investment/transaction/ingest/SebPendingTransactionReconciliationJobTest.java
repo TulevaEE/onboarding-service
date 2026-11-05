@@ -18,6 +18,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
@@ -35,12 +36,16 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationJobTest {
@@ -56,6 +61,7 @@ class SebPendingTransactionReconciliationJobTest {
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
   @Mock private PipelineTracker pipelineTracker;
   @Mock private PipelineNotifier pipelineNotifier;
+  @Mock private JobTriggerQueue jobTriggerQueue;
 
   private SebPendingTransactionReconciliationJob job;
 
@@ -264,22 +270,28 @@ class SebPendingTransactionReconciliationJobTest {
   }
 
   @Test
-  void theScheduledRunKeepsAnotherNodesFiringOfTheSameScheduleOutForAMinute() {
+  void onlyOneNodeRunsEachFiringOfTheNineOClockSchedule() {
     RecordingLockProvider lockProvider = RecordingLockProvider.free();
     given(publicHolidays.isWorkingDay(TODAY)).willReturn(false);
 
-    jobLockedBy(lockProvider).runOnSchedule();
+    try (var context = lockedContext(lockProvider)) {
+      context.getBean(SebPendingTransactionReconciliationJob.class).runOnSchedule();
+    }
 
-    assertThat(lockProvider.lockAtLeastFor()).containsExactly(Duration.ofMinutes(1));
+    assertThat(lockProvider.lockNames())
+        .containsExactly(
+            "SebPendingTransactionReconciliationJob.daily",
+            "SebPendingTransactionReconciliationJob");
+    assertThat(lockProvider.lockAtLeastFor()).first().isEqualTo(Duration.ofMinutes(5));
   }
 
   @Test
-  void theScheduledRunDoesNotRunWhileTheReplayHoldsTheLock() {
+  void theScheduledRunThatFindsTheLockHeldDefersTheReconciliationInsteadOfDroppingIt() {
     RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
 
     jobLockedBy(lockProvider).runOnSchedule();
 
-    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
     verifyNoInteractions(
         publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
@@ -340,7 +352,8 @@ class SebPendingTransactionReconciliationJobTest {
             reconciliationService,
             pipelineTracker,
             pipelineNotifier,
-            RecordingLockProvider.free().reconciliationLockAt(running));
+            RecordingLockProvider.free().reconciliationLockAt(running),
+            jobTriggerQueue);
 
     assertThatThrownBy(liveJob::runOnSchedule)
         .isInstanceOf(SebReconciliationLockLostException.class);
@@ -372,7 +385,8 @@ class SebPendingTransactionReconciliationJobTest {
         reconciliationService,
         pipelineTracker,
         pipelineNotifier,
-        reconciliationLock);
+        reconciliationLock,
+        jobTriggerQueue);
   }
 
   private SebPendingTransactionReconciliationJob jobLockedBy(RecordingLockProvider provider) {
@@ -383,8 +397,32 @@ class SebPendingTransactionReconciliationJobTest {
         reconciliationService,
         pipelineTracker,
         pipelineNotifier,
-        provider.reconciliationLockAt(clock));
+        provider.reconciliationLockAt(clock),
+        jobTriggerQueue);
   }
+
+  private AnnotationConfigApplicationContext lockedContext(RecordingLockProvider lockProvider) {
+    var context = new AnnotationConfigApplicationContext();
+    context.getEnvironment().setActiveProfiles("production");
+    context.registerBean(LockProvider.class, () -> lockProvider);
+    context.registerBean(Clock.class, () -> clock);
+    context.registerBean(PublicHolidays.class, () -> publicHolidays);
+    context.registerBean(InvestmentReportService.class, () -> reportService);
+    context.registerBean(
+        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
+    context.registerBean(PipelineTracker.class, () -> pipelineTracker);
+    context.registerBean(PipelineNotifier.class, () -> pipelineNotifier);
+    context.registerBean(
+        SebReconciliationLock.class, () -> lockProvider.reconciliationLockAt(clock));
+    context.registerBean(JobTriggerQueue.class, () -> jobTriggerQueue);
+    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationJob.class);
+    context.refresh();
+    return context;
+  }
+
+  @Configuration
+  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
+  static class SchedulerLockOnly {}
 
   private static InvestmentReport report(LocalDate date) {
     return InvestmentReport.builder()

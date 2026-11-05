@@ -19,19 +19,15 @@ import net.javacrumbs.shedlock.core.SimpleLock;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Profile({"production", "staging"})
 class SebReconciliationLock {
 
   static final String NAME = "SebPendingTransactionReconciliationJob";
   private static final Duration A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST = Duration.ofMinutes(2);
   private static final Duration EXTENDED_EVERY = A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST.dividedBy(2);
-  private static final Duration ANOTHER_NODES_FIRING_OF_THE_SAME_SCHEDULE_FINDS_IT_HELD_FOR =
-      Duration.ofMinutes(1);
 
   private final @Nullable ExtensibleLockProvider lockProvider;
   private final Clock clock;
@@ -60,14 +56,6 @@ class SebReconciliationLock {
   }
 
   boolean runIfFree(Consumer<BooleanSupplier> task) {
-    return runHolding(Duration.ZERO, task);
-  }
-
-  boolean runScheduledIfFree(Consumer<BooleanSupplier> task) {
-    return runHolding(ANOTHER_NODES_FIRING_OF_THE_SAME_SCHEDULE_FINDS_IT_HELD_FOR, task);
-  }
-
-  private boolean runHolding(Duration lockAtLeastFor, Consumer<BooleanSupplier> task) {
     if (lockProvider == null) {
       throw new IllegalStateException(
           "SEB reconciliation refused to run unlocked: no ShedLock LockProvider on this node"
@@ -78,7 +66,7 @@ class SebReconciliationLock {
     Optional<SimpleLock> lock =
         lockProvider.lock(
             new LockConfiguration(
-                lockedAt, NAME, A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST, lockAtLeastFor));
+                lockedAt, NAME, A_STOPPED_RUN_HOLDS_THE_LOCK_AT_MOST, Duration.ZERO));
     if (lock.isEmpty()) {
       return false;
     }

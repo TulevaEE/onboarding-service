@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.JOB_TRIGGER_POLL;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.investment.event.*;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
@@ -65,6 +66,9 @@ class JobTriggerPoller {
           "SebPendingTransactionReconciliationBackfillJob",
           RunSebPendingTransactionReconciliationBackfillRequested::new);
 
+  private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =
+      Duration.ofHours(6);
+
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -90,6 +94,8 @@ class JobTriggerPoller {
         eventPublisher.publishEvent(eventFactory.get().get());
         markCompleted(trigger);
         log.info("Job trigger completed: jobName={}", trigger.getJobName());
+      } catch (JobBusyException e) {
+        retryOnTheNextPollUnlessBusyTooLong(trigger, e);
       } catch (Exception e) {
         markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
         log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
@@ -113,6 +119,24 @@ class JobTriggerPoller {
     } catch (DateTimeParseException e) {
       return Optional.empty();
     }
+  }
+
+  private void retryOnTheNextPollUnlessBusyTooLong(JobTrigger trigger, JobBusyException busy) {
+    var createdAt = trigger.getCreatedAt();
+    if (createdAt != null
+        && !createdAt
+            .plus(STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST)
+            .isAfter(clock().instant())) {
+      markFailed(trigger, "Still busy after 6 hours: " + busy.getMessage());
+      log.error("Job trigger failed, its job stayed busy: jobName={}", trigger.getJobName(), busy);
+      return;
+    }
+    trigger.setStatus("PENDING");
+    repository.save(trigger);
+    log.info(
+        "Job trigger left pending, its job is busy: jobName={}, reason={}",
+        trigger.getJobName(),
+        busy.getMessage());
   }
 
   private void markProcessing(JobTrigger trigger) {

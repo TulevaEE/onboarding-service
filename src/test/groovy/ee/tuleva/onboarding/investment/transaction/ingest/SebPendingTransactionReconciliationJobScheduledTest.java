@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.config.ScheduledTest;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
@@ -22,6 +23,7 @@ class SebPendingTransactionReconciliationJobScheduledTest {
   @MockitoBean PipelineNotifier pipelineNotifier;
   @MockitoBean Clock clock;
   @MockitoBean SebReconciliationLock reconciliationLock;
+  @MockitoBean JobTriggerQueue jobTriggerQueue;
 
   @Test
   void cronExpressionsResolve() {}

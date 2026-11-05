@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunFeeSettlementCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
@@ -15,8 +16,11 @@ import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import ee.tuleva.onboarding.time.ClockHolder;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -159,6 +163,42 @@ class JobTriggerPollerTest {
 
     assertThat(trigger.getStatus()).isEqualTo("FAILED");
     then(eventPublisher).should(never()).publishEvent(any());
+  }
+
+  @Test
+  void aTriggerWhoseJobIsBusyStaysPendingForTheNextPoll() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationJob")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant())
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("PENDING");
+  }
+
+  @Test
+  void aTriggerWhoseJobHasBeenBusyForSixHoursIsMarkedFailed() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationJob")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
   }
 
   @Test

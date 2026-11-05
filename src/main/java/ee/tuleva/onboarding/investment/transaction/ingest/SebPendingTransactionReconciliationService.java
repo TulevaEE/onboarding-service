@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.SOURCE_SEB_OOTEL;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -91,7 +92,12 @@ public class SebPendingTransactionReconciliationService {
     for (SebPendingTransactionRow row : rows) {
       RowOutcome outcome =
           rowReconciler.reconcileRow(
-              row, reportDate, asOfDate, matchingProperties, presentOrderIds, alerts, mode);
+              row,
+              reportDate,
+              asOfDate,
+              matchingProperties,
+              presentOrderIds,
+              new ReconciliationRun(mode, alerts));
       switch (outcome) {
         case MATCHED -> matched++;
         case UNMATCHED -> unmatched++;
@@ -217,8 +223,20 @@ public class SebPendingTransactionReconciliationService {
   private List<TransactionExecution> executionsListedBy(
       TransactionOrder order, LocalDate asOfDate, ReconciliationMode mode) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .filter(execution -> mode.countsAsListed(execution, asOfDate))
+        .filter(execution -> countsAsListed(mode, execution, asOfDate))
         .toList();
+  }
+
+  private static boolean countsAsListed(
+      ReconciliationMode mode, TransactionExecution execution, LocalDate asOfDate) {
+    return switch (mode) {
+      case LIVE -> true;
+      case REPLAY -> {
+        LocalDate reportedDate = execution.getReportedDate();
+        yield SOURCE_SEB_OOTEL.equals(execution.getSource())
+            && (reportedDate == null || !reportedDate.isAfter(asOfDate));
+      }
+    };
   }
 
   private void settleByAbsence(

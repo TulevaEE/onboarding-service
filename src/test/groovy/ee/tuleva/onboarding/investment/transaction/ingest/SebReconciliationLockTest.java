@@ -70,18 +70,6 @@ class SebReconciliationLockTest {
   }
 
   @Test
-  void aScheduledRunKeepsAnotherNodesFiringOfTheSameScheduleOutForAMinute() {
-    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-
-    lockOver(lockProvider, clock).runScheduledIfFree(stillHeld -> {});
-
-    verify(lockProvider)
-        .lock(
-            argThat(
-                configuration -> configuration.getLockAtLeastFor().equals(Duration.ofMinutes(1))));
-  }
-
-  @Test
   void aRunThatFindsTheLockHeldDoesNotRunAndSaysSo() {
     given(lockProvider.lock(any())).willReturn(Optional.empty());
     List<String> ran = new ArrayList<>();

@@ -31,18 +31,16 @@ class SebPendingRowReconciler {
       LocalDate asOfDate,
       TransactionMatchingProperties matchingProperties,
       Set<Long> presentOrderIds,
-      ReconciliationAlerts alerts,
-      ReconciliationMode mode) {
+      ReconciliationRun run) {
     presentOrderIds.addAll(referencedOrderIds(row));
     Optional<TransactionOrder> orderOpt = matchOrder(row, matchingProperties);
     if (orderOpt.isEmpty()) {
-      handleUnmatchedRow(row, reportDate, matchingProperties, alerts);
+      handleUnmatchedRow(row, reportDate, matchingProperties, run);
       return RowOutcome.UNMATCHED;
     }
     TransactionOrder order = orderOpt.get();
     presentOrderIds.add(order.getId());
-    return matchedRowProcessor.process(
-        order, row, reportDate, asOfDate, matchingProperties, alerts, mode);
+    return matchedRowProcessor.process(order, row, reportDate, asOfDate, matchingProperties, run);
   }
 
   private Optional<TransactionOrder> matchOrder(
@@ -61,11 +59,11 @@ class SebPendingRowReconciler {
       SebPendingTransactionRow row,
       LocalDate reportDate,
       TransactionMatchingProperties matchingProperties,
-      ReconciliationAlerts alerts) {
+      ReconciliationRun run) {
     Optional<QuantityAmountMismatchEvent> nearMiss =
         complexMatcher.findNearMiss(row, matchingProperties);
     if (nearMiss.isPresent()) {
-      reportMismatch(nearMiss.get().withReportDate(reportDate), row, alerts);
+      reportMismatch(nearMiss.get().withReportDate(reportDate), row, run);
       return;
     }
     log.info(
@@ -78,9 +76,7 @@ class SebPendingRowReconciler {
   }
 
   private void reportMismatch(
-      QuantityAmountMismatchEvent event,
-      SebPendingTransactionRow row,
-      ReconciliationAlerts alerts) {
+      QuantityAmountMismatchEvent event, SebPendingTransactionRow row, ReconciliationRun run) {
     log.info(
         "Quantity/amount mismatch: clientRef={}, ourRef={}, isin={}, kind={}, expected={},"
             + " actual={}, reportDate={}",
@@ -92,7 +88,7 @@ class SebPendingRowReconciler {
         event.actual(),
         event.reportDate());
     auditRecorder.recordQuantityAmountMismatch(event);
-    alerts.raise(event);
+    run.raise(event);
   }
 
   private Optional<TransactionOrder> matchByBrokerRef(SebPendingTransactionRow row) {

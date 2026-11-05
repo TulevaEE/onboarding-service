@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface JobTriggerRepository extends JpaRepository<JobTrigger, Long> {
 
   List<JobTrigger> findByStatusOrderByCreatedAtAsc(String status);
+
+  boolean existsByJobNameAndStatus(String jobName, String status);
 }

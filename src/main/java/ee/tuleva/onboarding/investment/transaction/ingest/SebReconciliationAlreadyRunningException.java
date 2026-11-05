@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-public class SebReconciliationAlreadyRunningException extends IllegalStateException {
+import ee.tuleva.onboarding.investment.event.JobBusyException;
+
+public class SebReconciliationAlreadyRunningException extends JobBusyException {
 
   public SebReconciliationAlreadyRunningException(String lockName) {
     super("SEB pending transaction reconciliation skipped, its lock is held: lock=" + lockName);

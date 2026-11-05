@@ -1,0 +1,111 @@
+package ee.tuleva.onboarding.investment.transaction.ingest;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import org.jspecify.annotations.Nullable;
+
+record SebFundConfirmationResult(
+    ReportStatus reportStatus,
+    List<String> reportDifferences,
+    RegistryComparison registry,
+    NavStatus navStatus,
+    @Nullable BigDecimal nav,
+    @Nullable BigDecimal deviationPercent,
+    TimingStatus timingStatus,
+    @Nullable Integer navDatesAfterReceipt) {
+
+  static final String REGISTRY_MISMATCH = "REGISTRY_MISMATCH";
+
+  enum ReportStatus {
+    MATCH,
+    MISMATCH,
+    NOT_FOUND,
+    PENDING,
+    NOT_CHECKED
+  }
+
+  enum RegistryStatus {
+    MATCH,
+    MISMATCH,
+    NOT_IN_REGISTRY
+  }
+
+  record RegistryComparison(RegistryStatus status, List<String> differences) {
+
+    static final RegistryComparison NOT_IN_REGISTRY =
+        new RegistryComparison(RegistryStatus.NOT_IN_REGISTRY, List.of());
+
+    static RegistryComparison of(List<String> differences) {
+      return new RegistryComparison(
+          differences.isEmpty() ? RegistryStatus.MATCH : RegistryStatus.MISMATCH, differences);
+    }
+  }
+
+  enum NavStatus {
+    WITHIN_TOLERANCE,
+    FAR_FROM_NAV,
+    NOT_PUBLISHED_YET,
+    NOT_PUBLISHED,
+    NOT_CHECKED
+  }
+
+  enum TimingStatus {
+    ON_TIME,
+    LATE,
+    NOT_CHECKED
+  }
+
+  static SebFundConfirmationResult againstTheRegistryOnly(RegistryComparison registry) {
+    return new SebFundConfirmationResult(
+        ReportStatus.NOT_CHECKED,
+        List.of(),
+        registry,
+        NavStatus.NOT_CHECKED,
+        null,
+        null,
+        TimingStatus.NOT_CHECKED,
+        null);
+  }
+
+  boolean isActionable() {
+    return !findings().isEmpty();
+  }
+
+  List<String> findings() {
+    List<String> findings = new ArrayList<>();
+    if (reportStatus == ReportStatus.MISMATCH) {
+      findings.add(mismatchFinding());
+    }
+    if (reportStatus == ReportStatus.NOT_FOUND) {
+      findings.add(ReportStatus.NOT_FOUND.name());
+    }
+    if (registryDiffersWhereTheReportAgreesOrWasNotChecked()) {
+      findings.add(registryMismatchFinding());
+    }
+    if (navStatus == NavStatus.FAR_FROM_NAV || navStatus == NavStatus.NOT_PUBLISHED) {
+      findings.add(navStatus.name());
+    }
+    if (timingStatus == TimingStatus.LATE) {
+      findings.add(TimingStatus.LATE.name());
+    }
+    return List.copyOf(findings);
+  }
+
+  private boolean registryDiffersWhereTheReportAgreesOrWasNotChecked() {
+    return registry.status() == RegistryStatus.MISMATCH
+        && (reportStatus == ReportStatus.MATCH || reportStatus == ReportStatus.NOT_CHECKED);
+  }
+
+  String mismatchFinding() {
+    return ReportStatus.MISMATCH.name() + " " + String.join("; ", reportDifferences);
+  }
+
+  String registryMismatchFinding() {
+    return REGISTRY_MISMATCH + " " + String.join("; ", registry.differences());
+  }
+
+  List<String> statusSignature() {
+    return List.of(reportStatus.name(), navStatus.name(), timingStatus.name());
+  }
+}

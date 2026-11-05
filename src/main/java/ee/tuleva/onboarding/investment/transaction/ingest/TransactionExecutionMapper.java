@@ -1,8 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+
+import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -13,6 +19,7 @@ class TransactionExecutionMapper {
 
   static final String SOURCE_SEB_OOTEL = "SEB_OOTEL";
   static final String MODIFIED_BY_SEB_RECONCILIATION = "system:seb-reconciliation";
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   TransactionExecution toExecution(
       SebPendingTransactionRow row, TransactionOrder order, LocalDate reportedDate) {
@@ -27,6 +34,7 @@ class TransactionExecutionMapper {
     execution.setAggregatedOrderId(order.getOrderUuid());
     execution.setBrokerTransactionId(row.ourRef());
     execution.setExecutionTimestamp(row.tradeDate());
+    priceAnEtfFillOnItsTradeDate(execution, row, order);
     execution.setExecutedQuantity(row.quantity());
     execution.setUnitPrice(row.price());
     execution.setTotalConsideration(row.total());
@@ -36,6 +44,22 @@ class TransactionExecutionMapper {
     execution.setSource(SOURCE_SEB_OOTEL);
     execution.setModifiedBy(MODIFIED_BY_SEB_RECONCILIATION);
     return execution;
+  }
+
+  private static void priceAnEtfFillOnItsTradeDate(
+      TransactionExecution execution, SebPendingTransactionRow row, TransactionOrder order) {
+    LocalDate tradeDate = navDateOfAnEtfFill(order.getInstrumentType(), row.tradeDate());
+    if (tradeDate != null) {
+      execution.setNavDate(tradeDate);
+    }
+  }
+
+  static @Nullable LocalDate navDateOfAnEtfFill(
+      InstrumentType instrumentType, @Nullable Instant tradedAt) {
+    if (instrumentType != ETF || tradedAt == null) {
+      return null;
+    }
+    return LocalDate.ofInstant(tradedAt, TALLINN);
   }
 
   private static void keepEarliestSettlementDateSebReported(

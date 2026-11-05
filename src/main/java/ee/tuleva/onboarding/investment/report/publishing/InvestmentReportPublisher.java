@@ -105,34 +105,37 @@ public class InvestmentReportPublisher {
     }
     var pdfs = generation.pdfs();
 
-    var uploadErrors = new ArrayList<String>();
-    var uploads = reportUploads.uploadAll(month, pdfs, fundPages.linkedReports(), uploadErrors);
-    if (!uploadErrors.isEmpty()) {
+    var uploadProblems = new PublishProblems();
+    var uploads = reportUploads.uploadAll(month, pdfs, fundPages.linkedReports(), uploadProblems);
+    if (uploadProblems.any()) {
       uploads.forEach(
           (mapping, upload) ->
-              uploadErrors.add(
-                  UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl())));
-      log.warn("Uploads failed, no fund pages changed, website unchanged: {}", uploadErrors);
-      mailer.alertPartialPublish(month, Map.of(), uploadErrors);
-      return abortedWithoutPublishing(uploadErrors);
+              uploadProblems.addLeavingUploadUnlinked(
+                  UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+                  upload.sourceUrl()));
+      log.warn("Uploads failed, no fund pages changed: {}", uploadProblems.lines());
+      mailer.alertPartialPublish(month, Map.of(), uploadProblems);
+      return abortedWithoutPublishing(uploadProblems.lines());
     }
 
-    var repointErrors = new ArrayList<String>();
+    var repointProblems = new PublishProblems();
     var publishedUrls =
-        repointFundPages(month, unrecognisedFilesToReplace, lockStillHeld, uploads, repointErrors);
-    if (!repointErrors.isEmpty()) {
+        repointFundPages(
+            month, unrecognisedFilesToReplace, lockStillHeld, uploads, repointProblems);
+    if (repointProblems.any()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
           publishedUrls.keySet(),
-          repointErrors);
-      mailer.alertPartialPublish(month, publishedUrls, repointErrors);
-      return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
+          repointProblems.lines());
+      mailer.alertPartialPublish(month, publishedUrls, repointProblems);
+      return new InvestmentReportPublishingResult(publishedUrls, false, repointProblems.lines());
     }
     if (!lockStillHeld.getAsBoolean()) {
-      var lostTheLock = List.of(LOST_THE_LOCK_BEFORE_THE_EMAIL.formatted(month));
-      log.error("Pages repointed but the reports not e-mailed: {}", lostTheLock);
+      var lostTheLock = new PublishProblems();
+      lostTheLock.add(LOST_THE_LOCK_BEFORE_THE_EMAIL.formatted(month));
+      log.error("Pages repointed but the reports not e-mailed: {}", lostTheLock.lines());
       mailer.alertPartialPublish(month, publishedUrls, lostTheLock);
-      return new InvestmentReportPublishingResult(publishedUrls, false, lostTheLock);
+      return new InvestmentReportPublishingResult(publishedUrls, false, lostTheLock.lines());
     }
 
     var emailErrors = new ArrayList<String>();
@@ -191,7 +194,7 @@ public class InvestmentReportPublisher {
       Set<String> unrecognisedFilesToReplace,
       BooleanSupplier lockStillHeld,
       Map<FundReportMapping, UploadResult> uploads,
-      List<String> errors) {
+      PublishProblems problems) {
     var publishedUrls = new LinkedHashMap<String, String>();
     for (var entry : uploads.entrySet()) {
       var mapping = entry.getKey();
@@ -201,8 +204,10 @@ public class InvestmentReportPublisher {
               ? newerReportCheck.reasonsNotToRepoint(mapping, month, unrecognisedFilesToReplace)
               : List.of(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
       if (!refusedSinceTheCheck.isEmpty()) {
-        errors.addAll(refusedSinceTheCheck);
-        errors.add(UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()));
+        problems.addAll(refusedSinceTheCheck);
+        problems.addLeavingUploadUnlinked(
+            UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+            upload.sourceUrl());
         continue;
       }
       try {
@@ -210,14 +215,17 @@ public class InvestmentReportPublisher {
             mapping.pageSlug(), upload.attachmentId(), lockStillHeld);
         publishedUrls.put(mapping.fund().getCode(), upload.sourceUrl());
       } catch (LeftUnchanged lockLostBeforeAnyPost) {
-        errors.add(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
-        errors.add(UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()));
+        problems.add(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
+        problems.addLeavingUploadUnlinked(
+            UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+            upload.sourceUrl());
       } catch (NotLinked notLinked) {
-        errors.add(
+        problems.addLeavingUploadUnlinked(
             UPDATE_NOT_LINKED.formatted(
-                mapping.fund().getCode(), upload.sourceUrl(), notLinked.failedBecause()));
+                mapping.fund().getCode(), upload.sourceUrl(), notLinked.failedBecause()),
+            upload.sourceUrl());
       } catch (LinkUnknown linkUnknown) {
-        errors.add(
+        problems.add(
             UPDATE_OUTCOME_UNKNOWN.formatted(
                 mapping.fund().getCode(), upload.sourceUrl(), linkUnknown.failedBecause()));
       } catch (RuntimeException lookupFailedBeforeAnyPost) {
@@ -225,11 +233,12 @@ public class InvestmentReportPublisher {
             "WordPress page lookup failed for {}",
             mapping.fund().getCode(),
             lookupFailedBeforeAnyPost);
-        errors.add(
+        problems.addLeavingUploadUnlinked(
             UPDATE_NOT_LINKED.formatted(
                 mapping.fund().getCode(),
                 upload.sourceUrl(),
-                lookupFailedBeforeAnyPost.getClass().getSimpleName()));
+                lookupFailedBeforeAnyPost.getClass().getSimpleName()),
+            upload.sourceUrl());
       }
     }
     return publishedUrls;

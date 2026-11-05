@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFai
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.MayBeStored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.NothingStored;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.Stored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -101,7 +102,8 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {1}))
-        .isInstanceOf(MayBeStored.class);
+        .isInstanceOfSatisfying(
+            Stored.class, stored -> assertThat(stored.attachmentId()).isEqualTo(42));
   }
 
   @Test
@@ -203,19 +205,22 @@ class WordPressMediaClientTest {
         .andRespond(failingWith(connectException(new ClosedChannelException())));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
-        .isInstanceOf(NothingStored.class);
+        .isInstanceOfSatisfying(
+            NothingStored.class,
+            nothingStored ->
+                assertThat(nothingStored.failedBecause()).isEqualTo("ClosedChannelException"));
     server.verify();
   }
 
   @Test
-  void anUploadWordPressRefusedStoresNothing() {
+  void anUploadWordPressRefusedMayStillHaveBeenStoredByItsHooks() {
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
         .andExpect(method(POST))
         .andRespond(withStatus(HttpStatus.PAYLOAD_TOO_LARGE));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
-        .isInstanceOf(NothingStored.class);
+        .isInstanceOf(MayBeStored.class);
     server.verify();
   }
 

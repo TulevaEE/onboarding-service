@@ -61,19 +61,32 @@ class InvestmentReportMailer {
     return attachments;
   }
 
+  private static String alertText(
+      YearMonth month, Map<String, String> publishedUrls, PublishProblems problems) {
+    var lines =
+        new ArrayList<>(
+            List.of(
+                "Investment report publish for %s did not finish.".formatted(month),
+                "Fund pages updated: " + publishedUrls.keySet(),
+                "Errors: " + problems.lines()));
+    var uploadsLeftUnlinked = problems.uploadsLeftUnlinked();
+    if (!uploadsLeftUnlinked.isEmpty()) {
+      lines.add(
+          "Uploads this run made that no fund page links; link or delete each in the media"
+              + " library: "
+              + uploadsLeftUnlinked);
+    }
+    return String.join(System.lineSeparator(), lines);
+  }
+
   void alertPartialPublish(
-      YearMonth month, Map<String, String> publishedUrls, List<String> errors) {
+      YearMonth month, Map<String, String> publishedUrls, PublishProblems problems) {
     try {
       var message = new MandrillMessage();
       message.setFromEmail("funds@tuleva.ee");
       message.setFromName("Tuleva");
       message.setSubject("Investeeringute aruannete avaldamine jäi pooleli: " + month);
-      message.setText(
-          ("Investment report publish for %s did not finish.%n"
-                  + "Fund pages updated: %s%nErrors: %s%n"
-                  + "Manual attention needed: make all fund pages consistent, and link or delete"
-                  + " the uploaded files named above.")
-              .formatted(month, publishedUrls.keySet(), errors));
+      message.setText(alertText(month, publishedUrls, problems));
       var recipient = new Recipient();
       recipient.setEmail("funds@tuleva.ee");
       recipient.setType(TO);

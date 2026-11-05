@@ -10,7 +10,7 @@ public abstract sealed class PageUpdateFailed extends RuntimeException
   private PageUpdateFailed(String outcome, String pageSlug, RuntimeException decidingFailure) {
     super(
         "Fund page update failed: outcome=" + outcome + ", pageSlug=" + pageSlug, decidingFailure);
-    this.failedBecause = decidingFailure.getClass().getSimpleName();
+    this.failedBecause = InnermostCause.nameOf(decidingFailure);
   }
 
   public String failedBecause() {

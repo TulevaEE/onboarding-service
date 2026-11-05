@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.Stored;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -35,13 +36,16 @@ public class WordPressMediaClient {
         throw new IllegalStateException("WordPress returned no response body: filename=" + slug);
       }
 
+      var attachmentId = (Integer) response.get("id");
       var sourceUrl = (String) response.get("source_url");
       if (sourceUrl == null || !VALID_WP_PDF_URL.matcher(sourceUrl).matches()) {
-        throw new IllegalStateException(
-            "WordPress returned invalid source_url: " + truncate(String.valueOf(sourceUrl), 200));
+        var invalid =
+            new IllegalStateException(
+                "WordPress returned invalid source_url: "
+                    + truncate(String.valueOf(sourceUrl), 200));
+        throw attachmentId == null ? invalid : new Stored(slug, attachmentId, invalid);
       }
 
-      var attachmentId = (Integer) response.get("id");
       if (attachmentId == null) {
         throw new IllegalStateException("WordPress returned no attachment id");
       }

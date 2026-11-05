@@ -19,11 +19,14 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFai
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.MayBeStored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.NothingStored;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.Stored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.net.ConnectException;
+import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,6 +45,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 @ExtendWith(MockitoExtension.class)
@@ -317,8 +321,10 @@ class InvestmentReportPublisherTest {
   void anUploadThatMayHaveReachedWordPressNamesTheReportToKeepAndTheUploadTimeNotAFilename() {
     givenTheUploadOfTuk00Fails(
         new MayBeStored(
-            "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf",
-            new ResourceAccessException("read timed out")));
+            TUK00_UPLOAD_NAME,
+            new ResourceAccessException(
+                "I/O error", new HttpTimeoutException("request timed out"))),
+        Map.of(FundReportMapping.TUK00, LIVE_TUK00_REPORT));
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
@@ -328,32 +334,79 @@ class InvestmentReportPublisherTest {
                 Map.of(),
                 false,
                 List.of(
-                    "WordPress upload failed after it may have reached WordPress; keep the report"
-                        + " the fund page links, and delete only an attachment uploaded at"
-                        + " uploadedAt that no fund page links: fund=TUK00,"
-                        + " keep="
+                    "WordPress upload failed but may have stored the report; in the media library"
+                        + " delete only an attachment uploaded at uploadedAt that no fund page"
+                        + " links, and keep linkedReport, which the fund page links: fund=TUK00,"
+                        + " uploadedAt=10.04.2026 10:00, linkedReport="
                         + LIVE_TUK00_REPORT
-                        + ", uploadedAt=2026-04-10T07:00:00Z, cause=ResourceAccessException",
+                        + ", cause=HttpTimeoutException",
                     TUK75_UPLOAD_LEFT_UNLINKED,
                     TUV100_UPLOAD_LEFT_UNLINKED)));
     verify(wordPressClient, never()).updateAcfReportField(any(), anyInt(), any());
   }
 
   @Test
+  void aFirstPublishWhoseUploadMayHaveBeenStoredNamesNoLinkedReport() {
+    givenTheUploadOfTuk00Fails(
+        new MayBeStored(TUK00_UPLOAD_NAME, new HttpServerErrorException(HttpStatus.BAD_GATEWAY)),
+        Map.of());
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result.errors())
+        .containsExactly(
+            "WordPress upload failed but may have stored the report; in the media library delete"
+                + " only an attachment uploaded at uploadedAt that no fund page links:"
+                + " fund=TUK00, uploadedAt=10.04.2026 10:00, cause=HttpServerErrorException",
+            TUK75_UPLOAD_LEFT_UNLINKED,
+            TUV100_UPLOAD_LEFT_UNLINKED);
+  }
+
+  @Test
+  void anUploadWordPressStoredButAnsweredUnusablyNamesThatAttachmentToLinkOrDelete() {
+    givenTheUploadOfTuk00Fails(
+        new Stored(TUK00_UPLOAD_NAME, 77, new IllegalStateException("invalid source_url")),
+        Map.of(FundReportMapping.TUK00, LIVE_TUK00_REPORT));
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    var storedButUnusable =
+        "WordPress stored the upload but its answer could not be used, so it is not linked; link"
+            + " or delete this attachment in the media library: fund=TUK00, attachmentId=77,"
+            + " cause=IllegalStateException";
+    assertThat(result.errors())
+        .containsExactly(
+            storedButUnusable, TUK75_UPLOAD_LEFT_UNLINKED, TUV100_UPLOAD_LEFT_UNLINKED);
+    verify(emailService)
+        .sendSystemEmail(
+            argThat(
+                alert ->
+                    alert
+                        .getText()
+                        .equals(
+                            alertText(
+                                List.of(
+                                    storedButUnusable,
+                                    TUK75_UPLOAD_LEFT_UNLINKED,
+                                    TUV100_UPLOAD_LEFT_UNLINKED),
+                                "attachment 77, " + TUK75_NEW_UPLOAD + ", " + TUV100_NEW_UPLOAD))));
+  }
+
+  @Test
   void aSameMonthRepublishWhoseUploadNeverConnectsKeepsTheLinkedReportAndAdvisesNoDeletion() {
     givenTheUploadOfTuk00Fails(
         new NothingStored(
-            "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf",
-            new ResourceAccessException("Connection refused")));
+            TUK00_UPLOAD_NAME,
+            new ResourceAccessException("I/O error", new ConnectException("Connection refused"))),
+        Map.of(FundReportMapping.TUK00, LIVE_TUK00_REPORT));
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
     var nothingStored =
-        "WordPress upload did not reach WordPress or was refused, so nothing was stored and"
-            + " nothing needs deleting; the fund page still links the report to keep: fund=TUK00,"
-            + " keep="
+        "WordPress upload did not reach WordPress, so nothing was stored and nothing needs"
+            + " deleting; the fund page still links linkedReport: fund=TUK00, linkedReport="
             + LIVE_TUK00_REPORT
-            + ", cause=ResourceAccessException";
+            + ", cause=ConnectException";
     assertThat(result)
         .isEqualTo(
             new InvestmentReportPublishingResult(
@@ -367,45 +420,56 @@ class InvestmentReportPublisherTest {
                     alert
                         .getText()
                         .equals(
-                            String.join(
-                                System.lineSeparator(),
-                                "Investment report publish for 2026-03 did not finish.",
-                                "Fund pages updated: []",
-                                "Errors: ["
-                                    + nothingStored
-                                    + ", "
-                                    + TUK75_UPLOAD_LEFT_UNLINKED
-                                    + ", "
-                                    + TUV100_UPLOAD_LEFT_UNLINKED
-                                    + "]",
-                                "Manual attention needed: make all fund pages consistent, and"
-                                    + " link or delete the uploaded files named above."))));
+                            alertText(
+                                List.of(
+                                    nothingStored,
+                                    TUK75_UPLOAD_LEFT_UNLINKED,
+                                    TUV100_UPLOAD_LEFT_UNLINKED),
+                                TUK75_NEW_UPLOAD + ", " + TUV100_NEW_UPLOAD))));
   }
 
+  private static String alertText(List<String> errors, String uploadsLeftUnlinked) {
+    return String.join(
+        System.lineSeparator(),
+        "Investment report publish for 2026-03 did not finish.",
+        "Fund pages updated: []",
+        "Errors: " + errors,
+        "Uploads this run made that no fund page links; link or delete each in the media library:"
+            + " ["
+            + uploadsLeftUnlinked
+            + "]");
+  }
+
+  private static final String TUK00_UPLOAD_NAME =
+      "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf";
+  private static final String TUK75_NEW_UPLOAD =
+      "https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf";
+  private static final String TUV100_NEW_UPLOAD =
+      "https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf";
   private static final String TUK75_UPLOAD_LEFT_UNLINKED =
       "Uploaded report was not linked; link it or delete it from the media library:"
-          + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf";
+          + " fund=TUK75, file="
+          + TUK75_NEW_UPLOAD;
   private static final String TUV100_UPLOAD_LEFT_UNLINKED =
       "Uploaded report was not linked; link it or delete it from the media library:"
-          + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf";
+          + " fund=TUV100, file="
+          + TUV100_NEW_UPLOAD;
 
-  private void givenTheUploadOfTuk00Fails(RuntimeException failure) {
+  private void givenTheUploadOfTuk00Fails(
+      RuntimeException failure, Map<FundReportMapping, String> linkedBeforeUpload) {
     given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
     given(newerReportCheck.reasonsNotToPublish(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
-        .willReturn(
-            new FundPagesBeforePublish(
-                List.of(), Map.of(FundReportMapping.TUK00, LIVE_TUK00_REPORT)));
+        .willReturn(new FundPagesBeforePublish(List.of(), linkedBeforeUpload));
     var context = sampleContext("Test Fund");
     var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
     given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
     given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
     given(wordPressClient.upload(FundReportMapping.TUK75.buildPdfFilename(MARCH_2026), pdfBytes))
-        .willReturn(new UploadResult(41, "https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf"));
+        .willReturn(new UploadResult(41, TUK75_NEW_UPLOAD));
     given(wordPressClient.upload(FundReportMapping.TUK00.buildPdfFilename(MARCH_2026), pdfBytes))
         .willThrow(failure);
     given(wordPressClient.upload(FundReportMapping.TUV100.buildPdfFilename(MARCH_2026), pdfBytes))
-        .willReturn(
-            new UploadResult(43, "https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf"));
+        .willReturn(new UploadResult(43, TUV100_NEW_UPLOAD));
   }
 
   @Test
@@ -609,7 +673,8 @@ class InvestmentReportPublisherTest {
             argThat(
                 alert ->
                     alert.getSubject().contains("pooleli")
-                        && alert.getText().contains("check the fund page before deleting")));
+                        && alert.getText().contains("check the fund page before deleting")
+                        && !alert.getText().contains("link or delete each")));
   }
 
   @Test

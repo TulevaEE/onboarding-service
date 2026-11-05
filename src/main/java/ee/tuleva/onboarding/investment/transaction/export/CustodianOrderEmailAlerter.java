@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class CustodianOrderEmailFailureAlerter {
+class CustodianOrderEmailAlerter {
 
   static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
   private static final String DEFERRAL = "deferral";
@@ -96,7 +96,7 @@ class CustodianOrderEmailFailureAlerter {
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
-      name = "CustodianOrderEmailFailureAlerter_postAlertsNotYetPosted",
+      name = "CustodianOrderEmailAlerter_postAlertsNotYetPosted",
       lockAtMostFor = "5m",
       lockAtLeastFor = "30s")
   void postAlertsNotYetPosted() {
@@ -107,7 +107,7 @@ class CustodianOrderEmailFailureAlerter {
             .findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(
                 RECORDED_TYPES, retryFrom.minus(GIVE_UP_LOOKBACK))
             .stream()
-            .filter(CustodianOrderEmailFailureAlerter::isNotYetPosted)
+            .filter(CustodianOrderEmailAlerter::isNotYetPosted)
             .toList();
     notYetPosted.stream()
         .filter(failure -> failure.getTimestamp().isBefore(retryFrom))
@@ -117,10 +117,10 @@ class CustodianOrderEmailFailureAlerter {
             .filter(failure -> !failure.getTimestamp().isBefore(retryFrom))
             .toList();
     retryable.stream()
-        .filter(not(CustodianOrderEmailFailureAlerter::isReadable))
+        .filter(not(CustodianOrderEmailAlerter::isReadable))
         .forEach(failure -> giveUp(failure, DATA_CANNOT_BE_READ));
     retryable.stream()
-        .filter(CustodianOrderEmailFailureAlerter::isReadable)
+        .filter(CustodianOrderEmailAlerter::isReadable)
         .limit(SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH)
         .forEach(failure -> post(failure, now));
   }

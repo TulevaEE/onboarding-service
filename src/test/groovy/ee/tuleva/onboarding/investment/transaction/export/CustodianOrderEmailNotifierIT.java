@@ -45,7 +45,7 @@ import org.springframework.web.client.RestClientException;
   CustodianOrderEmailSender.class,
   CustodianOrderMessageFactory.class,
   CustodianOrderEmailNotifier.class,
-  CustodianOrderEmailFailureAlerter.class,
+  CustodianOrderEmailAlerter.class,
   CustodianOrderEmailNotifierIT.OrderEmailSettings.class
 })
 class CustodianOrderEmailNotifierIT {
@@ -58,7 +58,7 @@ class CustodianOrderEmailNotifierIT {
           + "Nothing went out to the desk. Fix the cause, then send the orders again.";
 
   @Autowired CustodianOrderEmailSender sender;
-  @Autowired CustodianOrderEmailFailureAlerter alerter;
+  @Autowired CustodianOrderEmailAlerter alerter;
   @Autowired EventLogRepository eventLogRepository;
   @Autowired PlatformTransactionManager transactionManager;
 

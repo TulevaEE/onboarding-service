@@ -44,7 +44,7 @@ class SebPendingTransactionReconciliationListener {
       String trigger =
           new RunSebPendingTransactionReportReconciliationRequested(event.reportDate())
               .jobTriggerName();
-      log.info(
+      log.debug(
           "SEB pending transactions report reconciliation deferred, its lock is held:"
               + " reportDate={}, trigger={}",
           event.reportDate(),

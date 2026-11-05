@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.event.trigger;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.JOB_TRIGGER_POLL;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.investment.event.*;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -73,6 +76,7 @@ class JobTriggerPoller {
 
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
+  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = JOB_TRIGGER_POLL)
   @SchedulerLock(name = "JobTriggerPoller", lockAtMostFor = "60m", lockAtLeastFor = "30s")
@@ -82,7 +86,7 @@ class JobTriggerPoller {
       return;
     }
 
-    log.info("Found pending job triggers: count={}", pending.size());
+    log.debug("Found pending job triggers: count={}", pending.size());
 
     for (var trigger : pending) {
       var eventFactory = eventFor(trigger.getJobName());
@@ -130,20 +134,37 @@ class JobTriggerPoller {
             .plus(STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST)
             .isAfter(clock().instant())) {
       markFailed(trigger, "Still busy after 6 hours: " + busy.getMessage());
-      log.error("Job trigger failed, its job stayed busy: jobName={}", trigger.getJobName(), busy);
+      log.error(
+          "Job trigger expired, its job stayed busy for 6 hours: jobName={}, queuedAt={},"
+              + " reason={}",
+          trigger.getJobName(),
+          createdAt,
+          busy.getMessage());
+      notificationService.sendMessage(expiredMessage(trigger.getJobName()), INVESTMENT, ERROR);
       return;
     }
     trigger.setStatus("PENDING");
     repository.save(trigger);
-    log.info(
+    log.debug(
         "Job trigger left pending, its job is busy: jobName={}, reason={}",
         trigger.getJobName(),
         busy.getMessage());
   }
 
+  private static String expiredMessage(String jobName) {
+    return "Käivitaja "
+        + jobName
+        + " aegus 6 tunni järel, selle töö lukk oli kogu aeg hõivatud.\n"
+        + "Käivita uuesti: INSERT INTO investment_job_trigger (job_name) VALUES ('"
+        + jobName
+        + "');";
+  }
+
   private void markProcessing(JobTrigger trigger) {
     trigger.setStatus("PROCESSING");
-    trigger.setStartedAt(clock().instant());
+    if (trigger.getStartedAt() == null) {
+      trigger.setStartedAt(clock().instant());
+    }
     repository.save(trigger);
   }
 

@@ -14,7 +14,7 @@ class MandateProcessErrorResolverSpec extends Specification {
         when:
         ErrorsResponse errors = service.getErrors(sampleProcesses)
         then:
-        errors.errors.size() == 4
+        errors.errors.size() == 5
         errors.errors.get(0).arguments.get(0) == sampleProcesses.get(0).type.toString()
         errors.errors.get(0).arguments.get(0) == sampleProcesses.get(0).type.toString()
 
@@ -22,11 +22,13 @@ class MandateProcessErrorResolverSpec extends Specification {
         errors.errors.get(1).getCode() == "mandate.processing.error.epis.already.active.contributions.fund"
         errors.errors.get(2).getCode() == "mandate.processing.error.epis.unknown"
         errors.errors.get(3).getCode() == "mandate.processing.error.epis.unknown"
+        errors.errors.get(4).getCode() == "mandate.processing.error.epis.contributions.not.stopped.by.application"
 
         errors.errors.get(0).getMessage() == "Technical error from EPIS"
         errors.errors.get(1).getMessage() == "Already active contributions fund"
         errors.errors.get(2).getMessage() == "Unknown error from EPIS"
         errors.errors.get(3).getMessage() == "Unknown error from EPIS"
+        errors.errors.get(4).getMessage() == "Contributions were not stopped by an application"
 
     }
 
@@ -56,6 +58,13 @@ class MandateProcessErrorResolverSpec extends Specification {
                     .successful(false)
                     .type(TRANSFER)
                     .errorCode(null)
+                    .processId("123")
+                    .build()
+            ,
+            MandateProcess.builder()
+                    .successful(false)
+                    .type(TRANSFER)
+                    .errorCode(41255)
                     .processId("123")
                     .build()
             ,

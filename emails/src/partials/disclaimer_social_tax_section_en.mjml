@@ -1,0 +1,9 @@
+<mj-section padding="0 24px">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      Social tax paid into the second pillar
+      <a style="color: #212529; white-space: nowrap;" href="https://tuleva.ee/en/analysis/which-is-more-beneficial-pillar-i-or-pillar-ii/">slightly reduces your first pillar</a>.*|IF:suggestSecondPillarRejoin|*
+      After rejoining you can no longer leave the second pillar.*|END:IF|*
+    </mj-text>
+  </mj-column>
+</mj-section>

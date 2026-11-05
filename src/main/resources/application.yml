@@ -77,6 +77,11 @@ aml-service:
   api-token: ${AML_SERVICE_API_TOKEN:}
   connect-timeout: 5s
   read-timeout: 60s
+  high-risk-enabled: ${AML_SERVICE_HIGH_RISK_ENABLED:false}
+  high-risk-connect-timeout: 1s
+  high-risk-read-timeout: 2s
+  kyc-onboarding-connect-timeout: 1s
+  kyc-onboarding-read-timeout: 3s
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}
@@ -250,6 +255,9 @@ async:
 
 savings-fund:
   isin: EE0000003283
+
+minor-self-service:
+  enabled: ${MINOR_SELF_SERVICE_ENABLED:false}
 
 fund-manager:
   registry-code: '14118923'

@@ -6,14 +6,13 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>Proovisid esitada avaldusi, kuid kahjuks tekkis tehniline viga.</mj-text>
+        <mj-text>Kahjuks läks Pensionikeskuses läbi ainult osa sinu avaldustest.</mj-text>
         <mj-text>
-          *|totalMandateCount|* esitatud avaldusest *|failedMandateCount|* esitamisel tekkis
-          tehniline viga. See tähendab, et ülejäänud *|successfulMandateCount|* avaldust esitati
-          Pensionikeskusesse ning need läksid täitmisele.
+          *|totalMandateCount|* esitatud avaldusest *|successfulMandateCount|* läks läbi ja
+          *|failedMandateCount|* mitte.
         </mj-text>
         <mj-text>
-          Palun võta meiega ühendust, et saaksime olukorra korda teha:
+          Palun võta meiega ühendust, et saaksime vaadata, mida edasi teha:
           <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
           <a href="tel:+3726445100">644&nbsp;5100</a>.
         </mj-text>

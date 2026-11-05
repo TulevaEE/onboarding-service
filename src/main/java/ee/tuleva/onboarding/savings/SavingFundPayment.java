@@ -5,7 +5,9 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,6 +51,8 @@ public class SavingFundPayment {
   @Nullable Boolean thirdPartyDeposit;
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final PersonalCodeValidator PERSONAL_CODES = new PersonalCodeValidator();
+  private static final RegistryCodeValidator REGISTRY_CODES = new RegistryCodeValidator();
 
   @Nullable
   public LocalDate bookingDate() {
@@ -61,6 +65,20 @@ public class SavingFundPayment {
 
   public boolean isUnconfirmedSince(Instant cutoff) {
     return status == CREATED && createdAt.isBefore(cutoff);
+  }
+
+  public @Nullable Boolean paidByUnitHolder() {
+    if (thirdPartyDeposit != null) {
+      return !thirdPartyDeposit;
+    }
+    if (remitterIdCode == null || partyId == null || !isEstonianIdCode(remitterIdCode)) {
+      return null;
+    }
+    return remitterIdCode.equals(partyId.code());
+  }
+
+  private static boolean isEstonianIdCode(String idCode) {
+    return PERSONAL_CODES.isValid(idCode) || REGISTRY_CODES.isValid(idCode);
   }
 
   public enum Status {

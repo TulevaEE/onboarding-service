@@ -16,6 +16,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -243,6 +245,66 @@ class UnitOwnerRepositoryTest {
 
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_1)).isFalse();
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "none",
+      textBlock =
+          """
+          # duty end, withdrawal, stop application, fund pension, pension contract, lump sum, cannot restart
+          2021-08-31, none,       none,             none,         none,             none,     true
+          2021-08-31, 2021-03-01, none,             none,         none,             none,     false
+          2021-08-31, none,       2021-03-01,       none,         none,             none,     false
+          none,       none,       none,             none,         none,             none,     false
+          2021-08-31, none,       2021-03-01,       2021-04-01,   none,             none,     true
+          2021-08-31, none,       2021-03-01,       none,         2021-04-01,       none,     true
+          2021-08-31, 2021-03-01, none,             none,         none,             2021-04-01, true
+          none,       none,       none,             none,         none,             2026-10-31, true
+          none,       none,       none,             2026-10-31,   none,             none,     true
+          """)
+  void
+      contributionsCannotRestart_afterAFundPensionPensionContractOrLumpSum_orWhenTheDutyEndedWithNoWithdrawalOrStopApplication(
+          LocalDate dutyEnd,
+          LocalDate withdrawalApplication,
+          LocalDate stopApplication,
+          LocalDate fundPension,
+          LocalDate pensionContract,
+          LocalDate lumpSum,
+          boolean cannotRestart) {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(dutyEnd)
+            .p2ravaDate(withdrawalApplication)
+            .p2mmteDate(stopApplication)
+            .p2fpaaDate(fundPension)
+            .p2plavDate(pensionContract)
+            .p2ykvaDate(lumpSum)
+            .build());
+
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isEqualTo(cannotRestart);
+  }
+
+  @Test
+  void contributionsCannotRestart_isFalseForSomeoneNotInTheRegistry() {
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isFalse();
+  }
+
+  @Test
+  void contributionsCannotRestart_readsOnlyTheLatestSnapshot() {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime)
+            .p2dutyEnd(LocalDate.of(2021, 8, 31))
+            .p2ravaDate(null)
+            .p2mmteDate(null)
+            .build());
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime)
+            .p2dutyEnd(LocalDate.of(2021, 8, 31))
+            .p2ravaDate(LocalDate.of(2021, 3, 1))
+            .build());
+
+    assertThat(repository.contributionsCannotRestart(PERSON_ID_1)).isFalse();
   }
 
   @Test

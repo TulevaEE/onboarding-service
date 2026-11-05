@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface KycSurveyRepository extends JpaRepository<KycSurvey, UUID> {
 
-  Optional<KycSurvey> findFirstByUserIdOrderByCreatedTimeDesc(Long userId);
+  Optional<KycSurvey> findFirstByUserIdOrderByCreatedTimeDescIdDesc(Long userId);
 }

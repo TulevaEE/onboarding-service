@@ -42,6 +42,8 @@ public class MandateProcessErrorResolver {
                 return "mandate.processing.error.epis.technical.error";
               } else if (code == 40551) {
                 return "mandate.processing.error.epis.already.active.contributions.fund";
+              } else if (code == 41255) {
+                return "mandate.processing.error.epis.contributions.not.stopped.by.application";
               } else {
                 log.warn("Couldn't resolve EPIS error code {}", errorCode.toString());
                 return UNKNOWN_ERROR_CODE;
@@ -60,6 +62,8 @@ public class MandateProcessErrorResolver {
                 return "Technical error from EPIS";
               } else if (code == 40551) {
                 return "Already active contributions fund";
+              } else if (code == 41255) {
+                return "Contributions were not stopped by an application";
               } else {
                 return UNKNOWN_ERROR_MESSAGE;
               }

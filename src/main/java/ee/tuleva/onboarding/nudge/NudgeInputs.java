@@ -19,6 +19,7 @@ record NudgeInputs(
     boolean thirdPillarFullyConverted,
     @Nullable BigDecimal thirdPillarFee,
     boolean canIncreasePaymentRate,
+    boolean pendingPaymentRateRaise,
     boolean pendingSecondPillarTransfer,
     boolean pendingSecondPillarWithdrawal,
     boolean pendingSecondPillarRejoin,

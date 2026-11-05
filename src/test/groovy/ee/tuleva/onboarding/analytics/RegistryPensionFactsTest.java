@@ -45,7 +45,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(true, false, false, true, false, null));
+        .contains(new PensionRegistrySnapshot(true, false, false, true, false, null, 2));
   }
 
   @Test
@@ -89,7 +89,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().p2ravaStatus("R").build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null));
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null, 2));
   }
 
   @Test
@@ -98,7 +98,7 @@ class RegistryPensionFactsTest {
         .willReturn(Optional.of(owner().p2choice(null).p2ravaStatus("R").build()));
 
     assertThat(registry.snapshotFor(PERSONAL_CODE))
-        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null));
+        .contains(new PensionRegistrySnapshot(false, false, true, true, false, null, 2));
   }
 
   @Test
@@ -108,6 +108,33 @@ class RegistryPensionFactsTest {
 
     assertThat(registry.snapshotFor(PERSONAL_CODE).orElseThrow().canIncreasePaymentRate())
         .isFalse();
+  }
+
+  @Test
+  void aPendingRateApplicationIsTheRateThatAppliesOverTheCurrentOne() {
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(Optional.of(owner().p2rate(2).p2nextRate(6).build()));
+
+    assertThat(registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarPaymentRate())
+        .isEqualTo(6);
+  }
+
+  @Test
+  void withoutAPendingRateApplicationTheCurrentRateIsTheOneThatApplies() {
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(Optional.of(owner().p2rate(6).p2nextRate(null).build()));
+
+    assertThat(registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarPaymentRate())
+        .isEqualTo(6);
+  }
+
+  @Test
+  void noRateInTheRegistryLeavesTheRateThatAppliesUnknown() {
+    given(unitOwnerRepository.findInLatestSnapshot(PERSONAL_CODE))
+        .willReturn(Optional.of(owner().p2rate(null).p2nextRate(null).build()));
+
+    assertThat(registry.snapshotFor(PERSONAL_CODE).orElseThrow().secondPillarPaymentRate())
+        .isNull();
   }
 
   @Test

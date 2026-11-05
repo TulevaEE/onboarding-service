@@ -27,6 +27,9 @@ class FirstPaymentReminderSender {
     if (reminder.accountHolderName() != null) {
       mergeVars.put("recipientName", Names.formatted(reminder.accountHolderName()));
     }
+    if (reminder.accountId() != null) {
+      mergeVars.put("recipientAccountId", reminder.accountId().toString());
+    }
     return mergeVars;
   }
 

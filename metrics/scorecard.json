@@ -35,7 +35,7 @@
     "TooManyMethods": 3
   },
   "slowest10TestClassesSeconds": 172.5,
-  "springBootTests": 79,
+  "springBootTests": 80,
   "suiteWallTimeSeconds": null,
   "testClassesOver10Seconds": 10,
   "testClassesTotal": 1280,

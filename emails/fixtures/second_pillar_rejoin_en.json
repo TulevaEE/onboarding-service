@@ -1,25 +1,52 @@
 {
   "variants": {
-    "rejoin": {
+    "stock-fund-6": {
       "FNAME": "Mari",
-      "contributionStartDate": "May 1, 2027",
-      "cancellationDeadline": "November 30, 2026",
-      "paymentRateChange": true,
-      "fundSelection": true
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "selectedTulevaStockFund": true,
+      "paymentRate": 6,
+      "paymentRateChange": true
     },
-    "already-in-tuleva-stocks": {
+    "bond-fund-4": {
       "FNAME": "Mari",
-      "contributionStartDate": "May 1, 2027",
-      "cancellationDeadline": "November 30, 2026",
-      "paymentRateChange": true,
-      "fundSelection": false
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "selectedTulevaBondFund": true,
+      "paymentRate": 4,
+      "paymentRateChange": true
     },
-    "rate-and-fund-already-in-place": {
+    "other-fund": {
       "FNAME": "Mari",
-      "contributionStartDate": "May 1, 2027",
-      "cancellationDeadline": "November 30, 2026",
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "selectedOtherFund": true,
+      "selectedFundName": "LHV Pensionifond Indeks",
+      "paymentRate": 6,
+      "paymentRateChange": true
+    },
+    "kept-old-fund-2": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "paymentRate": 2,
+      "paymentRateChange": false
+    },
+    "kept-tuleva-stock-fund": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "paymentRate": 2,
       "paymentRateChange": false,
-      "fundSelection": false
+      "keptTulevaStockFund": true
+    },
+    "kept-tuleva-bond-fund": {
+      "FNAME": "Mari",
+      "contributionStartDate": "1 May 2027",
+      "cancellationDeadline": "30 November 2026",
+      "paymentRate": 2,
+      "paymentRateChange": false,
+      "keptTulevaBondFund": true
     }
   }
 }

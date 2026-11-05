@@ -102,6 +102,19 @@ class ReceivedGiftServiceTest {
   }
 
   @Test
+  void readsTheGiftsMadeToAPersonWithoutAskingWhoRepresentsThem() {
+    givenPayments(
+        payment("from-grandma", GRANDPARENT, "Leida Tamm", VERIFIED),
+        payment("childs-own", CHILD, "Mari Tamm", VERIFIED));
+    given(parentChildLinks.isGuardian(GRANDPARENT, CHILD)).willReturn(false);
+    given(gifts.findByDescriptionIn(any())).willReturn(List.of());
+
+    assertThat(service.giftsTo(CHILD))
+        .singleElement()
+        .satisfies(gift -> assertThat(gift.giverName()).isEqualTo("Leida Tamm"));
+  }
+
+  @Test
   void leavesOutTheParentsOwnDeposit() {
     givenParentRepresentsChild();
     var own = payment("own-deposit", PARENT, "Kristjan Tamm", VERIFIED);

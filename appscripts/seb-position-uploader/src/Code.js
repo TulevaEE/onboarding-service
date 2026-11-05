@@ -12,13 +12,21 @@
 //   DRIVE_SEB_REPORT_FOLDER_ID
 //
 // Cron entry point: processNewEmails() — run every 5 min via a time-driven trigger.
-// Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview).
+// Manual helpers:   processHistoricalEmails() (7-day catch-up), dryRun() (no-op preview),
+//                   backfillSebConfirmations() (requests an upload of every SEB trade confirmation
+//                   since 02.02.2026; the cron run carries it out over as many runs as it needs
+//                   and clears the request when done).
 //
 // Per-thread `S3-Uploaded-Nx` Gmail labels track upload progress so a re-run
 // of the cron skips messages that have already been processed.
 
 var S3_BUCKET = "tuleva-investment-reports";
 var UPLOAD_LABEL_PREFIX = "S3-Uploaded-";
+var SEB_CONFIRMATION_BACKFILL_START = new Date("2026-02-02T00:00:00+02:00");
+var SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY = "SEB_CONFIRMATION_BACKFILL_RESUME_FROM";
+var SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY = "SEB_CONFIRMATION_BACKFILL_REQUESTED";
+var BACKFILL_TIME_BUDGET_MILLIS = 4 * 60 * 1000;
+var DAY_MILLIS = 24 * 60 * 60 * 1000;
 
 var SOURCES = {
     SWEDBANK: {
@@ -68,6 +76,21 @@ var SOURCES = {
                 keyFromCapture: true
             }
         ]
+    },
+    SEB_CONFIRMATION: {
+        senders: ["tehingukinnitus@seb.ee"],
+        files: [
+            {
+                // SEB names its mutual-fund trade confirmation after the trade reference,
+                // e.g. "DLA1234567-001.pdf" (the reference is the pending report's "Our ref").
+                pattern: /^(DLA\d+-\d+)\.pdf$/i,
+                s3Prefix: "seb-confirmations/",
+                s3Suffix: ".pdf",
+                binary: true,
+                contentType: "application/pdf",
+                keyFromCapture: true
+            }
+        ]
     }
 };
 
@@ -77,6 +100,7 @@ function processNewEmails() {
     if (!runAlone(function () {
         try {
             processEmailsFromDays(2);
+            continueRequestedBackfill();
         } catch (e) {
             notifySlack(":rotating_light: Uncaught error in `processNewEmails`: `" + e.message +
                 "`. See Apps Script Executions: https://script.google.com/home/projects/1cpcI-qO0ZcCWqb6XdS0AjxE82N_F3rF926nhxyfgZlu3taeKD5qWLA8l/executions");
@@ -116,6 +140,79 @@ function runAloneOrRefuse(name, run) {
     }
 }
 
+function backfillSebConfirmations() {
+    requestBackfill(PropertiesService.getScriptProperties());
+    Logger.log("SEB confirmation backfill requested: the next cron run of processNewEmails starts it.");
+}
+
+function continueRequestedBackfill() {
+    var props = PropertiesService.getScriptProperties();
+    if (!backfillRequested(props)) return;
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(0)) {
+        Logger.log("SEB confirmation backfill skipped: another run holds the lock");
+        return;
+    }
+    try {
+        runBackfill(props);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+function runBackfill(props) {
+    var startedAt = new Date();
+    var source = SOURCES.SEB_CONFIRMATION;
+    var resumeFrom = props.getProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
+    var uploadedUntil = resumeFrom ? new Date(resumeFrom) : SEB_CONFIRMATION_BACKFILL_START;
+    var searchQuery = gmailSearchQuery(daysToReach(uploadedUntil, startedAt), source.senders);
+    var queue = backfillQueue(GmailApp.search(searchQuery), source, uploadedUntil);
+    Logger.log("Backfilling SEB trade confirmations: query=" + searchQuery +
+        ", resumeFrom=" + uploadedUntil.toISOString() + ", messages=" + queue.length);
+
+    var uploaded = 0;
+    for (var i = 0; i < queue.length; i++) {
+        if (backfillTimeIsUp(startedAt, new Date())) {
+            Logger.log("Backfill paused: uploaded=" + uploaded + ", remaining=" + (queue.length - i) +
+                ", resumeFrom=" + uploadedUntil.toISOString() + ". The next cron run continues from there.");
+            return;
+        }
+        uploaded += uploadMatchingAttachments(queue[i], source);
+        uploadedUntil = queue[i].getDate();
+        props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, uploadedUntil.toISOString());
+    }
+    finishBackfill(props);
+    Logger.log("Backfill complete: uploaded=" + uploaded);
+}
+
+function requestBackfill(props) {
+    props.setProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY, "yes");
+}
+
+function backfillRequested(props) {
+    return props.getProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY) !== null;
+}
+
+function finishBackfill(props) {
+    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY);
+    props.deleteProperty(SEB_CONFIRMATION_BACKFILL_REQUESTED_PROPERTY);
+}
+
+function backfillQueue(threads, source, uploadedUntil) {
+    return threads
+        .reduce(function (messages, thread) { return messages.concat(messagesFrom(thread.getMessages(), source)); }, [])
+        .filter(function (message) { return message.getDate().getTime() >= uploadedUntil.getTime(); })
+        .sort(function (a, b) { return a.getDate().getTime() - b.getDate().getTime(); });
+}
+
+function backfillTimeIsUp(startedAt, now) {
+    return now.getTime() - startedAt.getTime() >= BACKFILL_TIME_BUDGET_MILLIS;
+}
+
+function messagesFrom(messages, source) {
+    return messages.filter(function (message) { return getSourceForSender(message.getFrom()) === source; });
+}
+
 function processEmailsFromDays(days, options) {
     options = options || {};
     var minMessageDate = options.minMessageDate || null;
@@ -147,8 +244,13 @@ function uploadThreadsToS3(threads, minMessageDate, newestUploaded) {
     }
 }
 
-function gmailSearchQuery(days) {
-    return "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+function gmailSearchQuery(days, senders) {
+    var query = "to:funds@tuleva.ee has:attachment newer_than:" + days + "d";
+    return senders ? query + " from:(" + senders.join(" OR ") + ")" : query;
+}
+
+function daysToReach(start, now) {
+    return Math.ceil((now.getTime() - start.getTime()) / DAY_MILLIS) + 1;
 }
 
 function processThread(thread, minMessageDate, newestUploaded) {
@@ -318,6 +420,12 @@ function processMessage(message, thread, newestUploaded) {
         return;
     }
 
+    if (uploadMatchingAttachments(message, source, newestUploaded) > 0) {
+        incrementUploadLabel(thread);
+    }
+}
+
+function uploadMatchingAttachments(message, source, newestUploaded) {
     var attachments = message.getAttachments();
     var handledCount = 0;
     var emailSource = emailSourceOf(message);
@@ -358,9 +466,7 @@ function processMessage(message, thread, newestUploaded) {
         }
     }
 
-    if (handledCount > 0) {
-        incrementUploadLabel(thread);
-    }
+    return handledCount;
 }
 
 function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAPlainAttachment) {
@@ -475,7 +581,6 @@ function recordEmailSourceAfterUpload(s3Key, emailSource) {
 
 var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
-var DAY_MS = 24 * 60 * 60 * 1000;
 
 function saveReportsToDrive(threads, days, newestUploaded) {
     try {
@@ -487,7 +592,7 @@ function saveReportsToDrive(threads, days, newestUploaded) {
             return;
         }
         var folder = DriveApp.getFolderById(folderId);
-        var minMessageDate = new Date(Date.now() - days * DAY_MS);
+        var minMessageDate = new Date(Date.now() - days * DAY_MILLIS);
         for (var i = threads.length - 1; i >= 0; i--) {
             saveThreadToDrive(threads[i], folder, newestUploaded, minMessageDate);
         }
@@ -1148,5 +1253,13 @@ if (typeof module !== "undefined" && module.exports) {
         isUsCopyName,
         convertSebCsvToUs,
         notifyDriveProblemOncePerDay,
+        gmailSearchQuery,
+        daysToReach,
+        messagesFrom,
+        backfillQueue,
+        backfillTimeIsUp,
+        backfillRequested,
+        requestBackfill,
+        finishBackfill,
     };
 }

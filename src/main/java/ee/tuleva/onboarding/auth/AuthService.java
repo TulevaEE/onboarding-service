@@ -10,11 +10,13 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService {
   private final List<AuthProvider> providers;
@@ -56,11 +58,15 @@ public class AuthService {
         throw new IllegalArgumentException("Only refresh token is allowed for refresh request.");
       }
 
+      var person = jwtTokenUtil.getPersonFromToken(refreshToken);
+      var role = jwtTokenUtil.getRoleFromToken(refreshToken);
+      if (principalService.refusesSelfServiceTo(person, role)) {
+        log.info("Ended a minor's session on refresh while minor self-service is disabled");
+        throw new ExpiredRefreshJwtException();
+      }
+
       var authenticatedPerson =
-          principalService.getFrom(
-              jwtTokenUtil.getPersonFromToken(refreshToken),
-              jwtTokenUtil.getAttributesFromToken(refreshToken),
-              jwtTokenUtil.getRoleFromToken(refreshToken));
+          principalService.getFrom(person, jwtTokenUtil.getAttributesFromToken(refreshToken), role);
 
       String newAccessToken = tokenService.generateAccessToken(authenticatedPerson);
 

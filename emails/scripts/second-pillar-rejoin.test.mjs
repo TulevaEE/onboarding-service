@@ -37,22 +37,46 @@ const languages = {
       'jai-tuleva-volakirjafondi': 'keptBond',
       'jai-vanasse-fondi-2': 'keptOther',
     },
+    rate: {
+      chosen: 'Valisid II&nbsp;samba sissemaksete suuruseks 6% oma brutopalgast.',
+      onFile: 'Sinu II&nbsp;samba sissemaksete suurus on 2% brutopalgast.',
+      choiceWord: 'Valisid',
+    },
   },
   en: {
     sotsmaksHref: 'https://tuleva.ee/en/sotsmaks',
     sotsmaksText: 'slightly reduces your I&nbsp;pillar',
     required: [
-      'Contributions start on *|contributionStartDate|*.',
-      'If you change your mind, you can cancel the application in your Tuleva account until *|cancellationDeadline|*.',
-      'You can use the money from age 60. After rejoining, you can\'t stop contributions again or withdraw the money a second time.',
+      'Your application to continue saving in the second pillar has been submitted. Contributions will start automatically on *|contributionStartDate|*.',
+      'If you change your mind, you can cancel the application in your Tuleva account',
+      'The last day to do so is *|cancellationDeadline|*.',
+      'You can use your second pillar savings from early retirement age, which is five years before the official retirement age (currently from age 60). The money you save is yours and can be inherited.',
+      'You can change your contribution rate every year until the end of November.',
+      'Your applications have been sent to Pensionikeskus and copies are attached to this email.',
       'Taxation depends on your personal circumstances, including residency. Tax laws change over time.',
       'Social tax paid into the II&nbsp;pillar slightly reduces your I&nbsp;pillar',
     ],
-    forbidden: ['30&nbsp;November', 'Past performance', 'tax return'],
-    alwaysFiled: 'Application for making contributions',
-    filedWhenChanged: {
-      paymentRateChange: 'Contribution rate change application',
-      fundSelection: 'Fund selection application',
+    forbidden: ['30&nbsp;November', 'Past performance', 'tax return', 'withdraw the money a second time'],
+    fundBranches: {
+      stock: 'Your contributions will go to the Tuleva World Stocks Pension Fund.',
+      bond: 'Your contributions will go to the Tuleva World Bonds Pension Fund.',
+      other: 'Your contributions will go to LHV',
+      keptStock: 'Your contributions will again go to the Tuleva World Stocks Pension Fund.',
+      keptBond: 'Your contributions will again go to the Tuleva World Bonds Pension Fund.',
+      keptOther: 'Your contributions will go to the fund you saved in before.',
+    },
+    fundBranchByVariant: {
+      'stock-fund-6': 'stock',
+      'bond-fund-4': 'bond',
+      'other-fund': 'other',
+      'kept-tuleva-stock-fund': 'keptStock',
+      'kept-tuleva-bond-fund': 'keptBond',
+      'kept-old-fund-2': 'keptOther',
+    },
+    rate: {
+      chosen: 'You chose a contribution rate of 6% of your gross salary.',
+      onFile: 'Your second pillar contribution rate is 2% of your gross salary.',
+      choiceWord: 'You chose',
     },
   },
 };
@@ -84,18 +108,6 @@ for (const [language, copy] of Object.entries(languages)) {
     assert.ok(html.includes(`href="${copy.sotsmaksHref}">${copy.sotsmaksText}</a>`), 'link text matches where it goes');
   });
 
-  if (copy.filedWhenChanged) {
-    test(`${name}: lists the rate and fund applications only when they were filed`, () => {
-      const filed = (vars) => text(renderMergeLanguage(html, vars));
-      const nothingChanged = filed({ paymentRateChange: false, fundSelection: false });
-      assert.ok(nothingChanged.includes(copy.alwaysFiled), `missing: ${copy.alwaysFiled}`);
-      for (const [variable, application] of Object.entries(copy.filedWhenChanged)) {
-        assert.ok(filed({ [variable]: true }).includes(application), `missing: ${application}`);
-        assert.ok(!nothingChanged.includes(application), `must not list: ${application}`);
-      }
-    });
-  }
-
   if (copy.fundBranches) {
     test(`${name}: names exactly one destination fund, the one the saver chose or kept`, () => {
       const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
@@ -113,9 +125,9 @@ for (const [language, copy] of Object.entries(languages)) {
       const rendered = (vars) => text(renderMergeLanguage(html, vars));
       const chosen = rendered({ paymentRateChange: true, paymentRate: 6 });
       const onFile = rendered({ paymentRateChange: false, paymentRate: 2 });
-      assert.ok(chosen.includes('Valisid II&nbsp;samba sissemaksete suuruseks 6% oma brutopalgast.'));
-      assert.ok(onFile.includes('Sinu II&nbsp;samba sissemaksete suurus on 2% brutopalgast.'));
-      assert.ok(!onFile.includes('Valisid'));
+      assert.ok(chosen.includes(copy.rate.chosen), `missing: ${copy.rate.chosen}`);
+      assert.ok(onFile.includes(copy.rate.onFile), `missing: ${copy.rate.onFile}`);
+      assert.ok(!onFile.includes(copy.rate.choiceWord));
     });
   }
 

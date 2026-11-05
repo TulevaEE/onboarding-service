@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderMessageFactory.TRADE_ORDER_TAG;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent.TRADE_ORDER_TAG;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
@@ -67,7 +67,7 @@ class CustodianOrderEmailFailureAlerter {
   @EventListener
   @Order(HIGHEST_PRECEDENCE)
   void onEmailDeliveryFailed(EmailDeliveryFailedEvent event) {
-    if (!event.tags().contains(TRADE_ORDER_TAG)) {
+    if (!event.isTradeOrder()) {
       return;
     }
     var recordedType = "TRADE_ORDER_EMAIL_" + event.eventType().toUpperCase(ROOT);

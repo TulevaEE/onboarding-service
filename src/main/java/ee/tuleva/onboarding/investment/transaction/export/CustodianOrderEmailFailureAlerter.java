@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Predicate.not;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import ee.tuleva.onboarding.event.EventLog;
@@ -55,6 +56,9 @@ class CustodianOrderEmailFailureAlerter {
   private static final String NOT_POSTED = "NOT_POSTED";
   private static final String POSTED = "POSTED";
   private static final String GIVEN_UP = "GIVEN_UP";
+  private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
+      "not posted within the 24 hour retry window";
+  private static final String DATA_CANNOT_BE_READ = "its data cannot be read";
 
   private final OperationsNotificationService notificationService;
   private final EventLogRepository eventLogRepository;
@@ -100,9 +104,16 @@ class CustodianOrderEmailFailureAlerter {
             .toList();
     notYetPosted.stream()
         .filter(failure -> failure.getTimestamp().isBefore(retryFrom))
-        .forEach(this::giveUp);
-    notYetPosted.stream()
-        .filter(failure -> !failure.getTimestamp().isBefore(retryFrom))
+        .forEach(failure -> giveUp(failure, NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
+    var retryable =
+        notYetPosted.stream()
+            .filter(failure -> !failure.getTimestamp().isBefore(retryFrom))
+            .toList();
+    retryable.stream()
+        .filter(not(CustodianOrderEmailFailureAlerter::isReadable))
+        .forEach(failure -> giveUp(failure, DATA_CANNOT_BE_READ));
+    retryable.stream()
+        .filter(CustodianOrderEmailFailureAlerter::isReadable)
         .limit(SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH)
         .forEach(failure -> post(failure, now));
   }
@@ -123,12 +134,13 @@ class CustodianOrderEmailFailureAlerter {
     }
   }
 
-  private void giveUp(EventLog failure) {
+  private void giveUp(EventLog failure, String why) {
     try {
       markAs(GIVEN_UP, failure);
       log.error(
-          "Order email delivery failure given up, never posted to Slack: eventLogId={},"
+          "Order email delivery failure given up, never posted to Slack: why={}, eventLogId={},"
               + " type={}, mandrillMessageId={}, failedAt={}",
+          why,
           failure.getId(),
           failure.getType(),
           failure.getPrincipal(),
@@ -147,6 +159,15 @@ class CustodianOrderEmailFailureAlerter {
     data.put(ALERT, alert);
     failure.setData(data);
     eventLogRepository.save(failure);
+  }
+
+  private static boolean isReadable(EventLog failure) {
+    try {
+      deliveryFailure(failure);
+      return true;
+    } catch (RuntimeException e) {
+      return false;
+    }
   }
 
   private static boolean isNotYetPosted(EventLog failure) {

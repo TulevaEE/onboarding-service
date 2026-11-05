@@ -191,19 +191,40 @@ class CustodianOrderEmailFailureAlerterSpec extends Specification {
     0 * eventLogRepository.save({ EventLog it -> it.principal == "msg_1" })
   }
 
-  def "a row that cannot be read does not stop the run"() {
+  def "a row whose data cannot be read is given up at once instead of retried: #problem"() {
     given:
-    def unreadable = notYetPostedFailure("hard_bounce")
-    unreadable.data = [eventType: 42, alert: "NOT_POSTED"]
-    rowsRead(unreadable, notYetPostedFailure("reject", "msg_2"))
+    rowsRead(failureRow("hard_bounce", "msg_1", unreadableData, t0))
 
     when:
     alerter.postFailuresNotYetPosted()
 
     then:
     noExceptionThrown()
-    1 * notificationService.sendMessage({ it.contains("id=msg_2") }, TRADING, ERROR)
-    1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_2" })
+    0 * notificationService._
+    1 * eventLogRepository.save({ EventLog it -> it.data == unreadableData + [alert: "GIVEN_UP"] })
+
+    where:
+    problem                  | unreadableData
+    "no recipient"           | [subject: "TUV100", eventType: "hard_bounce", reason: "550", alert: "NOT_POSTED"]
+    "no event type"          | [recipient: "desk@example.com", subject: "TUV100", reason: "550", alert: "NOT_POSTED"]
+    "recipient not a string" | [recipient: 42, eventType: "hard_bounce", alert: "NOT_POSTED"]
+  }
+
+  def "four rows that cannot be read do not keep a newer failure from being posted in the same run"() {
+    given:
+    def unreadable = (1..4).collect {
+      failureRow("hard_bounce", "msg_$it", [eventType: 42, alert: "NOT_POSTED"], t0)
+    }
+    def newer = failureRow("reject", "msg_5", notYetPostedData("reject", bounce), t0.plusSeconds(30))
+    rowsRead((unreadable + [newer]) as EventLog[])
+
+    when:
+    alerter.postFailuresNotYetPosted()
+
+    then:
+    1 * notificationService.sendMessage({ it.contains("id=msg_5") }, TRADING, ERROR)
+    4 * eventLogRepository.save({ EventLog it -> it.data.alert == "GIVEN_UP" })
+    1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_5" && it.data == postedData("reject", bounce) })
   }
 
   def "a failure still not posted at the end of the 24 hour retry window is given up instead of posted"() {

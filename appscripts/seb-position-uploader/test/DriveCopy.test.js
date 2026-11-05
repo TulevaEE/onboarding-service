@@ -99,7 +99,18 @@ function fakeAttachment(name, content) {
   return {
     getName: () => name,
     getDataAsString: () => content,
-    copyBlob: () => ({ getName: () => name, getDataAsString: () => content }),
+    copyBlob: () => {
+      let blobName = name;
+      const blob = {
+        getName: () => blobName,
+        getDataAsString: () => content,
+        setName(newName) {
+          blobName = newName;
+          return blob;
+        },
+      };
+      return blob;
+    },
   };
 }
 
@@ -645,6 +656,71 @@ describe("saveReportToDrive", () => {
       "TULEVA_pos_raport_20261020_v1.csv",
     ]);
     expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+  });
+
+  describe("an incoming name with a version suffix is saved under the report's name without it, as S3 keys it", () => {
+    const sameName = (drive) => drive.names().filter((name, i, all) => all.indexOf(name) !== i);
+
+    test("a _v1.csv correction after the plain report replaces it, and no two files share a name", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+      expect(sameName(drive)).toEqual([]);
+      expect(drive.byName("TULEVA_pos_raport_20261020.csv").map((f) => f.content())).toEqual(["B;2\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => [f.getName(), f.content()])).toEqual([["TULEVA_pos_raport_20261020_US.csv", "B,2\n"]]);
+    });
+
+    test("an identical resend of that correction writes nothing", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+      const eventsAfterTheCorrection = drive.events.length;
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", {
+        date: "2026-11-02T10:45:00.000Z",
+        id: "18f0a00000000003",
+      });
+
+      expect(drive.events.slice(eventsAfterTheCorrection)).toEqual([]);
+    });
+
+    test("a later _v2.csv correction archives the previous pair under one number", () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE);
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v1.csv", "B;2\n"), POSITIONS, "20261020", LATER);
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_v2.csv", "C;3\n"), POSITIONS, "20261020", {
+        date: "2026-11-02T10:45:00.000Z",
+        id: "18f0a00000000003",
+      });
+
+      expect(sameName(drive)).toEqual([]);
+      expect(versionedNames(drive)).toEqual([
+        "TULEVA_pos_raport_20261020_US_v1.csv",
+        "TULEVA_pos_raport_20261020_US_v2.csv",
+        "TULEVA_pos_raport_20261020_v1.csv",
+        "TULEVA_pos_raport_20261020_v2.csv",
+      ]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_v2.csv")[0].content()).toBe("B;2\n");
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v2.csv")[0].content()).toBe("B,2\n");
+    });
+
+    test("a _US.csv name with a version suffix is kept out of Drive like any _US.csv name", () => {
+      const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });
+      const drive = fakeDrive();
+
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_US_v1.csv", "A,1\n"), POSITIONS, "20261020", SOURCE);
+
+      expect(drive.names()).toEqual([]);
+      expect(slack).toEqual([expect.stringContaining("TULEVA_pos_raport_20261020_US_v1.csv")]);
+    });
   });
 
   test("a later correction takes the next version number for both files", () => {
@@ -1595,6 +1671,25 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
 
     expect(fakes.s3Keys).toEqual(["portfolio/2026-10-20.csv", "portfolio/2026-10-20.csv"]);
     expect(fakes.s3Bodies["portfolio/2026-10-20.csv"]).toBe("X,9\n");
+  });
+
+  test("a _US.csv attachment with a version suffix next to the plain report is skipped on S3 and kept out of Drive like any _US.csv", () => {
+    const drive = fakeDrive();
+    const thread = fakeThread(
+      [
+        sebMessage("18f0a00000000001", [
+          fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+          fakeAttachment("TULEVA_pos_raport_20261020_US_v1.csv", "X,9\n"),
+        ]),
+      ],
+      [],
+    );
+    const fakes = fakesWith(drive, [thread]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies["seb/2026-10-20_positions.csv"]).toBe("A;1\n");
+    expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
   });
 
   test("a lone _US.csv attachment still goes to S3, and not to Drive", () => {

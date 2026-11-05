@@ -477,14 +477,14 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
 }
 
 function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAPlainAttachment) {
-    return Boolean(fileConfig.driveKeyword) && isUsCopyName(filename) && keysWithAPlainAttachment.indexOf(s3Key) !== -1;
+    return Boolean(fileConfig.driveKeyword) && isUsCopyName(nameWithoutTheSendersVersionSuffix(filename)) && keysWithAPlainAttachment.indexOf(s3Key) !== -1;
 }
 
 function keysOfAttachmentsWithoutUsEnding(source, attachments) {
     var keys = [];
     attachments.forEach(function (attachment) {
         var result = getFileConfigAndDate(source, attachment.getName());
-        if (result && !isUsCopyName(attachment.getName())) keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
+        if (result && !isUsCopyName(nameWithoutTheSendersVersionSuffix(attachment.getName()))) keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
     });
     return keys;
 }
@@ -723,14 +723,14 @@ function driveReportsOf(message) {
 }
 
 function everyUsNamedAttachmentAndTheLastPlainOneOfEachReportAsOnS3(reports) {
-    var plainReports = reports.filter(function (report) { return !isUsCopyName(report.attachment.getName()); });
+    var plainReports = reports.filter(function (report) { return !isUsCopyName(nameWithoutTheSendersVersionSuffix(report.attachment.getName())); });
     return reports.filter(function (report, i) {
-        if (isUsCopyName(report.attachment.getName())) {
+        if (isUsCopyName(nameWithoutTheSendersVersionSuffix(report.attachment.getName()))) {
             report.usCopyBesideItsPlainReport = plainReports.some(function (plain) { return isSameReport(plain, report); });
             return true;
         }
         return !reports.slice(i + 1).some(function (later) {
-            return !isUsCopyName(later.attachment.getName()) && isSameReport(later, report);
+            return !isUsCopyName(nameWithoutTheSendersVersionSuffix(later.attachment.getName())) && isSameReport(later, report);
         });
     });
 }
@@ -740,10 +740,10 @@ function isSameReport(one, other) {
 }
 
 function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSource, newestUploaded) {
-    var name = attachment.getName();
+    var name = nameWithoutTheSendersVersionSuffix(attachment.getName());
     if (isUsCopyName(name)) {
-        Logger.log("Drive copy skipped, the Sheets scripts would read a _US.csv name as converted: file=" + name + ", messageId=" + emailSource.id);
-        alertOnceAboutUsCopyName(name, emailSource, LONE_US_COPY_ADVICE);
+        Logger.log("Drive copy skipped, the Sheets scripts would read a _US.csv name as converted: file=" + attachment.getName() + ", messageId=" + emailSource.id);
+        alertOnceAboutUsCopyName(attachment.getName(), emailSource, LONE_US_COPY_ADVICE);
         return;
     }
     var s3Key = fileConfig.s3Prefix + formatDateFromCapture(reportDate) + fileConfig.s3Suffix;
@@ -789,7 +789,7 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
     } else {
         updateTheOneCurrentUsCopyInPlace(folder, currentUsCopies, currentUsContent, version, takenNames, usCopyName(name), usContent);
     }
-    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version, takenNames);
+    replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment.copyBlob().setName(name), version, takenNames);
     recordCompletedDriveCopy(s3Key, emailSource);
     Logger.log("Saved to Drive: file=" + name + ", messageId=" + emailSource.id);
 }
@@ -811,9 +811,13 @@ function keepOldContentAsVersionUnlessAResumedCopyAlreadyDid(folder, current, ve
     takenNames.push(versionName);
 }
 
-function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version, takenNames) {
+function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, original, version, takenNames) {
     renameToVersion(currentOriginals, version, takenNames);
-    folder.createFile(attachment.copyBlob());
+    folder.createFile(original);
+}
+
+function nameWithoutTheSendersVersionSuffix(attachmentName) {
+    return attachmentName.replace(/(_v\d+)+(\.csv)$/i, "$2");
 }
 
 function renameToVersion(files, version, takenNames) {

@@ -92,15 +92,15 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     InvestmentReport day10 = report(TODAY.minusDays(10));
     InvestmentReport day0 = report(TODAY);
     givenStoredReports(Map.of(27, day27, 10, day10, 0, day0));
-    given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(any(), any(), any())).willReturn(SettlementCheck.CHECKED);
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
     InOrder inOrder = inOrder(reconciliationService);
-    inOrder.verify(reconciliationService).replay(eq(day27), any());
-    inOrder.verify(reconciliationService).replay(eq(day10), any());
-    inOrder.verify(reconciliationService).replay(eq(day0), any());
-    verify(reconciliationService, never()).reconcile(any());
+    inOrder.verify(reconciliationService).replay(eq(day27), any(), any());
+    inOrder.verify(reconciliationService).replay(eq(day10), any(), any());
+    inOrder.verify(reconciliationService).replay(eq(day0), any(), any());
+    verify(reconciliationService, never()).reconcile(any(), any());
   }
 
   @Test
@@ -117,7 +117,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(eq(day27), any());
+        .replay(eq(day27), any(), any());
     willAnswer(
             invocation -> {
               ReconciliationAlerts alerts = invocation.getArgument(1);
@@ -125,7 +125,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(eq(day10), any());
+        .replay(eq(day10), any(), any());
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
@@ -149,7 +149,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 4L);
-    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(eq(day27), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
@@ -172,9 +173,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27, 10, day10));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 3L);
-    given(reconciliationService.replay(eq(day27), any()))
+    given(reconciliationService.replay(eq(day27), any(), any()))
         .willReturn(SettlementCheck.SKIPPED_MALFORMED_ROWS);
-    given(reconciliationService.replay(eq(day10), any()))
+    given(reconciliationService.replay(eq(day10), any(), any()))
         .willReturn(SettlementCheck.SKIPPED_NO_MATCHED_ROW);
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
@@ -202,7 +203,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     givenStoredReports(Map.of(27, day27, 10, day10, 3, day3));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 3L);
-    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(eq(day27), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
     lenient()
         .doAnswer(
             invocation -> {
@@ -211,14 +213,14 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               throw new IllegalStateException("broken report");
             })
         .when(reconciliationService)
-        .replay(eq(day10), any());
+        .replay(eq(day10), any(), any());
 
     assertThatThrownBy(
             () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService).replay(eq(day27), any());
-    verify(reconciliationService, never()).replay(eq(day3), any());
+    verify(reconciliationService).replay(eq(day27), any(), any());
+    verify(reconciliationService, never()).replay(eq(day3), any(), any());
     verify(notificationService)
         .sendMessage(
             """
@@ -243,7 +245,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count()).willReturn(3L, 3L);
     willThrow(new IllegalStateException("broken report"))
         .given(reconciliationService)
-        .replay(eq(day27), any());
+        .replay(eq(day27), any(), any());
 
     assertThatThrownBy(
             () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
@@ -272,13 +274,14 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .willThrow(new IllegalStateException("unreadable raw data"));
     given(executionRepository.count()).willReturn(10L, 11L);
     given(settlementRepository.count()).willReturn(3L, 3L);
-    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(eq(day27), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
 
     assertThatThrownBy(
             () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService, never()).replay(eq(day3), any());
+    verify(reconciliationService, never()).replay(eq(day3), any(), any());
     verify(notificationService)
         .sendMessage(
             """
@@ -303,7 +306,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService, never()).replay(any(), any());
+    verify(reconciliationService, never()).replay(any(), any(), any());
     verify(notificationService).sendMessage(STOPPED_OUTSIDE_A_REPORT_MESSAGE, INVESTMENT, ERROR);
   }
 
@@ -315,7 +318,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     given(settlementRepository.count())
         .willReturn(3L)
         .willThrow(new IllegalStateException("database unavailable"));
-    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(eq(day27), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
 
     assertThatThrownBy(
             () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
@@ -328,7 +332,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   void aCompletionNoticeThatCannotBeSentIsNotReportedAsAStopAndLeavesTheTriggerCompleted() {
     InvestmentReport day27 = report(TODAY.minusDays(27));
     givenStoredReports(Map.of(27, day27));
-    given(reconciliationService.replay(eq(day27), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(eq(day27), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
     willThrow(new IllegalStateException("slack unavailable"))
         .given(notificationService)
         .sendMessage(any(), eq(INVESTMENT));
@@ -359,15 +364,15 @@ class SebPendingTransactionReconciliationBackfillJobTest {
     InvestmentReport day10 = report(TODAY.minusDays(10));
     InvestmentReport day3 = report(TODAY.minusDays(3));
     givenStoredReports(Map.of(27, day27, 10, day10, 3, day3));
-    given(reconciliationService.replay(any(), any())).willReturn(SettlementCheck.CHECKED);
+    given(reconciliationService.replay(any(), any(), any())).willReturn(SettlementCheck.CHECKED);
 
     job.onSebPendingTransactionReconciliationBackfillRequested(
         new RunSebPendingTransactionReconciliationBackfillRequested(TODAY.minusDays(10)));
 
     InOrder inOrder = inOrder(reconciliationService);
-    inOrder.verify(reconciliationService).replay(eq(day10), any());
-    inOrder.verify(reconciliationService).replay(eq(day3), any());
-    verify(reconciliationService, never()).replay(eq(day27), any());
+    inOrder.verify(reconciliationService).replay(eq(day10), any(), any());
+    inOrder.verify(reconciliationService).replay(eq(day3), any(), any());
+    verify(reconciliationService, never()).replay(eq(day27), any(), any());
     verify(reportService, never()).getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(27));
   }
 
@@ -377,7 +382,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
-    verify(reconciliationService, never()).replay(any(), any());
+    verify(reconciliationService, never()).replay(any(), any(), any());
     verify(notificationService).sendMessage(NO_REPORTS_MESSAGE, INVESTMENT, WARNING);
   }
 
@@ -393,7 +398,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(any(), any());
+        .replay(any(), any(), any());
 
     job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
 
@@ -445,14 +450,14 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(eq(day27), any());
+        .replay(eq(day27), any(), any());
 
     SebPendingTransactionReconciliationBackfillJob morningJob = jobAt(morning, lockProvider);
     assertThatThrownBy(
             () -> morningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService, never()).replay(eq(day10), any());
+    verify(reconciliationService, never()).replay(eq(day10), any(), any());
     verify(notificationService)
         .sendMessage(
             """
@@ -483,14 +488,14 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(eq(day27), any());
+        .replay(eq(day27), any(), any());
     SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
 
     assertThatThrownBy(
             () -> eveningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService, never()).replay(eq(day10), any());
+    verify(reconciliationService, never()).replay(eq(day10), any(), any());
     verify(notificationService)
         .sendMessage(
             """
@@ -558,14 +563,14 @@ class SebPendingTransactionReconciliationBackfillJobTest {
               return SettlementCheck.CHECKED;
             })
         .given(reconciliationService)
-        .replay(eq(day27), any());
+        .replay(eq(day27), any(), any());
     SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
 
     assertThatThrownBy(
             () -> eveningJob.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
         .isExactlyInstanceOf(IllegalStateException.class);
 
-    verify(reconciliationService, never()).replay(eq(day10), any());
+    verify(reconciliationService, never()).replay(eq(day10), any(), any());
     verify(notificationService)
         .sendMessage(
             """
@@ -577,6 +582,36 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             Jätka raportist 2026-05-08, kui teine sobitamine on lõppenud:
             INSERT INTO investment_job_trigger (job_name) VALUES \
             ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            ERROR);
+  }
+
+  @Test
+  void aReplayReportThatFindsTheLockLostBeforeCommittingIsRolledBackAndStopsTheReplay() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    given(executionRepository.count()).willReturn(10L, 10L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    willThrow(new SebReconciliationLockLostException(TODAY.minusDays(27)))
+        .given(reconciliationService)
+        .replay(eq(day27), any(), any());
+
+    assertThatThrownBy(
+            () -> job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(reconciliationService, never()).replay(eq(day10), any(), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-04-21, sest \
+            sobitamise lukk läks kaotsi (põhjus on logis) ja sobitada võib nüüd keegi teine.
+            Enne seda ei sobitatud ühtki raportit.
+            Jätka raportist 2026-04-21, kui teine sobitamine on lõppenud:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-04-21');
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT,
             ERROR);

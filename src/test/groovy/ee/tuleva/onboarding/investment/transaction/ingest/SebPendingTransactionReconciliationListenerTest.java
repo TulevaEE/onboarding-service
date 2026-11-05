@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,7 +44,7 @@ class SebPendingTransactionReconciliationListenerTest {
     listener.onReportImportCompleted(
         new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
 
-    verify(reconciliationService).reconcile(report);
+    verify(reconciliationService).reconcile(eq(report), any());
   }
 
   @Test
@@ -71,7 +72,7 @@ class SebPendingTransactionReconciliationListenerTest {
     listener.onReportImportCompleted(
         new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
 
-    verify(reconciliationService, never()).reconcile(any());
+    verify(reconciliationService, never()).reconcile(any(), any());
   }
 
   private static <T> T any() {

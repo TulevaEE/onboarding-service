@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RecordApplicationEvents
 class SebPendingTransactionReconciliationIT {
+
+  private static final BooleanSupplier LOCK_HELD = () -> true;
 
   private static final UUID FIXTURE_CLIENT_REF =
       UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -102,7 +105,7 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void reconcile_matchedClientRef_writesExecutionAndTransitionsOrder() {
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -121,11 +124,11 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void reconcile_rerun_isIdempotent() {
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
 
     Long secondExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
@@ -137,7 +140,7 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void reconcile_unknownClientRefButKnownOurRef_rematchesViaBrokerRefTier() {
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     Long firstExecutionId = executionRepository.findAllByOrderId(order.getId()).getFirst().getId();
 
@@ -145,7 +148,7 @@ class SebPendingTransactionReconciliationIT {
     reportRepository.save(report);
     entityManager.flush();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -165,7 +168,7 @@ class SebPendingTransactionReconciliationIT {
     orderRepository.save(order);
     entityManager.flush();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -186,7 +189,7 @@ class SebPendingTransactionReconciliationIT {
     reportRepository.save(report);
     entityManager.flush();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
 
     assertThat(executionRepository.findAllByOrderId(order.getId())).isEmpty();
@@ -196,8 +199,8 @@ class SebPendingTransactionReconciliationIT {
 
   @Test
   void reconcile_matchedRow_persistsExecutionMatchedAuditEventOnceAcrossReruns() {
-    reconciliationService.reconcile(report);
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -215,8 +218,8 @@ class SebPendingTransactionReconciliationIT {
     reportRepository.save(report);
     entityManager.flush();
 
-    reconciliationService.reconcile(report);
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -234,7 +237,7 @@ class SebPendingTransactionReconciliationIT {
     TransactionOrder absentOrder =
         seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "SEB_OOTEL");
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -258,9 +261,9 @@ class SebPendingTransactionReconciliationIT {
     InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen);
     List<ReconciliationAlert> heldBack = new ArrayList<>();
 
-    reconciliationService.replay(report, heldBack::add);
-    reconciliationService.replay(missingFrom, heldBack::add);
-    reconciliationService.replay(latest, heldBack::add);
+    reconciliationService.replay(report, heldBack::add, LOCK_HELD);
+    reconciliationService.replay(missingFrom, heldBack::add, LOCK_HELD);
+    reconciliationService.replay(latest, heldBack::add, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -281,11 +284,11 @@ class SebPendingTransactionReconciliationIT {
             report,
             reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen),
             reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen));
-    history.forEach(stored -> reconciliationService.replay(stored, alert -> {}));
+    history.forEach(stored -> reconciliationService.replay(stored, alert -> {}, LOCK_HELD));
     entityManager.flush();
     long executionsAfterFirstRun = executionRepository.count();
 
-    history.forEach(stored -> reconciliationService.replay(stored, alert -> {}));
+    history.forEach(stored -> reconciliationService.replay(stored, alert -> {}, LOCK_HELD));
     entityManager.flush();
     entityManager.clear();
 
@@ -300,7 +303,7 @@ class SebPendingTransactionReconciliationIT {
     TransactionOrder listedLater =
         seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 14), "SEB_OOTEL");
 
-    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(report, alert -> {}, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -326,9 +329,9 @@ class SebPendingTransactionReconciliationIT {
     orderRepository.save(order);
     entityManager.flush();
 
-    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(report, alert -> {}, LOCK_HELD);
     reconciliationService.replay(
-        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {});
+        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {}, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -344,7 +347,7 @@ class SebPendingTransactionReconciliationIT {
     TransactionOrder imported =
         seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "HISTORICAL_IMPORT");
 
-    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(report, alert -> {}, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -358,7 +361,7 @@ class SebPendingTransactionReconciliationIT {
     TransactionOrder imported =
         seedExecutedOrderAbsentFromReport(LocalDate.of(2026, 2, 10), "HISTORICAL_IMPORT");
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -383,9 +386,9 @@ class SebPendingTransactionReconciliationIT {
     orderRepository.save(order);
     entityManager.flush();
 
-    reconciliationService.replay(report, alert -> {});
+    reconciliationService.replay(report, alert -> {}, LOCK_HELD);
     reconciliationService.replay(
-        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {});
+        reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen), alert -> {}, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -417,8 +420,8 @@ class SebPendingTransactionReconciliationIT {
     entityManager.flush();
 
     for (int run = 0; run < 2; run++) {
-      reconciliationService.replay(withoutTheImportedTrade, alert -> {});
-      reconciliationService.replay(report, alert -> {});
+      reconciliationService.replay(withoutTheImportedTrade, alert -> {}, LOCK_HELD);
+      reconciliationService.replay(report, alert -> {}, LOCK_HELD);
       entityManager.flush();
     }
     entityManager.clear();
@@ -434,9 +437,9 @@ class SebPendingTransactionReconciliationIT {
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
     InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 20), stillOpen);
 
-    reconciliationService.reconcile(report);
-    reconciliationService.reconcile(missingFrom);
-    reconciliationService.reconcile(latest);
+    reconciliationService.reconcile(report, LOCK_HELD);
+    reconciliationService.reconcile(missingFrom, LOCK_HELD);
+    reconciliationService.reconcile(latest, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -456,7 +459,7 @@ class SebPendingTransactionReconciliationIT {
             .build());
     entityManager.flush();
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -507,7 +510,7 @@ class SebPendingTransactionReconciliationIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(splitReport);
+    reconciliationService.reconcile(splitReport, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -568,7 +571,7 @@ class SebPendingTransactionReconciliationIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
 
     List<ExecutionPriceConsistencyEvent> alerts =
         events.stream(ExecutionPriceConsistencyEvent.class).toList();
@@ -612,7 +615,7 @@ class SebPendingTransactionReconciliationIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(redemptionReport);
+    reconciliationService.reconcile(redemptionReport, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -652,7 +655,7 @@ class SebPendingTransactionReconciliationIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(redemptionReport);
+    reconciliationService.reconcile(redemptionReport, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -697,7 +700,7 @@ class SebPendingTransactionReconciliationIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(redemptionReport);
+    reconciliationService.reconcile(redemptionReport, LOCK_HELD);
 
     assertThat(events.stream(QuantityAmountMismatchEvent.class)).hasSize(1);
   }

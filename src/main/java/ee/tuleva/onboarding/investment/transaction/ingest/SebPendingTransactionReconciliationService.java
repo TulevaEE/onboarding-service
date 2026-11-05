@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,17 +55,21 @@ public class SebPendingTransactionReconciliationService {
   private int scanLookbackDays = 60;
 
   @Transactional
-  public void reconcile(InvestmentReport report) {
-    reconcile(report, eventPublisher::publishEvent, ReconciliationMode.LIVE);
+  public void reconcile(InvestmentReport report, BooleanSupplier stillHoldsTheLock) {
+    reconcile(report, eventPublisher::publishEvent, ReconciliationMode.LIVE, stillHoldsTheLock);
   }
 
   @Transactional
-  SettlementCheck replay(InvestmentReport report, ReconciliationAlerts alerts) {
-    return reconcile(report, alerts, ReconciliationMode.REPLAY);
+  SettlementCheck replay(
+      InvestmentReport report, ReconciliationAlerts alerts, BooleanSupplier stillHoldsTheLock) {
+    return reconcile(report, alerts, ReconciliationMode.REPLAY, stillHoldsTheLock);
   }
 
   private SettlementCheck reconcile(
-      InvestmentReport report, ReconciliationAlerts alerts, ReconciliationMode mode) {
+      InvestmentReport report,
+      ReconciliationAlerts alerts,
+      ReconciliationMode mode,
+      BooleanSupplier stillHoldsTheLock) {
     LocalDate reportDate = report.getReportDate();
     LocalDate asOfDate =
         sebReportAsOfDate.resolveOrFallBackToReportDate(
@@ -100,15 +105,20 @@ public class SebPendingTransactionReconciliationService {
         matched,
         unmatched);
 
-    return detectSettlementsByAbsence(
-        reportDate,
-        asOfDate,
-        rows.size(),
-        matched,
-        presentOrderIds,
-        extraction.isComplete(),
-        alerts,
-        mode);
+    SettlementCheck check =
+        detectSettlementsByAbsence(
+            reportDate,
+            asOfDate,
+            rows.size(),
+            matched,
+            presentOrderIds,
+            extraction.isComplete(),
+            alerts,
+            mode);
+    if (!stillHoldsTheLock.getAsBoolean()) {
+      throw new SebReconciliationLockLostException(reportDate);
+    }
+    return check;
   }
 
   private SettlementCheck detectSettlementsByAbsence(

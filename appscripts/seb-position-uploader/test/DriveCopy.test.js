@@ -1163,6 +1163,70 @@ describe("one run: S3 first, then Drive", () => {
     expect(fakes.slack).toEqual([expect.stringContaining("Uncaught error in `processNewEmails`")]);
   });
 
+  const unreadableUploadedThread = () =>
+    fakeThread(
+      [
+        {
+          ...sebMessage("18f0a00000000005", [], new Date("2026-11-01T08:45:00Z")),
+          getAttachments: () => {
+            throw new Error("Gmail unavailable");
+          },
+        },
+      ],
+      ["S3-Uploaded-1x"],
+    );
+
+  test("an already uploaded message whose attachments cannot be read still lets processNewEmails copy the healthy reports to Drive", () => {
+    const drive = fakeDrive();
+    const healthy = fakeThread([sebMessage("18f0a00000000006", [fakeAttachment("TULEVA_pos_raport_20261021.csv", "H;1\n")])], []);
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [healthy, unreadableUploadedThread()] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(fakes.calls.folders).toEqual(["folder-1"]);
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261021").map((f) => f.content())).toEqual(["H,1\n"]);
+  });
+
+  test("the e-mail records read before an unreadable message still keep an older e-mail out of Drive", () => {
+    const drive = fakeDrive();
+    const correctionThenUnreadable = fakeThread(
+      [
+        sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z")),
+        {
+          ...sebMessage("18f0a00000000005", []),
+          getAttachments: () => {
+            throw new Error("Gmail unavailable");
+          },
+        },
+      ],
+      ["S3-Uploaded-2x"],
+    );
+    const olderNeverUploaded = fakeThread(
+      [sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")], new Date("2026-11-01T08:45:00Z"))],
+      [],
+    );
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [olderNeverUploaded, correctionThenUnreadable] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+    expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
+  });
+
+  test("a thread whose earlier uploads cannot be read does not keep the scan from the other threads", () => {
+    const drive = fakeDrive();
+    const unreadableThread = { getLabels: () => [{ getName: () => "S3-Uploaded-1x" }], getMessages: () => { throw new Error("Gmail unavailable"); }, getId: () => "thread-9" };
+    const uploadedCorrection = fakeThread(
+      [sebMessage("18f0a00000000002", [fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n")], new Date("2026-11-02T10:15:00Z"))],
+      ["S3-Uploaded-1x"],
+    );
+    const fakes = installAppsScriptFakes(Object.assign(awsAndDrive(drive), { threads: [unreadableThread, uploadedCorrection] }));
+
+    expect(() => processNewEmails()).toThrow("Gmail unavailable");
+
+    expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000002");
+  });
+
   test("once S3 accepts uploads again, the next run uploads the report and leaves its Drive copy as it is", () => {
     const drive = fakeDrive();
     const thread = fakeThread([sebMessage("m1", [fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n")])], []);

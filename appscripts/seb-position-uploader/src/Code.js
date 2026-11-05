@@ -523,22 +523,44 @@ function recordEmailSource(s3Key, emailSource) {
 
 function recordSourcesOfUploadedEmails(threads, minMessageDate) {
     var newestUploaded = {};
-    for (var i = 0; i < threads.length; i++) {
-        var uploadCount = getUploadCount(threads[i]);
-        var matchingCount = 0;
-        var messages = threads[i].getMessages();
-        for (var j = 0; j < messages.length && matchingCount < uploadCount; j++) {
-            if (!isMessageWithinWindow(messages[j].getDate(), minMessageDate)) continue;
-            var keys = datedReportKeysOf(messages[j]);
-            if (keys === null) continue;
-            matchingCount++;
-            for (var k = 0; k < keys.length; k++) {
-                rememberNewest(newestUploaded, keys[k], emailSourceOf(messages[j]));
-                recordEmailSourceIfNewer(keys[k], emailSourceOf(messages[j]));
-            }
+    threads.forEach(function (thread) {
+        try {
+            recordSourcesOfUploadedEmailsOfThread(thread, minMessageDate, newestUploaded);
+        } catch (e) {
+            Logger.log("Earlier uploads of a thread not read, its other messages are left out of the scan: threadId=" + gmailIdOrUnknown(thread) + ", error=" + e.message);
         }
-    }
+    });
     return newestUploaded;
+}
+
+function recordSourcesOfUploadedEmailsOfThread(thread, minMessageDate, newestUploaded) {
+    var uploadCount = getUploadCount(thread);
+    var matchingCount = 0;
+    var messages = thread.getMessages();
+    for (var j = 0; j < messages.length && matchingCount < uploadCount; j++) {
+        var uploaded = uploadedReportOf(messages[j], minMessageDate);
+        if (!uploaded.countsAsAMatchingMessage) continue;
+        matchingCount++;
+        uploaded.keys.forEach(function (key) {
+            rememberNewest(newestUploaded, key, uploaded.emailSource);
+            recordEmailSourceIfNewer(key, uploaded.emailSource);
+        });
+    }
+}
+
+var NOT_A_MATCHING_MESSAGE = { countsAsAMatchingMessage: false, keys: [] };
+var UNREADABLE_MESSAGE_COUNTED_AS_AN_UPLOAD_IT_MAY_HAVE_BEEN = { countsAsAMatchingMessage: true, keys: [] };
+
+function uploadedReportOf(message, minMessageDate) {
+    try {
+        if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return NOT_A_MATCHING_MESSAGE;
+        var keys = datedReportKeysOf(message);
+        if (keys === null) return NOT_A_MATCHING_MESSAGE;
+        return { countsAsAMatchingMessage: true, keys: keys, emailSource: emailSourceOf(message) };
+    } catch (e) {
+        Logger.log("Earlier upload not read, it still counts towards the thread's uploads: messageId=" + gmailIdOrUnknown(message) + ", error=" + e.message);
+        return UNREADABLE_MESSAGE_COUNTED_AS_AN_UPLOAD_IT_MAY_HAVE_BEEN;
+    }
 }
 
 function datedReportKeysOf(message) {

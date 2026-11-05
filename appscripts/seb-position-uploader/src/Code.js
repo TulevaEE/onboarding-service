@@ -741,9 +741,17 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         recordCompletedDriveCopy(s3Key, emailSource);
         return;
     }
-    var version = versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource) || family.nextVersion;
-    recordDriveCopyStarted(s3Key, emailSource, version);
     var takenNames = family.names.slice();
+    var version = versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource);
+    var unfinishedByAnother = version ? null : usVersionOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family);
+    if (unfinishedByAnother && contentOf(unfinishedByAnother.file) === currentUsContent) {
+        version = unfinishedByAnother.version;
+    } else if (unfinishedByAnother) {
+        renameToVersion(currentOriginals, unfinishedByAnother.version, takenNames);
+        currentOriginals = [];
+    }
+    version = version || family.nextVersion;
+    recordDriveCopyStarted(s3Key, emailSource, version);
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
@@ -772,8 +780,12 @@ function keepOldContentAsVersionUnlessAResumedCopyAlreadyDid(folder, current, ve
 }
 
 function replaceTheOriginalLastSoFolderReadersSeeTheNewContentFirst(folder, currentOriginals, attachment, version, takenNames) {
-    currentOriginals.forEach(function (f) { f.setName(freeVersionedName(f.getName(), version, takenNames)); });
+    renameToVersion(currentOriginals, version, takenNames);
     folder.createFile(attachment.copyBlob());
+}
+
+function renameToVersion(files, version, takenNames) {
+    files.forEach(function (f) { f.setName(freeVersionedName(f.getName(), version, takenNames)); });
 }
 
 function freeVersionedName(name, version, takenNames) {
@@ -791,6 +803,16 @@ function driveRecordOf(s3Key) {
 
 function isCompletedDriveCopyFrom(driveRecord, emailSource) {
     return Boolean(driveRecord) && driveRecord.id === emailSource.id && !driveRecord.unfinishedVersion;
+}
+
+function usVersionOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family) {
+    if (!driveRecord || !driveRecord.unfinishedVersion || driveRecord.id === emailSource.id) return null;
+    var usVersions = family.versioned.filter(function (f) { return isUsCopyVersionName(f.getName(), driveRecord.unfinishedVersion); });
+    return usVersions.length > 0 ? { file: usVersions[0], version: driveRecord.unfinishedVersion } : null;
+}
+
+function isUsCopyVersionName(name, version) {
+    return new RegExp("_us_v" + version + "\\.csv$", "i").test(name);
 }
 
 function versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource) {
@@ -871,6 +893,7 @@ function sourceTime(record) {
 
 function driveReportFamily(folder, fileConfig, reportDate) {
     var current = [];
+    var versioned = [];
     var names = [];
     var files = folder.getFiles();
     while (files.hasNext()) {
@@ -878,9 +901,10 @@ function driveReportFamily(folder, fileConfig, reportDate) {
         var name = file.getName();
         if (!isSameDriveReport(name, fileConfig, reportDate)) continue;
         names.push(name);
-        if (!isVersionedDriveName(name)) current.push(file);
+        if (isVersionedDriveName(name)) versioned.push(file);
+        else current.push(file);
     }
-    return { current: current, names: names, nextVersion: nextDriveVersion(names) };
+    return { current: current, versioned: versioned, names: names, nextVersion: nextDriveVersion(names) };
 }
 
 function isSameDriveReport(name, fileConfig, reportDate) {

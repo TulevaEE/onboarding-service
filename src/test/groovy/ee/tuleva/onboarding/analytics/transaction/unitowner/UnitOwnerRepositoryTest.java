@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerFixt
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.sql.Connection;
 import java.sql.Statement;
@@ -319,5 +320,26 @@ class UnitOwnerRepositoryTest {
         .map(UnitOwner::getP2choice)
         .contains("TUK75");
     assertThat(repository.findInLatestSnapshot(PERSON_ID_2)).isEmpty();
+  }
+
+  @Test
+  void findThirdPillarHoldersInLatestSnapshot_returnsTuv100HoldersOfTheNewestSnapshotOnly() {
+    repository.save(thirdPillarHolder(PERSON_ID_1, SNAPSHOT_DATE_1).build());
+    repository.save(thirdPillarHolder(PERSON_ID_2, SNAPSHOT_DATE_2).country("LV").build());
+    repository.save(
+        entityBuilder(PERSON_ID_3, SNAPSHOT_DATE_2, creationTime)
+            .balances(List.of(unitOwnerBalanceEmbeddableBuilder("TUK75", "II").build()))
+            .build());
+
+    assertThat(repository.findThirdPillarHoldersInLatestSnapshot())
+        .containsExactly(new RecentThirdPillarCustomer(PERSON_ID_2, "Mari", "Maasikas", "LV"));
+  }
+
+  private UnitOwner.UnitOwnerBuilder thirdPillarHolder(String personId, LocalDate snapshotDate) {
+    return entityBuilder(personId, snapshotDate, creationTime)
+        .balances(
+            List.of(
+                unitOwnerBalanceEmbeddableBuilder("TUK75", "II").build(),
+                unitOwnerBalanceEmbeddableBuilder("TUV100", "III").build()));
   }
 }

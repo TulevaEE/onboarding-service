@@ -77,7 +77,8 @@ class AmlBatchScreenerTest {
             savingsFundCustomers,
             userRepository,
             notificationService,
-            sanctionAndPepScreener);
+            sanctionAndPepScreener,
+            amlCheckRepository);
     lenient()
         .when(amlCheckRepository.save(any(AmlCheck.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -116,7 +117,7 @@ class AmlBatchScreenerTest {
     RecentThirdPillarCustomer ok = thirdPillarRecord("ok", "EE");
     RecentThirdPillarCustomer fail1 = thirdPillarRecord("fail1", "EE");
     RecentThirdPillarCustomer fail2 = thirdPillarRecord("fail2", "EE");
-    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(fail1, ok, fail2));
+    when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(fail1, ok, fail2));
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
@@ -149,7 +150,7 @@ class AmlBatchScreenerTest {
     // given
     RecentThirdPillarCustomer c1 = thirdPillarRecord("c1", "EE");
     RecentThirdPillarCustomer c2 = thirdPillarRecord("c2", "EE");
-    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(c1, c2));
+    when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(c1, c2));
     when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     doThrow(new RuntimeException("Slack is down"))
@@ -169,7 +170,7 @@ class AmlBatchScreenerTest {
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given
     RecentThirdPillarCustomer record1 = new RecentThirdPillarCustomer("p1", "F1", "L1", "EE");
-    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(record1));
+    when(thirdPillarAnalytics.holdersInLatestSnapshot()).thenReturn(List.of(record1));
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
@@ -194,6 +195,75 @@ class AmlBatchScreenerTest {
     verify(pepAndSanctionCheckService).match(record1, Countries.of("EE"));
     verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
     verify(eventPublisher, times(2)).publishEvent(any(AmlCheckCreatedEvent.class));
+  }
+
+  @Test
+  void
+      runAmlChecksOnUnscreenedThirdPillarHolders_screensOnlyHoldersWithoutASanctionCheckThisYear() {
+    RecentThirdPillarCustomer screened = thirdPillarRecord("screened", "EE");
+    RecentThirdPillarCustomer joiner = thirdPillarRecord("joiner", "LV");
+    given(thirdPillarAnalytics.holdersInLatestSnapshot()).willReturn(List.of(screened, joiner));
+    given(
+            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
+                eq(AmlCheckType.SANCTION), any(Instant.class)))
+        .willReturn(List.of("screened"));
+    given(pepAndSanctionCheckService.match(eq(joiner), anySet())).willReturn(emptyMatchResponse());
+
+    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+
+    verify(pepAndSanctionCheckService).match(joiner, Countries.of("LV"));
+    verify(pepAndSanctionCheckService, never()).match(eq(screened), anySet());
+    verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void runAmlChecksOnUnscreenedThirdPillarHolders_postsUnscreenedScreenedAndFailedCountsToSlack() {
+    RecentThirdPillarCustomer screened = thirdPillarRecord("screened", "EE");
+    RecentThirdPillarCustomer joiner = thirdPillarRecord("joiner", "EE");
+    RecentThirdPillarCustomer failing = thirdPillarRecord("failing", "EE");
+    given(thirdPillarAnalytics.holdersInLatestSnapshot())
+        .willReturn(List.of(screened, joiner, failing));
+    given(
+            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
+                eq(AmlCheckType.SANCTION), any(Instant.class)))
+        .willReturn(List.of("screened"));
+    given(pepAndSanctionCheckService.match(eq(joiner), anySet())).willReturn(emptyMatchResponse());
+    given(pepAndSanctionCheckService.match(eq(failing), anySet()))
+        .willThrow(new RuntimeException("Match service error"));
+
+    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+
+    verify(notificationService)
+        .sendMessage(
+            "AML batch: sanction/PEP screening failed for 1 of 2 third-pillar customers this run",
+            OperationsNotificationService.Channel.AML);
+    verify(notificationService)
+        .sendMessage(
+            "III sammas: registris 2 kontrollimata omanikku, kontrollitud 1, tõrkeid 1",
+            OperationsNotificationService.Channel.AML);
+  }
+
+  @Test
+  void runAmlChecksOnUnscreenedThirdPillarHolders_reportsZeroWhenEveryHolderIsScreened() {
+    given(thirdPillarAnalytics.holdersInLatestSnapshot())
+        .willReturn(List.of(thirdPillarRecord("screened", "EE")));
+    given(
+            amlCheckRepository.findPersonalCodesByTypeAndCreatedTimeAfter(
+                eq(AmlCheckType.SANCTION), any(Instant.class)))
+        .willReturn(List.of("screened"));
+
+    amlBatchScreener.runAmlChecksOnUnscreenedThirdPillarHolders();
+
+    verifyNoInteractions(pepAndSanctionCheckService);
+    verify(notificationService)
+        .sendMessage(
+            "III sammas: registris 0 kontrollimata omanikku, kontrollitud 0, tõrkeid 0",
+            OperationsNotificationService.Channel.AML);
+    verifyNoMoreInteractions(notificationService);
+  }
+
+  private MatchResponse emptyMatchResponse() {
+    return new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
   }
 
   @Test

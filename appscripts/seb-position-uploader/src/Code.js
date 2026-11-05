@@ -829,19 +829,17 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
         return;
     }
     var takenNames = family.names.slice();
-    var version = versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource);
-    var unfinishedByAnother = version ? null : usVersionsOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family);
-    if (unfinishedByAnother && unfinishedByAnother.usContents.indexOf(currentUsContent) !== -1) {
-        version = unfinishedByAnother.version;
-    } else if (unfinishedByAnother) {
+    var plan = driveCopyPlan(driveRecord, emailSource, family, currentUsContent);
+    recordDriveCopyStarted(s3Key, emailSource, plan);
+    if (plan.completesVersion) {
+        var usContentsOfThatVersion = usContentsOfVersion(family, plan.completesVersion);
         var originalsOfThatVersion = currentOriginals.filter(function (f) {
-            return unfinishedByAnother.usContents.indexOf(convertSebCsvToUs(contentOf(f))) !== -1;
+            return usContentsOfThatVersion.indexOf(convertSebCsvToUs(contentOf(f))) !== -1;
         });
-        renameToVersion(originalsOfThatVersion, unfinishedByAnother.version, takenNames);
+        renameToVersion(originalsOfThatVersion, plan.completesVersion, takenNames);
         currentOriginals = currentOriginals.filter(function (f) { return originalsOfThatVersion.indexOf(f) === -1; });
     }
-    version = version || family.nextVersion;
-    recordDriveCopyStarted(s3Key, emailSource, version);
+    var version = plan.version;
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
     } else {
@@ -899,28 +897,29 @@ function isCompletedDriveCopyFrom(driveRecord, emailSource) {
     return Boolean(driveRecord) && driveRecord.id === emailSource.id && !driveRecord.unfinishedVersion;
 }
 
-function usVersionsOfAnotherEmailsUnfinishedCopy(driveRecord, emailSource, family) {
-    if (!driveRecord || !driveRecord.unfinishedVersion || driveRecord.id === emailSource.id) return null;
-    var usVersions = family.versioned.filter(function (f) { return isUsCopyVersionName(f.getName(), driveRecord.unfinishedVersion); });
-    if (usVersions.length === 0) return null;
-    return { version: driveRecord.unfinishedVersion, usContents: usVersions.map(contentOf) };
+function driveCopyPlan(driveRecord, emailSource, family, currentUsContent) {
+    var unfinished = Boolean(driveRecord) && Boolean(driveRecord.unfinishedVersion);
+    if (unfinished && driveRecord.id === emailSource.id) {
+        return { version: driveRecord.unfinishedVersion, completesVersion: driveRecord.completesVersion || null };
+    }
+    var otherEmailsUsContents = unfinished ? usContentsOfVersion(family, driveRecord.unfinishedVersion) : [];
+    if (otherEmailsUsContents.length === 0) return { version: family.nextVersion, completesVersion: null };
+    if (otherEmailsUsContents.indexOf(currentUsContent) !== -1) return { version: driveRecord.unfinishedVersion, completesVersion: null };
+    return { version: family.nextVersion, completesVersion: driveRecord.unfinishedVersion };
+}
+
+function usContentsOfVersion(family, version) {
+    return family.versioned.filter(function (f) { return isUsCopyVersionName(f.getName(), version); }).map(contentOf);
 }
 
 function isUsCopyVersionName(name, version) {
     return new RegExp("_us_v" + version + "\\.csv$", "i").test(name);
 }
 
-function versionOfThisEmailsUnfinishedCopy(driveRecord, emailSource) {
-    return driveRecord && driveRecord.id === emailSource.id ? driveRecord.unfinishedVersion || null : null;
-}
-
-function recordDriveCopyStarted(s3Key, emailSource, version) {
-    try {
-        var started = { date: emailSource.date, id: emailSource.id, unfinishedVersion: version };
-        PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(started));
-    } catch (e) {
-        Logger.log("Drive record of a started copy not saved, a resume may take a new version number: key=" + s3Key + ", error=" + e.message);
-    }
+function recordDriveCopyStarted(s3Key, emailSource, plan) {
+    var started = { date: emailSource.date, id: emailSource.id, unfinishedVersion: plan.version };
+    if (plan.completesVersion) started.completesVersion = plan.completesVersion;
+    PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(started));
 }
 
 function recordCompletedDriveCopy(s3Key, emailSource) {

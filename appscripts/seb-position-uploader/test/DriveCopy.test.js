@@ -578,6 +578,28 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["C,3\n"]);
   });
 
+  test("a newer correction interrupted while pairing the original another correction left current resumes that pairing from its own record", () => {
+    installAppsScriptFakes();
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+    const correctionCAttachment = fakeAttachment("TULEVA_pos_raport_20261020_parandus.csv", "C;3\n");
+    expect(() =>
+      saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n"), POSITIONS, "20261020", correctionB),
+    ).toThrow("Drive failed");
+    expect(() => saveReportToDrive(drive.folder, correctionCAttachment, POSITIONS, "20261020", correctionC)).toThrow("Drive failed");
+    delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+
+    saveReportToDrive(drive.folder, correctionCAttachment, POSITIONS, "20261020", correctionC);
+
+    expect(versionedNames(drive)).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_korrigeeritud_US_v2.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
+    expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv")[0].content()).toBe("A;1\n");
+  });
+
   test("a newer correction after one whose in-place update failed archives the current pair under that correction's number, once", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();
@@ -786,24 +808,49 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["B,2\n"]);
   });
 
-  test("a Drive record that cannot be saved does not fail the copy", () => {
-    installAppsScriptFakes();
+  const failingDriveRecordWrites = (fails) => {
     const store = PropertiesService.getScriptProperties();
     global.PropertiesService = {
       getScriptProperties: () => ({
         ...store,
         setProperty: (key, value) => {
-          if (key.startsWith("drive_source:")) throw new Error("properties quota");
+          if (key.startsWith("drive_source:") && fails(JSON.parse(value))) throw new Error("properties quota");
           store.setProperty(key, value);
         },
       }),
     };
+  };
+
+  test("a completion record that cannot be saved does not fail the copy", () => {
+    installAppsScriptFakes();
+    failingDriveRecordWrites((record) => !record.unfinishedVersion);
     const drive = fakeDrive();
 
     expect(() =>
       saveReportToDrive(drive.folder, fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"), POSITIONS, "20261020", SOURCE),
     ).not.toThrow();
     expect(drive.names()).toEqual(["TULEVA_pos_raport_20261020_US.csv", "TULEVA_pos_raport_20261020.csv"]);
+  });
+
+  test("a started-copy record that cannot be saved stops the copy before any Drive change, so the retry archives the old pair under one number", () => {
+    installAppsScriptFakes();
+    let checkpointFails = true;
+    failingDriveRecordWrites((record) => checkpointFails && Boolean(record.unfinishedVersion));
+    const drive = fakeDrive();
+    drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+    drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"] = true;
+    const correction = fakeAttachment("TULEVA_pos_raport_20261020_korrigeeritud.csv", "B;2\n");
+    expect(() => saveReportToDrive(drive.folder, correction, POSITIONS, "20261020", SOURCE)).toThrow();
+    expect(drive.events).toEqual([]);
+
+    checkpointFails = false;
+    delete drive.failures["setContent TULEVA_pos_raport_20261020_US.csv"];
+    saveReportToDrive(drive.folder, correction, POSITIONS, "20261020", SOURCE);
+
+    expect(drive.names().filter((name) => /_v\d+\.csv$/.test(name)).sort()).toEqual([
+      "TULEVA_pos_raport_20261020_US_v1.csv",
+      "TULEVA_pos_raport_20261020_v1.csv",
+    ]);
   });
 
   test("of two e-mails with the same time the one with the higher Gmail id wins, in either order", () => {

@@ -29,8 +29,8 @@ import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -133,7 +133,7 @@ public class InvestmentAdminController {
     tokenValidator.validate(token);
 
     TulevaFund fund = TulevaFund.fromCode(fundCode);
-    List<LocalDate> dates =
+    var dates =
         fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
             .filter(date -> from == null || !date.isBefore(from))
             .filter(date -> to == null || !date.isAfter(to))
@@ -167,8 +167,10 @@ public class InvestmentAdminController {
   public InvestmentReportPublishingResult publishInvestmentReports(
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam(required = false) @Nullable Integer month,
-      @RequestParam(required = false) @Nullable Integer year) {
+      @RequestParam(required = false) @Nullable Integer year,
+      @RequestParam(required = false) @Nullable Set<String> replaceUnrecognised) {
     tokenValidator.validate(token);
+    var filesToReplace = unrecognisedFilesToReplace(replaceUnrecognised);
 
     var publisher =
         investmentReportPublisher.orElseThrow(
@@ -181,8 +183,11 @@ public class InvestmentAdminController {
             ? parseReportMonth(year, month)
             : YearMonth.now(clock).minusMonths(1);
 
-    log.info("Admin triggered investment report publishing: month={}", targetMonth);
-    return publisher.publish(targetMonth);
+    log.info(
+        "Admin triggered investment report publishing: month={}, replaceUnrecognised={}",
+        targetMonth,
+        filesToReplace);
+    return publisher.publish(targetMonth, filesToReplace);
   }
 
   @GetMapping("/preview-investment-report")
@@ -313,6 +318,14 @@ public class InvestmentAdminController {
     tokenValidator.validate(token);
     ocfCalculationService.backfillMonths(monthsBack, clock);
     return "OCF backfilled for last %d months".formatted(monthsBack);
+  }
+
+  private static Set<String> unrecognisedFilesToReplace(@Nullable Set<String> replaceUnrecognised) {
+    var files = requireNonNullElse(replaceUnrecognised, Set.<String>of());
+    if (!files.stream().allMatch(file -> file.matches("https?://\\S+"))) {
+      throw new ResponseStatusException(BAD_REQUEST, "replaceUnrecognised takes URLs: " + files);
+    }
+    return files;
   }
 
   private YearMonth parseReportMonth(int year, int month) {

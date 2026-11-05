@@ -228,17 +228,18 @@ function processEmailsFromDays(days, options) {
     var threads = GmailApp.search(searchQuery);
     Logger.log("Found " + threads.length + " email threads");
 
-    var newestUploaded = recordSourcesOfUploadedEmails(threads, minMessageDate);
-    uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, newestUploaded);
+    var scan = scanEarlierUploads(threads, minMessageDate);
+    uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, scan);
 
     Logger.log("Processing complete");
 }
 
-function uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, newestUploaded) {
+function uploadToS3ThenSaveToDriveEvenIfAnUploadFails(threads, days, minMessageDate, scan) {
     try {
-        uploadThreadsToS3(threads, minMessageDate, newestUploaded);
+        refuseS3UploadsAfterAnIncompleteScan(scan);
+        uploadThreadsToS3(threads, minMessageDate, scan.newestUploaded);
     } finally {
-        saveReportsToDrive(threads, days, newestUploaded);
+        saveReportsToDrive(threads, days, scan);
     }
 }
 
@@ -527,46 +528,64 @@ function recordEmailSource(s3Key, emailSource) {
     }
 }
 
-function recordSourcesOfUploadedEmails(threads, minMessageDate) {
-    var newestUploaded = {};
+var NOTHING_UNREAD = -Infinity;
+var UNREAD_AT_AN_UNKNOWN_TIME = Infinity;
+
+function scanEarlierUploads(threads, minMessageDate) {
+    var scan = { newestUploaded: {}, newestUnreadMessageTime: NOTHING_UNREAD, firstUnreadError: null };
     threads.forEach(function (thread) {
         try {
-            recordSourcesOfUploadedEmailsOfThread(thread, minMessageDate, newestUploaded);
+            scanEarlierUploadsOfThread(thread, minMessageDate, scan);
         } catch (e) {
-            Logger.log("Earlier uploads of a thread not read, its other messages are left out of the scan: threadId=" + gmailIdOrUnknown(thread) + ", error=" + e.message);
+            Logger.log("Earlier uploads of a thread not read: threadId=" + gmailIdOrUnknown(thread) + ", error=" + e.message);
+            noteUnread(scan, UNREAD_AT_AN_UNKNOWN_TIME, e);
         }
     });
-    return newestUploaded;
+    return scan;
 }
 
-function recordSourcesOfUploadedEmailsOfThread(thread, minMessageDate, newestUploaded) {
+function scanEarlierUploadsOfThread(thread, minMessageDate, scan) {
     var uploadCount = getUploadCount(thread);
     var matchingCount = 0;
+    var afterAnUnreadMessage = false;
     var messages = thread.getMessages();
     for (var j = 0; j < messages.length && matchingCount < uploadCount; j++) {
-        var uploaded = uploadedReportOf(messages[j], minMessageDate);
-        if (!uploaded.countsAsAMatchingMessage) continue;
-        matchingCount++;
-        uploaded.keys.forEach(function (key) {
-            rememberNewest(newestUploaded, key, uploaded.emailSource);
-            recordEmailSourceIfNewer(key, uploaded.emailSource);
-        });
+        try {
+            if (!isMessageWithinWindow(messages[j].getDate(), minMessageDate)) continue;
+            var keys = datedReportKeysOf(messages[j]);
+            if (keys === null) continue;
+            matchingCount++;
+            var emailSource = emailSourceOf(messages[j]);
+            keys.forEach(function (key) { rememberNewest(scan.newestUploaded, key, emailSource); });
+            if (!afterAnUnreadMessage) keys.forEach(function (key) { recordEmailSourceIfNewer(key, emailSource); });
+        } catch (e) {
+            Logger.log("Earlier upload not read: messageId=" + gmailIdOrUnknown(messages[j]) + ", error=" + e.message);
+            noteUnread(scan, timeOfOrUnknown(messages[j]), e);
+            afterAnUnreadMessage = true;
+        }
     }
 }
 
-var NOT_A_MATCHING_MESSAGE = { countsAsAMatchingMessage: false, keys: [] };
-var UNREADABLE_MESSAGE_COUNTED_AS_AN_UPLOAD_IT_MAY_HAVE_BEEN = { countsAsAMatchingMessage: true, keys: [] };
+function noteUnread(scan, messageTime, e) {
+    scan.newestUnreadMessageTime = Math.max(scan.newestUnreadMessageTime, messageTime);
+    if (!scan.firstUnreadError) scan.firstUnreadError = e.message;
+}
 
-function uploadedReportOf(message, minMessageDate) {
+function timeOfOrUnknown(message) {
     try {
-        if (!isMessageWithinWindow(message.getDate(), minMessageDate)) return NOT_A_MATCHING_MESSAGE;
-        var keys = datedReportKeysOf(message);
-        if (keys === null) return NOT_A_MATCHING_MESSAGE;
-        return { countsAsAMatchingMessage: true, keys: keys, emailSource: emailSourceOf(message) };
+        return message.getDate().getTime();
     } catch (e) {
-        Logger.log("Earlier upload not read, it still counts towards the thread's uploads: messageId=" + gmailIdOrUnknown(message) + ", error=" + e.message);
-        return UNREADABLE_MESSAGE_COUNTED_AS_AN_UPLOAD_IT_MAY_HAVE_BEEN;
+        return UNREAD_AT_AN_UNKNOWN_TIME;
     }
+}
+
+function refuseS3UploadsAfterAnIncompleteScan(scan) {
+    if (scan.newestUnreadMessageTime === NOTHING_UNREAD) return;
+    throw new Error("S3 pass not run, earlier uploads not fully read: error=" + scan.firstUnreadError);
+}
+
+function isNewerThanEveryUnreadUpload(emailSource, scan) {
+    return !scan || new Date(emailSource.date).getTime() > scan.newestUnreadMessageTime;
 }
 
 function datedReportKeysOf(message) {
@@ -610,7 +629,7 @@ function recordEmailSourceAfterUpload(s3Key, emailSource) {
 var DRIVE_FOLDER_PROPERTY = "DRIVE_SEB_REPORT_FOLDER_ID";
 var DRIVE_ALERTS_PROPERTY = "drive_alerts_today";
 
-function saveReportsToDrive(threads, days, newestUploaded) {
+function saveReportsToDrive(threads, days, scan) {
     try {
         var props = PropertiesService.getScriptProperties();
         var folderId = props.getProperty(DRIVE_FOLDER_PROPERTY);
@@ -622,7 +641,7 @@ function saveReportsToDrive(threads, days, newestUploaded) {
         var folder = DriveApp.getFolderById(folderId);
         var minMessageDate = new Date(Date.now() - days * DAY_MILLIS);
         for (var i = threads.length - 1; i >= 0; i--) {
-            saveThreadToDrive(threads[i], folder, newestUploaded, minMessageDate);
+            saveThreadToDrive(threads[i], folder, scan, minMessageDate);
         }
     } catch (e) {
         Logger.log("Drive copy run failed: error=" + e.message);
@@ -630,10 +649,10 @@ function saveReportsToDrive(threads, days, newestUploaded) {
     }
 }
 
-function saveThreadToDrive(thread, folder, newestUploaded, minMessageDate) {
+function saveThreadToDrive(thread, folder, scan, minMessageDate) {
     messagesOfThreadOrNone(thread).forEach(function (message) {
         driveReportsOfMessageOrNone(message, minMessageDate).forEach(function (report) {
-            saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded);
+            saveReportToDriveWithoutStoppingTheOthers(folder, report, scan);
         });
     });
 }
@@ -666,14 +685,18 @@ function gmailIdOrUnknown(threadOrMessage) {
     }
 }
 
-function saveReportToDriveWithoutStoppingTheOthers(folder, report, newestUploaded) {
+function saveReportToDriveWithoutStoppingTheOthers(folder, report, scan) {
     try {
+        if (!isNewerThanEveryUnreadUpload(report.emailSource, scan)) {
+            Logger.log("Drive copy skipped, an unread earlier upload may be newer: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id);
+            return;
+        }
         if (report.usCopyBesideItsPlainReport) {
             Logger.log("Drive copy skipped, the e-mail's report without the _US ending is used instead: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id);
             alertOnceAboutUsCopyName(report.attachment.getName(), report.emailSource, US_COPY_BESIDE_ITS_PLAIN_REPORT_ADVICE);
             return;
         }
-        saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, report.emailSource, newestUploaded);
+        saveReportToDrive(folder, report.attachment, report.fileConfig, report.reportDate, report.emailSource, scan ? scan.newestUploaded : undefined);
     } catch (e) {
         Logger.log("Drive copy failed: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id + ", error=" + e.message);
         notifyDriveCopyFailed(e);

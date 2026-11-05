@@ -87,7 +87,24 @@ class CustodianOrderEmailNotifierIT {
   }
 
   @Test
-  void aFailedSendWhoseFirstSlackPostFailsIsPostedByALaterRun_andTheEmailIsNotSentAgain() {
+  void aFailedSendIsPostedAtOnce_andTheRunHasNothingLeftToPost() {
+    given(orderEmailTransport.send(any()))
+        .willReturn(new EmailSendResult(FAILED, List.of(), "ConnectException: Connection refused"));
+
+    sendAfterTheBatchCommits();
+
+    then(notificationService).should().sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(sendResult(SENT_AT, "POSTED"));
+
+    runAt(SENT_AT.plus(Duration.ofMinutes(3)));
+
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aFailedSendWhoseDirectPostFailsIsPostedOnceByTheRunAfterTwoMinutes_andNotEmailedAgain() {
     given(orderEmailTransport.send(any()))
         .willReturn(new EmailSendResult(FAILED, List.of(), "ConnectException: Connection refused"));
     willThrow(new RestClientException("Slack is down"))
@@ -96,20 +113,15 @@ class CustodianOrderEmailNotifierIT {
         .sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
 
     sendAfterTheBatchCommits();
-
-    assertThat(eventLogRepository.findAll())
-        .singleElement()
-        .satisfies(sendResult(SENT_AT, "NOT_POSTED"));
-    then(notificationService).shouldHaveNoInteractions();
-
     runAt(SENT_AT.plus(Duration.ofMinutes(1)));
 
+    then(notificationService).should().sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
     assertThat(eventLogRepository.findAll())
         .singleElement()
         .satisfies(sendResult(SENT_AT, "NOT_POSTED"));
 
-    runAt(SENT_AT.plus(Duration.ofMinutes(2)));
     runAt(SENT_AT.plus(Duration.ofMinutes(3)));
+    runAt(SENT_AT.plus(Duration.ofMinutes(4)));
 
     then(notificationService).should(times(2)).sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
     then(notificationService).shouldHaveNoMoreInteractions();

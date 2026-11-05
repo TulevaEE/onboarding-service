@@ -39,10 +39,10 @@ class JobTriggerPoller {
           Map.entry("FeeAccrualPositionSyncJob", RunFeeAccrualPositionSyncRequested::new),
           Map.entry("TransactionCommandJob", RunTransactionCommandRequested::new),
           Map.entry(
-              "SebPendingTransactionReconciliationJob",
+              RunSebPendingTransactionReconciliationRequested.JOB_NAME,
               RunSebPendingTransactionReconciliationRequested::new),
           Map.entry(
-              "SebPendingTransactionReconciliationBackfillJob",
+              RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
               RunSebPendingTransactionReconciliationBackfillRequested::new),
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
@@ -63,7 +63,7 @@ class JobTriggerPoller {
 
   static final Map<String, Function<LocalDate, Object>> RESUMABLE_FROM_A_DATE =
       Map.of(
-          "SebPendingTransactionReconciliationBackfillJob",
+          RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
           RunSebPendingTransactionReconciliationBackfillRequested::new);
 
   private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =

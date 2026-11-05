@@ -72,7 +72,9 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
-  @Mock private InvestmentReportService reportService;
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private InvestmentReportService reportService;
+
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
   @Mock private TransactionExecutionRepository executionRepository;
   @Mock private TransactionSettlementRepository settlementRepository;
@@ -657,9 +659,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
 
   private void givenStoredReports(Map<Integer, InvestmentReport> reportsByDaysAgo) {
     for (int daysAgo = 0; daysAgo <= BACKFILL_DAYS; daysAgo++) {
-      lenient()
-          .when(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(daysAgo)))
-          .thenReturn(Optional.ofNullable(reportsByDaysAgo.get(daysAgo)));
+      given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY.minusDays(daysAgo)))
+          .willReturn(Optional.ofNullable(reportsByDaysAgo.get(daysAgo)));
     }
   }
 

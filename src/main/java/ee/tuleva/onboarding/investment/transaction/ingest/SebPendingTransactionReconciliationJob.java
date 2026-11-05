@@ -31,7 +31,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SebPendingTransactionReconciliationJob {
 
-  static final String TRIGGER = "SebPendingTransactionReconciliationJob";
   private static final int LOOKBACK_DAYS = 7;
 
   private final Clock clock;
@@ -54,8 +53,9 @@ class SebPendingTransactionReconciliationJob {
           "Scheduled SEB pending transactions reconciliation deferred, its lock is held: lock={},"
               + " trigger={}",
           SebReconciliationLock.NAME,
-          TRIGGER);
-      jobTriggerQueue.enqueueUnlessPending(TRIGGER);
+          RunSebPendingTransactionReconciliationRequested.JOB_NAME);
+      jobTriggerQueue.enqueueUnlessPending(
+          RunSebPendingTransactionReconciliationRequested.JOB_NAME);
     }
   }
 

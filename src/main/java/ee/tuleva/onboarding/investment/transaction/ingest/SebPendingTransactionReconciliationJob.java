@@ -49,7 +49,7 @@ class SebPendingTransactionReconciliationJob {
       lockAtLeastFor = "5m")
   void runOnSchedule() {
     if (!runsUnderTheLock()) {
-      log.info(
+      log.debug(
           "Scheduled SEB pending transactions reconciliation deferred, its lock is held or was"
               + " lost: lock={},"
               + " trigger={}",
@@ -130,7 +130,7 @@ class SebPendingTransactionReconciliationJob {
   @EventListener(RunSebPendingTransactionReconciliationRequested.class)
   void onSebPendingTransactionReconciliationRequested() {
     if (!reconciliationLock.runIfFree(this::run)) {
-      log.warn(
+      log.debug(
           "SEB pending transactions reconciliation skipped, its lock is held: lock={}",
           SebReconciliationLock.NAME);
       throw new SebReconciliationAlreadyRunningException(SebReconciliationLock.NAME);

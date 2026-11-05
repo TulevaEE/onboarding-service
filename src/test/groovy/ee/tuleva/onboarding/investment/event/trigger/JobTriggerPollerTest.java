@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.event.trigger;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -20,6 +22,7 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -37,6 +40,7 @@ class JobTriggerPollerTest {
 
   @Mock JobTriggerRepository repository;
   @Mock ApplicationEventPublisher eventPublisher;
+  @Mock OperationsNotificationService notificationService;
 
   @InjectMocks JobTriggerPoller poller;
 
@@ -203,12 +207,14 @@ class JobTriggerPollerTest {
   }
 
   @Test
-  void aTriggerWhoseJobHasBeenBusyForSixHoursIsMarkedFailed() {
+  void aBusyRetryKeepsTheTimeItsTriggerFirstStarted() {
+    var firstStart = ClockHolder.clock().instant().minus(Duration.ofMinutes(30));
     var trigger =
         JobTrigger.builder()
             .jobName("SebPendingTransactionReconciliationJob")
             .status("PENDING")
-            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .createdAt(ClockHolder.clock().instant())
+            .startedAt(firstStart)
             .build();
     given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
     doThrow(new JobBusyException("reconciliation lock held"))
@@ -217,7 +223,36 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
+    assertThat(trigger.getStartedAt()).isEqualTo(firstStart);
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aTriggerWhoseJobStayedBusyForSixHoursIsFailedAndPostedToTheInvestmentChannel() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-13")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReportReconciliationRequested.class));
+
+    poller.poll();
+
     assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            Käivitaja SebPendingTransactionReportReconciliationJob:2026-05-13 aegus 6 tunni \
+            järel, selle töö lukk oli kogu aeg hõivatud.
+            Käivita uuesti: INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReportReconciliationJob:2026-05-13');""",
+            INVESTMENT,
+            ERROR);
   }
 
   @Test

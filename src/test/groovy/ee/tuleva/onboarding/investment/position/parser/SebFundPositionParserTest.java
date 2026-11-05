@@ -306,6 +306,25 @@ class SebFundPositionParserTest {
   }
 
   @Test
+  void fundsWithRows_namesOnlyTheFundsOfRowsItWouldReadAsPositions() {
+    assertThat(parser.fundsWithRows(HEADER_TITLE_AND_POSITION_ROWS)).containsExactly(TUK00, TUV100);
+  }
+
+  @Test
+  void positionRows_countsRowsShapedLikePositionsWhetherOrNotTheyNameAFund() {
+    assertThat(parser.positionRows(HEADER_TITLE_AND_POSITION_ROWS)).isEqualTo(3);
+  }
+
+  private static final List<Map<String, Object>> HEADER_TITLE_AND_POSITION_ROWS =
+      List.of(
+          Map.of("Fund Management Company:", "As of:", "Tuleva Fondid AS", "2026-01-25"),
+          Map.of("Client name", "", "Account", ""),
+          Map.of("Client name", "Some Other Fund", "Name", "Cash account in SEB Pank"),
+          Map.of("Client name", "TKF100", "Account", "EE861010220306591229", "Currency", "EUR"),
+          Map.of("Client name", "TUV100", "Name", "Cash account in SEB Pank"),
+          Map.of("Client name", "TUK00", "Account", "Total", "Market Value (EUR)", "100"));
+
+  @Test
   void parse_skipsRowsWithoutName() {
     List<Map<String, Object>> rawData =
         List.of(

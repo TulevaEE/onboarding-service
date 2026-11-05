@@ -4,10 +4,14 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -15,10 +19,14 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,10 +47,13 @@ public class HealthCheckNotifier {
     try {
       var transitions = new ArrayList<Transition>();
       for (var result : results) {
-        for (var checkType : HealthCheckType.values()) {
+        for (var checkType : result.checkTypes()) {
           var current = currentSeverity(result, checkType);
-          var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
-          if (current == previous && !reasonChanged(result, checkType, current)) {
+          var latestEvents =
+              eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+                  result.fund(), result.checkDate(), checkType);
+          var previous = previousSeverity(latestEvents);
+          if (current == previous && !reasonChanged(result, checkType, current, latestEvents)) {
             continue;
           }
           transitions.add(new Transition(result, checkType, current, previous));
@@ -82,17 +93,16 @@ public class HealthCheckNotifier {
   }
 
   private boolean reasonChanged(
-      HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
-    if (current != NOT_RUN) {
+      HealthCheckResult result,
+      HealthCheckType checkType,
+      HealthCheckSeverity current,
+      List<HealthCheckEvent> latestEvents) {
+    if ((current != NOT_RUN && checkType != FUND_IN_REPORT) || latestEvents.size() < 2) {
       return false;
     }
-    var rows =
-        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-            result.fund(), result.checkDate(), checkType);
-    if (rows.size() < 2) {
-      return false;
-    }
-    return !messages(result, checkType).equals(storedMessages(rows.get(1)));
+    return checkType == FUND_IN_REPORT
+        ? result.presenceDiffersFrom(latestEvents.get(1))
+        : !messages(result, checkType).equals(storedMessages(latestEvents.get(1)));
   }
 
   private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {
@@ -118,15 +128,11 @@ public class HealthCheckNotifier {
         .toList();
   }
 
-  private HealthCheckSeverity previousSeverity(
-      TulevaFund fund, LocalDate checkDate, HealthCheckType checkType) {
-    var rows =
-        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
-            fund, checkDate, checkType);
-    if (rows.size() < 2) {
+  private static HealthCheckSeverity previousSeverity(List<HealthCheckEvent> latestEvents) {
+    if (latestEvents.size() < 2) {
       return PASS;
     }
-    var severity = rows.get(1).getSeverity();
+    var severity = latestEvents.get(1).getSeverity();
     return severity != null ? severity : PASS;
   }
 
@@ -142,32 +148,60 @@ public class HealthCheckNotifier {
     message.append(fundStatuses(results, earlierImports));
     correctionSteps(provider, date, results).ifPresent(message::append);
 
-    for (var transition : active) {
-      for (var finding : transition.result.findings()) {
-        if (finding.checkType() == transition.checkType && finding.severity() != PASS) {
-          message.append(
-              "\n%s [%s] %s %s: %s"
-                  .formatted(
-                      severityEmoji(finding.severity()),
-                      finding.severity(),
-                      finding.checkType(),
-                      finding.fund(),
-                      finding.message()));
-        }
-      }
-    }
+    message.append(findingLines(active));
 
     if (!cleared.isEmpty()) {
       if (!active.isEmpty()) {
         message.append("\n");
       }
-      for (var transition : cleared) {
-        message.append(
-            "\n[CLEARED] %s %s".formatted(transition.checkType, transition.result.fund()));
-      }
+      message.append(clearedLines(cleared));
     }
 
     return message.toString();
+  }
+
+  private static String findingLines(List<Transition> active) {
+    var lines = new StringBuilder();
+    active.stream()
+        .flatMap(Transition::activeFindings)
+        .filter(finding -> finding.checkType() != FUND_IN_REPORT)
+        .forEach(
+            finding -> lines.append(FindingLine.of(finding).render(EnumSet.of(finding.fund()))));
+    active.stream()
+        .flatMap(Transition::activeFindings)
+        .filter(finding -> finding.checkType() == FUND_IN_REPORT)
+        .collect(
+            groupingBy(
+                FindingLine::of,
+                LinkedHashMap::new,
+                mapping(
+                    HealthCheckFinding::fund,
+                    toCollection(() -> EnumSet.noneOf(TulevaFund.class)))))
+        .forEach((line, funds) -> lines.append(line.render(funds)));
+    return lines.toString();
+  }
+
+  private static String clearedLines(List<Transition> cleared) {
+    var lines = new StringBuilder();
+    cleared.stream()
+        .filter(transition -> transition.checkType != FUND_IN_REPORT)
+        .forEach(
+            transition ->
+                lines.append(
+                    "\n[CLEARED] %s %s".formatted(transition.checkType, transition.result.fund())));
+    var fundsBackInReport =
+        cleared.stream()
+            .filter(transition -> transition.checkType == FUND_IN_REPORT)
+            .map(transition -> transition.result.fund())
+            .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+    if (!fundsBackInReport.isEmpty()) {
+      lines.append("\n[CLEARED] %s %s".formatted(FUND_IN_REPORT, codes(fundsBackInReport)));
+    }
+    return lines.toString();
+  }
+
+  private static String codes(Set<TulevaFund> funds) {
+    return funds.stream().map(TulevaFund::toString).collect(joining(", "));
   }
 
   private String header(
@@ -176,10 +210,14 @@ public class HealthCheckNotifier {
       List<HealthCheckResult> results,
       EarlierImports earlierImports,
       List<Transition> active) {
-    var blockedFunds = HealthCheckResult.blockedFunds(results);
-    if (!blockedFunds.isEmpty()) {
+    var fundsImportingNothing = HealthCheckResult.fundsImportingNothing(results);
+    if (!HealthCheckResult.blockedFunds(results).isEmpty()) {
       return "IMPORT BLOCKED: %s %s — %s, source files need to be fixed\n"
-          .formatted(provider, date, earlierImports.whatBlockingLeft(blockedFunds));
+          .formatted(provider, date, earlierImports.whatIsLeftFor(fundsImportingNothing));
+    }
+    if (!fundsImportingNothing.isEmpty()) {
+      return "Import warning: %s %s — %s\n"
+          .formatted(provider, date, earlierImports.whatIsLeftFor(fundsImportingNothing));
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);
@@ -211,18 +249,36 @@ public class HealthCheckNotifier {
             .formatted(date.format(BASIC_ISO_DATE)));
   }
 
-  private String severityEmoji(HealthCheckSeverity severity) {
-    return switch (severity) {
-      case FAIL -> "🛑";
-      case WARNING -> "⚠️";
-      case NOT_RUN -> "⏸";
-      case PASS -> "✅";
-    };
-  }
-
   private record Transition(
       HealthCheckResult result,
       HealthCheckType checkType,
       HealthCheckSeverity current,
-      HealthCheckSeverity previous) {}
+      HealthCheckSeverity previous) {
+
+    Stream<HealthCheckFinding> activeFindings() {
+      return result.findings().stream()
+          .filter(finding -> finding.checkType() == checkType && finding.severity() != PASS);
+    }
+  }
+
+  private record FindingLine(
+      HealthCheckSeverity severity, HealthCheckType checkType, String message) {
+
+    static FindingLine of(HealthCheckFinding finding) {
+      return new FindingLine(finding.severity(), finding.checkType(), finding.message());
+    }
+
+    String render(Set<TulevaFund> funds) {
+      return "\n%s [%s] %s %s: %s".formatted(emoji(), severity, checkType, codes(funds), message);
+    }
+
+    private String emoji() {
+      return switch (severity) {
+        case FAIL -> "🛑";
+        case WARNING -> "⚠️";
+        case NOT_RUN -> "⏸";
+        case PASS -> "✅";
+      };
+    }
+  }
 }

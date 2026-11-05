@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckResult.ReportPresence.MISSING_FROM_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
@@ -9,6 +12,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.Map.entry;
@@ -38,6 +42,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,7 +69,9 @@ class FundPositionImportJobTest {
   void setUp() {
     sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate());
     importService = new FundPositionImportService(repository, Clock.systemUTC());
-    lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
+    lenient()
+        .when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of());
     job =
         new FundPositionImportJob(
             sebParser,
@@ -292,8 +299,52 @@ class FundPositionImportJobTest {
     job.onReportImportCompleted(
         new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, storedUnder, 7));
 
-    verify(healthCheckService).check(anyList());
+    verify(healthCheckService).check(any(), anyList(), anySet(), anyInt());
     verify(eventPublisher).publishEvent(any(FundPositionsImported.class));
+  }
+
+  @Test
+  void checksAReportUnderItsAsOfDateWithTheFundsAndTheCountOfItsPositionRows() {
+    var date = LocalDate.of(2026, 1, 5);
+    var asOf = LocalDate.of(2026, 1, 2);
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(
+            Optional.of(
+                positionsReport(
+                    date,
+                    asOf,
+                    List.of(
+                        Map.of("Fund Management Company:", "Sent:", "Tuleva Fondid AS", "x"),
+                        Map.of("Client name", "Some Other Fund", "Name", "Cash account"),
+                        Map.of("Client name", "TUK75", "Account", "EE861010220306591229")))));
+
+    job.importForProviderAndDate(SEB, date);
+
+    verify(healthCheckService).check(asOf, List.of(), Set.of(), 1);
+  }
+
+  @Test
+  void checksAReportWithNoDataRowsAsHavingNoPositionRows() {
+    var date = LocalDate.of(2026, 1, 5);
+    var asOf = LocalDate.of(2026, 1, 2);
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(positionsReport(date, asOf, List.of())));
+
+    job.importForProviderAndDate(SEB, date);
+
+    verify(healthCheckService).check(asOf, List.of(), Set.of(), 0);
+  }
+
+  private static InvestmentReport positionsReport(
+      LocalDate date, LocalDate asOf, List<Map<String, Object>> rawData) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(POSITIONS)
+        .reportDate(date)
+        .rawData(rawData)
+        .metadata(Map.of("asOfDate", asOf.toString(), "sentDate", date.toString()))
+        .createdAt(Instant.now())
+        .build();
   }
 
   @Test
@@ -368,7 +419,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(isinMatchFail(TUK75, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
 
@@ -390,7 +442,7 @@ class FundPositionImportJobTest {
     var results = List.of(isinMatchFail(TUK75, date));
     given(reportService.getReport(SEB, POSITIONS, date))
         .willReturn(Optional.of(createSebReport(date)));
-    given(healthCheckService.check(anyList())).willReturn(results);
+    given(healthCheckService.check(any(), anyList(), anySet(), anyInt())).willReturn(results);
     given(repository.findLastImportedAt(TUK75, date)).willReturn(Optional.of(importedAt));
 
     job.importForProviderAndDate(SEB, date);
@@ -399,11 +451,35 @@ class FundPositionImportJobTest {
   }
 
   @Test
+  void
+      importForProviderAndDate_tellsTheNotifierWhenAFundMissingFromTheReportHasPositionsImportedEarlier() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var importedAt = Instant.parse("2026-01-06T07:10:00Z");
+    var results =
+        List.of(
+            new HealthCheckResult(
+                TUK00,
+                date,
+                List.of(
+                    new HealthCheckFinding(
+                        TUK00, FUND_IN_REPORT, WARNING, "TUK00: not in SEB's position report")),
+                MISSING_FROM_REPORT));
+    given(reportService.getReport(SEB, POSITIONS, date))
+        .willReturn(Optional.of(createSebReport(date)));
+    given(healthCheckService.check(any(), anyList(), anySet(), anyInt())).willReturn(results);
+    given(repository.findLastImportedAt(TUK00, date)).willReturn(Optional.of(importedAt));
+
+    job.importForProviderAndDate(SEB, date);
+
+    verify(healthCheckNotifier).notify(SEB, date, results, Map.of(TUK00, importedAt));
+  }
+
+  @Test
   void importForProviderAndDate_importsNothing_whenEveryFundFails() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(anyList()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(List.of(isinMatchFail(TUK75, date), isinMatchFail(TUV100, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
@@ -419,7 +495,7 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(anyList()))
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
         .thenReturn(
             List.of(
                 new HealthCheckResult(
@@ -442,7 +518,8 @@ class FundPositionImportJobTest {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SEB, POSITIONS, date))
         .thenReturn(Optional.of(createSebReport(date)));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(isinMatchFail(TUK75, date)));
 
     var result = job.importForProviderAndDate(SEB, date);
 
@@ -476,7 +553,8 @@ class FundPositionImportJobTest {
                     ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN,
                     "NAV flow could not be reconciled: NAV_FLOW_CONSISTENCY_THRESHOLD is not"
                         + " configured yet")));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(notRunResult));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(notRunResult));
 
     job.importForProviderAndDate(SEB, date);
 
@@ -501,7 +579,8 @@ class FundPositionImportJobTest {
                     ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS,
                     ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING,
                     "no CASH")));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(warningResult));
+    when(healthCheckService.check(any(), anyList(), anySet(), anyInt()))
+        .thenReturn(List.of(warningResult));
 
     job.importForProviderAndDate(SEB, date);
 

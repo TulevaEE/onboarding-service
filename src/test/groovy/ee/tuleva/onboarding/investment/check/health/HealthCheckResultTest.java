@@ -2,8 +2,12 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
@@ -50,5 +54,73 @@ class HealthCheckResultTest {
     assertThat(result.hasIssues()).isFalse();
     assertThat(result.hasFails()).isFalse();
     assertThat(result.hasWarnings()).isFalse();
+  }
+
+  @Test
+  void aFundInTheReportIsCheckedByEveryCheck() {
+    var result = new HealthCheckResult(TUK75, CHECK_DATE, List.of());
+
+    assertThat(result.checkTypes()).containsExactly(HealthCheckType.values());
+    assertThat(result.importStatus()).isEqualTo("imported");
+  }
+
+  @Test
+  void aFundMissingFromTheReportIsCheckedForItsPresenceAloneAndSaysItIsNotInTheReport() {
+    var finding = new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "not in the report");
+
+    var result = HealthCheckResult.missingFromReport(CHECK_DATE, finding);
+
+    assertThat(result)
+        .isEqualTo(
+            new HealthCheckResult(
+                TUV100,
+                CHECK_DATE,
+                List.of(finding),
+                HealthCheckResult.ReportPresence.MISSING_FROM_REPORT));
+    assertThat(result.checkTypes()).containsExactly(FUND_IN_REPORT);
+    assertThat(result.importStatus()).isEqualTo("not in the report");
+  }
+
+  @Test
+  void aFundNotReadFromTheReportIsCheckedForItsPresenceAloneAndSaysItWasNotRead() {
+    var finding = new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "no row could be read");
+
+    var result = HealthCheckResult.notReadFromReport(CHECK_DATE, finding);
+
+    assertThat(result)
+        .isEqualTo(
+            new HealthCheckResult(
+                TUV100,
+                CHECK_DATE,
+                List.of(finding),
+                HealthCheckResult.ReportPresence.NOT_READ_FROM_REPORT));
+    assertThat(result.checkTypes()).containsExactly(FUND_IN_REPORT);
+    assertThat(result.importStatus()).isEqualTo("not read from the report");
+  }
+
+  @Test
+  void aBlockedFundAndAFundTheReportDidNotGiveUsImportNothingWhileAFundWithWarningsImports() {
+    var blocked =
+        new HealthCheckResult(
+            TUK75,
+            CHECK_DATE,
+            List.of(new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "unknown ISIN")));
+    var warned =
+        new HealthCheckResult(
+            TUK00,
+            CHECK_DATE,
+            List.of(new HealthCheckFinding(TUK00, COMPLETENESS, WARNING, "missing CASH")));
+    var missing =
+        HealthCheckResult.missingFromReport(
+            CHECK_DATE, new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "not there"));
+    var notRead =
+        HealthCheckResult.notReadFromReport(
+            CHECK_DATE, new HealthCheckFinding(TKF100, FUND_IN_REPORT, WARNING, "not read"));
+
+    assertThat(List.of(blocked, warned, missing, notRead))
+        .extracting(HealthCheckResult::importsNothing)
+        .containsExactly(true, false, true, true);
+    assertThat(HealthCheckResult.fundsImportingNothing(List.of(blocked, warned, missing, notRead)))
+        .containsExactly(TUK75, TUV100, TKF100);
   }
 }

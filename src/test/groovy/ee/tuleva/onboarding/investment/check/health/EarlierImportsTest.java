@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.FUND_IN_REPORT;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -26,7 +28,7 @@ class EarlierImportsTest {
                 TUK75, Instant.parse("2026-10-21T06:10:00Z"),
                 TUK00, Instant.parse("2026-10-21T06:12:00Z")));
 
-    assertThat(earlierImports.whatBlockingLeft(EnumSet.of(TUK75, TUK00)))
+    assertThat(earlierImports.whatIsLeftFor(EnumSet.of(TUK75, TUK00)))
         .isEqualTo(
             "TUK75 positions written 2026-10-21 09:10, TUK00 positions written 2026-10-21 09:12 stay in"
                 + " use for NAV");
@@ -34,7 +36,7 @@ class EarlierImportsTest {
 
   @Test
   void saysABlockedFundWithoutEarlierPositionsIsNotImported() {
-    assertThat(new EarlierImports(Map.of()).whatBlockingLeft(EnumSet.of(TUK75, TUV100)))
+    assertThat(new EarlierImports(Map.of()).whatIsLeftFor(EnumSet.of(TUK75, TUV100)))
         .isEqualTo("TUK75, TUV100 not imported");
   }
 
@@ -51,5 +53,16 @@ class EarlierImportsTest {
                     DATE,
                     List.of(new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "unknown ISIN")))))
         .isEqualTo("blocked (earlier positions in use)");
+  }
+
+  @Test
+  void aFundTheReportDidNotGiveUsSaysItsEarlierPositionsStayInUse() {
+    var earlierImports = new EarlierImports(Map.of(TUV100, Instant.parse("2026-10-21T06:10:00Z")));
+    var finding = new HealthCheckFinding(TUV100, FUND_IN_REPORT, WARNING, "not there");
+
+    assertThat(earlierImports.importStatus(HealthCheckResult.missingFromReport(DATE, finding)))
+        .isEqualTo("not in the report (earlier positions in use)");
+    assertThat(earlierImports.importStatus(HealthCheckResult.notReadFromReport(DATE, finding)))
+        .isEqualTo("not read from the report (earlier positions in use)");
   }
 }

@@ -66,6 +66,20 @@ class TrusteeEmailFailureAlerterSpec extends Specification {
     0 * notificationService.sendMessage(_, _)
   }
 
+  def "ignores an order email failure, even one addressed to the trustee, since the trading channel reports it"() {
+    given:
+    def event = new EmailDeliveryFailedEvent(
+        TrusteeEmailFailureAlerter.TRUSTEE_EMAIL, "TUV100 ostu-/müügikorraldused 15.01.2026", "hard_bounce",
+        "550 mailbox unavailable", "msg_3", t0, [EmailDeliveryFailedEvent.TRADE_ORDER_TAG])
+
+    when:
+    alerter.onEmailDeliveryFailed(event)
+
+    then:
+    0 * eventLogRepository._
+    0 * notificationService._
+  }
+
   private EmailDeliveryFailedEvent deferralEvent(String messageId) {
     new EmailDeliveryFailedEvent(
         "trustee@seb.ee",

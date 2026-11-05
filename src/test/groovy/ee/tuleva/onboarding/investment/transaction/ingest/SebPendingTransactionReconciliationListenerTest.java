@@ -77,8 +77,7 @@ class SebPendingTransactionReconciliationListenerTest {
             new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
 
     verify(reconciliationService, never()).reconcile(any(), any());
-    verify(jobTriggerQueue)
-        .enqueueUnlessPending("SebPendingTransactionReportReconciliationJob:2026-05-13");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
   }
 
   @Test
@@ -95,8 +94,7 @@ class SebPendingTransactionReconciliationListenerTest {
         .onReportReconciliationRequested(
             new RunSebPendingTransactionReportReconciliationRequested(olderDate));
 
-    verify(jobTriggerQueue)
-        .enqueueUnlessPending("SebPendingTransactionReportReconciliationJob:2026-05-03");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-03");
     verify(reconciliationService).reconcile(eq(olderReport), any());
   }
 
@@ -113,8 +111,7 @@ class SebPendingTransactionReconciliationListenerTest {
         .onReportReconciliationRequested(
             new RunSebPendingTransactionReportReconciliationRequested(saturday));
 
-    verify(jobTriggerQueue)
-        .enqueueUnlessPending("SebPendingTransactionReportReconciliationJob:2026-05-16");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-16");
     verify(reconciliationService).reconcile(eq(saturdaysReport), any());
   }
 
@@ -147,8 +144,7 @@ class SebPendingTransactionReconciliationListenerTest {
         .onReportImportCompleted(
             new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
 
-    verify(jobTriggerQueue)
-        .enqueueUnlessPending("SebPendingTransactionReportReconciliationJob:2026-05-13");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
   }
 
   @Test

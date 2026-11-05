@@ -291,7 +291,7 @@ class SebPendingTransactionReconciliationJobTest {
 
     jobLockedBy(lockProvider).runOnSchedule();
 
-    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
     verifyNoInteractions(
         publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
@@ -328,7 +328,7 @@ class SebPendingTransactionReconciliationJobTest {
     verify(reconciliationService, never()).reconcile(eq(day1), any());
     verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
     verify(pipelineNotifier).sendCompleted(pipelineRun);
-    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
   }
 
   @Test
@@ -359,7 +359,7 @@ class SebPendingTransactionReconciliationJobTest {
 
     verify(reconciliationService, never()).reconcile(eq(day1), any());
     verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
-    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
   }
 
   @Test

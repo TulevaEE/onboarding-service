@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
+import static java.util.stream.Collectors.toSet;
+
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPageReader;
 import java.time.YearMonth;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -23,23 +26,32 @@ class NewerReportCheck {
 
   private final WordPressPageReader pageReader;
 
-  List<String> reasonsNotToPublish(
+  FundPagesBeforePublish reasonsNotToPublish(
       List<FundReportMapping> reports, YearMonth month, Set<String> unrecognisedFilesToReplace) {
-    var linkedUnrecognised = new HashSet<String>();
+    var linkedReports = new LinkedHashMap<FundReportMapping, String>();
     var reasons =
         reports.stream()
             .flatMap(
                 mapping ->
                     reasonNotToReplace(
-                        mapping, month, unrecognisedFilesToReplace, linkedUnrecognised::add)
+                        mapping,
+                        month,
+                        unrecognisedFilesToReplace,
+                        linked -> linkedReports.put(mapping, linked))
                         .stream())
             .toList();
+    var linkedUnrecognised =
+        linkedReports.entrySet().stream()
+            .filter(linked -> linked.getKey().reportPeriodLinkedBy(linked.getValue()).isEmpty())
+            .map(Map.Entry::getValue)
+            .collect(toSet());
     var replacingNothing =
         unrecognisedFilesToReplace.stream()
             .filter(named -> !linkedUnrecognised.contains(named))
             .sorted()
             .map(NAMED_FILE_REPLACES_NOTHING::formatted);
-    return Stream.concat(reasons.stream(), replacingNothing).toList();
+    return new FundPagesBeforePublish(
+        Stream.concat(reasons.stream(), replacingNothing).toList(), linkedReports);
   }
 
   List<String> reasonsNotToRepoint(
@@ -52,15 +64,16 @@ class NewerReportCheck {
       FundReportMapping mapping,
       YearMonth month,
       Set<String> unrecognisedFilesToReplace,
-      Consumer<String> linkedUnrecognised) {
+      Consumer<String> linkedReport) {
     var fundCode = mapping.fund().getCode();
     try {
       return pageReader
           .investmentReportUrl(mapping.pageSlug())
           .flatMap(
-              linked ->
-                  reasonNotToReplace(
-                      mapping, linked, month, unrecognisedFilesToReplace, linkedUnrecognised));
+              linked -> {
+                linkedReport.accept(linked);
+                return reasonNotToReplace(mapping, linked, month, unrecognisedFilesToReplace);
+              });
     } catch (RuntimeException e) {
       log.error("Could not read fund page to check for a newer report: fund={}", fundCode, e);
       return Optional.of(
@@ -73,12 +86,10 @@ class NewerReportCheck {
       FundReportMapping mapping,
       String linked,
       YearMonth month,
-      Set<String> unrecognisedFilesToReplace,
-      Consumer<String> linkedUnrecognised) {
+      Set<String> unrecognisedFilesToReplace) {
     var fundCode = mapping.fund().getCode();
     var linkedPeriod = mapping.reportPeriodLinkedBy(linked);
     if (linkedPeriod.isEmpty()) {
-      linkedUnrecognised.accept(linked);
       return unrecognisedFilesToReplace.contains(linked)
           ? Optional.empty()
           : Optional.of(

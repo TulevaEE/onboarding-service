@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpConnectTimeoutException;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -27,6 +28,8 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties(WordPressProperties.class)
 class WordPressConfiguration {
 
+  static final List<Class<? extends Throwable>> NEVER_REACHED_WORDPRESS =
+      List.of(ConnectException.class, HttpConnectTimeoutException.class);
   private static final Duration FIRST_RETRY_DELAY = ofMillis(500);
 
   private final Duration firstRetryDelay;
@@ -100,8 +103,7 @@ class WordPressConfiguration {
   }
 
   RetryTemplate retryingRequestsThatNeverReachedWordPress() {
-    return retrying(
-        RetryPolicy.builder().includes(ConnectException.class, HttpConnectTimeoutException.class));
+    return retrying(RetryPolicy.builder().includes(NEVER_REACHED_WORDPRESS));
   }
 
   private RetryTemplate retrying(RetryPolicy.Builder failures) {

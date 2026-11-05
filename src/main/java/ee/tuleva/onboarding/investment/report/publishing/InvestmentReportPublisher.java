@@ -48,6 +48,7 @@ public class InvestmentReportPublisher {
 
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
+  private final ReportUploads reportUploads;
   private final WordPressMediaClient wordPressClient;
   private final NewerReportCheck newerReportCheck;
   private final InvestmentReportMailer mailer;
@@ -82,12 +83,13 @@ public class InvestmentReportPublisher {
       return abortedWithoutPublishing(navDateErrors);
     }
 
-    var refusals =
+    var fundPages =
         newerReportCheck.reasonsNotToPublish(
             configuredReports(), month, unrecognisedFilesToReplace);
-    if (!refusals.isEmpty()) {
-      log.warn("Fund page check refused the publish: month={}, errors={}", month, refusals);
-      return abortedWithoutPublishing(refusals);
+    if (!fundPages.refusals().isEmpty()) {
+      log.warn(
+          "Fund page check refused the publish: month={}, errors={}", month, fundPages.refusals());
+      return abortedWithoutPublishing(fundPages.refusals());
     }
 
     logQuantityWarnings(month);
@@ -104,7 +106,7 @@ public class InvestmentReportPublisher {
     var pdfs = generation.pdfs();
 
     var uploadErrors = new ArrayList<String>();
-    var uploads = uploadAllReports(month, pdfs, uploadErrors);
+    var uploads = reportUploads.uploadAll(month, pdfs, fundPages.linkedReports(), uploadErrors);
     if (!uploadErrors.isEmpty()) {
       uploads.forEach(
           (mapping, upload) ->
@@ -182,26 +184,6 @@ public class InvestmentReportPublisher {
       }
     }
     return new ReportGeneration(pdfs, errors, allocationErrors);
-  }
-
-  private Map<FundReportMapping, UploadResult> uploadAllReports(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
-    var uploads = new LinkedHashMap<FundReportMapping, UploadResult>();
-    for (var entry : pdfs.entrySet()) {
-      var mapping = entry.getKey();
-      var filename = mapping.buildPdfFilename(month);
-      try {
-        uploads.put(mapping, wordPressClient.upload(filename, entry.getValue()));
-      } catch (Exception e) {
-        log.error("WordPress upload failed for {}", mapping.fund().getCode(), e);
-        errors.add(
-            ("WordPress upload failed but may have stored the file anyway, under this name's"
-                    + " slug and possibly a -N suffix; delete it from the media library if it is"
-                    + " there: fund=%s, file=%s, cause=%s")
-                .formatted(mapping.fund().getCode(), filename, e.getClass().getSimpleName()));
-      }
-    }
-    return uploads;
   }
 
   private Map<String, String> repointFundPages(

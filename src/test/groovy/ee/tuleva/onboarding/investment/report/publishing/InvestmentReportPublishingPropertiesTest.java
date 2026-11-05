@@ -33,6 +33,7 @@ class InvestmentReportPublishingPropertiesTest {
               InvestmentReportPublisher.class,
               InvestmentReportPublishingLock.class,
               InvestmentReportMailer.class,
+              ReportUploads.class,
               NewerReportCheck.class)
           .withBean(
               InvestmentReportDataService.class, () -> mock(InvestmentReportDataService.class))

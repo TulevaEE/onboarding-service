@@ -9,6 +9,7 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
@@ -18,16 +19,39 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class WordPressMediaClient {
 
-  private static final Pattern VALID_WP_PDF_URL =
-      Pattern.compile(
-          "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
-
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
   private final RetryTemplate uploadRetryTemplate;
   private final List<String> missingProperties;
 
-  public record UploadResult(int attachmentId, String sourceUrl) {}
+  public record UploadResult(int attachmentId, String sourceUrl) {
+
+    private static final Pattern VALID_WP_PDF_URL =
+        Pattern.compile(
+            "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
+
+    private static UploadResult readFrom(@Nullable Map<?, ?> response, String slug) {
+      if (response == null) {
+        throw new IllegalStateException("WordPress returned no response body: filename=" + slug);
+      }
+
+      var sourceUrl = (String) response.get("source_url");
+      if (sourceUrl == null || !VALID_WP_PDF_URL.matcher(sourceUrl).matches()) {
+        throw new IllegalStateException(
+            "WordPress returned invalid source_url: " + truncate(String.valueOf(sourceUrl), 200));
+      }
+
+      var attachmentId = (Integer) response.get("id");
+      if (attachmentId == null) {
+        throw new IllegalStateException("WordPress returned no attachment id");
+      }
+      return new UploadResult(attachmentId, sourceUrl);
+    }
+
+    private static String truncate(String s, int maxLen) {
+      return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
+    }
+  }
 
   public UploadResult upload(String filename, byte[] pdfBytes) {
     refuseWhenUnconfigured();
@@ -35,35 +59,27 @@ public class WordPressMediaClient {
 
     log.info("Uploading PDF to WordPress: filename={}, size={}bytes", slug, pdfBytes.length);
 
-    var response =
-        uploadRetryTemplate.invoke(
-            () ->
-                restClient
-                    .post()
-                    .uri("/media")
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header("Content-Disposition", "attachment; filename=\"" + slug + "\"")
-                    .body(pdfBytes)
-                    .retrieve()
-                    .body(Map.class));
-
-    if (response == null) {
-      throw new IllegalStateException("WordPress returned no response body: filename=" + slug);
+    try {
+      var response =
+          uploadRetryTemplate.invoke(
+              () ->
+                  restClient
+                      .post()
+                      .uri("/media")
+                      .contentType(MediaType.APPLICATION_PDF)
+                      .header("Content-Disposition", "attachment; filename=\"" + slug + "\"")
+                      .body(pdfBytes)
+                      .retrieve()
+                      .body(Map.class));
+      var uploaded = UploadResult.readFrom(response, slug);
+      log.info(
+          "WordPress upload successful: attachmentId={}, sourceUrl={}",
+          uploaded.attachmentId(),
+          uploaded.sourceUrl());
+      return uploaded;
+    } catch (RuntimeException failure) {
+      throw UploadFailed.after(slug, failure);
     }
-
-    var sourceUrl = (String) response.get("source_url");
-    if (sourceUrl == null || !VALID_WP_PDF_URL.matcher(sourceUrl).matches()) {
-      throw new IllegalStateException(
-          "WordPress returned invalid source_url: " + truncate(String.valueOf(sourceUrl), 200));
-    }
-
-    var attachmentId = (Integer) response.get("id");
-    if (attachmentId == null) {
-      throw new IllegalStateException("WordPress returned no attachment id");
-    }
-
-    log.info("WordPress upload successful: attachmentId={}, sourceUrl={}", attachmentId, sourceUrl);
-    return new UploadResult(attachmentId, sourceUrl);
   }
 
   public void updateAcfReportField(
@@ -192,9 +208,5 @@ public class WordPressMediaClient {
               + pages.size());
     }
     return pages.getFirst();
-  }
-
-  private static String truncate(String s, int maxLen) {
-    return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
   }
 }

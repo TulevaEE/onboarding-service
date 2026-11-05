@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.MayBeStored;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.NothingStored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -99,8 +101,7 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {1}))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("invalid source_url");
+        .isInstanceOf(MayBeStored.class);
   }
 
   @Test
@@ -114,8 +115,7 @@ class WordPressMediaClientTest {
         .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {1}))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("no attachment id");
+        .isInstanceOf(MayBeStored.class);
   }
 
   @Test
@@ -188,7 +188,34 @@ class WordPressMediaClientTest {
         .andRespond(failingWith(new HttpTimeoutException("request timed out")));
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
-        .isInstanceOf(ResourceAccessException.class);
+        .isInstanceOfSatisfying(
+            MayBeStored.class,
+            mayBeStored ->
+                assertThat(mayBeStored).hasCauseInstanceOf(ResourceAccessException.class));
+    server.verify();
+  }
+
+  @Test
+  void anUploadThatNeverConnectsStoresNothing() {
+    server
+        .expect(ExpectedCount.times(3), requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
+        .andExpect(method(POST))
+        .andRespond(failingWith(connectException(new ClosedChannelException())));
+
+    assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
+        .isInstanceOf(NothingStored.class);
+    server.verify();
+  }
+
+  @Test
+  void anUploadWordPressRefusedStoresNothing() {
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/media"))
+        .andExpect(method(POST))
+        .andRespond(withStatus(HttpStatus.PAYLOAD_TOO_LARGE));
+
+    assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
+        .isInstanceOf(NothingStored.class);
     server.verify();
   }
 
@@ -200,7 +227,10 @@ class WordPressMediaClientTest {
         .andRespond(withServerError());
 
     assertThatThrownBy(() -> client.upload("test.pdf", new byte[] {0x25, 0x50, 0x44, 0x46}))
-        .isInstanceOf(HttpServerErrorException.class);
+        .isInstanceOfSatisfying(
+            MayBeStored.class,
+            mayBeStored ->
+                assertThat(mayBeStored).hasCauseInstanceOf(HttpServerErrorException.class));
     server.verify();
   }
 

@@ -17,13 +17,18 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdf
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.MayBeStored;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.UploadFailed.NothingStored;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,12 +60,18 @@ class InvestmentReportPublisherTest {
   private static final Set<String> NOTHING_TO_REPLACE = Set.of();
   private static final String HAND_NAMED_FILE =
       "https://tuleva.ee/wp-content/uploads/2026/04/aruanne-marts.pdf";
+  private static final Instant NOW = Instant.parse("2026-04-10T07:00:00Z");
+  private static final String LIVE_TUK00_REPORT =
+      "https://tuleva.ee/wp-content/uploads/2026/04/"
+          + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf";
 
   @BeforeEach
   void setUp() {
     publisher = publisherFor(PENSION_FUNDS);
     lenient().when(dataService.validateQuantities(any(), eq(MARCH_2026))).thenReturn(List.of());
-    lenient().when(newerReportCheck.reasonsNotToPublish(any(), any(), any())).thenReturn(List.of());
+    lenient()
+        .when(newerReportCheck.reasonsNotToPublish(any(), any(), any()))
+        .thenReturn(new FundPagesBeforePublish(List.of(), Map.of()));
     lenient().when(newerReportCheck.reasonsNotToRepoint(any(), any(), any())).thenReturn(List.of());
     lenient()
         .when(publishingLock.whileNoOtherPublishRuns(any(), any()))
@@ -72,6 +83,7 @@ class InvestmentReportPublisherTest {
     return new InvestmentReportPublisher(
         dataService,
         pdfGenerator,
+        new ReportUploads(wordPressClient, Clock.fixed(NOW, ZoneOffset.UTC)),
         wordPressClient,
         newerReportCheck,
         new InvestmentReportMailer(emailService),
@@ -302,19 +314,11 @@ class InvestmentReportPublisherTest {
   }
 
   @Test
-  void aFailedUploadNamesTheFileWordPressMayHaveStoredAndTheUploadsLeftUnlinked() {
-    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
-    var context = sampleContext("Test Fund");
-    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
-    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
-    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
-    given(wordPressClient.upload(FundReportMapping.TUK75.buildPdfFilename(MARCH_2026), pdfBytes))
-        .willReturn(new UploadResult(41, "https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf"));
-    given(wordPressClient.upload(FundReportMapping.TUK00.buildPdfFilename(MARCH_2026), pdfBytes))
-        .willThrow(new IllegalStateException("request timed out"));
-    given(wordPressClient.upload(FundReportMapping.TUV100.buildPdfFilename(MARCH_2026), pdfBytes))
-        .willReturn(
-            new UploadResult(43, "https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf"));
+  void anUploadThatMayHaveReachedWordPressNamesTheReportToKeepAndTheUploadTimeNotAFilename() {
+    givenTheUploadOfTuk00Fails(
+        new MayBeStored(
+            "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf",
+            new ResourceAccessException("read timed out")));
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
@@ -324,25 +328,84 @@ class InvestmentReportPublisherTest {
                 Map.of(),
                 false,
                 List.of(
-                    "WordPress upload failed but may have stored the file anyway, under this"
-                        + " name's slug and possibly a -N suffix; delete it from the media library"
-                        + " if it is there: fund=TUK00, file=Tuleva Maailma Võlakirjade"
-                        + " Pensionifondi investeeringute aruanne 2026-03.pdf,"
-                        + " cause=IllegalStateException",
-                    "Uploaded report was not linked; link it or delete it from the media library:"
-                        + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf",
-                    "Uploaded report was not linked; link it or delete it from the media library:"
-                        + " fund=TUV100,"
-                        + " file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf")));
+                    "WordPress upload failed after it may have reached WordPress; keep the report"
+                        + " the fund page links, and delete only an attachment uploaded at"
+                        + " uploadedAt that no fund page links: fund=TUK00,"
+                        + " keep="
+                        + LIVE_TUK00_REPORT
+                        + ", uploadedAt=2026-04-10T07:00:00Z, cause=ResourceAccessException",
+                    TUK75_UPLOAD_LEFT_UNLINKED,
+                    TUV100_UPLOAD_LEFT_UNLINKED)));
     verify(wordPressClient, never()).updateAcfReportField(any(), anyInt(), any());
+  }
+
+  @Test
+  void aSameMonthRepublishWhoseUploadNeverConnectsKeepsTheLinkedReportAndAdvisesNoDeletion() {
+    givenTheUploadOfTuk00Fails(
+        new NothingStored(
+            "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-03.pdf",
+            new ResourceAccessException("Connection refused")));
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    var nothingStored =
+        "WordPress upload did not reach WordPress or was refused, so nothing was stored and"
+            + " nothing needs deleting; the fund page still links the report to keep: fund=TUK00,"
+            + " keep="
+            + LIVE_TUK00_REPORT
+            + ", cause=ResourceAccessException";
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(),
+                false,
+                List.of(nothingStored, TUK75_UPLOAD_LEFT_UNLINKED, TUV100_UPLOAD_LEFT_UNLINKED)));
     verify(emailService)
         .sendSystemEmail(
             argThat(
                 alert ->
-                    alert.getSubject().contains("pooleli")
-                        && alert.getText().contains("Võlakirjade Pensionifondi")
-                        && alert.getText().contains("uploads/2026/04/tuk75.pdf")
-                        && alert.getText().contains("uploads/2026/04/tuv100.pdf")));
+                    alert
+                        .getText()
+                        .equals(
+                            String.join(
+                                System.lineSeparator(),
+                                "Investment report publish for 2026-03 did not finish.",
+                                "Fund pages updated: []",
+                                "Errors: ["
+                                    + nothingStored
+                                    + ", "
+                                    + TUK75_UPLOAD_LEFT_UNLINKED
+                                    + ", "
+                                    + TUV100_UPLOAD_LEFT_UNLINKED
+                                    + "]",
+                                "Manual attention needed: make all fund pages consistent, and"
+                                    + " link or delete the uploaded files named above."))));
+  }
+
+  private static final String TUK75_UPLOAD_LEFT_UNLINKED =
+      "Uploaded report was not linked; link it or delete it from the media library:"
+          + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf";
+  private static final String TUV100_UPLOAD_LEFT_UNLINKED =
+      "Uploaded report was not linked; link it or delete it from the media library:"
+          + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf";
+
+  private void givenTheUploadOfTuk00Fails(RuntimeException failure) {
+    given(dataService.findNavDates(PENSION_FUNDS, MARCH_2026)).willReturn(CONSISTENT_NAV_DATES);
+    given(newerReportCheck.reasonsNotToPublish(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
+        .willReturn(
+            new FundPagesBeforePublish(
+                List.of(), Map.of(FundReportMapping.TUK00, LIVE_TUK00_REPORT)));
+    var context = sampleContext("Test Fund");
+    var pdfBytes = new byte[] {0x25, 0x50, 0x44, 0x46};
+    given(dataService.getReportData(any(), eq(MARCH_2026))).willReturn(context);
+    given(pdfGenerator.generatePdf(context)).willReturn(pdfBytes);
+    given(wordPressClient.upload(FundReportMapping.TUK75.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willReturn(new UploadResult(41, "https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf"));
+    given(wordPressClient.upload(FundReportMapping.TUK00.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willThrow(failure);
+    given(wordPressClient.upload(FundReportMapping.TUV100.buildPdfFilename(MARCH_2026), pdfBytes))
+        .willReturn(
+            new UploadResult(43, "https://tuleva.ee/wp-content/uploads/2026/04/tuv100.pdf"));
   }
 
   @Test
@@ -370,7 +433,7 @@ class InvestmentReportPublisherTest {
                 List.of(FundReportMapping.TUK75, FundReportMapping.TUK00, FundReportMapping.TUV100),
                 MARCH_2026,
                 NOTHING_TO_REPLACE))
-        .willReturn(List.of(refusal));
+        .willReturn(new FundPagesBeforePublish(List.of(refusal), Map.of()));
 
     var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
 
@@ -409,7 +472,7 @@ class InvestmentReportPublisherTest {
     var refusal =
         "Fund page links a file that is not this fund's report, so it may be newer: fund=TUK00";
     given(newerReportCheck.reasonsNotToPublish(any(), eq(MARCH_2026), eq(NOTHING_TO_REPLACE)))
-        .willReturn(List.of(refusal));
+        .willReturn(new FundPagesBeforePublish(List.of(refusal), Map.of()));
 
     var refused = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
     var replaced = publisher.publish(MARCH_2026, Set.of(HAND_NAMED_FILE));

@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressPage
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK00, YearMonth.of(2026, 4))),
         Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE)
+                .refusals())
         .containsExactly(
             "Fund page already links a newer report: fund=TUK00, linked=2026-04,"
                 + " publishing=2026-03");
@@ -52,7 +56,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK00, YearMonth.of(2026, 1))),
         Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE)
+                .refusals())
         .isEmpty();
   }
 
@@ -63,7 +70,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK75, YearMonth.of(2026, 2))),
         Optional.of(reportUrl(TUV100, YearMonth.of(2026, 2))));
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE)
+                .refusals())
         .containsExactly(
             unrecognisedFileRefusal("TUK75", HAND_NAMED_FILE),
             unrecognisedFileRefusal("TUK00", reportUrl(TUK75, YearMonth.of(2026, 2))));
@@ -76,7 +86,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK75, YearMonth.of(2026, 2))),
         Optional.of(reportUrl(TUV100, YearMonth.of(2026, 2))));
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE)))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE))
+                .refusals())
         .containsExactly(unrecognisedFileRefusal("TUK00", reportUrl(TUK75, YearMonth.of(2026, 2))));
   }
 
@@ -87,7 +100,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK00, YearMonth.of(2026, 2))),
         Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE)))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE))
+                .refusals())
         .containsExactly(
             unrecognisedFileRefusal("TUK75", ANOTHER_HAND_NAMED_FILE),
             replacesNothing(HAND_NAMED_FILE));
@@ -100,7 +116,10 @@ class NewerReportCheckTest {
         Optional.of(reportUrl(TUK00, YearMonth.of(2026, 2))),
         Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE)))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE))
+                .refusals())
         .containsExactly(replacesNothing(HAND_NAMED_FILE));
   }
 
@@ -109,8 +128,23 @@ class NewerReportCheckTest {
     var ownReport = reportUrl(TUK75, YearMonth.of(2026, 2));
     givenPagesLink(Optional.of(ownReport), Optional.empty(), Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(ownReport)))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(ownReport))
+                .refusals())
         .containsExactly(replacesNothing(ownReport));
+  }
+
+  @Test
+  void theCheckRecordsTheReportEachPageLinksBeforeTheUpload() {
+    givenPagesLink(
+        Optional.of(reportUrl(TUK75, MARCH_2026)), Optional.of(HAND_NAMED_FILE), Optional.empty());
+
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE))
+                .linkedReports())
+        .isEqualTo(Map.of(TUK75, reportUrl(TUK75, MARCH_2026), TUK00, HAND_NAMED_FILE));
   }
 
   @Test
@@ -130,8 +164,10 @@ class NewerReportCheckTest {
     givenPagesLink(Optional.of(HAND_NAMED_FILE), Optional.of(newerReport), Optional.empty());
 
     assertThat(
-            check.reasonsNotToPublish(
-                PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE, newerReport)))
+            check
+                .reasonsNotToPublish(
+                    PENSION_FUND_REPORTS, MARCH_2026, Set.of(HAND_NAMED_FILE, newerReport))
+                .refusals())
         .containsExactly(
             "Fund page already links a newer report: fund=TUK00, linked=2026-04,"
                 + " publishing=2026-03",
@@ -146,7 +182,10 @@ class NewerReportCheckTest {
         .willThrow(new IllegalStateException("page unreadable"));
     given(pageReader.investmentReportUrl(TUV100.pageSlug())).willReturn(Optional.empty());
 
-    assertThat(check.reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE))
+    assertThat(
+            check
+                .reasonsNotToPublish(PENSION_FUND_REPORTS, MARCH_2026, NOTHING_TO_REPLACE)
+                .refusals())
         .containsExactly(
             "Fund page already links a newer report: fund=TUK75, linked=2026-05,"
                 + " publishing=2026-03",

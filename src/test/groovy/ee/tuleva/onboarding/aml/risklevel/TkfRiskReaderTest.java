@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -98,5 +102,19 @@ class TkfRiskReaderTest {
         .param(riskLevel)
         .param(metadataJson)
         .update();
+  }
+
+  @Test
+  void refreshMaterializedView_refreshesTkfRiskView() {
+    JdbcClient refreshingJdbcClient = mock(JdbcClient.class);
+    JdbcClient.StatementSpec statementSpec = mock(JdbcClient.StatementSpec.class);
+    given(refreshingJdbcClient.sql(anyString())).willReturn(statementSpec);
+
+    new TkfRiskReader(mock(TkfRiskMetadataRepository.class), refreshingJdbcClient)
+        .refreshMaterializedView();
+
+    verify(refreshingJdbcClient)
+        .sql("REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_tkf_risk_metadata");
+    verify(statementSpec).update();
   }
 }

@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -73,7 +72,7 @@ class RiskLevelServiceTest {
   @DisplayName("Should create a new AML check for a valid high-risk row with a personal ID")
   void testRunRiskLevelCheck_createsAmlCheck_forValidNewHighRiskRow() {
     // given
-    RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("some_key", 999));
+    RiskLevelResult highRiskRow = new RiskLevelResult("38888888888", 1, Map.of("some_key", 999));
     when(amlRiskReader.getHighRiskRows()).thenReturn(List.of(highRiskRow));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
@@ -90,7 +89,7 @@ class RiskLevelServiceTest {
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository).save(checkCaptor.capture());
     AmlCheck createdCheck = checkCaptor.getValue();
-    assertEquals("38888888880", createdCheck.getPersonalCode());
+    assertEquals("38888888888", createdCheck.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
     assertEquals(999, createdCheck.getMetadata().get("some_key"));
@@ -148,7 +147,7 @@ class RiskLevelServiceTest {
   @DisplayName("Should process both high-risk and medium-risk sample rows")
   void testRunRiskLevelCheck_processesBothHighAndMediumRisk() {
     // given
-    RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("high_key", 999));
+    RiskLevelResult highRiskRow = new RiskLevelResult("38888888888", 1, Map.of("high_key", 999));
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
 
@@ -170,7 +169,7 @@ class RiskLevelServiceTest {
 
     AmlCheck highRiskCheck =
         createdChecks.stream()
-            .filter(c -> c.getPersonalCode().equals("38888888880"))
+            .filter(c -> c.getPersonalCode().equals("38888888888"))
             .findFirst()
             .get();
     AmlCheck mediumRiskCheck =
@@ -615,81 +614,5 @@ class RiskLevelServiceTest {
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher).publishEvent(captor.capture());
     assertThat(captor.getValue().getLabel()).isEqualTo("TKF");
-  }
-
-  @Test
-  void isHighRisk_trueWhenLatestThirdPillarSnapshotIsHigh() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 1)));
-
-    assertTrue(riskLevelService.isHighRisk("123"));
-  }
-
-  @Test
-  void isHighRisk_trueWhenLatestTkfOverrideLevelIsHighString() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.empty());
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, "1")));
-
-    assertTrue(riskLevelService.isHighRisk("123"));
-  }
-
-  @Test
-  void isHighRisk_falseWhenLatestRowsAreNotHighOrMissing() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 2)));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.empty());
-
-    assertFalse(riskLevelService.isHighRisk("123"));
-  }
-
-  @Test
-  void isHighRisk_trueWhenLevelIsMalformed() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, "not-a-number")));
-
-    assertTrue(riskLevelService.isHighRisk("123"));
-  }
-
-  @Test
-  void isHighRisk_trueWhenAutomaticSnapshotHasNoLevel() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, null)));
-
-    assertTrue(riskLevelService.isHighRisk("123"));
-  }
-
-  @Test
-  void isHighRisk_falseWhenLatestRowIsOverrideWithoutLevel() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL_OVERRIDE, null)));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-            "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
-        .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, null)));
-
-    assertFalse(riskLevelService.isHighRisk("123"));
-  }
-
-  private AmlCheck checkWithLevel(AmlCheckType type, Object level) {
-    Map<String, Object> metadata = new HashMap<>();
-    if (level != null) {
-      metadata.put("level", level);
-    }
-    return AmlCheck.builder()
-        .personalCode("123")
-        .type(type)
-        .success(false)
-        .metadata(metadata)
-        .build();
   }
 }

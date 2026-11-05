@@ -5,7 +5,7 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSecondPillarRejoin": true,
-      "secondPillarRejoinDeadline": "November 30, 2026",
+      "secondPillarRejoinDeadline": "November 30",
       "anyPillarSuggestion": true
     },
     "second pillar start suggestion": {

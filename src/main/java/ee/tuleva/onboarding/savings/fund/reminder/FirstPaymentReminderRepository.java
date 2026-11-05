@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +14,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -27,6 +31,7 @@ class FirstPaymentReminderRepository {
 
   private final JdbcClient jdbcClient;
   private final Clock clock;
+  private final ParentChildLinkService parentChildLinkService;
 
   List<FirstPaymentReminder> fetchForAdults(Instant openedFrom, Instant openedUntil) {
     return window(
@@ -95,6 +100,7 @@ class FirstPaymentReminderRepository {
                 """
                 SELECT child.code AS account_code,
                        child_user.first_name || ' ' || child_user.last_name AS account_holder_name,
+                       guardian.personal_code AS guardian_code,
                        guardian.first_name AS first_name,
                        guardian.last_name AS last_name,
                        guardian.email AS email
@@ -125,8 +131,11 @@ class FirstPaymentReminderRepository {
             openedFrom,
             openedUntil)
         .param("emailType", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD.name())
-        .query(this::childReminder)
-        .list();
+        .query(this::childAccountGuardian)
+        .list()
+        .stream()
+        .flatMap(guardian -> childReminder(guardian).stream())
+        .toList();
   }
 
   private StatementSpec window(StatementSpec statement, Instant openedFrom, Instant openedUntil) {
@@ -144,18 +153,34 @@ class FirstPaymentReminderRepository {
         rs.getString("email"),
         localeOf(rs.getString("language_preference")),
         SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+        null,
         null);
   }
 
-  private FirstPaymentReminder childReminder(ResultSet rs, int rowNum) throws SQLException {
-    return new FirstPaymentReminder(
+  private ChildAccountGuardian childAccountGuardian(ResultSet rs, int rowNum) throws SQLException {
+    return new ChildAccountGuardian(
         rs.getString("account_code"),
+        rs.getString("account_holder_name"),
+        rs.getString("guardian_code"),
         rs.getString("first_name"),
         rs.getString("last_name"),
-        rs.getString("email"),
-        ESTONIAN,
-        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
-        rs.getString("account_holder_name"));
+        rs.getString("email"));
+  }
+
+  private Optional<FirstPaymentReminder> childReminder(ChildAccountGuardian guardian) {
+    return parentChildLinkService
+        .findRepresentation(guardian.personalCode(), guardian.accountCode(), Set.of(ACTIVE))
+        .map(
+            accountId ->
+                new FirstPaymentReminder(
+                    guardian.accountCode(),
+                    guardian.firstName(),
+                    guardian.lastName(),
+                    guardian.email(),
+                    ESTONIAN,
+                    SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
+                    guardian.accountHolderName(),
+                    accountId));
   }
 
   private boolean isAdult(FirstPaymentReminder reminder) {
@@ -165,4 +190,12 @@ class FirstPaymentReminderRepository {
   private Locale localeOf(@Nullable String languagePreference) {
     return ENGLISH_PREFERENCE.equals(languagePreference) ? Locale.ENGLISH : ESTONIAN;
   }
+
+  private record ChildAccountGuardian(
+      String accountCode,
+      @Nullable String accountHolderName,
+      String personalCode,
+      String firstName,
+      String lastName,
+      String email) {}
 }

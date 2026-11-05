@@ -9,7 +9,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.AmlService;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,6 +54,26 @@ class AmlKybCheckEventListenerTest {
                         && !check.isSuccess()
                         && check.getPersonalCode().equals("38501010001")
                         && COMPANY_A_ID.equals(check.getCompanyId())));
+  }
+
+  @Test
+  void persistsEveryKybCheckTypeAsItsKybAmlCheckType() {
+    given(companyIdResolver.resolveId(new RegistryCode("12345678"))).willReturn(COMPANY_A_ID);
+    var checks =
+        Arrays.stream(KybCheckType.values())
+            .map(type -> new KybCheck(type, true, Map.of()))
+            .toList();
+
+    listener.onKybCheckPerformed(event("12345678", "38501010001", checks));
+
+    Arrays.stream(KybCheckType.values())
+        .forEach(
+            type ->
+                verify(amlService)
+                    .addCheck(
+                        argThat(
+                            check ->
+                                check.getType() == AmlCheckType.valueOf("KYB_" + type.name()))));
   }
 
   @Test

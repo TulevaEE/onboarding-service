@@ -6,7 +6,6 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
-import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -17,7 +16,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -25,7 +23,7 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RiskLevelService implements RiskLevels {
+public class RiskLevelService {
 
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
@@ -38,57 +36,16 @@ public class RiskLevelService implements RiskLevels {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
-  @Override
-  public boolean isHighRisk(String personalCode) {
-    return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
-        || latestLevelIsHigh(personalCode, List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE));
-  }
-
-  private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
-    return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(personalCode, types)
-        .map(this::isHighRiskLevel)
-        .orElse(false);
-  }
-
-  // A missing level on an override row is a specialist confirmation without a score change and
-  // does not keep the client high-risk. Anything else unexpected is treated as high risk.
-  private boolean isHighRiskLevel(AmlCheck check) {
-    Object level = check.getMetadata().get("level");
-    if (level == null) {
-      return !isOverride(check.getType());
-    }
-    Integer parsedLevel = parseLevel(level);
-    if (parsedLevel == null) {
-      log.error(
-          "Malformed risk level metadata, treating as high risk: checkId={}, level={}",
-          check.getId(),
-          level);
-      return true;
-    }
-    return parsedLevel == HIGH_RISK_LEVEL;
-  }
-
-  private boolean isOverride(AmlCheckType type) {
-    return type == RISK_LEVEL_OVERRIDE || type == TKF_RISK_LEVEL_OVERRIDE;
-  }
-
-  private @Nullable Integer parseLevel(Object level) {
-    if (level instanceof Number number) {
-      return number.intValue();
-    }
-    if (level instanceof String string) {
-      try {
-        return Integer.parseInt(string.trim());
-      } catch (NumberFormatException e) {
-        return null;
-      }
-    }
-    return null;
+  void writeThirdPillarRiskLevels(AssessedRiskLevels riskLevels) {
+    writeFromAmlService("III pillar", RISK_LEVEL, riskLevels);
   }
 
   public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     scorePillar("TKF", tkfRiskReader, TKF_RISK_LEVEL, mediumRiskIndividualSelectionProbability);
+  }
+
+  void writeTkfRiskLevels(AssessedRiskLevels riskLevels) {
+    writeFromAmlService("TKF", TKF_RISK_LEVEL, riskLevels);
   }
 
   private void scorePillar(
@@ -105,6 +62,31 @@ public class RiskLevelService implements RiskLevels {
         highRiskRows.size(),
         mediumRiskSamples.size());
 
+    writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
+  }
+
+  private void writeFromAmlService(
+      String label, AmlCheckType checkType, AssessedRiskLevels riskLevels) {
+    List<RiskLevelResult> highRiskRows =
+        riskLevels.results().stream().filter(row -> row.getRiskLevel() == HIGH_RISK_LEVEL).toList();
+    List<RiskLevelResult> mediumRiskSamples =
+        riskLevels.results().stream().filter(row -> row.getRiskLevel() != HIGH_RISK_LEVEL).toList();
+
+    log.info(
+        "Risk levels fetched: pillar={}, assessedAt={}, highRiskRows={}, mediumRiskSamples={}",
+        label,
+        riskLevels.assessedAt(),
+        highRiskRows.size(),
+        mediumRiskSamples.size());
+
+    writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
+  }
+
+  private void writeChecks(
+      String label,
+      AmlCheckType checkType,
+      List<RiskLevelResult> highRiskRows,
+      List<RiskLevelResult> mediumRiskSamples) {
     List<AmlCheck> allChecks =
         Stream.concat(highRiskRows.stream(), mediumRiskSamples.stream())
             .filter(row -> StringUtils.hasText(row.getPersonalId()))

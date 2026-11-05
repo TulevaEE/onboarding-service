@@ -383,7 +383,7 @@ class RiskLevelServiceIntegrationTest {
     jdbcClient
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-                + "VALUES ('37605030299', 1, "
+                + "VALUES ('38001085718', 1, "
                 + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
@@ -398,7 +398,7 @@ class RiskLevelServiceIntegrationTest {
     List<AmlCheck> tkfChecks = amlCheckRepository.findAll();
 
     assertThat(tkfChecks).hasSize(1);
-    assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("37605030299");
+    assertThat(tkfChecks.getFirst().getPersonalCode()).isEqualTo("38001085718");
     assertThat(tkfChecks.getFirst().getType()).isEqualTo(TKF_RISK_LEVEL);
     assertThat(tkfChecks.getFirst().isSuccess()).isFalse();
     assertThat(tkfChecks.getFirst().getMetadata()).containsEntry("level", 1);
@@ -410,13 +410,13 @@ class RiskLevelServiceIntegrationTest {
     jdbcClient
         .sql(
             "INSERT INTO analytics.v_tkf_risk_metadata (personal_id, risk_level, metadata) "
-                + "VALUES ('37605030299', 1, "
+                + "VALUES ('38001085718', 1, "
                 + "'{\"version\": \"1.3\", \"level\": 1, \"total_points\": 105}')")
         .update();
 
     AmlCheck existingTkfCheck =
         AmlCheck.builder()
-            .personalCode("37605030299")
+            .personalCode("38001085718")
             .type(TKF_RISK_LEVEL)
             .success(false)
             .metadata(Map.of("version", "1.3", "level", 1, "total_points", 105))

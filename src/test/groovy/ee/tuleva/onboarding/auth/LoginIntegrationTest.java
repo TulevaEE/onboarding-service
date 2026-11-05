@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
 import static ee.tuleva.onboarding.auth.browser.ThisBrowser.COOKIE_NAME;
+import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSessionResponse;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionSecret;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.anAuthenticationIdentity;
@@ -62,14 +63,18 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.auth.ocsp.CertificateRevocationCheck;
 import ee.tuleva.onboarding.auth.ocsp.CertificateRevokedException;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import jakarta.servlet.http.Cookie;
 import java.net.URLDecoder;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -77,6 +82,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.StreamSupport;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -105,6 +111,8 @@ class LoginIntegrationTest {
   private static final String SESSION_ID = "test-session-id";
   private static final String PUSH_SESSION_ID = "push-session-id";
   private static final String MOBILE_ID_SESSION_ID = "mobile-id-session-id";
+  private static final String MINOR = "61506150006";
+  private static final Instant WHILE_THE_MINOR_IS_ELEVEN = Instant.parse("2026-10-26T10:00:00Z");
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JsonMapper objectMapper;
@@ -127,6 +135,8 @@ class LoginIntegrationTest {
   @MockitoBean private MidSessionStatusPoller midSessionStatusPoller;
   @MockitoBean private MidAuthenticationResponseValidator midResponseValidator;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private PrincipalService principalService;
+  @Autowired private TokenService tokenService;
   @Autowired private Clock clock;
 
   @TestConfiguration
@@ -140,6 +150,11 @@ class LoginIntegrationTest {
       client.setRelyingPartyName("DEMO");
       return client;
     }
+  }
+
+  @AfterEach
+  void resetTheClock() {
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -207,6 +222,66 @@ class LoginIntegrationTest {
             .andReturn();
     assertThat(claimsOf(accessToken(refreshed)).get("attributes").get("authTime").asText())
         .isEqualTo(authTime);
+  }
+
+  @Test
+  void aMinorIsRefusedTheirOwnLoginWhileMinorSelfServiceIsDisabled() throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    given(smartIdConnector.initAnonymousDeviceLinkAuthentication(any()))
+        .willReturn(aDeviceLinkSessionResponse(SESSION_ID));
+    MvcResult start = startDeviceLinkLogin();
+    var minor = anAuthenticationIdentity("MARI", "MAASIKAS");
+    minor.setIdentityNumber(MINOR);
+    givenTheQrLoginCompletesAs(minor);
+
+    mockMvc
+        .perform(smartIdToken(start))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("MINOR_CANNOT_SELF_AUTHENTICATE"))
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+    assertThat(userRepository.findByPersonalCode(MINOR)).isEmpty();
+  }
+
+  @Test
+  void aMinorsSessionStartedWhileMinorSelfServiceWasEnabledIsNotRefreshedOnceItIsDisabled()
+      throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    var minor =
+        PersonImpl.builder().personalCode(MINOR).firstName("Mari").lastName("Maasikas").build();
+    var minorActingAsSelf =
+        principalService.getFrom(
+            minor, Map.of("grantType", "SMART_ID"), new Role(PERSON, MINOR, "Mari Maasikas"));
+    var tokensFromWhenItWasEnabled = tokenService.generateTokens(minorActingAsSelf);
+
+    mockMvc
+        .perform(
+            post("/oauth/refresh-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("refresh_token", tokensFromWhenItWasEnabled.refreshToken()))))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("REFRESH_TOKEN_EXPIRED"))
+        .andExpect(jsonPath("$.access_token").doesNotExist());
+  }
+
+  @Test
+  void aMinorsAccessTokenFromWhenMinorSelfServiceWasEnabledReadsAsExpiredOnceItIsDisabled()
+      throws Exception {
+    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC));
+    var minor =
+        PersonImpl.builder().personalCode(MINOR).firstName("Mari").lastName("Maasikas").build();
+    var minorActingAsSelf =
+        principalService.getFrom(
+            minor, Map.of("grantType", "SMART_ID"), new Role(PERSON, MINOR, "Mari Maasikas"));
+    var tokensFromWhenItWasEnabled = tokenService.generateTokens(minorActingAsSelf);
+
+    mockMvc
+        .perform(
+            get("/v1/me")
+                .header("Authorization", "Bearer " + tokensFromWhenItWasEnabled.accessToken()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error").value("TOKEN_EXPIRED"));
   }
 
   @Test

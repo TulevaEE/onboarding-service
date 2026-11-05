@@ -1,10 +1,10 @@
 <mj-text>
-  You already save in the third pillar every month and get 22% income tax back on every
+  You already save in the third pillar every month and get income tax back on every
   contribution. The tax benefit covers up to 15% of your gross salary, on at most 6,000
   euros of contributions per year. If your contributions stay below that limit, a higher
   recurring payment also means a bigger tax refund next spring.
 </mj-text>
 <mj-text><strong>Check whether you could raise your recurring payment:</strong></mj-text>
-<mj-button href="https://tuleva.ee/en/third-pillar/?utm_content=nudge_third_pillar_raise">
-  Calculate&nbsp;your&nbsp;tax&nbsp;benefit
+<mj-button href="https://pension.tuleva.ee/3rd-pillar-recurring-payment?language=en&utm_content=nudge_third_pillar_raise">
+  Change&nbsp;recurring&nbsp;payment
 </mj-button>

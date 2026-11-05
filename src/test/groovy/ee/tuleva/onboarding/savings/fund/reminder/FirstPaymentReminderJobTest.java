@@ -146,6 +146,7 @@ class FirstPaymentReminderJobTest {
         personalCode + "@example.com",
         Locale.of("et"),
         SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+        null,
         null);
   }
 }

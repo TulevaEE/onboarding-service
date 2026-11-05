@@ -5,17 +5,24 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*!</mj-text>
         <mj-text>
-          You canceled your II&nbsp;pillar application for making contributions. Contributions to
-          your II&nbsp;pillar will not start.
+          Your application to continue saving in the second pillar has been cancelled.
+          Contributions will not start, and there is nothing more you need to do right now.
         </mj-text>
         <mj-text>
-          If you want to start saving again later, you can file a new application through Tuleva.
+          The decision is yours, and it's completely understandable if you want to give it more
+          thought. On <a href="https://tuleva.ee/en/rejoining-the-second-pillar/">our rejoining page</a>
+          we've set out what rejoining means for you, both the benefits and the limits.
         </mj-text>
         <mj-text>
-          To cancel it, you filed a II&nbsp;pillar application for exemption from contributions. A copy
-          of it, as sent to Pensionikeskus, is attached to this email.
+          If you do decide to start saving in the second pillar again, you can submit a new
+          application in <a href="https://pension.tuleva.ee/account">your Tuleva account</a>.
+          When contributions start depends on when you submit the new application.
+        </mj-text>
+        <mj-text>
+          The cancellation application has been sent to Pensionikeskus and a copy is attached to
+          this email.
         </mj-text>
       </mj-column>
     </mj-section>
@@ -23,7 +30,11 @@
     <mj-include path="./partials/contact_en.mjml" />
     <mj-section padding="0 24px">
       <mj-column>
-        <mj-text padding-top="12px">Tuleva</mj-text>
+        <mj-text padding-top="12px">Best wishes,</mj-text>
+        <mj-text>
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
       </mj-column>
     </mj-section>
     <mj-include path="./partials/disclaimer_second_pillar_rejoin_en.mjml" />

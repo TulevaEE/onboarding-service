@@ -14,7 +14,11 @@
           You can make your first contribution easily from the company's bank account. You can start
           with any amount that suits you.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">Make a contribution</mj-button>
+        <mj-raw>*|IF:recipientAccountId|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?language=en&utm_content=company_onboarded_payment">Make a contribution</mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?language=en&utm_content=company_onboarded_payment">Make a contribution</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>
 

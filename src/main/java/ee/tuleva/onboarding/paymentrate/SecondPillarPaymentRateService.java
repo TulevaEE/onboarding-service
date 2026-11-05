@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SecondPillarPaymentRateService {
 
-  private static final int DEFAULT_SECOND_PILLAR_PAYMENT_RATE = 2;
+  public static final int DEFAULT_SECOND_PILLAR_PAYMENT_RATE = 2;
   private final PersistedPaymentRates persistedPaymentRates;
 
   public PaymentRates getPaymentRates(Person person) {

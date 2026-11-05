@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
@@ -19,6 +20,7 @@ import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.ParentChildLinkStatus;
 import ee.tuleva.onboarding.party.RepresentationType;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -31,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +48,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @Import({
   FirstPaymentReminderRepository.class,
   SavingsFundOnboardingRepository.class,
+  ParentChildLinkService.class,
   ClockConfig.class
 })
 class FirstPaymentReminderRepositoryTest {
@@ -61,8 +65,13 @@ class FirstPaymentReminderRepositoryTest {
   private static final String ALREADY_PAID = "60001019906";
   private static final String ALREADY_REMINDED = "30303039816";
   private static final String CHILD = "61506150006";
+  private static final UUID LOWEST_AS_A_SIGNED_JAVA_UUID =
+      UUID.fromString("90000000-0000-4000-8000-000000000001");
+  private static final UUID LOWEST_AS_AN_UNSIGNED_SQL_UUID =
+      UUID.fromString("10000000-0000-4000-8000-000000000001");
 
   @Autowired FirstPaymentReminderRepository repository;
+  @Autowired ParentChildLinkService parentChildLinkService;
   @Autowired SavingsFundOnboardingRepository onboardingRepository;
   @Autowired ParentChildLinkRepository parentChildLinkRepository;
   @Autowired TestEntityManager entityManager;
@@ -104,6 +113,7 @@ class FirstPaymentReminderRepositoryTest {
                 SAVER + "@example.com",
                 Locale.of("et"),
                 SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+                null,
                 null));
   }
 
@@ -227,6 +237,56 @@ class FirstPaymentReminderRepositoryTest {
     assertThat(reminders)
         .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::recipientEmail)
         .containsExactly(tuple(CHILD, SAVER + "@example.com"));
+  }
+
+  @Test
+  void opensTheChildAccountByTheLinkTheRolesEndpointListsWhenTheGuardianHoldsSeveralLinks() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, GUARDIAN);
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(parentChildLinkService.findActivelyRepresentedChildren(SAVER))
+        .containsExactly(entry(CHILD, LOWEST_AS_A_SIGNED_JAVA_UUID));
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountId)
+        .containsExactly(LOWEST_AS_A_SIGNED_JAVA_UUID);
+  }
+
+  @Test
+  void opensTheChildAccountByEachGuardiansOwnLink() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, ENGLISH_SPEAKING_SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::recipientEmail, FirstPaymentReminder::accountId)
+        .containsExactlyInAnyOrder(
+            tuple(SAVER + "@example.com", LOWEST_AS_AN_UNSIGNED_SQL_UUID),
+            tuple(ENGLISH_SPEAKING_SAVER + "@example.com", LOWEST_AS_A_SIGNED_JAVA_UUID));
+  }
+
+  @Test
+  void doesNotOpenTheChildAccountByASuspendedLinkTheRolesEndpointLeavesOut() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, SAVER, CHILD, GUARDIAN);
+    suspend(LOWEST_AS_A_SIGNED_JAVA_UUID);
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(parentChildLinkService.findActivelyRepresentedChildren(SAVER))
+        .containsExactly(entry(CHILD, LOWEST_AS_AN_UNSIGNED_SQL_UUID));
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountId)
+        .containsExactly(LOWEST_AS_AN_UNSIGNED_SQL_UUID);
   }
 
   @Test
@@ -402,6 +462,34 @@ class FirstPaymentReminderRepositoryTest {
             .validUntil(validUntil)
             .build());
     entityManager.flush();
+  }
+
+  private void childLink(
+      UUID id,
+      String parentPersonalCode,
+      String childPersonalCode,
+      RepresentationType relationshipType) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO parent_child_link
+              (id, parent_personal_code, child_personal_code, relationship_type, valid_until, status)
+            VALUES (:id, :parentPersonalCode, :childPersonalCode, :relationshipType, :validUntil, 'ACTIVE')
+            """)
+        .param("id", id)
+        .param("parentPersonalCode", parentPersonalCode)
+        .param("childPersonalCode", childPersonalCode)
+        .param("relationshipType", relationshipType.name())
+        .param("validUntil", LocalDate.of(2030, 1, 1))
+        .update();
+  }
+
+  private void suspend(UUID linkId) {
+    jdbcClient
+        .sql("UPDATE parent_child_link SET suspended_at = :suspendedAt WHERE id = :id")
+        .param("suspendedAt", Timestamp.from(NOW.minus(1, DAYS)))
+        .param("id", linkId)
+        .update();
   }
 
   private void languagePreference(String personalCode, String languagePreference) {

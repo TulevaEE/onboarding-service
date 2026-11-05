@@ -13,8 +13,6 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
-import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
-import ee.tuleva.onboarding.investment.portfolio.ProviderLimitRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -40,7 +38,6 @@ public class InstrumentDataValidator {
   private final InstrumentReferenceService instrumentReferenceService;
   private final ModelPortfolioAllocationRepository allocationRepository;
   private final PositionLimitRepository positionLimitRepository;
-  private final ProviderLimitRepository providerLimitRepository;
   private final FundValueProvider fundValueProvider;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
@@ -62,7 +59,6 @@ public class InstrumentDataValidator {
     checkPriceConfigExists(isins, findings);
     checkWeightsSum(fund, allocations, findings);
     checkPositionLimits(fund, isins, effectiveDate, findings);
-    checkProviderLimits(fund, allocations, effectiveDate, findings);
     checkBenchmarkProxies(isins, findings);
     checkActive(isins, findings);
     checkFundDomicile(allocations, findings);
@@ -126,35 +122,6 @@ public class InstrumentDataValidator {
         findings.add(
             new ValidationFinding(
                 Severity.FAIL, "No position limit for %s in fund %s".formatted(isin, fund)));
-      }
-    }
-  }
-
-  private void checkProviderLimits(
-      TulevaFund fund,
-      List<ModelPortfolioAllocation> allocations,
-      LocalDate effectiveDate,
-      List<ValidationFinding> findings) {
-    if (fund != TulevaFund.TKF100) {
-      return;
-    }
-
-    var providers =
-        allocations.stream()
-            .map(ModelPortfolioAllocation::getProvider)
-            .filter(Objects::nonNull)
-            .map(Enum::name)
-            .collect(Collectors.toSet());
-
-    var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, effectiveDate);
-    var limitProviders =
-        providerLimits.stream().map(ProviderLimit::providerName).collect(Collectors.toSet());
-
-    for (var provider : providers) {
-      if (!limitProviders.contains(provider)) {
-        findings.add(
-            new ValidationFinding(
-                Severity.FAIL, "No provider limit for %s in fund %s".formatted(provider, fund)));
       }
     }
   }

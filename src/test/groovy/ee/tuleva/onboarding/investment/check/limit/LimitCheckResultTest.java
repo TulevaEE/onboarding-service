@@ -15,7 +15,7 @@ class LimitCheckResultTest {
 
   @Test
   void noBreachesWhenAllEmpty() {
-    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), null, null);
 
     assertThat(result.hasBreaches()).isFalse();
   }
@@ -31,7 +31,7 @@ class LimitCheckResultTest {
             new BigDecimal("15"),
             new BigDecimal("20"),
             SOFT);
-    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(breach), List.of(), null, null);
+    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(breach), null, null);
 
     assertThat(result.hasBreaches()).isTrue();
   }
@@ -41,7 +41,7 @@ class LimitCheckResultTest {
     var breach =
         new ReserveBreach(
             TUK75, new BigDecimal("40000"), new BigDecimal("50000"), new BigDecimal("30000"), SOFT);
-    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), List.of(), breach, null);
+    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), breach, null);
 
     assertThat(result.hasBreaches()).isTrue();
   }
@@ -58,7 +58,7 @@ class LimitCheckResultTest {
             new BigDecimal("-5000"),
             BigDecimal.ZERO,
             new BigDecimal("10000"));
-    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), List.of(), null, breach);
+    var result = new LimitCheckResult(TUK75, CHECK_DATE, List.of(), null, breach);
 
     assertThat(result.hasBreaches()).isFalse();
   }
@@ -78,8 +78,7 @@ class LimitCheckResultTest {
         new ReserveBreach(
             TUK75, new BigDecimal("60000"), new BigDecimal("50000"), new BigDecimal("30000"), OK);
     var result =
-        new LimitCheckResult(
-            TUK75, CHECK_DATE, List.of(positionBreach), List.of(), reserveBreach, null);
+        new LimitCheckResult(TUK75, CHECK_DATE, List.of(positionBreach), reserveBreach, null);
 
     assertThat(result.hasBreaches()).isFalse();
   }

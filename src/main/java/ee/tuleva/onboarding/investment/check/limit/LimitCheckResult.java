@@ -11,13 +11,11 @@ public record LimitCheckResult(
     TulevaFund fund,
     LocalDate checkDate,
     List<PositionBreach> positionBreaches,
-    List<ProviderBreach> providerBreaches,
     @Nullable ReserveBreach reserveBreach,
     @Nullable FreeCashBreach freeCashBreach) {
 
   public boolean hasBreaches() {
     return positionBreaches.stream().anyMatch(b -> b.severity() != OK)
-        || providerBreaches.stream().anyMatch(b -> b.severity() != OK)
         || (reserveBreach != null && reserveBreach.severity() != OK);
   }
 }

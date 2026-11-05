@@ -12,8 +12,6 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository
 import ee.tuleva.onboarding.investment.portfolio.Provider
-import ee.tuleva.onboarding.investment.portfolio.ProviderLimit
-import ee.tuleva.onboarding.investment.portfolio.ProviderLimitRepository
 import spock.lang.Specification
 
 import java.time.Clock
@@ -34,14 +32,13 @@ class InstrumentDataValidatorSpec extends Specification {
   InstrumentReferenceService instrumentReferenceService = Mock()
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   PositionLimitRepository positionLimitRepository = Mock()
-  ProviderLimitRepository providerLimitRepository = Mock()
   FundValueProvider fundValueProvider = Mock()
   PublicHolidays publicHolidays = Mock()
   Clock clock = Clock.fixed(Instant.parse("2026-05-28T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
   InstrumentDataValidator validator = new InstrumentDataValidator(
       instrumentReferenceService, allocationRepository, positionLimitRepository,
-      providerLimitRepository, fundValueProvider, publicHolidays, clock)
+      fundValueProvider, publicHolidays, clock)
 
   def effectiveDate = LocalDate.of(2026, 5, 28)
   def isin1 = "IE00B4L5Y983"
@@ -118,36 +115,18 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.any { it.severity() == FAIL && it.message().contains("No position limit") }
   }
 
-  def "FAIL when provider limit missing for TKF100"() {
+  def "a TKF100 model portfolio is valid without an issuer-level limit row"() {
     given:
-    def alloc = allocation(isin1, 1.0, Provider.ISHARES)
-    allocationRepository.findByFundAndEffectiveDate(TKF100, effectiveDate) >> [alloc]
+    allocationRepository.findByFundAndEffectiveDate(TKF100, effectiveDate) >> [allocation(isin1, 1.0, Provider.ISHARES)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TKF100, effectiveDate) >> [positionLimit(isin1)]
-    providerLimitRepository.findLatestByFundAsOf(TKF100, effectiveDate) >> []
     instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TKF100, effectiveDate)
 
     then:
-    findings.any { it.severity() == FAIL && it.message().contains("No provider limit") }
-  }
-
-  def "skips provider limit check for non-TKF100 funds"() {
-    given:
-    def alloc = allocation(isin1, 1.0, Provider.ISHARES)
-    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [alloc]
-    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
-    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
-
-    when:
-    def findings = validator.validate(TUK75, effectiveDate)
-
-    then:
-    0 * providerLimitRepository.findLatestByFundAsOf(TUK75, _)
-    findings.every { !it.message().contains("No provider limit") }
+    findings.isEmpty()
   }
 
   def "FAIL when the benchmark proxy configured for a category cannot be resolved"() {

@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -68,22 +71,30 @@ public class WordPressMediaClient {
     refuseWhenUnconfigured();
     var pageId = findPageIdBySlug(pageSlug);
 
+    var attempts = new PageUpdateAttempts();
     Map<String, Object> response;
     try {
       response =
           retryTemplate.invoke(
               () -> {
-                refuseOnceThePublishLockIsLost(pageSlug, publishLockStillHeld);
-                return restClient
-                    .post()
-                    .uri("/pages/{pageId}", pageId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(AcfReportField.pageUpdate(attachmentId))
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                if (!publishLockStillHeld.getAsBoolean()) {
+                  throw attempts.lockLost(pageSlug);
+                }
+                return attempts.send(
+                    () ->
+                        restClient
+                            .post()
+                            .uri("/pages/{pageId}", pageId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(AcfReportField.pageUpdate(attachmentId))
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<Map<String, Object>>() {}));
               });
+    } catch (PublishLockLost lockLost) {
+      settleAfterTheLockWasLost(pageSlug, attachmentId, attempts, lockLost);
+      return;
     } catch (RuntimeException failure) {
-      confirmStoredDespite(pageSlug, attachmentId, failure);
+      settleAFailedUpdate(pageSlug, attachmentId, attempts, failure);
       return;
     }
 
@@ -96,37 +107,39 @@ public class WordPressMediaClient {
         attachmentId);
   }
 
-  public static final class PageUpdateOutcomeUnknown extends RuntimeException {
-
-    public PageUpdateOutcomeUnknown(RuntimeException failure) {
-      super(failure.getMessage(), failure);
+  private void settleAfterTheLockWasLost(
+      String pageSlug, int attachmentId, PageUpdateAttempts attempts, PublishLockLost lockLost) {
+    if (attempts.noneSent()) {
+      log.error("Fund page left unchanged, the publish lost its lock: pageSlug={}", pageSlug);
+      throw new LeftUnchanged(pageSlug, lockLost);
     }
+    settleAFailedUpdate(pageSlug, attachmentId, attempts, lockLost);
   }
 
-  private void confirmStoredDespite(String pageSlug, int attachmentId, RuntimeException failure) {
-    boolean stored;
+  private void settleAFailedUpdate(
+      String pageSlug, int attachmentId, PageUpdateAttempts attempts, RuntimeException failure) {
+    boolean linked;
     try {
-      stored = AcfReportField.readFrom(findPageBySlug(pageSlug)).holds(attachmentId);
+      linked = AcfReportField.readFrom(findPageBySlug(pageSlug)).holds(attachmentId);
     } catch (RuntimeException readBack) {
       failure.addSuppressed(readBack);
-      throw new PageUpdateOutcomeUnknown(failure);
+      log.error(
+          "Fund page update failed and could not be read back: pageSlug={}", pageSlug, failure);
+      throw new LinkUnknown(pageSlug, failure);
     }
-    if (!stored) {
-      throw failure;
+    if (linked) {
+      log.warn(
+          "Fund page update failed but the page links the report: pageSlug={}", pageSlug, failure);
+      return;
     }
-    log.warn(
-        "The page update failed but the page links the report: pageSlug={}, attachmentId={}",
+    log.error(
+        "Fund page update failed: pageSlug={}, answered={}",
         pageSlug,
-        attachmentId,
+        !attempts.anyUnanswered(),
         failure);
-  }
-
-  private static void refuseOnceThePublishLockIsLost(
-      String pageSlug, BooleanSupplier publishLockStillHeld) {
-    if (!publishLockStillHeld.getAsBoolean()) {
-      throw new IllegalStateException(
-          "Not updating the fund page, the publish no longer holds its lock: pageSlug=" + pageSlug);
-    }
+    throw attempts.anyUnanswered()
+        ? new LinkUnknown(pageSlug, failure)
+        : new NotLinked(pageSlug, failure);
   }
 
   private void refuseWhenUnconfigured() {

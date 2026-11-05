@@ -14,8 +14,10 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
-import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.PageUpdateOutcomeUnknown;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -33,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 @ExtendWith(MockitoExtension.class)
@@ -199,11 +203,16 @@ class InvestmentReportPublisherTest {
         .containsExactly(
             "WordPress page update failed, so the uploaded report was not linked; link it or delete"
                 + " it from the media library: fund=TUK00,"
-                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf, error=ACF down");
+                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
+                + " cause=RuntimeException");
     assertThat(result.wordPressUrls()).hasSize(2).doesNotContainKey("TUK00");
     assertThat(result.emailSent()).isFalse();
     verify(emailService)
-        .sendSystemEmail(argThat(message -> message.getSubject().contains("pooleli")));
+        .sendSystemEmail(
+            argThat(
+                alert ->
+                    alert.getSubject().contains("pooleli")
+                        && !alert.getText().contains("check the fund page before deleting")));
   }
 
   @Test
@@ -318,8 +327,8 @@ class InvestmentReportPublisherTest {
                     "WordPress upload failed but may have stored the file anyway, under this"
                         + " name's slug and possibly a -N suffix; delete it from the media library"
                         + " if it is there: fund=TUK00, file=Tuleva Maailma Võlakirjade"
-                        + " Pensionifondi investeeringute aruanne 2026-03.pdf, error=request timed"
-                        + " out",
+                        + " Pensionifondi investeeringute aruanne 2026-03.pdf,"
+                        + " cause=IllegalStateException",
                     "Uploaded report was not linked; link it or delete it from the media library:"
                         + " fund=TUK75, file=https://tuleva.ee/wp-content/uploads/2026/04/tuk75.pdf",
                     "Uploaded report was not linked; link it or delete it from the media library:"
@@ -490,7 +499,7 @@ class InvestmentReportPublisherTest {
     willAnswer(
             update -> {
               if (!update.<BooleanSupplier>getArgument(2).getAsBoolean()) {
-                throw new IllegalStateException("lock no longer held");
+                throw new LeftUnchanged(update.getArgument(0), new IllegalStateException());
               }
               return null;
             })
@@ -502,10 +511,9 @@ class InvestmentReportPublisherTest {
     assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75");
     assertThat(result.errors())
         .containsExactly(
-            "WordPress page update failed, so the uploaded report was not linked; link it or delete"
-                + " it from the media library: fund=TUK00,"
-                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
-                + " error=lock no longer held",
+            "The publish lost its lock, so this fund page was not repointed: fund=TUK00",
+            "Uploaded report was not linked; link it or delete it from the media library:"
+                + " fund=TUK00, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf",
             "The publish lost its lock, so this fund page was not repointed: fund=TUV100",
             "Uploaded report was not linked; link it or delete it from the media library:"
                 + " fund=TUV100, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf");
@@ -518,7 +526,9 @@ class InvestmentReportPublisherTest {
   void aPageUpdateWhoseOutcomeCannotBeReadBackIsReportedAsUnknownNotUnlinked() {
     givenEveryReportCanBeProduced();
     lenient()
-        .doThrow(new PageUpdateOutcomeUnknown(new ResourceAccessException("read timed out")))
+        .doThrow(
+            new LinkUnknown(
+                FundReportMapping.TUK00.pageSlug(), new ResourceAccessException("read timed out")))
         .when(wordPressClient)
         .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt(), any());
 
@@ -527,17 +537,43 @@ class InvestmentReportPublisherTest {
     assertThat(result.wordPressUrls()).containsOnlyKeys("TUK75", "TUV100");
     assertThat(result.errors())
         .containsExactly(
-            "WordPress page update failed and the page could not be read back, so whether it"
-                + " links the uploaded report is unknown; check the fund page before deleting"
-                + " anything: fund=TUK00,"
-                + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
-                + " error=read timed out");
+            "WordPress page update did not finish in a way the page shows, so whether it links the"
+                + " uploaded report is unknown; check the fund page before deleting anything:"
+                + " fund=TUK00, file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
+                + " cause=ResourceAccessException");
     verify(emailService)
         .sendSystemEmail(
             argThat(
                 alert ->
                     alert.getSubject().contains("pooleli")
                         && alert.getText().contains("check the fund page before deleting")));
+  }
+
+  @Test
+  void aPageUpdateWordPressAnsweredButThePageDoesNotShowIsReportedNotLinked() {
+    givenEveryReportCanBeProduced();
+    lenient()
+        .doThrow(
+            new NotLinked(
+                FundReportMapping.TUK00.pageSlug(),
+                new HttpClientErrorException(HttpStatus.BAD_REQUEST)))
+        .when(wordPressClient)
+        .updateAcfReportField(eq(FundReportMapping.TUK00.pageSlug()), anyInt(), any());
+
+    var result = publisher.publish(MARCH_2026, NOTHING_TO_REPLACE);
+
+    assertThat(result)
+        .isEqualTo(
+            new InvestmentReportPublishingResult(
+                Map.of(
+                    "TUK75", SAMPLE_UPLOAD.sourceUrl(),
+                    "TUV100", SAMPLE_UPLOAD.sourceUrl()),
+                false,
+                List.of(
+                    "WordPress page update failed, so the uploaded report was not linked; link it"
+                        + " or delete it from the media library: fund=TUK00,"
+                        + " file=https://tuleva.ee/wp-content/uploads/2026/04/test.pdf,"
+                        + " cause=HttpClientErrorException")));
   }
 
   private void givenTheLockIsHeldFor(int checks) {

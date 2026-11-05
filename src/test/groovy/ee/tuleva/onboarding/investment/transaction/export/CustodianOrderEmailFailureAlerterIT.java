@@ -21,7 +21,6 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,12 +55,13 @@ class CustodianOrderEmailFailureAlerterIT {
   private static final String SIGNATURE = "valid-signature";
   private static final String SUBJECT = "TUV100 ostu-/müügikorraldused 15.01.2026";
   private static final String BOUNCE = "550 mailbox unavailable";
-  private static final String RED_ALERT =
-      "🔴 Order email NOT delivered: to=desk@example.com, subject="
+  private static final String RED_ALERT = redAlert("hard_bounce");
+  private static final String AMBER_ALERT =
+      "🟠 Order email delayed: to=desk@example.com, subject="
           + SUBJECT
-          + "\nhard_bounce: 550 mailbox unavailable (id=msg_1)\n"
-          + "The orders did not reach this address. Check with the desk before sending them"
-          + " again.";
+          + "\ndeferral: 550 mailbox unavailable (id=msg_1)\n"
+          + "Mandrill keeps trying. If the desk hasn't confirmed the orders before the cut-off,"
+          + " check with the desk.";
 
   @Autowired MandrillWebhookService webhookService;
   @Autowired CustodianOrderEmailFailureAlerter alerter;
@@ -203,7 +203,7 @@ class CustodianOrderEmailFailureAlerterIT {
 
   private void runAt(Instant now) {
     given(clock.instant()).willReturn(now);
-    alerter.postFailuresNotYetPosted();
+    alerter.postAlertsNotYetPosted();
   }
 
   private static String orderEmailBounce(String eventType) {
@@ -236,12 +236,18 @@ class CustodianOrderEmailFailureAlerterIT {
   }
 
   private static Map<String, Object> failure(String eventType, String alert) {
-    var data = new HashMap<String, Object>();
-    data.put("recipient", "desk@example.com");
-    data.put("subject", SUBJECT);
-    data.put("eventType", eventType);
-    data.put("reason", BOUNCE);
-    data.put("alert", alert);
-    return data;
+    return "deferral".equals(eventType)
+        ? Map.of("text", AMBER_ALERT, "severity", "WARNING", "alert", alert)
+        : Map.of("text", redAlert(eventType), "severity", "ERROR", "alert", alert);
+  }
+
+  private static String redAlert(String eventType) {
+    return "🔴 Order email NOT delivered: to=desk@example.com, subject="
+        + SUBJECT
+        + "\n"
+        + eventType
+        + ": 550 mailbox unavailable (id=msg_1)\n"
+        + "The orders did not reach this address. Check with the desk before sending them"
+        + " again.";
   }
 }

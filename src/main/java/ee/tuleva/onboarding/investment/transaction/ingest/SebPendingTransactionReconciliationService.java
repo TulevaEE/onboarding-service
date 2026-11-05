@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
-import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.SOURCE_SEB_OOTEL;
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -24,7 +23,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,20 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class SebPendingTransactionReconciliationService {
 
   private static final double TRUNCATION_ROW_DROP_RATIO = 0.5;
-
-  @RequiredArgsConstructor
-  private enum SettlementByAbsence {
-    ON_LATEST_REPORT_ONLY((execution, asOfDate) -> true),
-    ON_THIS_REPORT_AS_OF_ITS_DATE(
-        (execution, asOfDate) ->
-            SOURCE_SEB_OOTEL.equals(execution.getSource()) && isListedBy(execution, asOfDate));
-
-    private final BiPredicate<TransactionExecution, LocalDate> countsAsListed;
-
-    private boolean countsAsListed(TransactionExecution execution, LocalDate asOfDate) {
-      return countsAsListed.test(execution, asOfDate);
-    }
-  }
 
   private final SebPendingTransactionExtractor extractor;
   private final QuantityAmountValidator quantityAmountValidator;
@@ -71,18 +55,16 @@ public class SebPendingTransactionReconciliationService {
 
   @Transactional
   public void reconcile(InvestmentReport report) {
-    reconcile(report, eventPublisher::publishEvent, SettlementByAbsence.ON_LATEST_REPORT_ONLY);
+    reconcile(report, eventPublisher::publishEvent, ReconciliationMode.LIVE);
   }
 
   @Transactional
   SettlementCheck replay(InvestmentReport report, ReconciliationAlerts alerts) {
-    return reconcile(report, alerts, SettlementByAbsence.ON_THIS_REPORT_AS_OF_ITS_DATE);
+    return reconcile(report, alerts, ReconciliationMode.REPLAY);
   }
 
   private SettlementCheck reconcile(
-      InvestmentReport report,
-      ReconciliationAlerts alerts,
-      SettlementByAbsence settlementByAbsence) {
+      InvestmentReport report, ReconciliationAlerts alerts, ReconciliationMode mode) {
     LocalDate reportDate = report.getReportDate();
     LocalDate asOfDate =
         sebReportAsOfDate.resolveOrFallBackToReportDate(
@@ -104,7 +86,7 @@ public class SebPendingTransactionReconciliationService {
     for (SebPendingTransactionRow row : rows) {
       RowOutcome outcome =
           rowReconciler.reconcileRow(
-              row, reportDate, asOfDate, matchingProperties, presentOrderIds, alerts);
+              row, reportDate, asOfDate, matchingProperties, presentOrderIds, alerts, mode);
       switch (outcome) {
         case MATCHED -> matched++;
         case UNMATCHED -> unmatched++;
@@ -126,7 +108,7 @@ public class SebPendingTransactionReconciliationService {
         presentOrderIds,
         extraction.isComplete(),
         alerts,
-        settlementByAbsence);
+        mode);
   }
 
   private SettlementCheck detectSettlementsByAbsence(
@@ -137,7 +119,7 @@ public class SebPendingTransactionReconciliationService {
       Set<Long> presentOrderIds,
       boolean reportComplete,
       ReconciliationAlerts alerts,
-      SettlementByAbsence settlementByAbsence) {
+      ReconciliationMode mode) {
     if (rowCount == 0) {
       log.info("Skipping settlement detection on empty report: reportDate={}", reportDate);
       return SettlementCheck.SKIPPED_EMPTY_REPORT;
@@ -155,8 +137,7 @@ public class SebPendingTransactionReconciliationService {
           "Skipping settlement detection, report had malformed rows: reportDate={}", reportDate);
       return SettlementCheck.SKIPPED_MALFORMED_ROWS;
     }
-    if (settlementByAbsence == SettlementByAbsence.ON_LATEST_REPORT_ONLY
-        && !isLatestReport(reportDate)) {
+    if (mode == ReconciliationMode.LIVE && !isLatestReport(reportDate)) {
       log.info("Skipping settlement detection on non-latest report: reportDate={}", reportDate);
       return SettlementCheck.SKIPPED_NOT_LATEST_REPORT;
     }
@@ -170,8 +151,8 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
-        .filter(order -> executedBefore(order, reportDate, asOfDate, settlementByAbsence))
-        .forEach(order -> settleByAbsence(order, reportDate, asOfDate, settlementByAbsence));
+        .filter(order -> executedBefore(order, reportDate, asOfDate, mode))
+        .forEach(order -> settleByAbsence(order, reportDate, asOfDate, mode));
     return SettlementCheck.CHECKED;
   }
 
@@ -214,11 +195,8 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean executedBefore(
-      TransactionOrder order,
-      LocalDate reportDate,
-      LocalDate asOfDate,
-      SettlementByAbsence settlementByAbsence) {
-    return executionsListedBy(order, asOfDate, settlementByAbsence).stream()
+      TransactionOrder order, LocalDate reportDate, LocalDate asOfDate, ReconciliationMode mode) {
+    return executionsListedBy(order, asOfDate, mode).stream()
         .map(TransactionExecution::getExecutionTimestamp)
         .filter(Objects::nonNull)
         .max(Comparator.naturalOrder())
@@ -227,24 +205,15 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private List<TransactionExecution> executionsListedBy(
-      TransactionOrder order, LocalDate asOfDate, SettlementByAbsence settlementByAbsence) {
+      TransactionOrder order, LocalDate asOfDate, ReconciliationMode mode) {
     return executionRepository.findAllByOrderId(order.getId()).stream()
-        .filter(execution -> settlementByAbsence.countsAsListed(execution, asOfDate))
+        .filter(execution -> mode.countsAsListed(execution, asOfDate))
         .toList();
   }
 
-  private static boolean isListedBy(TransactionExecution execution, LocalDate asOfDate) {
-    LocalDate reportedDate = execution.getReportedDate();
-    return reportedDate == null || !reportedDate.isAfter(asOfDate);
-  }
-
   private void settleByAbsence(
-      TransactionOrder order,
-      LocalDate reportDate,
-      LocalDate asOfDate,
-      SettlementByAbsence settlementByAbsence) {
-    List<TransactionExecution> executions =
-        executionsListedBy(order, asOfDate, settlementByAbsence);
+      TransactionOrder order, LocalDate reportDate, LocalDate asOfDate, ReconciliationMode mode) {
+    List<TransactionExecution> executions = executionsListedBy(order, asOfDate, mode);
     if (quantityAmountValidator.isShortFill(order, executions, matchingPolicy.current())) {
       log.error(
           "Order absent from pending report but not fully filled, leaving EXECUTED: orderId={},"

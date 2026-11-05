@@ -73,7 +73,16 @@ class SebPendingTransactionReconciliationListener {
   }
 
   private boolean reconcilesUnderTheLock(InvestmentReport report) {
-    return reconciliationLock.runIfFree(
-        stillHeld -> reconciliationService.reconcile(report, stillHeld));
+    try {
+      return reconciliationLock.runIfFree(
+          stillHeld -> reconciliationService.reconcile(report, stillHeld));
+    } catch (SebReconciliationLockLostException e) {
+      log.warn(
+          "SEB pending transactions report reconciliation lost its lock, rolled back:"
+              + " reportDate={}",
+          report.getReportDate(),
+          e);
+      return false;
+    }
   }
 }

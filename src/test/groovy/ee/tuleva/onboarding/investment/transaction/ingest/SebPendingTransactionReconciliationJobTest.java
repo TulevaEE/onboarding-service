@@ -17,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -322,12 +323,12 @@ class SebPendingTransactionReconciliationJobTest {
     SebPendingTransactionReconciliationJob liveJob =
         jobWith(RecordingLockProvider.free().reconciliationLockAt(clock, keepAliveExecutor));
 
-    assertThatThrownBy(liveJob::runOnSchedule)
-        .isInstanceOf(SebReconciliationLockLostException.class);
+    liveJob.runOnSchedule();
 
     verify(reconciliationService, never()).reconcile(eq(day1), any());
     verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
     verify(pipelineNotifier).sendCompleted(pipelineRun);
+    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
   }
 
   @Test
@@ -354,11 +355,38 @@ class SebPendingTransactionReconciliationJobTest {
             RecordingLockProvider.free().reconciliationLockAt(running),
             jobTriggerQueue);
 
-    assertThatThrownBy(liveJob::runOnSchedule)
-        .isInstanceOf(SebReconciliationLockLostException.class);
+    liveJob.runOnSchedule();
 
     verify(reconciliationService, never()).reconcile(eq(day1), any());
     verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
+    verify(jobTriggerQueue).enqueueUnlessPending("SebPendingTransactionReconciliationJob");
+  }
+
+  @Test
+  void aTriggeredLiveRunThatLosesItsLockWaitsAsBusySoItsTriggerStaysPending() {
+    MutableClock running = new MutableClock(TODAY.atTime(7, 0).atZone(ZoneOffset.UTC).toInstant());
+    InvestmentReport day0 = report(TODAY);
+    givenTodaysLiveReport(day0);
+    willAnswer(
+            invocation -> {
+              running.tick(3, MINUTES);
+              return null;
+            })
+        .given(reconciliationService)
+        .reconcile(eq(day0), any());
+    SebPendingTransactionReconciliationJob liveJob =
+        new SebPendingTransactionReconciliationJob(
+            running,
+            publicHolidays,
+            reportService,
+            reconciliationService,
+            pipelineTracker,
+            pipelineNotifier,
+            RecordingLockProvider.free().reconciliationLockAt(running),
+            jobTriggerQueue);
+
+    assertThatThrownBy(liveJob::onSebPendingTransactionReconciliationRequested)
+        .isInstanceOf(JobBusyException.class);
   }
 
   private void givenTodaysLiveReport(InvestmentReport day0) {

@@ -59,7 +59,7 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
 
   @Query(
       """
-      select count(m) > 0
+      select m
       from BankingMessage m
       where m.bankType = :bankType
         and m.accountIban = :accountIban
@@ -68,8 +68,10 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
         and m.statementTo > :day
         and m.processedAt is not null
         and m.failedAt is null
+      order by m.receivedAt desc
+      limit 1
       """)
-  boolean existsProcessedStatementCoveringAndClosingAfter(
+  Optional<BankingMessage> findLatestProcessedStatementCoveringAndClosingAfter(
       BankType bankType, String accountIban, LocalDate day);
 
   @Query(

@@ -3,11 +3,14 @@ package ee.tuleva.onboarding.banking.statement;
 import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountIdentification4Choice;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
+import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CashAccount20;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CashBalance3;
 import ee.tuleva.onboarding.banking.iso20022.camt053.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.GenericOrganisationIdentification1;
+import ee.tuleva.onboarding.banking.iso20022.camt053.GroupHeader42;
 import ee.tuleva.onboarding.banking.iso20022.camt053.OrganisationIdentification4;
+import ee.tuleva.onboarding.banking.iso20022.camt053.Pagination;
 import ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice;
 import ee.tuleva.onboarding.banking.iso20022.camt053.PartyIdentification32;
 import ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2;
@@ -62,5 +65,34 @@ final class Camt053Fixtures {
     account.setId(accountId);
     account.setOwnr(owner);
     return account;
+  }
+
+  static BankToCustomerStatementV02 message(
+      AccountStatement2 statement, @Nullable Pagination pagination) {
+    var header = new GroupHeader42();
+    header.setMsgPgntn(pagination);
+    var message = messageWithoutHeader(statement);
+    message.setGrpHdr(header);
+    return message;
+  }
+
+  static BankToCustomerStatementV02 messageWithoutHeader(AccountStatement2 statement) {
+    var message = new BankToCustomerStatementV02();
+    message.getStmt().add(statement);
+    return message;
+  }
+
+  static Pagination lastPage() {
+    var pagination = new Pagination();
+    pagination.setPgNb("1");
+    pagination.setLastPgInd(true);
+    return pagination;
+  }
+
+  static Pagination firstOfSeveralPages() {
+    var pagination = new Pagination();
+    pagination.setPgNb("1");
+    pagination.setLastPgInd(false);
+    return pagination;
   }
 }

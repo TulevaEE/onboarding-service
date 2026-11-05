@@ -128,6 +128,30 @@ class BankingMessageRepositoryTest {
   }
 
   @Test
+  void
+      latestProcessedStatementCoveringAndClosingAfter_isTheLastCatchUpThatCoversTheDayAndClosesLater() {
+    store(IBAN, "2026-09-20", "2026-09-22", "2026-09-23T01:00:33Z", PROCESSED);
+    var refetched = store(IBAN, "2026-09-20", "2026-09-22", "2026-09-23T03:00:33Z", PROCESSED);
+    store(IBAN, "2026-09-20", "2026-09-22", "2026-09-23T04:00:33Z", UNPROCESSED);
+    store(IBAN, "2026-09-20", "2026-09-22", "2026-09-23T05:00:33Z", FAILED);
+    store(IBAN, "2026-09-21", "2026-09-21", "2026-09-23T06:00:33Z", PROCESSED);
+    store(OTHER_IBAN, "2026-09-20", "2026-09-22", "2026-09-23T07:00:33Z", PROCESSED);
+
+    assertThat(
+            repository.findLatestProcessedStatementCoveringAndClosingAfter(
+                SEB, IBAN, LocalDate.of(2026, 9, 21)))
+        .hasValueSatisfying(message -> assertThat(message.getId()).isEqualTo(refetched));
+    assertThat(
+            repository.findLatestProcessedStatementCoveringAndClosingAfter(
+                SEB, IBAN, LocalDate.of(2026, 9, 22)))
+        .isEmpty();
+    assertThat(
+            repository.findLatestProcessedStatementCoveringAndClosingAfter(
+                SEB, IBAN, LocalDate.of(2026, 9, 19)))
+        .isEmpty();
+  }
+
+  @Test
   void latestProcessedStatement_isAbsentUntilOneHasBeenProcessed() {
     store(IBAN, INTRA_DAY_REPORT, null, "2026-09-23T13:00:05Z", UNPROCESSED);
 
@@ -146,6 +170,21 @@ class BankingMessageRepositoryTest {
       @Nullable String statementDate,
       String receivedAt,
       Outcome outcome) {
+    return store(iban, messageType, statementDate, statementDate, receivedAt, outcome);
+  }
+
+  private UUID store(
+      String iban, String statementFrom, String statementTo, String receivedAt, Outcome outcome) {
+    return store(iban, HISTORIC_STATEMENT, statementFrom, statementTo, receivedAt, outcome);
+  }
+
+  private UUID store(
+      String iban,
+      BankMessageType messageType,
+      @Nullable String statementFrom,
+      @Nullable String statementTo,
+      String receivedAt,
+      Outcome outcome) {
     var id = UUID.randomUUID();
     var received = Timestamp.from(Instant.parse(receivedAt));
     jdbcClient
@@ -155,13 +194,14 @@ class BankingMessageRepositoryTest {
               timezone, message_type, account_iban, statement_from, statement_to, processed_at,
               failed_at, received_at)
             values (:id, 'SEB', 'request', 'tracking', '<Document/>', 'Europe/Tallinn',
-              :messageType, :iban, :statementDate, :statementDate, :processedAt, :failedAt,
+              :messageType, :iban, :statementFrom, :statementTo, :processedAt, :failedAt,
               :receivedAt)
             """)
         .param("id", id)
         .param("messageType", messageType.name())
         .param("iban", iban)
-        .param("statementDate", statementDate == null ? null : LocalDate.parse(statementDate))
+        .param("statementFrom", statementFrom == null ? null : LocalDate.parse(statementFrom))
+        .param("statementTo", statementTo == null ? null : LocalDate.parse(statementTo))
         .param("processedAt", outcome == PROCESSED ? received : null)
         .param("failedAt", outcome == FAILED ? received : null)
         .param("receivedAt", received)

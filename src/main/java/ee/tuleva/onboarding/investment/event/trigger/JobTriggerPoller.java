@@ -1,10 +1,18 @@
 package ee.tuleva.onboarding.investment.event.trigger;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.JOB_TRIGGER_POLL;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.investment.event.*;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,10 +42,10 @@ class JobTriggerPoller {
           Map.entry("FeeAccrualPositionSyncJob", RunFeeAccrualPositionSyncRequested::new),
           Map.entry("TransactionCommandJob", RunTransactionCommandRequested::new),
           Map.entry(
-              "SebPendingTransactionReconciliationJob",
+              RunSebPendingTransactionReconciliationRequested.JOB_NAME,
               RunSebPendingTransactionReconciliationRequested::new),
           Map.entry(
-              "SebPendingTransactionReconciliationBackfillJob",
+              RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
               RunSebPendingTransactionReconciliationBackfillRequested::new),
           Map.entry("PortfolioCostBasisJob", RunPortfolioCostBasisRequested::new),
           Map.entry("PortfolioCostBasisSelfHealJob", RunPortfolioCostBasisSelfHealRequested::new),
@@ -56,8 +64,19 @@ class JobTriggerPoller {
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 
+  static final Map<String, Function<LocalDate, Object>> TAKING_A_DATE =
+      Map.of(
+          RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
+          RunSebPendingTransactionReconciliationBackfillRequested::new,
+          RunSebPendingTransactionReportReconciliationRequested.JOB_NAME,
+          RunSebPendingTransactionReportReconciliationRequested::new);
+
+  private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =
+      Duration.ofHours(6);
+
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
+  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = JOB_TRIGGER_POLL)
   @SchedulerLock(name = "JobTriggerPoller", lockAtMostFor = "60m", lockAtLeastFor = "30s")
@@ -67,20 +86,22 @@ class JobTriggerPoller {
       return;
     }
 
-    log.info("Found pending job triggers: count={}", pending.size());
+    log.debug("Found pending job triggers: count={}", pending.size());
 
     for (var trigger : pending) {
-      var eventFactory = EVENTS.get(trigger.getJobName());
-      if (eventFactory == null) {
+      var eventFactory = eventFor(trigger.getJobName());
+      if (eventFactory.isEmpty()) {
         markFailed(trigger, "Unknown job: " + trigger.getJobName());
         continue;
       }
 
       markProcessing(trigger);
       try {
-        eventPublisher.publishEvent(eventFactory.get());
+        eventPublisher.publishEvent(eventFactory.get().get());
         markCompleted(trigger);
         log.info("Job trigger completed: jobName={}", trigger.getJobName());
+      } catch (JobBusyException e) {
+        retryOnTheNextPollUnlessBusyTooLong(trigger, e);
       } catch (Exception e) {
         markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
         log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
@@ -88,9 +109,62 @@ class JobTriggerPoller {
     }
   }
 
+  private static Optional<Supplier<Object>> eventFor(String jobName) {
+    Supplier<Object> event = EVENTS.get(jobName);
+    if (event != null) {
+      return Optional.of(event);
+    }
+    String[] jobAndDate = jobName.split(":", 2);
+    if (jobAndDate.length < 2 || !TAKING_A_DATE.containsKey(jobAndDate[0])) {
+      return Optional.empty();
+    }
+    try {
+      LocalDate date = LocalDate.parse(jobAndDate[1]);
+      Function<LocalDate, Object> forTheDate = TAKING_A_DATE.get(jobAndDate[0]);
+      return Optional.of(() -> forTheDate.apply(date));
+    } catch (DateTimeParseException e) {
+      return Optional.empty();
+    }
+  }
+
+  private void retryOnTheNextPollUnlessBusyTooLong(JobTrigger trigger, JobBusyException busy) {
+    var createdAt = trigger.getCreatedAt();
+    if (createdAt != null
+        && !createdAt
+            .plus(STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST)
+            .isAfter(clock().instant())) {
+      markFailed(trigger, "Still busy after 6 hours: " + busy.getMessage());
+      log.error(
+          "Job trigger expired, its job stayed busy for 6 hours: jobName={}, queuedAt={},"
+              + " reason={}",
+          trigger.getJobName(),
+          createdAt,
+          busy.getMessage());
+      notificationService.sendMessage(expiredMessage(trigger.getJobName()), INVESTMENT, ERROR);
+      return;
+    }
+    trigger.setStatus("PENDING");
+    repository.save(trigger);
+    log.debug(
+        "Job trigger left pending, its job is busy: jobName={}, reason={}",
+        trigger.getJobName(),
+        busy.getMessage());
+  }
+
+  private static String expiredMessage(String jobName) {
+    return "Käivitaja "
+        + jobName
+        + " aegus 6 tunni järel, selle töö lukk oli kogu aeg hõivatud.\n"
+        + "Käivita uuesti: INSERT INTO investment_job_trigger (job_name) VALUES ('"
+        + jobName
+        + "');";
+  }
+
   private void markProcessing(JobTrigger trigger) {
     trigger.setStatus("PROCESSING");
-    trigger.setStartedAt(clock().instant());
+    if (trigger.getStartedAt() == null) {
+      trigger.setStartedAt(clock().instant());
+    }
     repository.save(trigger);
   }
 

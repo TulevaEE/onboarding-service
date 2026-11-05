@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
@@ -216,6 +218,12 @@ public class TransactionRegistryController {
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(BAD_REQUEST)
   public Map<String, Object> handleIllegalArgument(IllegalArgumentException e) {
+    return Map.of("error", String.valueOf(e.getMessage()));
+  }
+
+  @ExceptionHandler(JobBusyException.class)
+  @ResponseStatus(CONFLICT)
+  public Map<String, Object> handleReconciliationAlreadyRunning(JobBusyException e) {
     return Map.of("error", String.valueOf(e.getMessage()));
   }
 

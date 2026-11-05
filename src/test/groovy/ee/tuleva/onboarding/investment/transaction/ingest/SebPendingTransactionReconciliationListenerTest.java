@@ -4,77 +4,215 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationListenerTest {
 
+  private static final LocalDate REPORT_DATE = LocalDate.of(2026, 5, 13);
+
   @Mock private InvestmentReportService reportService;
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
+  @Mock private JobTriggerQueue jobTriggerQueue;
 
-  @InjectMocks private SebPendingTransactionReconciliationListener listener;
+  private final Clock clock = Clock.fixed(Instant.parse("2026-05-13T15:20:00Z"), ZoneOffset.UTC);
 
   @Test
-  void onReportImportCompleted_sebPendingTransactions_loadsReportAndReconciles() {
-    LocalDate reportDate = LocalDate.of(2026, 5, 13);
-    InvestmentReport report =
-        InvestmentReport.builder()
-            .provider(SEB)
-            .reportType(PENDING_TRANSACTIONS)
-            .reportDate(reportDate)
-            .build();
-    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
+  void anImportedSebPendingReportIsReconciledUnderTheReconciliationLock() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+    InvestmentReport report = sebPendingReport();
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
         .willReturn(Optional.of(report));
+    List<Boolean> lockHeldWhileReconciling = new ArrayList<>();
+    willAnswer(
+            invocation -> {
+              lockHeldWhileReconciling.add(lockProvider.isHeld());
+              return null;
+            })
+        .given(reconciliationService)
+        .reconcile(eq(report), any());
 
-    listener.onReportImportCompleted(
-        new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
+    listenerLockedBy(lockProvider)
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
 
-    verify(reconciliationService).reconcile(report);
+    assertThat(lockHeldWhileReconciling).containsExactly(true);
+    verifyNoInteractions(jobTriggerQueue);
+  }
+
+  @Test
+  void anImportFinishingWhileAReplayHoldsTheLockDefersTheReconciliationOfThatOneReport() {
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(sebPendingReport(REPORT_DATE)));
+
+    listenerLockedBy(RecordingLockProvider.heldElsewhere())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
+
+    verify(reconciliationService, never()).reconcile(any(), any());
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
+  }
+
+  @Test
+  void anOlderDateImportDeferredWhileTheLockIsHeldIsReconciledForThatDateOnceTheLockIsFree() {
+    LocalDate olderDate = LocalDate.of(2026, 5, 3);
+    InvestmentReport olderReport = sebPendingReport(olderDate);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, olderDate))
+        .willReturn(Optional.of(olderReport));
+
+    listenerLockedBy(RecordingLockProvider.heldElsewhere())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, olderDate, 1));
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportReconciliationRequested(
+            new RunSebPendingTransactionReportReconciliationRequested(olderDate));
+
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-03");
+    verify(reconciliationService).reconcile(eq(olderReport), any());
+  }
+
+  @Test
+  void aWeekendImportDeferredWhileTheLockIsHeldIsReconciledOnceTheLockIsFree() {
+    LocalDate saturday = LocalDate.of(2026, 5, 16);
+    InvestmentReport saturdaysReport = sebPendingReport(saturday);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, saturday))
+        .willReturn(Optional.of(saturdaysReport));
+
+    listenerLockedBy(RecordingLockProvider.heldElsewhere())
+        .onReportImportCompleted(new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, saturday, 1));
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportReconciliationRequested(
+            new RunSebPendingTransactionReportReconciliationRequested(saturday));
+
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-16");
+    verify(reconciliationService).reconcile(eq(saturdaysReport), any());
+  }
+
+  @Test
+  void aDeferredReportReconciliationThatStillFindsTheLockHeldWaitsAsBusy() {
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(sebPendingReport(REPORT_DATE)));
+    SebPendingTransactionReconciliationListener stillLockedOut =
+        listenerLockedBy(RecordingLockProvider.heldElsewhere());
+
+    assertThatThrownBy(
+            () ->
+                stillLockedOut.onReportReconciliationRequested(
+                    new RunSebPendingTransactionReportReconciliationRequested(REPORT_DATE)))
+        .isInstanceOf(JobBusyException.class);
+
+    verify(reconciliationService, never()).reconcile(any(), any());
+  }
+
+  @Test
+  void anImportWhoseReconciliationLosesTheLockIsDeferredWithoutStoppingTheLaterListeners() {
+    InvestmentReport report = sebPendingReport(REPORT_DATE);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(report));
+    willThrow(new SebReconciliationLockLostException(REPORT_DATE))
+        .given(reconciliationService)
+        .reconcile(eq(report), any());
+
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
+
+    verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
+  }
+
+  @Test
+  void aDeferredReportReconciliationThatLosesTheLockWaitsAsBusy() {
+    InvestmentReport report = sebPendingReport(REPORT_DATE);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(report));
+    willThrow(new SebReconciliationLockLostException(REPORT_DATE))
+        .given(reconciliationService)
+        .reconcile(eq(report), any());
+    SebPendingTransactionReconciliationListener listener =
+        listenerLockedBy(RecordingLockProvider.free());
+
+    assertThatThrownBy(
+            () ->
+                listener.onReportReconciliationRequested(
+                    new RunSebPendingTransactionReportReconciliationRequested(REPORT_DATE)))
+        .isInstanceOf(JobBusyException.class);
   }
 
   @Test
   void onReportImportCompleted_swedbankPendingTransactions_isIgnored() {
-    listener.onReportImportCompleted(
-        new ReportImportCompleted(SWEDBANK, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13), 1));
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SWEDBANK, PENDING_TRANSACTIONS, REPORT_DATE, 1));
 
-    verifyNoInteractions(reportService, reconciliationService);
+    verifyNoInteractions(reportService, reconciliationService, jobTriggerQueue);
   }
 
   @Test
   void onReportImportCompleted_sebPositions_isIgnored() {
-    listener.onReportImportCompleted(
-        new ReportImportCompleted(SEB, POSITIONS, LocalDate.of(2026, 5, 13), 1));
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportImportCompleted(new ReportImportCompleted(SEB, POSITIONS, REPORT_DATE, 1));
 
-    verifyNoInteractions(reportService, reconciliationService);
+    verifyNoInteractions(reportService, reconciliationService, jobTriggerQueue);
   }
 
   @Test
   void onReportImportCompleted_reportMissing_doesNothing() {
-    LocalDate reportDate = LocalDate.of(2026, 5, 13);
-    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, reportDate))
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
         .willReturn(Optional.empty());
 
-    listener.onReportImportCompleted(
-        new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, reportDate, 1));
+    listenerLockedBy(RecordingLockProvider.free())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
 
-    verify(reconciliationService, never()).reconcile(any());
+    verify(reconciliationService, never()).reconcile(any(), any());
+    verifyNoInteractions(jobTriggerQueue);
   }
 
-  private static <T> T any() {
-    return org.mockito.ArgumentMatchers.any();
+  private SebPendingTransactionReconciliationListener listenerLockedBy(
+      RecordingLockProvider lockProvider) {
+    return new SebPendingTransactionReconciliationListener(
+        reportService,
+        reconciliationService,
+        lockProvider.reconciliationLockAt(clock),
+        jobTriggerQueue);
+  }
+
+  private static InvestmentReport sebPendingReport() {
+    return sebPendingReport(REPORT_DATE);
+  }
+
+  private static InvestmentReport sebPendingReport(LocalDate reportDate) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(reportDate)
+        .build();
   }
 }

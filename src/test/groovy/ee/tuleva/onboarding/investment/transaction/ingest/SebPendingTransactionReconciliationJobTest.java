@@ -3,27 +3,49 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.EXECUTION_MATCHING;
+import static java.time.temporal.ChronoUnit.MINUTES;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.event.JobBusyException;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineRun;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.time.MutableClock;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationJobTest {
@@ -39,8 +61,14 @@ class SebPendingTransactionReconciliationJobTest {
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
   @Mock private PipelineTracker pipelineTracker;
   @Mock private PipelineNotifier pipelineNotifier;
+  @Mock private JobTriggerQueue jobTriggerQueue;
 
-  @InjectMocks private SebPendingTransactionReconciliationJob job;
+  private SebPendingTransactionReconciliationJob job;
+
+  @BeforeEach
+  void freeReconciliationLock() {
+    job = jobLockedBy(RecordingLockProvider.free());
+  }
 
   @Test
   void run_skipsOnNonWorkingDay() {
@@ -49,7 +77,7 @@ class SebPendingTransactionReconciliationJobTest {
     given(clock.getZone()).willReturn(saturdayClock.getZone());
     given(publicHolidays.isWorkingDay(SATURDAY)).willReturn(false);
 
-    job.run();
+    job.runOnSchedule();
 
     verifyNoInteractions(reportService, reconciliationService, pipelineTracker, pipelineNotifier);
   }
@@ -65,7 +93,7 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
     verify(pipelineTracker).start(PipelineRun.PipelineType.IMPORT, "Execution Matching");
     verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
@@ -90,9 +118,9 @@ class SebPendingTransactionReconciliationJobTest {
     }
     org.mockito.BDDMockito.willThrow(new RuntimeException("boom"))
         .given(reconciliationService)
-        .reconcile(today);
+        .reconcile(eq(today), any());
 
-    job.run();
+    job.runOnSchedule();
 
     verify(pipelineTracker).stepStarted(EXECUTION_MATCHING);
     verify(pipelineTracker).stepFailed(EXECUTION_MATCHING, "boom");
@@ -120,11 +148,11 @@ class SebPendingTransactionReconciliationJobTest {
       given(reportService.getReport(SEB, PENDING_TRANSACTIONS, date)).willReturn(r);
     }
 
-    job.run();
+    job.runOnSchedule();
 
-    verify(reconciliationService).reconcile(day0);
-    verify(reconciliationService).reconcile(day1);
-    verify(reconciliationService).reconcile(day3);
+    verify(reconciliationService).reconcile(eq(day0), any());
+    verify(reconciliationService).reconcile(eq(day1), any());
+    verify(reconciliationService).reconcile(eq(day3), any());
   }
 
   @Test
@@ -137,9 +165,9 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(i == 0 ? Optional.of(today) : Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
-    verify(reconciliationService).reconcile(today);
+    verify(reconciliationService).reconcile(eq(today), any());
   }
 
   @Test
@@ -150,9 +178,9 @@ class SebPendingTransactionReconciliationJobTest {
           .willReturn(Optional.empty());
     }
 
-    job.run();
+    job.runOnSchedule();
 
-    verify(reconciliationService, never()).reconcile(any());
+    verify(reconciliationService, never()).reconcile(any(), any());
   }
 
   @Test
@@ -171,12 +199,12 @@ class SebPendingTransactionReconciliationJobTest {
     }
     org.mockito.BDDMockito.willThrow(new RuntimeException("boom"))
         .given(reconciliationService)
-        .reconcile(day1);
+        .reconcile(eq(day1), any());
 
-    job.run();
+    job.runOnSchedule();
 
-    verify(reconciliationService).reconcile(day1);
-    verify(reconciliationService).reconcile(day2);
+    verify(reconciliationService).reconcile(eq(day1), any());
+    verify(reconciliationService).reconcile(eq(day2), any());
   }
 
   @Test
@@ -191,8 +219,227 @@ class SebPendingTransactionReconciliationJobTest {
 
     job.onSebPendingTransactionReconciliationRequested();
 
-    verify(reconciliationService).reconcile(today);
+    verify(reconciliationService).reconcile(eq(today), any());
   }
+
+  @Test
+  void aManualRequestHoldsTheReconciliationLockWhileItRuns() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+    List<Boolean> lockHeldWhileRunning = new ArrayList<>();
+    given(publicHolidays.isWorkingDay(TODAY))
+        .willAnswer(
+            invocation -> {
+              lockHeldWhileRunning.add(lockProvider.isHeld());
+              return false;
+            });
+
+    jobLockedBy(lockProvider).onSebPendingTransactionReconciliationRequested();
+
+    assertThat(lockHeldWhileRunning).containsExactly(true);
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+    assertThat(lockProvider.isHeld()).isFalse();
+  }
+
+  @Test
+  void aManualRequestThatFindsTheLockHeldFailsInsteadOfReportingSuccess() {
+    SebPendingTransactionReconciliationJob lockedOut =
+        jobLockedBy(RecordingLockProvider.heldElsewhere());
+
+    assertThatThrownBy(lockedOut::onSebPendingTransactionReconciliationRequested)
+        .isInstanceOf(SebReconciliationAlreadyRunningException.class);
+
+    verifyNoInteractions(
+        publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
+  }
+
+  @Test
+  void theScheduledRunHoldsTheReconciliationLockWhileItRuns() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+    List<Boolean> lockHeldWhileRunning = new ArrayList<>();
+    given(publicHolidays.isWorkingDay(TODAY))
+        .willAnswer(
+            invocation -> {
+              lockHeldWhileRunning.add(lockProvider.isHeld());
+              return false;
+            });
+
+    jobLockedBy(lockProvider).runOnSchedule();
+
+    assertThat(lockHeldWhileRunning).containsExactly(true);
+    assertThat(lockProvider.lockNames()).containsExactly("SebPendingTransactionReconciliationJob");
+  }
+
+  @Test
+  void onlyOneNodeRunsEachFiringOfTheNineOClockSchedule() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.free();
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(false);
+
+    try (var context = lockedContext(lockProvider)) {
+      context.getBean(SebPendingTransactionReconciliationJob.class).runOnSchedule();
+    }
+
+    assertThat(lockProvider.lockNames())
+        .containsExactly(
+            "SebPendingTransactionReconciliationJob.daily",
+            "SebPendingTransactionReconciliationJob");
+    assertThat(lockProvider.lockAtLeastFor()).first().isEqualTo(Duration.ofMinutes(5));
+  }
+
+  @Test
+  void theScheduledRunThatFindsTheLockHeldDefersTheReconciliationInsteadOfDroppingIt() {
+    RecordingLockProvider lockProvider = RecordingLockProvider.heldElsewhere();
+
+    jobLockedBy(lockProvider).runOnSchedule();
+
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
+    verifyNoInteractions(
+        publicHolidays, reportService, reconciliationService, pipelineTracker, pipelineNotifier);
+  }
+
+  @Test
+  void aLiveRunWhoseLockRenewalFailsStopsBeforeTheNextReportAndFailsTheRun() {
+    ScheduledExecutorService keepAliveExecutor = mock(ScheduledExecutorService.class);
+    AtomicReference<Runnable> keepAlive = new AtomicReference<>();
+    willAnswer(
+            schedule -> {
+              keepAlive.set(schedule.getArgument(0));
+              return mock(ScheduledFuture.class);
+            })
+        .given(keepAliveExecutor)
+        .scheduleAtFixedRate(any(), anyLong(), anyLong(), any());
+    InvestmentReport day1 = report(TODAY.minusDays(1));
+    InvestmentReport day0 = report(TODAY);
+    givenTodaysLiveReport(day0);
+    willAnswer(
+            invocation -> {
+              keepAlive.get().run();
+              return null;
+            })
+        .given(reconciliationService)
+        .reconcile(eq(day0), any());
+    PipelineRun pipelineRun =
+        new PipelineRun(PipelineRun.PipelineType.IMPORT, "Execution Matching");
+    given(pipelineTracker.current()).willReturn(pipelineRun);
+    SebPendingTransactionReconciliationJob liveJob =
+        jobWith(RecordingLockProvider.free().reconciliationLockAt(clock, keepAliveExecutor));
+
+    liveJob.runOnSchedule();
+
+    verify(reconciliationService, never()).reconcile(eq(day1), any());
+    verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
+    verify(pipelineNotifier).sendCompleted(pipelineRun);
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
+  }
+
+  @Test
+  void aLiveRunWhoseLockExpiresStopsBeforeTheNextReportAndFailsTheRun() {
+    MutableClock running = new MutableClock(TODAY.atTime(7, 0).atZone(ZoneOffset.UTC).toInstant());
+    InvestmentReport day1 = report(TODAY.minusDays(1));
+    InvestmentReport day0 = report(TODAY);
+    givenTodaysLiveReport(day0);
+    willAnswer(
+            invocation -> {
+              running.tick(3, MINUTES);
+              return null;
+            })
+        .given(reconciliationService)
+        .reconcile(eq(day0), any());
+    SebPendingTransactionReconciliationJob liveJob =
+        new SebPendingTransactionReconciliationJob(
+            running,
+            publicHolidays,
+            reportService,
+            reconciliationService,
+            pipelineTracker,
+            pipelineNotifier,
+            RecordingLockProvider.free().reconciliationLockAt(running),
+            jobTriggerQueue);
+
+    liveJob.runOnSchedule();
+
+    verify(reconciliationService, never()).reconcile(eq(day1), any());
+    verify(pipelineTracker).stepFailed(eq(EXECUTION_MATCHING), any());
+    verify(jobTriggerQueue).defer("SebPendingTransactionReconciliationJob");
+  }
+
+  @Test
+  void aTriggeredLiveRunThatLosesItsLockWaitsAsBusySoItsTriggerStaysPending() {
+    MutableClock running = new MutableClock(TODAY.atTime(7, 0).atZone(ZoneOffset.UTC).toInstant());
+    InvestmentReport day0 = report(TODAY);
+    givenTodaysLiveReport(day0);
+    willAnswer(
+            invocation -> {
+              running.tick(3, MINUTES);
+              return null;
+            })
+        .given(reconciliationService)
+        .reconcile(eq(day0), any());
+    SebPendingTransactionReconciliationJob liveJob =
+        new SebPendingTransactionReconciliationJob(
+            running,
+            publicHolidays,
+            reportService,
+            reconciliationService,
+            pipelineTracker,
+            pipelineNotifier,
+            RecordingLockProvider.free().reconciliationLockAt(running),
+            jobTriggerQueue);
+
+    assertThatThrownBy(liveJob::onSebPendingTransactionReconciliationRequested)
+        .isInstanceOf(JobBusyException.class);
+  }
+
+  private void givenTodaysLiveReport(InvestmentReport day0) {
+    given(publicHolidays.isWorkingDay(TODAY)).willReturn(true);
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, TODAY)).willReturn(Optional.of(day0));
+  }
+
+  private SebPendingTransactionReconciliationJob jobWith(SebReconciliationLock reconciliationLock) {
+    return new SebPendingTransactionReconciliationJob(
+        clock,
+        publicHolidays,
+        reportService,
+        reconciliationService,
+        pipelineTracker,
+        pipelineNotifier,
+        reconciliationLock,
+        jobTriggerQueue);
+  }
+
+  private SebPendingTransactionReconciliationJob jobLockedBy(RecordingLockProvider provider) {
+    return new SebPendingTransactionReconciliationJob(
+        clock,
+        publicHolidays,
+        reportService,
+        reconciliationService,
+        pipelineTracker,
+        pipelineNotifier,
+        provider.reconciliationLockAt(clock),
+        jobTriggerQueue);
+  }
+
+  private AnnotationConfigApplicationContext lockedContext(RecordingLockProvider lockProvider) {
+    var context = new AnnotationConfigApplicationContext();
+    context.getEnvironment().setActiveProfiles("production");
+    context.registerBean(LockProvider.class, () -> lockProvider);
+    context.registerBean(Clock.class, () -> clock);
+    context.registerBean(PublicHolidays.class, () -> publicHolidays);
+    context.registerBean(InvestmentReportService.class, () -> reportService);
+    context.registerBean(
+        SebPendingTransactionReconciliationService.class, () -> reconciliationService);
+    context.registerBean(PipelineTracker.class, () -> pipelineTracker);
+    context.registerBean(PipelineNotifier.class, () -> pipelineNotifier);
+    context.registerBean(
+        SebReconciliationLock.class, () -> lockProvider.reconciliationLockAt(clock));
+    context.registerBean(JobTriggerQueue.class, () -> jobTriggerQueue);
+    context.register(SchedulerLockOnly.class, SebPendingTransactionReconciliationJob.class);
+    context.refresh();
+    return context;
+  }
+
+  @Configuration
+  @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
+  static class SchedulerLockOnly {}
 
   private static InvestmentReport report(LocalDate date) {
     return InvestmentReport.builder()

@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -53,6 +55,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SebPendingTransactionReconciliationServiceTest {
+
+  private static final BooleanSupplier LOCK_HELD = () -> true;
 
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionExecutionRepository executionRepository;
@@ -88,7 +92,6 @@ class SebPendingTransactionReconciliationServiceTest {
             executionUpserter,
             new ReportedQuantityNormalizer(),
             executionRepository,
-            eventPublisher,
             auditRecorder,
             settlementRepository);
     SebPendingRowReconciler rowReconciler =
@@ -102,7 +105,6 @@ class SebPendingTransactionReconciliationServiceTest {
                 new ReportedQuantityNormalizer()),
             executionRepository,
             orderRepository,
-            eventPublisher,
             auditRecorder,
             matchedRowProcessor);
     return new SebPendingTransactionReconciliationService(
@@ -128,7 +130,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(executionRepository)
         .save(
@@ -162,7 +164,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
         .willReturn(Optional.of(existing));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(executionRepository).save(existing);
     assertThat(existing.getId()).isEqualTo(99L);
@@ -176,7 +178,7 @@ class SebPendingTransactionReconciliationServiceTest {
     UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any(Object.class));
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
@@ -190,7 +192,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     InvestmentReport report = reportWithSingleRow(null);
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(executionRepository)
         .save(
@@ -210,7 +212,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(executionRepository).save(any(TransactionExecution.class));
     assertThat(order.getOrderStatus()).isEqualTo(EXECUTED);
@@ -238,7 +240,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findById(123L)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(orderRepository, never()).findByInstrumentIsin(any());
     verify(executionRepository).save(existing);
@@ -267,7 +269,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.findByOrderId(123L))
         .willReturn(Optional.of(settlement(123L, LocalDate.of(2026, 5, 10))));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -302,7 +304,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     InvestmentReport report = reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003"));
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -323,7 +325,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
     InvestmentReport report = reportWithSingleRow(clientRef);
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -352,7 +354,7 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order = orderWith(clientRef, ETF, BUY, new BigDecimal("15007"), null);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
-    service.reconcile(reportWithSingleRowQuantity(clientRef, null));
+    service.reconcile(reportWithSingleRowQuantity(clientRef, null), LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -373,7 +375,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher, never()).publishEvent(any(Object.class));
     verify(executionRepository).save(any(TransactionExecution.class));
@@ -387,7 +389,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher, never()).publishEvent(any(Object.class));
     verify(executionRepository).save(any(TransactionExecution.class));
@@ -401,7 +403,7 @@ class SebPendingTransactionReconciliationServiceTest {
         orderWith(clientRef, InstrumentType.FUND, BUY, null, new BigDecimal("60000.00"));
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -424,7 +426,7 @@ class SebPendingTransactionReconciliationServiceTest {
         orderWith(clientRef, InstrumentType.FUND, BUY, null, new BigDecimal("69525.00"));
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -450,7 +452,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher, never()).publishEvent(any(Object.class));
     verify(executionRepository).save(any(TransactionExecution.class));
@@ -467,7 +469,7 @@ class SebPendingTransactionReconciliationServiceTest {
 
     Map<String, Object> sellRow = validRawRow(clientRef);
     sellRow.put("Buy/Sell", "Sell");
-    service.reconcile(reportOf(sellRow));
+    service.reconcile(reportOf(sellRow), LOCK_HELD);
 
     verify(eventPublisher)
         .publishEvent(
@@ -488,7 +490,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
     given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any(Object.class));
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
@@ -519,7 +521,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of(malformed, validRow))
             .build();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(executionRepository)
         .save(
@@ -543,7 +545,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByBrokerTransactionId("DLA0799512"))
         .willReturn(List.of(existingOnOtherOrder));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     // Defensive: do not silently re-link — refuse to write a second execution that conflicts.
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
@@ -560,7 +562,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -589,7 +591,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
         .willReturn(Optional.of(existing));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository, never())
         .save(argThat(event -> "EXECUTION_MATCHED".equals(event.getEventType())));
@@ -602,7 +604,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
     given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -635,7 +637,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")));
+    service.reconcile(
+        reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -655,7 +658,7 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order = orderWith(clientRef, ETF, SELL, new BigDecimal("15007"), null);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(executionRepository, never()).save(any());
     assertThat(order.getOrderStatus()).isEqualTo(SENT);
@@ -680,8 +683,8 @@ class SebPendingTransactionReconciliationServiceTest {
             List.of(),
             List.of(TransactionAuditEvent.builder().eventType("INCONSISTENT_MATCHED_ROW").build()));
 
-    service.reconcile(reportWithSingleRow(clientRef));
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository, org.mockito.Mockito.times(1))
         .save(
@@ -701,7 +704,7 @@ class SebPendingTransactionReconciliationServiceTest {
     Map<String, Object> raw = validRawRow(clientRef);
     raw.put("Client name", "Tuleva Maailma Aktsiate Pensionifond"); // TUK75, not TKF100
 
-    service.reconcile(reportOf(raw));
+    service.reconcile(reportOf(raw), LOCK_HELD);
 
     verify(executionRepository, never()).save(any());
     assertThat(order.getOrderStatus()).isEqualTo(SENT);
@@ -742,7 +745,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of(validRawRow(clientRefA), rowB))
             .build();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     assertThat(orderA.getOrderStatus()).isEqualTo(EXECUTED);
     verify(executionRepository)
@@ -768,7 +771,7 @@ class SebPendingTransactionReconciliationServiceTest {
     Map<String, Object> raw = validRawRow(clientRef);
     raw.remove("Our ref");
 
-    service.reconcile(reportOf(raw));
+    service.reconcile(reportOf(raw), LOCK_HELD);
 
     verify(executionRepository, never()).save(any());
     verify(executionRepository, never()).findAllByBrokerTransactionId(null);
@@ -800,7 +803,7 @@ class SebPendingTransactionReconciliationServiceTest {
                     .executionTimestamp(Instant.parse("2026-05-11T10:00:00Z"))
                     .build()));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(absentOrder.getOrderStatus()).isEqualTo(EXECUTED);
@@ -822,7 +825,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.save(any()))
         .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository)
         .save(
@@ -856,7 +859,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.save(any()))
         .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository)
         .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
@@ -871,7 +874,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
     given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(orderRepository, never())
         .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -890,7 +893,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of())
             .build();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(orderRepository, never())
         .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -907,7 +910,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.findByOrderId(123L))
         .willReturn(Optional.of(settlement(123L, LocalDate.of(2026, 5, 10))));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -932,7 +935,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.findByOrderId(123L))
         .willReturn(Optional.of(settlement(123L, LocalDate.of(2026, 5, 14))));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository, never())
         .save(argThat(event -> "SETTLEMENT_REAPPEARED".equals(event.getEventType())));
@@ -952,7 +955,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(List.of(absentOrder));
     given(executionRepository.findAllByOrderId(456L)).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(absentOrder.getOrderStatus()).isEqualTo(EXECUTED);
@@ -972,7 +975,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(456L))
         .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-13T10:00:00Z")));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
   }
@@ -1014,7 +1017,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of(validRawRow(clientRef), secondRow))
             .build();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(presentByOurRef.getOrderStatus()).isEqualTo(EXECUTED);
@@ -1034,7 +1037,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
         .willReturn(Optional.of(priorReport));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     // Truncation guard trips before candidate orders are even looked up.
     verify(orderRepository, never())
@@ -1083,7 +1086,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
         .willReturn(Optional.of(priorReport));
 
-    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 6));
+    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 6), LOCK_HELD);
 
     verify(settlementRepository)
         .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
@@ -1106,7 +1109,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(settlementRepository.save(any()))
         .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository)
         .save(argThat((TransactionSettlement settlement) -> settlement.getOrderId().equals(456L)));
@@ -1133,11 +1136,203 @@ class SebPendingTransactionReconciliationServiceTest {
                     .rawData(List.of())
                     .build()));
 
-    service.reconcile(reportWithSingleRow(clientRef)); // reportDate 2026-05-13
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD); // reportDate 2026-05-13
 
     verify(orderRepository, never())
         .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
+  }
+
+  @Test
+  void replay_olderReportWithANewerOneStored_settlesTheOrderMissingFromItOnItsDate() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+    lenient()
+        .when(reportService.getLatestReport(SEB, PENDING_TRANSACTIONS))
+        .thenReturn(
+            Optional.of(
+                InvestmentReport.builder()
+                    .provider(SEB)
+                    .reportType(PENDING_TRANSACTIONS)
+                    .reportDate(LocalDate.of(2026, 5, 14))
+                    .metadata(Map.of("asOfDate", "2026-05-13"))
+                    .rawData(List.of())
+                    .build()));
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
+
+    service.replay(reportWithSingleRow(clientRef), heldBack::add, LOCK_HELD);
+
+    verify(settlementRepository)
+        .save(
+            argThat(
+                (TransactionSettlement settlement) ->
+                    settlement.getOrderId().equals(456L)
+                        && settlement.getReportDate().equals(LocalDate.of(2026, 5, 13))));
+    assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void replay_orderFirstListedByALaterReport_isNotSettledByAnEarlierReportItIsMissingFrom() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder listedLater = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(listedLater));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "100", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+
+    service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(listedLater.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void replay_secondPieceListedByALaterReport_leavesTheOrderAShortFillOnTheEarlierReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder splitOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(splitOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "60", "2026-05-10T10:00:00Z", LocalDate.of(2026, 5, 11)),
+                pieceListedOn(
+                    2456L, "DLA456B", "40", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+
+    service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(splitOrder.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void reconcile_liveRun_settlesOnAnExecutionReportedAfterTheReportsAsOfDateAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder reportedLater = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(reportedLater));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "100", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+
+    assertThat(reportedLater.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void reconcile_liveRun_countsAPieceReportedAfterTheAsOfDateTowardsTheFillAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    TransactionOrder splitOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(splitOrder));
+    given(executionRepository.findAllByOrderId(456L))
+        .willReturn(
+            List.of(
+                pieceListedOn(
+                    1456L, "DLA456", "60", "2026-05-10T10:00:00Z", LocalDate.of(2026, 5, 11)),
+                pieceListedOn(
+                    2456L, "DLA456B", "40", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
+    given(settlementRepository.save(any()))
+        .willAnswer(invocation -> invocation.getArgument(0, TransactionSettlement.class));
+
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
+
+    assertThat(splitOrder.getOrderStatus()).isEqualTo(SETTLED);
+  }
+
+  @Test
+  void replay_nearMissOrder_holdsTheMismatchBackInsteadOfPublishingIt() {
+    service = newService();
+    UUID clientRef = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.empty());
+    TransactionOrder order =
+        TransactionOrder.builder()
+            .id(123L)
+            .fund(TKF100)
+            .instrumentIsin("IE000F60HVH9")
+            .transactionType(BUY)
+            .instrumentType(ETF)
+            .orderQuantity(new BigDecimal("15007"))
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(UUID.randomUUID())
+            .orderStatus(SENT)
+            .build();
+    given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
+
+    service.replay(
+        reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")),
+        heldBack::add,
+        LOCK_HELD);
+
+    assertThat(heldBack)
+        .singleElement()
+        .isInstanceOfSatisfying(
+            QuantityAmountMismatchEvent.class,
+            event -> {
+              assertThat(event.order().getId()).isEqualTo(123L);
+              assertThat(event.kind())
+                  .isEqualTo(QuantityAmountMismatchEvent.MismatchKind.ETF_QUANTITY);
+            });
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void replay_reportRowCountDroppedSharply_holdsTheTruncationAlertBackAndDoesNotSettle() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
+        .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 50)));
+    List<ReconciliationAlert> heldBack = new ArrayList<>();
+
+    service.replay(reportWithSingleRow(clientRef), heldBack::add, LOCK_HELD);
+
+    assertThat(heldBack)
+        .singleElement()
+        .isEqualTo(
+            new PossibleReportTruncationEvent(
+                LocalDate.of(2026, 5, 13), 1, LocalDate.of(2026, 5, 12), 50));
+    verify(settlementRepository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -1163,11 +1358,50 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of(validRawRow(clientRef), malformed))
             .build();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     verify(orderRepository, never())
         .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(settlementRepository, never()).save(any());
+  }
+
+  @Test
+  void replay_reportWithMalformedRow_saysTheSettlementCheckWasSkippedForIt() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    Map<String, Object> malformed = new HashMap<>();
+    malformed.put("ISIN", "IE000F60HVH9");
+    malformed.put("Client ref", "not-a-uuid");
+    malformed.put("Buy/Sell", "Buy");
+    malformed.put("Our ref", "DLA9999999");
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of("asOfDate", "2026-05-12"))
+            .rawData(List.of(validRawRow(clientRef), malformed))
+            .build();
+
+    SettlementCheck check = service.replay(report, alert -> {}, LOCK_HELD);
+
+    assertThat(check).isEqualTo(SettlementCheck.SKIPPED_MALFORMED_ROWS);
+  }
+
+  @Test
+  void replay_reportWhereAnOrderIsMissing_saysTheSettlementCheckRan() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    SettlementCheck check = service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+
+    assertThat(check).isEqualTo(SettlementCheck.CHECKED);
   }
 
   @Test
@@ -1188,7 +1422,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
         .willReturn(Optional.of(existing));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -1215,10 +1449,92 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
         .willReturn(Optional.of(existing));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(auditEventRepository, never())
         .save(argThat(event -> "EXECUTION_UPDATED".equals(event.getEventType())));
+  }
+
+  @Test
+  void replay_earlierReportMovingOnlyTheReportedDateBack_recordsTheMoveInTheAudit() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution storedLate =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 20));
+    storedLate.setId(99L);
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(storedLate));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(storedLate));
+
+    service.replay(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {}, LOCK_HELD);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_UPDATED".equals(event.getEventType())
+                        && "2026-05-20".equals(auditedField(event, "before", "reportedDate"))
+                        && "2026-05-12".equals(auditedField(event, "after", "reportedDate"))));
+  }
+
+  @Test
+  void replay_executionImportedFromTheSheetThatSebNowLists_recordsTheSourceFlipInTheAudit() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution imported =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 12));
+    imported.setId(99L);
+    imported.setSource("HISTORICAL_IMPORT");
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(imported));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(imported));
+
+    service.replay(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {}, LOCK_HELD);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_UPDATED".equals(event.getEventType())
+                        && "HISTORICAL_IMPORT".equals(auditedField(event, "before", "source"))
+                        && "SEB_OOTEL".equals(auditedField(event, "after", "source"))));
+  }
+
+  @Test
+  void reconcile_thatNoLongerHoldsTheLock_refusesToCommitTheReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    assertThatThrownBy(() -> service.reconcile(reportWithSingleRow(clientRef), () -> false))
+        .isInstanceOf(SebReconciliationLockLostException.class);
+  }
+
+  @Test
+  void replay_thatNoLongerHoldsTheLock_refusesToCommitTheReport() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    given(orderRepository.findByOrderUuid(clientRef))
+        .willReturn(Optional.of(sampleOrder(clientRef)));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    assertThatThrownBy(
+            () -> service.replay(reportWithSingleRow(clientRef), alert -> {}, () -> false))
+        .isInstanceOf(SebReconciliationLockLostException.class);
   }
 
   @Test
@@ -1234,7 +1550,7 @@ class SebPendingTransactionReconciliationServiceTest {
                 TransactionExecution.builder().id(2L).orderId(22L).build()));
     given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(orderRepository, never()).findById(any());
     verify(executionRepository, never()).save(any());
@@ -1255,7 +1571,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(
         twoRowReport(
             rawRow(normalRef, "DLA-901", new BigDecimal("15007")),
-            rawRow(mismatchRef, "DLA-902", new BigDecimal("15007"))));
+            rawRow(mismatchRef, "DLA-902", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     assertThat(normalOrder.getOrderStatus()).isEqualTo(EXECUTED);
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -1276,7 +1593,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(
         twoRowReport(
             rawRow(mismatchRef, "DLA-903", new BigDecimal("15007")),
-            rawRow(normalRef, "DLA-904", new BigDecimal("15007"))));
+            rawRow(normalRef, "DLA-904", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     assertThat(mismatchOrder.getOrderStatus()).isEqualTo(SENT);
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -1300,7 +1618,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(
         twoRowReport(
             rawRow(settledRef, "DLA-905", new BigDecimal("15007")),
-            rawRow(normalRef, "DLA-906", new BigDecimal("15007"))));
+            rawRow(normalRef, "DLA-906", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
   }
@@ -1320,7 +1639,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(
         twoRowReport(
             rawRow(blankRef, "DLA-907", null),
-            rawRow(normalRef, "DLA-908", new BigDecimal("15007"))));
+            rawRow(normalRef, "DLA-908", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     assertThat(blankOrder.getOrderStatus()).isEqualTo(SENT);
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -1342,7 +1662,8 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(
         twoRowReport(
             rawRow(mismatchRef, "DLA-909", new BigDecimal("15007")),
-            rawRow(normalRef, "DLA-910", new BigDecimal("15007"))));
+            rawRow(normalRef, "DLA-910", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     assertThat(mismatchOrder.getOrderStatus()).isEqualTo(SENT);
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
@@ -1362,7 +1683,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
         .willReturn(Optional.of(priorReport));
 
-    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 5));
+    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 5), LOCK_HELD);
 
     verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
     verify(auditEventRepository, never())
@@ -1387,7 +1708,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .when(executionRepository.findAllByOrderId(456L))
         .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(nonSebOrder.getOrderStatus()).isEqualTo(EXECUTED);
@@ -1411,7 +1732,7 @@ class SebPendingTransactionReconciliationServiceTest {
         .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
     given(settlementRepository.existsByOrderId(456L)).willReturn(true);
 
-    service.reconcile(reportWithSingleRow(clientRef));
+    service.reconcile(reportWithSingleRow(clientRef), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
   }
@@ -1442,7 +1763,8 @@ class SebPendingTransactionReconciliationServiceTest {
 
     service.reconcile(
         twoRowReport(
-            validRawRow(rowClientRef), rawRow(normalRef, "DLA-911", new BigDecimal("15007"))));
+            validRawRow(rowClientRef), rawRow(normalRef, "DLA-911", new BigDecimal("15007"))),
+        LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(absentOrder.getOrderStatus()).isEqualTo(EXECUTED);
@@ -1459,6 +1781,19 @@ class SebPendingTransactionReconciliationServiceTest {
         .orderVenue(OrderVenue.SEB)
         .orderUuid(UUID.randomUUID())
         .orderStatus(EXECUTED)
+        .build();
+  }
+
+  private static TransactionExecution pieceListedOn(
+      Long id, String brokerRef, String quantity, String tradeInstant, LocalDate reportedDate) {
+    return TransactionExecution.builder()
+        .id(id)
+        .orderId(456L)
+        .source("SEB_OOTEL")
+        .brokerTransactionId(brokerRef)
+        .executedQuantity(new BigDecimal(quantity))
+        .executionTimestamp(Instant.parse(tradeInstant))
+        .reportedDate(reportedDate)
         .build();
   }
 
@@ -1597,7 +1932,8 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
     List<TransactionExecution> saved = recordSavedExecutions();
 
-    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-11")));
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-11")), LOCK_HELD);
 
     assertThat(saved)
         .singleElement()
@@ -1614,7 +1950,7 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
     List<TransactionExecution> saved = recordSavedExecutions();
 
-    service.reconcile(reportOf(validRawRow(clientRef), Map.of()));
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of()), LOCK_HELD);
 
     assertThat(saved)
         .singleElement()
@@ -1642,12 +1978,67 @@ class SebPendingTransactionReconciliationServiceTest {
             .build();
     List<TransactionExecution> saved = recordSavedExecutions();
 
-    service.reconcile(report);
+    service.reconcile(report, LOCK_HELD);
 
     assertThat(saved)
         .singleElement()
         .extracting(TransactionExecution::getReportedDate)
         .isEqualTo(LocalDate.of(2026, 5, 11));
+  }
+
+  @Test
+  void reconcile_liveRunMeetingAnOlderReport_leavesTheStoredReportedDateAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution storedLater =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 20));
+    storedLater.setId(99L);
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(storedLater));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(storedLater));
+    List<TransactionExecution> saved = recordSavedExecutions();
+
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 20));
+    verify(auditEventRepository, never())
+        .save(argThat(event -> "EXECUTION_UPDATED".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_liveRunListingASheetImport_keepsItsDateAndOnlyTakesSebAsItsSourceAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution imported =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 10));
+    imported.setId(99L);
+    imported.setSource("HISTORICAL_IMPORT");
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(imported));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(imported));
+    List<TransactionExecution> saved = recordSavedExecutions();
+
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), LOCK_HELD);
+
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate, TransactionExecution::getSource)
+        .containsExactly(LocalDate.of(2026, 5, 10), "SEB_OOTEL");
   }
 
   @Test
@@ -1667,7 +2058,8 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(Optional.of(existing));
     List<TransactionExecution> saved = recordSavedExecutions();
 
-    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-20")));
+    service.reconcile(
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-20")), LOCK_HELD);
 
     assertThat(saved)
         .singleElement()
@@ -1685,6 +2077,10 @@ class SebPendingTransactionReconciliationServiceTest {
               return execution;
             });
     return saved;
+  }
+
+  private static Object auditedField(TransactionAuditEvent event, String side, String field) {
+    return ((Map<?, ?>) event.getPayload().get(side)).get(field);
   }
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {

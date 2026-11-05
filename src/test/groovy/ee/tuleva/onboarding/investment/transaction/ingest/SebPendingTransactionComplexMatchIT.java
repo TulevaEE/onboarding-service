@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 class SebPendingTransactionComplexMatchIT {
+
+  private static final BooleanSupplier LOCK_HELD = () -> true;
 
   private static final String ETF_ISIN = "IE00BFNM3G45";
 
@@ -82,7 +85,7 @@ class SebPendingTransactionComplexMatchIT {
 
   @Test
   void reconcile_missingClientRef_complexMatchByFundIsinSideAndQuantity() {
-    reconciliationService.reconcile(report);
+    reconciliationService.reconcile(report, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 
@@ -119,7 +122,7 @@ class SebPendingTransactionComplexMatchIT {
                 .createdAt(Instant.now())
                 .build());
 
-    reconciliationService.reconcile(secondPieceReport);
+    reconciliationService.reconcile(secondPieceReport, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
 

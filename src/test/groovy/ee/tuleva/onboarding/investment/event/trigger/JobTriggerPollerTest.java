@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.event.trigger;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -7,6 +9,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunFeeSettlementCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
@@ -14,8 +17,15 @@ import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.time.ClockHolder;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +40,7 @@ class JobTriggerPollerTest {
 
   @Mock JobTriggerRepository repository;
   @Mock ApplicationEventPublisher eventPublisher;
+  @Mock OperationsNotificationService notificationService;
 
   @InjectMocks JobTriggerPoller poller;
 
@@ -96,6 +107,152 @@ class JobTriggerPollerTest {
 
     assertThat(trigger.getStatus()).isEqualTo("FAILED");
     assertThat(trigger.getErrorMessage()).isEqualTo("boom");
+  }
+
+  @Test
+  void aPlainBackfillTriggerReplaysTheWholeWindow() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new RunSebPendingTransactionReconciliationBackfillRequested());
+  }
+
+  @Test
+  void aBackfillTriggerNamingADateResumesTheReplayFromThatDate() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob:2026-05-08")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(
+            new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(2026, 5, 8)));
+    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void aReportReconciliationTriggerNamingADateReconcilesThatOneReport() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-16")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(
+            new RunSebPendingTransactionReportReconciliationRequested(LocalDate.of(2026, 5, 16)));
+    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void aBackfillTriggerWithAnUnreadableDateIsMarkedFailed() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob:yesterday")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(eventPublisher).should(never()).publishEvent(any());
+  }
+
+  @Test
+  void aDateOnAJobThatCannotResumeIsMarkedFailed() {
+    var trigger =
+        JobTrigger.builder().jobName("LimitCheckJob:2026-05-08").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(eventPublisher).should(never()).publishEvent(any());
+  }
+
+  @Test
+  void aTriggerWhoseJobIsBusyStaysPendingForTheNextPoll() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationJob")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant())
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("PENDING");
+  }
+
+  @Test
+  void aBusyRetryKeepsTheTimeItsTriggerFirstStarted() {
+    var firstStart = ClockHolder.clock().instant().minus(Duration.ofMinutes(30));
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationJob")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant())
+            .startedAt(firstStart)
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
+
+    poller.poll();
+
+    assertThat(trigger.getStartedAt()).isEqualTo(firstStart);
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aTriggerWhoseJobStayedBusyForSixHoursIsFailedAndPostedToTheInvestmentChannel() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-13")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReportReconciliationRequested.class));
+
+    poller.poll();
+
+    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            Käivitaja SebPendingTransactionReportReconciliationJob:2026-05-13 aegus 6 tunni \
+            järel, selle töö lukk oli kogu aeg hõivatud.
+            Käivita uuesti: INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReportReconciliationJob:2026-05-13');""",
+            INVESTMENT,
+            ERROR);
   }
 
   @Test

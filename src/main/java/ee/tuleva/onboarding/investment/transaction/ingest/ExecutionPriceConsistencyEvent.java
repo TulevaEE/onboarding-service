@@ -11,7 +11,8 @@ record ExecutionPriceConsistencyEvent(
     BigDecimal maxUnitPrice,
     BigDecimal relativeSpread,
     BigDecimal tolerance,
-    @Nullable LocalDate reportDate) {
+    @Nullable LocalDate reportDate)
+    implements ReconciliationAlert {
 
   ExecutionPriceConsistencyEvent withReportDate(LocalDate newReportDate) {
     return new ExecutionPriceConsistencyEvent(

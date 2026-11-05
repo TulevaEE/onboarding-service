@@ -65,6 +65,8 @@ class TransactionExecutionMapper {
     snapshot.put("settlementAmount", asString(execution.getSettlementAmount()));
     snapshot.put("commissionAmount", asString(execution.getCommissionAmount()));
     snapshot.put("scheduledSettlementDate", asString(execution.getScheduledSettlementDate()));
+    snapshot.put("reportedDate", asString(execution.getReportedDate()));
+    snapshot.put("source", execution.getSource());
     return snapshot;
   }
 

@@ -2,11 +2,15 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
+import static java.util.Comparator.comparingInt;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import ee.tuleva.onboarding.event.EventLog;
@@ -27,10 +31,12 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
 @Component
@@ -49,6 +55,9 @@ class CustodianOrderEmailAlerter {
   private static final Duration GIVE_UP_LOOKBACK = Duration.ofHours(24);
   private static final int SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH = 4;
   private static final Duration LATE_POST_AFTER = Duration.ofMinutes(5);
+  private static final List<Severity> SEVERITIES_MOST_URGENT_FIRST = List.of(ERROR, WARNING, INFO);
+  private static final List<HttpStatus> SLACK_REFUSES_THE_PAYLOAD_ITSELF_WITH =
+      List.of(BAD_REQUEST, CONTENT_TOO_LARGE);
   private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
       Duration.ofMinutes(2);
   private static final DateTimeFormatter EVENT_TIME =
@@ -116,19 +125,12 @@ class CustodianOrderEmailAlerter {
     try {
       notificationService.sendMessage(text, TRADING, severity);
     } catch (RuntimeException e) {
-      if (recorded) {
-        log.warn(
-            "Order email send result not posted to Slack, the scheduled run posts it:"
-                + " principal={}, error={}",
-            principal,
-            e.toString());
-      } else {
-        log.error(
-            "Order email send result neither recorded nor posted to Slack: principal={}, text={}",
-            principal,
-            text,
-            e);
-      }
+      log.warn(
+          "Order email send result not posted to Slack, the scheduled run posts it if it was"
+              + " recorded: principal={}, recorded={}, error={}",
+          principal,
+          recorded,
+          e.toString());
       return;
     }
     if (recorded) {
@@ -162,25 +164,53 @@ class CustodianOrderEmailAlerter {
     retryable.stream()
         .filter(not(CustodianOrderEmailAlerter::isReadable))
         .forEach(failure -> giveUp(failure, DATA_CANNOT_BE_READ));
-    retryable.stream()
-        .filter(CustodianOrderEmailAlerter::isReadable)
-        .limit(SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH)
-        .forEach(failure -> post(failure, now));
+    var mostUrgentFirst =
+        retryable.stream()
+            .filter(CustodianOrderEmailAlerter::isReadable)
+            .sorted(
+                comparingInt((EventLog row) -> SEVERITIES_MOST_URGENT_FIRST.indexOf(severity(row)))
+                    .thenComparing(EventLog::getTimestamp))
+            .toList();
+    var slots = SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH;
+    for (var row : mostUrgentFirst) {
+      if (slots == 0) {
+        return;
+      }
+      if (postTakesASlot(row, now)) {
+        slots--;
+      }
+    }
   }
 
-  private void post(EventLog failure, Instant now) {
+  private boolean postTakesASlot(EventLog failure, Instant now) {
     try {
       notificationService.sendMessage(postedText(failure, now), TRADING, severity(failure));
       markAs(POSTED, failure);
+    } catch (HttpClientErrorException e) {
+      if (isRefusalOfThePayloadItself(e)) {
+        giveUp(failure, "Slack refused it with " + e.getStatusCode());
+        return false;
+      }
+      keepForTheNextRun(failure, e);
     } catch (RuntimeException e) {
-      log.warn(
-          "Order email alert not posted to Slack, trying again next run:"
-              + " eventLogId={}, type={}, principal={}, error={}",
-          failure.getId(),
-          failure.getType(),
-          failure.getPrincipal(),
-          e.toString());
+      keepForTheNextRun(failure, e);
     }
+    return true;
+  }
+
+  private static boolean isRefusalOfThePayloadItself(HttpClientErrorException e) {
+    return SLACK_REFUSES_THE_PAYLOAD_ITSELF_WITH.stream()
+        .anyMatch(status -> status.isSameCodeAs(e.getStatusCode()));
+  }
+
+  private static void keepForTheNextRun(EventLog failure, RuntimeException e) {
+    log.warn(
+        "Order email alert not posted to Slack, trying again next run:"
+            + " eventLogId={}, type={}, principal={}, error={}",
+        failure.getId(),
+        failure.getType(),
+        failure.getPrincipal(),
+        e.toString());
   }
 
   private void giveUp(EventLog failure, String why) {

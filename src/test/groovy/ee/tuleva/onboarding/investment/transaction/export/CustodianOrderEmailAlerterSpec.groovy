@@ -8,6 +8,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
 import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.client.HttpServerErrorException
+import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClientException
 import spock.lang.Specification
 
@@ -20,6 +23,12 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING
 import static java.time.ZoneOffset.UTC
+import static org.springframework.http.HttpStatus.BAD_GATEWAY
+import static org.springframework.http.HttpStatus.BAD_REQUEST
+import static org.springframework.http.HttpStatus.FORBIDDEN
+import static org.springframework.http.HttpStatus.NOT_FOUND
+import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW
 
 class CustodianOrderEmailAlerterSpec extends Specification {
@@ -302,6 +311,85 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     1 * notificationService.sendMessage(redAlert("reject", "msg_5"), TRADING, ERROR)
     4 * eventLogRepository.save({ EventLog it -> it.data.alert == "GIVEN_UP" })
     1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_5" && it.data == postedData(redAlert("reject", "msg_5"), "ERROR") })
+  }
+
+  def "a row whose payload Slack refuses is given up at once instead of retried: #status"() {
+    given:
+    rowsRead(notYetPostedRow("msg_1", redAlert, "ERROR", t0))
+    notificationService.sendMessage(_, _, _) >> { throw new HttpClientErrorException(status) }
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    noExceptionThrown()
+    1 * eventLogRepository.save({ EventLog it -> it.data == givenUpData(redAlert, "ERROR") })
+
+    where:
+    status << [BAD_REQUEST, CONTENT_TOO_LARGE]
+  }
+
+  def "a row Slack cannot take for now stays not posted for the next run, since the same hits every row: #problem"() {
+    given:
+    rowsRead(notYetPostedRow("msg_1", redAlert, "ERROR", t0))
+    notificationService.sendMessage(_, _, _) >> { throw exception }
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    noExceptionThrown()
+    0 * eventLogRepository.save(_)
+
+    where:
+    problem                     | exception
+    "rate limited"              | new HttpClientErrorException(TOO_MANY_REQUESTS)
+    "webhook no longer allowed" | new HttpClientErrorException(FORBIDDEN)
+    "channel not found"         | new HttpClientErrorException(NOT_FOUND)
+    "Slack outage"              | new HttpServerErrorException(BAD_GATEWAY)
+    "timeout"                   | new ResourceAccessException("Read timed out")
+  }
+
+  def "four rows whose payload Slack refuses do not keep a newer red row from being posted in the same run"() {
+    given:
+    def refused = (1..4).collect { notYetPostedRow("msg_$it", redAlert("hard_bounce", "msg_$it"), "ERROR", t0) }
+    def newer = notYetPostedRow("msg_5", redAlert("reject", "msg_5"), "ERROR", t0.plusSeconds(30))
+    rowsRead((refused + [newer]) as EventLog[])
+    notificationService.sendMessage({ !it.contains("id=msg_5") }, _, _) >> { throw new HttpClientErrorException(BAD_REQUEST) }
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    1 * notificationService.sendMessage(redAlert("reject", "msg_5"), TRADING, ERROR)
+    4 * eventLogRepository.save({ EventLog it -> it.data.alert == "GIVEN_UP" })
+    1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_5" && it.data.alert == "POSTED" })
+  }
+
+  def "a run posts red rows first, then amber, then green, each oldest first"() {
+    given:
+    rowsRead(
+        notYetPostedRow("green_1", "✅ green 1", "INFO", t0),
+        notYetPostedRow("amber_1", "🟠 amber 1", "WARNING", t0.plusSeconds(1)),
+        notYetPostedRow("green_2", "✅ green 2", "INFO", t0.plusSeconds(2)),
+        notYetPostedRow("red_1", "🔴 red 1", "ERROR", t0.plusSeconds(3)),
+        notYetPostedRow("red_2", "🔴 red 2", "ERROR", t0.plusSeconds(4)))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    1 * notificationService.sendMessage("🔴 red 1", TRADING, ERROR)
+
+    then:
+    1 * notificationService.sendMessage("🔴 red 2", TRADING, ERROR)
+
+    then:
+    1 * notificationService.sendMessage("🟠 amber 1", TRADING, WARNING)
+
+    then:
+    1 * notificationService.sendMessage("✅ green 1", TRADING, INFO)
+    0 * notificationService.sendMessage("✅ green 2", _, _)
   }
 
   def "a row still not posted at the end of the 24 hour retry window is given up instead of posted"() {

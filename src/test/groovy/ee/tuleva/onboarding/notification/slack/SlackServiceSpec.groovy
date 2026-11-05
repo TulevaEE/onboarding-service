@@ -6,6 +6,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.core.env.Environment
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
+import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.client.HttpServerErrorException
 import spock.lang.Specification
 
 import static org.mockito.Mockito.when
@@ -17,6 +19,9 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
+import static org.springframework.http.HttpStatus.BAD_REQUEST
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
 @RestClientTest(SlackService)
@@ -148,5 +153,23 @@ class SlackServiceSpec extends Specification {
     then:
     thrown(IllegalStateException)
     server.verify()
+  }
+
+  def "a post Slack refuses throws a client error, and a failure on Slack's side a server error: #status"() {
+    given:
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.TRADING)).thenReturn(dummyWebhookUrl)
+    server.expect(requestTo(dummyWebhookUrl)).andRespond(withStatus(status).body(body))
+
+    when:
+    slackService.sendMessage("Orders NOT sent", TRADING, ERROR)
+
+    then:
+    thrown(expected)
+    server.verify()
+
+    where:
+    status                | body              | expected
+    BAD_REQUEST           | "invalid_payload" | HttpClientErrorException
+    INTERNAL_SERVER_ERROR | "rollup_error"    | HttpServerErrorException
   }
 }

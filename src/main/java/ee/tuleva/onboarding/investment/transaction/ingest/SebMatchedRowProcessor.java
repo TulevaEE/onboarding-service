@@ -34,7 +34,8 @@ class SebMatchedRowProcessor {
       LocalDate reportDate,
       LocalDate asOfDate,
       TransactionMatchingProperties matchingProperties,
-      ReconciliationAlerts alerts) {
+      ReconciliationAlerts alerts,
+      ReconciliationMode mode) {
     if (!consistencyChecker.isConsistent(order, row, reportDate)) {
       return RowOutcome.MATCHED;
     }
@@ -61,7 +62,8 @@ class SebMatchedRowProcessor {
       return RowOutcome.MATCHED;
     }
     BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
-    if (executionUpserter.upsert(normalizedRow, order, reportDate, asOfDate, reportedQuantity)) {
+    if (executionUpserter.upsert(
+        normalizedRow, order, reportDate, asOfDate, reportedQuantity, mode)) {
       checkPriceConsistency(order, reportDate, matchingProperties, alerts);
       return RowOutcome.MATCHED;
     }

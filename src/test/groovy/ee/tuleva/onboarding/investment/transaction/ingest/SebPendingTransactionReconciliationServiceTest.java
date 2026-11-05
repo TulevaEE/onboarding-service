@@ -1946,6 +1946,59 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_liveRunMeetingAnOlderReport_leavesTheStoredReportedDateAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution storedLater =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 20));
+    storedLater.setId(99L);
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(storedLater));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(storedLater));
+    List<TransactionExecution> saved = recordSavedExecutions();
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")));
+
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 20));
+    verify(auditEventRepository, never())
+        .save(argThat(event -> "EXECUTION_UPDATED".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_liveRunListingASheetImport_keepsItsDateAndOnlyTakesSebAsItsSourceAsMasterDoes() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution imported =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 10));
+    imported.setId(99L);
+    imported.setSource("HISTORICAL_IMPORT");
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(imported));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(imported));
+    List<TransactionExecution> saved = recordSavedExecutions();
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")));
+
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate, TransactionExecution::getSource)
+        .containsExactly(LocalDate.of(2026, 5, 10), "SEB_OOTEL");
+  }
+
+  @Test
   void reconcile_aLaterReportRestatingATradeLeavesTheOriginalReportedDateAlone() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

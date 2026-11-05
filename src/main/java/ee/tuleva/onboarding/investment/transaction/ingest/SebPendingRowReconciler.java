@@ -31,7 +31,8 @@ class SebPendingRowReconciler {
       LocalDate asOfDate,
       TransactionMatchingProperties matchingProperties,
       Set<Long> presentOrderIds,
-      ReconciliationAlerts alerts) {
+      ReconciliationAlerts alerts,
+      ReconciliationMode mode) {
     presentOrderIds.addAll(referencedOrderIds(row));
     Optional<TransactionOrder> orderOpt = matchOrder(row, matchingProperties);
     if (orderOpt.isEmpty()) {
@@ -41,7 +42,7 @@ class SebPendingRowReconciler {
     TransactionOrder order = orderOpt.get();
     presentOrderIds.add(order.getId());
     return matchedRowProcessor.process(
-        order, row, reportDate, asOfDate, matchingProperties, alerts);
+        order, row, reportDate, asOfDate, matchingProperties, alerts, mode);
   }
 
   private Optional<TransactionOrder> matchOrder(

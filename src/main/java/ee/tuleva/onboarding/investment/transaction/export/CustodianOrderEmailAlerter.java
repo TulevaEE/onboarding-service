@@ -7,6 +7,7 @@ import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
@@ -21,7 +22,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.Nullable;
@@ -29,13 +29,14 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 class CustodianOrderEmailAlerter {
 
-  static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
+  private static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
   private static final String DEFERRAL = "deferral";
   private static final List<String> RECORDED_TYPES =
       List.of(
@@ -48,6 +49,8 @@ class CustodianOrderEmailAlerter {
   private static final Duration GIVE_UP_LOOKBACK = Duration.ofHours(24);
   private static final int SLACK_POSTS_THAT_FIT_THE_5_MINUTE_LOCK_AT_70_SECONDS_EACH = 4;
   private static final Duration LATE_POST_AFTER = Duration.ofMinutes(5);
+  private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
+      Duration.ofMinutes(2);
   private static final DateTimeFormatter EVENT_TIME =
       DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
   private static final String TEXT = "text";
@@ -63,6 +66,19 @@ class CustodianOrderEmailAlerter {
   private final OperationsNotificationService notificationService;
   private final EventLogRepository eventLogRepository;
   private final Clock clock;
+  private final TransactionTemplate inItsOwnTransaction;
+
+  CustodianOrderEmailAlerter(
+      OperationsNotificationService notificationService,
+      EventLogRepository eventLogRepository,
+      Clock clock,
+      PlatformTransactionManager transactionManager) {
+    this.notificationService = notificationService;
+    this.eventLogRepository = eventLogRepository;
+    this.clock = clock;
+    this.inItsOwnTransaction = new TransactionTemplate(transactionManager);
+    this.inItsOwnTransaction.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+  }
 
   @EventListener
   @Order(HIGHEST_PRECEDENCE)
@@ -94,6 +110,32 @@ class CustodianOrderEmailAlerter {
             delayed ? WARNING : ERROR));
   }
 
+  void postSendResult(String principal, String text, Severity severity) {
+    var sendResult = notYetPosted(SEND_RESULT_TYPE, principal, clock.instant(), text, severity);
+    var recorded = recordInItsOwnTransaction(sendResult);
+    try {
+      notificationService.sendMessage(text, TRADING, severity);
+    } catch (RuntimeException e) {
+      if (recorded) {
+        log.warn(
+            "Order email send result not posted to Slack, the scheduled run posts it:"
+                + " principal={}, error={}",
+            principal,
+            e.toString());
+      } else {
+        log.error(
+            "Order email send result neither recorded nor posted to Slack: principal={}, text={}",
+            principal,
+            text,
+            e);
+      }
+      return;
+    }
+    if (recorded) {
+      markPostedInItsOwnTransaction(sendResult);
+    }
+  }
+
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "CustodianOrderEmailAlerter_postAlertsNotYetPosted",
@@ -108,6 +150,7 @@ class CustodianOrderEmailAlerter {
                 RECORDED_TYPES, retryFrom.minus(GIVE_UP_LOOKBACK))
             .stream()
             .filter(CustodianOrderEmailAlerter::isNotYetPosted)
+            .filter(row -> !isLeftToItsDirectPost(row, now))
             .toList();
     notYetPosted.stream()
         .filter(failure -> failure.getTimestamp().isBefore(retryFrom))
@@ -160,6 +203,38 @@ class CustodianOrderEmailAlerter {
     }
   }
 
+  private boolean recordInItsOwnTransaction(EventLog sendResult) {
+    try {
+      inItsOwnTransaction.executeWithoutResult(status -> eventLogRepository.save(sendResult));
+      return true;
+    } catch (RuntimeException e) {
+      log.error(
+          "Order email send result not recorded, posting it to Slack anyway: principal={}, text={}",
+          sendResult.getPrincipal(),
+          text(sendResult),
+          e);
+      return false;
+    }
+  }
+
+  private void markPostedInItsOwnTransaction(EventLog sendResult) {
+    try {
+      inItsOwnTransaction.executeWithoutResult(status -> markAs(POSTED, sendResult));
+    } catch (RuntimeException e) {
+      log.warn(
+          "Order email send result posted to Slack but not marked as posted, the scheduled run"
+              + " may post it again: principal={}, error={}",
+          sendResult.getPrincipal(),
+          e.toString());
+    }
+  }
+
+  private static boolean isLeftToItsDirectPost(EventLog row, Instant now) {
+    return SEND_RESULT_TYPE.equals(row.getType())
+        && row.getTimestamp()
+            .isAfter(now.minus(DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT));
+  }
+
   private void markAs(String alert, EventLog failure) {
     Map<String, @Nullable Object> data = new HashMap<>(failure.getData());
     data.put(ALERT, alert);
@@ -181,7 +256,7 @@ class CustodianOrderEmailAlerter {
     return failure.getData() != null && NOT_POSTED.equals(failure.getData().get(ALERT));
   }
 
-  static EventLog notYetPosted(
+  private static EventLog notYetPosted(
       String type, String principal, Instant at, String text, Severity severity) {
     Map<String, @Nullable Object> data = new HashMap<>();
     data.put(TEXT, text);

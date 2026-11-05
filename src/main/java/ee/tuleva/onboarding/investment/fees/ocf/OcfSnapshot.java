@@ -49,7 +49,7 @@ public record OcfSnapshot(
         fundCode,
         snapshotMonth,
         UNVERSIONED,
-        OcfMethodology.EX_ANTE_NET_ASSETS_V1,
+        OcfMethodology.EX_ANTE_NET_ASSETS_V2,
         managementFeeRate,
         depotFeeRate,
         rebateBasis == RebateBasis.GROSS ? underlyingFundCostGross : underlyingFundCostNet,
@@ -63,6 +63,15 @@ public record OcfSnapshot(
         null,
         null,
         audit);
+  }
+
+  long storedId() {
+    if (id == null) {
+      throw new IllegalStateException(
+          "OCF calculation not stored yet: fundCode=%s, snapshotMonth=%s"
+              .formatted(fundCode, snapshotMonth));
+    }
+    return id;
   }
 
   public static OcfSnapshot fromResultSet(ResultSet rs, int rowNum) throws SQLException {

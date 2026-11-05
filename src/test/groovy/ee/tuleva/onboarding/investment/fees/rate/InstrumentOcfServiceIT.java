@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees.rate;
 
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
+import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.STANDARD_AFTER_AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
@@ -65,6 +66,11 @@ class InstrumentOcfServiceIT {
   private static final RecursiveComparisonConfiguration IGNORING_ID_AMOUNTS_BY_VALUE =
       RecursiveComparisonConfiguration.builder()
           .withIgnoredFields("id")
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .build();
+  private static final RecursiveComparisonConfiguration IGNORING_AGREEMENT_AMOUNTS_BY_VALUE =
+      RecursiveComparisonConfiguration.builder()
+          .withIgnoredFields("agreementId")
           .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
           .build();
   private static final YearMonth APRIL = YearMonth.of(2026, 4);
@@ -421,6 +427,40 @@ class InstrumentOcfServiceIT {
   }
 
   @Test
+  void aMonthIsResolvedOnlyOnceEveryAgreementThatDecidedOneOfItsDaysHasARate() {
+    givenAnAgreement("NONE", "{}");
+    givenAnAgreement(ISIN, "FIXED", "{\"rate\":\"0.00010000\"}", APRIL.atDay(15));
+    service.resolve(APRIL);
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM investment_instrument_fee_rate WHERE instrument_fee_id =
+              (SELECT id FROM investment_instrument_fee WHERE rebate_kind = 'NONE')
+            """)
+        .update();
+
+    assertThat(service.ratesFor(APRIL)).containsOnlyKeys(ISIN);
+    assertThat(service.hasRatesResolvedAfterItClosed(APRIL)).isFalse();
+
+    service.resolve(APRIL);
+
+    assertThat(service.hasRatesResolvedAfterItClosed(APRIL)).isTrue();
+  }
+
+  @Test
+  void theRatesAppliedInAMonthAreThoseOfEveryAgreementThatDecidedOneOfItsDays() {
+    givenAnAgreement("NONE", "{}");
+    service.resolve(MAY);
+    givenAnAgreement(ISIN, "FIXED", "{\"rate\":\"0.00010000\"}", APRIL.atDay(15));
+    var april = service.resolve(APRIL);
+
+    assertThat(service.dailyRatesFor(APRIL).ratesAppliedDuringTheMonth())
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactlyElementsOf(april);
+    assertThat(service.dailyRatesFor(MAY).ratesAppliedDuringTheMonth()).isEmpty();
+  }
+
+  @Test
   void aMonthAlreadyResolvedIsReadRatherThanComputedAgain() {
     givenAnAgreement("NONE", "{}");
     var resolved = service.resolve(APRIL);
@@ -464,6 +504,58 @@ class InstrumentOcfServiceIT {
   }
 
   @Test
+  void anAgreementEndingMidMonthIsResolvedForTheMonthAndItsPublishedOcfAppliesAfterIt() {
+    givenAnAgreement("FIXED", "{\"rate\":\"0.00010000\"}");
+    endTheAgreementOn(APRIL.atDay(15));
+
+    var resolved = service.resolve(APRIL);
+    var rates = service.dailyRatesFor(APRIL);
+
+    assertThat(rates.on(ISIN, APRIL.atDay(15)))
+        .get()
+        .usingRecursiveComparison(IGNORING_AGREEMENT_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new ApplicableRate(
+                ISIN,
+                0,
+                resolved.getFirst().id(),
+                PUBLISHED_OCF,
+                new BigDecimal("0.0006"),
+                AGREEMENT,
+                null));
+    assertThat(rates.on(ISIN, APRIL_28))
+        .get()
+        .usingRecursiveComparison(IGNORING_AGREEMENT_AMOUNTS_BY_VALUE)
+        .isEqualTo(
+            new ApplicableRate(
+                ISIN,
+                0,
+                null,
+                PUBLISHED_OCF,
+                PUBLISHED_OCF,
+                STANDARD_AFTER_AGREEMENT,
+                ("its agreement ended on 2026-04-15, so the published OCF applies after it; enter the new"
+                    + " agreement if there is one")));
+    assertThat(service.ratesFor(APRIL)).isEmpty();
+  }
+
+  @Test
+  void anAgreementThatEndedBeforeTheMonthIsNotResolvedForIt() {
+    givenAnAgreement("NONE", "{}");
+    endTheAgreementOn(LocalDate.of(2026, 3, 31));
+
+    assertThat(service.resolve(APRIL)).isEmpty();
+  }
+
+  private void endTheAgreementOn(LocalDate validTo) {
+    jdbcClient
+        .sql("UPDATE investment_instrument_fee SET valid_to = :validTo WHERE isin = :isin")
+        .param("validTo", validTo)
+        .param("isin", ISIN)
+        .update();
+  }
+
+  @Test
   void aRateIsNotReadOnceItsAgreementNoLongerCoversTheMonthEnd() {
     givenAnAgreement("NONE", "{}");
     service.resolve(APRIL);
@@ -490,6 +582,24 @@ class InstrumentOcfServiceIT {
         .isEqualTo(
             new InstrumentRate(
                 0, ISIN, APRIL, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED));
+  }
+
+  @Test
+  void anOpenAgreementReplacedBeforeTheMonthBeganIsNotResolvedBesideItsSuccessor() {
+    givenAnAgreement("NONE", "{}");
+    givenAnAgreement(ISIN, "FIXED", "{\"rate\":\"0.00010000\"}", APRIL.atDay(15));
+
+    assertThat(service.resolve(APRIL))
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactlyInAnyOrder(
+            new InstrumentRate(0, ISIN, APRIL, PUBLISHED_OCF, PUBLISHED_OCF, AGREEMENT, null, NONE),
+            new InstrumentRate(
+                0, ISIN, APRIL, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED));
+    assertThat(service.resolve(MAY))
+        .usingRecursiveFieldByFieldElementComparator(IGNORING_ID_AMOUNTS_BY_VALUE)
+        .containsExactly(
+            new InstrumentRate(
+                0, ISIN, MAY, PUBLISHED_OCF, new BigDecimal("0.0006"), AGREEMENT, null, FIXED));
   }
 
   @Test

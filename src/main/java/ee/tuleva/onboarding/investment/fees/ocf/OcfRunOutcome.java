@@ -15,11 +15,20 @@ sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Fai
       YearMonth month,
       OcfSnapshot snapshot,
       List<OcfGap> gaps,
-      List<OcfHolding> holdings)
+      List<OcfHolding> holdings,
+      KidComparison kid)
       implements OcfRunOutcome {
 
     boolean incomplete() {
-      return !gaps.isEmpty();
+      return !snapshot.complete();
+    }
+
+    boolean differsFromTheKid() {
+      return kid.differsFrom(snapshot);
+    }
+
+    boolean awaitsAKidReview() {
+      return differsFromTheKid() && kid.keptOnReview() == null;
     }
   }
 

@@ -4,12 +4,14 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NO_PUBLISHED_NAV_C
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.PUBLISHED_FALLBACK;
+import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.STANDARD_AFTER_AGREEMENT;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED_NET;
 import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.NONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
@@ -22,12 +24,15 @@ import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
+import ee.tuleva.onboarding.investment.fees.rate.ApplicableRate;
 import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
 import ee.tuleva.onboarding.investment.fees.rate.RateBasis;
 import ee.tuleva.onboarding.investment.fees.rate.RebateKind;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -74,7 +79,7 @@ class OcfNotifierTest {
             ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed
               Nothing here says what their OCF is this period. The rest were written.
               🛑 TUK75 2026-04: no rate for XX0000000001
-              ✅ TUK00 2026-04: 0.34%""",
+              ✅ TUK00 2026-04: 0.3400% (no KID recorded)""",
             INVESTMENT, ERROR);
   }
 
@@ -93,8 +98,8 @@ class OcfNotifierTest {
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 2 funds has gaps
               Not every component was computed from complete inputs, so that total is provisional and
               must not be published until it is complete.
-              ✅ TUK75 2026-04: 0.34%
-              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
+              ⚠️ TUK00 2026-04: 0.2100%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 
@@ -117,7 +122,7 @@ class OcfNotifierTest {
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 1 funds has gaps
               Not every component was computed from complete inputs, so that total is provisional and
               must not be published until it is complete.
-              ⚠️ TUK75 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION, \
+              ⚠️ TUK75 2026-04: 0.2100%, incomplete — NO_PUBLISHED_NAV_CALCULATION, \
             TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM""",
             INVESTMENT, ERROR);
   }
@@ -138,8 +143,8 @@ class OcfNotifierTest {
             ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 2 of 2 funds have gaps
               Not every component was computed from complete inputs, so those totals are provisional and
               must not be published until they are complete.
-              ⚠️ TUK75 2026-04: 0.34%, incomplete — NO_PUBLISHED_NAV_CALCULATION
-              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+              ⚠️ TUK75 2026-04: 0.3400%, incomplete — NO_PUBLISHED_NAV_CALCULATION
+              ⚠️ TUK00 2026-04: 0.2100%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 
@@ -153,9 +158,208 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ✅ OCF RUN COMPLETE: month=2026-04
-              ✅ TUK75 2026-04: 0.34%
-              ✅ TUK00 2026-04: 0.21%""",
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
+              ✅ TUK00 2026-04: 0.2100% (no KID recorded)""",
             INVESTMENT, INFO);
+  }
+
+  @Test
+  void aFundWeighedByTheMonthAverageSaysSoWithBothInvestedRatios() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(computed(TUK75, "0.0034"), weighedByTheMonthAverage(TKF100, "0.0025")),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
+              ⚠️ TKF100 2026-04: 0.2500% (no KID recorded) — month-end invested 94.07% is not representative of the month average 96.45% (-2.38 pp), so the underlying funds are weighed by their month-average share""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aFigureMatchingTheKidShowsTheMonthAtFourDecimalsAndTheKidAsItPrintsIt() {
+    notifier.notifyRun(MONTH, List.of(besideTheKid(TUK75, "0.004612", "0.00460000", 2)), List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4612% (KID 0.46% from 2026-03-01)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aFundWithNoRecordedKidSaysTheComparisonDidNotRunUntilAPublicationIsRecorded() {
+    notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.004612")), List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4612% (no KID recorded)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aFigureDifferingFromTheKidAtItsPrintedPrecisionAsksForAReviewOfTheKid() {
+    notifier.notifyRun(MONTH, List.of(besideTheKid(TUK75, "0.004549", "0.00460000", 2)), List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ⚠️ TUK75 2026-04: 0.4549% (KID 0.46% from 2026-03-01) — differs from the KID at the published precision, review the KID""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aDifferenceTheKidWasKeptOnReviewForShowsTheReviewDayInTallinnAndNoLongerAsksForOne() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            besideTheKid(
+                TUK75,
+                "0.004549",
+                "0.00460000",
+                2,
+                new KidReview(
+                    "portfolio-manager",
+                    "a one-off rebate, the KID stays",
+                    Instant.parse("2026-05-04T22:30:00Z")))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4549% (KID 0.46% from 2026-03-01, kept on review 2026-05-05)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aMonthAlreadyPublishedAsAKidSaysSoAndNoLongerAsksForAReviewOfTheOlderKid() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            new Computed(
+                TUK75,
+                MONTH,
+                snapshot(TUK75, MONTH, "0.004549", true),
+                List.of(),
+                List.of(),
+                new KidComparison(
+                    PublishedPrecision.of(TUK75),
+                    new KidFigure(
+                        1L,
+                        LocalDate.of(2026, 3, 1),
+                        new BigDecimal("0.00460000"),
+                        2,
+                        OcfPublicationBasis.MONTHLY_ESTIMATE,
+                        "KID 02.03.2026"),
+                    null,
+                    true))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4549% (KID 0.46% from 2026-03-01, month published as a KID)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aPublishedMonthWithNoKidInForceAtItsEndSaysOnlyThatItIsPublished() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            new Computed(
+                TUK75,
+                MONTH,
+                snapshot(TUK75, MONTH, "0.004549", true),
+                List.of(),
+                List.of(),
+                new KidComparison(PublishedPrecision.of(TUK75), null, null, true))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.4549% (month published as a KID)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void aSavingsFundKidPrintedAtOneDecimalIsComparedAtOneDecimalSoTheSameTenthDoesNotDiffer() {
+    notifier.notifyRun(
+        MONTH, List.of(besideTheKid(TKF100, "0.004912", "0.00520000", 1)), List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TKF100 2026-04: 0.4912% (KID 0.5% from 2026-03-01)""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void theSameSavingsFundMonthDiffersFromAKidPrintedAtTwoDecimalsAndAsksForAReview() {
+    notifier.notifyRun(
+        MONTH, List.of(besideTheKid(TKF100, "0.004912", "0.00520000", 2)), List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ⚠️ TKF100 2026-04: 0.4912% (KID 0.52% from 2026-03-01) — differs from the KID at the published precision, review the KID""",
+            INVESTMENT, INFO);
+  }
+
+  @Test
+  void anUnderlyingFundPastItsAgreementSaysThePublishedOcfAppliesAndRaisesTheRunToAnError() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            new Computed(
+                TUK75,
+                MONTH,
+                snapshot(TUK75, MONTH, "0.0034", true),
+                List.of(),
+                List.of(
+                    new OcfHolding(
+                        new BigDecimal("0.1"),
+                        new ApplicableRate(
+                            "ZZ0000000001",
+                            1L,
+                            null,
+                            new BigDecimal("0.00200000"),
+                            new BigDecimal("0.00200000"),
+                            STANDARD_AFTER_AGREEMENT,
+                            "its agreement ended on 2026-04-15, so the published OCF applies"
+                                + " after it; enter the new agreement if there is one"))),
+                noKid(TUK75))),
+        List.of());
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ⚠️ TUK75 2026-04: 0.3400% (no KID recorded) — ZZ0000000001: its agreement ended on 2026-04-15, so the published OCF applies after it; enter the new agreement if there is one""",
+            INVESTMENT, ERROR);
   }
 
   @Test
@@ -174,7 +378,7 @@ class OcfNotifierTest {
             ⚠️ 1 of the written ones has gaps: not every component was computed from complete inputs,
               so that total is provisional and must not be published until it is complete.
               🛑 TUK75 2026-04: no rate for XX0000000001
-              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+              ⚠️ TUK00 2026-04: 0.2100%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 
@@ -197,8 +401,8 @@ class OcfNotifierTest {
             ⚠️ 2 of the written ones have gaps: not every component was computed from complete inputs,
               so those totals are provisional and must not be published until they are complete.
               🛑 TUK75 2026-04: no rate for XX0000000001
-              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION
-              ⚠️ TUV100 2026-04: 0.40%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+              ⚠️ TUK00 2026-04: 0.2100%, incomplete — NO_PUBLISHED_NAV_CALCULATION
+              ⚠️ TUV100 2026-04: 0.4000%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 
@@ -218,8 +422,8 @@ class OcfNotifierTest {
             ⚠️ OCF BACKFILL RAN ONLY IN PART: monthsBack=2, 1 of 3 fund-months failed
               Nothing here says what their OCF is this period. The rest were written.
               🛑 TUK75 2026-04: no rate for XX0000000001
-              ✅ TUK00 2026-04: 0.21%
-              ✅ TUK75 2026-03: 0.34%""",
+              ✅ TUK00 2026-04: 0.2100% (no KID recorded)
+              ✅ TUK75 2026-03: 0.3400% (no KID recorded)""",
             INVESTMENT, ERROR);
   }
 
@@ -249,7 +453,88 @@ class OcfNotifierTest {
   }
 
   private static OcfRunOutcome computed(TulevaFund fund, YearMonth month, String totalOcf) {
-    return new Computed(fund, month, snapshot(fund, month, totalOcf, true), List.of(), List.of());
+    return new Computed(
+        fund, month, snapshot(fund, month, totalOcf, true), List.of(), List.of(), noKid(fund));
+  }
+
+  private static OcfRunOutcome besideTheKid(
+      TulevaFund fund, String totalOcf, String kidOcf, int kidDecimals) {
+    return besideTheKid(fund, totalOcf, kidOcf, kidDecimals, null);
+  }
+
+  private static OcfRunOutcome besideTheKid(
+      TulevaFund fund,
+      String totalOcf,
+      String kidOcf,
+      int kidDecimals,
+      @Nullable KidReview keptOnReview) {
+    return new Computed(
+        fund,
+        MONTH,
+        snapshot(fund, MONTH, totalOcf, true),
+        List.of(),
+        List.of(),
+        new KidComparison(
+            PublishedPrecision.of(fund),
+            new KidFigure(
+                1L,
+                LocalDate.of(2026, 3, 1),
+                new BigDecimal(kidOcf),
+                kidDecimals,
+                OcfPublicationBasis.MONTHLY_ESTIMATE,
+                "KID 02.03.2026"),
+            keptOnReview,
+            false));
+  }
+
+  private static KidComparison noKid(TulevaFund fund) {
+    return new KidComparison(PublishedPrecision.of(fund), null, null, false);
+  }
+
+  private static OcfRunOutcome weighedByTheMonthAverage(TulevaFund fund, String totalOcf) {
+    var snapshot = snapshot(fund, MONTH, totalOcf, true);
+    var audit =
+        new OcfAudit(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            UnderlyingWeightBasis.MONTH_AVERAGE,
+            new BigDecimal("0.940700000000"),
+            new BigDecimal("0.964512345678"));
+    return new Computed(
+        fund,
+        MONTH,
+        new OcfSnapshot(
+            snapshot.id(),
+            snapshot.fundCode(),
+            snapshot.snapshotMonth(),
+            snapshot.version(),
+            snapshot.methodology(),
+            snapshot.managementFeeRate(),
+            snapshot.depotFeeRate(),
+            snapshot.underlyingFundCost(),
+            snapshot.underlyingFundCostGross(),
+            snapshot.underlyingFundCostNet(),
+            snapshot.rebateBasis(),
+            snapshot.transactionCostRate(),
+            snapshot.totalOcf(),
+            snapshot.complete(),
+            snapshot.checks(),
+            snapshot.publishedAt(),
+            snapshot.publishedIn(),
+            audit),
+        List.of(),
+        List.of(),
+        noKid(fund));
   }
 
   private static OcfRunOutcome holding(TulevaFund fund, String totalOcf, InstrumentRate rate) {
@@ -258,12 +543,38 @@ class OcfNotifierTest {
         MONTH,
         snapshot(fund, MONTH, totalOcf, true),
         List.of(),
-        List.of(new OcfHolding(new BigDecimal("1000.00"), new BigDecimal("10000.00"), rate)));
+        List.of(
+            new OcfHolding(
+                new BigDecimal("0.1"),
+                new ApplicableRate(
+                    rate.isin(),
+                    rate.id(),
+                    rate.id(),
+                    rate.publishedOcf(),
+                    rate.netOcf(),
+                    rate.rateBasis(),
+                    rate.fallbackReason()))),
+        noKid(fund));
   }
 
   private static OcfRunOutcome incomplete(TulevaFund fund, String totalOcf, OcfGap... gaps) {
     return new Computed(
-        fund, MONTH, snapshot(fund, MONTH, totalOcf, false), List.of(gaps), List.of());
+        fund,
+        MONTH,
+        snapshot(fund, MONTH, totalOcf, false),
+        List.of(gaps),
+        List.of(),
+        new KidComparison(
+            PublishedPrecision.of(fund),
+            new KidFigure(
+                1L,
+                LocalDate.of(2026, 3, 1),
+                new BigDecimal("0.00460000"),
+                2,
+                OcfPublicationBasis.MONTHLY_ESTIMATE,
+                "KID 02.03.2026"),
+            null,
+            false));
   }
 
   private static OcfSnapshot snapshot(
@@ -284,7 +595,8 @@ class OcfNotifierTest {
   }
 
   private static OcfAudit emptyAudit() {
-    return new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+    return new OcfAudit(
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Test
@@ -303,7 +615,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ✅ OCF RUN COMPLETE: month=2026-04
-              ✅ TUK75 2026-04: 0.34%
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
             Instrument rates: 1 from agreements, 1 fell back to the published OCF
               ⚠️ ZZ0000000001 fell back to the published OCF: no volume""",
             INVESTMENT, ERROR);
@@ -331,7 +643,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ✅ OCF RUN COMPLETE: month=2026-04
-              ✅ TUK75 2026-04: 0.34%
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
             Instrument rates: 1 from agreements, 1 fell back to the published OCF
               ⚠️ ZZ0000000001 fell back to the published OCF: no volume""",
             INVESTMENT, INFO);
@@ -349,7 +661,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ✅ OCF RUN COMPLETE: month=2026-04
-              ✅ TUK75 2026-04: 0.34%
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
             Instrument rates: 1 from agreements, 0 fell back to the published OCF
               ⚠️ ZZ0000000001 agreed net OCF 0.090% is above the published 0.070%; the fund bears the agreed net, check the agreement""",
             INVESTMENT, INFO);
@@ -369,7 +681,7 @@ class OcfNotifierTest {
         .sendMessage(
             """
             ✅ OCF RUN COMPLETE: month=2026-04
-              ✅ TUK75 2026-04: 0.34%
+              ✅ TUK75 2026-04: 0.3400% (no KID recorded)
             Instrument rates: 2 from agreements, 0 fell back to the published OCF""",
             INVESTMENT, INFO);
   }

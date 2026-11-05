@@ -47,9 +47,18 @@ public class InstrumentOcfService {
 
   @Transactional
   public List<InstrumentRate> resolve(YearMonth period) {
-    return agreementRepository.findAllValidOn(period.atEndOfMonth()).stream()
+    var applied = agreementRepository.findIdsAppliedDuring(period);
+    return agreementRepository.findAllInForceDuring(period).stream()
+        .filter(agreement -> applied.contains(agreement.id()))
         .map(agreement -> rateRepository.append(compute(agreement, period)))
         .toList();
+  }
+
+  public DailyRates dailyRatesFor(YearMonth period) {
+    return new DailyRates(
+        period,
+        agreementRepository.findAllStartedBy(period.atEndOfMonth()),
+        rateRepository.findNewestPerAgreementFor(period));
   }
 
   public Map<String, InstrumentRate> ratesFor(YearMonth period) {
@@ -67,9 +76,7 @@ public class InstrumentOcfService {
     var resolvedAfterItClosed =
         rateRepository.agreementsResolvedSince(
             period, period.plusMonths(1).atDay(1).atStartOfDay(ZoneId.of(TIMEZONE)).toInstant());
-    return agreementRepository.findAllValidOn(period.atEndOfMonth()).stream()
-        .map(InstrumentFeeAgreement::id)
-        .allMatch(resolvedAfterItClosed::contains);
+    return resolvedAfterItClosed.containsAll(agreementRepository.findIdsAppliedDuring(period));
   }
 
   private ComputedRate compute(InstrumentFeeAgreement agreement, YearMonth period) {

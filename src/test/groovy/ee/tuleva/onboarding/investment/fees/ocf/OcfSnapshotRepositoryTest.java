@@ -1,16 +1,16 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.AGREEMENT;
-import static ee.tuleva.onboarding.investment.fees.rate.RebateKind.FIXED;
+import static ee.tuleva.onboarding.investment.fees.rate.RateBasis.STANDARD_AFTER_AGREEMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.investment.fees.rate.InstrumentRate;
+import ee.tuleva.onboarding.investment.fees.rate.ApplicableRate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,11 +34,15 @@ class OcfSnapshotRepositoryTest {
 
   @BeforeEach
   void setUp() {
+    jdbcClient.sql("DELETE FROM investment_ocf_kid_review").update();
+    jdbcClient.sql("DELETE FROM investment_ocf_exception").update();
+    jdbcClient.sql("DELETE FROM investment_ocf_publication").update();
     jdbcClient.sql("DELETE FROM investment_ocf_snapshot").update();
   }
 
   private static final OcfAudit NO_AUDIT =
-      new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+      new OcfAudit(
+          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
   private OcfSnapshot snapshot(LocalDate month, String totalOcf) {
     return snapshot(month, totalOcf, NO_AUDIT);
@@ -58,22 +62,6 @@ class OcfSnapshotRepositoryTest {
         true,
         null,
         audit);
-  }
-
-  private OcfSnapshot incompleteSnapshot(LocalDate month) {
-    return OcfSnapshot.computed(
-        "TUK75",
-        month,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        RebateBasis.NET,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        false,
-        "{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}",
-        NO_AUDIT);
   }
 
   @Test
@@ -104,7 +92,7 @@ class OcfSnapshotRepositoryTest {
   @Test
   void recalculationAfterPublishingWritesANewVersionInsteadOfOverwriting() {
     repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    repository.publish("TUK75", APRIL, "KID 2026");
+    publishTheWorkingVersion(APRIL, "KID 2026");
 
     repository.save(snapshot(APRIL, "0.00500000"), List.of());
 
@@ -124,11 +112,24 @@ class OcfSnapshotRepositoryTest {
   void publishingRecordsWhereTheNumberWent() {
     repository.save(snapshot(APRIL, "0.00340000"), List.of());
 
-    repository.publish("TUK75", APRIL, "KID 2026");
+    publishTheWorkingVersion(APRIL, "KID 2026");
 
     var published = repository.findPublishedByFundAndMonth("TUK75", APRIL).orElseThrow();
     assertThat(published.publishedAt()).isNotNull();
     assertThat(published.publishedIn()).isEqualTo("KID 2026");
+  }
+
+  @Test
+  void aMonthCountsAsPublishedOnceAnyOfItsVersionsIsAndOnlyForThatFundAndMonth() {
+    repository.save(snapshot(APRIL, "0.00340000"), List.of());
+    assertThat(repository.anyVersionPublished("TUK75", APRIL)).isFalse();
+
+    publishTheWorkingVersion(APRIL, "KID 2026");
+    repository.save(snapshot(APRIL, "0.00500000"), List.of());
+
+    assertThat(repository.anyVersionPublished("TUK75", APRIL)).isTrue();
+    assertThat(repository.anyVersionPublished("TUK75", MARCH)).isFalse();
+    assertThat(repository.anyVersionPublished("TUV100", APRIL)).isFalse();
   }
 
   @Test
@@ -194,7 +195,7 @@ class OcfSnapshotRepositoryTest {
 
     var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
 
-    assertThat(found.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
+    assertThat(found.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V2);
   }
 
   @Test
@@ -213,7 +214,10 @@ class OcfSnapshotRepositoryTest {
             LocalDate.of(2026, 4, 30),
             new BigDecimal("1234.56"),
             new BigDecimal("98000000.00"),
-            "[\"2026-04-29\",\"2026-04-30\"]");
+            "[\"2026-04-29\",\"2026-04-30\"]",
+            UnderlyingWeightBasis.MONTH_AVERAGE,
+            new BigDecimal("0.940000000000"),
+            new BigDecimal("0.970000000000"));
 
     repository.save(snapshot(APRIL, "0.00340000", audit), List.of());
 
@@ -236,7 +240,7 @@ class OcfSnapshotRepositoryTest {
   @Test
   void findLatestByFundIgnoresSupersededVersions() {
     repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    repository.publish("TUK75", APRIL, "KID 2026");
+    publishTheWorkingVersion(APRIL, "KID 2026");
     repository.save(snapshot(APRIL, "0.00500000"), List.of());
 
     var latest = repository.findLatestByFund("TUK75").orElseThrow();
@@ -267,45 +271,23 @@ class OcfSnapshotRepositoryTest {
     assertThat(repository.findByFundAndMonth("TUK75", APRIL)).isEmpty();
   }
 
-  @Test
-  void publishingAMonthThatWasNeverCalculatedReportsThatNothingWentOut() {
-    assertThat(repository.publish("TUK75", APRIL, "KID 2026")).isFalse();
+  private void publishTheWorkingVersion(LocalDate month, String publishedIn) {
+    jdbcClient
+        .sql(
+            """
+            UPDATE investment_ocf_snapshot
+            SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
+            WHERE fund_code = 'TUK75' AND snapshot_month = :month AND published_at IS NULL
+            """)
+        .param("publishedIn", publishedIn)
+        .param("month", month)
+        .update();
   }
 
   @Test
-  void publishingAMonthWhoseLatestVersionIsAlreadyOutReportsThatNothingWentOut() {
-    repository.save(snapshot(APRIL, "0.00340000"), List.of());
-    assertThat(repository.publish("TUK75", APRIL, "KID 2026")).isTrue();
-
-    assertThat(repository.publish("TUK75", APRIL, "KID 2026 second edition")).isFalse();
-  }
-
-  @Test
-  void publishingAnIncompleteSnapshotIsRefusedAndNamesTheGaps() {
-    repository.save(incompleteSnapshot(APRIL), List.of());
-
-    assertThatThrownBy(() -> repository.publish("TUK75", APRIL, "KID 2026"))
-        .isInstanceOf(IncompleteOcfSnapshotException.class)
-        .hasMessageContaining("MANAGEMENT_FEE_RATE_MISSING");
-
-    assertThat(repository.findPublishedByFundAndMonth("TUK75", APRIL)).isEmpty();
-  }
-
-  @Test
-  void anIncompleteSnapshotGoesOutOnlyUnderAnExplicitOverrideAndStaysMarkedIncomplete() {
-    repository.save(incompleteSnapshot(APRIL), List.of());
-
-    assertThat(repository.publishDespiteGaps("TUK75", APRIL, "KID 2026")).isTrue();
-
-    var published = repository.findPublishedByFundAndMonth("TUK75", APRIL).orElseThrow();
-    assertThat(published.publishedIn()).isEqualTo("KID 2026");
-    assertThat(published.complete()).isFalse();
-    assertThat(published.checks()).contains("MANAGEMENT_FEE_RATE_MISSING");
-  }
-
-  @Test
-  void theOverrideStillReportsAMonthThatWasNeverCalculatedAsNothingPublished() {
-    assertThat(repository.publishDespiteGaps("TUK75", APRIL, "KID 2026")).isFalse();
+  void aCalculationNotYetStoredHasNoIdToRecordADecisionAgainst() {
+    assertThatThrownBy(() -> snapshot(APRIL, "0.00340000").storedId())
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -347,8 +329,7 @@ class OcfSnapshotRepositoryTest {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
 
     repository.save(
-        snapshot(APRIL, "0.0050"),
-        List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
 
     assertThat(storedHoldings())
         .containsExactly(
@@ -358,19 +339,58 @@ class OcfSnapshotRepositoryTest {
                 "0.00200000",
                 "0.00150000",
                 "AGREEMENT",
-                rate.id()));
+                rate.rateId(),
+                rate.agreementId()));
+  }
+
+  @Test
+  void theStandardRateAfterAnAgreementIsStoredAgainstThatAgreementWithoutARateRow() {
+    var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
+    var standardRate =
+        new ApplicableRate(
+            SYNTHETIC_ISIN,
+            rate.agreementId(),
+            null,
+            new BigDecimal("0.00200000"),
+            new BigDecimal("0.00200000"),
+            STANDARD_AFTER_AGREEMENT,
+            ("its agreement ended on 2026-04-15, so the published OCF applies after it; enter the new"
+                + " agreement if there is one"));
+
+    repository.save(
+        snapshot(APRIL, "0.0050"),
+        List.of(
+            new OcfHolding(new BigDecimal("0.3"), rate),
+            new OcfHolding(new BigDecimal("0.2"), standardRate)));
+
+    assertThat(storedHoldings())
+        .containsExactlyInAnyOrder(
+            new StoredHolding(
+                SYNTHETIC_ISIN,
+                "0.300000000000",
+                "0.00200000",
+                "0.00150000",
+                "AGREEMENT",
+                rate.rateId(),
+                rate.agreementId()),
+            new StoredHolding(
+                SYNTHETIC_ISIN,
+                "0.200000000000",
+                "0.00200000",
+                "0.00200000",
+                "STANDARD_AFTER_AGREEMENT",
+                null,
+                rate.agreementId()));
   }
 
   @Test
   void aRecalculationReplacesTheWorkingVersionsHoldingsRatherThanAddingToThem() {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
     repository.save(
-        snapshot(APRIL, "0.0050"),
-        List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
 
     repository.save(
-        snapshot(APRIL, "0.0051"),
-        List.of(new OcfHolding(new BigDecimal("700000"), new BigDecimal("1000000"), rate)));
+        snapshot(APRIL, "0.0051"), List.of(new OcfHolding(new BigDecimal("0.7"), rate)));
 
     assertThat(storedHoldings())
         .extracting(StoredHolding::weight)
@@ -383,28 +403,22 @@ class OcfSnapshotRepositoryTest {
     var rate = givenAStoredRate(SYNTHETIC_ISIN, "0.00200000", "0.00150000");
     try {
       repository.save(
-          snapshot(APRIL, "0.0050"),
-          List.of(new OcfHolding(new BigDecimal("600000"), new BigDecimal("1000000"), rate)));
+          snapshot(APRIL, "0.0050"), List.of(new OcfHolding(new BigDecimal("0.6"), rate)));
       var rateNeverStored =
-          new InstrumentRate(
-              rate.id() + 1,
+          new ApplicableRate(
               rate.isin(),
-              rate.period(),
+              rate.agreementId(),
+              rate.rateId() + 1,
               rate.publishedOcf(),
               rate.netOcf(),
-              rate.rateBasis(),
-              rate.fallbackReason(),
-              rate.rebateKind());
+              rate.basis(),
+              rate.reason());
 
       assertThatThrownBy(
               () ->
                   repository.save(
                       snapshot(APRIL, "0.0051"),
-                      List.of(
-                          new OcfHolding(
-                              new BigDecimal("700000"),
-                              new BigDecimal("1000000"),
-                              rateNeverStored))))
+                      List.of(new OcfHolding(new BigDecimal("0.7"), rateNeverStored))))
           .isInstanceOf(DataIntegrityViolationException.class);
 
       assertThat(repository.findByFundAndMonth("TUK75", APRIL).orElseThrow().totalOcf())
@@ -434,7 +448,7 @@ class OcfSnapshotRepositoryTest {
         .update();
   }
 
-  private InstrumentRate givenAStoredRate(String isin, String publishedOcf, String netOcf) {
+  private ApplicableRate givenAStoredRate(String isin, String publishedOcf, String netOcf) {
     jdbcClient
         .sql(
             """
@@ -482,15 +496,15 @@ class OcfSnapshotRepositoryTest {
             .param("isin", isin)
             .query(Long.class)
             .single();
-    return new InstrumentRate(
-        rateId, isin, YearMonth.of(2026, 4), published, net, AGREEMENT, null, FIXED);
+    return new ApplicableRate(isin, agreementId, rateId, published, net, AGREEMENT, null);
   }
 
   private List<StoredHolding> storedHoldings() {
     return jdbcClient
         .sql(
             """
-            SELECT isin, weight, published_ocf, net_ocf, rate_basis, instrument_fee_rate_id
+            SELECT isin, weight, published_ocf, net_ocf, rate_basis, instrument_fee_rate_id,
+                   instrument_fee_id
             FROM investment_ocf_snapshot_detail ORDER BY isin
             """)
         .query(
@@ -501,7 +515,8 @@ class OcfSnapshotRepositoryTest {
                     rs.getBigDecimal("published_ocf").toPlainString(),
                     rs.getBigDecimal("net_ocf").toPlainString(),
                     rs.getString("rate_basis"),
-                    rs.getLong("instrument_fee_rate_id")))
+                    rs.getObject("instrument_fee_rate_id", Long.class),
+                    rs.getObject("instrument_fee_id", Long.class)))
         .list();
   }
 
@@ -511,5 +526,6 @@ class OcfSnapshotRepositoryTest {
       String publishedOcf,
       String netOcf,
       String rateBasis,
-      long instrumentFeeRateId) {}
+      @Nullable Long instrumentFeeRateId,
+      Long instrumentFeeId) {}
 }

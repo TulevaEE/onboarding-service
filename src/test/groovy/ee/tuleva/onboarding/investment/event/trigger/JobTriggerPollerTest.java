@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.investment.event.RunPevaRavaPhaseUpdateRequested;
 import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -135,6 +136,24 @@ class JobTriggerPollerTest {
         .should()
         .publishEvent(
             new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(2026, 5, 8)));
+    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void aReportReconciliationTriggerNamingADateReconcilesThatOneReport() {
+    var trigger =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-16")
+            .status("PENDING")
+            .build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+
+    poller.poll();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(
+            new RunSebPendingTransactionReportReconciliationRequested(LocalDate.of(2026, 5, 16)));
     assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
   }
 

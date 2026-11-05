@@ -49,7 +49,7 @@ class SebPendingTransactionReconciliationListener {
               + " reportDate={}, trigger={}",
           event.reportDate(),
           trigger);
-      jobTriggerQueue.enqueueUnlessPending(trigger);
+      jobTriggerQueue.defer(trigger);
     }
   }
 

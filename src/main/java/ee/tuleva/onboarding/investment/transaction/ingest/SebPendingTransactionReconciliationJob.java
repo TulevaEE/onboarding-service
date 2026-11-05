@@ -55,8 +55,7 @@ class SebPendingTransactionReconciliationJob {
               + " trigger={}",
           SebReconciliationLock.NAME,
           RunSebPendingTransactionReconciliationRequested.JOB_NAME);
-      jobTriggerQueue.enqueueUnlessPending(
-          RunSebPendingTransactionReconciliationRequested.JOB_NAME);
+      jobTriggerQueue.defer(RunSebPendingTransactionReconciliationRequested.JOB_NAME);
     }
   }
 

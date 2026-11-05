@@ -19,6 +19,7 @@ public record TransactionCommandResponse(
     @Nullable Long batchId,
     @Nullable BigDecimal cash,
     @Nullable String cashComment,
+    List<String> excludeIsins,
     List<TransactionOrderResponse> orders,
     @Nullable Map<String, Object> calculationSnapshot) {
 
@@ -36,6 +37,7 @@ public record TransactionCommandResponse(
         command.getBatchId(),
         command.getCash(),
         command.getCashComment(),
+        command.sortedExcludeIsins(),
         orders.stream().map(TransactionOrderResponse::from).toList(),
         calculationSnapshot);
   }

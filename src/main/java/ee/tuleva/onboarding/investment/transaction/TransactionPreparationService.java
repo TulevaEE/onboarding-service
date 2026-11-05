@@ -41,6 +41,7 @@ public class TransactionPreparationService {
           command.getMode());
 
       input = gatherInput(command);
+      input = input.excluding(command.getExcludeIsins());
 
       var result = calculationEngine.calculate(input, command.getMode());
 
@@ -127,6 +128,7 @@ public class TransactionPreparationService {
     payload.put("manualAdjustments", Map.copyOf(command.getManualAdjustments()));
     putIfPresent(payload, "cash", plain(command.getCash()));
     putIfPresent(payload, "cashComment", command.getCashComment());
+    putExcludeIsins(payload, command);
     if (input != null) {
       payload.put(
           "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
@@ -151,6 +153,7 @@ public class TransactionPreparationService {
     payload.put(
         "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
     putIfPresent(payload, "cashComment", command.getCashComment());
+    putExcludeIsins(payload, command);
     payload.put(
         "output",
         TransactionAuditPayloads.serializeTrades(
@@ -180,6 +183,12 @@ public class TransactionPreparationService {
     Map<String, TransactionOrder> map = new LinkedHashMap<>();
     orders.forEach(order -> map.put(order.getInstrumentIsin(), order));
     return map;
+  }
+
+  private static void putExcludeIsins(Map<String, Object> payload, TransactionCommand command) {
+    if (!command.getExcludeIsins().isEmpty()) {
+      payload.put("excludeIsins", command.sortedExcludeIsins());
+    }
   }
 
   private static void putIfPresent(Map<String, Object> map, String key, @Nullable Object value) {

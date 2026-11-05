@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,6 +88,7 @@ class TransactionCommandControllerTest {
         10L,
         null,
         null,
+        List.of(),
         List.of(orderResponse()),
         null);
   }
@@ -108,12 +110,9 @@ class TransactionCommandControllerTest {
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75,
-                REBALANCE,
-                AS_OF_DATE,
-                Map.of("IE00BFG1TM61", "1000.00"),
-                "shared-admin-token",
-                null))
+                new CreateTransactionCommandRequest(
+                    TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
+                "shared-admin-token"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -142,7 +141,10 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommand_passesAdminActorToService() throws Exception {
-    given(adminService.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null))
+    given(
+            adminService.createAndProcess(
+                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+                "operator-7"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -159,7 +161,9 @@ class TransactionCommandControllerTest {
 
     then(adminService)
         .should()
-        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "operator-7", null);
+        .createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            "operator-7");
   }
 
   @Test
@@ -167,7 +171,8 @@ class TransactionCommandControllerTest {
     var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash))
+                new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+                "shared-admin-token"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -185,7 +190,69 @@ class TransactionCommandControllerTest {
 
     then(adminService)
         .should()
-        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", cash);
+        .createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
+            "shared-admin-token");
+  }
+
+  @Test
+  void createCommand_passesTheExcludedInstrumentsToService() throws Exception {
+    var request =
+        new CreateTransactionCommandRequest(
+            TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61", "IE00BMDBMY19"));
+    given(adminService.createAndProcess(request, "shared-admin-token"))
+        .willReturn(commandResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "excludeIsins": ["IE00BFG1TM61", "IE00BMDBMY19"]}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService).should().createAndProcess(request, "shared-admin-token");
+  }
+
+  @Test
+  void createCommand_excludedInstrumentThatIsNotAnIsin_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "excludeIsins": ["ie00bfg1tm61 "]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void createCommand_blankExcludedInstrument_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-commands")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"fund": "TUK75", "mode": "REBALANCE", "asOfDate": "2026-06-10",
+                     "excludeIsins": [" "]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 
   @Test
@@ -439,6 +506,7 @@ class TransactionCommandControllerTest {
                     11L,
                     null,
                     null,
+                    List.of(),
                     List.of(),
                     null)));
 

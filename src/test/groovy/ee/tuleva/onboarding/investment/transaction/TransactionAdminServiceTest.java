@@ -30,6 +30,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -101,7 +102,9 @@ class TransactionAdminServiceTest {
 
     TransactionCommandResponse response =
         service.createAndProcess(
-            TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "operator-9", null);
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
+            "operator-9");
 
     then(commandRepository)
         .should()
@@ -126,7 +129,9 @@ class TransactionAdminServiceTest {
     given(preparationService.processCommand(any()))
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
-    service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+    service.createAndProcess(
+        new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+        "admin");
 
     then(commandRepository)
         .should()
@@ -147,12 +152,14 @@ class TransactionAdminServiceTest {
         .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
 
     service.createAndProcess(
-        TUK75,
-        REBALANCE,
-        AS_OF_DATE,
-        null,
-        "operator-9",
-        new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
+        new CreateTransactionCommandRequest(
+            TUK75,
+            REBALANCE,
+            AS_OF_DATE,
+            null,
+            new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"),
+            null),
+        "operator-9");
 
     then(commandRepository)
         .should()
@@ -170,6 +177,32 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void createAndProcess_withExcludedInstruments_persistsThemOnTheCommandAndReturnsThem() {
+    given(preparationService.processCommand(any()))
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
+
+    TransactionCommandResponse response =
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BMDBMY19", "IE00BFG1TM61")),
+            "operator-9");
+
+    then(commandRepository)
+        .should()
+        .save(
+            TransactionCommand.builder()
+                .fund(TUK75)
+                .mode(REBALANCE)
+                .asOfDate(AS_OF_DATE)
+                .manualAdjustments(Map.of())
+                .excludeIsins(Set.of("IE00BMDBMY19", "IE00BFG1TM61"))
+                .actor("operator-9")
+                .status(PROCESSING)
+                .build());
+    assertThat(response.excludeIsins()).containsExactly("IE00BFG1TM61", "IE00BMDBMY19");
+  }
+
+  @Test
   void createAndProcess_failedProcessingStillReturnsTheCashOverrideAndItsComment() {
     willAnswer(
             invocation -> {
@@ -182,12 +215,14 @@ class TransactionAdminServiceTest {
 
     TransactionCommandResponse response =
         service.createAndProcess(
-            TUK75,
-            REBALANCE,
-            AS_OF_DATE,
-            null,
-            "admin",
-            new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"));
+            new CreateTransactionCommandRequest(
+                TUK75,
+                REBALANCE,
+                AS_OF_DATE,
+                null,
+                new CashOverride(new BigDecimal("40000.00"), "Gateway balance at 10:15"),
+                null),
+            "admin");
 
     assertThat(response.cash()).isEqualByComparingTo("40000.00");
     assertThat(response.cashComment()).isEqualTo("Gateway balance at 10:15");
@@ -206,7 +241,9 @@ class TransactionAdminServiceTest {
         .processCommand(any());
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            "admin");
 
     assertThat(response.status()).isEqualTo(FAILED);
     assertThat(response.errorMessage()).isEqualTo("No positions found");
@@ -297,7 +334,9 @@ class TransactionAdminServiceTest {
                     .build()));
 
     TransactionCommandResponse response =
-        service.createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", null);
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            "admin");
 
     assertThat(response.calculationSnapshot()).isEqualTo(payload);
   }

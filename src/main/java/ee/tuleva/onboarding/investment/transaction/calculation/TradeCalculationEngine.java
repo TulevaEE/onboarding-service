@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -43,6 +44,7 @@ public class TradeCalculationEngine {
         };
 
     List<TradeCalculation> trades = applyLimits(input, rawTrades);
+    ExclusionFunding.requireFunded(input, mode, trades);
     return new FundCalculationResult(
         input.fund(),
         mode,
@@ -54,8 +56,7 @@ public class TradeCalculationEngine {
   }
 
   private void validateInput(FundTransactionInput input) {
-    input
-        .positions()
+    Stream.concat(input.positions().stream(), input.excludedPositions().stream())
         .forEach(
             position -> {
               if (position.marketValue().signum() < 0) {
@@ -67,17 +68,7 @@ public class TradeCalculationEngine {
                             position.marketValue().toPlainString()));
               }
             });
-    input
-        .modelWeights()
-        .forEach(
-            weight -> {
-              if (weight.weight().signum() < 0) {
-                throw new IllegalArgumentException(
-                    "Model weight cannot be negative: fund=%s, isin=%s, weight=%s"
-                        .formatted(
-                            input.fund().name(), weight.isin(), weight.weight().toPlainString()));
-              }
-            });
+    input.requireNoNegativeModelWeights();
     if (input.grossPortfolioValue().signum() < 0) {
       throw new IllegalArgumentException(
           "Gross portfolio value cannot be negative: fund=%s, grossPortfolioValue=%s"
@@ -235,7 +226,8 @@ public class TradeCalculationEngine {
         .grossPortfolioValue()
         .subtract(input.cashBuffer())
         .subtract(input.liabilities())
-        .add(input.receivables());
+        .add(input.receivables())
+        .subtract(input.excludedMarketValue());
   }
 
   private Map<String, BigDecimal> buildWeightMap(List<ModelWeight> modelWeights) {

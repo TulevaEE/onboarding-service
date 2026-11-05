@@ -831,14 +831,14 @@ function saveReportToDrive(folder, attachment, fileConfig, reportDate, emailSour
     var takenNames = family.names.slice();
     var plan = driveCopyPlan(driveRecord, emailSource, family, currentUsContent);
     recordDriveCopyStarted(s3Key, emailSource, plan);
-    if (plan.completesVersion) {
-        var usContentsOfThatVersion = usContentsOfVersion(family, plan.completesVersion);
+    plan.completesVersions.forEach(function (unfinishedVersion) {
+        var usContentsOfThatVersion = usContentsOfVersion(family, unfinishedVersion);
         var originalsOfThatVersion = currentOriginals.filter(function (f) {
             return usContentsOfThatVersion.indexOf(convertSebCsvToUs(contentOf(f))) !== -1;
         });
-        renameToVersion(originalsOfThatVersion, plan.completesVersion, takenNames);
+        renameToVersion(originalsOfThatVersion, unfinishedVersion, takenNames);
         currentOriginals = currentOriginals.filter(function (f) { return originalsOfThatVersion.indexOf(f) === -1; });
-    }
+    });
     var version = plan.version;
     if (currentUsCopies.length === 0) {
         folder.createFile(usCopyName(name), usContent, MimeType.CSV);
@@ -899,13 +899,13 @@ function isCompletedDriveCopyFrom(driveRecord, emailSource) {
 
 function driveCopyPlan(driveRecord, emailSource, family, currentUsContent) {
     var unfinished = Boolean(driveRecord) && Boolean(driveRecord.unfinishedVersion);
-    if (unfinished && driveRecord.id === emailSource.id) {
-        return { version: driveRecord.unfinishedVersion, completesVersion: driveRecord.completesVersion || null };
-    }
-    var otherEmailsUsContents = unfinished ? usContentsOfVersion(family, driveRecord.unfinishedVersion) : [];
-    if (otherEmailsUsContents.length === 0) return { version: family.nextVersion, completesVersion: null };
-    if (otherEmailsUsContents.indexOf(currentUsContent) !== -1) return { version: driveRecord.unfinishedVersion, completesVersion: null };
-    return { version: family.nextVersion, completesVersion: driveRecord.unfinishedVersion };
+    if (!unfinished) return { version: family.nextVersion, completesVersions: [] };
+    var stillToComplete = driveRecord.completesVersions || [];
+    if (driveRecord.id === emailSource.id) return { version: driveRecord.unfinishedVersion, completesVersions: stillToComplete };
+    var otherEmailsUsContents = usContentsOfVersion(family, driveRecord.unfinishedVersion);
+    if (otherEmailsUsContents.length === 0) return { version: family.nextVersion, completesVersions: stillToComplete };
+    if (otherEmailsUsContents.indexOf(currentUsContent) !== -1) return { version: driveRecord.unfinishedVersion, completesVersions: stillToComplete };
+    return { version: family.nextVersion, completesVersions: stillToComplete.concat([driveRecord.unfinishedVersion]) };
 }
 
 function usContentsOfVersion(family, version) {
@@ -918,7 +918,7 @@ function isUsCopyVersionName(name, version) {
 
 function recordDriveCopyStarted(s3Key, emailSource, plan) {
     var started = { date: emailSource.date, id: emailSource.id, unfinishedVersion: plan.version };
-    if (plan.completesVersion) started.completesVersion = plan.completesVersion;
+    if (plan.completesVersions.length > 0) started.completesVersions = plan.completesVersions;
     PropertiesService.getScriptProperties().setProperty(DRIVE_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(started));
 }
 

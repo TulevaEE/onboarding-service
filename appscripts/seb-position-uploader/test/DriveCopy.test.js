@@ -578,6 +578,64 @@ describe("saveReportToDrive", () => {
     expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["C,3\n"]);
   });
 
+  describe("a chain of interrupted corrections ends with every archived original beside its _US version", () => {
+    const correctionAt = (minute, n) => ({ date: "2026-11-02T10:" + minute + ":00.000Z", id: "18f0a0000000001" + n });
+    const correctionFile = (n) => fakeAttachment("TULEVA_pos_raport_20261020_parandus" + n + ".csv", "P" + n + ";" + n + "\n");
+    const expectEveryArchivedOriginalBesideItsUsVersion = (drive) => {
+      const archived = versionedNames(drive);
+      const originals = archived.filter((name) => !/_US_v\d+\.csv$/i.test(name));
+      expect(originals.length).toBeGreaterThan(0);
+      originals.forEach((original) => {
+        const version = original.match(/_v(\d+)\.csv$/)[1];
+        const usContents = archived.filter((name) => new RegExp("_US_v" + version + "\\.csv$").test(name)).map((name) => drive.byName(name)[0].content());
+        expect(usContents).toContain(convertSebCsvToUs(drive.byName(original)[0].content()));
+      });
+    };
+    const seededWithA = () => {
+      installAppsScriptFakes();
+      const drive = fakeDrive();
+      drive.seedWithContent({ "TULEVA_pos_raport_20261020.csv": "A;1\n", "TULEVA_pos_raport_20261020_US.csv": "A,1\n" });
+      return drive;
+    };
+
+    test.each([2, 3])("after %i corrections in a row fail to archive original A, the next one archives A beside A's _US, and a rerun writes nothing", (failing) => {
+      const drive = seededWithA();
+      drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+      for (let n = 1; n <= failing; n++) {
+        expect(() => saveReportToDrive(drive.folder, correctionFile(n), POSITIONS, "20261020", correctionAt(10 + n, n))).toThrow("Drive failed");
+      }
+      delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+      const last = failing + 1;
+
+      saveReportToDrive(drive.folder, correctionFile(last), POSITIONS, "20261020", correctionAt(10 + last, last));
+      const eventsAfterIt = drive.events.length;
+      saveReportToDrive(drive.folder, correctionFile(last), POSITIONS, "20261020", correctionAt(10 + last, last));
+
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expect(drive.byName("TULEVA_pos_raport_20261020_US_v1.csv").map((f) => f.content())).toEqual(["A,1\n"]);
+      expectEveryArchivedOriginalBesideItsUsVersion(drive);
+      expect(drive.events.slice(eventsAfterIt)).toEqual([]);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["P" + last + "," + last + "\n"]);
+    });
+
+    test("when the second correction archives A but fails at its own new original, the third still leaves every version paired", () => {
+      const drive = seededWithA();
+      drive.failures["setName TULEVA_pos_raport_20261020.csv"] = true;
+      expect(() => saveReportToDrive(drive.folder, correctionFile(1), POSITIONS, "20261020", correctionAt(11, 1))).toThrow("Drive failed");
+      delete drive.failures["setName TULEVA_pos_raport_20261020.csv"];
+      drive.failures["createFile TULEVA_pos_raport_20261020_parandus2.csv"] = true;
+      expect(() => saveReportToDrive(drive.folder, correctionFile(2), POSITIONS, "20261020", correctionAt(12, 2))).toThrow("Drive failed");
+      delete drive.failures["createFile TULEVA_pos_raport_20261020_parandus2.csv"];
+
+      saveReportToDrive(drive.folder, correctionFile(3), POSITIONS, "20261020", correctionAt(13, 3));
+
+      expect(drive.byName("TULEVA_pos_raport_20261020_v1.csv").map((f) => f.content())).toEqual(["A;1\n"]);
+      expectEveryArchivedOriginalBesideItsUsVersion(drive);
+      expect(new Set(drive.names()).size).toBe(drive.names().length);
+      expect(drive.currentUsCopiesFor("tuleva_pos", "20261020").map((f) => f.content())).toEqual(["P3,3\n"]);
+    });
+  });
+
   test("a newer correction interrupted while pairing the original another correction left current resumes that pairing from its own record", () => {
     installAppsScriptFakes();
     const drive = fakeDrive();

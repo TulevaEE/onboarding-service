@@ -88,8 +88,8 @@ public class NavCalculationService implements NavFeeBackfill {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    NavFeeBases feeBases =
-        feeBases(
+    BigDecimal feeBaseValue =
+        feeBaseValue(
             securitiesValue,
             cashPosition,
             receivables,
@@ -99,7 +99,7 @@ public class NavCalculationService implements NavFeeBackfill {
             pendingRedemptions);
     NavFeeResult fees =
         navFees.calculateFeesForNav(
-            fund, positionReportDate, feeBases, context.getSecurityPrices());
+            fund, positionReportDate, feeBaseValue, context.getSecurityPrices());
     BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
     BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 
@@ -254,7 +254,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .toList();
   }
 
-  private NavFeeBases calculateFeeBases(NavComponentContext context) {
+  private BigDecimal calculateFeeBaseValue(NavComponentContext context) {
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
@@ -262,7 +262,7 @@ public class NavCalculationService implements NavFeeBackfill {
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
     BigDecimal pendingRedemptions = redemptionsComponent.calculate(context);
-    return feeBases(
+    return feeBaseValue(
         securitiesValue,
         cashPosition,
         receivables,
@@ -272,7 +272,7 @@ public class NavCalculationService implements NavFeeBackfill {
         pendingRedemptions);
   }
 
-  private NavFeeBases feeBases(
+  private BigDecimal feeBaseValue(
       BigDecimal securitiesValue,
       BigDecimal cashPosition,
       BigDecimal receivables,
@@ -286,11 +286,13 @@ public class NavCalculationService implements NavFeeBackfill {
             .add(receivables)
             .add(pendingSubscriptions)
             .add(blackrockAdjustment);
-    return new NavFeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
+    return assetValue.subtract(payables).subtract(pendingRedemptions);
   }
 
   public record FeeBaseValueResult(
-      NavFeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
+      BigDecimal feeBaseValue,
+      LocalDate positionReportDate,
+      Map<String, ResolvedPrice> securityPrices) {}
 
   public Optional<FeeBaseValueResult> computeFeeBaseValue(
       TulevaFund fund, LocalDate calculationDate) {
@@ -317,7 +319,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .build();
     return Optional.of(
         new FeeBaseValueResult(
-            calculateFeeBases(context), positionReportDate, context.getSecurityPrices()));
+            calculateFeeBaseValue(context), positionReportDate, context.getSecurityPrices()));
   }
 
   @Transactional
@@ -330,7 +332,7 @@ public class NavCalculationService implements NavFeeBackfill {
       }
       log.info("Backfilling fees: fund={}, date={}", fund, navDate);
       var result = optional.get();
-      navFees.calculateFeesForNav(fund, navDate, result.bases(), result.securityPrices());
+      navFees.calculateFeesForNav(fund, navDate, result.feeBaseValue(), result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }

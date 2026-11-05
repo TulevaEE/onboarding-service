@@ -44,8 +44,7 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_savesManagementFeeAccrual() {
-    feeCalculationService.calculateFeesForNav(
-        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, null);
 
     var accrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -59,8 +58,7 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_savesDepotFeeAccrual() {
-    feeCalculationService.calculateFeesForNav(
-        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, null);
 
     var accrual = findAccrual(TUK75, FeeType.DEPOT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -71,13 +69,11 @@ class FeeCalculationIntegrationTest {
 
   @Test
   void calculateFeesForNav_isIdempotent() {
-    feeCalculationService.calculateFeesForNav(
-        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, null);
     var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterFirst = countLedgerEntries();
 
-    feeCalculationService.calculateFeesForNav(
-        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, null);
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
@@ -89,8 +85,7 @@ class FeeCalculationIntegrationTest {
   @Test
   void calculateFeesForNav_returnsTheNavFacingAccrualNotTheRawOne() {
     FeeResult result =
-        feeCalculationService.calculateFeesForNav(
-            TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), null);
+        feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, null);
 
     // FeeResult is NAV-facing: the charged-to-fund policy is applied per accrual date here, so a
     // fee Tuleva bears comes back as zero even though it was accrued and recorded. TKF100's depot
@@ -169,8 +164,7 @@ class FeeCalculationIntegrationTest {
   }
 
   private FeeResult calculate(TulevaFund fund, LocalDate positionReportDate, BigDecimal base) {
-    return feeCalculationService.calculateFeesForNav(
-        fund, positionReportDate, new FeeBases(base, base), null);
+    return feeCalculationService.calculateFeesForNav(fund, positionReportDate, base, null);
   }
 
   private List<BigDecimal> managementFeeLedgerAmounts(

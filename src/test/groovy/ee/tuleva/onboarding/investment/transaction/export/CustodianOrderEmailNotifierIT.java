@@ -50,6 +50,7 @@ import org.springframework.web.client.RestClientException;
 })
 class CustodianOrderEmailNotifierIT {
 
+  private static final long BATCH_ID = 42L;
   private static final Instant SENT_AT = Instant.parse("2026-01-15T10:00:00Z");
   private static final Map<String, byte[]> EXPORTS = Map.of("sebFundXlsx", new byte[] {1, 2});
   private static final String ORDERS_NOT_SENT =
@@ -127,7 +128,7 @@ class CustodianOrderEmailNotifierIT {
                     new TransactionSynchronization() {
                       @Override
                       public void afterCommit() {
-                        sender.send(TUV100, SENT_AT, EXPORTS);
+                        sender.send(BATCH_ID, TUV100, SENT_AT, EXPORTS);
                       }
                     }));
   }
@@ -140,6 +141,7 @@ class CustodianOrderEmailNotifierIT {
   private static Consumer<EventLog> sendResult(Instant at, String alert) {
     return row -> {
       assertThat(row.getType()).isEqualTo("TRADE_ORDER_EMAIL_SEND_RESULT");
+      assertThat(row.getPrincipal()).isEqualTo("42");
       assertThat(row.getTimestamp()).isEqualTo(at);
       assertThat(row.getData())
           .isEqualTo(Map.of("text", ORDERS_NOT_SENT, "severity", "ERROR", "alert", alert));

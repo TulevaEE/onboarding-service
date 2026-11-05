@@ -40,7 +40,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         status("copy@example.com", "queued", null)], null)
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -55,7 +55,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         status("copy@example.com", "rejected", "hard-bounce")], null)
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -73,7 +73,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         "Mandrill did not accept email: status=rejected, rejectReason=hard-bounce, id=id-desk")
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -88,7 +88,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     def result = new EmailSendResult(FAILED, [], "ConnectException: Connection refused")
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -103,7 +103,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     def result = new EmailSendResult(UNKNOWN, [], "SocketTimeoutException: Read timed out")
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -121,7 +121,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         "Mandrill did not accept email: status=invalid, rejectReason=null, id=id-backup")
 
     when:
-    notifier.reportSendResult(message, result)
+    notifier.reportSendResult(42L, message, result)
 
     then:
     1 * eventLogRepository.save({ EventLog it -> isRecorded(it,
@@ -133,7 +133,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   def "records the result in a transaction of its own, since the batch has already committed"() {
     when:
-    notifier.reportSendResult(message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
 
     then:
     1 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
@@ -150,7 +150,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
 
     when:
-    notifier.reportSendResult(message, new EmailSendResult(SENT, [], null))
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
 
     then:
     noExceptionThrown()
@@ -158,7 +158,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   private boolean isRecorded(EventLog row, String text, String severity) {
     row.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
-        row.principal == "TUV100 ostu-/müügikorraldused 15.01.2026" &&
+        row.principal == "42" &&
         row.timestamp == sentAt &&
         row.data == [text: text, severity: severity, alert: "NOT_POSTED"]
   }

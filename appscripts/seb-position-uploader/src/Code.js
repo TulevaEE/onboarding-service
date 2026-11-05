@@ -640,9 +640,7 @@ function saveReportsToDrive(threads, days, scan) {
         }
         var folder = DriveApp.getFolderById(folderId);
         var minMessageDate = new Date(Date.now() - days * DAY_MILLIS);
-        for (var i = threads.length - 1; i >= 0; i--) {
-            saveThreadToDrive(threads[i], folder, scan, minMessageDate);
-        }
+        saveToDriveNewestFirst(threads, folder, scan, minMessageDate);
     } catch (e) {
         Logger.log("Drive copy run failed: error=" + e.message);
         notifyDriveProblemOncePerDay("SEB reports could not be saved to Drive: `" + e.message + "`");
@@ -650,30 +648,90 @@ function saveReportsToDrive(threads, days, scan) {
 }
 
 function saveThreadToDrive(thread, folder, scan, minMessageDate) {
-    messagesOfThreadOrNone(thread).forEach(function (message) {
-        driveReportsOfMessageOrNone(message, minMessageDate).forEach(function (report) {
+    saveToDriveNewestFirst([thread], folder, scan, minMessageDate);
+}
+
+function saveToDriveNewestFirst(threads, folder, scan, minMessageDate) {
+    var inWindow = messagesInWindowNewestFirst(threads, minMessageDate);
+    var aNewerMessageIsUnread = inWindow.someUnreadAtAnUnknownTime;
+    var reportsTriedThisRun = {};
+    inWindow.messages.forEach(function (message) {
+        if (aNewerMessageIsUnread) {
+            Logger.log("Drive copy skipped, a newer message could not be read: messageId=" + gmailIdOrUnknown(message));
+            return;
+        }
+        var reports = driveReportsOfReadableMessage(message);
+        if (reports === null) {
+            aNewerMessageIsUnread = true;
+            return;
+        }
+        reports.forEach(function (report) {
+            if (isUsCopyName(nameWithoutTheSendersVersionSuffix(report.attachment.getName()))) {
+                saveReportToDriveWithoutStoppingTheOthers(folder, report, scan);
+                return;
+            }
+            var key = driveReportKeyOf(report);
+            if (reportsTriedThisRun[key]) {
+                Logger.log("Drive copy skipped, a newer e-mail of the report was tried this run: file=" + report.attachment.getName() + ", messageId=" + report.emailSource.id);
+                return;
+            }
+            reportsTriedThisRun[key] = true;
             saveReportToDriveWithoutStoppingTheOthers(folder, report, scan);
         });
     });
 }
 
-function messagesOfThreadOrNone(thread) {
+function messagesInWindowNewestFirst(threads, minMessageDate) {
+    var dated = [];
+    var someUnreadAtAnUnknownTime = false;
+    threads.forEach(function (thread) {
+        var messages = messagesOfThreadOrNull(thread);
+        if (messages === null) {
+            someUnreadAtAnUnknownTime = true;
+            return;
+        }
+        messages.forEach(function (message) {
+            var time = timeOfOrUnknown(message);
+            if (time === UNREAD_AT_AN_UNKNOWN_TIME) {
+                Logger.log("Drive copy failed, message time not read: messageId=" + gmailIdOrUnknown(message));
+                notifyDriveCopyFailed(new Error("the time of an e-mail could not be read"));
+                someUnreadAtAnUnknownTime = true;
+                return;
+            }
+            if (isMessageWithinWindow(new Date(time), minMessageDate)) dated.push({ message: message, time: time, id: gmailIdOrUnknown(message) });
+        });
+    });
+    dated.sort(newestFirst);
+    return { messages: dated.map(function (d) { return d.message; }), someUnreadAtAnUnknownTime: someUnreadAtAnUnknownTime };
+}
+
+function newestFirst(one, other) {
+    if (one.time !== other.time) return other.time - one.time;
+    if (one.id === other.id) return 0;
+    return one.id < other.id ? 1 : -1;
+}
+
+function driveReportKeyOf(report) {
+    return report.fileConfig.s3Prefix + report.reportDate + report.fileConfig.s3Suffix;
+}
+
+function messagesOfThreadOrNull(thread) {
     try {
         return thread.getMessages();
     } catch (e) {
         Logger.log("Drive copy failed, thread not read: threadId=" + gmailIdOrUnknown(thread) + ", error=" + e.message);
         notifyDriveCopyFailed(e);
-        return [];
+        return null;
     }
 }
 
-function driveReportsOfMessageOrNone(message, minMessageDate) {
+function driveReportsOfReadableMessage(message) {
     try {
-        return isMessageWithinWindow(message.getDate(), minMessageDate) ? driveReportsOf(message) : [];
+        return driveReportsOf(message);
     } catch (e) {
         Logger.log("Drive copy failed, message not read: messageId=" + gmailIdOrUnknown(message) + ", error=" + e.message);
         notifyDriveCopyFailed(e);
-        return [];
+        return null;
     }
 }
 

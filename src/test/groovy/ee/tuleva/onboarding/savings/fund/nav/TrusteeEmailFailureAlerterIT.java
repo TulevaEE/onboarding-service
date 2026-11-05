@@ -41,7 +41,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   MandrillWebhookService.class,
   TrusteeEmailFailureAlerter.class,
-  TrusteeEmailFailureAlerterIT.OrderEmailFailureAlerterAndWebhookJson.class
+  TrusteeEmailFailureAlerterIT.OrderEmailAlerterAndWebhookJson.class
 })
 class TrusteeEmailFailureAlerterIT {
 
@@ -61,8 +61,8 @@ class TrusteeEmailFailureAlerterIT {
       basePackages = "ee.tuleva.onboarding.investment.transaction.export",
       useDefaultFilters = false,
       includeFilters =
-          @Filter(type = FilterType.REGEX, pattern = ".*\\.CustodianOrderEmailFailureAlerter"))
-  static class OrderEmailFailureAlerterAndWebhookJson {
+          @Filter(type = FilterType.REGEX, pattern = ".*\\.CustodianOrderEmailAlerter"))
+  static class OrderEmailAlerterAndWebhookJson {
     @Bean
     JsonMapper jsonMapper() {
       return JsonMapper.builder().build();

@@ -42,10 +42,10 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional(propagation = NOT_SUPPORTED)
 @Import({
   MandrillWebhookService.class,
-  CustodianOrderEmailFailureAlerter.class,
-  CustodianOrderEmailFailureAlerterIT.WebhookJson.class
+  CustodianOrderEmailAlerter.class,
+  CustodianOrderEmailAlerterIT.WebhookJson.class
 })
-class CustodianOrderEmailFailureAlerterIT {
+class CustodianOrderEmailAlerterIT {
 
   private static final Instant BOUNCED_AT = Instant.parse("2026-01-15T10:01:00Z");
   private static final Instant A_MINUTE_LATER = BOUNCED_AT.plus(Duration.ofMinutes(1));
@@ -64,7 +64,7 @@ class CustodianOrderEmailFailureAlerterIT {
           + " check with the desk.";
 
   @Autowired MandrillWebhookService webhookService;
-  @Autowired CustodianOrderEmailFailureAlerter alerter;
+  @Autowired CustodianOrderEmailAlerter alerter;
   @Autowired EventLogRepository eventLogRepository;
 
   @MockitoBean OperationsNotificationService notificationService;

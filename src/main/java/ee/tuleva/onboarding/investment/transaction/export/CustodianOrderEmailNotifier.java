@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailFailureAlerter.SEND_RESULT_TYPE;
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailFailureAlerter.notYetPosted;
+import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.SEND_RESULT_TYPE;
+import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.notYetPosted;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;

@@ -19,7 +19,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING
 import static java.time.ZoneOffset.UTC
 
-class CustodianOrderEmailFailureAlerterSpec extends Specification {
+class CustodianOrderEmailAlerterSpec extends Specification {
 
   OperationsNotificationService notificationService = Mock()
   EventLogRepository eventLogRepository = Mock()
@@ -31,7 +31,7 @@ class CustodianOrderEmailFailureAlerterSpec extends Specification {
   String greenLine = "✅ Orders emailed: $subject, 2 files"
   String redAlert = redAlert("hard_bounce", "msg_1")
 
-  CustodianOrderEmailFailureAlerter alerter = alerterAt(aMinuteLater)
+  CustodianOrderEmailAlerter alerter = alerterAt(aMinuteLater)
 
   def "records an undelivered order email with its red alert for the next run to post, without calling Slack: #eventType"() {
     given:
@@ -104,7 +104,7 @@ class CustodianOrderEmailFailureAlerterSpec extends Specification {
     eventLogRepository.existsByTypeAndPrincipal(_, _) >> false
     def context = new AnnotationConfigApplicationContext()
     context.registerBean(FailingDeliveryFailureListener)
-    context.registerBean(CustodianOrderEmailFailureAlerter, { -> alerter } as java.util.function.Supplier)
+    context.registerBean(CustodianOrderEmailAlerter, { -> alerter } as java.util.function.Supplier)
     context.refresh()
 
     when:
@@ -263,8 +263,8 @@ class CustodianOrderEmailFailureAlerterSpec extends Specification {
     }
   }
 
-  private CustodianOrderEmailFailureAlerter alerterAt(Instant now) {
-    new CustodianOrderEmailFailureAlerter(notificationService, eventLogRepository, Clock.fixed(now, UTC))
+  private CustodianOrderEmailAlerter alerterAt(Instant now) {
+    new CustodianOrderEmailAlerter(notificationService, eventLogRepository, Clock.fixed(now, UTC))
   }
 
   private void rowsRead(EventLog... rows) {

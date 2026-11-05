@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.entry;
 import ee.tuleva.onboarding.investment.transaction.FundCalculationResult;
 import ee.tuleva.onboarding.investment.transaction.FundTransactionInput;
 import ee.tuleva.onboarding.investment.transaction.ModelWeight;
+import ee.tuleva.onboarding.investment.transaction.PositionLimitSnapshot;
 import ee.tuleva.onboarding.investment.transaction.PositionSnapshot;
 import ee.tuleva.onboarding.investment.transaction.TradeCalculation;
 import java.math.BigDecimal;
@@ -199,6 +200,45 @@ class TradeCalculationEngineExclusionTest {
     assertThat(netTraded(withoutExclusion)).isEqualByComparingTo(ZERO);
     assertThat(netTraded(withExclusion)).isEqualByComparingTo(ZERO);
     assertThat(withExclusion.noTradeReason()).isEqualTo(withoutExclusion.noTradeReason());
+  }
+
+  @Test
+  void
+      buyAndRebalance_withAnExclusionThatLiftsAWeightAboveItsHardLimit_capItAndGiveTheRestToTheOthers() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("450000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("270000")),
+                    new PositionSnapshot("IE00C", new BigDecimal("180000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.30")),
+                    new ModelWeight("IE00C", new BigDecimal("0.20"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(
+                Map.of(
+                    "IE00A",
+                    new PositionLimitSnapshot(new BigDecimal("0.48"), new BigDecimal("0.50"))))
+            .build()
+            .excluding(Set.of("IE00C"));
+
+    for (var mode : List.of(BUY, REBALANCE)) {
+      var result = engine.calculate(input, mode);
+
+      assertThat(tradeAmounts(result))
+          .containsExactly(
+              entry("IE00A", new BigDecimal("49900.00")),
+              entry("IE00B", new BigDecimal("50100.00")));
+      assertThat(result.trades().getFirst().projectedWeight()).isLessThan(new BigDecimal("0.50"));
+    }
   }
 
   @Test

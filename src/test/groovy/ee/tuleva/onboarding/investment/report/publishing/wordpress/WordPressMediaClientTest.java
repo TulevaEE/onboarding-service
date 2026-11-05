@@ -312,10 +312,23 @@ class WordPressMediaClientTest {
   }
 
   @Test
-  void aRetryRefusedForTheLockAfterAnAnsweredAttemptIsNotLinkedAndKeepsThatAttemptsFailure()
+  void aGatewayTimeoutThenAPageThatDoesNotShowTheUploadIsUnknownSinceWordPressMayStillSaveIt()
       throws Exception {
     expectPageLookup();
-    expectPost().andRespond(withServerError());
+    expectPost(ExpectedCount.times(3)).andRespond(withStatus(HttpStatus.GATEWAY_TIMEOUT));
+    expectReadBack(pageWithStoredReportFile(41));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
+        .isInstanceOfSatisfying(
+            LinkUnknown.class,
+            unknown -> assertThat(unknown).hasCauseInstanceOf(HttpServerErrorException.class));
+    server.verify();
+  }
+
+  @Test
+  void aGatewayTimeoutThenALostLockIsUnknownAndKeepsTheGatewayTimeout() throws Exception {
+    expectPageLookup();
+    expectPost().andRespond(withStatus(HttpStatus.GATEWAY_TIMEOUT));
     expectReadBack(pageWithStoredReportFile(41));
     var lockChecks = new AtomicInteger();
 
@@ -324,13 +337,29 @@ class WordPressMediaClientTest {
                 client.updateAcfReportField(
                     "test-page", 42, () -> lockChecks.incrementAndGet() == 1))
         .isInstanceOfSatisfying(
-            NotLinked.class,
-            notLinked -> {
-              assertThat(notLinked).hasCauseInstanceOf(PublishLockLost.class);
-              assertThat(notLinked.getCause().getSuppressed())
+            LinkUnknown.class,
+            unknown -> {
+              assertThat(unknown).hasCauseInstanceOf(PublishLockLost.class);
+              assertThat(unknown.getCause().getSuppressed())
                   .singleElement()
                   .isInstanceOf(HttpServerErrorException.class);
             });
+    server.verify();
+  }
+
+  @Test
+  void aTimedOutUpdateWhoseRetryReturnsUnstoredAcfIsUnknownNotUnlinked() throws Exception {
+    expectPageLookup();
+    expectPost().andRespond(failingWith(new HttpTimeoutException("request timed out")));
+    expectPost()
+        .andRespond(
+            withSuccess(
+                objectMapper.writeValueAsString(pageWithStoredReportFile(41)),
+                MediaType.APPLICATION_JSON));
+    expectReadBack(pageWithStoredReportFile(41));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
+        .isInstanceOf(LinkUnknown.class);
     server.verify();
   }
 
@@ -423,8 +452,10 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfSilentlyDroppedTheWrite() throws Exception {
     expectPageLookupAndUpdate(Map.of("id", 123));
 
+    expectReadBack(pageWithStoredReportFile(41));
+
     assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(NotLinked.class);
 
     server.verify();
   }
@@ -433,8 +464,10 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfReportFieldIsEmpty() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(""));
 
+    expectReadBack(pageWithStoredReportFile(41));
+
     assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(NotLinked.class);
 
     server.verify();
   }
@@ -443,8 +476,10 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldThrowsWhenAcfHoldsADifferentAttachment() throws Exception {
     expectPageLookupAndUpdate(pageWithStoredReportFile(41));
 
+    expectReadBack(pageWithStoredReportFile(41));
+
     assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(NotLinked.class);
 
     server.verify();
   }
@@ -455,8 +490,10 @@ class WordPressMediaClientTest {
         pageWithStoredReportFile(
             Map.of("url", "https://tuleva.ee/wp-content/uploads/2026/04/test.pdf")));
 
+    expectReadBack(pageWithStoredReportFile(41));
+
     assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42, LOCK_HELD))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(NotLinked.class);
 
     server.verify();
   }

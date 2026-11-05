@@ -238,16 +238,16 @@ public class InvestmentReportPublisher {
         errors.add(
             UPDATE_OUTCOME_UNKNOWN.formatted(
                 mapping.fund().getCode(), upload.sourceUrl(), linkUnknown.failedBecause()));
-      } catch (RuntimeException lookupFailedOrNotStored) {
+      } catch (RuntimeException lookupFailedBeforeAnyPost) {
         log.error(
-            "WordPress page update failed for {}",
+            "WordPress page lookup failed for {}",
             mapping.fund().getCode(),
-            lookupFailedOrNotStored);
+            lookupFailedBeforeAnyPost);
         errors.add(
             UPDATE_NOT_LINKED.formatted(
                 mapping.fund().getCode(),
                 upload.sourceUrl(),
-                lookupFailedOrNotStored.getClass().getSimpleName()));
+                lookupFailedBeforeAnyPost.getClass().getSimpleName()));
       }
     }
     return publishedUrls;

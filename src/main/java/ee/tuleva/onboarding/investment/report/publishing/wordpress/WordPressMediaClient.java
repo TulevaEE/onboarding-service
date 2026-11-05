@@ -72,9 +72,8 @@ public class WordPressMediaClient {
     var pageId = findPageIdBySlug(pageSlug);
 
     var attempts = new PageUpdateAttempts();
-    Map<String, Object> response;
     try {
-      response =
+      var response =
           retryTemplate.invoke(
               () -> {
                 if (!publishLockStillHeld.getAsBoolean()) {
@@ -90,6 +89,7 @@ public class WordPressMediaClient {
                             .retrieve()
                             .body(new ParameterizedTypeReference<Map<String, Object>>() {}));
               });
+      assertReportFileStored(pageSlug, pageId, attachmentId, AcfReportField.storedIn(response));
     } catch (PublishLockLost lockLost) {
       settleAfterTheLockWasLost(pageSlug, attachmentId, attempts, lockLost);
       return;
@@ -97,8 +97,6 @@ public class WordPressMediaClient {
       settleAFailedUpdate(pageSlug, attachmentId, attempts, failure);
       return;
     }
-
-    assertReportFileStored(pageSlug, pageId, attachmentId, AcfReportField.storedIn(response));
 
     log.info(
         "Updated ACF investment_report_file: pageSlug={}, pageId={}, attachmentId={}",
@@ -133,11 +131,11 @@ public class WordPressMediaClient {
       return;
     }
     log.error(
-        "Fund page update failed: pageSlug={}, answered={}",
+        "Fund page update failed: pageSlug={}, uncertain={}",
         pageSlug,
-        !attempts.anyUnanswered(),
+        attempts.anyUncertain(),
         failure);
-    throw attempts.anyUnanswered()
+    throw attempts.anyUncertain()
         ? new LinkUnknown(pageSlug, failure)
         : new NotLinked(pageSlug, failure);
   }

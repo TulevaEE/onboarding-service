@@ -61,10 +61,12 @@ class JobTriggerPoller {
           Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
           Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 
-  static final Map<String, Function<LocalDate, Object>> RESUMABLE_FROM_A_DATE =
+  static final Map<String, Function<LocalDate, Object>> TAKING_A_DATE =
       Map.of(
           RunSebPendingTransactionReconciliationBackfillRequested.JOB_NAME,
-          RunSebPendingTransactionReconciliationBackfillRequested::new);
+          RunSebPendingTransactionReconciliationBackfillRequested::new,
+          RunSebPendingTransactionReportReconciliationRequested.JOB_NAME,
+          RunSebPendingTransactionReportReconciliationRequested::new);
 
   private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =
       Duration.ofHours(6);
@@ -109,13 +111,13 @@ class JobTriggerPoller {
       return Optional.of(event);
     }
     String[] jobAndDate = jobName.split(":", 2);
-    if (jobAndDate.length < 2 || !RESUMABLE_FROM_A_DATE.containsKey(jobAndDate[0])) {
+    if (jobAndDate.length < 2 || !TAKING_A_DATE.containsKey(jobAndDate[0])) {
       return Optional.empty();
     }
     try {
-      LocalDate from = LocalDate.parse(jobAndDate[1]);
-      Function<LocalDate, Object> resumed = RESUMABLE_FROM_A_DATE.get(jobAndDate[0]);
-      return Optional.of(() -> resumed.apply(from));
+      LocalDate date = LocalDate.parse(jobAndDate[1]);
+      Function<LocalDate, Object> forTheDate = TAKING_A_DATE.get(jobAndDate[0]);
+      return Optional.of(() -> forTheDate.apply(date));
     } catch (DateTimeParseException e) {
       return Optional.empty();
     }

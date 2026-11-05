@@ -4,6 +4,7 @@ const {
   processNewEmails,
   processHistoricalEmails,
   dryRun,
+  uploadMatchingAttachments,
   saveReportsToDrive,
   saveThreadToDrive,
   saveReportToDrive,
@@ -1630,6 +1631,17 @@ describe("the SEB confirmation backfill in processNewEmails", () => {
     expect(fakes.props.SEB_CONFIRMATION_BACKFILL_REQUESTED).toBeUndefined();
     expect(fakes.s3Keys).toEqual(["seb-confirmations/DLA1234567-001.pdf"]);
     expect(fakes.lock.releases).toBe(1);
+    expect(fakes.logs).toContainEqual("Backfill complete: uploaded=1");
+  });
+
+  test("an attachment the upload skips counts as handled, for the thread's label, but not as uploaded, for the backfill's count", () => {
+    installAppsScriptFakes({ properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret" } });
+    const message = sebMessage("18f0a00000000001", [
+      fakeAttachment("TULEVA_pos_raport_20261020.csv", "A;1\n"),
+      fakeAttachment("TULEVA_pos_raport_20261020_US.csv", "X,9\n"),
+    ]);
+
+    expect(uploadMatchingAttachments(message, SOURCES.SEB)).toEqual({ uploaded: 1, handled: 2 });
   });
 });
 

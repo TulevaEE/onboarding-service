@@ -182,7 +182,7 @@ function runBackfill(props) {
                 ", resumeFrom=" + uploadedUntil.toISOString() + ". The next cron run continues from there.");
             return;
         }
-        uploaded += uploadMatchingAttachments(queue[i], source);
+        uploaded += uploadMatchingAttachments(queue[i], source).uploaded;
         uploadedUntil = queue[i].getDate();
         props.setProperty(SEB_CONFIRMATION_BACKFILL_RESUME_PROPERTY, uploadedUntil.toISOString());
     }
@@ -425,14 +425,14 @@ function processMessage(message, thread, newestUploaded) {
         return;
     }
 
-    if (uploadMatchingAttachments(message, source, newestUploaded) > 0) {
+    if (uploadMatchingAttachments(message, source, newestUploaded).handled > 0) {
         incrementUploadLabel(thread);
     }
 }
 
 function uploadMatchingAttachments(message, source, newestUploaded) {
     var attachments = message.getAttachments();
-    var handledCount = 0;
+    var counts = { uploaded: 0, handled: 0 };
     var emailSource = emailSourceOf(message);
     var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
 
@@ -446,12 +446,12 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
             var datedReport = !result.fileConfig.keyFromCapture;
             if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                 Logger.log("S3 upload skipped, the e-mail also has the report without the _US ending: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
-                handledCount++;
+                counts.handled++;
                 continue;
             }
             if (datedReport && isReplacedByNewerEmail(s3Key, emailSource, newestUploaded)) {
                 Logger.log("S3 upload skipped, the file holds a newer e-mail's report: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
-                handledCount++;
+                counts.handled++;
                 continue;
             }
             var content = isBinaryFileConfig(result.fileConfig) ? attachment.getBytes() : attachment.getDataAsString();
@@ -459,7 +459,8 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
             try {
                 uploadToS3(S3_BUCKET, s3Key, content, resolveContentType(result.fileConfig));
                 Logger.log("Uploaded to S3: file=" + filename + ", bucket=" + S3_BUCKET + ", key=" + s3Key);
-                handledCount++;
+                counts.uploaded++;
+                counts.handled++;
             } catch (e) {
                 Logger.log("S3 upload failed: file=" + filename + ", bucket=" + S3_BUCKET + ", key=" + s3Key + ", error=" + e.message);
                 throw e;
@@ -471,7 +472,7 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
         }
     }
 
-    return handledCount;
+    return counts;
 }
 
 function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAPlainAttachment) {
@@ -1290,6 +1291,7 @@ if (typeof module !== "undefined" && module.exports) {
         processNewEmails,
         processHistoricalEmails,
         dryRun,
+        uploadMatchingAttachments,
         saveReportsToDrive,
         saveThreadToDrive,
         saveReportToDrive,

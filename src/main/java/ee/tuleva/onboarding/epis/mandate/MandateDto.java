@@ -39,7 +39,7 @@ public class MandateDto {
 
   private String email;
 
-  private String phoneNumber;
+  @Nullable private String phoneNumber;
 
   private Optional<BigDecimal> paymentRate;
 

@@ -482,6 +482,28 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_firstListingQuarantined_datesTheExecutionByThatListingWhenALaterReportCorrectsIt() {
+    order.setOrderAmount(new BigDecimal("50000.00"));
+    orderRepository.save(order);
+    InvestmentReport corrected =
+        reportCorrectingTheFixtureOrderToItsAmountOn(LocalDate.of(2026, 2, 16));
+    entityManager.flush();
+
+    for (int run = 0; run < 2; run++) {
+      listings = new SebReplayListings();
+      reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+      reconciliationService.replay(corrected, alert -> {}, listings, LOCK_HELD);
+      entityManager.flush();
+    }
+    entityManager.clear();
+
+    assertThat(executionRepository.findAllByOrderId(order.getId()))
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 2, 12));
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
@@ -889,6 +911,22 @@ class SebPendingTransactionReconciliationIT {
     assertThat(flipped.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 10));
     assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
     return imported;
+  }
+
+  private InvestmentReport reportCorrectingTheFixtureOrderToItsAmountOn(LocalDate reportDate) {
+    List<Map<String, Object>> rawData = loadFixtureRawData();
+    rawData.get(0).put("Client ref", FIXTURE_CLIENT_REF.toString());
+    rawData.get(0).put("Total", new BigDecimal("50000.00"));
+    rawData.get(0).put("Settlement amount", new BigDecimal("50000.00"));
+    return reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(reportDate)
+            .rawData(rawData)
+            .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
+            .createdAt(Instant.now())
+            .build());
   }
 
   private SebPendingReportReplayer replayerAt(Instant now) {

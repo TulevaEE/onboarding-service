@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeBaseValue;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.PublishedFeeBase;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,17 +34,17 @@ class FeeBaseCompletenessChecker {
   private static final String NO_PUBLISHED_NAV = "no published NAV to compare the fee base against";
 
   private final FeeAccrualRepository feeAccrualRepository;
-  private final ExpectedFeeBases expectedFeeBases;
+  private final PublishedFeeBase publishedFeeBase;
   private final PublicHolidays publicHolidays;
   private final BigDecimal feeBaseTolerance;
 
   FeeBaseCompletenessChecker(
       FeeAccrualRepository feeAccrualRepository,
-      ExpectedFeeBases expectedFeeBases,
+      PublishedFeeBase publishedFeeBase,
       PublicHolidays publicHolidays,
       @Value("${investment.fee-check.fee-base-tolerance:0.01}") BigDecimal feeBaseTolerance) {
     this.feeAccrualRepository = feeAccrualRepository;
-    this.expectedFeeBases = expectedFeeBases;
+    this.publishedFeeBase = publishedFeeBase;
     this.publicHolidays = publicHolidays;
     this.feeBaseTolerance = feeBaseTolerance;
   }
@@ -93,7 +94,7 @@ class FeeBaseCompletenessChecker {
       mismatches.add(new DatedCondition(date, STOPPED_ACCRUING + stopped));
       return ZERO;
     }
-    var expected = expectedFeeBases.expectedBases(fund, bases, date);
+    var expected = publishedFeeBase.find(fund, date);
     if (expected.isEmpty()) {
       notRunDays.add(date);
       return ZERO;
@@ -104,15 +105,11 @@ class FeeBaseCompletenessChecker {
   private BigDecimal checkDivergence(
       LocalDate date,
       List<FeeBaseValue> bases,
-      Map<FeeType, BigDecimal> expected,
+      BigDecimal navComponent,
       List<DatedCondition> mismatches) {
     var divergent = new TreeMap<String, String>();
     var widestAbsoluteDeviation = ZERO;
     for (var base : bases) {
-      var navComponent = expected.get(base.feeType());
-      if (navComponent == null) {
-        continue;
-      }
       var deviation = navComponent.subtract(base.baseValue());
       if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
         continue;

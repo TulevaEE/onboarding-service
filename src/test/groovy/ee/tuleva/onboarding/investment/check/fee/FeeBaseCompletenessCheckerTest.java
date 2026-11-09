@@ -54,12 +54,12 @@ class FeeBaseCompletenessCheckerTest {
   @BeforeEach
   void setUp() {
     var publicHolidays = new PublicHolidays();
-    var expectedFeeBases =
-        new ExpectedFeeBases(
-            new PublishedFeeBase(fundNavQueryService, navLedgerRepository, publicHolidays));
     checker =
         new FeeBaseCompletenessChecker(
-            feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));
+            feeAccrualRepository,
+            new PublishedFeeBase(fundNavQueryService, navLedgerRepository, publicHolidays),
+            publicHolidays,
+            new BigDecimal("0.01"));
   }
 
   @Test

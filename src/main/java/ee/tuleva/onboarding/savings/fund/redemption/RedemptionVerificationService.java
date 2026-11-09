@@ -150,7 +150,7 @@ public class RedemptionVerificationService {
 
   private Verdict withRiskLevel(RedemptionRequest request, Set<RedemptionHoldReason> reasons) {
     try {
-      if (riskLevels.isHighRisk(request.getPartyId().code())) {
+      if (partyIsHighRisk(request)) {
         log.info(
             "Redemption party is high risk: id={}, party={}",
             request.getId(),
@@ -161,6 +161,13 @@ public class RedemptionVerificationService {
       return riskLevelUnavailable(request, reasons);
     }
     return reasons.isEmpty() ? new Verdict.Clear() : new Verdict.HoldPayout(reasons);
+  }
+
+  private boolean partyIsHighRisk(RedemptionRequest request) {
+    return switch (request.getPartyId().type()) {
+      case PERSON -> riskLevels.isHighRisk(request.getPartyId().code());
+      case LEGAL_ENTITY -> riskLevels.isHighRiskCompany(request.getPartyId().code());
+    };
   }
 
   private Verdict riskLevelUnavailable(
@@ -181,7 +188,7 @@ public class RedemptionVerificationService {
   private Verdict verifyLegalEntity(RedemptionRequest request) {
     var registryCode = request.getPartyId().code();
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
-      return new Verdict.Clear();
+      return withRiskLevel(request, EnumSet.noneOf(RedemptionHoldReason.class));
     }
     List<KybCheck> checks;
     try {
@@ -199,14 +206,16 @@ public class RedemptionVerificationService {
           request.getId(),
           registryCode,
           e);
-      return new Verdict.HoldPayout(Set.of(KYB_SCREENING_FAILED));
+      return withRiskLevel(request, EnumSet.of(KYB_SCREENING_FAILED));
     }
     if (checks.stream().anyMatch(check -> check.type() == COMPANY_SANCTION && !check.success())) {
       return new Verdict.Freeze();
     }
-    return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
-        ? new Verdict.Clear()
-        : new Verdict.HoldPayout(Set.of(ONBOARDING_INCOMPLETE));
+    return withRiskLevel(
+        request,
+        savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
+            ? EnumSet.noneOf(RedemptionHoldReason.class)
+            : EnumSet.of(ONBOARDING_INCOMPLETE));
   }
 
   private sealed interface Verdict {

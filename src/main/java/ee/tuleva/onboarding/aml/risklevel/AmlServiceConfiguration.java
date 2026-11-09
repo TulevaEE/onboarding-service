@@ -41,8 +41,8 @@ class AmlServiceConfiguration {
     }
     if (properties.highRiskEnabled()) {
       stopped.add(
-          "every person redemption that screening does not freeze is held, at its screening"
-              + " deadline at the latest");
+          "every person and company redemption that screening does not freeze is held, at its"
+              + " screening deadline at the latest");
     }
     if (!stopped.isEmpty()) {
       log.warn(

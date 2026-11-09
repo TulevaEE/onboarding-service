@@ -317,15 +317,114 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_legalEntityRequest_verifiesWhenLatestKybCompleted() {
+  void process_legalEntityRequest_verifiesAnOnboardedCompanyThatIsNotHighRisk() {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(true);
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(false);
 
     service().process(legalEntityRequest(requestId));
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService, legalEntityScreener);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_executesTheOrderButHoldsThePayoutWhenAnOnboardedCompanyIsHighRisk() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(true);
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(true);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+    verifyNoInteractions(legalEntityScreener);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_recordsTheAttemptAndRetriesWhileAnOnboardedCompanysRiskLevelIsUnavailable() {
+    var request = legalEntityRequest(UUID.randomUUID());
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(true);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_holdsAnOnboardedCompanysPayoutAsRiskLevelUnavailableWhenNoRiskLevelCameByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(true);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsThePayoutForEveryReasonWhenAnIncompleteCompanyIsHighRisk() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false, false);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of())));
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(true);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE, HIGH_RISK));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_holdsAnIncompleteCompanysPayoutAtOnceWhenItsRiskLevelIsUnavailable() {
+    var request = legalEntityRequest(UUID.randomUUID());
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false, false);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of())));
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(holdService)
+        .holdPayout(request.getId(), Set.of(ONBOARDING_INCOMPLETE, RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(request.getId(), RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
+  }
+
+  @Test
+  void process_legalEntityRequest_reScreensThenHoldsThePayoutIfTheNowOnboardedCompanyIsHighRisk() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false, true);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_SANCTION, true, Map.of())));
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(true);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -339,7 +438,7 @@ class RedemptionVerificationServiceTest {
     service().process(legalEntityRequest(requestId));
 
     verify(holdService).freeze(requestId);
-    verifyNoInteractions(redemptionStatusService);
+    verifyNoInteractions(redemptionStatusService, riskLevels);
   }
 
   @Test
@@ -398,7 +497,7 @@ class RedemptionVerificationServiceTest {
     service().process(legalEntityRequest(requestId));
 
     verify(holdService).freeze(requestId);
-    verifyNoInteractions(redemptionStatusService);
+    verifyNoInteractions(redemptionStatusService, riskLevels);
   }
 
   @Test
@@ -414,7 +513,7 @@ class RedemptionVerificationServiceTest {
 
     verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
     verify(redemptionRequestRepository, never()).save(any());
-    verifyNoInteractions(holdService, redemptionStatusService);
+    verifyNoInteractions(holdService, redemptionStatusService, riskLevels);
   }
 
   @Test
@@ -445,6 +544,62 @@ class RedemptionVerificationServiceTest {
 
     verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_holdsThePayoutAsHighRiskTooWhenTheScreenerFailsForAHighRiskCompany() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false);
+    willThrow(new IllegalStateException("No board members"))
+        .given(legalEntityScreener)
+        .screenLatest(REGISTRY_CODE);
+    given(riskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(true);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED, HIGH_RISK));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_holdsThePayoutAtOnceWhenTheScreenerFailsAndTheRiskLevelIsUnavailable() {
+    var request = legalEntityRequest(UUID.randomUUID());
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false);
+    willThrow(new IllegalStateException("No board members"))
+        .given(legalEntityScreener)
+        .screenLatest(REGISTRY_CODE);
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(holdService)
+        .holdPayout(request.getId(), Set.of(KYB_SCREENING_FAILED, RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(request.getId(), RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
+  }
+
+  @Test
+  void
+      process_legalEntityRequest_reScreensThenRetriesWhileTheNowOnboardedCompanysRiskLevelIsUnavailable() {
+    var request = legalEntityRequest(UUID.randomUUID());
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false, true);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_SANCTION, true, Map.of())));
+    willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
+        .given(riskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
   }
 
   private User givenPersonWithCountries() {

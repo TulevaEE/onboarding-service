@@ -18,4 +18,10 @@ class ConfiguredRiskLevels implements RiskLevels {
         ? effectiveRiskLevels.isHighRisk(personalCode)
         : amlCheckRiskLevels.isHighRisk(personalCode);
   }
+
+  @Override
+  public boolean isHighRiskCompany(String registryCode) {
+    return amlServiceProperties.highRiskEnabled()
+        && effectiveRiskLevels.isHighRiskCompany(registryCode);
+  }
 }

@@ -10,5 +10,5 @@ interface JobTriggerRepository extends JpaRepository<JobTrigger, Long> {
 
   Optional<JobTrigger> findFirstByJobNameAndStatus(String jobName, String status);
 
-  boolean existsByIdAndStatusNot(Long id, String status);
+  Optional<JobTrigger> findByIdAndStatus(Long id, String status);
 }

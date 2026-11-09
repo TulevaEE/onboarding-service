@@ -99,36 +99,42 @@ class JobTriggerPoller {
   }
 
   private void runPending(List<JobTrigger> pending, Instant leaseDeadline) {
-    for (var trigger : pending) {
+    for (var listed : pending) {
       if (!clock().instant().isBefore(leaseDeadline)) {
         log.info(
             "Job trigger poll leaves the rest for the next poll, its lease is nearly spent:"
                 + " nextJobName={}",
-            trigger.getJobName());
+            listed.getJobName());
         return;
       }
-      if (repository.existsByIdAndStatusNot(trigger.getId(), "PENDING")) {
-        log.info(
-            "Job trigger skipped, another poll already took it: jobName={}", trigger.getJobName());
-        continue;
-      }
-      var eventFactory = eventFor(trigger.getJobName());
-      if (eventFactory.isEmpty()) {
-        markFailed(trigger, "Unknown job: " + trigger.getJobName());
-        continue;
-      }
+      repository
+          .findByIdAndStatus(listed.getId(), "PENDING")
+          .ifPresentOrElse(
+              this::run,
+              () ->
+                  log.info(
+                      "Job trigger skipped, another poll already took it: jobName={}",
+                      listed.getJobName()));
+    }
+  }
 
-      markProcessing(trigger);
-      try {
-        eventPublisher.publishEvent(eventFactory.get().get());
-        markCompleted(trigger);
-        log.info("Job trigger completed: jobName={}", trigger.getJobName());
-      } catch (JobBusyException e) {
-        retryOnTheNextPollUnlessBusyTooLong(trigger, e);
-      } catch (Exception e) {
-        markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
-        log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
-      }
+  private void run(JobTrigger trigger) {
+    var eventFactory = eventFor(trigger.getJobName());
+    if (eventFactory.isEmpty()) {
+      markFailed(trigger, "Unknown job: " + trigger.getJobName());
+      return;
+    }
+
+    markProcessing(trigger);
+    try {
+      eventPublisher.publishEvent(eventFactory.get().get());
+      markCompleted(trigger);
+      log.info("Job trigger completed: jobName={}", trigger.getJobName());
+    } catch (JobBusyException e) {
+      retryOnTheNextPollUnlessBusyTooLong(trigger, e);
+    } catch (Exception e) {
+      markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
+      log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
     }
   }
 

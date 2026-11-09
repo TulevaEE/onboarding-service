@@ -36,6 +36,7 @@ class SebMatchedRowProcessor {
       TransactionMatchingProperties matchingProperties,
       ReconciliationRun run) {
     if (!consistencyChecker.isConsistent(order, row, reportDate)) {
+      executionUpserter.dateByFirstListingOnly(row, order, reportDate, asOfDate, run);
       return RowOutcome.MATCHED;
     }
     Optional<TransactionSettlement> settlement = settlementRepository.findByOrderId(order.getId());

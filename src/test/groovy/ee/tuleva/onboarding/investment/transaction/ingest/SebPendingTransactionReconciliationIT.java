@@ -574,6 +574,55 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_firstListingLacksAnIsin_datesTheLinkedExecutionOnlyAndAuditsTheDateChange() {
+    report.getRawData().get(0).put("ISIN", "");
+    reportRepository.save(report);
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    TransactionExecution storedLate =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .totalConsideration(new BigDecimal("50000.00"))
+                .source("HISTORICAL_IMPORT")
+                .reportedDate(LocalDate.of(2026, 3, 1))
+                .build());
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution dated = executionRepository.findById(storedLate.getId()).orElseThrow();
+    assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(dated.getExecutedQuantity()).isEqualByComparingTo("2669.9");
+    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("50000.00");
+    assertThat(dated.getUnitPrice()).isNull();
+    assertThat(dated.getSource()).isEqualTo("HISTORICAL_IMPORT");
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                order.getId(), "INCONSISTENT_MATCHED_ROW"))
+        .singleElement()
+        .satisfies(event -> assertThat(event.getPayload()).containsEntry("reason", "MISSING_ISIN"));
+    List<TransactionAuditEvent> updates =
+        auditEventRepository.findByOrderIdAndEventType(order.getId(), "EXECUTION_UPDATED");
+    assertThat(updates).hasSize(1);
+    Map<String, Object> before = executionSnapshot(updates.get(0), "before");
+    Map<String, Object> onlyTheDateMoved = new HashMap<>(before);
+    onlyTheDateMoved.put("reportedDate", "2026-02-12");
+    assertThat(before)
+        .containsEntry("reportedDate", "2026-03-01")
+        .containsEntry("totalConsideration", "50000.00")
+        .containsEntry("source", "HISTORICAL_IMPORT");
+    assertThat(executionSnapshot(updates.get(0), "after")).isEqualTo(onlyTheDateMoved);
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(EXECUTED);
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
@@ -1023,6 +1072,11 @@ class SebPendingTransactionReconciliationIT {
             .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
             .createdAt(Instant.now())
             .build());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> executionSnapshot(TransactionAuditEvent update, String side) {
+    return (Map<String, Object>) update.getPayload().get(side);
   }
 
   private List<Map<String, Object>> loadFixtureRawData() {

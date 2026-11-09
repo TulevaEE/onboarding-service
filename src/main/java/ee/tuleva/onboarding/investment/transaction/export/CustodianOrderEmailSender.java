@@ -43,14 +43,15 @@ public class CustodianOrderEmailSender {
       message = messageFactory.create(fund, timestamp, exports);
     } catch (RuntimeException e) {
       log.error(
-          "Custodian order email could not be built, reporting it as not sent once the batch"
-              + " commits: batchId={}, fund={}",
+          "Custodian order email could not be built, recording it as not sent with the batch:"
+              + " batchId={}, fund={}",
           batchId,
           fund,
           e);
       var subject = messageFactory.subject(fund, timestamp);
       var problem = e.toString();
-      return () -> notifier.reportNotBuilt(batchId, subject, problem);
+      notifier.recordNotBuilt(batchId, subject, problem);
+      return () -> notifier.postNotBuilt(batchId, subject, problem);
     }
     notifier.reportSendAttempt(batchId, message);
     return () -> send(batchId, fund, message);

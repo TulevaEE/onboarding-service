@@ -73,6 +73,11 @@ class CustodianOrderEmailNotifierIT {
           + " (at 15.01.2026 12:00)\n"
           + "No send result was recorded: the service may have stopped while sending.\n"
           + "It may have gone out. Check the Cc copy or ask the desk before sending again.";
+  private static final String ORDERS_NOT_BUILT =
+      "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
+          + "The message could not be built: java.lang.IllegalStateException: an export has no"
+          + " file name\n"
+          + "Nothing went out to the desk. Fix the cause, then send the orders again.";
   private static final Instant FOUR_MINUTES_LATER = SENT_AT.plus(Duration.ofMinutes(4));
   private static final Instant PAST_FIVE_MINUTES =
       SENT_AT.plus(Duration.ofMinutes(5)).plusSeconds(1);
@@ -311,18 +316,38 @@ class CustodianOrderEmailNotifierIT {
     sendAfterTheBatchCommits();
 
     then(orderEmailTransport).shouldHaveNoInteractions();
-    then(notificationService)
-        .should()
-        .sendMessage(
-            "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
-                + "The message could not be built: java.lang.IllegalStateException: an export has"
-                + " no file name\n"
-                + "Nothing went out to the desk. Fix the cause, then send the orders again.",
-            TRADING,
-            ERROR);
+    then(notificationService).should().sendMessage(ORDERS_NOT_BUILT, TRADING, ERROR);
+    then(notificationService).shouldHaveNoMoreInteractions();
     assertThat(eventLogRepository.findAll())
         .singleElement()
         .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "POSTED"));
+  }
+
+  @Test
+  void
+      anOrderEmailThatCannotBeBuiltIsRecordedAsNotSentWithTheBatch_soTheRunPostsItIfTheServiceStopsBeforeTheCommitCallback() {
+    willThrow(new IllegalStateException("an export has no file name"))
+        .given(messageFactory)
+        .create(any(), any(), any());
+
+    new TransactionTemplate(transactionManager).executeWithoutResult(status -> prepareTheSend());
+
+    runAt(SENT_AT.plus(Duration.ofMinutes(1)));
+    then(notificationService).shouldHaveNoInteractions();
+
+    runAt(SENT_AT.plus(Duration.ofMinutes(2)).plusSeconds(1));
+    runAt(SENT_AT.plus(Duration.ofMinutes(3)));
+
+    then(notificationService).should().sendMessage(ORDERS_NOT_BUILT, TRADING, ERROR);
+    then(notificationService).shouldHaveNoMoreInteractions();
+    then(orderEmailTransport).shouldHaveNoInteractions();
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(
+            row ->
+                assertThat(row.getData())
+                    .isEqualTo(
+                        Map.of("text", ORDERS_NOT_BUILT, "severity", "ERROR", "alert", "POSTED")));
   }
 
   @Test

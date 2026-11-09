@@ -47,8 +47,19 @@ class CustodianOrderEmailNotifier {
     post(batchId, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
   }
 
-  void reportNotBuilt(long batchId, String subject, String problem) {
-    post(batchId, ordersNotSent(subject, "The message could not be built: " + problem), ERROR);
+  void recordNotBuilt(long batchId, String subject, String problem) {
+    alertRows.recordFailedSend(batchId, notBuilt(subject, problem));
+  }
+
+  void postNotBuilt(long batchId, String subject, String problem) {
+    var text = notBuilt(subject, problem);
+    if (postedToSlack(batchId, text, ERROR)) {
+      markPosted(batchId, text);
+    }
+  }
+
+  private static String notBuilt(String subject, String problem) {
+    return ordersNotSent(subject, "The message could not be built: " + problem);
   }
 
   private static String ordersNotSent(String subject, String cause) {

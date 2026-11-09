@@ -42,9 +42,10 @@ class SebExecutionUpserter {
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
       Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
-      Optional<LocalDate> restamped = restampedReportedDate(run, row, asOfDate);
       executionMapper.applyTo(execution, row, order);
-      restamped.ifPresent(execution::setReportedDate);
+      if (run.mode() == ReconciliationMode.REPLAY) {
+        execution.setReportedDate(firstListedOn(run, row, asOfDate));
+      }
       executionRepository.save(execution);
       Map<String, Object> after = executionMapper.mutableFieldsForDeltaAudit(execution);
       if (!before.equals(after)) {
@@ -52,7 +53,8 @@ class SebExecutionUpserter {
             order, row, reportDate, before, after, sebReportedQuantity);
       }
     } else {
-      executionRepository.save(executionMapper.toExecution(row, order, asOfDate));
+      executionRepository.save(
+          executionMapper.toExecution(row, order, firstListedOn(run, row, asOfDate)));
       auditRecorder.recordExecutionMatched(order, row, reportDate, sebReportedQuantity);
     }
 
@@ -61,12 +63,11 @@ class SebExecutionUpserter {
     return true;
   }
 
-  private static Optional<LocalDate> restampedReportedDate(
+  private static LocalDate firstListedOn(
       ReconciliationRun run, SebPendingTransactionRow row, LocalDate asOfDate) {
-    if (run.mode() == ReconciliationMode.LIVE || run.listings().listedBefore(row.ourRef())) {
-      return Optional.empty();
-    }
-    return Optional.of(asOfDate);
+    return run.mode() == ReconciliationMode.REPLAY
+        ? run.listings().firstListedOn(row.ourRef()).orElse(asOfDate)
+        : asOfDate;
   }
 
   private boolean wouldOrphanExistingExecution(

@@ -1817,7 +1817,8 @@ class SebPendingTransactionReconciliationServiceTest {
     Map<String, Object> raw = validRawRow(UUID.randomUUID());
     raw.put("Our ref", brokerRef);
     SebReplayListings listings = new SebReplayListings();
-    listings.addListedBy(List.of(SebPendingTransactionRow.fromRawData(raw)));
+    listings.addListedBy(
+        List.of(SebPendingTransactionRow.fromRawData(raw)), LocalDate.of(2026, 5, 11));
     return listings;
   }
 

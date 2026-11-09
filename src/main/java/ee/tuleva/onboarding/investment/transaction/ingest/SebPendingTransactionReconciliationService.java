@@ -76,15 +76,18 @@ public class SebPendingTransactionReconciliationService {
   }
 
   void noteListedBy(InvestmentReport report, SebReplayListings listings) {
-    listings.addListedBy(extractor.extract(report));
+    listings.addListedBy(extractor.extract(report), asOfDateOf(report));
+  }
+
+  private LocalDate asOfDateOf(InvestmentReport report) {
+    return sebReportAsOfDate.resolveOrFallBackToReportDate(
+        PENDING_TRANSACTIONS, report.getReportDate(), report.getMetadata(), report.getRawData());
   }
 
   private SettlementCheck reconcile(
       InvestmentReport report, ReconciliationRun run, BooleanSupplier stillHoldsTheLock) {
     LocalDate reportDate = report.getReportDate();
-    LocalDate asOfDate =
-        sebReportAsOfDate.resolveOrFallBackToReportDate(
-            PENDING_TRANSACTIONS, reportDate, report.getMetadata(), report.getRawData());
+    LocalDate asOfDate = asOfDateOf(report);
 
     SebPendingTransactionExtractor.ExtractionResult extraction =
         extractor.extractWithDiagnostics(report);
@@ -122,7 +125,7 @@ public class SebPendingTransactionReconciliationService {
     if (!stillHoldsTheLock.getAsBoolean()) {
       throw new SebReconciliationLockLostException(reportDate);
     }
-    run.listings().addListedBy(rows);
+    run.listings().addListedBy(rows, asOfDate);
     return check;
   }
 

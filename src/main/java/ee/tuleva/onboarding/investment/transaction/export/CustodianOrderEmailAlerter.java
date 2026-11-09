@@ -61,6 +61,8 @@ class CustodianOrderEmailAlerter {
   private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
       "not posted within the 24 hour retry window";
   private static final String DATA_CANNOT_BE_READ = "its data cannot be read";
+  private static final String NOT_RESOLVED_BEFORE_THE_RUNS_TWO_DAY_READ_WINDOW =
+      "still unresolved when it fell out of the run's two-day read window";
 
   private final OperationsNotificationService notificationService;
   private final EventLogRepository eventLogRepository;
@@ -135,6 +137,20 @@ class CustodianOrderEmailAlerter {
         slots--;
       }
     }
+  }
+
+  @Scheduled(fixedRateString = "1h")
+  @SchedulerLock(
+      name = "CustodianOrderEmailAlerter_giveUpAlertsOlderThanTheReadWindow",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "1m")
+  void giveUpAlertsOlderThanTheReadWindow() {
+    eventLogRepository
+        .findAllByTypeInAndTimestampLessThan(
+            RECORDED_TYPES, clock.instant().minus(RETRY_WINDOW).minus(GIVE_UP_LOOKBACK))
+        .stream()
+        .filter(OrderEmailAlertRows::isUnresolved)
+        .forEach(row -> giveUp(row, NOT_RESOLVED_BEFORE_THE_RUNS_TWO_DAY_READ_WINDOW));
   }
 
   private boolean postTakesASlot(EventLog row, Instant now) {

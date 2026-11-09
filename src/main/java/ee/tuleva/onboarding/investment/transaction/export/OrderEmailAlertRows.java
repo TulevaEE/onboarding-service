@@ -128,18 +128,20 @@ class OrderEmailAlertRows {
             status ->
                 eventLogRepository
                     .findLockedById(requireNonNull(row.getId()))
-                    .filter(
-                        locked ->
-                            locked.getData() == null
-                                || isIn(NOT_POSTED, locked)
-                                || isIn(SENDING, locked)
-                                || isIn(CLAIMED, locked))
+                    .filter(OrderEmailAlertRows::isUnresolved)
                     .map(
                         locked -> {
                           moveTo(GIVEN_UP, locked);
                           return true;
                         })
                     .orElse(false)));
+  }
+
+  static boolean isUnresolved(EventLog row) {
+    return row.getData() == null
+        || isIn(NOT_POSTED, row)
+        || isIn(SENDING, row)
+        || isIn(CLAIMED, row);
   }
 
   static boolean isReadable(EventLog row) {

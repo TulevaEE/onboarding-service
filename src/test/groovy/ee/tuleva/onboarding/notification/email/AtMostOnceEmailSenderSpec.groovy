@@ -245,6 +245,19 @@ class AtMostOnceEmailSenderSpec extends Specification {
     result.problem() != null
   }
 
+  def "counts the email as failed without calling Mandrill when the message cannot be serialised"() {
+    given:
+    message.globalMergeVars = [new MandrillMessage.MergeVar("unserialisable", String)]
+
+    when:
+    def result = sender.send(message)
+
+    then:
+    server.verify()
+    result.outcome() == FAILED
+    result.statuses() == []
+  }
+
   def "counts the email as failed when Mandrill's port refuses the connection"() {
     given:
     def closedPort = new ServerSocket(0).withCloseable { it.localPort }

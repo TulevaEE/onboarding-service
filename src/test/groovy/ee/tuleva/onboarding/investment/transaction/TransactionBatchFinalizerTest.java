@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -50,6 +51,7 @@ class TransactionBatchFinalizerTest {
   @Mock private GoogleDriveProperties driveProperties;
   @Mock private TransactionExportUploader exportUploader;
   @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
+  @Mock private Runnable sendTheOrders;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private PlatformTransactionManager transactionManager;
   @Mock private Clock clock;
@@ -505,10 +507,12 @@ class TransactionBatchFinalizerTest {
     given(exportUploader.uploadExports(any(), any(), any(), any())).willReturn(driveFileUrls);
     given(batchRepository.findById(1L))
         .willThrow(new DataAccessResourceFailureException("database unavailable"));
+    given(custodianOrderEmailSender.prepareSend(eq(1L), eq(TUV100), any(), any()))
+        .willReturn(sendTheOrders);
 
     finalizer.finalizeConfirmedBatch(batch);
 
-    verify(custodianOrderEmailSender).send(eq(batch.getId()), eq(TUV100), any(), any());
+    then(sendTheOrders).should().run();
     verify(eventPublisher)
         .publishEvent(new BatchFinalizedEvent(1L, 0, "2026-01-15", driveFileUrls));
   }
@@ -558,13 +562,15 @@ class TransactionBatchFinalizerTest {
     var committedBatch = committedCopyOf(batch);
     given(batchRepository.findById(1L)).willReturn(Optional.of(committedBatch));
 
+    given(custodianOrderEmailSender.prepareSend(eq(1L), eq(TUV100), any(), any()))
+        .willReturn(sendTheOrders);
     TransactionSynchronizationManager.initSynchronization();
 
     finalizer.finalizeConfirmedBatch(batch);
 
     verifyNoInteractions(exportUploader);
-    verify(custodianOrderEmailSender).recordAttempt(eq(1L), eq(TUV100), any(), any());
-    verify(custodianOrderEmailSender, never()).send(anyLong(), any(), any(), any());
+    then(custodianOrderEmailSender).should().prepareSend(eq(1L), eq(TUV100), any(), any());
+    then(sendTheOrders).shouldHaveNoInteractions();
     verify(eventPublisher, never()).publishEvent(any(BatchFinalizedEvent.class));
 
     var synchronizations = TransactionSynchronizationManager.getSynchronizations();
@@ -580,12 +586,10 @@ class TransactionBatchFinalizerTest {
                 "driveFileUrls",
                 Map.of("sebFundXlsx", "https://drive.google.com/file1")));
     verify(batchRepository).save(committedBatch);
-    var ordersBeforeDrive = inOrder(custodianOrderEmailSender, exportUploader);
-    ordersBeforeDrive
-        .verify(custodianOrderEmailSender)
-        .send(eq(batch.getId()), eq(TUV100), any(), any());
-    ordersBeforeDrive
-        .verify(exportUploader)
+    var ordersBeforeDrive = inOrder(sendTheOrders, exportUploader);
+    then(sendTheOrders).should(ordersBeforeDrive).run();
+    then(exportUploader)
+        .should(ordersBeforeDrive)
         .uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }

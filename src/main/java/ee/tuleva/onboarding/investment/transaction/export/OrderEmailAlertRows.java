@@ -10,8 +10,10 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +32,10 @@ class OrderEmailAlertRows {
   private static final String NOT_POSTED = "NOT_POSTED";
   private static final String POSTED = "POSTED";
   private static final String GIVEN_UP = "GIVEN_UP";
+  private static final String CLAIMED = "CLAIMED";
+  private static final String CLAIMED_AT = "claimedAt";
+  private static final Duration CLAIM_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
+      Duration.ofMinutes(2);
   private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
       Duration.ofMinutes(2);
   private static final Duration SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S =
@@ -85,19 +91,26 @@ class OrderEmailAlertRows {
   }
 
   boolean postIfStillDue(EventLog row, Instant now, Consumer<EventLog> post) {
-    return Boolean.TRUE.equals(
+    var id = requireNonNull(row.getId());
+    var claimed =
         inItsOwnTransaction.execute(
             status ->
                 eventLogRepository
-                    .findLockedById(requireNonNull(row.getId()))
+                    .findLockedById(id)
                     .filter(locked -> isDue(locked, now))
-                    .map(
-                        locked -> {
-                          post.accept(locked);
-                          moveTo(POSTED, locked);
-                          return true;
-                        })
-                    .orElse(false)));
+                    .map(locked -> claim(locked, now))
+                    .orElse(null));
+    if (claimed == null) {
+      return false;
+    }
+    post.accept(claimed);
+    inItsOwnTransaction.executeWithoutResult(
+        status ->
+            eventLogRepository
+                .findLockedById(id)
+                .filter(locked -> isStillClaimedAs(claimed, locked))
+                .ifPresent(locked -> moveTo(POSTED, locked)));
+    return true;
   }
 
   boolean giveUp(EventLog row) {
@@ -110,7 +123,8 @@ class OrderEmailAlertRows {
                         locked ->
                             locked.getData() == null
                                 || isIn(NOT_POSTED, locked)
-                                || isIn(SENDING, locked))
+                                || isIn(SENDING, locked)
+                                || isIn(CLAIMED, locked))
                     .map(
                         locked -> {
                           moveTo(GIVEN_UP, locked);
@@ -142,7 +156,7 @@ class OrderEmailAlertRows {
         status -> {
           var result =
               latestSendResultLocked(batchId)
-                  .filter(row -> isIn(SENDING, row))
+                  .filter(row -> isIn(SENDING, row) || isIn(CLAIMED, row))
                   .orElseGet(
                       () ->
                           EventLog.builder()
@@ -160,22 +174,56 @@ class OrderEmailAlertRows {
         SEND_RESULT_TYPE, String.valueOf(batchId));
   }
 
+  private EventLog claim(EventLog row, Instant now) {
+    Map<String, @Nullable Object> data = new HashMap<>(row.getData());
+    data.put(ALERT, CLAIMED);
+    data.put(CLAIMED_AT, now.toString());
+    row.setData(data);
+    eventLogRepository.save(row);
+    return row;
+  }
+
   private void moveTo(String alert, EventLog row) {
     Map<String, @Nullable Object> data =
         row.getData() == null ? new HashMap<>() : new HashMap<>(row.getData());
     data.put(ALERT, alert);
+    data.remove(CLAIMED_AT);
     row.setData(data);
     eventLogRepository.save(row);
   }
 
+  private static boolean isStillClaimedAs(EventLog claimed, EventLog row) {
+    return isIn(CLAIMED, row)
+        && Objects.equals(claimed.getData().get(CLAIMED_AT), row.getData().get(CLAIMED_AT));
+  }
+
   private static boolean isDue(EventLog row, Instant now) {
-    return row.getData() != null
-        && (isIn(NOT_POSTED, row) && !isLeftToItsDirectPost(row, now)
-            || isIn(SENDING, row)
-                && row.getTimestamp()
-                    .isBefore(
-                        now.minus(
-                            SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S)));
+    return isNotYetPostedAndNotLeftToItsDirectPost(row, now)
+        || isAbandonedSendAttempt(row, now)
+        || isExpiredClaim(row, now);
+  }
+
+  private static boolean isNotYetPostedAndNotLeftToItsDirectPost(EventLog row, Instant now) {
+    return isIn(NOT_POSTED, row) && !isLeftToItsDirectPost(row, now);
+  }
+
+  private static boolean isAbandonedSendAttempt(EventLog row, Instant now) {
+    return isIn(SENDING, row)
+        && row.getTimestamp()
+            .isBefore(now.minus(SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S));
+  }
+
+  private static boolean isExpiredClaim(EventLog row, Instant now) {
+    return isIn(CLAIMED, row)
+        && claimedBefore(row, now.minus(CLAIM_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT));
+  }
+
+  private static boolean claimedBefore(EventLog row, Instant cutoff) {
+    try {
+      return Instant.parse(String.valueOf(row.getData().get(CLAIMED_AT))).isBefore(cutoff);
+    } catch (DateTimeParseException e) {
+      return true;
+    }
   }
 
   private static boolean isLeftToItsDirectPost(EventLog row, Instant now) {
@@ -185,7 +233,7 @@ class OrderEmailAlertRows {
   }
 
   private static boolean isIn(String alert, EventLog row) {
-    return alert.equals(row.getData().get(ALERT));
+    return row.getData() != null && alert.equals(row.getData().get(ALERT));
   }
 
   private static EventLog row(

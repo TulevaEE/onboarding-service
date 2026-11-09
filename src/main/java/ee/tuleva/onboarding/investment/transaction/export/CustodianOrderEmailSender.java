@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.UNKNOWN;
 
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.AtMostOnceEmailSender;
+import ee.tuleva.onboarding.notification.email.EmailSendResult;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,14 +24,7 @@ public class CustodianOrderEmailSender {
   private final AtMostOnceEmailSender custodianOrderEmailTransport;
   private final CustodianOrderEmailNotifier notifier;
 
-  public void recordAttempt(
-      long batchId, TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
-    if (properties.isSendable() && hasContent(exports)) {
-      notifier.reportSendAttempt(batchId, messageFactory.create(fund, timestamp, exports));
-    }
-  }
-
-  public boolean send(
+  public Runnable prepareSend(
       long batchId, TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
     if (!properties.isSendable()) {
       log.info(
@@ -35,29 +32,53 @@ public class CustodianOrderEmailSender {
           properties.enabled(),
           properties.to().size(),
           fund);
-      return false;
+      return () -> {};
     }
     if (!hasContent(exports)) {
       log.warn("Custodian order email not sent: no export content, fund={}", fund);
-      return false;
+      return () -> {};
     }
+    MandrillMessage message;
+    try {
+      message = messageFactory.create(fund, timestamp, exports);
+    } catch (RuntimeException e) {
+      log.error(
+          "Custodian order email could not be built, reporting it as not sent once the batch"
+              + " commits: batchId={}, fund={}",
+          batchId,
+          fund,
+          e);
+      var subject = messageFactory.subject(fund, timestamp);
+      var problem = e.toString();
+      return () -> notifier.reportNotBuilt(batchId, subject, problem);
+    }
+    notifier.reportSendAttempt(batchId, message);
+    return () -> send(batchId, fund, message);
+  }
 
-    var message = messageFactory.create(fund, timestamp, exports);
-    var result = custodianOrderEmailTransport.send(message);
+  private void send(long batchId, TulevaFund fund, MandrillMessage message) {
+    var result = sent(message);
     notifier.reportSendResult(batchId, message, result);
-    if (result.outcome() != SENT) {
+    if (result.outcome() == SENT) {
+      log.info(
+          "Custodian order email sent: fund={}, attachments={}",
+          fund,
+          message.getAttachments().size());
+    } else {
       log.error(
           "Custodian order email not confirmed as sent: fund={}, outcome={}, problem={}",
           fund,
           result.outcome(),
           result.problem());
-      return false;
     }
-    log.info(
-        "Custodian order email sent: fund={}, attachments={}",
-        fund,
-        message.getAttachments().size());
-    return true;
+  }
+
+  private EmailSendResult sent(MandrillMessage message) {
+    try {
+      return custodianOrderEmailTransport.send(message);
+    } catch (RuntimeException e) {
+      return new EmailSendResult(UNKNOWN, List.of(), "The send failed unexpectedly: " + e);
+    }
   }
 
   private static boolean hasContent(Map<String, byte[]> exports) {

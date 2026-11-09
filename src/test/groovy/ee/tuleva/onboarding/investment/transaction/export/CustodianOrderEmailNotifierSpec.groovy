@@ -233,6 +233,37 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     1 * eventLogRepository.save({ EventLog it -> it.id == 7L && it.data == [text: greenLine, severity: "INFO", alert: "POSTED"] })
   }
 
+  def "a latest row with no data is in no state, so the result is written as a row of its own and still posted"() {
+    given:
+    latestSendResultRow = {
+      Optional.of(EventLog.builder().id(9L).type("TRADE_ORDER_EMAIL_SEND_RESULT").principal("42").timestamp(sentAt).build())
+    }
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    noExceptionThrown()
+    1 * eventLogRepository.save({ EventLog it ->
+      it.id == null && it.data == [text: greenLine, severity: "INFO", alert: "NOT_POSTED"]
+    })
+    1 * notificationService.sendMessage(greenLine, TRADING, INFO)
+  }
+
+  def "posts a red line saying nothing went out when the order email could not be built"() {
+    when:
+    notifier.reportNotBuilt(
+        42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.principal == "42" && it.data.alert == "NOT_POSTED" })
+    1 * notificationService.sendMessage(
+        "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
+            "The message could not be built: java.lang.IllegalStateException: an export has no file name\n" +
+            "Nothing went out to the desk. Fix the cause, then send the orders again.",
+        TRADING, ERROR)
+  }
+
   def "records the result as a row of its own when the attempt could not be recorded"() {
     when:
     notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))

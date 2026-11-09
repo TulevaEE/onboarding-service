@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploa
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -25,11 +27,14 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @DataJpaTest
+@RecordApplicationEvents
 @Transactional(propagation = NOT_SUPPORTED)
 @Import({
   TransactionBatchFinalizer.class,
@@ -46,6 +51,7 @@ class TransactionBatchFinalizerTransactionTest {
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private ApplicationEvents events;
 
   @MockitoBean private SettlementDateCalculator settlementDateCalculator;
   @MockitoBean private TransactionExportService exportService;
@@ -89,6 +95,35 @@ class TransactionBatchFinalizerTransactionTest {
         .usingRecursiveComparison()
         .ignoringFields("version")
         .isEqualTo(sentBatchWithDriveFileUrls(confirmedId));
+  }
+
+  @Test
+  void
+      aThrowingOrderEmailStepStillCopiesToDriveAndPublishesTheEvent_andTheNextConfirmedBatchIsStillFinalized() {
+    var firstId = saveConfirmedBatch();
+    var secondId = saveConfirmedBatch();
+    givenExportsUploadedToDrive();
+    given(custodianOrderEmailSender.prepareSend(anyLong(), eq(TUV100), eq(NOW), any()))
+        .willReturn(
+            () -> {
+              throw new IllegalStateException("the order email step failed");
+            });
+
+    for (var confirmedId : List.of(firstId, secondId)) {
+      new TransactionTemplate(transactionManager)
+          .executeWithoutResult(
+              status ->
+                  finalizer.finalizeConfirmedBatch(
+                      batchRepository.findById(confirmedId).orElseThrow()));
+    }
+
+    assertThat(batchRepository.findAllById(List.of(firstId, secondId)))
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("version")
+        .containsExactlyInAnyOrder(
+            sentBatchWithDriveFileUrls(firstId), sentBatchWithDriveFileUrls(secondId));
+    assertThat(events.stream(BatchFinalizedEvent.class))
+        .extracting(BatchFinalizedEvent::batchId)
+        .containsExactly(firstId, secondId);
   }
 
   private Long saveConfirmedBatch() {

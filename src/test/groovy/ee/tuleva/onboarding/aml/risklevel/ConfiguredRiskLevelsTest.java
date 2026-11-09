@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 class ConfiguredRiskLevelsTest {
 
   private static final String PERSONAL_CODE = "38888888888";
+  private static final String REGISTRY_CODE = "16001234";
 
   private final AmlCheckRiskLevels amlCheckRiskLevels = mock(AmlCheckRiskLevels.class);
   private final EffectiveRiskLevels effectiveRiskLevels = mock(EffectiveRiskLevels.class);
@@ -52,6 +53,30 @@ class ConfiguredRiskLevelsTest {
     assertThatThrownBy(() -> withHighRiskFromAmlService().isHighRisk(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
     verifyNoInteractions(amlCheckRiskLevels);
+  }
+
+  @Test
+  void noCompanyIsHighRiskWhileHighRiskFromAmlServiceIsDisabled() {
+    assertThat(withHighRiskFromAmlChecks().isHighRiskCompany(REGISTRY_CODE)).isFalse();
+    verifyNoInteractions(effectiveRiskLevels, amlCheckRiskLevels);
+  }
+
+  @Test
+  void asksAmlServiceForTheCompanysEffectiveLevelOnceHighRiskFromAmlServiceIsEnabled() {
+    given(effectiveRiskLevels.isHighRiskCompany(REGISTRY_CODE)).willReturn(true);
+
+    assertThat(withHighRiskFromAmlService().isHighRiskCompany(REGISTRY_CODE)).isTrue();
+    verifyNoInteractions(amlCheckRiskLevels);
+  }
+
+  @Test
+  void passesOnThatAmlServiceCouldNotAnswerForACompanyOnceHighRiskFromAmlServiceIsEnabled() {
+    willThrow(new RiskLevelUnavailableException("aml-service could not answer"))
+        .given(effectiveRiskLevels)
+        .isHighRiskCompany(REGISTRY_CODE);
+
+    assertThatThrownBy(() -> withHighRiskFromAmlService().isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
   }
 
   private RiskLevels withHighRiskFromAmlChecks() {

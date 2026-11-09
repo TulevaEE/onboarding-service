@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class RiskLevelsWiringTest {
 
   private static final String PERSONAL_CODE = "38888888888";
+  private static final String REGISTRY_CODE = "16001234";
   private static final String API_TOKEN = "test-api-token-of-at-least-thirty-two-characters";
   private static final String CUSTOMIZED_HEADER = "X-Seen-By-A-Customizer";
 
@@ -40,7 +41,12 @@ class RiskLevelsWiringTest {
           if (exchange.getRequestHeaders().containsKey(CUSTOMIZED_HEADER)) {
             requestsSeenByCustomizers.add(exchange.getRequestURI().getPath());
           }
-          var body = "{\"families\": [{\"family\": \"tkf\", \"effective\": \"HIGH\"}]}";
+          var family =
+              exchange.getRequestURI().getPath().startsWith("/v1/risk-levels/effective/companies/")
+                  ? "company"
+                  : "tkf";
+          var body =
+              "{\"families\": [{\"family\": \"%s\", \"effective\": \"HIGH\"}]}".formatted(family);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, body.getBytes(UTF_8).length);
           exchange.getResponseBody().write(body.getBytes(UTF_8));
@@ -64,6 +70,30 @@ class RiskLevelsWiringTest {
               assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
               assertThat(requestedPaths)
                   .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
+            });
+  }
+
+  @Test
+  void asksAmlServiceForTheCompanysEffectiveLevelWhenHighRiskIsEnabled() {
+    contextRunner()
+        .withPropertyValues("aml-service.high-risk-enabled=true")
+        .run(
+            context -> {
+              assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
+                  .isTrue();
+              assertThat(requestedPaths)
+                  .containsExactly("/v1/risk-levels/effective/companies/" + REGISTRY_CODE);
+            });
+  }
+
+  @Test
+  void asksAmlServiceForNoCompanysLevelWhenHighRiskIsNotEnabled() {
+    contextRunner()
+        .run(
+            context -> {
+              assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
+                  .isFalse();
+              assertThat(requestedPaths).isEmpty();
             });
   }
 

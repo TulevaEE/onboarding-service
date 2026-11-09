@@ -39,6 +39,15 @@ class EffectiveRiskLevels {
     }
   }
 
+  boolean isHighRiskCompany(String registryCode) {
+    failWhileQuiet();
+    try {
+      return effectiveRiskLevelClient.effectiveCompanyRiskLevels(registryCode).contains(HIGH);
+    } catch (RuntimeException e) {
+      throw unavailable(e);
+    }
+  }
+
   private void failWhileQuiet() {
     Instant askAgainAt = quietUntil;
     if (askAgainAt != null && clock.instant().isBefore(askAgainAt)) {

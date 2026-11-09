@@ -38,6 +38,18 @@ which the AML channel hears about with the request id. A PEP hit is held at once
 unset `AML_SERVICE_HIGH_RISK_ENABLED` rather than deploying an older build: once a payout is held
 with `RISK_LEVEL_UNAVAILABLE`, a build without that hold reason cannot load the redemption.
 
+`ConfiguredRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
+through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening
+is unavailable retries and is held with `SCREENING_UNAVAILABLE` without its risk level, as a person
+is. A company is not asked during a quiet period a person's failure started, but its own failures
+quiet no one: a failure on the company endpoint alone (one company's data, or an aml-service
+without the endpoint) would otherwise hold back every person after it, and the few companies cost
+at most a timeout each. Unlike a person's, a company's answer with no level is unavailable rather
+than not high risk: aml-service's nightly run decides every company, so an empty answer means it
+has never been decided, such as one onboarded since the last run. With the flag off no company is
+high risk, as there is no company level without aml-service, so the rollback above also switches
+off the company hold.
+
 A person's KYC onboarding risk is assessed while they submit their KYC survey.
 `aml-service.enabled`, the nightly job's flag, chooses how: on, `AmlServiceKycChecker` asks
 aml-service's `POST /v1/kyc-onboarding/assessments`; off (staging, which does not set it),

@@ -68,6 +68,12 @@ class EffectiveRiskLevelsTest {
       BASE_URL + "/v1/risk-levels/effective/" + PERSONAL_CODE;
   private static final String OTHER_EFFECTIVE_URL =
       BASE_URL + "/v1/risk-levels/effective/" + OTHER_PERSONAL_CODE;
+  private static final String REGISTRY_CODE = "16001234";
+  private static final String OTHER_REGISTRY_CODE = "16005678";
+  private static final String COMPANY_EFFECTIVE_URL =
+      BASE_URL + "/v1/risk-levels/effective/companies/" + REGISTRY_CODE;
+  private static final String OTHER_COMPANY_EFFECTIVE_URL =
+      BASE_URL + "/v1/risk-levels/effective/companies/" + OTHER_REGISTRY_CODE;
   private static final String API_TOKEN = "test-api-token-of-at-least-thirty-two-characters";
   private static final Duration STALL = Duration.ofSeconds(10);
 
@@ -371,12 +377,162 @@ class EffectiveRiskLevelsTest {
     server.verify();
   }
 
+  @Test
+  void asksForTheCompanysEffectiveLevelWithTheBearerToken() {
+    server
+        .expect(once(), requestTo(COMPANY_EFFECTIVE_URL))
+        .andExpect(method(GET))
+        .andExpect(header(AUTHORIZATION, "Bearer " + API_TOKEN))
+        .andExpect(header(ACCEPT, APPLICATION_JSON_VALUE))
+        .andRespond(withSuccess(families(family("company", "LOW")), APPLICATION_JSON));
+
+    effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE);
+
+    server.verify();
+  }
+
+  @Test
+  void highRiskCompanyWhenItsCompanyFamilyIsEffectivelyHigh() {
+    respondForTheCompany(
+        families(
+            """
+            {"family": "company", "computed": "MEDIUM", "effective": "HIGH",
+             "override": {"outcome": "OVERRIDDEN", "level": "HIGH",
+                          "createdAt": "2026-11-02T10:00:00Z"}}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE)).isTrue();
+  }
+
+  @Test
+  void notHighRiskCompanyWhenTheSpecialistOverrodeAComputedHighToMedium() {
+    respondForTheCompany(
+        families(
+            """
+            {"family": "company", "computed": "HIGH", "effective": "MEDIUM",
+             "override": {"outcome": "OVERRIDDEN", "level": "MEDIUM",
+                          "createdAt": "2026-11-02T10:00:00Z"}}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE)).isFalse();
+  }
+
+  @Test
+  void companyRiskLevelUnavailableWhenAmlServiceHasNoLevelForIt() {
+    respondForTheCompany(families());
+
+    assertThatThrownBy(() -> effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class)
+        .hasNoCause();
+  }
+
+  @Test
+  void asksForTheNextCompanyAndPersonAtOnceWhenAmlServiceHadNoLevelForThisCompany() {
+    respondForTheCompany(families());
+    server
+        .expect(once(), requestTo(OTHER_COMPANY_EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("company", "HIGH")), APPLICATION_JSON));
+    server
+        .expect(once(), requestTo(EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
+    var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
+    assertThatThrownBy(() -> effectiveRiskLevels.isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
+
+    assertThat(effectiveRiskLevels.isHighRiskCompany(OTHER_REGISTRY_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.isHighRisk(PERSONAL_CODE)).isTrue();
+    server.verify();
+  }
+
+  @Test
+  void highRiskCompanyWhenItsCompanyFamilyIsHighEvenIfAnotherEntryIsUnusable() {
+    respondForTheCompany(families(family("company", "EXTREME"), family("company", "HIGH")));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE)).isTrue();
+  }
+
+  @ParameterizedTest
+  @MethodSource("unanswered")
+  void companyRiskLevelUnavailableWithoutCarryingTheHttpFailureWhenAmlServiceCannotAnswer(
+      ResponseCreator unanswered) {
+    server.expect(once(), requestTo(COMPANY_EFFECTIVE_URL)).andRespond(unanswered);
+
+    assertThatThrownBy(() -> effectiveRiskLevels(API_TOKEN).isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class)
+        .hasNoCause();
+    server.verify();
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "   "})
+  void companyRiskLevelUnavailableWithoutSendingARequestWhenNoApiTokenIsConfigured(
+      @Nullable String apiToken) {
+    assertThatThrownBy(() -> effectiveRiskLevels(apiToken).isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
+    server.verify();
+  }
+
+  @ParameterizedTest
+  @MethodSource("unanswered")
+  void asksForTheNextCompanyAndPersonAtOnceWhateverFailedForACompany(ResponseCreator unanswered) {
+    server.expect(once(), requestTo(COMPANY_EFFECTIVE_URL)).andRespond(unanswered);
+    server
+        .expect(once(), requestTo(OTHER_COMPANY_EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("company", "HIGH")), APPLICATION_JSON));
+    server
+        .expect(once(), requestTo(EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
+    var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
+    assertThatThrownBy(() -> effectiveRiskLevels.isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
+
+    assertThat(effectiveRiskLevels.isHighRiskCompany(OTHER_REGISTRY_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.isHighRisk(PERSONAL_CODE)).isTrue();
+    server.verify();
+  }
+
+  @Test
+  void asksForNoCompanyDuringTheCooldownAfterAmlServiceFailedForAPerson() {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(withServerError());
+    var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
+    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
+
+    clock.tick(29, SECONDS);
+
+    assertThatThrownBy(() -> effectiveRiskLevels.isHighRiskCompany(REGISTRY_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class)
+        .hasNoCause();
+    server.verify();
+  }
+
+  @Test
+  void asksForTheCompanyOnceTheCooldownHasPassed() {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(withServerError());
+    server
+        .expect(once(), requestTo(COMPANY_EFFECTIVE_URL))
+        .andRespond(withSuccess(families(family("company", "HIGH")), APPLICATION_JSON));
+    var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
+    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+        .isInstanceOf(RiskLevelUnavailableException.class);
+
+    clock.tick(30, SECONDS);
+
+    assertThat(effectiveRiskLevels.isHighRiskCompany(REGISTRY_CODE)).isTrue();
+    server.verify();
+  }
+
   private static ResponseCreator answering(String body) {
     return withSuccess(body, APPLICATION_JSON);
   }
 
   private void respond(String body) {
     server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(answering(body));
+  }
+
+  private void respondForTheCompany(String body) {
+    server.expect(once(), requestTo(COMPANY_EFFECTIVE_URL)).andRespond(answering(body));
   }
 
   private static String families(String... families) {

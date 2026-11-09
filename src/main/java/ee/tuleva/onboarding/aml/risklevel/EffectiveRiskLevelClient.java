@@ -23,6 +23,16 @@ class EffectiveRiskLevelClient {
     return effectiveRiskLevels("/v1/risk-levels/effective/{personalCode}", personalCode);
   }
 
+  List<EffectiveRiskLevel> effectiveCompanyRiskLevels(String registryCode) {
+    List<EffectiveRiskLevel> levels =
+        effectiveRiskLevels("/v1/risk-levels/effective/companies/{registryCode}", registryCode);
+    if (levels.isEmpty()) {
+      throw new UnusableRiskLevelAnswerException(
+          "aml-service answered no company risk level, so no nightly check has assessed it");
+    }
+    return levels;
+  }
+
   private List<EffectiveRiskLevel> effectiveRiskLevels(String uriTemplate, String code) {
     String apiToken =
         properties

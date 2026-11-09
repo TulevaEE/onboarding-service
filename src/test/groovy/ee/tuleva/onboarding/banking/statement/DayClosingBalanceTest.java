@@ -103,8 +103,8 @@ class DayClosingBalanceTest {
   void isAbsentWhenABookingHasNoDate() {
     var statement =
         catchUpStatement(
-            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1200.00")),
-            List.of(undatedBooking("200.00")));
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1000.00")),
+            List.of(undatedBooking("200.00"), undatedBooking("-200.00")));
 
     assertThat(DayClosingBalance.on(statement, DATE, TALLINN)).isEmpty();
   }
@@ -113,7 +113,7 @@ class DayClosingBalanceTest {
   void isAbsentWhenABookingIsDatedOutsideTheStatementPeriod() {
     var statement =
         catchUpStatement(
-            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1200.00")),
+            List.of(balance(OPEN, "1000.00"), balance(CLOSE, "1150.00")),
             List.of(bookedOn(DATE, "200.00"), bookedOn(DATE.plusDays(3), "-50.00")));
 
     assertThat(DayClosingBalance.on(statement, DATE, TALLINN)).isEmpty();

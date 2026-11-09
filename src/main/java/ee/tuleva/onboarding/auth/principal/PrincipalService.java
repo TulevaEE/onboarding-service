@@ -5,14 +5,11 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
 import ee.tuleva.onboarding.auth.role.Role;
 import jakarta.validation.Valid;
-import java.time.Clock;
-import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,27 +20,11 @@ public class PrincipalService {
 
   private final PrincipalUsers principalUsers;
 
-  @Value("${minor-self-service.enabled}")
-  private final boolean minorSelfServiceEnabled;
-
-  private final Clock clock;
-
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
-    var ownRole = new Role(PERSON, person.getPersonalCode(), formatted(person.getFullName()));
-    if (refusesSelfServiceTo(person, ownRole)) {
-      log.info("Blocked self-authentication for minor: personalCode={}", person.getPersonalCode());
-      throw new MinorCannotSelfAuthenticateException(person.getPersonalCode());
-    }
-    return getFrom(person, attributes, ownRole);
-  }
-
-  public boolean refusesSelfServiceTo(Person person, @Nullable Role role) {
-    return !minorSelfServiceEnabled
-        && AuthenticatedPerson.builder()
-            .personalCode(person.getPersonalCode())
-            .role(role)
-            .build()
-            .isMinorActingAsSelf(LocalDate.now(clock));
+    return getFrom(
+        person,
+        attributes,
+        new Role(PERSON, person.getPersonalCode(), formatted(person.getFullName())));
   }
 
   public AuthenticatedPerson getFrom(

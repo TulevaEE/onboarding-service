@@ -52,7 +52,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -65,7 +64,6 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles({"test", "mock"})
-@TestPropertySource(properties = "minor-self-service.enabled=true")
 @Import(MinorSelfLoginIntegrationTest.SmartIdTestConfig.class)
 @Transactional
 class MinorSelfLoginIntegrationTest {

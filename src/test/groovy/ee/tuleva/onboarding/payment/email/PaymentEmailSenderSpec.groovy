@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner
-import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
 import ee.tuleva.onboarding.nudge.NudgeAccount
 import ee.tuleva.onboarding.nudge.NudgeDecision
 import ee.tuleva.onboarding.nudge.NudgeDecisionService
@@ -119,22 +118,5 @@ class PaymentEmailSenderSpec extends Specification {
     1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(holder), ENGLISH)
     0 * nudgeDecisionService._
     0 * securityContextRunner._
-  }
-
-  def "send email on savings payment failure for a minor who cannot self authenticate"() {
-    given:
-    def minor = sampleUser().personalCode("51111111111").build()
-    def recipient = new PartyId(PartyId.Type.PERSON, minor.personalCode)
-    def holder = SavingsFundAccountHolder.person()
-    def event = new SavingsPaymentFailedEvent(this, minor, ENGLISH, recipient)
-    securityContextRunner.runAs(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
-    accountHolderResolver.resolveRetryAccount(minor, recipient) >> holder
-
-    when:
-    paymentEmailSender.onSavingsPaymentFailed(event)
-
-    then:
-    noExceptionThrown()
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(minor, SavingsFundPaymentEmail.failed(holder), ENGLISH)
   }
 }

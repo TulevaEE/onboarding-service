@@ -39,8 +39,19 @@ class SebPendingReportReplayer {
 
   ReplaySummary replayOldestFirst(
       LocalDate windowStart, LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
-    SebReplayListings listings = listingsBefore(windowStart, firstReportDate);
     Instant stopBy = SebReplayWindow.stopByForAReplayStartedAt(clock.instant());
+    SebReplayListings listings = new SebReplayListings();
+    Optional<StopReason> stoppedReadingHistory =
+        readListingsBefore(windowStart, firstReportDate, listings, stopBy, stillHoldsTheLock);
+    if (stoppedReadingHistory.isPresent()) {
+      return new ReplaySummary(
+          List.of(),
+          0,
+          0,
+          List.of(),
+          List.of(),
+          Optional.of(new Stop(firstReportDate, stoppedReadingHistory.get())));
+    }
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
@@ -93,20 +104,33 @@ class SebPendingReportReplayer {
         stop);
   }
 
-  private SebReplayListings listingsBefore(LocalDate windowStart, LocalDate firstReportDate) {
-    SebReplayListings listings = new SebReplayListings();
-    windowStart
-        .datesUntil(firstReportDate)
-        .map(date -> reportService.getReport(SEB, PENDING_TRANSACTIONS, date))
-        .flatMap(Optional::stream)
-        .forEach(report -> reconciliationService.noteListedBy(report, listings));
+  private Optional<StopReason> readListingsBefore(
+      LocalDate windowStart,
+      LocalDate firstReportDate,
+      SebReplayListings listings,
+      Instant stopBy,
+      BooleanSupplier stillHoldsTheLock) {
+    for (LocalDate date : windowStart.datesUntil(firstReportDate).toList()) {
+      Optional<StopReason> mustStop = mustStopBeforeTheNextReport(stopBy, stillHoldsTheLock);
+      if (mustStop.isPresent()) {
+        log.warn(
+            "SEB pending transactions replay stopped while reading earlier listings: date={},"
+                + " reason={}",
+            date,
+            mustStop.get());
+        return mustStop;
+      }
+      reportService
+          .getReport(SEB, PENDING_TRANSACTIONS, date)
+          .ifPresent(report -> reconciliationService.noteListedBy(report, listings));
+    }
     log.info(
         "SEB pending transactions replay read what the earlier reports listed: windowStart={},"
             + " firstReportDate={}, brokerRefs={}",
         windowStart,
         firstReportDate,
         listings.size());
-    return listings;
+    return Optional.empty();
   }
 
   private Optional<StopReason> mustStopBeforeTheNextReport(

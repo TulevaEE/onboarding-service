@@ -6,8 +6,6 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
-import org.springframework.dao.DataAccessResourceFailureException
-import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.ResourceAccessException
@@ -29,13 +27,11 @@ import static org.springframework.http.HttpStatus.FORBIDDEN
 import static org.springframework.http.HttpStatus.NOT_FOUND
 import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS
-import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW
 
 class CustodianOrderEmailAlerterSpec extends Specification {
 
   OperationsNotificationService notificationService = Mock()
   EventLogRepository eventLogRepository = Mock()
-  PlatformTransactionManager transactionManager = Mock()
 
   Instant t0 = Instant.parse("2026-01-15T10:01:00Z")
   Instant aMinuteLater = t0.plus(Duration.ofMinutes(1))
@@ -43,6 +39,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
   String bounce = "550 mailbox unavailable"
   String greenLine = "✅ Orders emailed: $subject, 2 files"
   String redAlert = redAlert("hard_bounce", "msg_1")
+  String sendAttemptText = "🔴 Orders email result UNKNOWN: $subject\nNo send result was recorded.\nAsk the desk."
 
   CustodianOrderEmailAlerter alerter = alerterAt(aMinuteLater)
 
@@ -131,58 +128,6 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     context.close()
   }
 
-  def "posts a send result at once: records it, posts it, then marks it posted, so the run has nothing left"() {
-    when:
-    alerter.postSendResult("42", greenLine, INFO)
-
-    then:
-    1 * eventLogRepository.save({ EventLog it ->
-      it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
-          it.principal == "42" &&
-          it.timestamp == aMinuteLater &&
-          it.data == notYetPostedData(greenLine, "INFO")
-    })
-
-    then:
-    1 * notificationService.sendMessage(greenLine, TRADING, INFO)
-
-    then:
-    1 * eventLogRepository.save({ EventLog it -> it.principal == "42" && it.data == postedData(greenLine, "INFO") })
-  }
-
-  def "records and marks a send result in transactions of its own, since the batch has already committed"() {
-    when:
-    alerter.postSendResult("42", greenLine, INFO)
-
-    then:
-    2 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
-  }
-
-  def "a send result Slack does not take at once stays recorded as not posted, for the run"() {
-    given:
-    notificationService.sendMessage(_, _, _) >> { throw new RestClientException("Slack is down") }
-
-    when:
-    alerter.postSendResult("42", redAlert, ERROR)
-
-    then:
-    noExceptionThrown()
-    1 * eventLogRepository.save({ EventLog it -> it.data == notYetPostedData(redAlert, "ERROR") })
-    0 * eventLogRepository.save({ EventLog it -> it.data.alert == "POSTED" })
-  }
-
-  def "a send result that cannot be recorded is still posted at once"() {
-    given:
-    eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
-
-    when:
-    alerter.postSendResult("42", redAlert, ERROR)
-
-    then:
-    noExceptionThrown()
-    1 * notificationService.sendMessage(redAlert, TRADING, ERROR)
-  }
-
   def "the run leaves a send result to its direct post for two minutes, longer than the Slack client's timeouts: #age"() {
     given:
     alerter = alerterAt(t0.plus(age))
@@ -198,6 +143,39 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     age                                  | posts
     Duration.ofMinutes(2).minusSeconds(1) | 0
     Duration.ofMinutes(2).plusSeconds(1)  | 1
+  }
+
+  def "the run leaves a send attempt to the sender for five minutes, longer than three Mandrill tries of 10 s connect and 30 s answer, then posts its UNKNOWN line in red: #age"() {
+    given:
+    alerter = alerterAt(t0.plus(age))
+    rowsRead(sendAttemptRow(t0))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    posts * notificationService.sendMessage(
+        "🔴 Orders email result UNKNOWN: $subject (at 15.01.2026 12:01)\nNo send result was recorded.\nAsk the desk.",
+        TRADING, ERROR)
+    posts * eventLogRepository.save({ EventLog it -> it.data == postedData(sendAttemptText, "ERROR") })
+
+    where:
+    age                                   | posts
+    Duration.ofMinutes(5).minusSeconds(1) | 0
+    Duration.ofMinutes(5).plusSeconds(1)  | 1
+  }
+
+  def "a send attempt still without a result at the end of the 24 hour retry window is given up"() {
+    given:
+    alerter = alerterAt(t0.plus(Duration.ofHours(24)).plusSeconds(1))
+    rowsRead(sendAttemptRow(t0))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    0 * notificationService._
+    1 * eventLogRepository.save({ EventLog it -> it.data == givenUpData(sendAttemptText, "ERROR") })
   }
 
   def "the run reads order email delivery failures and send results of the last two days, oldest first"() {
@@ -425,8 +403,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
   }
 
   private CustodianOrderEmailAlerter alerterAt(Instant now) {
-    new CustodianOrderEmailAlerter(
-        notificationService, eventLogRepository, Clock.fixed(now, UTC), transactionManager)
+    new CustodianOrderEmailAlerter(notificationService, eventLogRepository, Clock.fixed(now, UTC))
   }
 
   private void rowsRead(EventLog... rows) {
@@ -466,6 +443,15 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
   private EventLog givenUpRow(String principal) {
     row(principal, givenUpData(redAlert, "ERROR"), t0)
+  }
+
+  private EventLog sendAttemptRow(Instant at) {
+    EventLog.builder()
+        .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+        .principal("42")
+        .timestamp(at)
+        .data([text: sendAttemptText, severity: "ERROR", alert: "SENDING"])
+        .build()
   }
 
   private EventLog sendResultRow(Instant at) {

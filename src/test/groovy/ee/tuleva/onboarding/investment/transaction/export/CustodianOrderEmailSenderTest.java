@@ -8,7 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -50,6 +50,23 @@ class CustodianOrderEmailSenderTest {
     assertThat(sent).isTrue();
     verify(orderEmailTransport).send(messageMatching(expected));
     verify(notifier).reportSendResult(eq(BATCH_ID), messageMatching(expected), eq(accepted));
+  }
+
+  @Test
+  void send_recordsTheAttemptBeforeCallingMandrill_soAStopDuringTheCallStillLeavesARow() {
+    var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
+    var accepted = new EmailSendResult(SENT, List.of(), null);
+    given(orderEmailTransport.send(any())).willReturn(accepted);
+    var expected = factory.create(TUV100, TIMESTAMP, EXPORTS);
+
+    sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
+
+    var inOrder = inOrder(notifier, orderEmailTransport);
+    inOrder.verify(notifier).reportSendAttempt(eq(BATCH_ID), messageMatching(expected));
+    inOrder.verify(orderEmailTransport).send(messageMatching(expected));
+    inOrder
+        .verify(notifier)
+        .reportSendResult(eq(BATCH_ID), messageMatching(expected), eq(accepted));
   }
 
   @Test
@@ -102,7 +119,7 @@ class CustodianOrderEmailSenderTest {
     boolean sent = sender.send(BATCH_ID, TUV100, TIMESTAMP, Map.of());
 
     assertThat(sent).isFalse();
-    verify(orderEmailTransport, never()).send(any());
+    verifyNoInteractions(orderEmailTransport, notifier);
   }
 
   private static MandrillMessage messageMatching(MandrillMessage expected) {

@@ -2,10 +2,15 @@ package ee.tuleva.onboarding.investment.transaction.export;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.FAILED;
+import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -57,8 +62,18 @@ class CustodianOrderEmailNotifierIT {
       "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n"
           + "ConnectException: Connection refused\n"
           + "Nothing went out to the desk. Fix the cause, then send the orders again.";
+  private static final String RESULT_UNKNOWN_POSTED_LATE =
+      "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026"
+          + " (at 15.01.2026 12:00)\n"
+          + "No send result was recorded: the service may have stopped while sending.\n"
+          + "It may have gone out. Check the Cc copy or ask the desk before sending again.";
+  private static final Instant FOUR_MINUTES_LATER = SENT_AT.plus(Duration.ofMinutes(4));
+  private static final Instant PAST_FIVE_MINUTES =
+      SENT_AT.plus(Duration.ofMinutes(5)).plusSeconds(1);
 
   @Autowired CustodianOrderEmailSender sender;
+  @Autowired CustodianOrderEmailNotifier notifier;
+  @Autowired CustodianOrderMessageFactory messageFactory;
   @Autowired CustodianOrderEmailAlerter alerter;
   @Autowired EventLogRepository eventLogRepository;
   @Autowired PlatformTransactionManager transactionManager;
@@ -131,6 +146,64 @@ class CustodianOrderEmailNotifierIT {
         .singleElement()
         .satisfies(sendResult(SENT_AT, "POSTED"));
   }
+
+  @Test
+  void aSendTheServiceStopsBeforeCallingMandrillIsPostedAsUnknownOnce_afterFiveMinutes() {
+    notifier.reportSendAttempt(BATCH_ID, messageFactory.create(TUV100, SENT_AT, EXPORTS));
+
+    runAt(FOUR_MINUTES_LATER);
+    then(notificationService).shouldHaveNoInteractions();
+
+    runAt(PAST_FIVE_MINUTES);
+    runAt(PAST_FIVE_MINUTES.plus(Duration.ofMinutes(1)));
+
+    then(notificationService).should().sendMessage(RESULT_UNKNOWN_POSTED_LATE, TRADING, ERROR);
+    then(notificationService).shouldHaveNoMoreInteractions();
+    then(orderEmailTransport).shouldHaveNoInteractions();
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "POSTED"));
+  }
+
+  @Test
+  void aSendTheServiceStopsDuringIsPostedAsUnknownOnce_andNotEmailedAgain() {
+    given(orderEmailTransport.send(any())).willThrow(new ServiceStopped());
+
+    assertThatThrownBy(this::sendAfterTheBatchCommits).isInstanceOf(ServiceStopped.class);
+
+    runAt(FOUR_MINUTES_LATER);
+    then(notificationService).shouldHaveNoInteractions();
+
+    runAt(PAST_FIVE_MINUTES);
+    runAt(PAST_FIVE_MINUTES.plus(Duration.ofMinutes(1)));
+
+    then(notificationService).should().sendMessage(RESULT_UNKNOWN_POSTED_LATE, TRADING, ERROR);
+    then(notificationService).shouldHaveNoMoreInteractions();
+    then(orderEmailTransport).should().send(any());
+    then(orderEmailTransport).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void aNormalSendLeavesNoUnknownPost() {
+    given(orderEmailTransport.send(any())).willReturn(new EmailSendResult(SENT, List.of(), null));
+
+    sendAfterTheBatchCommits();
+    runAt(PAST_FIVE_MINUTES);
+    runAt(SENT_AT.plus(Duration.ofHours(1)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("✅ Orders emailed: TUV100 ostu-/müügikorraldused 15.01.2026"),
+            eq(TRADING),
+            eq(INFO));
+    then(notificationService).shouldHaveNoMoreInteractions();
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "POSTED"));
+  }
+
+  static class ServiceStopped extends Error {}
 
   private void sendAfterTheBatchCommits() {
     new TransactionTemplate(transactionManager)

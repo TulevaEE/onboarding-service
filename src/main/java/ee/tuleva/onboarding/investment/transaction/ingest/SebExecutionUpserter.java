@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService.SOURCE_HISTORICAL_IMPORT;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
@@ -33,7 +32,7 @@ class SebExecutionUpserter {
       LocalDate reportDate,
       LocalDate asOfDate,
       @Nullable BigDecimal sebReportedQuantity,
-      ReconciliationMode mode) {
+      ReconciliationRun run) {
     if (wouldOrphanExistingExecution(row, order)) {
       return false;
     }
@@ -43,7 +42,7 @@ class SebExecutionUpserter {
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
       Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
-      Optional<LocalDate> restamped = restampedReportedDate(mode, execution, asOfDate);
+      Optional<LocalDate> restamped = restampedReportedDate(run, row, asOfDate);
       executionMapper.applyTo(execution, row, order);
       restamped.ifPresent(execution::setReportedDate);
       executionRepository.save(execution);
@@ -63,17 +62,11 @@ class SebExecutionUpserter {
   }
 
   private static Optional<LocalDate> restampedReportedDate(
-      ReconciliationMode mode, TransactionExecution existing, LocalDate asOfDate) {
-    if (mode == ReconciliationMode.LIVE) {
+      ReconciliationRun run, SebPendingTransactionRow row, LocalDate asOfDate) {
+    if (run.mode() == ReconciliationMode.LIVE || run.listings().listedBefore(row.ourRef())) {
       return Optional.empty();
     }
-    LocalDate reportedDate = existing.getReportedDate();
-    if (SOURCE_HISTORICAL_IMPORT.equals(existing.getSource())
-        || reportedDate == null
-        || reportedDate.isAfter(asOfDate)) {
-      return Optional.of(asOfDate);
-    }
-    return Optional.of(reportedDate);
+    return Optional.of(asOfDate);
   }
 
   private boolean wouldOrphanExistingExecution(

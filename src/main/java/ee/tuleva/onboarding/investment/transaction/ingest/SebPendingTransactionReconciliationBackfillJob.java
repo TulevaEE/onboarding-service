@@ -89,7 +89,9 @@ class SebPendingTransactionReconciliationBackfillJob {
   private void run(LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
     ReplaySummary summary;
     try {
-      summary = replayer.replayOldestFirst(firstReportDate, stillHoldsTheLock);
+      summary =
+          replayer.replayOldestFirst(
+              LocalDate.now(clock).minusDays(BACKFILL_DAYS), firstReportDate, stillHoldsTheLock);
     } catch (RuntimeException e) {
       log.error(
           "SEB pending transactions replay stopped outside a report: from={}", firstReportDate, e);

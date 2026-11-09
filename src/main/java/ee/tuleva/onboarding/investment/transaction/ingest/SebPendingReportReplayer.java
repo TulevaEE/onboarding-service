@@ -37,7 +37,9 @@ class SebPendingReportReplayer {
   private final TransactionSettlementRepository settlementRepository;
   private final SebReplayWindow replayWindow;
 
-  ReplaySummary replayOldestFirst(LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
+  ReplaySummary replayOldestFirst(
+      LocalDate windowStart, LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
+    SebReplayListings listings = listingsBefore(windowStart, firstReportDate);
     Instant stopBy = SebReplayWindow.stopByForAReplayStartedAt(clock.instant());
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
@@ -65,7 +67,8 @@ class SebPendingReportReplayer {
         }
         skippedCheck =
             skippedCheckReason(
-                reconciliationService.replay(report.get(), reportAlerts::add, stillHoldsTheLock));
+                reconciliationService.replay(
+                    report.get(), reportAlerts::add, listings, stillHoldsTheLock));
       } catch (SebReconciliationLockLostException e) {
         log.error("SEB pending transactions replay lost its lock: reportDate={}", date, e);
         stop = Optional.of(new Stop(date, StopReason.LOCK_LOST));
@@ -88,6 +91,22 @@ class SebPendingReportReplayer {
         List.copyOf(heldBackAlerts),
         List.copyOf(skippedChecks),
         stop);
+  }
+
+  private SebReplayListings listingsBefore(LocalDate windowStart, LocalDate firstReportDate) {
+    SebReplayListings listings = new SebReplayListings();
+    windowStart
+        .datesUntil(firstReportDate)
+        .map(date -> reportService.getReport(SEB, PENDING_TRANSACTIONS, date))
+        .flatMap(Optional::stream)
+        .forEach(report -> reconciliationService.noteListedBy(report, listings));
+    log.info(
+        "SEB pending transactions replay read what the earlier reports listed: windowStart={},"
+            + " firstReportDate={}, brokerRefs={}",
+        windowStart,
+        firstReportDate,
+        listings.size());
+    return listings;
   }
 
   private Optional<StopReason> mustStopBeforeTheNextReport(

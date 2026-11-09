@@ -1144,7 +1144,7 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void replay_olderReportWithANewerOneStored_settlesTheOrderMissingFromItOnItsDate() {
+  void replay_olderReportWithANewerOneStored_settlesAnOrderAnEarlierReportListedOnItsDate() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder matchedOrder = sampleOrder(clientRef);
@@ -1170,7 +1170,8 @@ class SebPendingTransactionReconciliationServiceTest {
                     .build()));
     List<ReconciliationAlert> heldBack = new ArrayList<>();
 
-    service.replay(reportWithSingleRow(clientRef), heldBack::add, LOCK_HELD);
+    service.replay(
+        reportWithSingleRow(clientRef), heldBack::add, listedEarlier("DLA456"), LOCK_HELD);
 
     verify(settlementRepository)
         .save(
@@ -1197,7 +1198,7 @@ class SebPendingTransactionReconciliationServiceTest {
                 pieceListedOn(
                     1456L, "DLA456", "100", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
 
-    service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+    service.replay(reportWithSingleRow(clientRef), alert -> {}, new SebReplayListings(), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(listedLater.getOrderStatus()).isEqualTo(EXECUTED);
@@ -1221,7 +1222,7 @@ class SebPendingTransactionReconciliationServiceTest {
                 pieceListedOn(
                     2456L, "DLA456B", "40", "2026-05-11T10:00:00Z", LocalDate.of(2026, 5, 14))));
 
-    service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+    service.replay(reportWithSingleRow(clientRef), alert -> {}, new SebReplayListings(), LOCK_HELD);
 
     verify(settlementRepository, never()).save(any());
     assertThat(splitOrder.getOrderStatus()).isEqualTo(EXECUTED);
@@ -1299,6 +1300,7 @@ class SebPendingTransactionReconciliationServiceTest {
     service.replay(
         reportWithSingleRowQuantity(clientRef, new BigDecimal("15007.0003")),
         heldBack::add,
+        new SebReplayListings(),
         LOCK_HELD);
 
     assertThat(heldBack)
@@ -1324,7 +1326,8 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(Optional.of(reportWithRows(LocalDate.of(2026, 5, 12), 50)));
     List<ReconciliationAlert> heldBack = new ArrayList<>();
 
-    service.replay(reportWithSingleRow(clientRef), heldBack::add, LOCK_HELD);
+    service.replay(
+        reportWithSingleRow(clientRef), heldBack::add, new SebReplayListings(), LOCK_HELD);
 
     assertThat(heldBack)
         .singleElement()
@@ -1386,7 +1389,7 @@ class SebPendingTransactionReconciliationServiceTest {
             .rawData(List.of(validRawRow(clientRef), malformed))
             .build();
 
-    SettlementCheck check = service.replay(report, alert -> {}, LOCK_HELD);
+    SettlementCheck check = service.replay(report, alert -> {}, new SebReplayListings(), LOCK_HELD);
 
     assertThat(check).isEqualTo(SettlementCheck.SKIPPED_MALFORMED_ROWS);
   }
@@ -1399,7 +1402,9 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(Optional.of(sampleOrder(clientRef)));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
-    SettlementCheck check = service.replay(reportWithSingleRow(clientRef), alert -> {}, LOCK_HELD);
+    SettlementCheck check =
+        service.replay(
+            reportWithSingleRow(clientRef), alert -> {}, new SebReplayListings(), LOCK_HELD);
 
     assertThat(check).isEqualTo(SettlementCheck.CHECKED);
   }
@@ -1472,7 +1477,10 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(Optional.of(storedLate));
 
     service.replay(
-        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {}, LOCK_HELD);
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")),
+        alert -> {},
+        new SebReplayListings(),
+        LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -1501,7 +1509,10 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(Optional.of(imported));
 
     service.replay(
-        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")), alert -> {}, LOCK_HELD);
+        reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-12")),
+        alert -> {},
+        new SebReplayListings(),
+        LOCK_HELD);
 
     verify(auditEventRepository)
         .save(
@@ -1533,7 +1544,12 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
 
     assertThatThrownBy(
-            () -> service.replay(reportWithSingleRow(clientRef), alert -> {}, () -> false))
+            () ->
+                service.replay(
+                    reportWithSingleRow(clientRef),
+                    alert -> {},
+                    new SebReplayListings(),
+                    () -> false))
         .isInstanceOf(SebReconciliationLockLostException.class);
   }
 
@@ -1795,6 +1811,14 @@ class SebPendingTransactionReconciliationServiceTest {
         .executionTimestamp(Instant.parse(tradeInstant))
         .reportedDate(reportedDate)
         .build();
+  }
+
+  private static SebReplayListings listedEarlier(String brokerRef) {
+    Map<String, Object> raw = validRawRow(UUID.randomUUID());
+    raw.put("Our ref", brokerRef);
+    SebReplayListings listings = new SebReplayListings();
+    listings.addListedBy(List.of(SebPendingTransactionRow.fromRawData(raw)));
+    return listings;
   }
 
   private static TransactionExecution executionWithTradeInstant(Long orderId, String instant) {

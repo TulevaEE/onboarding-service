@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-record ReconciliationRun(ReconciliationMode mode, ReconciliationAlerts alerts) {
+record ReconciliationRun(
+    ReconciliationMode mode, ReconciliationAlerts alerts, SebReplayListings listings)
+    implements ReconciliationAlerts {
 
-  void raise(ReconciliationAlert alert) {
+  @Override
+  public void raise(ReconciliationAlert alert) {
     alerts.raise(alert);
   }
 }

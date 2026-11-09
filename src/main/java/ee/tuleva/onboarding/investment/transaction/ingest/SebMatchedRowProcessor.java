@@ -62,7 +62,7 @@ class SebMatchedRowProcessor {
     }
     BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
     if (executionUpserter.upsert(
-        normalizedRow, order, reportDate, asOfDate, reportedQuantity, run.mode())) {
+        normalizedRow, order, reportDate, asOfDate, reportedQuantity, run)) {
       checkPriceConsistency(order, reportDate, matchingProperties, run);
       return RowOutcome.MATCHED;
     }

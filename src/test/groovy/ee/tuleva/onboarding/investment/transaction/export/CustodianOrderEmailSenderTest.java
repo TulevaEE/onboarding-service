@@ -5,10 +5,11 @@ import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.UN
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -53,20 +54,40 @@ class CustodianOrderEmailSenderTest {
   }
 
   @Test
-  void send_recordsTheAttemptBeforeCallingMandrill_soAStopDuringTheCallStillLeavesARow() {
+  void recordAttempt_reportsTheAttemptWithTheMessage_whenTheOrdersWillBeEmailed() {
     var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
-    var accepted = new EmailSendResult(SENT, List.of(), null);
-    given(orderEmailTransport.send(any())).willReturn(accepted);
     var expected = factory.create(TUV100, TIMESTAMP, EXPORTS);
+
+    sender.recordAttempt(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
+
+    verify(notifier).reportSendAttempt(eq(BATCH_ID), messageMatching(expected));
+    verifyNoInteractions(orderEmailTransport);
+  }
+
+  @Test
+  void recordAttempt_recordsNothing_whenTheOrdersWillNotBeEmailed() {
+    var disabled =
+        new CustodianOrderEmailProperties(
+            false, List.of("desk@example.com"), List.of("copy@example.com"));
+    var inert =
+        new CustodianOrderEmailSender(
+            disabled, new CustodianOrderMessageFactory(disabled), orderEmailTransport, notifier);
+    var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
+
+    inert.recordAttempt(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
+    sender.recordAttempt(BATCH_ID, TUV100, TIMESTAMP, Map.of());
+
+    verifyNoInteractions(orderEmailTransport, notifier);
+  }
+
+  @Test
+  void send_leavesTheAttemptToTheBatchTransaction() {
+    var sender = new CustodianOrderEmailSender(properties, factory, orderEmailTransport, notifier);
+    given(orderEmailTransport.send(any())).willReturn(new EmailSendResult(SENT, List.of(), null));
 
     sender.send(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
-    var inOrder = inOrder(notifier, orderEmailTransport);
-    inOrder.verify(notifier).reportSendAttempt(eq(BATCH_ID), messageMatching(expected));
-    inOrder.verify(orderEmailTransport).send(messageMatching(expected));
-    inOrder
-        .verify(notifier)
-        .reportSendResult(eq(BATCH_ID), messageMatching(expected), eq(accepted));
+    verify(notifier, never()).reportSendAttempt(anyLong(), any());
   }
 
   @Test

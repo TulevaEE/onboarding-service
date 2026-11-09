@@ -61,7 +61,9 @@ class TrusteeEmailFailureAlerterIT {
       basePackages = "ee.tuleva.onboarding.investment.transaction.export",
       useDefaultFilters = false,
       includeFilters =
-          @Filter(type = FilterType.REGEX, pattern = ".*\\.CustodianOrderEmailAlerter"))
+          @Filter(
+              type = FilterType.REGEX,
+              pattern = ".*\\.(CustodianOrderEmailAlerter|OrderEmailAlertRows)"))
   static class OrderEmailAlerterAndWebhookJson {
     @Bean
     JsonMapper jsonMapper() {

@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.ResourceAccessException
@@ -32,6 +33,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
   OperationsNotificationService notificationService = Mock()
   EventLogRepository eventLogRepository = Mock()
+  PlatformTransactionManager transactionManager = Mock()
 
   Instant t0 = Instant.parse("2026-01-15T10:01:00Z")
   Instant aMinuteLater = t0.plus(Duration.ofMinutes(1))
@@ -276,6 +278,19 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     "text that is not a string" | [text: 42, severity: "ERROR", alert: "NOT_POSTED"]
   }
 
+  def "a row with no data at all is given up as unreadable, and the run still posts the others"() {
+    given:
+    rowsRead(row("msg_1", null, t0), notYetPostedRow("msg_2", redAlert("reject", "msg_2"), "ERROR", t0))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    noExceptionThrown()
+    1 * notificationService.sendMessage(redAlert("reject", "msg_2"), TRADING, ERROR)
+    1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_1" && it.data == [alert: "GIVEN_UP"] })
+  }
+
   def "four rows that cannot be read do not keep a newer row from being posted in the same run"() {
     given:
     def unreadable = (1..4).collect { row("msg_$it", [text: 42, alert: "NOT_POSTED"], t0) }
@@ -403,11 +418,15 @@ class CustodianOrderEmailAlerterSpec extends Specification {
   }
 
   private CustodianOrderEmailAlerter alerterAt(Instant now) {
-    new CustodianOrderEmailAlerter(notificationService, eventLogRepository, Clock.fixed(now, UTC))
+    def clock = Clock.fixed(now, UTC)
+    new CustodianOrderEmailAlerter(
+        notificationService, eventLogRepository, new OrderEmailAlertRows(eventLogRepository, clock, transactionManager), clock)
   }
 
   private void rowsRead(EventLog... rows) {
+    rows.eachWithIndex { EventLog row, int i -> row.id = row.id ?: 1000L + i }
     eventLogRepository.findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(_, _) >> rows.toList()
+    eventLogRepository.findLockedById(_) >> { Long id -> Optional.ofNullable(rows.find { it.id == id }) }
   }
 
   private EmailDeliveryFailedEvent orderEmailFailure(String eventType, String reason) {

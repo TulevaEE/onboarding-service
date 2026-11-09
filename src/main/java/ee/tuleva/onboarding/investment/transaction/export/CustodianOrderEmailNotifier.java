@@ -1,58 +1,33 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.NOT_POSTED;
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.POSTED;
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.SENDING;
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.SEND_RESULT_TYPE;
-import static ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailAlerter.alertData;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT;
 import static java.util.stream.Collectors.joining;
-import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
-import ee.tuleva.onboarding.event.EventLog;
-import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import ee.tuleva.onboarding.notification.email.EmailSendResult;
-import java.time.Clock;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 class CustodianOrderEmailNotifier {
 
   private final OperationsNotificationService notificationService;
-  private final EventLogRepository eventLogRepository;
-  private final Clock clock;
-  private final TransactionTemplate inItsOwnTransactionSinceTheBatchHasCommitted;
-
-  CustodianOrderEmailNotifier(
-      OperationsNotificationService notificationService,
-      EventLogRepository eventLogRepository,
-      Clock clock,
-      PlatformTransactionManager transactionManager) {
-    this.notificationService = notificationService;
-    this.eventLogRepository = eventLogRepository;
-    this.clock = clock;
-    this.inItsOwnTransactionSinceTheBatchHasCommitted = new TransactionTemplate(transactionManager);
-    this.inItsOwnTransactionSinceTheBatchHasCommitted.setPropagationBehavior(
-        PROPAGATION_REQUIRES_NEW);
-  }
+  private final OrderEmailAlertRows alertRows;
 
   void reportSendAttempt(long batchId, MandrillMessage message) {
-    var resultUnknown =
+    alertRows.recordSendAttempt(
+        batchId,
         "🔴 Orders email result UNKNOWN: %s\nNo send result was recorded: the service may have stopped while sending.\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
-            .formatted(message.getSubject());
-    record(batchId, resultUnknown, ERROR, SENDING);
+            .formatted(message.getSubject()));
   }
 
   void reportSendResult(long batchId, MandrillMessage message, EmailSendResult result) {
@@ -75,68 +50,68 @@ class CustodianOrderEmailNotifier {
   }
 
   private void post(long batchId, String text, Severity severity) {
-    var sendResult = record(batchId, text, severity, NOT_POSTED);
+    var recorded = written(batchId, () -> alertRows.recordSendResult(batchId, text, severity));
+    var posted = postedToSlack(batchId, text, severity);
+    if (recorded) {
+      if (posted) {
+        markPosted(batchId, text);
+      }
+      return;
+    }
+    var writtenOnRetry =
+        written(
+            batchId,
+            () -> {
+              if (posted) {
+                alertRows.recordPostedSendResult(batchId, text, severity);
+              } else {
+                alertRows.recordSendResult(batchId, text, severity);
+              }
+            });
+    if (!writtenOnRetry) {
+      log.error(
+          "Order email send result not recorded on retry either, so the scheduled run may post an"
+              + " UNKNOWN for this batch: batchId={}, postedToSlack={}, text={}",
+          batchId,
+          posted,
+          text);
+    }
+  }
+
+  private boolean written(long batchId, Runnable write) {
+    try {
+      write.run();
+      return true;
+    } catch (RuntimeException e) {
+      log.warn("Order email send result not recorded: batchId={}, error={}", batchId, e.toString());
+      return false;
+    }
+  }
+
+  private boolean postedToSlack(long batchId, String text, Severity severity) {
     try {
       notificationService.sendMessage(text, TRADING, severity);
+      return true;
     } catch (RuntimeException e) {
       log.warn(
           "Order email send result not posted to Slack, the scheduled run posts it if it was"
-              + " recorded: batchId={}, recorded={}, error={}",
+              + " recorded: batchId={}, error={}",
           batchId,
-          sendResult != null,
           e.toString());
-      return;
-    }
-    if (sendResult != null) {
-      markPosted(sendResult, text, severity);
+      return false;
     }
   }
 
-  private @Nullable EventLog record(long batchId, String text, Severity severity, String alert) {
+  private void markPosted(long batchId, String text) {
     try {
-      return inItsOwnTransactionSinceTheBatchHasCommitted.execute(
-          status ->
-              save(
-                  eventLogRepository
-                      .findByTypeAndPrincipal(SEND_RESULT_TYPE, String.valueOf(batchId))
-                      .orElseGet(
-                          () ->
-                              EventLog.builder()
-                                  .type(SEND_RESULT_TYPE)
-                                  .principal(String.valueOf(batchId))
-                                  .build()),
-                  text,
-                  severity,
-                  alert));
-    } catch (RuntimeException e) {
-      log.error(
-          "Order email send result not recorded: batchId={}, alert={}, text={}",
-          batchId,
-          alert,
-          text,
-          e);
-      return null;
-    }
-  }
-
-  private void markPosted(EventLog sendResult, String text, Severity severity) {
-    try {
-      inItsOwnTransactionSinceTheBatchHasCommitted.executeWithoutResult(
-          status -> save(sendResult, text, severity, POSTED));
+      alertRows.markSendResultPosted(batchId, text);
     } catch (RuntimeException e) {
       log.warn(
           "Order email send result posted to Slack but not marked as posted, the scheduled run"
-              + " may post it again: principal={}, error={}",
-          sendResult.getPrincipal(),
+              + " may post it again: batchId={}, error={}",
+          batchId,
           e.toString());
     }
-  }
-
-  private EventLog save(EventLog sendResult, String text, Severity severity, String alert) {
-    sendResult.setTimestamp(clock.instant());
-    sendResult.setData(alertData(text, severity, alert));
-    eventLogRepository.save(sendResult);
-    return sendResult;
   }
 
   private static String summary(MandrillMessage message) {

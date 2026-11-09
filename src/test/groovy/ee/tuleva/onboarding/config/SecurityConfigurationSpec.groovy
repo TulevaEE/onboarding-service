@@ -309,21 +309,6 @@ class SecurityConfigurationSpec extends Specification {
     decisionFor(authenticationOf(accessToken), POST, "/v1/mandates") instanceof WardIsReadOnly
   }
 
-  def "with minor self-service disabled a minor's partner handover still reads while their access token reads as expired"() {
-    given:
-    ClockHolder.setClock(Clock.fixed(WHILE_THE_MINOR_IS_ELEVEN, ZoneOffset.UTC))
-
-    expect:
-    mvc.perform(get("/v1/me")
-        .header("Authorization", "Bearer " + generateJwtToken(MINOR_CHILD, tokenType, authorities)))
-        .andExpect(status)
-
-    where:
-    tokenType | authorities   | status
-    HANDOVER  | [PARTNER]     | status().isOk()
-    ACCESS    | [USER, WARD]  | status().isUnauthorized()
-  }
-
   def "telemetry still needs a USER token"() {
     given:
     def partnerToken = generateJwtToken(samplePerson, HANDOVER, [PARTNER])

@@ -171,8 +171,9 @@ class JwtAuthorizationFilterSpec extends Specification {
     0 * filterChain.doFilter(request, response)
   }
 
-  def "answers a minor's access token as expired once minor self-service is refused to them"() {
+  def "a minor's own access token is let through with the authorities it carries"() {
     given:
+    def ownRole = new Role(PERSON, "61506150006", "Mari Maasikas")
     def token = Jwts.builder()
         .subject("61506150006")
         .signWith(keyPair.private)
@@ -183,21 +184,28 @@ class JwtAuthorizationFilterSpec extends Specification {
         .claim("tokenType", "ACCESS")
         .claim("role", [type: "PERSON", code: "61506150006", name: "Mari Maasikas"])
         .compact()
+    def minor = sampleAuthenticatedPersonAndMember()
+        .firstName("Mari")
+        .lastName("Maasikas")
+        .personalCode("61506150006")
+        .role(ownRole)
+        .build()
     def request = new MockHttpServletRequest()
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
-    principalService.refusesSelfServiceTo(_, new Role(PERSON, "61506150006", "Mari Maasikas")) >> true
 
     when:
     filter.doFilterInternal(request, response, filterChain)
 
     then:
-    SecurityContextHolder.context.getAuthentication() == null
-    response.status == HttpServletResponse.SC_UNAUTHORIZED
-    JsonMapper.builder().build().readValue(response.contentAsString, Map.class) == JwtTokenUtil.getExpiredTokenErrorResponse()
-    0 * principalService.getFrom(_, _, _)
-    0 * filterChain.doFilter(request, response)
+    1 * principalService.getFrom(_, _, ownRole) >> minor
+    with(SecurityContextHolder.context.authentication) { authentication ->
+      (authentication.principal as AuthenticatedPerson).personalCode == "61506150006"
+      authentication.authorities == [new SimpleGrantedAuthority("USER"), new SimpleGrantedAuthority("WARD")]
+    }
+    response.status == HttpServletResponse.SC_OK
+    1 * filterChain.doFilter(request, response)
   }
 
   def "does not accept expired tokens even when in security context"() {
@@ -316,41 +324,6 @@ class JwtAuthorizationFilterSpec extends Specification {
       }
     }
 
-    1 * filterChain.doFilter(request, response)
-  }
-
-  def "a minor's partner handover token is not held to the self-service refusal"() {
-    given:
-    def token = Jwts.builder()
-        .subject("61506150006")
-        .signWith(partnerKeyPair.private)
-        .expiration(Date.from(clock.instant().plus(1, HOURS)))
-        .claim("firstName", "Mari")
-        .claim("lastName", "Maasikas")
-        .claim("iss", "PARTNER AS")
-        .claim("cid", "TULEVA")
-        .claim("tokenType", "HANDOVER")
-        .compact()
-    def minor = sampleAuthenticatedPersonAndMember()
-        .firstName("Mari")
-        .lastName("Maasikas")
-        .personalCode("61506150006")
-        .role(null)
-        .build()
-    def request = new MockHttpServletRequest()
-    request.addHeader("Authorization", "Bearer " + token)
-    def response = new MockHttpServletResponse()
-    def filterChain = Mock(FilterChain)
-    principalService.refusesSelfServiceTo(_, _) >> true
-    principalService.getFrom(_, _, _) >> minor
-
-    when:
-    filter.doFilterInternal(request, response, filterChain)
-
-    then:
-    (SecurityContextHolder.context.authentication.principal as AuthenticatedPerson).personalCode == "61506150006"
-    SecurityContextHolder.context.authentication.authorities == [new SimpleGrantedAuthority("PARTNER")]
-    response.status == HttpServletResponse.SC_OK
     1 * filterChain.doFilter(request, response)
   }
 

@@ -109,26 +109,6 @@ class AuthServiceSpec extends Specification {
   }
 
 
-  def "refreshing a session that is refused self-service reads as an expired refresh token"() {
-    given:
-        String refreshToken = "validRefreshToken"
-        def minor = sampleAuthenticatedPersonAndMember().personalCode("61506150006").build()
-        def ownRole = new Role(PERSON, "61506150006", "Mari Maasikas")
-        jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.REFRESH
-        jwtTokenUtil.getPersonFromToken(refreshToken) >> minor
-        jwtTokenUtil.getAttributesFromToken(refreshToken) >> [:]
-        jwtTokenUtil.getRoleFromToken(refreshToken) >> ownRole
-        principalService.refusesSelfServiceTo(minor, ownRole) >> true
-
-    when:
-        authService.refreshToken(refreshToken)
-
-    then:
-        thrown(ExpiredRefreshJwtException)
-        0 * principalService.getFrom(_, _, _)
-        0 * tokenService._
-  }
-
   def "provider is not used when it does not support the grant type"() {
     given:
     def grantType = SMART_ID

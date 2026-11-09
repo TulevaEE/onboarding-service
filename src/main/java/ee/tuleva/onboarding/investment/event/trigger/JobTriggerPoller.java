@@ -8,8 +8,10 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import ee.tuleva.onboarding.investment.event.*;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -74,9 +76,13 @@ class JobTriggerPoller {
   private static final Duration STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST =
       Duration.ofHours(6);
 
+  private static final Duration A_POLL_STARTS_NO_TRIGGER_AFTER_ITS_60_MINUTE_LEASE_LESS =
+      Duration.ofMinutes(55);
+
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
   private final OperationsNotificationService notificationService;
+  private final JobTriggerLease jobTriggerLease;
 
   @Scheduled(cron = JOB_TRIGGER_POLL)
   @SchedulerLock(name = "JobTriggerPoller", lockAtMostFor = "60m", lockAtLeastFor = "30s")
@@ -87,8 +93,25 @@ class JobTriggerPoller {
     }
 
     log.debug("Found pending job triggers: count={}", pending.size());
+    Instant leaseDeadline =
+        clock().instant().plus(A_POLL_STARTS_NO_TRIGGER_AFTER_ITS_60_MINUTE_LEASE_LESS);
+    jobTriggerLease.runUntil(leaseDeadline, () -> runPending(pending, leaseDeadline));
+  }
 
+  private void runPending(List<JobTrigger> pending, Instant leaseDeadline) {
     for (var trigger : pending) {
+      if (!clock().instant().isBefore(leaseDeadline)) {
+        log.info(
+            "Job trigger poll leaves the rest for the next poll, its lease is nearly spent:"
+                + " nextJobName={}",
+            trigger.getJobName());
+        return;
+      }
+      if (repository.existsByIdAndStatusNot(trigger.getId(), "PENDING")) {
+        log.info(
+            "Job trigger skipped, another poll already took it: jobName={}", trigger.getJobName());
+        continue;
+      }
       var eventFactory = eventFor(trigger.getJobName());
       if (eventFactory.isEmpty()) {
         markFailed(trigger, "Unknown job: " + trigger.getJobName());

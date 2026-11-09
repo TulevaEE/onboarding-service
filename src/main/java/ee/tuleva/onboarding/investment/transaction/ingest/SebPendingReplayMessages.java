@@ -170,8 +170,8 @@ final class SebPendingReplayMessages {
             + " nüüd keegi teine.\n",
         "Jätka raportist %s, kui teine sobitamine on lõppenud:\n", ERROR),
     TIME_BUDGET_SPENT(
-        "enne raportit %s, sest see on kestnud 45 minutit ja käivitajate lukk kehtib 60"
-            + " minutit.\n",
+        "enne raportit %s, sest selle käivituse aeg sai täis (kuni 45 minutit, käivitajate"
+            + " 60-minutilise luku sees).\n",
         "Jätka raportist %s:\n", WARNING);
 
     private final String where;

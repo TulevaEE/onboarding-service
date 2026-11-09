@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.investment.event.trigger;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
@@ -24,14 +26,19 @@ import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillReques
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.time.MutableClock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -41,6 +48,7 @@ class JobTriggerPollerTest {
   @Mock JobTriggerRepository repository;
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock OperationsNotificationService notificationService;
+  @Spy JobTriggerLease jobTriggerLease = new JobTriggerLease();
 
   @InjectMocks JobTriggerPoller poller;
 
@@ -253,6 +261,90 @@ class JobTriggerPollerTest {
             ('SebPendingTransactionReportReconciliationJob:2026-05-13');""",
             INVESTMENT,
             ERROR);
+  }
+
+  @AfterEach
+  void restoreTheClock() {
+    ClockHolder.setDefaultClock();
+  }
+
+  @Test
+  void aPollStartsNoTriggerOnceItsLeaseIsNearlySpentAndLeavesTheRestPending() {
+    MutableClock polling = new MutableClock(Instant.parse("2026-05-18T19:00:00Z"));
+    ClockHolder.setClock(polling);
+    var first = JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
+    var second = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(first, second));
+    willAnswer(
+            invocation -> {
+              polling.tick(56, MINUTES);
+              return null;
+            })
+        .given(eventPublisher)
+        .publishEvent(any(RunTrackingDifferenceCheckRequested.class));
+
+    poller.poll();
+
+    assertThat(first.getStatus()).isEqualTo("COMPLETED");
+    assertThat(second.getStatus()).isEqualTo("PENDING");
+    then(eventPublisher).should(never()).publishEvent(any(RunLimitCheckRequested.class));
+  }
+
+  @Test
+  void twoLongReplaysInOnePollEndByItsLeaseDeadlineAndTheTriggerAfterThemWaitsForTheNextPoll() {
+    Instant pollStart = Instant.parse("2026-05-18T19:00:00Z");
+    MutableClock polling = new MutableClock(pollStart);
+    ClockHolder.setClock(polling);
+    var replay =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob")
+            .status("PENDING")
+            .build();
+    var resume =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationBackfillJob:2026-05-08")
+            .status("PENDING")
+            .build();
+    var after = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
+        .willReturn(List.of(replay, resume, after));
+    List<Instant> deadlinesTheReplaysSaw = new ArrayList<>();
+    willAnswer(
+            invocation -> {
+              Instant deadline = jobTriggerLease.deadline().orElseThrow();
+              deadlinesTheReplaysSaw.add(deadline);
+              Instant replayStopsAt = polling.instant().plus(Duration.ofMinutes(44));
+              polling.tick(
+                  Duration.between(
+                          polling.instant(),
+                          replayStopsAt.isBefore(deadline) ? replayStopsAt : deadline)
+                      .toMinutes(),
+                  MINUTES);
+              return null;
+            })
+        .given(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationBackfillRequested.class));
+
+    poller.poll();
+
+    assertThat(deadlinesTheReplaysSaw)
+        .containsExactly(
+            pollStart.plus(Duration.ofMinutes(55)), pollStart.plus(Duration.ofMinutes(55)));
+    assertThat(polling.instant()).isEqualTo(pollStart.plus(Duration.ofMinutes(55)));
+    assertThat(after.getStatus()).isEqualTo("PENDING");
+    then(eventPublisher).should(never()).publishEvent(any(RunLimitCheckRequested.class));
+    assertThat(jobTriggerLease.deadline()).isEmpty();
+  }
+
+  @Test
+  void aTriggerAnotherPollHasAlreadyTakenIsNotRunAgain() {
+    var taken = JobTrigger.builder().id(7L).jobName("LimitCheckJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(taken));
+    given(repository.existsByIdAndStatusNot(7L, "PENDING")).willReturn(true);
+
+    poller.poll();
+
+    then(eventPublisher).should(never()).publishEvent(any());
   }
 
   @Test

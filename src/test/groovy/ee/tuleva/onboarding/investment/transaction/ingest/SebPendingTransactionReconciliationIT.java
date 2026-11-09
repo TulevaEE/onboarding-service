@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerLease;
 import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
@@ -1005,7 +1006,8 @@ class SebPendingTransactionReconciliationIT {
         reconciliationService,
         executionRepository,
         settlementRepository,
-        new SebReplayWindow("07:45", "18:15"));
+        new SebReplayWindow("07:45", "18:15"),
+        new JobTriggerLease());
   }
 
   private InvestmentReport reportWhoseFirstRowIs(LocalDate reportDate, TransactionOrder owner) {

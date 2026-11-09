@@ -9,4 +9,6 @@ interface JobTriggerRepository extends JpaRepository<JobTrigger, Long> {
   List<JobTrigger> findByStatusOrderByCreatedAtAsc(String status);
 
   Optional<JobTrigger> findFirstByJobNameAndStatus(String jobName, String status);
+
+  boolean existsByIdAndStatusNot(Long id, String status);
 }

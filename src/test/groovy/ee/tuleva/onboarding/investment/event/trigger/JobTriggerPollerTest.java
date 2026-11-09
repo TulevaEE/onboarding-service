@@ -5,10 +5,12 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
@@ -263,6 +265,30 @@ class JobTriggerPollerTest {
             ('SebPendingTransactionReportReconciliationJob:2026-05-13');""",
             INVESTMENT,
             ERROR);
+  }
+
+  @Test
+  void anExpiredTriggerWhoseSlackPostFailsStaysFailedAndTheTriggersAfterItStillRun() {
+    var expired =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-13")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .build();
+    var after = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    givenPending(expired, after);
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReportReconciliationRequested.class));
+    willThrow(new IllegalStateException("slack unavailable"))
+        .given(notificationService)
+        .sendMessage(anyString(), eq(INVESTMENT), eq(ERROR));
+
+    poller.poll();
+
+    assertThat(expired.getStatus()).isEqualTo("FAILED");
+    then(eventPublisher).should().publishEvent(any(RunLimitCheckRequested.class));
+    assertThat(after.getStatus()).isEqualTo("COMPLETED");
   }
 
   @AfterEach

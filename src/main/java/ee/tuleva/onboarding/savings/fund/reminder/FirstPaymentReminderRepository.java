@@ -4,8 +4,9 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIR
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
-import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.sql.ResultSet;
@@ -14,13 +15,14 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Repository;
@@ -101,7 +103,7 @@ class FirstPaymentReminderRepository {
             openedFrom,
             openedUntil)
         .param("emailType", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON.name())
-        .query(inPreferredLanguage(SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON))
+        .query(this::adultReminder)
         .list()
         .stream()
         .filter(this::isAdult)
@@ -153,11 +155,12 @@ class FirstPaymentReminderRepository {
   }
 
   List<FirstPaymentReminder> fetchForCompanies(Instant openedFrom, Instant openedUntil) {
-    return window(
-            jdbcClient.sql(
-                "WITH "
-                    + LANGUAGE_PREFERENCES
-                    + """
+    return earliestOpenedCompanyOfEachApplicant(
+        window(
+                jdbcClient.sql(
+                    "WITH "
+                        + LANGUAGE_PREFERENCES
+                        + """
                     ,
                     latest_surveys AS (
                       SELECT survey.registry_code, survey.user_id
@@ -179,11 +182,12 @@ class FirstPaymentReminderRepository {
                                           AND later.type = review_check.type
                                           AND later.created_time > review_check.created_time)
                     )
-                    SELECT DISTINCT applicant.personal_code AS recipient_code,
+                    SELECT applicant.personal_code AS recipient_code,
                            applicant.first_name AS first_name,
                            applicant.last_name AS last_name,
                            applicant.email AS email,
-                           language_preferences.language_preference AS language_preference
+                           language_preferences.language_preference AS language_preference,
+                           company.id AS account_id
                     FROM savings_fund_onboarding onboarding
                     JOIN latest_surveys ON latest_surveys.registry_code = onboarding.code
                     JOIN users applicant ON applicant.id = latest_surveys.user_id
@@ -212,14 +216,27 @@ class FirstPaymentReminderRepository {
                                       WHERE review.company_id = company.id
                                         AND review.success = false
                                         AND review.created_time >= onboarding.updated_at)
-                    ORDER BY applicant.personal_code
+                    ORDER BY applicant.personal_code, onboarding.updated_at
                     """),
-            openedFrom,
-            openedUntil)
-        .param("emailType", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY.name())
-        .param("manualReviewCheckTypes", CHECKS_KEEPING_AN_ONBOARDED_COMPANY_FOR_MANUAL_REVIEW)
-        .query(inPreferredLanguage(SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY))
-        .list();
+                openedFrom,
+                openedUntil)
+            .param("emailType", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY.name())
+            .param("manualReviewCheckTypes", CHECKS_KEEPING_AN_ONBOARDED_COMPANY_FOR_MANUAL_REVIEW)
+            .query(this::companyReminder)
+            .list());
+  }
+
+  private static List<FirstPaymentReminder> earliestOpenedCompanyOfEachApplicant(
+      List<FirstPaymentReminder> remindersInOpeningOrder) {
+    return List.copyOf(
+        remindersInOpeningOrder.stream()
+            .collect(
+                toMap(
+                    FirstPaymentReminder::accountCode,
+                    identity(),
+                    (earliest, later) -> earliest,
+                    LinkedHashMap::new))
+            .values());
   }
 
   private StatementSpec window(StatementSpec statement, Instant openedFrom, Instant openedUntil) {
@@ -229,15 +246,25 @@ class FirstPaymentReminderRepository {
         .param("today", LocalDate.now(clock));
   }
 
-  private RowMapper<FirstPaymentReminder> inPreferredLanguage(EmailType emailType) {
-    return (rs, rowNum) ->
-        new FirstPaymentReminder(
-            rs.getString("recipient_code"),
-            rs.getString("first_name"),
-            rs.getString("last_name"),
-            rs.getString("email"),
-            localeOf(rs.getString("language_preference")),
-            emailType);
+  private FirstPaymentReminder adultReminder(ResultSet rs, int rowNum) throws SQLException {
+    return new FirstPaymentReminder(
+        rs.getString("recipient_code"),
+        rs.getString("first_name"),
+        rs.getString("last_name"),
+        rs.getString("email"),
+        localeOf(rs.getString("language_preference")),
+        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+  }
+
+  private FirstPaymentReminder companyReminder(ResultSet rs, int rowNum) throws SQLException {
+    return new FirstPaymentReminder(
+        rs.getString("recipient_code"),
+        rs.getString("first_name"),
+        rs.getString("last_name"),
+        rs.getString("email"),
+        localeOf(rs.getString("language_preference")),
+        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY,
+        rs.getObject("account_id", UUID.class));
   }
 
   private ChildAccountGuardian childAccountGuardian(ResultSet rs, int rowNum) throws SQLException {

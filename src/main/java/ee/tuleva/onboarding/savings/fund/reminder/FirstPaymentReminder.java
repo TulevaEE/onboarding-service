@@ -35,6 +35,25 @@ record FirstPaymentReminder(
         null);
   }
 
+  FirstPaymentReminder(
+      String accountCode,
+      String recipientFirstName,
+      String recipientLastName,
+      String recipientEmail,
+      Locale locale,
+      EmailType emailType,
+      @Nullable UUID accountId) {
+    this(
+        accountCode,
+        recipientFirstName,
+        recipientLastName,
+        recipientEmail,
+        locale,
+        emailType,
+        null,
+        accountId);
+  }
+
   @Override
   public String getPersonalCode() {
     return accountCode;

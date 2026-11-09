@@ -39,6 +39,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -294,6 +295,8 @@ class MinorSelfLoginIntegrationTest {
         .claim("firstName", "Mari")
         .claim("lastName", "Maasikas")
         .issuer("PARTNER AS")
+        .claim("cid", "TULEVA")
+        .id(UUID.randomUUID().toString())
         .claim("authenticationMethod", "SMART_ID")
         .claim("signingMethod", "SMART_ID")
         .claim("phoneNumber", "+37255555555")

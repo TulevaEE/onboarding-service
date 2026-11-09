@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
+import ee.tuleva.onboarding.auth.partner.HandoverTokenRejectedException;
+import ee.tuleva.onboarding.auth.partner.UnverifiableHandoverTokenException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
@@ -38,6 +40,26 @@ public class AuthErrorHandler {
     log.info("Auth session not found: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
+        UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(HandoverTokenRejectedException.class)
+  public ResponseEntity<ErrorsResponse> handleHandoverTokenRejected(
+      HandoverTokenRejectedException exception) {
+    log.error("Partner handover token rejected: {}", exception.getMessage());
+    return handoverTokenRejected();
+  }
+
+  @ExceptionHandler(UnverifiableHandoverTokenException.class)
+  public ResponseEntity<ErrorsResponse> handleUnverifiableHandoverToken(
+      UnverifiableHandoverTokenException exception) {
+    log.info("Unverifiable handover token: {}", exception.getMessage());
+    return handoverTokenRejected();
+  }
+
+  private static ResponseEntity<ErrorsResponse> handoverTokenRejected() {
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("auth.handover.token.rejected", "Handover token rejected."),
         UNAUTHORIZED);
   }
 

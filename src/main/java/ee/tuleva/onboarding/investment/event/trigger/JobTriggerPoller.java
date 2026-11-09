@@ -169,7 +169,7 @@ class JobTriggerPoller {
           trigger.getJobName(),
           createdAt,
           busy.getMessage());
-      notificationService.sendMessage(expiredMessage(trigger.getJobName()), INVESTMENT, ERROR);
+      postExpiry(trigger.getJobName());
       return;
     }
     trigger.setStatus("PENDING");
@@ -178,6 +178,14 @@ class JobTriggerPoller {
         "Job trigger left pending, its job is busy: jobName={}, reason={}",
         trigger.getJobName(),
         busy.getMessage());
+  }
+
+  private void postExpiry(String jobName) {
+    try {
+      notificationService.sendMessage(expiredMessage(jobName), INVESTMENT, ERROR);
+    } catch (RuntimeException e) {
+      log.error("Job trigger expiry could not be posted to Slack: jobName={}", jobName, e);
+    }
   }
 
   private static String expiredMessage(String jobName) {

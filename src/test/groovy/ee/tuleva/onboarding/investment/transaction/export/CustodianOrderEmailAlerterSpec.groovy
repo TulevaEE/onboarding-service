@@ -214,6 +214,32 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     1 * eventLogRepository.save({ EventLog it -> it.data == postedData(redAlert, "ERROR") })
   }
 
+  def "the sweep reads the rows older than the run's two days and gives up only those never resolved"() {
+    given:
+    def unresolved = [
+        row("msg_1", notYetPostedData(redAlert, "ERROR"), t0),
+        sendAttemptRow(t0),
+        row("msg_3", [text: redAlert, severity: "ERROR", alert: "CLAIMED", claimedAt: t0.toString()], t0),
+        row("msg_4", null, t0)]
+    def resolved = [row("msg_5", postedData(redAlert, "ERROR"), t0), row("msg_6", givenUpData(redAlert, "ERROR"), t0)]
+    def rows = (unresolved + resolved) as EventLog[]
+    rows.eachWithIndex { EventLog it, int i -> it.id = 2000L + i }
+    eventLogRepository.findLockedById(_) >> { Long id -> Optional.ofNullable(rows.find { it.id == id }) }
+
+    when:
+    alerter.giveUpAlertsOlderThanTheReadWindow()
+
+    then:
+    1 * eventLogRepository.findAllByTypeInAndTimestampLessThan(
+        ["TRADE_ORDER_EMAIL_HARD_BOUNCE", "TRADE_ORDER_EMAIL_SOFT_BOUNCE",
+         "TRADE_ORDER_EMAIL_REJECT", "TRADE_ORDER_EMAIL_DEFERRAL",
+         "TRADE_ORDER_EMAIL_SEND_RESULT"],
+        aMinuteLater.minus(Duration.ofHours(48))) >> rows.toList()
+    4 * eventLogRepository.save({ EventLog it -> it.data.alert == "GIVEN_UP" })
+    0 * eventLogRepository.findLockedById({ it in [2004L, 2005L] })
+    0 * notificationService._
+  }
+
   def "the run reads order email delivery failures and send results of the last two days, oldest first"() {
     when:
     alerter.postAlertsNotYetPosted()

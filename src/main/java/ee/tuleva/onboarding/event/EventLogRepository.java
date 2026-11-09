@@ -19,6 +19,8 @@ public interface EventLogRepository extends CrudRepository<EventLog, Long> {
   List<EventLog> findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(
       Collection<String> types, Instant since);
 
+  List<EventLog> findAllByTypeInAndTimestampLessThan(Collection<String> types, Instant before);
+
   @Lock(PESSIMISTIC_WRITE)
   Optional<EventLog> findFirstByTypeAndPrincipalOrderByTimestampDesc(String type, String principal);
 

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction.export;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -197,6 +198,56 @@ class CustodianOrderEmailAlerterIT {
     assertThat(eventLogRepository.findAll())
         .singleElement()
         .satisfies(row -> assertThat(row.getData()).isEqualTo(givenUp("hard_bounce")));
+  }
+
+  @Test
+  void aSendAttemptAndADeliveryFailureStillPendingPastTheTwoDayReadWindowAreGivenUpBySweep_once() {
+    webhookReceives(orderEmailBounce("hard_bounce"));
+    eventLogRepository.save(sendResultRow("43", "SENDING"));
+    eventLogRepository.save(sendResultRow("44", "POSTED"));
+    var backAfterTwoDaysDown = BOUNCED_AT.plus(Duration.ofHours(49));
+
+    runAt(backAfterTwoDaysDown);
+    sweepAt(backAfterTwoDaysDown);
+    sweepAt(backAfterTwoDaysDown.plus(Duration.ofHours(1)));
+
+    then(notificationService).shouldHaveNoInteractions();
+    assertThat(eventLogRepository.findAll())
+        .extracting(EventLog::getPrincipal, row -> row.getData().get("alert"))
+        .containsExactlyInAnyOrder(
+            tuple("msg_1", "GIVEN_UP"), tuple("43", "GIVEN_UP"), tuple("44", "POSTED"));
+  }
+
+  @Test
+  void theSweepLeavesRowsInsideTheTwoDayReadWindowToTheRun() {
+    webhookReceives(orderEmailBounce("hard_bounce"));
+
+    sweepAt(BOUNCED_AT.plus(Duration.ofHours(47)));
+
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(row -> assertThat(row.getData()).isEqualTo(notYetPosted("hard_bounce")));
+  }
+
+  private void sweepAt(Instant now) {
+    given(clock.instant()).willReturn(now);
+    alerter.giveUpAlertsOlderThanTheReadWindow();
+  }
+
+  private static EventLog sendResultRow(String batchId, String alert) {
+    return EventLog.builder()
+        .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+        .principal(batchId)
+        .timestamp(BOUNCED_AT)
+        .data(
+            Map.of(
+                "text",
+                "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026",
+                "severity",
+                "ERROR",
+                "alert",
+                alert))
+        .build();
   }
 
   private void webhookReceives(String mandrillEvents) {

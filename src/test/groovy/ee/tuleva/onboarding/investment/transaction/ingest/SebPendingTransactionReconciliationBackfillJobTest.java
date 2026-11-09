@@ -621,6 +621,43 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             ERROR);
   }
 
+  @Test
+  void aResumeWhoseTimeRunsOutWhileReadingEarlierListingsStopsBeforeItsFirstReport() {
+    MutableClock evening = new MutableClock(at("2026-05-18T22:00"));
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    willAnswer(
+            invocation -> {
+              evening.tick(46, MINUTES);
+              return null;
+            })
+        .given(reconciliationService)
+        .noteListedBy(eq(day27), any());
+    SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
+    RunSebPendingTransactionReconciliationBackfillRequested resumeFromDay10 =
+        new RunSebPendingTransactionReconciliationBackfillRequested(TODAY.minusDays(10));
+
+    assertThatThrownBy(
+            () ->
+                eveningJob.onSebPendingTransactionReconciliationBackfillRequested(resumeFromDay10))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(reconciliationService, never()).replay(any(), any(), any(), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
+            see on kestnud 45 minutit ja käivitajate lukk kehtib 60 minutit.
+            Enne seda ei sobitatud ühtki raportit.
+            Jätka raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            WARNING);
+  }
+
   private SebPendingTransactionReconciliationBackfillJob jobLockedBy(
       RecordingLockProvider provider) {
     return jobAt(clock, provider);

@@ -41,12 +41,14 @@ class SebMatchedRowProcessor {
     Optional<TransactionSettlement> settlement = settlementRepository.findByOrderId(order.getId());
     if (settlement.isPresent()) {
       handleSettledOrderReappearance(order, settlement.get(), row, reportDate);
+      executionUpserter.dateByFirstListingOnly(row, order, reportDate, asOfDate, run);
       return RowOutcome.MATCHED;
     }
     Optional<QuantityAmountMismatchEvent> blankEconomics =
         quantityAmountValidator.detectBlankEconomics(order, row, matchingProperties);
     if (blankEconomics.isPresent()) {
       reportMismatch(blankEconomics.get().withReportDate(reportDate), row, run);
+      executionUpserter.dateByFirstListingOnly(row, order, reportDate, asOfDate, run);
       return RowOutcome.MATCHED;
     }
     List<TransactionExecution> existingExecutions =
@@ -58,6 +60,7 @@ class SebMatchedRowProcessor {
             order, normalizedRow, existingExecutions, matchingProperties);
     if (mismatch.isPresent()) {
       reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow, run);
+      executionUpserter.dateByFirstListingOnly(row, order, reportDate, asOfDate, run);
       return RowOutcome.MATCHED;
     }
     BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);

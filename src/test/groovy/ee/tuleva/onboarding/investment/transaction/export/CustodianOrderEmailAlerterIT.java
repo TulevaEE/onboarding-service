@@ -43,6 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
   MandrillWebhookService.class,
   CustodianOrderEmailAlerter.class,
+  OrderEmailAlertRows.class,
   CustodianOrderEmailAlerterIT.WebhookJson.class
 })
 class CustodianOrderEmailAlerterIT {

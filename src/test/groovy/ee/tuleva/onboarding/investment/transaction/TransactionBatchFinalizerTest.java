@@ -514,7 +514,7 @@ class TransactionBatchFinalizerTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_uploadsToDriveOnlyAfterCommit() {
+  void finalizeConfirmedBatch_recordsTheSendAttemptBeforeCommit_andEmailsBeforeUploadingToDrive() {
     when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
 
     var batch =
@@ -563,7 +563,8 @@ class TransactionBatchFinalizerTest {
     finalizer.finalizeConfirmedBatch(batch);
 
     verifyNoInteractions(exportUploader);
-    verifyNoInteractions(custodianOrderEmailSender);
+    verify(custodianOrderEmailSender).recordAttempt(eq(1L), eq(TUV100), any(), any());
+    verify(custodianOrderEmailSender, never()).send(anyLong(), any(), any(), any());
     verify(eventPublisher, never()).publishEvent(any(BatchFinalizedEvent.class));
 
     var synchronizations = TransactionSynchronizationManager.getSynchronizations();
@@ -579,7 +580,13 @@ class TransactionBatchFinalizerTest {
                 "driveFileUrls",
                 Map.of("sebFundXlsx", "https://drive.google.com/file1")));
     verify(batchRepository).save(committedBatch);
-    verify(custodianOrderEmailSender).send(eq(batch.getId()), eq(TUV100), any(), any());
+    var ordersBeforeDrive = inOrder(custodianOrderEmailSender, exportUploader);
+    ordersBeforeDrive
+        .verify(custodianOrderEmailSender)
+        .send(eq(batch.getId()), eq(TUV100), any(), any());
+    ordersBeforeDrive
+        .verify(exportUploader)
+        .uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
   }
 

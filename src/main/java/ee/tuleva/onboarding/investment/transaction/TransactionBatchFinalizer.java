@@ -114,41 +114,33 @@ public class TransactionBatchFinalizer {
             .payload(Map.of("tradeDate", tradeDate.toString(), "orderCount", orders.size()))
             .build());
 
-    runAfterCommit(
-        () ->
-            publishExportsToDrive(
-                batch,
-                now,
-                tradeDate,
-                orders.size(),
-                sebFundXlsx,
-                sebEtfXlsx,
-                ftEtfXlsx,
-                uuidWorkbookXlsx));
-
-    log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
-  }
-
-  private void publishExportsToDrive(
-      TransactionBatch batch,
-      Instant timestamp,
-      LocalDate tradeDate,
-      int orderCount,
-      byte[] sebFundXlsx,
-      byte[] sebEtfXlsx,
-      byte[] ftEtfXlsx,
-      byte[] uuidWorkbookXlsx) {
-    var exports =
+    var orderEmailExports =
         Map.of(
             "sebFundXlsx", sebFundXlsx,
             "sebEtfXlsx", sebEtfXlsx,
             "ftEtfXlsx", ftEtfXlsx,
             "uuidWorkbookXlsx", uuidWorkbookXlsx);
+    custodianOrderEmailSender.recordAttempt(batch.getId(), batch.getFund(), now, orderEmailExports);
+
+    runAfterCommit(
+        () ->
+            emailTheOrdersThenPublishToDrive(
+                batch, now, tradeDate, orders.size(), orderEmailExports));
+
+    log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
+  }
+
+  private void emailTheOrdersThenPublishToDrive(
+      TransactionBatch batch,
+      Instant timestamp,
+      LocalDate tradeDate,
+      int orderCount,
+      Map<String, byte[]> exports) {
+    custodianOrderEmailSender.send(batch.getId(), batch.getFund(), timestamp, exports);
     Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
       persistDriveFileUrls(batch.getId(), driveFileUrls);
     }
-    custodianOrderEmailSender.send(batch.getId(), batch.getFund(), timestamp, exports);
     eventPublisher.publishEvent(
         new BatchFinalizedEvent(batch.getId(), orderCount, tradeDate.toString(), driveFileUrls));
   }

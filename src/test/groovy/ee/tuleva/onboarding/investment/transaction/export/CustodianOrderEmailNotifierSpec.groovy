@@ -31,7 +31,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
   PlatformTransactionManager transactionManager = Mock()
   Instant sentAt = Instant.parse("2026-01-15T10:00:00Z")
   CustodianOrderEmailNotifier notifier = new CustodianOrderEmailNotifier(
-      notificationService, eventLogRepository, Clock.fixed(sentAt, UTC), transactionManager)
+      notificationService, new OrderEmailAlertRows(eventLogRepository, Clock.fixed(sentAt, UTC), transactionManager))
 
   String greenLine = "✅ Orders emailed: TUV100 ostu-/müügikorraldused 15.01.2026, from orders@example.com, 2 files"
   String resultUnknown =
@@ -39,8 +39,12 @@ class CustodianOrderEmailNotifierSpec extends Specification {
           "No send result was recorded: the service may have stopped while sending.\n" +
           "It may have gone out. Check the Cc copy or ask the desk before sending again."
 
+  Closure<Optional<EventLog>> latestSendResultRow = { Optional.empty() }
+
   def setup() {
-    eventLogRepository.findByTypeAndPrincipal(_, _) >> Optional.empty()
+    eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc("TRADE_ORDER_EMAIL_SEND_RESULT", "42") >> {
+      latestSendResultRow()
+    }
   }
 
   MandrillMessage message = new MandrillMessage().tap {
@@ -147,7 +151,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         TRADING, ERROR)
   }
 
-  def "records the send attempt before Mandrill is called, holding the UNKNOWN line the run posts if no result follows"() {
+  def "records the send attempt before the batch commits, holding the UNKNOWN line the run posts if no result follows"() {
     when:
     notifier.reportSendAttempt(42L, message)
 
@@ -161,15 +165,15 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     0 * notificationService._
   }
 
-  def "records the send attempt in a transaction of its own, since the batch has already committed"() {
+  def "records the send attempt in the batch's own transaction, so it commits with the batch"() {
     when:
     notifier.reportSendAttempt(42L, message)
 
     then:
-    1 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
+    0 * transactionManager.getTransaction(_)
   }
 
-  def "a send attempt that cannot be recorded does not stop the send"() {
+  def "a send attempt that cannot be recorded fails the batch finalization, so the batch is not SENT without it"() {
     given:
     eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
 
@@ -177,7 +181,7 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendAttempt(42L, message)
 
     then:
-    noExceptionThrown()
+    thrown(DataAccessResourceFailureException)
   }
 
   def "turns the attempt row into the result, posts it at once, then marks it posted, so the run has nothing left"() {
@@ -189,15 +193,38 @@ class CustodianOrderEmailNotifierSpec extends Specification {
         .timestamp(sentAt.minusSeconds(30))
         .data([text: resultUnknown, severity: "ERROR", alert: "SENDING"])
         .build()
+    latestSendResultRow = { Optional.of(attempt) }
 
     when:
     notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
 
     then:
-    1 * eventLogRepository.findByTypeAndPrincipal("TRADE_ORDER_EMAIL_SEND_RESULT", "42") >> Optional.of(attempt)
     1 * eventLogRepository.save({ EventLog it ->
       it.id == 7L && it.timestamp == sentAt && it.data == [text: greenLine, severity: "INFO", alert: "NOT_POSTED"]
     }) >> { EventLog it -> it }
+
+    then:
+    1 * notificationService.sendMessage(greenLine, TRADING, INFO)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.id == 7L && it.data == [text: greenLine, severity: "INFO", alert: "POSTED"] })
+  }
+
+  def "a result whose first write fails is written once more after the post, so the attempt row does not stay SENDING"() {
+    given:
+    latestSendResultRow = {
+      Optional.of(EventLog.builder()
+          .id(7L)
+          .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+          .principal("42")
+          .timestamp(sentAt.minusSeconds(30))
+          .data([text: resultUnknown, severity: "ERROR", alert: "SENDING"])
+          .build())
+    }
+    eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database blip") } >> { EventLog it -> it }
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
 
     then:
     1 * notificationService.sendMessage(greenLine, TRADING, INFO)

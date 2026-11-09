@@ -8,12 +8,15 @@ import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SE
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
@@ -27,6 +30,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +55,7 @@ import org.springframework.web.client.RestClientException;
   CustodianOrderMessageFactory.class,
   CustodianOrderEmailNotifier.class,
   CustodianOrderEmailAlerter.class,
+  OrderEmailAlertRows.class,
   CustodianOrderEmailNotifierIT.OrderEmailSettings.class
 })
 class CustodianOrderEmailNotifierIT {
@@ -73,6 +78,7 @@ class CustodianOrderEmailNotifierIT {
 
   @Autowired CustodianOrderEmailSender sender;
   @Autowired CustodianOrderEmailNotifier notifier;
+  @Autowired OrderEmailAlertRows alertRows;
   @Autowired CustodianOrderMessageFactory messageFactory;
   @Autowired CustodianOrderEmailAlerter alerter;
   @Autowired EventLogRepository eventLogRepository;
@@ -148,8 +154,9 @@ class CustodianOrderEmailNotifierIT {
   }
 
   @Test
-  void aSendTheServiceStopsBeforeCallingMandrillIsPostedAsUnknownOnce_afterFiveMinutes() {
-    notifier.reportSendAttempt(BATCH_ID, messageFactory.create(TUV100, SENT_AT, EXPORTS));
+  void aBatchTheServiceStopsAfterCommittingIsPostedAsUnknownOnce_afterFiveMinutes() {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(status -> sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS));
 
     runAt(FOUR_MINUTES_LATER);
     then(notificationService).shouldHaveNoInteractions();
@@ -203,19 +210,135 @@ class CustodianOrderEmailNotifierIT {
         .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "POSTED"));
   }
 
+  @Test
+  void theSendAttemptCommitsWithTheBatch_andRollsBackWithIt() {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            status -> {
+              sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS);
+              status.setRollbackOnly();
+            });
+
+    assertThat(eventLogRepository.findAll()).isEmpty();
+
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(status -> sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS));
+
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "SENDING"));
+  }
+
+  @Test
+  void aRealResultRecordedAfterTheRunReadTheAttemptIsNotOverwritten_andNoUnknownIsPosted() {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(status -> sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS));
+    var attemptTheRunRead = eventLogRepository.findAll().iterator().next();
+    given(orderEmailTransport.send(any()))
+        .willReturn(new EmailSendResult(FAILED, List.of(), "ConnectException: Connection refused"));
+    given(clock.instant()).willReturn(PAST_FIVE_MINUTES);
+    sender.send(BATCH_ID, TUV100, SENT_AT, EXPORTS);
+
+    var posted =
+        alertRows.postIfStillDue(
+            attemptTheRunRead,
+            PAST_FIVE_MINUTES,
+            row -> notificationService.sendMessage("stale UNKNOWN", TRADING, ERROR));
+
+    assertThat(posted).isFalse();
+    then(notificationService).should().sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
+    then(notificationService).shouldHaveNoMoreInteractions();
+    assertThat(eventLogRepository.findAll())
+        .singleElement()
+        .satisfies(row -> assertThat(row.getData()).containsEntry("text", ORDERS_NOT_SENT));
+  }
+
+  @Test
+  void aRealResultArrivingWhileTheRunPostsTheUnknownWaitsForIt_andIsRecordedAndPostedAfter()
+      throws Exception {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(status -> sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS));
+    given(orderEmailTransport.send(any()))
+        .willReturn(new EmailSendResult(FAILED, List.of(), "ConnectException: Connection refused"));
+    var resultWriter = new AtomicReference<Thread>();
+    willAnswer(
+            invocation -> {
+              var writer =
+                  new Thread(
+                      () ->
+                          notifier.reportSendResult(
+                              BATCH_ID,
+                              messageFactory.create(TUV100, SENT_AT, EXPORTS),
+                              new EmailSendResult(
+                                  FAILED, List.of(), "ConnectException: Connection refused")));
+              resultWriter.set(writer);
+              writer.start();
+              writer.join(300);
+              assertThat(writer.isAlive()).isTrue();
+              return null;
+            })
+        .given(notificationService)
+        .sendMessage(RESULT_UNKNOWN_POSTED_LATE, TRADING, ERROR);
+
+    runAt(PAST_FIVE_MINUTES);
+    resultWriter.get().join(5000);
+
+    var slack = inOrder(notificationService);
+    slack.verify(notificationService).sendMessage(RESULT_UNKNOWN_POSTED_LATE, TRADING, ERROR);
+    slack.verify(notificationService).sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
+    assertThat(eventLogRepository.findAll())
+        .extracting(
+            row -> row.getData().get("alert"),
+            row -> ((String) row.getData().get("text")).lines().findFirst().orElseThrow())
+        .containsExactlyInAnyOrder(
+            tuple(
+                "POSTED",
+                "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026"),
+            tuple("POSTED", "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026"));
+  }
+
+  @Test
+  void theResultGoesOnTheLatestRowOfTheBatch_evenWithAnOlderOneThere() {
+    eventLogRepository.save(
+        EventLog.builder()
+            .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+            .principal(String.valueOf(BATCH_ID))
+            .timestamp(SENT_AT.minus(Duration.ofDays(1)))
+            .data(
+                Map.of(
+                    "text",
+                    "an older send of this batch",
+                    "severity",
+                    "ERROR",
+                    "alert",
+                    "GIVEN_UP"))
+            .build());
+    given(orderEmailTransport.send(any()))
+        .willReturn(new EmailSendResult(FAILED, List.of(), "ConnectException: Connection refused"));
+
+    sendAfterTheBatchCommits();
+
+    then(notificationService).should().sendMessage(ORDERS_NOT_SENT, TRADING, ERROR);
+    assertThat(eventLogRepository.findAll())
+        .extracting(row -> row.getData().get("alert"))
+        .containsExactlyInAnyOrder("GIVEN_UP", "POSTED");
+  }
+
   static class ServiceStopped extends Error {}
 
   private void sendAfterTheBatchCommits() {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
-            status ->
-                TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                      @Override
-                      public void afterCommit() {
-                        sender.send(BATCH_ID, TUV100, SENT_AT, EXPORTS);
-                      }
-                    }));
+            status -> {
+              sender.recordAttempt(BATCH_ID, TUV100, SENT_AT, EXPORTS);
+              TransactionSynchronizationManager.registerSynchronization(
+                  new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                      sender.send(BATCH_ID, TUV100, SENT_AT, EXPORTS);
+                    }
+                  });
+            });
   }
 
   private void runAt(Instant now) {

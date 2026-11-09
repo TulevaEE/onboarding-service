@@ -20,6 +20,13 @@ public class CustodianOrderEmailSender {
   private final AtMostOnceEmailSender custodianOrderEmailTransport;
   private final CustodianOrderEmailNotifier notifier;
 
+  public void recordAttempt(
+      long batchId, TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
+    if (properties.isSendable() && hasContent(exports)) {
+      notifier.reportSendAttempt(batchId, messageFactory.create(fund, timestamp, exports));
+    }
+  }
+
   public boolean send(
       long batchId, TulevaFund fund, Instant timestamp, Map<String, byte[]> exports) {
     if (!properties.isSendable()) {
@@ -30,15 +37,12 @@ public class CustodianOrderEmailSender {
           fund);
       return false;
     }
-    boolean hasContent =
-        exports.values().stream().anyMatch(bytes -> bytes != null && bytes.length > 0);
-    if (!hasContent) {
+    if (!hasContent(exports)) {
       log.warn("Custodian order email not sent: no export content, fund={}", fund);
       return false;
     }
 
     var message = messageFactory.create(fund, timestamp, exports);
-    notifier.reportSendAttempt(batchId, message);
     var result = custodianOrderEmailTransport.send(message);
     notifier.reportSendResult(batchId, message, result);
     if (result.outcome() != SENT) {
@@ -54,5 +58,9 @@ public class CustodianOrderEmailSender {
         fund,
         message.getAttachments().size());
     return true;
+  }
+
+  private static boolean hasContent(Map<String, byte[]> exports) {
+    return exports.values().stream().anyMatch(bytes -> bytes != null && bytes.length > 0);
   }
 }

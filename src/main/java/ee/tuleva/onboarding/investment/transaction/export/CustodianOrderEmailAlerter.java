@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.SEND_RESULT_TYPE;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.isCandidate;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.severity;
+import static ee.tuleva.onboarding.investment.transaction.export.OrderEmailAlertRows.text;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static java.util.Comparator.comparingInt;
 import static java.util.Locale.ROOT;
-import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -22,13 +25,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -41,10 +41,6 @@ import org.springframework.web.client.HttpClientErrorException;
 @RequiredArgsConstructor
 class CustodianOrderEmailAlerter {
 
-  static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
-  static final String SENDING = "SENDING";
-  static final String NOT_POSTED = "NOT_POSTED";
-  static final String POSTED = "POSTED";
   private static final String DEFERRAL = "deferral";
   private static final List<String> RECORDED_TYPES =
       List.of(
@@ -60,22 +56,15 @@ class CustodianOrderEmailAlerter {
   private static final List<Severity> SEVERITIES_MOST_URGENT_FIRST = List.of(ERROR, WARNING, INFO);
   private static final List<HttpStatus> SLACK_REFUSES_THE_PAYLOAD_ITSELF_WITH =
       List.of(BAD_REQUEST, CONTENT_TOO_LARGE);
-  private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
-      Duration.ofMinutes(2);
-  private static final Duration SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S =
-      Duration.ofMinutes(5);
   private static final DateTimeFormatter EVENT_TIME =
       DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
-  private static final String TEXT = "text";
-  private static final String SEVERITY = "severity";
-  private static final String ALERT = "alert";
-  private static final String GIVEN_UP = "GIVEN_UP";
   private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
       "not posted within the 24 hour retry window";
   private static final String DATA_CANNOT_BE_READ = "its data cannot be read";
 
   private final OperationsNotificationService notificationService;
   private final EventLogRepository eventLogRepository;
+  private final OrderEmailAlertRows alertRows;
   private final Clock clock;
 
   @EventListener
@@ -99,13 +88,12 @@ class CustodianOrderEmailAlerter {
         event.reason(),
         event.mandrillMessageId());
     var delayed = DEFERRAL.equals(event.eventType());
-    eventLogRepository.save(
-        EventLog.builder()
-            .type(recordedType)
-            .principal(event.mandrillMessageId())
-            .timestamp(event.timestamp())
-            .data(alertData(alertText(event), delayed ? WARNING : ERROR, NOT_POSTED))
-            .build());
+    alertRows.recordDeliveryFailure(
+        recordedType,
+        event.mandrillMessageId(),
+        event.timestamp(),
+        alertText(event),
+        delayed ? WARNING : ERROR);
   }
 
   @Scheduled(fixedRateString = "1m")
@@ -116,27 +104,24 @@ class CustodianOrderEmailAlerter {
   void postAlertsNotYetPosted() {
     var now = clock.instant();
     var retryFrom = now.minus(RETRY_WINDOW);
-    var notYetPosted =
+    var candidates =
         eventLogRepository
             .findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(
                 RECORDED_TYPES, retryFrom.minus(GIVE_UP_LOOKBACK))
             .stream()
-            .filter(row -> isNotYetPosted(row) || isAbandonedSendAttempt(row, now))
-            .filter(row -> !isLeftToItsDirectPost(row, now))
+            .filter(row -> isCandidate(row, now))
             .toList();
-    notYetPosted.stream()
-        .filter(failure -> failure.getTimestamp().isBefore(retryFrom))
-        .forEach(failure -> giveUp(failure, NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
+    candidates.stream()
+        .filter(row -> row.getTimestamp().isBefore(retryFrom))
+        .forEach(row -> giveUp(row, NOT_POSTED_WITHIN_THE_RETRY_WINDOW));
     var retryable =
-        notYetPosted.stream()
-            .filter(failure -> !failure.getTimestamp().isBefore(retryFrom))
-            .toList();
+        candidates.stream().filter(row -> !row.getTimestamp().isBefore(retryFrom)).toList();
     retryable.stream()
-        .filter(not(CustodianOrderEmailAlerter::isReadable))
-        .forEach(failure -> giveUp(failure, DATA_CANNOT_BE_READ));
+        .filter(not(OrderEmailAlertRows::isReadable))
+        .forEach(row -> giveUp(row, DATA_CANNOT_BE_READ));
     var mostUrgentFirst =
         retryable.stream()
-            .filter(CustodianOrderEmailAlerter::isReadable)
+            .filter(OrderEmailAlertRows::isReadable)
             .sorted(
                 comparingInt((EventLog row) -> SEVERITIES_MOST_URGENT_FIRST.indexOf(severity(row)))
                     .thenComparing(EventLog::getTimestamp))
@@ -152,18 +137,21 @@ class CustodianOrderEmailAlerter {
     }
   }
 
-  private boolean postTakesASlot(EventLog failure, Instant now) {
+  private boolean postTakesASlot(EventLog row, Instant now) {
     try {
-      notificationService.sendMessage(postedText(failure, now), TRADING, severity(failure));
-      markAs(POSTED, failure);
+      return alertRows.postIfStillDue(
+          row,
+          now,
+          locked ->
+              notificationService.sendMessage(postedText(locked, now), TRADING, severity(locked)));
     } catch (HttpClientErrorException e) {
       if (isRefusalOfThePayloadItself(e)) {
-        giveUp(failure, "Slack refused it with " + e.getStatusCode());
+        giveUp(row, "Slack refused it with " + e.getStatusCode());
         return false;
       }
-      keepForTheNextRun(failure, e);
+      keepForTheNextRun(row, e);
     } catch (RuntimeException e) {
-      keepForTheNextRun(failure, e);
+      keepForTheNextRun(row, e);
     }
     return true;
   }
@@ -173,92 +161,44 @@ class CustodianOrderEmailAlerter {
         .anyMatch(status -> status.isSameCodeAs(e.getStatusCode()));
   }
 
-  private static void keepForTheNextRun(EventLog failure, RuntimeException e) {
+  private static void keepForTheNextRun(EventLog row, RuntimeException e) {
     log.warn(
         "Order email alert not posted to Slack, trying again next run:"
             + " eventLogId={}, type={}, principal={}, error={}",
-        failure.getId(),
-        failure.getType(),
-        failure.getPrincipal(),
+        row.getId(),
+        row.getType(),
+        row.getPrincipal(),
         e.toString());
   }
 
-  private void giveUp(EventLog failure, String why) {
+  private void giveUp(EventLog row, String why) {
     try {
-      markAs(GIVEN_UP, failure);
-      log.error(
-          "Order email alert given up, never posted to Slack: why={}, eventLogId={}, type={},"
-              + " principal={}, at={}",
-          why,
-          failure.getId(),
-          failure.getType(),
-          failure.getPrincipal(),
-          failure.getTimestamp());
+      if (alertRows.giveUp(row)) {
+        log.error(
+            "Order email alert given up, never posted to Slack: why={}, eventLogId={}, type={},"
+                + " principal={}, at={}",
+            why,
+            row.getId(),
+            row.getType(),
+            row.getPrincipal(),
+            row.getTimestamp());
+      }
     } catch (RuntimeException e) {
       log.warn(
           "Order email alert not marked as given up, trying again next run:"
               + " eventLogId={}, error={}",
-          failure.getId(),
+          row.getId(),
           e.toString());
     }
   }
 
-  private static boolean isLeftToItsDirectPost(EventLog row, Instant now) {
-    return SEND_RESULT_TYPE.equals(row.getType())
-        && row.getTimestamp()
-            .isAfter(now.minus(DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT));
-  }
-
-  private void markAs(String alert, EventLog failure) {
-    Map<String, @Nullable Object> data = new HashMap<>(failure.getData());
-    data.put(ALERT, alert);
-    failure.setData(data);
-    eventLogRepository.save(failure);
-  }
-
-  private static boolean isReadable(EventLog failure) {
-    try {
-      severity(failure);
-      text(failure);
-      return true;
-    } catch (RuntimeException e) {
-      return false;
-    }
-  }
-
-  private static boolean isNotYetPosted(EventLog row) {
-    return NOT_POSTED.equals(row.getData().get(ALERT));
-  }
-
-  private static boolean isAbandonedSendAttempt(EventLog row, Instant now) {
-    return SENDING.equals(row.getData().get(ALERT))
-        && row.getTimestamp()
-            .isBefore(now.minus(SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S));
-  }
-
-  static Map<String, @Nullable Object> alertData(String text, Severity severity, String alert) {
-    Map<String, @Nullable Object> data = new HashMap<>();
-    data.put(TEXT, text);
-    data.put(SEVERITY, severity.name());
-    data.put(ALERT, alert);
-    return data;
-  }
-
-  private static Severity severity(EventLog failure) {
-    return Severity.valueOf((String) requireNonNull(failure.getData().get(SEVERITY)));
-  }
-
-  private static String text(EventLog failure) {
-    return (String) requireNonNull(failure.getData().get(TEXT));
-  }
-
-  private static String postedText(EventLog failure, Instant now) {
-    var text = text(failure);
-    if (!failure.getTimestamp().plus(LATE_POST_AFTER).isBefore(now)) {
+  private static String postedText(EventLog row, Instant now) {
+    var text = text(row);
+    if (!row.getTimestamp().plus(LATE_POST_AFTER).isBefore(now)) {
       return text;
     }
     var lines = text.split("\n", 2);
-    var firstLine = "%s (at %s)".formatted(lines[0], EVENT_TIME.format(failure.getTimestamp()));
+    var firstLine = "%s (at %s)".formatted(lines[0], EVENT_TIME.format(row.getTimestamp()));
     return lines.length == 1 ? firstLine : firstLine + "\n" + lines[1];
   }
 

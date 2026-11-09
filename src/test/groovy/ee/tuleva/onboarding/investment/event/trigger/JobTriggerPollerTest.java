@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
@@ -31,7 +32,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +58,7 @@ class JobTriggerPollerTest {
   @Test
   void publishesEventForPendingTrigger() {
     var trigger = JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -66,7 +69,7 @@ class JobTriggerPollerTest {
   @Test
   void publishesCorrectEventType() {
     var trigger = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -79,8 +82,7 @@ class JobTriggerPollerTest {
   void settlementCheckJobAndItsOverdueSettlementAliasPublishTheSameEvent() {
     var current = JobTrigger.builder().jobName("SettlementCheckJob").status("PENDING").build();
     var alias = JobTrigger.builder().jobName("OverdueSettlementJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
-        .willReturn(List.of(current, alias));
+    givenPending(current, alias);
 
     poller.poll();
 
@@ -94,7 +96,7 @@ class JobTriggerPollerTest {
   @Test
   void marksFailedForUnknownJob() {
     var trigger = JobTrigger.builder().jobName("NonExistentJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -106,7 +108,7 @@ class JobTriggerPollerTest {
   @Test
   void marksFailedWhenEventListenerThrows() {
     var trigger = JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
     doThrow(new RuntimeException("boom"))
         .when(eventPublisher)
         .publishEvent(any(RunTrackingDifferenceCheckRequested.class));
@@ -124,7 +126,7 @@ class JobTriggerPollerTest {
             .jobName("SebPendingTransactionReconciliationBackfillJob")
             .status("PENDING")
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -140,7 +142,7 @@ class JobTriggerPollerTest {
             .jobName("SebPendingTransactionReconciliationBackfillJob:2026-05-08")
             .status("PENDING")
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -158,7 +160,7 @@ class JobTriggerPollerTest {
             .jobName("SebPendingTransactionReportReconciliationJob:2026-05-16")
             .status("PENDING")
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -176,7 +178,7 @@ class JobTriggerPollerTest {
             .jobName("SebPendingTransactionReconciliationBackfillJob:yesterday")
             .status("PENDING")
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -188,7 +190,7 @@ class JobTriggerPollerTest {
   void aDateOnAJobThatCannotResumeIsMarkedFailed() {
     var trigger =
         JobTrigger.builder().jobName("LimitCheckJob:2026-05-08").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -204,7 +206,7 @@ class JobTriggerPollerTest {
             .status("PENDING")
             .createdAt(ClockHolder.clock().instant())
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
     doThrow(new JobBusyException("reconciliation lock held"))
         .when(eventPublisher)
         .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
@@ -224,7 +226,7 @@ class JobTriggerPollerTest {
             .createdAt(ClockHolder.clock().instant())
             .startedAt(firstStart)
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
     doThrow(new JobBusyException("reconciliation lock held"))
         .when(eventPublisher)
         .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
@@ -243,7 +245,7 @@ class JobTriggerPollerTest {
             .status("PENDING")
             .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
             .build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
     doThrow(new JobBusyException("reconciliation lock held"))
         .when(eventPublisher)
         .publishEvent(any(RunSebPendingTransactionReportReconciliationRequested.class));
@@ -274,7 +276,7 @@ class JobTriggerPollerTest {
     ClockHolder.setClock(polling);
     var first = JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
     var second = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(first, second));
+    givenPending(first, second);
     willAnswer(
             invocation -> {
               polling.tick(56, MINUTES);
@@ -306,8 +308,7 @@ class JobTriggerPollerTest {
             .status("PENDING")
             .build();
     var after = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
-        .willReturn(List.of(replay, resume, after));
+    givenPending(replay, resume, after);
     List<Instant> deadlinesTheReplaysSaw = new ArrayList<>();
     willAnswer(
             invocation -> {
@@ -340,7 +341,7 @@ class JobTriggerPollerTest {
   void aTriggerAnotherPollHasAlreadyTakenIsNotRunAgain() {
     var taken = JobTrigger.builder().id(7L).jobName("LimitCheckJob").status("PENDING").build();
     given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(taken));
-    given(repository.existsByIdAndStatusNot(7L, "PENDING")).willReturn(true);
+    given(repository.findByIdAndStatus(7L, "PENDING")).willReturn(Optional.empty());
 
     poller.poll();
 
@@ -360,7 +361,7 @@ class JobTriggerPollerTest {
   void publishesBackfillEventForTrackingDifferenceBackfillJob() {
     var trigger =
         JobTrigger.builder().jobName("TrackingDifferenceBackfillJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(trigger));
+    givenPending(trigger);
 
     poller.poll();
 
@@ -376,8 +377,7 @@ class JobTriggerPollerTest {
     var pevaRavaRecalc =
         JobTrigger.builder().jobName("PevaRavaFlowRecalcJob").status("PENDING").build();
     var r16Recalc = JobTrigger.builder().jobName("R16FlowRecalcJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
-        .willReturn(List.of(phaseUpdate, pevaRavaRecalc, r16Recalc));
+    givenPending(phaseUpdate, pevaRavaRecalc, r16Recalc);
 
     poller.poll();
 
@@ -393,8 +393,7 @@ class JobTriggerPollerTest {
   void publishesTheDailyAndMonthlyFeeCheckEventsSeparately() {
     var daily = JobTrigger.builder().jobName("FeeCheckJob").status("PENDING").build();
     var monthly = JobTrigger.builder().jobName("FeeSettlementCheckJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
-        .willReturn(List.of(daily, monthly));
+    givenPending(daily, monthly);
 
     poller.poll();
 
@@ -408,12 +407,25 @@ class JobTriggerPollerTest {
   void processesMultipleTriggers() {
     var trigger1 = JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
     var trigger2 = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
-    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
-        .willReturn(List.of(trigger1, trigger2));
+    givenPending(trigger1, trigger2);
 
     poller.poll();
 
     assertThat(trigger1.getStatus()).isEqualTo("COMPLETED");
     assertThat(trigger2.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  private void givenPending(JobTrigger... listedAtThePollsStart) {
+    for (int i = 0; i < listedAtThePollsStart.length; i++) {
+      listedAtThePollsStart[i].setId(i + 1L);
+    }
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
+        .willReturn(List.of(listedAtThePollsStart));
+    given(repository.findByIdAndStatus(any(), eq("PENDING")))
+        .willAnswer(
+            reload ->
+                Arrays.stream(listedAtThePollsStart)
+                    .filter(trigger -> trigger.getId().equals(reload.getArgument(0)))
+                    .findFirst());
   }
 }

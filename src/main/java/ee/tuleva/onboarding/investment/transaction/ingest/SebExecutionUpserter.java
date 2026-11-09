@@ -63,6 +63,34 @@ class SebExecutionUpserter {
     return true;
   }
 
+  void dateByFirstListingOnly(
+      SebPendingTransactionRow row,
+      TransactionOrder order,
+      LocalDate reportDate,
+      LocalDate asOfDate,
+      ReconciliationRun run) {
+    if (run.mode() != ReconciliationMode.REPLAY || row.ourRef() == null) {
+      return;
+    }
+    LocalDate firstListedOn = firstListedOn(run, row, asOfDate);
+    uniqueExecutionByBrokerRef(row.ourRef())
+        .filter(execution -> order.getId().equals(execution.getOrderId()))
+        .filter(execution -> !firstListedOn.equals(execution.getReportedDate()))
+        .ifPresent(
+            execution -> {
+              Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
+              execution.setReportedDate(firstListedOn);
+              executionRepository.save(execution);
+              auditRecorder.recordExecutionUpdated(
+                  order,
+                  row,
+                  reportDate,
+                  before,
+                  executionMapper.mutableFieldsForDeltaAudit(execution),
+                  null);
+            });
+  }
+
   private static LocalDate firstListedOn(
       ReconciliationRun run, SebPendingTransactionRow row, LocalDate asOfDate) {
     return run.mode() == ReconciliationMode.REPLAY

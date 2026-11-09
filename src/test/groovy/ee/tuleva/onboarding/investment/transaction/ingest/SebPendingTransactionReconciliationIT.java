@@ -504,6 +504,75 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_quarantinedFirstListing_datesTheLinkedExecutionAndTheOrderStillSettlesByAbsence() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    order.setOrderAmount(new BigDecimal("50000.00"));
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    TransactionExecution imported =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .totalConsideration(new BigDecimal("50000.00"))
+                .source("HISTORICAL_IMPORT")
+                .reportedDate(LocalDate.of(2026, 2, 10))
+                .build());
+    InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.replay(missingFrom, alert -> {}, listings, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution dated = executionRepository.findById(imported.getId()).orElseThrow();
+    assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("50000.00");
+    assertThat(dated.getSource()).isEqualTo("HISTORICAL_IMPORT");
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 16));
+  }
+
+  @Test
+  void
+      replay_orderSettledBeforeTheReplay_datesItsExecutionByTheFirstListingAndKeepsItsSettlement() {
+    order.setOrderStatus(SETTLED);
+    orderRepository.save(order);
+    settlementRepository.save(
+        TransactionSettlement.builder()
+            .orderId(order.getId())
+            .settledAt(Instant.parse("2026-02-11T07:00:00Z"))
+            .reportDate(LocalDate.of(2026, 2, 11))
+            .build());
+    TransactionExecution storedLate =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .brokerTransactionId("DLA0000000")
+                .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+                .executedQuantity(new BigDecimal("2669.9"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 3, 1))
+                .build());
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution dated = executionRepository.findById(storedLate.getId()).orElseThrow();
+    assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(dated.getExecutedQuantity()).isEqualByComparingTo("2669.9");
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 11));
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(SETTLED);
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);

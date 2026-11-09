@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static java.math.BigDecimal.ZERO;
+import static lombok.AccessLevel.NONE;
 import static lombok.AccessLevel.PRIVATE;
 
 import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
@@ -38,12 +39,19 @@ public class BankStatement {
     private final StatementBalanceType bookedBalanceType;
   }
 
+  private enum Page {
+    LAST,
+    MORE_TO_FOLLOW
+  }
+
   private final BankStatementType type;
   private final BankStatementAccount bankStatementAccount;
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
-  private final boolean lastPage;
+
+  @Getter(NONE)
+  private final Page page;
 
   public BankStatement(
       BankStatementType type,
@@ -51,11 +59,16 @@ public class BankStatement {
       List<BankStatementBalance> balances,
       List<BankStatementEntry> entries,
       StatementPeriod period) {
-    this(type, bankStatementAccount, balances, entries, period, true);
+    this(type, bankStatementAccount, balances, entries, period, Page.LAST);
   }
 
-  public BankStatement withMorePagesToFollow() {
-    return new BankStatement(type, bankStatementAccount, balances, entries, period, false);
+  BankStatement withMorePagesToFollow() {
+    return new BankStatement(
+        type, bankStatementAccount, balances, entries, period, Page.MORE_TO_FOLLOW);
+  }
+
+  public boolean isLastPage() {
+    return page == Page.LAST;
   }
 
   public Optional<BigDecimal> bookedBalance() {

@@ -189,7 +189,7 @@ class BankBalanceCheckIntegrationTest {
         List.of(
             booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
             booking(NAV_DATE.plusDays(1), "50.00", "DBIT")),
-        "1200.00");
+        "1150.00");
 
     assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1200.00")))
         .containsExactly(

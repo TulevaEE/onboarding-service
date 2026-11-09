@@ -92,7 +92,7 @@ class CustodianOrderEmailSenderTest {
 
   @Test
   void
-      prepareSend_whenTheMessageCannotBeBuilt_recordsNoAttempt_andReportsItAsNotSentAfterTheCommit() {
+      prepareSend_whenTheMessageCannotBeBuilt_recordsItAsNotSentWithTheBatch_andPostsItAfterTheCommit() {
     var sender =
         new CustodianOrderEmailSender(properties, brokenFactory, orderEmailTransport, notifier);
     given(brokenFactory.create(TUV100, TIMESTAMP, EXPORTS))
@@ -101,13 +101,17 @@ class CustodianOrderEmailSenderTest {
 
     var sendTheOrders = sender.prepareSend(BATCH_ID, TUV100, TIMESTAMP, EXPORTS);
 
-    then(notifier).shouldHaveNoInteractions();
+    then(notifier)
+        .should()
+        .recordNotBuilt(
+            BATCH_ID, SUBJECT, "java.lang.IllegalStateException: an export has no file name");
+    then(notifier).shouldHaveNoMoreInteractions();
 
     sendTheOrders.run();
 
     then(notifier)
         .should()
-        .reportNotBuilt(
+        .postNotBuilt(
             BATCH_ID, SUBJECT, "java.lang.IllegalStateException: an export has no file name");
     then(notifier).should(never()).reportSendAttempt(anyLong(), any());
     then(orderEmailTransport).shouldHaveNoInteractions();

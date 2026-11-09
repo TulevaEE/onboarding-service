@@ -41,6 +41,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
 
   Closure<Optional<EventLog>> latestSendResultRow = { Optional.empty() }
 
+  String notBuilt =
+      "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
+          "The message could not be built: java.lang.IllegalStateException: an export has no file name\n" +
+          "Nothing went out to the desk. Fix the cause, then send the orders again."
+
   def setup() {
     eventLogRepository.findFirstByTypeAndPrincipalOrderByTimestampDesc("TRADE_ORDER_EMAIL_SEND_RESULT", "42") >> {
       latestSendResultRow()
@@ -250,18 +255,41 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     1 * notificationService.sendMessage(greenLine, TRADING, INFO)
   }
 
-  def "posts a red line saying nothing went out when the order email could not be built"() {
+  def "records an order email that could not be built as a red not-posted row in the batch's own transaction"() {
     when:
-    notifier.reportNotBuilt(
-        42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
+    notifier.recordNotBuilt(42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
 
     then:
-    1 * eventLogRepository.save({ EventLog it -> it.principal == "42" && it.data.alert == "NOT_POSTED" })
-    1 * notificationService.sendMessage(
-        "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
-            "The message could not be built: java.lang.IllegalStateException: an export has no file name\n" +
-            "Nothing went out to the desk. Fix the cause, then send the orders again.",
-        TRADING, ERROR)
+    1 * eventLogRepository.save({ EventLog it ->
+      it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
+          it.principal == "42" &&
+          it.timestamp == sentAt &&
+          it.data == [text: notBuilt, severity: "ERROR", alert: "NOT_POSTED"]
+    })
+    0 * transactionManager.getTransaction(_)
+    0 * notificationService._
+  }
+
+  def "posts the recorded not-built line after the commit and marks it posted"() {
+    given:
+    latestSendResultRow = {
+      Optional.of(EventLog.builder()
+          .id(7L)
+          .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+          .principal("42")
+          .timestamp(sentAt)
+          .data([text: notBuilt, severity: "ERROR", alert: "NOT_POSTED"])
+          .build())
+    }
+
+    when:
+    notifier.postNotBuilt(42L, "TUV100 ostu-/müügikorraldused 15.01.2026", "java.lang.IllegalStateException: an export has no file name")
+
+    then:
+    1 * notificationService.sendMessage(notBuilt, TRADING, ERROR)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.id == 7L && it.data == [text: notBuilt, severity: "ERROR", alert: "POSTED"] })
   }
 
   def "records the result as a row of its own when the attempt could not be recorded"() {

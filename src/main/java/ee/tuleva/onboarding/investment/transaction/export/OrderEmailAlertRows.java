@@ -70,6 +70,15 @@ class OrderEmailAlertRows {
             alertData(resultUnknown, ERROR, SENDING)));
   }
 
+  void recordFailedSend(long batchId, String text) {
+    eventLogRepository.save(
+        row(
+            SEND_RESULT_TYPE,
+            String.valueOf(batchId),
+            clock.instant(),
+            alertData(text, ERROR, NOT_POSTED)));
+  }
+
   void recordSendResult(long batchId, String text, Severity severity) {
     recordSendResultAs(NOT_POSTED, batchId, text, severity);
   }

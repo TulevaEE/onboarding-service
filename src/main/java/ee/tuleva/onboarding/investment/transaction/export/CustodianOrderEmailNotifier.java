@@ -39,14 +39,21 @@ class CustodianOrderEmailNotifier {
                   ? "✅ Orders emailed: " + summary(message)
                   : "🔴 Orders emailed, but not to every copy: %s\n%s\nThe orders went out, don't send them again. Find out why Mandrill rejected the copy."
                       .formatted(summary(message), cause(result));
-          case FAILED ->
-              "🔴 Orders NOT sent: %s\n%s\nNothing went out to the desk. Fix the cause, then send the orders again."
-                  .formatted(message.getSubject(), cause(result));
+          case FAILED -> ordersNotSent(message.getSubject(), cause(result));
           case UNKNOWN ->
               "🔴 Orders email result UNKNOWN: %s\n%s\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
                   .formatted(message.getSubject(), cause(result));
         };
     post(batchId, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
+  }
+
+  void reportNotBuilt(long batchId, String subject, String problem) {
+    post(batchId, ordersNotSent(subject, "The message could not be built: " + problem), ERROR);
+  }
+
+  private static String ordersNotSent(String subject, String cause) {
+    return "🔴 Orders NOT sent: %s\n%s\nNothing went out to the desk. Fix the cause, then send the orders again."
+        .formatted(subject, cause);
   }
 
   private void post(long batchId, String text, Severity severity) {

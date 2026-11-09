@@ -120,12 +120,14 @@ public class TransactionBatchFinalizer {
             "sebEtfXlsx", sebEtfXlsx,
             "ftEtfXlsx", ftEtfXlsx,
             "uuidWorkbookXlsx", uuidWorkbookXlsx);
-    custodianOrderEmailSender.recordAttempt(batch.getId(), batch.getFund(), now, orderEmailExports);
+    var sendTheOrders =
+        custodianOrderEmailSender.prepareSend(
+            batch.getId(), batch.getFund(), now, orderEmailExports);
 
     runAfterCommit(
         () ->
             emailTheOrdersThenPublishToDrive(
-                batch, now, tradeDate, orders.size(), orderEmailExports));
+                batch, now, tradeDate, orders.size(), orderEmailExports, sendTheOrders));
 
     log.info("Batch finalized: id={}, orderCount={}", batch.getId(), orders.size());
   }
@@ -135,8 +137,17 @@ public class TransactionBatchFinalizer {
       Instant timestamp,
       LocalDate tradeDate,
       int orderCount,
-      Map<String, byte[]> exports) {
-    custodianOrderEmailSender.send(batch.getId(), batch.getFund(), timestamp, exports);
+      Map<String, byte[]> exports,
+      Runnable sendTheOrders) {
+    try {
+      sendTheOrders.run();
+    } catch (RuntimeException e) {
+      log.error(
+          "Order email step failed, still copying the exports to Drive and publishing the batch:"
+              + " batchId={}",
+          batch.getId(),
+          e);
+    }
     Map<String, String> driveFileUrls = uploadExportsToDrive(batch, timestamp, exports);
     if (!driveFileUrls.isEmpty()) {
       persistDriveFileUrls(batch.getId(), driveFileUrls);

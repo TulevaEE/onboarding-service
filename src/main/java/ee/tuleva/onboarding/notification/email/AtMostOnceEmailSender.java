@@ -92,7 +92,13 @@ public final class AtMostOnceEmailSender {
   }
 
   private EmailSendResult send(String key, MandrillMessage message) {
-    String request = MANDRILL_JSON.toJson(Map.of("key", key, "message", message, "async", false));
+    String request;
+    try {
+      request = MANDRILL_JSON.toJson(Map.of("key", key, "message", message, "async", false));
+    } catch (RuntimeException e) {
+      return failed(
+          List.of(), "The message could not be serialised, nothing was sent: " + describe(e));
+    }
     try {
       @Nullable String answer = retryUntilMandrillIsReached.execute(() -> post(request));
       return resultOf(message, answer);

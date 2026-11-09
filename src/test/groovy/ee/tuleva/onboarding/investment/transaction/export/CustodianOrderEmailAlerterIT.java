@@ -112,7 +112,7 @@ class CustodianOrderEmailAlerterIT {
   }
 
   @Test
-  void aPostSlackDoesNotTakeStaysNotPosted_andTheNextRunPostsIt() {
+  void aPostSlackDoesNotTakeStaysClaimed_andARunAfterTheClaimExpiresPostsIt() {
     willThrow(new RestClientException("Slack is down"))
         .willDoNothing()
         .given(notificationService)
@@ -123,9 +123,12 @@ class CustodianOrderEmailAlerterIT {
 
     assertThat(eventLogRepository.findAll())
         .singleElement()
-        .satisfies(row -> assertThat(row.getData()).isEqualTo(notYetPosted("hard_bounce")));
+        .satisfies(row -> assertThat(row.getData()).containsEntry("alert", "CLAIMED"));
 
     runAt(TWO_MINUTES_LATER);
+    then(notificationService).should(times(1)).sendMessage(RED_ALERT, TRADING, ERROR);
+
+    runAt(A_MINUTE_LATER.plus(Duration.ofMinutes(2)).plusSeconds(1));
 
     then(notificationService).should(times(2)).sendMessage(RED_ALERT, TRADING, ERROR);
     assertThat(eventLogRepository.findAll())

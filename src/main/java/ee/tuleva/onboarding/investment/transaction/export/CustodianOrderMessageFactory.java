@@ -31,8 +31,7 @@ class CustodianOrderMessageFactory {
     var message = new MandrillMessage();
     message.setFromEmail("funds@tuleva.ee");
     message.setFromName("Tuleva");
-    message.setSubject(
-        fund.getCode() + " ostu-/müügikorraldused " + SUBJECT_DATE.format(timestamp));
+    message.setSubject(subject(fund, timestamp));
     message.setHtml(
         """
         <p>Tere,</p>
@@ -48,6 +47,10 @@ class CustodianOrderMessageFactory {
     message.setTo(buildRecipients());
     message.setAttachments(buildAttachments(fund, timestamp, exports));
     return message;
+  }
+
+  String subject(TulevaFund fund, Instant timestamp) {
+    return fund.getCode() + " ostu-/müügikorraldused " + SUBJECT_DATE.format(timestamp);
   }
 
   private List<Recipient> buildRecipients() {

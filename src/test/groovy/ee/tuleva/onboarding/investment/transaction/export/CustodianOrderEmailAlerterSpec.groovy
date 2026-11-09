@@ -180,6 +180,40 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     1 * eventLogRepository.save({ EventLog it -> it.data == givenUpData(sendAttemptText, "ERROR") })
   }
 
+  def "a claim whose post never finished is due again only after two minutes, longer than the Slack client's timeouts: #claimedAgo"() {
+    given:
+    rowsRead(row("msg_1", [text: redAlert, severity: "ERROR", alert: "CLAIMED", claimedAt: aMinuteLater.minus(claimedAgo).toString()], t0))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    posts * notificationService.sendMessage(redAlert, TRADING, ERROR)
+    posts * eventLogRepository.save({ EventLog it -> it.data == postedData(redAlert, "ERROR") })
+
+    where:
+    claimedAgo                            | posts
+    Duration.ofMinutes(2).minusSeconds(1) | 0
+    Duration.ofMinutes(2).plusSeconds(1)  | 1
+  }
+
+  def "a row is claimed before Slack is called and only the claim is marked posted"() {
+    given:
+    rowsRead(notYetPostedRow("msg_1", redAlert, "ERROR", t0))
+
+    when:
+    alerter.postAlertsNotYetPosted()
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.data.alert == "CLAIMED" && it.data.claimedAt == aMinuteLater.toString() })
+
+    then:
+    1 * notificationService.sendMessage(redAlert, TRADING, ERROR)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.data == postedData(redAlert, "ERROR") })
+  }
+
   def "the run reads order email delivery failures and send results of the last two days, oldest first"() {
     when:
     alerter.postAlertsNotYetPosted()
@@ -243,7 +277,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     0 * eventLogRepository.save(_)
   }
 
-  def "a post Slack does not take stays not posted for the next run, and the others are still posted"() {
+  def "a post Slack does not take stays claimed until the claim expires, and the others are still posted"() {
     given:
     rowsRead(notYetPostedRow("msg_1", redAlert, "ERROR", t0),
         notYetPostedRow("msg_2", redAlert("reject", "msg_2"), "ERROR", t0))
@@ -255,7 +289,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     then:
     noExceptionThrown()
     1 * eventLogRepository.save({ EventLog it -> it.principal == "msg_2" && it.data == postedData(redAlert("reject", "msg_2"), "ERROR") })
-    0 * eventLogRepository.save({ EventLog it -> it.principal == "msg_1" })
+    0 * eventLogRepository.save({ EventLog it -> it.principal == "msg_1" && it.data.alert != "CLAIMED" })
   }
 
   def "a row whose data cannot be read is given up at once instead of retried: #problem"() {
@@ -322,7 +356,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
     status << [BAD_REQUEST, CONTENT_TOO_LARGE]
   }
 
-  def "a row Slack cannot take for now stays not posted for the next run, since the same hits every row: #problem"() {
+  def "a row Slack cannot take for now stays claimed for a later run, since the same hits every row: #problem"() {
     given:
     rowsRead(notYetPostedRow("msg_1", redAlert, "ERROR", t0))
     notificationService.sendMessage(_, _, _) >> { throw exception }
@@ -332,7 +366,7 @@ class CustodianOrderEmailAlerterSpec extends Specification {
 
     then:
     noExceptionThrown()
-    0 * eventLogRepository.save(_)
+    0 * eventLogRepository.save({ EventLog it -> it.data.alert != "CLAIMED" })
 
     where:
     problem                     | exception

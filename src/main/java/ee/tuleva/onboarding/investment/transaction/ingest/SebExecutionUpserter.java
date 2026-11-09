@@ -34,6 +34,7 @@ class SebExecutionUpserter {
       @Nullable BigDecimal sebReportedQuantity,
       ReconciliationRun run) {
     if (wouldOrphanExistingExecution(row, order)) {
+      dateByFirstListingOnly(row, reportDate, asOfDate, run);
       return false;
     }
     Optional<TransactionExecution> existing =
@@ -65,7 +66,6 @@ class SebExecutionUpserter {
 
   void dateByFirstListingOnly(
       SebPendingTransactionRow row,
-      TransactionOrder order,
       LocalDate reportDate,
       LocalDate asOfDate,
       ReconciliationRun run) {
@@ -74,21 +74,33 @@ class SebExecutionUpserter {
     }
     LocalDate firstListedOn = firstListedOn(run, row, asOfDate);
     uniqueExecutionByBrokerRef(row.ourRef())
-        .filter(execution -> order.getId().equals(execution.getOrderId()))
         .filter(execution -> !firstListedOn.equals(execution.getReportedDate()))
         .ifPresent(
             execution -> {
+              TransactionOrder owner = owningOrderOf(execution);
               Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
               execution.setReportedDate(firstListedOn);
               executionRepository.save(execution);
               auditRecorder.recordExecutionUpdated(
-                  order,
+                  owner,
                   row,
                   reportDate,
                   before,
                   executionMapper.mutableFieldsForDeltaAudit(execution),
                   null);
             });
+  }
+
+  private TransactionOrder owningOrderOf(TransactionExecution execution) {
+    return orderRepository
+        .findById(execution.getOrderId())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Execution's order not found: executionId="
+                        + execution.getId()
+                        + ", orderId="
+                        + execution.getOrderId()));
   }
 
   private static LocalDate firstListedOn(

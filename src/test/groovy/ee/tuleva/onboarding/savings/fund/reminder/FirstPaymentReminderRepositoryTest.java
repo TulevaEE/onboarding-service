@@ -352,7 +352,7 @@ class FirstPaymentReminderRepositoryTest {
 
   @Test
   void remindsTheApplicantOfACompanyThatOpenedAnAccountInTheWindowAndNeverPaid() {
-    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    var company = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
     companyAccountOpened("33333333", JUST_OPENED, NOW.minus(2, DAYS));
     companyAccountOpened("44444444", OPENED_LONG_AGO, NOW.minus(40, DAYS));
 
@@ -367,8 +367,33 @@ class FirstPaymentReminderRepositoryTest {
                 SAVER + "@example.com",
                 Locale.of("et"),
                 SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY,
-                null,
-                null));
+                company.getId()));
+  }
+
+  @Test
+  void opensTheAccountOfTheCompanyThatHasNotPaidRatherThanAnotherCompanyOfTheApplicant() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(12, DAYS));
+    companyPayment(COMPANY);
+    var unpaid = companyOpenedBy(OTHER_COMPANY, SAVER, NOW.minus(10, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::accountId)
+        .containsExactly(tuple(SAVER, unpaid.getId()));
+  }
+
+  @Test
+  void sendsOneReminderOpeningTheEarliestOpenedCompanyWhenTheApplicantHasSeveralUnpaid() {
+    var later = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    var earliest = companyOpenedBy(OTHER_COMPANY, SAVER, NOW.minus(12, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(later.getId()).isNotEqualTo(earliest.getId());
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::accountId)
+        .containsExactly(tuple(SAVER, earliest.getId()));
   }
 
   @Test
@@ -503,6 +528,11 @@ class FirstPaymentReminderRepositoryTest {
   private Company companyAccountOpened(
       String registryCode, String applicantPersonalCode, Instant openedAt) {
     accountOpened(applicantPersonalCode, openedAt);
+    return companyOpenedBy(registryCode, applicantPersonalCode, openedAt);
+  }
+
+  private Company companyOpenedBy(
+      String registryCode, String applicantPersonalCode, Instant openedAt) {
     var company = company(registryCode);
     boardMember(company, applicantPersonalCode);
     companySurvey(registryCode, applicantPersonalCode, openedAt.minus(1, DAYS));

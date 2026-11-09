@@ -623,6 +623,45 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void
+      replay_quarantinedRowUnderAnotherOrdersClientRef_datesTheBrokerRefsExecutionUnderItsOwnOrderBeforeItSettles() {
+    TransactionOrder clientRefOwner = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    TransactionExecution brokerRefsExecution = givenTheFixtureOrderExecutedUnderOurRefListedLate();
+    report.getRawData().get(0).put("Client ref", clientRefOwner.getOrderUuid().toString());
+    report.getRawData().get(0).put("ISIN", "");
+    reportRepository.save(report);
+    InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), clientRefOwner);
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.replay(missingFrom, alert -> {}, listings, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThatOnlyItsDateMovedToTheFirstListingAndItsOrderSettledByAbsence(
+        brokerRefsExecution, clientRefOwner);
+  }
+
+  @Test
+  void
+      replay_relinkRefusedForAnotherOrdersClientRef_datesTheBrokerRefsExecutionUnderItsOwnOrderBeforeItSettles() {
+    TransactionOrder clientRefOwner = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    TransactionExecution brokerRefsExecution = givenTheFixtureOrderExecutedUnderOurRefListedLate();
+    report.getRawData().get(0).put("Client ref", clientRefOwner.getOrderUuid().toString());
+    reportRepository.save(report);
+    InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), clientRefOwner);
+    entityManager.flush();
+
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.replay(missingFrom, alert -> {}, listings, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThatOnlyItsDateMovedToTheFirstListingAndItsOrderSettledByAbsence(
+        brokerRefsExecution, clientRefOwner);
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
@@ -1072,6 +1111,49 @@ class SebPendingTransactionReconciliationIT {
             .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
             .createdAt(Instant.now())
             .build());
+  }
+
+  private TransactionExecution givenTheFixtureOrderExecutedUnderOurRefListedLate() {
+    order.setOrderStatus(EXECUTED);
+    orderRepository.save(order);
+    return executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA0000000")
+            .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
+            .executedQuantity(new BigDecimal("2669.9"))
+            .totalConsideration(new BigDecimal("50000.00"))
+            .source("HISTORICAL_IMPORT")
+            .reportedDate(LocalDate.of(2026, 3, 1))
+            .build());
+  }
+
+  private void assertThatOnlyItsDateMovedToTheFirstListingAndItsOrderSettledByAbsence(
+      TransactionExecution brokerRefsExecution, TransactionOrder clientRefOwner) {
+    TransactionExecution dated =
+        executionRepository.findById(brokerRefsExecution.getId()).orElseThrow();
+    assertThat(dated.getOrderId()).isEqualTo(order.getId());
+    assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
+    assertThat(dated.getExecutedQuantity()).isEqualByComparingTo("2669.9");
+    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("50000.00");
+    assertThat(dated.getUnitPrice()).isNull();
+    assertThat(dated.getSource()).isEqualTo("HISTORICAL_IMPORT");
+    List<TransactionAuditEvent> updates =
+        auditEventRepository.findByOrderIdAndEventType(order.getId(), "EXECUTION_UPDATED");
+    assertThat(updates).hasSize(1);
+    Map<String, Object> onlyTheDateMoved =
+        new HashMap<>(executionSnapshot(updates.get(0), "before"));
+    onlyTheDateMoved.put("reportedDate", "2026-02-12");
+    assertThat(executionSnapshot(updates.get(0), "after")).isEqualTo(onlyTheDateMoved);
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 16));
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                clientRefOwner.getId(), "EXECUTION_UPDATED"))
+        .isEmpty();
+    assertThat(executionRepository.findAllByOrderId(clientRefOwner.getId()))
+        .extracting(TransactionExecution::getBrokerTransactionId)
+        .doesNotContain("DLA0000000");
   }
 
   @SuppressWarnings("unchecked")

@@ -20,6 +20,10 @@ class EffectiveRiskLevelClient {
   private final AmlServiceProperties properties;
 
   List<EffectiveRiskLevel> effectiveRiskLevels(String personalCode) {
+    return effectiveRiskLevels("/v1/risk-levels/effective/{personalCode}", personalCode);
+  }
+
+  private List<EffectiveRiskLevel> effectiveRiskLevels(String uriTemplate, String code) {
     String apiToken =
         properties
             .configuredApiToken()
@@ -27,14 +31,14 @@ class EffectiveRiskLevelClient {
                 () ->
                     new RiskLevelsRefusedException(
                         "aml-service API token is not configured, sending no request"));
-    return toEffectiveRiskLevels(fetch(personalCode, apiToken));
+    return toEffectiveRiskLevels(fetch(uriTemplate, code, apiToken));
   }
 
-  private EffectiveRiskLevelsResponse fetch(String personalCode, String apiToken) {
+  private EffectiveRiskLevelsResponse fetch(String uriTemplate, String code, String apiToken) {
     ResponseEntity<EffectiveRiskLevelsResponse> response =
         effectiveRiskLevelRestClient
             .get()
-            .uri("/v1/risk-levels/effective/{personalCode}", personalCode)
+            .uri(uriTemplate, code)
             .accept(APPLICATION_JSON)
             .headers(headers -> headers.setBearerAuth(apiToken))
             .retrieve()

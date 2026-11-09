@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerLease;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -28,6 +29,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.MutableClock;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -81,6 +83,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   @Mock private OperationsNotificationService notificationService;
 
   private final RecordingLockProvider lockProvider = RecordingLockProvider.free();
+  private final JobTriggerLease jobTriggerLease = new JobTriggerLease();
   private SebPendingTransactionReconciliationBackfillJob job;
 
   @BeforeEach
@@ -504,7 +507,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .sendMessage(
             """
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
-            see on kestnud 45 minutit ja käivitajate lukk kehtib 60 minutit.
+            selle käivituse aeg sai täis (kuni 45 minutit, käivitajate 60-minutilise luku sees).
             Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
             hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
             hinnaerinevusi: 0).
@@ -648,8 +651,51 @@ class SebPendingTransactionReconciliationBackfillJobTest {
         .sendMessage(
             """
             SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
-            see on kestnud 45 minutit ja käivitajate lukk kehtib 60 minutit.
+            selle käivituse aeg sai täis (kuni 45 minutit, käivitajate 60-minutilise luku sees).
             Enne seda ei sobitatud ühtki raportit.
+            Jätka raportist 2026-05-08:
+            INSERT INTO investment_job_trigger (job_name) VALUES \
+            ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void aReplayRunByAPollStopsAtThePollsLeaseDeadlineBeforeItsOwn45Minutes() {
+    MutableClock evening = new MutableClock(at("2026-05-18T22:00"));
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    InvestmentReport day10 = report(TODAY.minusDays(10));
+    givenStoredReports(Map.of(27, day27, 10, day10));
+    given(executionRepository.count()).willReturn(10L, 11L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    willAnswer(
+            invocation -> {
+              evening.tick(11, MINUTES);
+              return SettlementCheck.CHECKED;
+            })
+        .given(reconciliationService)
+        .replay(eq(day27), any(), any(), any());
+    SebPendingTransactionReconciliationBackfillJob eveningJob = jobAt(evening, lockProvider);
+
+    assertThatThrownBy(
+            () ->
+                jobTriggerLease.runUntil(
+                    evening.instant().plus(Duration.ofMinutes(10)),
+                    () ->
+                        eveningJob.onSebPendingTransactionReconciliationBackfillRequested(
+                            A_YEAR_BACK)))
+        .isExactlyInstanceOf(IllegalStateException.class);
+
+    verify(reconciliationService, never()).replay(eq(day10), any(), any(), any());
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportite uuesti sobitamine peatus enne raportit 2026-05-08, sest \
+            selle käivituse aeg sai täis (kuni 45 minutit, käivitajate 60-minutilise luku sees).
+            Enne seda raporteid: 1 (2026-04-21). Uusi täitmisi: 1, uusi arveldusi: 0. Saatmata \
+            hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, tükkide \
+            hinnaerinevusi: 0).
             Jätka raportist 2026-05-08:
             INSERT INTO investment_job_trigger (job_name) VALUES \
             ('SebPendingTransactionReconciliationBackfillJob:2026-05-08');
@@ -677,7 +723,8 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             reconciliationService,
             executionRepository,
             settlementRepository,
-            window));
+            window,
+            jobTriggerLease));
   }
 
   private static PossibleReportTruncationEvent truncationOn(InvestmentReport report) {

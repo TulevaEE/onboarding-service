@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.skippedCheckReason;
 
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerLease;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -36,10 +37,11 @@ class SebPendingReportReplayer {
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementRepository settlementRepository;
   private final SebReplayWindow replayWindow;
+  private final JobTriggerLease jobTriggerLease;
 
   ReplaySummary replayOldestFirst(
       LocalDate windowStart, LocalDate firstReportDate, BooleanSupplier stillHoldsTheLock) {
-    Instant stopBy = SebReplayWindow.stopByForAReplayStartedAt(clock.instant());
+    Instant stopBy = stopBy();
     SebReplayListings listings = new SebReplayListings();
     Optional<StopReason> stoppedReadingHistory =
         readListingsBefore(windowStart, firstReportDate, listings, stopBy, stillHoldsTheLock);
@@ -102,6 +104,14 @@ class SebPendingReportReplayer {
         List.copyOf(heldBackAlerts),
         List.copyOf(skippedChecks),
         stop);
+  }
+
+  private Instant stopBy() {
+    Instant ownBudgetEnds = SebReplayWindow.stopByForAReplayStartedAt(clock.instant());
+    return jobTriggerLease
+        .deadline()
+        .filter(leaseDeadline -> leaseDeadline.isBefore(ownBudgetEnds))
+        .orElse(ownBudgetEnds);
   }
 
   private Optional<StopReason> readListingsBefore(

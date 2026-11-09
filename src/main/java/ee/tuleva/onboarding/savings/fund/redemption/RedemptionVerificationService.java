@@ -145,8 +145,12 @@ public class RedemptionVerificationService {
     if (screening == ScreeningOutcome.PEP_HIT) {
       reasons.add(PEP);
     }
+    return withRiskLevel(request, reasons);
+  }
+
+  private Verdict withRiskLevel(RedemptionRequest request, Set<RedemptionHoldReason> reasons) {
     try {
-      if (riskLevels.isHighRisk(user.getPersonalCode())) {
+      if (riskLevels.isHighRisk(request.getPartyId().code())) {
         log.info(
             "Redemption party is high risk: id={}, party={}",
             request.getId(),

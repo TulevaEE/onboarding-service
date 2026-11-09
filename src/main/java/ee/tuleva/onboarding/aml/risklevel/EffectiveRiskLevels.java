@@ -28,22 +28,30 @@ class EffectiveRiskLevels {
   private volatile @Nullable Instant quietUntil;
 
   boolean isHighRisk(String personalCode) {
+    failWhileQuiet();
+    try {
+      return effectiveRiskLevelClient.effectiveRiskLevels(personalCode).contains(HIGH);
+    } catch (RuntimeException e) {
+      if (!concernsOnlyThisPerson(e)) {
+        quietUntil = clock.instant().plus(QUIET_AFTER_AML_SERVICE_FAILED);
+      }
+      throw unavailable(e);
+    }
+  }
+
+  private void failWhileQuiet() {
     Instant askAgainAt = quietUntil;
     if (askAgainAt != null && clock.instant().isBefore(askAgainAt)) {
       throw new RiskLevelUnavailableException(
           "aml-service failed recently, not asking it again yet: askAgainAt=" + askAgainAt);
     }
-    try {
-      return effectiveRiskLevelClient.effectiveRiskLevels(personalCode).contains(HIGH);
-    } catch (RuntimeException e) {
-      String reason = reasonWithoutPersonalData(e);
-      if (!concernsOnlyThisPerson(e)) {
-        quietUntil = clock.instant().plus(QUIET_AFTER_AML_SERVICE_FAILED);
-      }
-      log.warn("aml-service could not answer the effective risk levels: reason={}", reason);
-      throw new RiskLevelUnavailableException(
-          "aml-service could not answer the effective risk levels: reason=" + reason);
-    }
+  }
+
+  private static RiskLevelUnavailableException unavailable(RuntimeException failure) {
+    String reason = reasonWithoutPersonalData(failure);
+    log.warn("aml-service could not answer the effective risk levels: reason={}", reason);
+    return new RiskLevelUnavailableException(
+        "aml-service could not answer the effective risk levels: reason=" + reason);
   }
 
   private static boolean concernsOnlyThisPerson(RuntimeException failure) {

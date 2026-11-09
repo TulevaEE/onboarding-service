@@ -40,7 +40,6 @@ import java.time.Duration;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Named;
@@ -208,8 +207,8 @@ class EffectiveRiskLevelsTest {
   @ParameterizedTest
   @MethodSource("unanswered")
   void unavailableAfterOneRequestWithoutCarryingTheHttpFailureWhenAmlServiceCannotAnswer(
-      Consumer<MockRestServiceServer> unanswered) {
-    unanswered.accept(server);
+      ResponseCreator unanswered) {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(unanswered);
 
     assertThatThrownBy(() -> effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class)
@@ -217,35 +216,30 @@ class EffectiveRiskLevelsTest {
     server.verify();
   }
 
-  static Stream<Named<Consumer<MockRestServiceServer>>> unanswered() {
+  static Stream<Named<ResponseCreator>> unanswered() {
     return Stream.concat(failingEveryone(), failingThisPersonOnly());
   }
 
-  static Stream<Named<Consumer<MockRestServiceServer>>> failingEveryone() {
+  static Stream<Named<ResponseCreator>> failingEveryone() {
     return Stream.of(
-        named("server error", respondingWith(withServerError())),
-        named("unavailable", respondingWith(withStatus(SERVICE_UNAVAILABLE))),
-        named(
-            "timeout",
-            respondingWith(withException(new HttpTimeoutException("request timed out")))),
-        named("rejected token", respondingWith(withStatus(UNAUTHORIZED))),
-        named("token not allowed", respondingWith(withStatus(FORBIDDEN))),
-        named("rate limited", respondingWith(withStatus(TOO_MANY_REQUESTS))),
-        named("not found", respondingWith(withStatus(NOT_FOUND))),
-        named("request timeout", respondingWith(withStatus(REQUEST_TIMEOUT))),
+        named("server error", withServerError()),
+        named("unavailable", withStatus(SERVICE_UNAVAILABLE)),
+        named("timeout", withException(new HttpTimeoutException("request timed out"))),
+        named("rejected token", withStatus(UNAUTHORIZED)),
+        named("token not allowed", withStatus(FORBIDDEN)),
+        named("rate limited", withStatus(TOO_MANY_REQUESTS)),
+        named("not found", withStatus(NOT_FOUND)),
+        named("request timeout", withStatus(REQUEST_TIMEOUT)),
         named(
             "levels in a redirect",
-            respondingWith(
-                withStatus(FOUND)
-                    .contentType(APPLICATION_JSON)
-                    .body(families(family("tkf", "LOW"))))),
-        named("success without a body", respondingWith(withSuccess())),
+            withStatus(FOUND).contentType(APPLICATION_JSON).body(families(family("tkf", "LOW")))),
+        named("success without a body", withSuccess()),
         named("malformed json", answering("{\"families\": [")));
   }
 
-  static Stream<Named<Consumer<MockRestServiceServer>>> failingThisPersonOnly() {
+  static Stream<Named<ResponseCreator>> failingThisPersonOnly() {
     return Stream.of(
-        named("refused personal code", respondingWith(withStatus(BAD_REQUEST))),
+        named("refused personal code", withStatus(BAD_REQUEST)),
         named(
             "unknown level",
             answering(families(family("tkf", "LOW"), family("third-pillar", "EXTREME")))),
@@ -271,9 +265,8 @@ class EffectiveRiskLevelsTest {
 
   @ParameterizedTest
   @MethodSource("failingEveryone")
-  void asksNoOneElseDuringTheCooldownAfterAmlServiceItselfFailed(
-      Consumer<MockRestServiceServer> failingEveryone) {
-    failingEveryone.accept(server);
+  void asksNoOneElseDuringTheCooldownAfterAmlServiceItselfFailed(ResponseCreator failingEveryone) {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(failingEveryone);
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
     assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
@@ -289,8 +282,8 @@ class EffectiveRiskLevelsTest {
   @ParameterizedTest
   @MethodSource("failingThisPersonOnly")
   void asksForTheNextPersonAtOnceWhenOnlyThisPersonsAnswerFailed(
-      Consumer<MockRestServiceServer> failingThisPerson) {
-    failingThisPerson.accept(server);
+      ResponseCreator failingThisPerson) {
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(failingThisPerson);
     server
         .expect(once(), requestTo(OTHER_EFFECTIVE_URL))
         .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
@@ -378,16 +371,12 @@ class EffectiveRiskLevelsTest {
     server.verify();
   }
 
-  private static Consumer<MockRestServiceServer> answering(String body) {
-    return respondingWith(withSuccess(body, APPLICATION_JSON));
-  }
-
-  private static Consumer<MockRestServiceServer> respondingWith(ResponseCreator response) {
-    return server -> server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(response);
+  private static ResponseCreator answering(String body) {
+    return withSuccess(body, APPLICATION_JSON);
   }
 
   private void respond(String body) {
-    answering(body).accept(server);
+    server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(answering(body));
   }
 
   private static String families(String... families) {

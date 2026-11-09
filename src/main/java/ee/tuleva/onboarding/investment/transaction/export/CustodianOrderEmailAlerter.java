@@ -11,7 +11,6 @@ import static java.util.function.Predicate.not;
 import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONTENT_TOO_LARGE;
-import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
@@ -26,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.Nullable;
@@ -34,15 +34,17 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 class CustodianOrderEmailAlerter {
 
-  private static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
+  static final String SEND_RESULT_TYPE = "TRADE_ORDER_EMAIL_SEND_RESULT";
+  static final String SENDING = "SENDING";
+  static final String NOT_POSTED = "NOT_POSTED";
+  static final String POSTED = "POSTED";
   private static final String DEFERRAL = "deferral";
   private static final List<String> RECORDED_TYPES =
       List.of(
@@ -60,13 +62,13 @@ class CustodianOrderEmailAlerter {
       List.of(BAD_REQUEST, CONTENT_TOO_LARGE);
   private static final Duration DIRECT_POST_TIME_LONGER_THAN_SLACK_CONNECT_PLUS_READ_TIMEOUT =
       Duration.ofMinutes(2);
+  private static final Duration SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S =
+      Duration.ofMinutes(5);
   private static final DateTimeFormatter EVENT_TIME =
       DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.of("Europe/Tallinn"));
   private static final String TEXT = "text";
   private static final String SEVERITY = "severity";
   private static final String ALERT = "alert";
-  private static final String NOT_POSTED = "NOT_POSTED";
-  private static final String POSTED = "POSTED";
   private static final String GIVEN_UP = "GIVEN_UP";
   private static final String NOT_POSTED_WITHIN_THE_RETRY_WINDOW =
       "not posted within the 24 hour retry window";
@@ -75,19 +77,6 @@ class CustodianOrderEmailAlerter {
   private final OperationsNotificationService notificationService;
   private final EventLogRepository eventLogRepository;
   private final Clock clock;
-  private final TransactionTemplate inItsOwnTransaction;
-
-  CustodianOrderEmailAlerter(
-      OperationsNotificationService notificationService,
-      EventLogRepository eventLogRepository,
-      Clock clock,
-      PlatformTransactionManager transactionManager) {
-    this.notificationService = notificationService;
-    this.eventLogRepository = eventLogRepository;
-    this.clock = clock;
-    this.inItsOwnTransaction = new TransactionTemplate(transactionManager);
-    this.inItsOwnTransaction.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
-  }
 
   @EventListener
   @Order(HIGHEST_PRECEDENCE)
@@ -111,31 +100,12 @@ class CustodianOrderEmailAlerter {
         event.mandrillMessageId());
     var delayed = DEFERRAL.equals(event.eventType());
     eventLogRepository.save(
-        notYetPosted(
-            recordedType,
-            event.mandrillMessageId(),
-            event.timestamp(),
-            alertText(event),
-            delayed ? WARNING : ERROR));
-  }
-
-  void postSendResult(String principal, String text, Severity severity) {
-    var sendResult = notYetPosted(SEND_RESULT_TYPE, principal, clock.instant(), text, severity);
-    var recorded = recordInItsOwnTransaction(sendResult);
-    try {
-      notificationService.sendMessage(text, TRADING, severity);
-    } catch (RuntimeException e) {
-      log.warn(
-          "Order email send result not posted to Slack, the scheduled run posts it if it was"
-              + " recorded: principal={}, recorded={}, error={}",
-          principal,
-          recorded,
-          e.toString());
-      return;
-    }
-    if (recorded) {
-      markPostedInItsOwnTransaction(sendResult);
-    }
+        EventLog.builder()
+            .type(recordedType)
+            .principal(event.mandrillMessageId())
+            .timestamp(event.timestamp())
+            .data(alertData(alertText(event), delayed ? WARNING : ERROR, NOT_POSTED))
+            .build());
   }
 
   @Scheduled(fixedRateString = "1m")
@@ -151,7 +121,7 @@ class CustodianOrderEmailAlerter {
             .findAllByTypeInAndTimestampGreaterThanEqualOrderByTimestamp(
                 RECORDED_TYPES, retryFrom.minus(GIVE_UP_LOOKBACK))
             .stream()
-            .filter(CustodianOrderEmailAlerter::isNotYetPosted)
+            .filter(row -> isNotYetPosted(row) || isAbandonedSendAttempt(row, now))
             .filter(row -> !isLeftToItsDirectPost(row, now))
             .toList();
     notYetPosted.stream()
@@ -233,32 +203,6 @@ class CustodianOrderEmailAlerter {
     }
   }
 
-  private boolean recordInItsOwnTransaction(EventLog sendResult) {
-    try {
-      inItsOwnTransaction.executeWithoutResult(status -> eventLogRepository.save(sendResult));
-      return true;
-    } catch (RuntimeException e) {
-      log.error(
-          "Order email send result not recorded, posting it to Slack anyway: principal={}, text={}",
-          sendResult.getPrincipal(),
-          text(sendResult),
-          e);
-      return false;
-    }
-  }
-
-  private void markPostedInItsOwnTransaction(EventLog sendResult) {
-    try {
-      inItsOwnTransaction.executeWithoutResult(status -> markAs(POSTED, sendResult));
-    } catch (RuntimeException e) {
-      log.warn(
-          "Order email send result posted to Slack but not marked as posted, the scheduled run"
-              + " may post it again: principal={}, error={}",
-          sendResult.getPrincipal(),
-          e.toString());
-    }
-  }
-
   private static boolean isLeftToItsDirectPost(EventLog row, Instant now) {
     return SEND_RESULT_TYPE.equals(row.getType())
         && row.getTimestamp()
@@ -282,17 +226,22 @@ class CustodianOrderEmailAlerter {
     }
   }
 
-  private static boolean isNotYetPosted(EventLog failure) {
-    return failure.getData() != null && NOT_POSTED.equals(failure.getData().get(ALERT));
+  private static boolean isNotYetPosted(EventLog row) {
+    return NOT_POSTED.equals(row.getData().get(ALERT));
   }
 
-  private static EventLog notYetPosted(
-      String type, String principal, Instant at, String text, Severity severity) {
+  private static boolean isAbandonedSendAttempt(EventLog row, Instant now) {
+    return SENDING.equals(row.getData().get(ALERT))
+        && row.getTimestamp()
+            .isBefore(now.minus(SEND_ABANDONED_AFTER_MORE_THAN_3_MANDRILL_TRIES_OF_10S_PLUS_30S));
+  }
+
+  static Map<String, @Nullable Object> alertData(String text, Severity severity, String alert) {
     Map<String, @Nullable Object> data = new HashMap<>();
     data.put(TEXT, text);
     data.put(SEVERITY, severity.name());
-    data.put(ALERT, NOT_POSTED);
-    return EventLog.builder().type(type).principal(principal).timestamp(at).data(data).build();
+    data.put(ALERT, alert);
+    return data;
   }
 
   private static Severity severity(EventLog failure) {

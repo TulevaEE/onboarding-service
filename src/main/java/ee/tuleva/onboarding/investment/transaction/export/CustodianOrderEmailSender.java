@@ -38,6 +38,7 @@ public class CustodianOrderEmailSender {
     }
 
     var message = messageFactory.create(fund, timestamp, exports);
+    notifier.reportSendAttempt(batchId, message);
     var result = custodianOrderEmailTransport.send(message);
     notifier.reportSendResult(batchId, message, result);
     if (result.outcome() != SENT) {

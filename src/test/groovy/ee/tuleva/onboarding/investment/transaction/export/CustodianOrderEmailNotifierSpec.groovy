@@ -3,19 +3,45 @@ package ee.tuleva.onboarding.investment.transaction.export
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
+import ee.tuleva.onboarding.event.EventLog
+import ee.tuleva.onboarding.event.EventLogRepository
+import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailSendResult
+import org.springframework.dao.DataAccessResourceFailureException
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.web.client.RestClientException
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
+
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.TRADING
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.FAILED
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.SENT
 import static ee.tuleva.onboarding.notification.email.EmailSendResult.Outcome.UNKNOWN
+import static java.time.ZoneOffset.UTC
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW
 
 class CustodianOrderEmailNotifierSpec extends Specification {
 
-  CustodianOrderEmailAlerter alerter = Mock()
-  CustodianOrderEmailNotifier notifier = new CustodianOrderEmailNotifier(alerter)
+  OperationsNotificationService notificationService = Mock()
+  EventLogRepository eventLogRepository = Mock()
+  PlatformTransactionManager transactionManager = Mock()
+  Instant sentAt = Instant.parse("2026-01-15T10:00:00Z")
+  CustodianOrderEmailNotifier notifier = new CustodianOrderEmailNotifier(
+      notificationService, eventLogRepository, Clock.fixed(sentAt, UTC), transactionManager)
+
+  String greenLine = "✅ Orders emailed: TUV100 ostu-/müügikorraldused 15.01.2026, from orders@example.com, 2 files"
+  String resultUnknown =
+      "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
+          "No send result was recorded: the service may have stopped while sending.\n" +
+          "It may have gone out. Check the Cc copy or ask the desk before sending again."
+
+  def setup() {
+    eventLogRepository.findByTypeAndPrincipal(_, _) >> Optional.empty()
+  }
 
   MandrillMessage message = new MandrillMessage().tap {
     subject = "TUV100 ostu-/müügikorraldused 15.01.2026"
@@ -33,9 +59,9 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "✅ Orders emailed: TUV100 ostu-/müügikorraldused 15.01.2026, from orders@example.com, 2 files",
-        INFO)
+        TRADING, INFO)
   }
 
   def "posts a red line saying not to send again when the orders went out but a copy was not accepted"() {
@@ -48,11 +74,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "🔴 Orders emailed, but not to every copy: TUV100 ostu-/müügikorraldused 15.01.2026, from orders@example.com, 2 files\n" +
             "Not accepted: copy@example.com rejected (hard-bounce)\n" +
             "The orders went out, don't send them again. Find out why Mandrill rejected the copy.",
-        ERROR)
+        TRADING, ERROR)
   }
 
   def "posts a red line saying nothing went out when Mandrill rejected the email"() {
@@ -66,11 +92,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
             "Not accepted: desk@example.com rejected (hard-bounce)\n" +
             "Nothing went out to the desk. Fix the cause, then send the orders again.",
-        ERROR)
+        TRADING, ERROR)
   }
 
   def "posts the problem when the email failed before Mandrill answered"() {
@@ -81,11 +107,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "🔴 Orders NOT sent: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
             "ConnectException: Connection refused\n" +
             "Nothing went out to the desk. Fix the cause, then send the orders again.",
-        ERROR)
+        TRADING, ERROR)
   }
 
   def "posts a red line asking to check the copy before sending again when the result is unknown"() {
@@ -96,11 +122,11 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
             "SocketTimeoutException: Read timed out\n" +
             "It may have gone out. Check the Cc copy or ask the desk before sending again.",
-        ERROR)
+        TRADING, ERROR)
   }
 
   def "lists the recipients Mandrill did not accept when only some main recipients got the email"() {
@@ -114,11 +140,119 @@ class CustodianOrderEmailNotifierSpec extends Specification {
     notifier.reportSendResult(42L, message, result)
 
     then:
-    1 * alerter.postSendResult("42",
+    1 * notificationService.sendMessage(
         "🔴 Orders email result UNKNOWN: TUV100 ostu-/müügikorraldused 15.01.2026\n" +
             "Not accepted: desk-backup@example.com invalid\n" +
             "It may have gone out. Check the Cc copy or ask the desk before sending again.",
-        ERROR)
+        TRADING, ERROR)
+  }
+
+  def "records the send attempt before Mandrill is called, holding the UNKNOWN line the run posts if no result follows"() {
+    when:
+    notifier.reportSendAttempt(42L, message)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it ->
+      it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
+          it.principal == "42" &&
+          it.timestamp == sentAt &&
+          it.data == [text: resultUnknown, severity: "ERROR", alert: "SENDING"]
+    })
+    0 * notificationService._
+  }
+
+  def "records the send attempt in a transaction of its own, since the batch has already committed"() {
+    when:
+    notifier.reportSendAttempt(42L, message)
+
+    then:
+    1 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
+  }
+
+  def "a send attempt that cannot be recorded does not stop the send"() {
+    given:
+    eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
+
+    when:
+    notifier.reportSendAttempt(42L, message)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "turns the attempt row into the result, posts it at once, then marks it posted, so the run has nothing left"() {
+    given:
+    def attempt = EventLog.builder()
+        .id(7L)
+        .type("TRADE_ORDER_EMAIL_SEND_RESULT")
+        .principal("42")
+        .timestamp(sentAt.minusSeconds(30))
+        .data([text: resultUnknown, severity: "ERROR", alert: "SENDING"])
+        .build()
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    1 * eventLogRepository.findByTypeAndPrincipal("TRADE_ORDER_EMAIL_SEND_RESULT", "42") >> Optional.of(attempt)
+    1 * eventLogRepository.save({ EventLog it ->
+      it.id == 7L && it.timestamp == sentAt && it.data == [text: greenLine, severity: "INFO", alert: "NOT_POSTED"]
+    }) >> { EventLog it -> it }
+
+    then:
+    1 * notificationService.sendMessage(greenLine, TRADING, INFO)
+
+    then:
+    1 * eventLogRepository.save({ EventLog it -> it.id == 7L && it.data == [text: greenLine, severity: "INFO", alert: "POSTED"] })
+  }
+
+  def "records the result as a row of its own when the attempt could not be recorded"() {
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    1 * eventLogRepository.save({ EventLog it ->
+      it.type == "TRADE_ORDER_EMAIL_SEND_RESULT" &&
+          it.principal == "42" &&
+          it.timestamp == sentAt &&
+          it.data == [text: greenLine, severity: "INFO", alert: "NOT_POSTED"]
+    }) >> { EventLog it -> it }
+  }
+
+  def "records and marks the result in transactions of its own, since the batch has already committed"() {
+    given:
+    eventLogRepository.save(_) >> { EventLog it -> it }
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    2 * transactionManager.getTransaction({ it.propagationBehavior == PROPAGATION_REQUIRES_NEW })
+  }
+
+  def "a result Slack does not take at once stays recorded as not posted, for the run"() {
+    given:
+    notificationService.sendMessage(_, _, _) >> { throw new RestClientException("Slack is down") }
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    noExceptionThrown()
+    1 * eventLogRepository.save({ EventLog it -> it.data.alert == "NOT_POSTED" }) >> { EventLog it -> it }
+    0 * eventLogRepository.save({ EventLog it -> it.data.alert == "POSTED" })
+  }
+
+  def "a result that cannot be recorded is still posted at once"() {
+    given:
+    eventLogRepository.save(_) >> { throw new DataAccessResourceFailureException("database is down") }
+
+    when:
+    notifier.reportSendResult(42L, message, new EmailSendResult(SENT, [], null))
+
+    then:
+    noExceptionThrown()
+    1 * notificationService.sendMessage(greenLine, TRADING, INFO)
   }
 
   private static MessageContent attachment(String name) {

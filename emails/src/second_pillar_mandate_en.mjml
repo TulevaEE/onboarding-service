@@ -32,7 +32,7 @@
         <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
         <mj-text>
           Please note: you chose a fund whose ongoing charges are
-          <strong>*|selectedFundFee|*% per year</strong>.
+          <strong style="color: #db2200;">*|selectedFundFee|*% per year</strong>.
           Low fees give you the best chance of good long-term returns. You can compare fund fees in the
           <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pension fund comparison</a>.
         </mj-text>

@@ -254,6 +254,16 @@ class AmlServiceClientTest {
     return new AmlServiceClient(
         amlServiceRestClient,
         AmlServiceConfiguration.amlServiceRetryTemplate(),
-        new AmlServiceProperties(true, BASE_URL, apiToken, ofSeconds(5), ofSeconds(60)));
+        new AmlServiceProperties(
+            true,
+            BASE_URL,
+            apiToken,
+            ofSeconds(5),
+            ofSeconds(60),
+            false,
+            ofSeconds(1),
+            ofSeconds(2),
+            ofSeconds(1),
+            ofSeconds(5)));
   }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.mandate.MandateType.PAYMENT_RATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.MandateType.REJOIN;
 import static ee.tuleva.onboarding.mandate.MandateType.SELECTION;
+import static ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService.DEFAULT_SECOND_PILLAR_PAYMENT_RATE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.Objects.requireNonNull;
@@ -33,8 +34,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class SecondPillarRejoinMergeVars {
 
-  private static final int REJOINERS_LEFT_BEFORE_HIGHER_RATES_EXISTED_SO_RATE_ON_FILE_IS_TWO = 2;
-
   private final MandateDeadlinesService mandateDeadlinesService;
   private final FundRepository fundRepository;
   private final PensionRegistry pensionRegistry;
@@ -43,7 +42,7 @@ class SecondPillarRejoinMergeVars {
     var mergeVars = new HashMap<String, Object>();
     mergeVars.putAll(getRejoinMergeVars(mandateBatch, locale));
     mergeVars.putAll(getRejoinFundMergeVars(user, mandateBatch, locale));
-    mergeVars.putAll(getRejoinPaymentRateMergeVars(mandateBatch));
+    mergeVars.putAll(getRejoinPaymentRateMergeVars(user, mandateBatch));
     return mergeVars;
   }
 
@@ -105,16 +104,27 @@ class SecondPillarRejoinMergeVars {
     return fund -> tulevaFund.getIsin().equals(fund.getIsin());
   }
 
-  private static Map<String, Object> getRejoinPaymentRateMergeVars(MandateBatch mandateBatch) {
+  private Map<String, Object> getRejoinPaymentRateMergeVars(User user, MandateBatch mandateBatch) {
     int paymentRate =
-        mandateBatch.getMandates().stream()
-            .filter(mandate -> mandate.getMandateType() == PAYMENT_RATE_CHANGE)
-            .map(Mandate::getPaymentRate)
-            .filter(Objects::nonNull)
-            .map(BigDecimal::intValueExact)
-            .findFirst()
-            .orElse(REJOINERS_LEFT_BEFORE_HIGHER_RATES_EXISTED_SO_RATE_ON_FILE_IS_TWO);
+        paymentRateFiledIn(mandateBatch)
+            .or(() -> paymentRateOnFile(user))
+            .orElse(DEFAULT_SECOND_PILLAR_PAYMENT_RATE);
     return Map.of("paymentRate", paymentRate);
+  }
+
+  private static Optional<Integer> paymentRateFiledIn(MandateBatch mandateBatch) {
+    return mandateBatch.getMandates().stream()
+        .filter(mandate -> mandate.getMandateType() == PAYMENT_RATE_CHANGE)
+        .map(Mandate::getPaymentRate)
+        .filter(Objects::nonNull)
+        .map(BigDecimal::intValueExact)
+        .findFirst();
+  }
+
+  private Optional<Integer> paymentRateOnFile(User user) {
+    return pensionRegistry
+        .snapshotFor(user.getPersonalCode())
+        .map(PensionRegistrySnapshot::secondPillarPaymentRate);
   }
 
   private static boolean contains(MandateBatch mandateBatch, MandateType mandateType) {

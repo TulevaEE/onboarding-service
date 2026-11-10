@@ -36,15 +36,17 @@ public class RegistryPensionFacts implements PensionRegistry {
     boolean left = LEFT_SECOND_PILLAR.equals(owner.getP2ravaStatus());
     boolean hasSecondPillar = owner.getP2choice() != null || owner.getP2rate() != null;
     TulevaFund tulevaFundChosen = tulevaSecondPillarFundChosen(owner);
+    PaymentRates paymentRates = new PaymentRates(owner.getP2rate(), owner.getP2nextRate());
     return new PensionRegistrySnapshot(
         hasSecondPillar && !left,
         tulevaFundChosen != null || holdsAnyOf(owner, TULEVA_SECOND_PILLAR_FUNDS),
         left,
-        new PaymentRates(owner.getP2rate(), owner.getP2nextRate()).canIncrease(),
+        paymentRates.canIncrease(),
         owner.getP3identifier() != null
             || owner.getP3identificationDate() != null
             || holdsAnyOf(owner, TULEVA_THIRD_PILLAR_FUNDS),
-        tulevaFundChosen);
+        tulevaFundChosen,
+        paymentRates.rateThatApplies());
   }
 
   private static @Nullable TulevaFund tulevaSecondPillarFundChosen(UnitOwner owner) {

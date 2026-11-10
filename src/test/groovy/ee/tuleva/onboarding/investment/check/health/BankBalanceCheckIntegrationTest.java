@@ -131,12 +131,161 @@ class BankBalanceCheckIntegrationTest {
   }
 
   @Test
-  void hasNoFindingForADayInsideACatchUpStatementWhoseClosingBalanceIsForItsLastDayOnly() {
+  void comparesADayInsideACatchUpStatementWithTheBalanceItsBookingsGiveThatDay() {
     storeCatchUpStatement(
-        TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(2), NAV_DATE, "1000000.00", EARLY_MORNING);
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
+            booking(NAV_DATE.minusDays(1), "50.00", "DBIT"),
+            booking(NAV_DATE, "10.00", "CRDT")),
+        "1160.00");
 
-    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(2), cash(TUK75, "1200.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1150.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1100.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 1100.00, bank closing balance 1150.00 on 2026-10-22, difference"
+                    + " -50.00, NAV too low. Have SEB correct the report's cash before the NAV"));
+    assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1160.00"))).isEmpty();
+  }
+
+  @Test
+  void ignoresPendingEntriesSoOnesThatCancelOutCannotMakeAWrongDayBalancePass() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            entry(NAV_DATE.minusDays(2), "200.00", "CRDT", "PDNG"),
+            entry(NAV_DATE, "200.00", "DBIT", "PDNG")),
+        "1000.00");
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(2), cash(TUK75, "1000.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(2), cash(TUK75, "1200.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 1200.00, bank closing balance 1000.00 on 2026-10-21, difference"
+                    + " 200.00, NAV too high. Have SEB correct the report's cash before the NAV"));
+  }
+
+  @Test
+  void cannotRunForACatchUpDayWhenABookingIsDatedAfterTheStatementEnds() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
+            booking(NAV_DATE.plusDays(1), "50.00", "DBIT")),
+        "1150.00");
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1200.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                NOT_RUN,
+                "Report cash 1200.00 on 2026-10-22 not compared with the bank: SEB sent that day"
+                    + " inside a catch-up statement (one statement for several days, e.g. after"
+                    + " an outage), and the day's balance could not be worked out from its"
+                    + " bookings. Check the day's balance in SEB's internet bank"));
+  }
+
+  @Test
+  void cannotRunForACatchUpDayWhenSebSentOnlyTheStatementsFirstPage() {
+    store(
+        TUK75_INVESTMENT_IBAN,
+        HISTORIC_STATEMENT,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        EARLY_MORNING,
+        catchUpStatement(
+                TUK75_INVESTMENT_IBAN,
+                NAV_DATE.minusDays(2),
+                NAV_DATE,
+                "1000.00",
+                List.of(booking(NAV_DATE.minusDays(2), "200.00", "CRDT")),
+                "1200.00")
+            .replace(
+                "</CreDtTm></GrpHdr>",
+                "</CreDtTm><MsgPgntn><PgNb>1</PgNb><LastPgInd>false</LastPgInd></MsgPgntn></GrpHdr>"),
+        EARLY_MORNING,
+        null);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1200.00")))
+        .extracting(HealthCheckFinding::severity)
+        .containsExactly(NOT_RUN);
+  }
+
+  @Test
+  void comparesADayRefetchedOnItsOwnWithItsOwnStatementRatherThanTheCatchUp() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        "1000.00",
+        List.of(
+            booking(NAV_DATE.minusDays(2), "200.00", "CRDT"),
+            booking(NAV_DATE.minusDays(1), "50.00", "DBIT")),
+        "1150.00");
+    storeStatement(TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(1), "1100.00", "CRDT", REFETCHED);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1100.00"))).isEmpty();
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1150.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 1150.00, bank closing balance 1100.00 on 2026-10-22, difference"
+                    + " 50.00, NAV too high. Have SEB correct the report's cash before the NAV"));
+  }
+
+  @Test
+  void cannotRunForACatchUpDayWithoutAnOpeningBalanceUntilItIsRefetched() {
+    storeCatchUpStatement(
+        TUK75_INVESTMENT_IBAN,
+        NAV_DATE.minusDays(2),
+        NAV_DATE,
+        null,
+        List.of(booking(NAV_DATE.minusDays(1), "50.00", "DBIT")),
+        "1000000.00");
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                NOT_RUN,
+                "Report cash 999.00 on 2026-10-22 not compared with the bank: SEB sent that day"
+                    + " inside a catch-up statement (one statement for several days, e.g. after"
+                    + " an outage), and the day's balance could not be worked out from its"
+                    + " bookings. Check the day's balance in SEB's internet bank"));
     assertThat(checker.check(TUK75, NAV_DATE, cash(TUK75, "1000000.00"))).isEmpty();
+
+    storeStatement(TUK75_INVESTMENT_IBAN, NAV_DATE.minusDays(1), "1000.00", "CRDT", REFETCHED);
+
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "999.00")))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                BANK_BALANCE,
+                WARNING,
+                "Report cash 999.00, bank closing balance 1000.00 on 2026-10-22, difference"
+                    + " -1.00, NAV too low. Have SEB correct the report's cash before the NAV"));
+    assertThat(checker.check(TUK75, NAV_DATE.minusDays(1), cash(TUK75, "1000.00"))).isEmpty();
   }
 
   private static List<FundPosition> cash(TulevaFund fund, String marketValue) {
@@ -172,17 +321,95 @@ class BankBalanceCheckIntegrationTest {
       String iban,
       LocalDate statementFrom,
       LocalDate statementTo,
-      String closingBooked,
-      Instant receivedAt) {
+      @Nullable String openingBooked,
+      List<String> bookings,
+      String closingBooked) {
     store(
         iban,
         HISTORIC_STATEMENT,
         statementFrom,
         statementTo,
-        receivedAt,
-        statement(iban, statementTo, closingBooked, "CRDT"),
-        receivedAt,
+        EARLY_MORNING,
+        catchUpStatement(iban, statementFrom, statementTo, openingBooked, bookings, closingBooked),
+        EARLY_MORNING,
         null);
+  }
+
+  private static String catchUpStatement(
+      String iban,
+      LocalDate statementFrom,
+      LocalDate statementTo,
+      @Nullable String openingBooked,
+      List<String> bookings,
+      String closingBooked) {
+    var opening =
+        openingBooked == null
+            ? ""
+            : """
+              <Bal>
+                <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+                <Amt Ccy="EUR">%s</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt><Dt>%s</Dt></Dt>
+              </Bal>
+              """
+                .formatted(openingBooked, statementFrom);
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr><MsgId>statement</MsgId><CreDtTm>%1$sT04:00:33+03:00</CreDtTm></GrpHdr>
+            <Stmt>
+              <Id>statement</Id>
+              <CreDtTm>%1$sT04:00:33+03:00</CreDtTm>
+              <FrToDt><FrDtTm>%2$sT00:00:00+03:00</FrDtTm><ToDtTm>%3$sT23:59:59+03:00</ToDtTm></FrToDt>
+              <Acct>
+                <Id><IBAN>%4$s</IBAN></Id>
+                <Ownr><Nm>BGW TESTCLIENT1</Nm><Id><OrgId><Othr><Id>22255887</Id></Othr></OrgId></Id></Ownr>
+              </Acct>
+              %5$s
+              <Bal>
+                <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+                <Amt Ccy="EUR">%6$s</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt><Dt>%3$s</Dt></Dt>
+              </Bal>
+              %7$s
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(
+            statementTo.plusDays(1),
+            statementFrom,
+            statementTo,
+            iban,
+            opening,
+            closingBooked,
+            String.join("", bookings));
+  }
+
+  private static String booking(LocalDate bookingDate, String amount, String creditOrDebit) {
+    return entry(bookingDate, amount, creditOrDebit, "BOOK");
+  }
+
+  private static String entry(
+      LocalDate bookingDate, String amount, String creditOrDebit, String status) {
+    return """
+        <Ntry>
+          <NtryRef>%1$s-%2$s</NtryRef>
+          <Amt Ccy="EUR">%2$s</Amt>
+          <CdtDbtInd>%3$s</CdtDbtInd>
+          <Sts>%4$s</Sts>
+          <BookgDt><Dt>%1$s</Dt></BookgDt>
+          <NtryDtls><TxDtls>
+            <Refs><AcctSvcrRef>%1$s-%2$s</AcctSvcrRef></Refs>
+            <AmtDtls><TxAmt><Amt Ccy="EUR">%2$s</Amt></TxAmt></AmtDtls>
+            <RmtInf><Ustrd>booking</Ustrd></RmtInf>
+          </TxDtls></NtryDtls>
+        </Ntry>
+        """
+        .formatted(bookingDate, amount, creditOrDebit, status);
   }
 
   private void storeFailedStatement(String iban, LocalDate statementDate) {

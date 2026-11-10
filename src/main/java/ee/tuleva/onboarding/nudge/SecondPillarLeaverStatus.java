@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.nudge;
 
-@FunctionalInterface
 public interface SecondPillarLeaverStatus {
 
   boolean hasLeft(String personalCode);
+
+  boolean contributionsCannotRestart(String personalCode);
 }

@@ -79,6 +79,15 @@ class MandateSpec extends Specification {
     mandate.getPhoneNumber() == user.phoneNumber
   }
 
+  def "getPhoneNumber is null when the user has no phone number"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.user = sampleUser().phoneNumber(null).build()
+
+    expect:
+    mandate.getPhoneNumber() == null
+  }
+
   @Unroll
   def "Mandate payment rate validation for rate #rate"() {
     given:

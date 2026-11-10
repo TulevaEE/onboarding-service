@@ -252,8 +252,8 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public String getPhoneNumber() {
-    return requireNonNull(user.getPhoneNumber(), "User missing phone number: mandateId=" + id);
+  public @Nullable String getPhoneNumber() {
+    return user.getPhoneNumber();
   }
 
   public boolean isThirdPillar() {

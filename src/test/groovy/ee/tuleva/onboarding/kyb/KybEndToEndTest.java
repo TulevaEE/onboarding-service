@@ -50,7 +50,7 @@ class KybEndToEndTest {
   void rule31_soleOwnerBoardMemberBeneficialOwner_allChecksPass() {
     var results = kybScreeningService.screen(rule31Pass(), SUBMISSION);
 
-    assertThat(results).hasSize(11).allMatch(KybCheck::success);
+    assertThat(results).hasSize(12).allMatch(KybCheck::success);
     assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, true);
   }
 
@@ -365,6 +365,7 @@ class KybEndToEndTest {
             KYB_COMPANY_LEGAL_FORM,
             KYB_COMPANY_REGISTERED_IN_ESTONIA,
             KYB_SELF_CERTIFICATION,
+            KYB_COMPANY_PARTIES,
             KYB_DATA_CHANGED);
     assertThat(amlChecks).allMatch(AmlCheck::isSuccess);
   }

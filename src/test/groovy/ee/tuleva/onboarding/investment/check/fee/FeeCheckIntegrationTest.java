@@ -9,7 +9,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -26,13 +25,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-@TestPropertySource(properties = "investment.fee-check.depot-asset-base-from=2025-01-01")
 class FeeCheckIntegrationTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -45,8 +42,6 @@ class FeeCheckIntegrationTest {
   private static final BigDecimal CUSTODIAN_CASH = new BigDecimal("500000.00");
   private static final BigDecimal TRADE_PAYABLES = new BigDecimal("-91782.00");
   private static final BigDecimal PENDING_REDEMPTIONS = new BigDecimal("-12000.00");
-  private static final BigDecimal ASSET_VALUE =
-      BASE_VALUE.subtract(TRADE_PAYABLES).subtract(PENDING_REDEMPTIONS);
   private static final Instant PUBLISHED_AT = Instant.parse("2026-06-05T08:00:00Z");
 
   @Autowired private FeeCheckService feeCheckService;
@@ -90,11 +85,9 @@ class FeeCheckIntegrationTest {
     insertNavReportRow(
         DAY_THREE, "LIABILITY", "Payables of redeemed units", pendingRedemptions.negate());
 
-    var managementBaseMissingBothTerms = securities;
-    insertAccrual(
-        TUK75, "MANAGEMENT", DAY_THREE, managementBaseMissingBothTerms, new BigDecimal("6712.33"));
-    insertAccrual(
-        TUK75, "DEPOT", DAY_THREE, securities.add(blackrockAdjustment), new BigDecimal("268.49"));
+    var baseMissingBothTerms = securities;
+    insertAccrual(TUK75, "MANAGEMENT", DAY_THREE, baseMissingBothTerms, new BigDecimal("6712.33"));
+    insertAccrual(TUK75, "DEPOT", DAY_THREE, baseMissingBothTerms, new BigDecimal("268.49"));
 
     feeCheckService.runDailyChecks(List.of(TUK75), DAY_THREE);
 
@@ -297,8 +290,7 @@ class FeeCheckIntegrationTest {
   }
 
   private void accrueFor(LocalDate date) {
-    feeCalculationService.calculateFeesForNav(
-        TUK75, date, new FeeBases(BASE_VALUE, ASSET_VALUE), null);
+    feeCalculationService.calculateFeesForNav(TUK75, date, BASE_VALUE, null);
   }
 
   private void correctAccrualWithoutTouchingLedger(LocalDate date, BigDecimal amount) {

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner
-import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
 import ee.tuleva.onboarding.nudge.NudgeAccount
 import ee.tuleva.onboarding.nudge.NudgeDecision
 import ee.tuleva.onboarding.nudge.NudgeDecisionService
@@ -33,9 +32,9 @@ class PaymentEmailSenderSpec extends Specification {
     runAs(_, _) >> { args -> (args[1] as Runnable).run() }
   }
   NudgeDecisionService nudgeDecisionService = Mock()
-  SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
+  SavingsFundAccountHolderResolver accountHolderResolver = Mock()
 
-  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, securityContextRunner, nudgeDecisionService, savingsFundSuccessEmailResolver)
+  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, securityContextRunner, nudgeDecisionService, accountHolderResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -72,60 +71,52 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def decision = NudgeDecision.of(SAVINGS_FUND_RECURRING)
     def event = new SavingsPaymentCreatedEvent(this, user, ENGLISH, recipient)
-    1 * savingsFundSuccessEmailResolver.resolve(event) >> email
+    1 * accountHolderResolver.resolve(user, recipient) >> holder
 
     when:
     paymentEmailSender.onSavingsPaymentCreated(event)
 
     then:
     1 * nudgeDecisionService.decide(user, paidAccount, SAVINGS_FUND_PAYMENT) >> decision
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, email, decision, ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.success(holder), decision, ENGLISH)
 
     where:
-    description   | recipient                                        | paidAccount                                     | email
-    "own account" | new PartyId(PartyId.Type.PERSON, "38812121215")  | new NudgeAccount(PERSON, "38812121215")         | SavingsFundPaymentEmail.personSuccess()
-    "child"       | new PartyId(PartyId.Type.PERSON, "51111111111")  | new NudgeAccount(PERSON, "51111111111")         | SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)
-    "company"     | new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") | new NudgeAccount(LEGAL_ENTITY, "12345678")    | SavingsFundPaymentEmail.companySuccess("Mesila OÜ", COMPANY_ID)
+    description   | recipient                                        | paidAccount                                     | holder
+    "own account" | new PartyId(PartyId.Type.PERSON, "38812121215")  | new NudgeAccount(PERSON, "38812121215")         | SavingsFundAccountHolder.person()
+    "child"       | new PartyId(PartyId.Type.PERSON, "51111111111")  | new NudgeAccount(PERSON, "51111111111")         | SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID)
+    "company"     | new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") | new NudgeAccount(LEGAL_ENTITY, "12345678")    | SavingsFundAccountHolder.company("Mesila OÜ", COMPANY_ID)
   }
 
-  def "send email on savings payment cancel without a nudge"() {
+  def "send email on savings payment cancel for the cancelled account, without a nudge"() {
     given:
     def user = sampleUser().build()
-    def event = new SavingsPaymentCancelledEvent(this, user, ENGLISH)
+    def recipient = new PartyId(PartyId.Type.PERSON, "51111111111")
+    def holder = SavingsFundAccountHolder.child("Kid Tester", CHILD_LINK_ID)
+    def event = new SavingsPaymentCancelledEvent(this, user, ENGLISH, recipient)
+    1 * accountHolderResolver.resolveRetryAccount(user, recipient) >> holder
 
     when:
     paymentEmailSender.onSavingsPaymentCancelled(event)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(holder), ENGLISH)
     0 * nudgeDecisionService._
   }
 
-  def "send email on savings payment failure without a nudge"() {
+  def "send email on savings payment failure for the account it was paid into, without a nudge"() {
     given:
     def user = sampleUser().build()
-    def event = new SavingsPaymentFailedEvent(this, user, ENGLISH)
+    def recipient = new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678")
+    def holder = SavingsFundAccountHolder.company("Mesila OÜ", COMPANY_ID)
+    def event = new SavingsPaymentFailedEvent(this, user, ENGLISH, recipient)
+    1 * accountHolderResolver.resolveRetryAccount(user, recipient) >> holder
 
     when:
     paymentEmailSender.onSavingsPaymentFailed(event)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), ENGLISH)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(holder), ENGLISH)
     0 * nudgeDecisionService._
     0 * securityContextRunner._
-  }
-
-  def "send email on savings payment failure for a minor who cannot self authenticate"() {
-    given:
-    def minor = sampleUser().personalCode("51111111111").build()
-    def event = new SavingsPaymentFailedEvent(this, minor, ENGLISH)
-    securityContextRunner.runAs(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
-
-    when:
-    paymentEmailSender.onSavingsPaymentFailed(event)
-
-    then:
-    noExceptionThrown()
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(minor, SavingsFundPaymentEmail.failed(), ENGLISH)
   }
 }

@@ -32,6 +32,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,7 @@ public class HandoverTokenLoginEventTest {
   @Mock private ConversionDecorator conversionDecorator;
   @Mock private SecurityContextRunner securityContextRunner;
   @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
+  @Mock private HandoverTokenUses handoverTokenUses;
 
   private PartnerAuthProvider partnerAuthProvider;
   private LoginEventBroadcaster loginEventBroadcaster;
@@ -72,6 +74,7 @@ public class HandoverTokenLoginEventTest {
   private final String testFirstName = "Mart";
   private final String testLastName = "Tamm";
   private final String testIssuer = "testpartner";
+  private final String testClientId = "TULEVA";
   private final Instant fixedInstant = Instant.parse("2024-01-01T12:00:00Z");
 
   @BeforeEach
@@ -80,7 +83,14 @@ public class HandoverTokenLoginEventTest {
 
     partnerAuthProvider =
         new PartnerAuthProvider(
-            TEST_KEY_PAIR.getPublic(), TEST_KEY_PAIR.getPublic(), clock, principalService);
+            TEST_KEY_PAIR.getPublic(),
+            TEST_KEY_PAIR.getPublic(),
+            testIssuer,
+            testClientId,
+            clock,
+            principalService,
+            handoverTokenUses);
+    when(handoverTokenUses.firstUse(eq(testIssuer), any(String.class))).thenReturn(true);
 
     loginEventBroadcaster =
         new LoginEventBroadcaster(
@@ -242,73 +252,8 @@ public class HandoverTokenLoginEventTest {
     assertThat(eventData).containsEntry("documentNumber", null);
   }
 
-  @Test
-  @DisplayName("Login event logs issuer correctly for different token issuers")
-  public void whenLoginWithHandoverToken_fromDifferentIssuer_thenIssuerLoggedCorrectly() {
-    // Given - token from different issuer
-    String differentIssuer = "another-issuer";
-    String handoverToken =
-        createHandoverTokenWithCustomIssuer(
-            differentIssuer, "SMART_ID", "SMART_ID", "PNOEE-30303039816-MOCK-Q", null);
-
-    Map<String, String> expectedAttributes = new HashMap<>();
-    expectedAttributes.put("grantType", "PARTNER");
-    expectedAttributes.put("issuer", differentIssuer);
-    expectedAttributes.put("partnerAuthenticationMethod", "SMART_ID");
-    expectedAttributes.put("partnerSigningMethod", "SMART_ID");
-    expectedAttributes.put("documentNumber", "PNOEE-30303039816-MOCK-Q");
-    expectedAttributes.put("phoneNumber", null);
-
-    AuthenticatedPerson authenticatedPerson = personWith(expectedAttributes);
-
-    when(principalService.getFrom(any(Person.class), anyMap())).thenReturn(authenticatedPerson);
-
-    ConversionResponse.Conversion secondPillar =
-        ConversionResponse.Conversion.builder()
-            .transfersComplete(false)
-            .selectionComplete(false)
-            .build();
-    ConversionResponse.Conversion thirdPillar =
-        ConversionResponse.Conversion.builder()
-            .transfersComplete(false)
-            .selectionComplete(false)
-            .build();
-    ConversionResponse mockConversion =
-        ConversionResponse.builder().secondPillar(secondPillar).thirdPillar(thirdPillar).build();
-    when(conversionService.getConversion(authenticatedPerson)).thenReturn(mockConversion);
-
-    when(pillarActivations.forPerson(authenticatedPerson))
-        .thenReturn(new PillarActivation(false, false));
-
-    // When - authentication and login event
-    partnerAuthProvider.authenticate(handoverToken);
-
-    AuthenticationTokens tokens = new AuthenticationTokens("mock-access", "mock-refresh");
-    AfterTokenGrantedEvent afterTokenEvent =
-        new AfterTokenGrantedEvent(this, authenticatedPerson, PARTNER, tokens);
-    loginEventBroadcaster.onAfterTokenGrantedEvent(afterTokenEvent);
-
-    // Then
-    ArgumentCaptor<TrackableEvent> eventCaptor = ArgumentCaptor.forClass(TrackableEvent.class);
-    verify(eventPublisher).publishEvent(eventCaptor.capture());
-
-    TrackableEvent loginEvent = eventCaptor.getValue();
-    Map<String, Object> eventData = loginEvent.getData();
-    assertThat(eventData).containsEntry("issuer", differentIssuer);
-  }
-
   private String createHandoverToken(
       String authMethod, String signingMethod, String documentNumber, String phoneNumber) {
-    return createHandoverTokenWithCustomIssuer(
-        testIssuer, authMethod, signingMethod, documentNumber, phoneNumber);
-  }
-
-  private String createHandoverTokenWithCustomIssuer(
-      String issuer,
-      String authMethod,
-      String signingMethod,
-      String documentNumber,
-      String phoneNumber) {
     var builder =
         Jwts.builder()
             .subject(testPersonalCode)
@@ -317,7 +262,9 @@ public class HandoverTokenLoginEventTest {
             .claim("tokenType", "HANDOVER")
             .claim("firstName", testFirstName)
             .claim("lastName", testLastName)
-            .issuer(issuer)
+            .issuer(testIssuer)
+            .claim("cid", testClientId)
+            .id(UUID.randomUUID().toString())
             .claim("authenticationMethod", authMethod)
             .claim("signingMethod", signingMethod);
 

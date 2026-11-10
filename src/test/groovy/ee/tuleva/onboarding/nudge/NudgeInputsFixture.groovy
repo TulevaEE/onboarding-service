@@ -23,6 +23,7 @@ class NudgeInputsFixture {
         .thirdPillarFullyConverted(true)
         .thirdPillarFee(0.0029)
         .canIncreasePaymentRate(false)
+        .pendingPaymentRateRaise(true)
         .pendingSecondPillarTransfer(false)
         .pendingSecondPillarWithdrawal(false)
         .pendingSecondPillarRejoin(false)

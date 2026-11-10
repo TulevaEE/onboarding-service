@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.auth.role.Role
-import ee.tuleva.onboarding.time.ClockHolder
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -15,16 +15,9 @@ import static ee.tuleva.onboarding.auth.role.RoleType.*
 
 class PrincipalServiceSpec extends Specification {
 
+  Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC)
   PrincipalUsers principalUsers = Mock(PrincipalUsers)
   PrincipalService service = new PrincipalService(principalUsers)
-
-  def setup() {
-    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC))
-  }
-
-  def cleanup() {
-    ClockHolder.setDefaultClock()
-  }
 
   PrincipalUser samplePrincipalUser = new PrincipalUser(1L, true)
 
@@ -109,35 +102,35 @@ class PrincipalServiceSpec extends Specification {
     authenticatedPerson.role.name() == "John Doe"
   }
 
-  def "getFromPerson: a person who turned 18 today can self-authenticate"() {
-    given:
-    // samplePerson() was born 1988-12-12, so their 18th birthday is exactly 2006-12-12.
-    // Using noon (rather than midnight) keeps the assertion stable across the system's
-    // default time zone.
-    ClockHolder.setClock(Clock.fixed(Instant.parse("2006-12-12T12:00:00Z"), ZoneOffset.UTC))
-    Person person = samplePerson()
-    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
-
-    when:
-    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
-
-    then:
-    authenticatedPerson.personalCode == person.personalCode
-  }
-
-  def "getFromPerson: a minor cannot self-authenticate"() {
+  def "getFromPerson: a minor self-authenticates as themselves"() {
     given:
     Person minor = samplePerson().toBuilder().personalCode("61506150006").build()
+    1 * principalUsers.findOrCreate(minor) >> samplePrincipalUser
 
     when:
-    service.getFrom(minor, Map.of())
+    AuthenticatedPerson authenticatedPerson = service.getFrom(minor, Map.of())
 
     then:
-    thrown(MinorCannotSelfAuthenticateException)
-    0 * principalUsers.findOrCreate(_)
+    authenticatedPerson.personalCode == minor.personalCode
+    authenticatedPerson.role == new Role(PERSON, minor.personalCode, "Jordan Valdma")
+    authenticatedPerson.isMinorActingAsSelf(LocalDate.now(clock))
   }
 
-  def "withRole into a minor child role is not blocked by the self-auth gate"() {
+  def "getFromPerson: an adult self-authenticates as themselves"() {
+    given:
+    Person adult = samplePerson()
+    1 * principalUsers.findOrCreate(adult) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(adult, Map.of())
+
+    then:
+    authenticatedPerson.personalCode == adult.personalCode
+    authenticatedPerson.actingAsSelf
+    !authenticatedPerson.isMinorActingAsSelf(LocalDate.now(clock))
+  }
+
+  def "withRole switches a parent into their minor child's role without looking anyone up"() {
     given:
     def parent = sampleAuthenticatedPersonAndMember().build()
     def childRole = new Role(PERSON, "61506150006", "Mari Maasikas")
@@ -151,7 +144,7 @@ class PrincipalServiceSpec extends Specification {
     0 * principalUsers._
   }
 
-  def "rebuilding a principal from a token is not blocked by the self-auth gate"() {
+  def "rebuilding a minor's principal from a token keeps the role the token carries"() {
     given:
     Person minor = samplePerson().toBuilder().personalCode("61506150006").build()
     def role = new Role(PERSON, minor.personalCode, "Mari Maasikas")

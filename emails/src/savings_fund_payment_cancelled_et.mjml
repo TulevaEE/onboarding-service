@@ -11,7 +11,7 @@
           kätte ja saadame laekunud raha tänase päeva jooksul tagasi samale kontole, kust see tuli.
         </mj-text>
         <mj-text>Soovi korral tee uus sissemakse:</mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen uue sissemakse</mj-button>
+        <mj-include path="./partials/savings_fund_retry_button_et.mjml" />
       </mj-column>
     </mj-section>
 

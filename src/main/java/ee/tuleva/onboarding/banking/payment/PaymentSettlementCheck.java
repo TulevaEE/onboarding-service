@@ -9,15 +9,12 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPT
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.FAILED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
-import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.amount;
 import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.count;
-import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckType;
-import java.math.BigDecimal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -38,7 +35,6 @@ class PaymentSettlementCheck {
   private static final Duration STATEMENT_RUN_TO_FINISH = Duration.ofMinutes(2);
 
   private final LedgerTies ledgerTies;
-  private final PaymentAccounts paymentAccounts;
   private final PaymentCheckService paymentCheckService;
   private final Clock clock;
 
@@ -66,7 +62,11 @@ class PaymentSettlementCheck {
     var problems = problems(batch, ties);
     if (problems.isEmpty()) {
       return Optional.of(
-          new Closing(PAYMENT_BATCH_SETTLED, today.toString(), settled(batch, ties), List.of()));
+          new Closing(
+              PAYMENT_BATCH_SETTLED,
+              today.toString(),
+              settled(batch.listed().size(), ties),
+              List.of()));
     }
 
     var key = today + ":" + digestOf(problems);
@@ -138,25 +138,15 @@ class PaymentSettlementCheck {
                 payments.stream().map(OutgoingPayment::getEndToEndId).collect(joining(", "))));
   }
 
-  private String settled(BriefedBatch batch, List<LedgerTie> ties) {
-    var payments = batch.payments();
-    var total = payments.stream().map(OutgoingPayment::getAmount).reduce(ZERO, BigDecimal::add);
-    var accounts =
-        paymentAccounts.group(payments).stream()
-            .map(AccountPayments::summary)
-            .collect(joining("\n"));
+  private static String settled(int paymentCount, List<LedgerTie> ties) {
     var checks =
         ties.stream().map(tie -> "      ✅ " + tie.label()).collect(joining("\n", "\n", ""));
     return """
         ✅ TKF100 — all %s of the approval brief executed as sent and as the ledger expects
 
-        %s
-
-          TOTAL  %s  %s EUR
-
           Checks:
               ✅ each debit matches the amount and account we sent%s"""
-        .formatted(count(payments.size()), accounts, count(payments.size()), amount(total), checks);
+        .formatted(count(paymentCount), checks);
   }
 
   private static String notSettled(List<String> problems) {

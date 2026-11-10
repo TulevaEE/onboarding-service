@@ -7,9 +7,13 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.role.Role;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class AuthenticatedPersonTest {
+
+  private static final String MINOR_PERSONAL_CODE = "61506150006";
+  private static final String ADULT_PERSONAL_CODE = "38501010002";
 
   @Test
   void roleIsNullWhenNotSetInBuilder() {
@@ -124,5 +128,59 @@ class AuthenticatedPersonTest {
     var person = AuthenticatedPerson.builder().personalCode("38501010002").build();
 
     assertThat(person.isLegalEntity()).isFalse();
+  }
+
+  @Test
+  void isAMinorActingAsSelfWhenAPersonUnder18ActsInTheirOwnRole() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode(MINOR_PERSONAL_CODE)
+            .role(new Role(PERSON, MINOR_PERSONAL_CODE, "Mari Maasikas"))
+            .build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2026-05-22"))).isTrue();
+  }
+
+  @Test
+  void isAMinorActingAsSelfWhenAPersonUnder18HasNoRole() {
+    var person = AuthenticatedPerson.builder().personalCode(MINOR_PERSONAL_CODE).build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2026-05-22"))).isTrue();
+  }
+
+  @Test
+  void isStillAMinorOnTheDayBeforeTheir18thBirthday() {
+    var person = AuthenticatedPerson.builder().personalCode(MINOR_PERSONAL_CODE).build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2033-06-14"))).isTrue();
+  }
+
+  @Test
+  void isNoLongerAMinorOnTheir18thBirthday() {
+    var person = AuthenticatedPerson.builder().personalCode(MINOR_PERSONAL_CODE).build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2033-06-15"))).isFalse();
+  }
+
+  @Test
+  void isNotAMinorActingAsSelfWhenAnAdultActsInTheirOwnRole() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode(ADULT_PERSONAL_CODE)
+            .role(new Role(PERSON, ADULT_PERSONAL_CODE, "Aadu Kadakas"))
+            .build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2026-05-22"))).isFalse();
+  }
+
+  @Test
+  void isNotAMinorActingAsSelfWhenAnAdultRepresentsAMinorChild() {
+    var person =
+        AuthenticatedPerson.builder()
+            .personalCode(ADULT_PERSONAL_CODE)
+            .role(new Role(PERSON, MINOR_PERSONAL_CODE, "Mari Maasikas"))
+            .build();
+
+    assertThat(person.isMinorActingAsSelf(LocalDate.parse("2026-05-22"))).isFalse();
   }
 }

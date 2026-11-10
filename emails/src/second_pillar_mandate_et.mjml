@@ -27,7 +27,7 @@
         <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
         <mj-text>
           Pane tähele: valisid fondi, mille jooksvad tasud on
-          <strong>*|selectedFundFee|*% aastas</strong>. Madalad tasud
+          <strong style="color: #db2200;">*|selectedFundFee|*% aastas</strong>. Madalad tasud
           annavad parimad eeldused heaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
           <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pensionifondide võrdluses</a>.
         </mj-text>

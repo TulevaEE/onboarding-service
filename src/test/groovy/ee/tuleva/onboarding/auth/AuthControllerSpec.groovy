@@ -10,6 +10,8 @@ import ee.tuleva.onboarding.auth.webeid.WebEidAuthService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
+import ee.tuleva.onboarding.auth.partner.HandoverTokenRejectedException
+
 import static ee.tuleva.onboarding.auth.GrantType.PARTNER
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -114,6 +116,23 @@ class AuthControllerSpec extends BaseControllerSpec {
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.access_token', is(accessToken)))
         .andExpect(jsonPath('$.refresh_token', is(refreshToken)))
+  }
+
+  def "POST /v1/tokens with a rejected handover jwt answers unauthorized"() {
+    given:
+    authService.authenticate(PARTNER, "reusedHandoverJwt") >> {
+      throw new HandoverTokenRejectedException("Handover token already used: issuer=COOP PANK AS, tokenId=a-token-id")
+    }
+
+    when:
+    def result = mockMvc.perform(post("/v1/tokens")
+        .param("grant_type", PARTNER.name())
+        .param("authenticationHash", "reusedHandoverJwt"))
+
+    then:
+    result
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath('$.errors[0].code', is("auth.handover.token.rejected")))
   }
 
   def "Authenticate: return validation error with ValidPersonalCode for invalid personal code"() {

@@ -4,12 +4,12 @@ import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
 import ee.tuleva.onboarding.auth.role.Role;
-import ee.tuleva.onboarding.personalcode.PersonalCode;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,15 +18,9 @@ import org.springframework.stereotype.Service;
 @NullMarked
 public class PrincipalService {
 
-  private static final int SELF_SERVICE_MINIMUM_AGE = 18;
-
   private final PrincipalUsers principalUsers;
 
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
-    if (PersonalCode.getAge(person.getPersonalCode()) < SELF_SERVICE_MINIMUM_AGE) {
-      log.info("Blocked self-authentication for minor: personalCode={}", person.getPersonalCode());
-      throw new MinorCannotSelfAuthenticateException(person.getPersonalCode());
-    }
     return getFrom(
         person,
         attributes,
@@ -34,7 +28,7 @@ public class PrincipalService {
   }
 
   public AuthenticatedPerson getFrom(
-      @Valid Person person, Map<String, String> attributes, Role role) {
+      @Valid Person person, Map<String, String> attributes, @Nullable Role role) {
 
     var user = principalUsers.findOrCreate(person);
 

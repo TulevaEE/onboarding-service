@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.kyc;
 
+import ee.tuleva.onboarding.user.User;
+
 public interface KycChecker {
-  KycCheck check(Long userId);
+  KycCheck check(User user);
 }

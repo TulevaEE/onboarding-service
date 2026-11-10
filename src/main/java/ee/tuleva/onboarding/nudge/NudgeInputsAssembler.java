@@ -53,6 +53,7 @@ class NudgeInputsAssembler {
         .thirdPillarFullyConverted(conversion.isThirdPillarFullyConverted())
         .thirdPillarFee(conversion.getThirdPillarWeightedAverageFee())
         .canIncreasePaymentRate(paymentRates.canIncrease())
+        .pendingPaymentRateRaise(paymentRates.hasPendingRaise())
         .pendingSecondPillarTransfer(
             !pendingApplications.getPendingExchanges(SECOND, user).isEmpty())
         .pendingSecondPillarWithdrawal(pendingApplications.hasPendingWithdrawals(user, SECOND))

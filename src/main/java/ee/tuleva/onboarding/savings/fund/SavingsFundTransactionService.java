@@ -146,6 +146,8 @@ public class SavingsFundTransactionService implements SavingsTransactions {
         .settledTime(entry.getTransaction().getTransactionDate())
         .applicationTime(payment == null ? null : payment.getReceivedBefore())
         .counterpartyIban(payment == null ? null : payment.getRemitterIban())
+        .remitterName(payment == null ? null : payment.getRemitterName())
+        .paidFromOwnAccount(payment == null ? null : payment.paidByUnitHolder())
         .build();
   }
 

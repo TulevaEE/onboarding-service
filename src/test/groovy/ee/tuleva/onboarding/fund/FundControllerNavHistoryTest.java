@@ -33,6 +33,7 @@ class FundControllerNavHistoryTest {
 
   @MockitoBean private FundService fundService;
   @MockitoBean private PublishedManagementFee publishedManagementFee;
+  @MockitoBean private PublishedOngoingChargesFigure publishedOngoingChargesFigure;
   @MockitoBean private FundManagerUnits fundManagerUnits;
 
   @Test

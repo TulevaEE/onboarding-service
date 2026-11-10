@@ -12,6 +12,8 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.stream.Collectors
 
+import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
 import static org.hamcrest.Matchers.contains
@@ -28,7 +30,8 @@ class FundControllerSpec extends BaseControllerSpec {
     SavingsFundUnitStats ledgerUnits = Stub(SavingsFundUnitStats)
     FundManagerUnitsInRegister registerCounts = Stub(FundManagerUnitsInRegister)
     FundManagerUnits fundManagerUnits = new FundManagerUnits(ledgerUnits, registerCounts, Clock.fixed(Instant.parse("2026-10-06T10:00:00Z"), ZoneOffset.UTC), "10000000")
-    FundController controller = new FundController(fundService, PublishedManagementFeeFixture.withNoRateInForce(), fundManagerUnits)
+    FundController controller = new FundController(fundService, PublishedManagementFeeFixture.withNoRateInForce(),
+        PublishedOngoingChargesFigureFixture.withNoFigureInForce(), fundManagerUnits)
 
     private MockMvc mockMvc
 
@@ -78,13 +81,51 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: a Tuleva fund shows the management fee rate in force"() {
         given:
         def controllerWithRates = new FundController(fundService,
-            PublishedManagementFeeFixture.withRateInForce(TUK00, 0.00163), fundManagerUnits)
+            PublishedManagementFeeFixture.withRateInForce(TUK00, 0.00163),
+            PublishedOngoingChargesFigureFixture.withNoFigureInForce(), fundManagerUnits)
         1 * fundService.getFunds(Optional.empty()) >> responsesFor(sampleFunds())
         expect:
         mockMvc(controllerWithRates)
             .perform(get("/v1/funds"))
             .andExpect(status().isOk())
             .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].managementFeeRate', contains(0.00163d)))
+    }
+
+    def "get: a Tuleva fund shows the ongoing charges figure its KID in force prints with the KID's decimals beside it"() {
+        given:
+        def controllerWithFigures = new FundController(fundService, PublishedManagementFeeFixture.withNoRateInForce(),
+            PublishedOngoingChargesFigureFixture.withFigureInForce(TUK00, 0.0050, 2), fundManagerUnits)
+        1 * fundService.getFunds(Optional.empty()) >> responsesFor([tuleva2ndPillarBondFund(), lhv2ndPillarFund()])
+        expect:
+        mockMvc(controllerWithFigures)
+            .perform(get("/v1/funds"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].ongoingChargesFigure', contains(0.005d)))
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].ongoingChargesPercentDecimals', contains(2)))
+    }
+
+    def "get: another manager's fund shows the fund table figure and names no decimals"() {
+        given:
+        def controllerWithFigures = new FundController(fundService, PublishedManagementFeeFixture.withNoRateInForce(),
+            PublishedOngoingChargesFigureFixture.withFigureInForce(TUK00, 0.0046, 2), fundManagerUnits)
+        1 * fundService.getFunds(Optional.empty()) >> responsesFor([tuleva2ndPillarBondFund(), lhv2ndPillarFund()])
+        expect:
+        mockMvc(controllerWithFigures)
+            .perform(get("/v1/funds"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$[?(@.isin == "EE3600019766")].ongoingChargesFigure', contains(0.01d)))
+            .andExpect(jsonPath('$[?(@.isin == "EE3600019766")].ongoingChargesPercentDecimals', hasSize(0)))
+    }
+
+    def "get: a Tuleva fund with no KID in force shows the fund table figure and names no decimals"() {
+        given:
+        1 * fundService.getFunds(Optional.empty()) >> responsesFor([tuleva2ndPillarBondFund()])
+        expect:
+        mockMvc
+            .perform(get("/v1/funds"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].ongoingChargesFigure', contains(0.005d)))
+            .andExpect(jsonPath('$[?(@.isin == "EE3600109443")].ongoingChargesPercentDecimals', hasSize(0)))
     }
 
     def "get: a Tuleva pension fund shows the fund manager's units at the last month end"() {

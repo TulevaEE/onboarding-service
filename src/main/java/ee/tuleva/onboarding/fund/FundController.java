@@ -22,6 +22,7 @@ public class FundController {
 
   private final FundService fundService;
   private final PublishedManagementFee publishedManagementFee;
+  private final PublishedOngoingChargesFigure publishedOngoingChargesFigure;
   private final FundManagerUnits fundManagerUnits;
 
   @Operation(summary = "Get info about available funds")
@@ -31,6 +32,7 @@ public class FundController {
     return fundManagerUnits.applyTo(
         fundService.getFunds(fundManagerName).stream()
             .map(publishedManagementFee::applyTo)
+            .map(publishedOngoingChargesFigure::applyTo)
             .toList());
   }
 

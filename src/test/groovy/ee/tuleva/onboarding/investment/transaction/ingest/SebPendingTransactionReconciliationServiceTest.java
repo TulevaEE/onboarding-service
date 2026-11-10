@@ -1180,6 +1180,7 @@ class SebPendingTransactionReconciliationServiceTest {
                     settlement.getOrderId().equals(456L)
                         && settlement.getReportDate().equals(LocalDate.of(2026, 5, 13))));
     assertThat(absentOrder.getOrderStatus()).isEqualTo(SETTLED);
+    assertThat(heldBack).isEmpty();
   }
 
   @Test

@@ -79,6 +79,9 @@ class JobTriggerPoller {
   private static final Duration A_POLL_STARTS_NO_TRIGGER_AFTER_ITS_60_MINUTE_LEASE_LESS =
       Duration.ofMinutes(55);
 
+  private static final String PENDING = "PENDING";
+  private static final String PROCESSING = "PROCESSING";
+
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;
   private final OperationsNotificationService notificationService;
@@ -87,7 +90,7 @@ class JobTriggerPoller {
   @Scheduled(cron = JOB_TRIGGER_POLL)
   @SchedulerLock(name = "JobTriggerPoller", lockAtMostFor = "60m", lockAtLeastFor = "30s")
   void poll() {
-    var pending = repository.findByStatusOrderByCreatedAtAsc("PENDING");
+    var pending = repository.findByStatusOrderByCreatedAtAsc(PENDING);
     if (pending.isEmpty()) {
       return;
     }
@@ -107,34 +110,30 @@ class JobTriggerPoller {
             listed.getJobName());
         return;
       }
-      repository
-          .findByIdAndStatus(listed.getId(), "PENDING")
-          .ifPresentOrElse(
-              this::run,
-              () ->
-                  log.info(
-                      "Job trigger skipped, another poll already took it: jobName={}",
-                      listed.getJobName()));
+      run(listed.getId(), listed.getJobName());
     }
   }
 
-  private void run(JobTrigger trigger) {
-    var eventFactory = eventFor(trigger.getJobName());
+  private void run(Long id, String jobName) {
+    var eventFactory = eventFor(jobName);
     if (eventFactory.isEmpty()) {
-      markFailed(trigger, "Unknown job: " + trigger.getJobName());
+      markFailed(id, jobName, PENDING, "Unknown job: " + jobName);
       return;
     }
-
-    markProcessing(trigger);
+    if (repository.claim(id, clock().instant()) == 0) {
+      log.info("Job trigger skipped, another poll already took it: jobName={}", jobName);
+      return;
+    }
     try {
       eventPublisher.publishEvent(eventFactory.get().get());
-      markCompleted(trigger);
-      log.info("Job trigger completed: jobName={}", trigger.getJobName());
+      if (moved(repository.complete(id, clock().instant()), jobName, PROCESSING, "COMPLETED")) {
+        log.info("Job trigger completed: jobName={}", jobName);
+      }
     } catch (JobBusyException e) {
-      retryOnTheNextPollUnlessBusyTooLong(trigger, e);
+      retryOnTheNextPollUnlessBusyTooLong(id, jobName, e);
     } catch (Exception e) {
-      markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
-      log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
+      markFailed(id, jobName, PROCESSING, e.getMessage() == null ? e.toString() : e.getMessage());
+      log.error("Job trigger failed: jobName={}", jobName, e);
     }
   }
 
@@ -156,28 +155,36 @@ class JobTriggerPoller {
     }
   }
 
-  private void retryOnTheNextPollUnlessBusyTooLong(JobTrigger trigger, JobBusyException busy) {
-    var createdAt = trigger.getCreatedAt();
-    if (createdAt != null
-        && !createdAt
-            .plus(STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST)
-            .isAfter(clock().instant())) {
-      markFailed(trigger, "Still busy after 6 hours: " + busy.getMessage());
-      log.error(
-          "Job trigger expired, its job stayed busy for 6 hours: jobName={}, queuedAt={},"
-              + " reason={}",
-          trigger.getJobName(),
-          createdAt,
-          busy.getMessage());
-      postExpiry(trigger.getJobName());
+  private void retryOnTheNextPollUnlessBusyTooLong(Long id, String jobName, JobBusyException busy) {
+    Optional<Instant> expiredQueuedAt =
+        repository
+            .findById(id)
+            .map(JobTrigger::getCreatedAt)
+            .filter(JobTriggerPoller::busyForTooLongSince);
+    if (expiredQueuedAt.isPresent()) {
+      if (markFailed(id, jobName, PROCESSING, "Still busy after 6 hours: " + busy.getMessage())) {
+        log.error(
+            "Job trigger expired, its job stayed busy for 6 hours: jobName={}, queuedAt={},"
+                + " reason={}",
+            jobName,
+            expiredQueuedAt.get(),
+            busy.getMessage());
+        postExpiry(jobName);
+      }
       return;
     }
-    trigger.setStatus("PENDING");
-    repository.save(trigger);
-    log.debug(
-        "Job trigger left pending, its job is busy: jobName={}, reason={}",
-        trigger.getJobName(),
-        busy.getMessage());
+    if (moved(repository.requeue(id), jobName, PROCESSING, PENDING)) {
+      log.debug(
+          "Job trigger left pending, its job is busy: jobName={}, reason={}",
+          jobName,
+          busy.getMessage());
+    }
+  }
+
+  private static boolean busyForTooLongSince(Instant queuedAt) {
+    return !queuedAt
+        .plus(STAYS_PENDING_WHILE_ITS_JOB_IS_BUSY_FOR_AT_MOST)
+        .isAfter(clock().instant());
   }
 
   private void postExpiry(String jobName) {
@@ -197,24 +204,25 @@ class JobTriggerPoller {
         + "');";
   }
 
-  private void markProcessing(JobTrigger trigger) {
-    trigger.setStatus("PROCESSING");
-    if (trigger.getStartedAt() == null) {
-      trigger.setStartedAt(clock().instant());
+  private boolean markFailed(Long id, String jobName, String expectedStatus, String errorMessage) {
+    return moved(
+        repository.fail(id, expectedStatus, clock().instant(), errorMessage),
+        jobName,
+        expectedStatus,
+        "FAILED");
+  }
+
+  private static boolean moved(
+      int updatedRows, String jobName, String expectedStatus, String intendedStatus) {
+    if (updatedRows > 0) {
+      return true;
     }
-    repository.save(trigger);
-  }
-
-  private void markCompleted(JobTrigger trigger) {
-    trigger.setStatus("COMPLETED");
-    trigger.setCompletedAt(clock().instant());
-    repository.save(trigger);
-  }
-
-  private void markFailed(JobTrigger trigger, String errorMessage) {
-    trigger.setStatus("FAILED");
-    trigger.setCompletedAt(clock().instant());
-    trigger.setErrorMessage(errorMessage);
-    repository.save(trigger);
+    log.warn(
+        "Job trigger left as it is, it was no longer in the status the poll expected:"
+            + " jobName={}, expectedStatus={}, intendedStatus={}",
+        jobName,
+        expectedStatus,
+        intendedStatus);
+    return false;
   }
 }

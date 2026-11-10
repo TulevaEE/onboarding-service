@@ -36,7 +36,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +49,9 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class JobTriggerPollerTest {
 
-  @Mock JobTriggerRepository repository;
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  JobTriggerRepository repository;
+
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock OperationsNotificationService notificationService;
   @Spy JobTriggerLease jobTriggerLease = new JobTriggerLease();
@@ -65,7 +66,7 @@ class JobTriggerPollerTest {
     poller.poll();
 
     then(eventPublisher).should().publishEvent(any(RunTrackingDifferenceCheckRequested.class));
-    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(trigger);
   }
 
   @Test
@@ -91,8 +92,8 @@ class JobTriggerPollerTest {
     then(eventPublisher)
         .should(org.mockito.Mockito.times(2))
         .publishEvent(any(RunOverdueSettlementRequested.class));
-    assertThat(current.getStatus()).isEqualTo("COMPLETED");
-    assertThat(alias.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(current);
+    thenCompleted(alias);
   }
 
   @Test
@@ -102,8 +103,7 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("FAILED");
-    assertThat(trigger.getErrorMessage()).contains("Unknown job");
+    thenFailed(trigger, "PENDING", "Unknown job: NonExistentJob");
     then(eventPublisher).should(never()).publishEvent(any());
   }
 
@@ -117,8 +117,7 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("FAILED");
-    assertThat(trigger.getErrorMessage()).isEqualTo("boom");
+    thenFailed(trigger, "PROCESSING", "boom");
   }
 
   @Test
@@ -152,7 +151,7 @@ class JobTriggerPollerTest {
         .should()
         .publishEvent(
             new RunSebPendingTransactionReconciliationBackfillRequested(LocalDate.of(2026, 5, 8)));
-    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(trigger);
   }
 
   @Test
@@ -170,7 +169,7 @@ class JobTriggerPollerTest {
         .should()
         .publishEvent(
             new RunSebPendingTransactionReportReconciliationRequested(LocalDate.of(2026, 5, 16)));
-    assertThat(trigger.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(trigger);
   }
 
   @Test
@@ -184,7 +183,10 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    thenFailed(
+        trigger,
+        "PENDING",
+        "Unknown job: SebPendingTransactionReconciliationBackfillJob:yesterday");
     then(eventPublisher).should(never()).publishEvent(any());
   }
 
@@ -196,7 +198,7 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    thenFailed(trigger, "PENDING", "Unknown job: LimitCheckJob:2026-05-08");
     then(eventPublisher).should(never()).publishEvent(any());
   }
 
@@ -215,27 +217,7 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("PENDING");
-  }
-
-  @Test
-  void aBusyRetryKeepsTheTimeItsTriggerFirstStarted() {
-    var firstStart = ClockHolder.clock().instant().minus(Duration.ofMinutes(30));
-    var trigger =
-        JobTrigger.builder()
-            .jobName("SebPendingTransactionReconciliationJob")
-            .status("PENDING")
-            .createdAt(ClockHolder.clock().instant())
-            .startedAt(firstStart)
-            .build();
-    givenPending(trigger);
-    doThrow(new JobBusyException("reconciliation lock held"))
-        .when(eventPublisher)
-        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
-
-    poller.poll();
-
-    assertThat(trigger.getStartedAt()).isEqualTo(firstStart);
+    thenRequeued(trigger);
     then(notificationService).shouldHaveNoInteractions();
   }
 
@@ -254,7 +236,7 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger.getStatus()).isEqualTo("FAILED");
+    thenFailed(trigger, "PROCESSING", "Still busy after 6 hours: reconciliation lock held");
     then(notificationService)
         .should()
         .sendMessage(
@@ -286,9 +268,9 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(expired.getStatus()).isEqualTo("FAILED");
+    thenFailed(expired, "PROCESSING", "Still busy after 6 hours: reconciliation lock held");
     then(eventPublisher).should().publishEvent(any(RunLimitCheckRequested.class));
-    assertThat(after.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(after);
   }
 
   @AfterEach
@@ -313,8 +295,8 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(first.getStatus()).isEqualTo("COMPLETED");
-    assertThat(second.getStatus()).isEqualTo("PENDING");
+    thenCompleted(first);
+    thenNotStarted(second);
     then(eventPublisher).should(never()).publishEvent(any(RunLimitCheckRequested.class));
   }
 
@@ -358,7 +340,7 @@ class JobTriggerPollerTest {
         .containsExactly(
             pollStart.plus(Duration.ofMinutes(55)), pollStart.plus(Duration.ofMinutes(55)));
     assertThat(polling.instant()).isEqualTo(pollStart.plus(Duration.ofMinutes(55)));
-    assertThat(after.getStatus()).isEqualTo("PENDING");
+    thenNotStarted(after);
     then(eventPublisher).should(never()).publishEvent(any(RunLimitCheckRequested.class));
     assertThat(jobTriggerLease.deadline()).isEmpty();
   }
@@ -367,11 +349,12 @@ class JobTriggerPollerTest {
   void aTriggerAnotherPollHasAlreadyTakenIsNotRunAgain() {
     var taken = JobTrigger.builder().id(7L).jobName("LimitCheckJob").status("PENDING").build();
     given(repository.findByStatusOrderByCreatedAtAsc("PENDING")).willReturn(List.of(taken));
-    given(repository.findByIdAndStatus(7L, "PENDING")).willReturn(Optional.empty());
+    given(repository.claim(eq(7L), any())).willReturn(0);
 
     poller.poll();
 
     then(eventPublisher).should(never()).publishEvent(any());
+    then(repository).should(never()).complete(any(), any());
   }
 
   @Test
@@ -410,9 +393,9 @@ class JobTriggerPollerTest {
     then(eventPublisher).should().publishEvent(any(RunPevaRavaPhaseUpdateRequested.class));
     then(eventPublisher).should().publishEvent(any(RunPevaRavaFlowRecalcRequested.class));
     then(eventPublisher).should().publishEvent(any(RunR16FlowRecalcRequested.class));
-    assertThat(phaseUpdate.getStatus()).isEqualTo("COMPLETED");
-    assertThat(pevaRavaRecalc.getStatus()).isEqualTo("COMPLETED");
-    assertThat(r16Recalc.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(phaseUpdate);
+    thenCompleted(pevaRavaRecalc);
+    thenCompleted(r16Recalc);
   }
 
   @Test
@@ -425,8 +408,8 @@ class JobTriggerPollerTest {
 
     then(eventPublisher).should().publishEvent(any(RunFeeCheckRequested.class));
     then(eventPublisher).should().publishEvent(any(RunFeeSettlementCheckRequested.class));
-    assertThat(daily.getStatus()).isEqualTo("COMPLETED");
-    assertThat(monthly.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(daily);
+    thenCompleted(monthly);
   }
 
   @Test
@@ -437,8 +420,64 @@ class JobTriggerPollerTest {
 
     poller.poll();
 
-    assertThat(trigger1.getStatus()).isEqualTo("COMPLETED");
-    assertThat(trigger2.getStatus()).isEqualTo("COMPLETED");
+    thenCompleted(trigger1);
+    thenCompleted(trigger2);
+  }
+
+  @Test
+  void aCompletionThatFindsItsTriggerNoLongerRunningLeavesItAndTheNextTriggerStillRuns() {
+    var stoppedByHand =
+        JobTrigger.builder().jobName("TrackingDifferenceJob").status("PENDING").build();
+    var next = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    givenPending(stoppedByHand, next);
+    given(repository.complete(eq(stoppedByHand.getId()), any())).willReturn(0);
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(any(RunLimitCheckRequested.class));
+    thenCompleted(next);
+  }
+
+  @Test
+  void aBusyTriggerNoLongerRunningIsLeftAsItIsAndTheNextTriggerStillRuns() {
+    var stoppedByHand =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReconciliationJob")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant())
+            .build();
+    var next = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    givenPending(stoppedByHand, next);
+    given(repository.requeue(stoppedByHand.getId())).willReturn(0);
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReconciliationRequested.class));
+
+    poller.poll();
+
+    thenRequeued(stoppedByHand);
+    thenCompleted(next);
+  }
+
+  @Test
+  void anExpiryThatFindsItsTriggerNoLongerRunningPostsNothingAndTheNextTriggerStillRuns() {
+    var stoppedByHand =
+        JobTrigger.builder()
+            .jobName("SebPendingTransactionReportReconciliationJob:2026-05-13")
+            .status("PENDING")
+            .createdAt(ClockHolder.clock().instant().minus(Duration.ofHours(6)))
+            .build();
+    var next = JobTrigger.builder().jobName("LimitCheckJob").status("PENDING").build();
+    givenPending(stoppedByHand, next);
+    given(repository.fail(eq(stoppedByHand.getId()), eq("PROCESSING"), any(), any())).willReturn(0);
+    doThrow(new JobBusyException("reconciliation lock held"))
+        .when(eventPublisher)
+        .publishEvent(any(RunSebPendingTransactionReportReconciliationRequested.class));
+
+    poller.poll();
+
+    then(notificationService).shouldHaveNoInteractions();
+    thenCompleted(next);
   }
 
   private void givenPending(JobTrigger... listedAtThePollsStart) {
@@ -447,11 +486,31 @@ class JobTriggerPollerTest {
     }
     given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
         .willReturn(List.of(listedAtThePollsStart));
-    given(repository.findByIdAndStatus(any(), eq("PENDING")))
+    given(repository.claim(any(), any())).willReturn(1);
+    given(repository.complete(any(), any())).willReturn(1);
+    given(repository.fail(any(), any(), any(), any())).willReturn(1);
+    given(repository.requeue(any())).willReturn(1);
+    given(repository.findById(any()))
         .willAnswer(
-            reload ->
+            reread ->
                 Arrays.stream(listedAtThePollsStart)
-                    .filter(trigger -> trigger.getId().equals(reload.getArgument(0)))
+                    .filter(trigger -> trigger.getId().equals(reread.getArgument(0)))
                     .findFirst());
+  }
+
+  private void thenCompleted(JobTrigger trigger) {
+    then(repository).should().complete(eq(trigger.getId()), any());
+  }
+
+  private void thenFailed(JobTrigger trigger, String fromStatus, String errorMessage) {
+    then(repository).should().fail(eq(trigger.getId()), eq(fromStatus), any(), eq(errorMessage));
+  }
+
+  private void thenRequeued(JobTrigger trigger) {
+    then(repository).should().requeue(trigger.getId());
+  }
+
+  private void thenNotStarted(JobTrigger trigger) {
+    then(repository).should(never()).claim(eq(trigger.getId()), any());
   }
 }

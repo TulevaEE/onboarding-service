@@ -51,7 +51,7 @@ public class SavingFundPaymentController {
             user ->
                 eventPublisher.publishEvent(
                     new SavingsPaymentCancelledEvent(
-                        this, user, localeService.getCurrentLocale())));
+                        this, user, localeService.getCurrentLocale(), partyId)));
     return ResponseEntity.noContent().build();
   }
 

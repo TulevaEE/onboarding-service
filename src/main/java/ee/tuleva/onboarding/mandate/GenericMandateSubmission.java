@@ -13,7 +13,7 @@ public record GenericMandateSubmission<T extends MandateDetails>(
     @Nullable Instant createdDate,
     @Nullable Country address,
     String email,
-    String phoneNumber) {
+    @Nullable String phoneNumber) {
 
   public MandateType getMandateType() {
     return details.getMandateType();

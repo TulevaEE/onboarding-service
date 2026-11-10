@@ -14,7 +14,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @TestPropertySource(
     properties = {
       "aml.jobs.third-pillar.cron=*/1 * * * * *",
-      "aml.jobs.third-pillar.zone=Europe/Tallinn"
+      "aml.jobs.third-pillar.zone=Europe/Tallinn",
+      "aml.jobs.third-pillar-joiners.cron=*/1 * * * * *"
     })
 class ScheduledAmlCheckJobIntegrationTest {
   @MockitoBean AmlBatchScreener amlBatchScreener;
@@ -25,5 +26,15 @@ class ScheduledAmlCheckJobIntegrationTest {
         .atMost(Duration.ofSeconds(2))
         .untilAsserted(
             () -> verify(amlBatchScreener, atLeastOnce()).runAmlChecksOnThirdPillarCustomers());
+  }
+
+  @Test
+  void dailyScheduleRuns() {
+    await()
+        .atMost(Duration.ofSeconds(2))
+        .untilAsserted(
+            () ->
+                verify(amlBatchScreener, atLeastOnce())
+                    .runAmlChecksOnThirdPillarHoldersWithoutRecentScreening());
   }
 }

@@ -76,7 +76,8 @@ class OfflineNudgeInputsTest {
   @Test
   void readsThePensionFactsFromTheRegistrySnapshotAndLeavesEpisOnlyFactsUnknown() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, null)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, null, 2)));
     given(recurringStatus.thirdPillar(user.getPersonalCode())).willReturn(false);
 
     NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
@@ -112,7 +113,8 @@ class OfflineNudgeInputsTest {
   @Test
   void aRegistryOnlyPersonIsNeverAMemberAndIsAgedFromThePersonalCode() {
     given(pensionRegistry.snapshotFor(any()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, false, false, true, true, null)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(true, false, false, true, true, null, 2)));
     given(recurringStatus.thirdPillar(any())).willReturn(true);
 
     NudgeInputs adult =
@@ -153,7 +155,7 @@ class OfflineNudgeInputsTest {
   void aLeaverIsMarkedFromTheRegistry() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
         .willReturn(
-            Optional.of(new PensionRegistrySnapshot(false, false, true, false, false, null)));
+            Optional.of(new PensionRegistrySnapshot(false, false, true, false, false, null, 2)));
 
     NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
@@ -164,7 +166,8 @@ class OfflineNudgeInputsTest {
   @Test
   void theOfflineInputsCarryTheSameSeasonSoDecemberSuppressionReachesScheduledEmails() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, null)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(true, true, false, true, true, null, 2)));
 
     assertThat(
             offlineInputsOn("2026-11-10")

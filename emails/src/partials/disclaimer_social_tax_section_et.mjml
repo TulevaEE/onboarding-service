@@ -1,0 +1,9 @@
+<mj-section padding="0 24px">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      II&nbsp;sambasse makstud sotsiaalmaks
+      <a style="color: #212529; white-space: nowrap;" href="https://tuleva.ee/analuusid/kas-kasulikum-on-koguda-i-voi-ii-sambas/">vähendab veidi I&nbsp;sammast</a>.*|IF:suggestSecondPillarRejoin|*
+      Pärast taasliitumist II&nbsp;sambast enam lahkuda ei saa.*|END:IF|*
+    </mj-text>
+  </mj-column>
+</mj-section>

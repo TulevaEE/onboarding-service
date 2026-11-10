@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.unitowner;
 
+import ee.tuleva.onboarding.analytics.ThirdPillarHolder;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -29,11 +30,33 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
 
   @Query(
       """
+      SELECT COUNT(uo) > 0 FROM UnitOwner uo
+      WHERE uo.personalId = :personalCode
+        AND (uo.p2fpaaDate IS NOT NULL
+          OR uo.p2plavDate IS NOT NULL
+          OR uo.p2ykvaDate IS NOT NULL
+          OR (uo.p2dutyEnd IS NOT NULL AND uo.p2ravaDate IS NULL AND uo.p2mmteDate IS NULL))
+        AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
+      """)
+  boolean contributionsCannotRestart(String personalCode);
+
+  @Query(
+      """
       SELECT uo FROM UnitOwner uo
       WHERE uo.personalId = :personalCode
         AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
       """)
   Optional<UnitOwner> findInLatestSnapshot(String personalCode);
+
+  @Query(
+      """
+      SELECT DISTINCT new ee.tuleva.onboarding.analytics.ThirdPillarHolder(
+          uo.personalId, uo.firstName, uo.lastName, uo.country)
+      FROM UnitOwner uo JOIN uo.balances balance
+      WHERE balance.securityShortName = 'TUV100'
+        AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
+      """)
+  List<ThirdPillarHolder> findThirdPillarHoldersInLatestSnapshot();
 
   @Query("SELECT DISTINCT uo.snapshotDate FROM UnitOwner uo")
   List<LocalDate> findDistinctSnapshotDates();

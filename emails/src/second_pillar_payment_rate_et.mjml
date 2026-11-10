@@ -7,13 +7,16 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu II&nbsp;samba sissemakse suurus on muudetud. *|IF:increased|*Alates
+          *|IF:increased|*Sinu II&nbsp;samba sissemakse suurus on muudetud. Alates
           <strong>*|paymentRateFulfillmentDate|*</strong> hakkad II&nbsp;sambasse maksma
           <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|IF:maxPaymentRate|* See
           tähendab, et kasutad II&nbsp;samba maksuvõitu täies mahus.*|ELSE:|* Nii paned iga
-          kuu oma tuleviku heaks rohkem kõrvale.*|END:IF|**|ELSE:|*Alates
+          kuu oma tuleviku heaks rohkem kõrvale.*|END:IF|**|ELSEIF:decreased|*Sinu II&nbsp;samba
+          sissemakse suurus on muudetud. Alates
           <strong>*|paymentRateFulfillmentDate|*</strong> langeb sinu II&nbsp;samba sissemakse suurus
-          ja hakkad panustama <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|END:IF|*
+          ja hakkad panustama <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|ELSE:|*Sinu
+          II&nbsp;samba sissemakse suurus jääb samaks: maksad jätkuvalt
+          <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|END:IF|*
         </mj-text>
 
         <mj-text>
@@ -22,7 +25,11 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
-
+        <mj-text>
+          Tuleva on loodud selleks, et võimalikult palju Eesti inimesi saaks tõhusalt ja
+          enesekindlalt oma tulevikuks koguda ja igast kõrvale pandud eurost võimalikult palju kasu
+          saada. Kui sul tekib mõni küsimus või kõhklus, anna märku, aitame rõõmuga.
+        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

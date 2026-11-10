@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +36,7 @@ class FirstPaymentReminderSenderTest {
   @InjectMocks private FirstPaymentReminderSender sender;
 
   private static final String CHILD = "61506150006";
+  private static final UUID CHILD_LINK_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
   private final FirstPaymentReminder estonianSaver =
       new FirstPaymentReminder(
@@ -44,6 +46,7 @@ class FirstPaymentReminderSenderTest {
           "saver@example.com",
           Locale.of("et"),
           SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null,
           null);
   private final FirstPaymentReminder englishSpeakingSaver =
       new FirstPaymentReminder(
@@ -53,6 +56,7 @@ class FirstPaymentReminderSenderTest {
           "saver@example.com",
           Locale.ENGLISH,
           SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null,
           null);
   private final FirstPaymentReminder childAccount =
       new FirstPaymentReminder(
@@ -62,7 +66,8 @@ class FirstPaymentReminderSenderTest {
           "parent@example.com",
           Locale.of("et"),
           SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
-          "jaan tamm");
+          "jaan tamm",
+          CHILD_LINK_ID);
 
   @Test
   void sendsTheEstonianReminderAndRecordsIt() {
@@ -141,7 +146,9 @@ class FirstPaymentReminderSenderTest {
         "savingsFundFee",
         "0.28",
         "recipientName",
-        "Jaan Tamm");
+        "Jaan Tamm",
+        "recipientAccountId",
+        CHILD_LINK_ID.toString());
   }
 
   private MandrillMessageStatus mandrillResponse(String id, String status) {

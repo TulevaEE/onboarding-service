@@ -180,7 +180,9 @@ class WaitingLegalEntityCompletionIntegrationTest {
                 "lname",
                 applicant.getLastName(),
                 "recipientName",
-                HEALTHY_NAME),
+                HEALTHY_NAME,
+                "recipientAccountId",
+                companyRepository.findByRegistryCode(HEALTHY).orElseThrow().getId().toString()),
             List.of("savings_fund"));
     verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any());
   }

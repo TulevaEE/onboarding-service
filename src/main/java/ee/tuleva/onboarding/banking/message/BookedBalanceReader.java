@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.banking.BankStatementBalances;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
+import ee.tuleva.onboarding.banking.statement.DayClosingBalance;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -44,12 +45,23 @@ public class BookedBalanceReader implements BankStatementBalances {
   public Optional<BigDecimal> closingBalance(BankAccount account, LocalDate day) {
     return bankingMessageRepository
         .findLatestProcessedStatementEndingOn(SEB, account.iban(), day)
-        .flatMap(message -> statementOf(message).bookedBalance());
+        .flatMap(message -> statementOf(message).bookedBalance())
+        .or(
+            () ->
+                catchUpStatementCovering(account, day)
+                    .flatMap(
+                        message ->
+                            DayClosingBalance.on(
+                                statementOf(message), day, message.getTimezoneId())));
   }
 
   @Override
   public boolean isInsideAStatementClosingLater(BankAccount account, LocalDate day) {
-    return bankingMessageRepository.existsProcessedStatementCoveringAndClosingAfter(
+    return catchUpStatementCovering(account, day).isPresent();
+  }
+
+  private Optional<BankingMessage> catchUpStatementCovering(BankAccount account, LocalDate day) {
+    return bankingMessageRepository.findLatestProcessedStatementCoveringAndClosingAfter(
         SEB, account.iban(), day);
   }
 

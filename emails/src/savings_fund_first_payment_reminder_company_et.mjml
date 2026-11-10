@@ -14,9 +14,15 @@
           Alustada võid kasvõi 1&nbsp;eurost. Fondi tasu on *|savingsFundFee|*%&nbsp;aastas ja muid
           lisatasusid ei ole.
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+        <mj-raw>*|IF:recipientAccountId|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?utm_content=first_payment_reminder_company_payment">
           Teen sissemakse
         </mj-button>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?utm_content=first_payment_reminder_company_payment">
+          Teen sissemakse
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>
           Kaks asja, mida ettevõtjad meilt sageli küsivad: kogumisfondis investeerimiseks <strong>ei ole vaja LEI-koodi</strong> ning <strong>majandusaasta aruande jaoks
           vajaliku väljavõtte</strong> saad mugavalt kätte oma Tuleva kontolt, valides OÜ rolli.

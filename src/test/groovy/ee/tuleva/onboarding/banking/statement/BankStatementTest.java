@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.EntryStatus2Code;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.NumberAndSumOfTransactions2;
 import ee.tuleva.onboarding.banking.iso20022.camt052.TotalTransactions2;
+import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class BankStatementTest {
+
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private static final LocalDate DATE = LocalDate.of(2026, 3, 13);
 
@@ -292,6 +295,34 @@ class BankStatementTest {
             balance(INTERIM_BOOKED, "24386.49"));
 
     assertThat(report.bookedBalance()).contains(new BigDecimal("24386.49"));
+  }
+
+  @Test
+  void from_statementMessage_isNotTheLastPageWhenSebMarksMorePagesToFollow() {
+    var message = Camt053Fixtures.message(emptyStatement(), Camt053Fixtures.firstOfSeveralPages());
+
+    assertThat(BankStatement.from(message, TALLINN).isLastPage()).isFalse();
+  }
+
+  @Test
+  void from_statementMessage_isTheLastPageWhenSebMarksItSoOrSendsNoPagination() {
+    var lastPage = Camt053Fixtures.message(emptyStatement(), Camt053Fixtures.lastPage());
+    var withoutPagination = Camt053Fixtures.message(emptyStatement(), null);
+    var withoutHeader = Camt053Fixtures.messageWithoutHeader(emptyStatement());
+
+    assertThat(BankStatement.from(lastPage, TALLINN).isLastPage()).isTrue();
+    assertThat(BankStatement.from(withoutPagination, TALLINN).isLastPage()).isTrue();
+    assertThat(BankStatement.from(withoutHeader, TALLINN).isLastPage()).isTrue();
+  }
+
+  private static AccountStatement2 emptyStatement() {
+    return Camt053Fixtures.accountStatement(
+        Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701")),
+        List.of(),
+        List.of(),
+        null,
+        ZonedDateTime.parse("2025-12-12T00:00:00+02:00"),
+        ZonedDateTime.parse("2026-01-12T23:59:59.999+02:00"));
   }
 
   @Test

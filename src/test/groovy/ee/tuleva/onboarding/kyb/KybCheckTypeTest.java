@@ -11,6 +11,7 @@ class KybCheckTypeTest {
   void riskSignalChecksDoNotGateOnboarding() {
     assertThat(COMPANY_AGE.isOnboardingGate()).isFalse();
     assertThat(DATA_CHANGED.isOnboardingGate()).isFalse();
+    assertThat(COMPANY_PARTIES.isOnboardingGate()).isFalse();
   }
 
   @Test
@@ -27,5 +28,6 @@ class KybCheckTypeTest {
     assertThat(HIGH_RISK_NACE.isManuallyForceable()).isTrue();
     assertThat(SINGLE_BOARD_MEMBER_OWNERSHIP.isManuallyForceable()).isTrue();
     assertThat(COMPANY_SANCTION.isManuallyForceable()).isFalse();
+    assertThat(COMPANY_PARTIES.isManuallyForceable()).isFalse();
   }
 }

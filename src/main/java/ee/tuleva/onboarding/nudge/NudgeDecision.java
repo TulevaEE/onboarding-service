@@ -112,7 +112,7 @@ public record NudgeDecision(
       vars.put("savingsFundFee", asPrinted(savingsFundFeePercent, locale));
     }
     if (secondPillarRejoinDeadline != null) {
-      vars.put("secondPillarRejoinDeadline", longDate(secondPillarRejoinDeadline, locale));
+      vars.put("secondPillarRejoinDeadline", dayAndMonth(secondPillarRejoinDeadline, locale));
     }
     return vars;
   }
@@ -132,11 +132,11 @@ public record NudgeDecision(
     };
   }
 
-  private static String longDate(LocalDate date, Locale locale) {
+  private static String dayAndMonth(LocalDate date, Locale locale) {
     DateTimeFormatter format =
         "et".equals(locale.getLanguage())
-            ? DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.of("et"))
-            : DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
+            ? DateTimeFormatter.ofPattern("d. MMMM", Locale.of("et"))
+            : DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH);
     return date.format(format);
   }
 

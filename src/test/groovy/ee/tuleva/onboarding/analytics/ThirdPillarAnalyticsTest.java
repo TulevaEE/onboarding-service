@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.analytics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,22 +26,23 @@ class ThirdPillarAnalyticsTest {
   private ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPaymentRepository
       firstPaymentRepository;
 
-  @Mock private AnalyticsRecentThirdPillarRepository recentThirdPillarRepository;
+  @Mock private UnitOwnerRepository unitOwnerRepository;
   @InjectMocks private ThirdPillarAnalytics thirdPillarAnalytics;
 
   @Test
-  void mapsRecentCustomersToTheReadModel() {
-    var record =
-        AnalyticsRecentThirdPillar.builder()
-            .personalCode("38888888888")
-            .firstName("First")
-            .lastName("Last")
-            .country("EE")
-            .build();
-    given(recentThirdPillarRepository.findAll()).willReturn(List.of(record));
+  void readsTheHoldersFromTheLatestRegistrySnapshot() {
+    var holder = new ThirdPillarHolder("38888888888", "First", "Last", "EE");
+    given(unitOwnerRepository.findThirdPillarHoldersInLatestSnapshot()).willReturn(List.of(holder));
 
-    assertThat(thirdPillarAnalytics.recentCustomers())
-        .containsExactly(new RecentThirdPillarCustomer("38888888888", "First", "Last", "EE"));
+    assertThat(thirdPillarAnalytics.holdersInLatestSnapshot()).containsExactly(holder);
+  }
+
+  @Test
+  void readsTheLatestRegistrySnapshotDate() {
+    var snapshotDate = LocalDate.of(2026, 11, 5);
+    given(unitOwnerRepository.findLatestSnapshotDate()).willReturn(Optional.of(snapshotDate));
+
+    assertThat(thirdPillarAnalytics.latestSnapshotDate()).contains(snapshotDate);
   }
 
   @Test

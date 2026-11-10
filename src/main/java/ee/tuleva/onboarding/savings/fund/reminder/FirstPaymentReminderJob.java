@@ -26,8 +26,11 @@ class FirstPaymentReminderJob {
   private static final int REMINDER_DELAY_IN_DAYS = 7;
   private static final int OLDEST_ACCOUNT_IN_DAYS = 30;
   private static final int MAX_RECIPIENTS = 50;
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final Instant MANUAL_CAMPAIGN_CUTOFF =
-      LocalDate.of(2026, 8, 12).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+      LocalDate.of(2026, 8, 12).atStartOfDay(TALLINN).toInstant();
+  private static final Instant MANUAL_COMPANY_FOLLOW_UP_CUTOFF =
+      LocalDate.of(2026, 10, 27).atStartOfDay(TALLINN).toInstant();
 
   private final Clock clock;
   private final FirstPaymentReminderRepository repository;
@@ -41,13 +44,20 @@ class FirstPaymentReminderJob {
       lockAtLeastFor = "30m")
   public void sendReminders() {
     var now = clock.instant();
-    var openedFrom = notBeforeTheManualCampaign(now.minus(OLDEST_ACCOUNT_IN_DAYS, DAYS));
+    var windowStart = now.minus(OLDEST_ACCOUNT_IN_DAYS, DAYS);
+    var openedFrom = notBefore(MANUAL_CAMPAIGN_CUTOFF, windowStart);
+    var companiesOpenedFrom = notBefore(MANUAL_COMPANY_FOLLOW_UP_CUTOFF, windowStart);
     var openedUntil = now.minus(REMINDER_DELAY_IN_DAYS, DAYS);
 
     remindSegment(
         "adults", repository.fetchForAdults(openedFrom, openedUntil), openedFrom, openedUntil);
     remindSegment(
         "children", repository.fetchForChildren(openedFrom, openedUntil), openedFrom, openedUntil);
+    remindSegment(
+        "companies",
+        repository.fetchForCompanies(companiesOpenedFrom, openedUntil),
+        companiesOpenedFrom,
+        openedUntil);
   }
 
   private void remindSegment(
@@ -78,8 +88,8 @@ class FirstPaymentReminderJob {
     reminders.forEach(this::remind);
   }
 
-  private Instant notBeforeTheManualCampaign(Instant windowStart) {
-    return windowStart.isAfter(MANUAL_CAMPAIGN_CUTOFF) ? windowStart : MANUAL_CAMPAIGN_CUTOFF;
+  private static Instant notBefore(Instant cutoff, Instant windowStart) {
+    return windowStart.isAfter(cutoff) ? windowStart : cutoff;
   }
 
   private void remind(FirstPaymentReminder reminder) {

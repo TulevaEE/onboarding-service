@@ -36,7 +36,7 @@ class ManagementFeeCalculatorTest {
             Optional.of(
                 new FeeRate(1L, TUK75, MANAGEMENT, annualRate, FeeRateSource.FIXED, date, null)));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, new FeeBases(baseValue, baseValue));
+    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
 
     assertThat(result.fund()).isEqualTo(TUK75);
     assertThat(result.feeType()).isEqualTo(MANAGEMENT);
@@ -58,8 +58,7 @@ class ManagementFeeCalculatorTest {
     given(feeMonthResolver.resolveFeeMonth(date)).willReturn(LocalDate.of(2025, 1, 1));
     given(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date)).willReturn(Optional.empty());
 
-    assertThatThrownBy(
-            () -> calculator.calculate(TUK75, date, new FeeBases(BigDecimal.TEN, BigDecimal.TEN)))
+    assertThatThrownBy(() -> calculator.calculate(TUK75, date, BigDecimal.TEN))
         .isInstanceOf(IllegalStateException.class);
   }
 

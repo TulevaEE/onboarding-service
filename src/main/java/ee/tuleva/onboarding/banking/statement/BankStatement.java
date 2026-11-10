@@ -6,12 +6,14 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static java.math.BigDecimal.ZERO;
+import static lombok.AccessLevel.PRIVATE;
 
 import ee.tuleva.onboarding.banking.iso20022.camt052.AccountReport11;
 import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReportV02;
 import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
+import ee.tuleva.onboarding.banking.iso20022.camt053.GroupHeader42;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType;
 import java.math.BigDecimal;
 import java.time.ZoneId;
@@ -25,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 @Getter
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = PRIVATE)
 public class BankStatement {
 
   @RequiredArgsConstructor
@@ -41,6 +43,20 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
+  private final boolean lastPage;
+
+  public BankStatement(
+      BankStatementType type,
+      BankStatementAccount bankStatementAccount,
+      List<BankStatementBalance> balances,
+      List<BankStatementEntry> entries,
+      StatementPeriod period) {
+    this(type, bankStatementAccount, balances, entries, period, true);
+  }
+
+  public BankStatement withMorePagesToFollow() {
+    return new BankStatement(type, bankStatementAccount, balances, entries, period, false);
+  }
 
   public Optional<BigDecimal> bookedBalance() {
     return balances.stream()
@@ -89,7 +105,13 @@ public class BankStatement {
 
   public static BankStatement from(BankToCustomerStatementV02 customerStatement, ZoneId timezone) {
     var statement = Require.exactlyOne(customerStatement.getStmt(), "statement");
-    return from(statement, timezone);
+    var bankStatement = from(statement, timezone);
+    var morePagesFollow =
+        Optional.ofNullable(customerStatement.getGrpHdr())
+            .map(GroupHeader42::getMsgPgntn)
+            .filter(pagination -> !pagination.isLastPgInd())
+            .isPresent();
+    return morePagesFollow ? bankStatement.withMorePagesToFollow() : bankStatement;
   }
 
   static BankStatement from(AccountReport11 report, ZoneId timezone) {
@@ -170,8 +192,8 @@ public class BankStatement {
     addIfPresent(mismatches, checkTotalCountMismatch(summary, entries.size()));
     addIfPresent(mismatches, checkCreditCountMismatch(summary, creditEntryCount(entries)));
     addIfPresent(mismatches, checkDebitCountMismatch(summary, debitEntryCount(entries)));
-    addIfPresent(mismatches, checkCreditSumMismatch(summary, creditSum));
-    addIfPresent(mismatches, checkDebitSumMismatch(summary, debitSum));
+    addIfPresent(mismatches, checkSumMismatch("credit", summary.creditSum(), creditSum));
+    addIfPresent(mismatches, checkSumMismatch("debit", summary.debitSum(), debitSum));
     addIfPresent(mismatches, checkBalanceEquationMismatch(balances, creditSum, debitSum));
 
     return mismatches;
@@ -233,26 +255,19 @@ public class BankStatement {
   }
 
   @Nullable
-  private static String checkCreditSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
-    if (summary.creditSum() == null || summary.creditSum().compareTo(actualSum) == 0) {
+  private static String checkSumMismatch(
+      String side, @Nullable BigDecimal expectedSum, BigDecimal actualSum) {
+    if (expectedSum == null || expectedSum.compareTo(actualSum) == 0) {
       return null;
     }
-    return "credit sum mismatch: expected=%s, actual=%s".formatted(summary.creditSum(), actualSum);
-  }
-
-  @Nullable
-  private static String checkDebitSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
-    if (summary.debitSum() == null || summary.debitSum().compareTo(actualSum) == 0) {
-      return null;
-    }
-    return "debit sum mismatch: expected=%s, actual=%s".formatted(summary.debitSum(), actualSum);
+    return "%s sum mismatch: expected=%s, actual=%s".formatted(side, expectedSum, actualSum);
   }
 
   @Nullable
   private static String checkBalanceEquationMismatch(
       List<BankStatementBalance> balances, BigDecimal creditSum, BigDecimal debitSum) {
-    var opening = findOpeningBalance(balances);
-    var closing = findClosingBalance(balances);
+    var opening = findBalance(balances, OPEN);
+    var closing = findBalance(balances, CLOSE);
     if (opening == null || closing == null) {
       return null;
     }
@@ -264,18 +279,10 @@ public class BankStatement {
   }
 
   @Nullable
-  private static BigDecimal findOpeningBalance(List<BankStatementBalance> balances) {
+  private static BigDecimal findBalance(
+      List<BankStatementBalance> balances, StatementBalanceType type) {
     return balances.stream()
-        .filter(b -> b.type() == OPEN)
-        .map(BankStatementBalance::balance)
-        .findFirst()
-        .orElse(null);
-  }
-
-  @Nullable
-  private static BigDecimal findClosingBalance(List<BankStatementBalance> balances) {
-    return balances.stream()
-        .filter(b -> b.type() == CLOSE)
+        .filter(b -> b.type() == type)
         .map(BankStatementBalance::balance)
         .findFirst()
         .orElse(null);

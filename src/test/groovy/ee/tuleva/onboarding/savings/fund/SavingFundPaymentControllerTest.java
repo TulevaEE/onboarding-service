@@ -2,9 +2,13 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -16,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -27,19 +32,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(SavingFundPaymentController.class)
 @AutoConfigureMockMvc
 @WithMockUser
+@RecordApplicationEvents
 class SavingFundPaymentControllerTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private ApplicationEvents events;
 
   @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentRepository savingFundPaymentRepository;
@@ -51,7 +59,6 @@ class SavingFundPaymentControllerTest {
   private LegalEntitySavingsFundOnboardingService legalEntitySavingsFundOnboardingService;
 
   @MockitoBean private LocaleService localeService;
-  @MockitoBean private ApplicationEventPublisher applicationEventPublisher;
 
   @Test
   void cancelSavingsFundPayment_whenActingAsLegalEntity_shouldReturnNoContent() throws Exception {
@@ -71,6 +78,27 @@ class SavingFundPaymentControllerTest {
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void cancelSavingsFundPayment_namesTheAccountTheRoleActsAsSoTheRetryOpensThatAccount()
+      throws Exception {
+    UUID paymentId = UUID.randomUUID();
+    var person = sampleAuthenticatedPersonLegalEntity().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+    var user = sampleUser().build();
+    given(userService.findByPersonalCode(person.getPersonalCode())).willReturn(Optional.of(user));
+    given(localeService.getCurrentLocale()).willReturn(Locale.ENGLISH);
+
+    mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
+        .andExpect(status().isNoContent());
+
+    assertThat(events.stream(SavingsPaymentCancelledEvent.class))
+        .extracting(
+            SavingsPaymentCancelledEvent::getUser, SavingsPaymentCancelledEvent::getRecipient)
+        .containsExactly(tuple(user, PartyId.from(person.getRole())));
   }
 
   @Test
@@ -110,7 +138,7 @@ class SavingFundPaymentControllerTest {
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isConflict());
 
-    verifyNoInteractions(applicationEventPublisher);
+    assertThat(events.stream(SavingsPaymentCancelledEvent.class)).isEmpty();
   }
 
   @Test

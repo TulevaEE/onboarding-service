@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,13 +22,18 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.party.ParentChildLink;
+import ee.tuleva.onboarding.party.ParentChildLinkRepository;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +50,9 @@ class PaymentVerificationNotificationIntegrationTest {
 
   private static final String REMITTER_CODE = "48808080880";
   private static final String OTHER_CODE = "39909090994";
+  private static final String CHILD_CODE = "61506150006";
+  private static final String REGISTRY_CODE = "77700123";
+  private static final UUID COMPANY_ID = UUID.fromString("77700123-0000-4000-8000-000000000001");
   private static final BigDecimal AMOUNT = new BigDecimal("125.00");
   private static final String CODE_MISMATCH =
       "selgituses olev isikukood ei klapi maksja isikukoodiga";
@@ -54,6 +64,8 @@ class PaymentVerificationNotificationIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private TransactionTemplate transactionTemplate;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private ParentChildLinkRepository parentChildLinkRepository;
+  @Autowired private ParentChildLinkService parentChildLinkService;
 
   @MockitoBean private EmailService emailService;
   @MockitoBean private OperationsNotificationService notificationService;
@@ -66,7 +78,12 @@ class PaymentVerificationNotificationIntegrationTest {
     createdPaymentIds.forEach(this::deletePayment);
     createdPaymentIds.clear();
     deleteFailureEmails();
+    deleteCompany();
+    parentChildLinkRepository.findAll().stream()
+        .filter(link -> REMITTER_CODE.equals(link.getParentPersonalCode()))
+        .forEach(parentChildLinkRepository::delete);
     userRepository.findByPersonalCode(REMITTER_CODE).ifPresent(userRepository::delete);
+    userRepository.findByPersonalCode(CHILD_CODE).ifPresent(userRepository::delete);
   }
 
   @Test
@@ -140,6 +157,100 @@ class PaymentVerificationNotificationIntegrationTest {
     assertThat(savingsFundLedger.hasLedgerEntry(payment.getId(), UNATTRIBUTED_PAYMENT)).isFalse();
   }
 
+  @Test
+  void aFailedPaymentIntoAChildsAccountOpensTheRetryInTheChildAccountTheRolesEndpointLists() {
+    savePayer();
+    saveChild();
+    parentChildLinkRepository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(REMITTER_CODE)
+            .childPersonalCode(CHILD_CODE)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .status(ACTIVE)
+            .validUntil(LocalDate.of(2099, 1, 1))
+            .build());
+    var payment = receivedPayment("Makse " + CHILD_CODE);
+
+    paymentVerificationService.process(payment);
+
+    var accountIdInRoles =
+        parentChildLinkService.findActivelyRepresentedChildren(REMITTER_CODE).get(CHILD_CODE);
+    verify(emailService)
+        .newMandrillMessage(
+            "mari.maksja@example.com",
+            "savings_fund_payment_failed_et",
+            Map.of(
+                "fname",
+                "Mari",
+                "lname",
+                "Maksja",
+                "recipientIsChild",
+                true,
+                "recipientAccountId",
+                accountIdInRoles.toString(),
+                "recipientName",
+                "Kadri Maksja"),
+            List.of("savings_fund"));
+  }
+
+  @Test
+  void aBoardMembersFailedPaymentIntoTheCompanyOpensTheRetryInTheCompanyAccount() {
+    savePayer();
+    saveCompany();
+    saveBoardMembership();
+    var payment = receivedPayment("Makse " + REGISTRY_CODE);
+
+    paymentVerificationService.process(payment);
+
+    verify(emailService)
+        .newMandrillMessage(
+            "mari.maksja@example.com",
+            "savings_fund_payment_failed_et",
+            Map.of(
+                "fname",
+                "Mari",
+                "lname",
+                "Maksja",
+                "recipientIsCompany",
+                true,
+                "recipientAccountId",
+                COMPANY_ID.toString(),
+                "recipientName",
+                "Mesila"),
+            List.of("savings_fund"));
+  }
+
+  @Test
+  void aPersonsFailedPaymentNamingACompanyTheyDoNotRepresentKeepsTheirOwnRetryLink() {
+    savePayer();
+    saveCompany();
+    var payment = receivedPayment("Makse " + REGISTRY_CODE);
+
+    paymentVerificationService.process(payment);
+
+    verify(emailService)
+        .newMandrillMessage(
+            "mari.maksja@example.com",
+            "savings_fund_payment_failed_et",
+            Map.of("fname", "Mari", "lname", "Maksja"),
+            List.of("savings_fund"));
+  }
+
+  @Test
+  void aPersonsFailedPaymentNamingSomeoneTheyDoNotRepresentKeepsTheirOwnRetryLink() {
+    savePayer();
+    var payment = receivedPaymentWithMismatchedCode();
+
+    paymentVerificationService.process(payment);
+
+    verify(emailService)
+        .newMandrillMessage(
+            "mari.maksja@example.com",
+            "savings_fund_payment_failed_et",
+            Map.of("fname", "Mari", "lname", "Maksja"),
+            List.of("savings_fund"));
+  }
+
   private User savePayer() {
     return userRepository.save(
         User.builder()
@@ -151,12 +262,54 @@ class PaymentVerificationNotificationIntegrationTest {
             .build());
   }
 
+  private void saveChild() {
+    userRepository.save(
+        User.builder()
+            .firstName("Kadri")
+            .lastName("Maksja")
+            .personalCode(CHILD_CODE)
+            .active(true)
+            .build());
+  }
+
+  private void saveCompany() {
+    jdbcClient
+        .sql("insert into company (id, registry_code, name) values (:id, :registryCode, 'Mesila')")
+        .param("id", COMPANY_ID)
+        .param("registryCode", REGISTRY_CODE)
+        .update();
+  }
+
+  private void saveBoardMembership() {
+    jdbcClient
+        .sql(
+            """
+            insert into company_party (party_code, party_type, company_id, relationship_type)
+            values (:partyCode, 'PERSON', :companyId, 'BOARD_MEMBER')
+            """)
+        .param("partyCode", REMITTER_CODE)
+        .param("companyId", COMPANY_ID)
+        .update();
+  }
+
+  private void deleteCompany() {
+    jdbcClient
+        .sql("delete from company_party where company_id = :companyId")
+        .param("companyId", COMPANY_ID)
+        .update();
+    jdbcClient.sql("delete from company where id = :id").param("id", COMPANY_ID).update();
+  }
+
   private SavingFundPayment receivedPaymentWithMismatchedCode() {
+    return receivedPayment("Makse " + OTHER_CODE);
+  }
+
+  private SavingFundPayment receivedPayment(String description) {
     var paymentId =
         paymentRepository.savePaymentData(
             SavingFundPayment.builder()
                 .amount(AMOUNT)
-                .description("Makse " + OTHER_CODE)
+                .description(description)
                 .remitterName("Mari Maksja")
                 .remitterIdCode(REMITTER_CODE)
                 .remitterIban("EE982200221234567890")

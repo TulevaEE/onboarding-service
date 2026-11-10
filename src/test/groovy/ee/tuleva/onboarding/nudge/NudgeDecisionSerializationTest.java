@@ -263,14 +263,14 @@ class NudgeDecisionSerializationTest {
   }
 
   @Test
-  void theRejoinNudgeRaisesItsFlagAndCarriesTheFilingDeadlineFormattedForTheLocale() {
+  void theRejoinNudgeRaisesItsFlagAndCarriesTheFilingDeadlineDayAndMonthFormattedForTheLocale() {
     NudgeDecision rejoin = NudgeDecision.secondPillarRejoin(LocalDate.of(2026, 11, 30));
 
     assertThat(rejoin.mergeVars(Locale.of("et")))
         .containsEntry("suggestSecondPillarRejoin", true)
         .containsEntry("anyPillarSuggestion", true)
-        .containsEntry("secondPillarRejoinDeadline", "30. november 2026");
+        .containsEntry("secondPillarRejoinDeadline", "30. november");
     assertThat(rejoin.mergeVars(Locale.ENGLISH))
-        .containsEntry("secondPillarRejoinDeadline", "November 30, 2026");
+        .containsEntry("secondPillarRejoinDeadline", "November 30");
   }
 }

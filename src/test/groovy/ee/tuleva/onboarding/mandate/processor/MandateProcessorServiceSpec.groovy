@@ -56,29 +56,32 @@ class MandateProcessorServiceSpec extends Specification {
     3      | null
   }
 
-  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email and phone"() {
+  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email and phone #phoneNumber"() {
     given:
+    User user = sampleUser().phoneNumber(phoneNumber).build()
     Mandate mandate = sampleMandate()
     mandate.paymentRate = BigDecimal.valueOf(4)
-    mandate.user = sampleUser
+    mandate.user = user
     def outcome = new MandateProcessResult.MandateProcessOutcome("processId1", true, null)
     def mandateResult = MandateProcessResult.builder().outcomes([outcome]).build()
     mandateProcessRepository.save(_) >> { args -> args[0] }
     mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     when:
-    service.start(sampleUser, mandate)
+    service.start(user, mandate)
     then:
     1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
       submission.paymentRate() == mandate.paymentRate &&
           submission.futureContributionFundIsin() == futureContibutionFundIsin &&
-          submission.email() == mandate.getEmail() &&
-          submission.phoneNumber() == mandate.getPhoneNumber() &&
+          submission.email() == user.email &&
+          submission.phoneNumber() == phoneNumber &&
           submission.fundTransferExchanges().size() == 3 &&
           submission.fundTransferExchanges().every { it.processId() != null } &&
           (submission.fundTransferExchanges()*.sourceFundIsin as Set) == (["EE3600019790", "AE123232337"] as Set) &&
           (submission.fundTransferExchanges()*.amount as Set) == ([new BigDecimal("0.2"), new BigDecimal("0.8"), new BigDecimal("1")] as Set) &&
           submission.fundTransferExchanges()*.targetFundIsin.every { it == futureContibutionFundIsin }
     }) >> mandateResult
+    where:
+    phoneNumber << ["+37255555555", null]
   }
 
   def "Start: persists the outcome success flag and error code onto the matching mandate process"() {
@@ -120,25 +123,29 @@ class MandateProcessorServiceSpec extends Specification {
     }) >> response
   }
 
-  def "Start: processes mandate with payment rate and saves processes"() {
+  def "Start: processes mandate with payment rate and saves processes, phone #phoneNumber"() {
     given:
+    User user = sampleUser().phoneNumber(phoneNumber).build()
     Mandate mandate = sampleMandateWithPaymentRate()
     mandate.address = countryFixture().build()
-    mandate.user = sampleUser
+    mandate.user = user
     def response = MandateProcessResult.builder()
         .outcomes([new MandateProcessResult.MandateProcessOutcome("1", true, null)])
         .build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
-    service.start(sampleUser, mandate)
+    service.start(user, mandate)
     then:
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
     1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
-      cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
+      cmd.submission().phoneNumber() == phoneNumber &&
+          cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
     }) >> response
+    where:
+    phoneNumber << ["+37255555555", null]
   }
 //  def "Start: processes mandate with payment rate and saves processes"() {
 //    given:

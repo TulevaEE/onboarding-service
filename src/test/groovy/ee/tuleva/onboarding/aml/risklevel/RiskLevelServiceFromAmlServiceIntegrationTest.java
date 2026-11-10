@@ -240,7 +240,17 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
             new AmlServiceClient(
                 amlServiceRestClient,
                 AmlServiceConfiguration.amlServiceRetryTemplate(),
-                new AmlServiceProperties(true, BASE_URL, "", ofSeconds(5), ofSeconds(60))),
+                new AmlServiceProperties(
+                    true,
+                    BASE_URL,
+                    "",
+                    ofSeconds(5),
+                    ofSeconds(60),
+                    false,
+                    ofSeconds(1),
+                    ofSeconds(2),
+                    ofSeconds(1),
+                    ofSeconds(5))),
             TestClockHolder.clock);
 
     assertThatThrownBy(withoutApiToken::fetchTkf).isInstanceOf(RiskLevelsRefusedException.class);
@@ -316,7 +326,17 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
       return new AmlServiceClient(
           amlServiceRestClient,
           AmlServiceConfiguration.amlServiceRetryTemplate(),
-          new AmlServiceProperties(true, BASE_URL, API_TOKEN, ofSeconds(5), ofSeconds(60)));
+          new AmlServiceProperties(
+              true,
+              BASE_URL,
+              API_TOKEN,
+              ofSeconds(5),
+              ofSeconds(60),
+              false,
+              ofSeconds(1),
+              ofSeconds(2),
+              ofSeconds(1),
+              ofSeconds(5)));
     }
 
     @Bean

@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import static ee.tuleva.onboarding.investment.report.publishing.wordpress.DisclosureGap.Page.FUND;
+import static ee.tuleva.onboarding.investment.report.publishing.wordpress.DisclosureGap.Page.SHARED;
+import static ee.tuleva.onboarding.investment.report.publishing.wordpress.DisclosureGap.Problem.MISSING;
+import static ee.tuleva.onboarding.investment.report.publishing.wordpress.DisclosureGap.Problem.NO_EFFECTIVE_DATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpMethod.GET;
@@ -29,6 +33,8 @@ class WordPressPageReaderTest {
   private static final String SLUG = "tuleva-maailma-aktsiate-pensionifond";
   private static final String PAGE_REQUEST = API_BASE + "/pages?slug=" + SLUG + "&_fields=id,acf";
   private static final String MEDIA_REQUEST = API_BASE + "/media/37853?_fields=source_url";
+  private static final String DISCLOSURE_GAPS_REQUEST =
+      API_BASE + "/pages?slug=" + SLUG + "&_fields=id,tuleva_disclosure_gaps";
   private static final String REPORT_URL =
       "https://tuleva.ee/wp-content/uploads/2026/10/"
           + "tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-09.pdf";
@@ -189,6 +195,74 @@ class WordPressPageReaderTest {
         .andRespond(json("[{\"id\": 17533, \"acf\": {\"investment_report_file\": null}}]"));
 
     assertThat(reader.investmentReportUrl(SLUG)).isEmpty();
+    server.verify();
+  }
+
+  @Test
+  void returnsTheDisclosureGapsThePageLists() {
+    server
+        .expect(requestTo(DISCLOSURE_GAPS_REQUEST))
+        .andExpect(method(GET))
+        .andRespond(
+            json(
+                """
+                [{"id": 17533, "tuleva_disclosure_gaps": [
+                  {"field": "model_portfolio_file", "problem": "missing", "page": "fund"},
+                  {"field": "sustainability_risks_file", "problem": "missing", "page": "shared"},
+                  {"field": "terms_upcoming_file", "problem": "no_effective_date", "page": "fund"}
+                ]}]
+                """));
+
+    assertThat(reader.disclosureGaps(SLUG))
+        .containsExactly(
+            new DisclosureGap("model_portfolio_file", MISSING, FUND),
+            new DisclosureGap("sustainability_risks_file", MISSING, SHARED),
+            new DisclosureGap("terms_upcoming_file", NO_EFFECTIVE_DATE, FUND));
+    server.verify();
+  }
+
+  @Test
+  void returnsNoDisclosureGapsOnceThePageListsNone() {
+    server
+        .expect(requestTo(DISCLOSURE_GAPS_REQUEST))
+        .andRespond(json("[{\"id\": 17533, \"tuleva_disclosure_gaps\": []}]"));
+
+    assertThat(reader.disclosureGaps(SLUG)).isEmpty();
+    server.verify();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{\"id\": 17533}",
+        "{\"id\": 17533, \"tuleva_disclosure_gaps\": null}",
+        "{\"id\": 17533, \"tuleva_disclosure_gaps\": {}}",
+        "{\"id\": 17533, \"tuleva_disclosure_gaps\": \"none\"}"
+      })
+  void refusesAPageThatDoesNotListItsDisclosureGaps(String page) {
+    server.expect(requestTo(DISCLOSURE_GAPS_REQUEST)).andRespond(json("[" + page + "]"));
+
+    assertThatThrownBy(() -> reader.disclosureGaps(SLUG)).isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "\"model_portfolio_file\"",
+        "{\"problem\": \"missing\", \"page\": \"fund\"}",
+        "{\"field\": \"model_portfolio_file\", \"page\": \"fund\"}",
+        "{\"field\": \"model_portfolio_file\", \"problem\": \"missing\"}",
+        "{\"field\": null, \"problem\": \"missing\", \"page\": \"fund\"}",
+        "{\"field\": \"prospectus_file\", \"problem\": \"expired\", \"page\": \"fund\"}",
+        "{\"field\": \"prospectus_file\", \"problem\": \"missing\", \"page\": \"other\"}"
+      })
+  void refusesADisclosureGapItDoesNotKnow(String gap) {
+    server
+        .expect(requestTo(DISCLOSURE_GAPS_REQUEST))
+        .andRespond(json("[{\"id\": 17533, \"tuleva_disclosure_gaps\": [" + gap + "]}]"));
+
+    assertThatThrownBy(() -> reader.disclosureGaps(SLUG)).isInstanceOf(IllegalStateException.class);
     server.verify();
   }
 

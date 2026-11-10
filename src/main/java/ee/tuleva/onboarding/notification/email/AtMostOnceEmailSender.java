@@ -132,7 +132,7 @@ public final class AtMostOnceEmailSender {
 
   private static EmailSendResult resultOf(Throwable failure) {
     if (failure instanceof RestClientResponseException response) {
-      return resultOf(response);
+      return resultOfRefusal(response);
     }
     return causes(failure)
         .filter(AtMostOnceEmailSender::isFailureBeforeReachingMandrill)
@@ -149,7 +149,7 @@ public final class AtMostOnceEmailSender {
         .orElseGet(() -> "Mandrill call failed: " + describe(rootCause(failure)));
   }
 
-  private static EmailSendResult resultOf(RestClientResponseException response) {
+  private static EmailSendResult resultOfRefusal(RestClientResponseException response) {
     var error = MandrillError.read(response.getResponseBodyAsString());
     var problem =
         "Mandrill refused the request: httpStatus=%d, name=%s, message=%s"

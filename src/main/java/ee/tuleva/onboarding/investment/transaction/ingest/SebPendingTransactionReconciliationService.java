@@ -169,7 +169,7 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
         .filter(order -> !presentOrderIds.contains(order.getId()))
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
-        .filter(order -> executedBefore(order, reportDate, run))
+        .filter(order -> absenceMaySettle(order, reportDate, run))
         .forEach(order -> settleByAbsence(order, reportDate, run));
     if (run.mode() == ReconciliationMode.REPLAY) {
       moveLaterSettlementsBackToThisAbsence(reportDate, since, presentOrderIds, run);
@@ -189,7 +189,7 @@ public class SebPendingTransactionReconciliationService {
                 settlementRepository
                     .findByOrderId(order.getId())
                     .filter(settlement -> mayBeRedatedTo(settlement, reportDate))
-                    .filter(settlement -> absenceSettles(order, reportDate, run))
+                    .filter(settlement -> absenceSettlesInAReplay(order, reportDate, run))
                     .ifPresent(settlement -> redateByAbsence(order, settlement, reportDate)));
   }
 
@@ -197,11 +197,48 @@ public class SebPendingTransactionReconciliationService {
     return settlement.getReportDate().isAfter(reportDate);
   }
 
-  private boolean absenceSettles(
+  private boolean absenceMaySettle(
       TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
-    return executedBefore(order, reportDate, run)
-        && !quantityAmountValidator.isShortFill(
-            order, executionsListedBy(order, run), matchingPolicy.current());
+    return switch (run.mode()) {
+      case LIVE -> executedBefore(order, reportDate, run);
+      case REPLAY -> absenceSettlesInAReplay(order, reportDate, run);
+    };
+  }
+
+  private boolean absenceSettlesInAReplay(
+      TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
+    List<TransactionExecution> listed = executionsListedBy(order, run);
+    return tradedBefore(listed, reportDate)
+        && filledAsLastListed(order, listed, reportDate, run.listings())
+        && !quantityAmountValidator.isShortFill(order, listed, matchingPolicy.current());
+  }
+
+  private boolean filledAsLastListed(
+      TransactionOrder order,
+      List<TransactionExecution> listed,
+      LocalDate reportDate,
+      SebReplayListings listings) {
+    Optional<TransactionExecution> differing =
+        listed.stream()
+            .filter(
+                execution ->
+                    listings
+                        .lastListing(execution.getBrokerTransactionId())
+                        .filter(
+                            listing ->
+                                quantityAmountValidator.fillAsListed(order, execution, listing))
+                        .isEmpty())
+            .findFirst();
+    differing.ifPresent(
+        execution ->
+            log.warn(
+                "Absence does not settle the order in the replay, its stored fill differs from"
+                    + " SEB's last listing before this report: orderId={}, reportDate={},"
+                    + " brokerRef={}",
+                order.getId(),
+                reportDate,
+                execution.getBrokerTransactionId()));
+    return differing.isEmpty();
   }
 
   private void redateByAbsence(
@@ -257,7 +294,11 @@ public class SebPendingTransactionReconciliationService {
 
   private boolean executedBefore(
       TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
-    return executionsListedBy(order, run).stream()
+    return tradedBefore(executionsListedBy(order, run), reportDate);
+  }
+
+  private static boolean tradedBefore(List<TransactionExecution> executions, LocalDate reportDate) {
+    return executions.stream()
         .map(TransactionExecution::getExecutionTimestamp)
         .filter(Objects::nonNull)
         .max(Comparator.naturalOrder())

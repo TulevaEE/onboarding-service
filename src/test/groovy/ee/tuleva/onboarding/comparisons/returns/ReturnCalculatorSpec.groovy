@@ -23,6 +23,7 @@ class ReturnCalculatorSpec extends Specification {
 
   void setup() {
     fundValueProvider = Mock(FundValueProvider)
+    fundValueProvider.findValuesBetweenDates(_, _, _) >> []
     returnCalculator = new ReturnCalculator(fundValueProvider, new PublicHolidays())
   }
 
@@ -227,6 +228,35 @@ class ReturnCalculatorSpec extends Specification {
     marketAverageReturn.paymentsSum() == 16 * 30
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")
     marketAverageReturn.to() == LocalDate.parse("2018-07-16")
+  }
+
+  def "prices every simulated purchase from a single load of the comparison fund's values"() {
+    given:
+    Instant startTime = parseInstant("2010-01-01")
+    Instant endTime = parseInstant("2018-07-16")
+    def epiValues = epiFundValues().collect { date, value ->
+      aFundValue(EpiIndex.EPI.key, LocalDate.parse(date), value)
+    }.sort { it.date() }
+    def overview = AccountOverview.builder()
+        .transactions(exampleTransactions)
+        .beginningBalance(30.0)
+        .endingBalance(123123.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(2)
+        .build()
+
+    when:
+    def estonianAverageReturn = returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
+
+    then:
+    1 * fundValueProvider.findValuesBetweenDates(EpiIndex.EPI.key, _ as LocalDate, _ as LocalDate) >> epiValues
+    0 * fundValueProvider.getLatestValue(_, _)
+    estonianAverageReturn.rate() == 0.0326
+    estonianAverageReturn.amount() == 81.76
+    estonianAverageReturn.paymentsSum() == 16 * 30
   }
 
   def "it handles missing fund values"() {

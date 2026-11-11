@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import ee.tuleva.onboarding.aml.RiskLevels;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
+@Profile({"!dev & !staging"})
 @RequiredArgsConstructor
 class ConfiguredRiskLevels implements RiskLevels {
 

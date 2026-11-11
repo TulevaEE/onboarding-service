@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.type.TypeReference;
@@ -11,6 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 @RequiredArgsConstructor
+@Profile({"!dev & !staging"})
 @ConditionalOnProperty(
     prefix = "aml-service",
     name = "enabled",

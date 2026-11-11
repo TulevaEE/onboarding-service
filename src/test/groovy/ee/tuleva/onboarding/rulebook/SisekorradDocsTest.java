@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.rulebook;
 
 import static ee.tuleva.onboarding.rulebook.Sisekorrad.SISEKORD_13;
+import static ee.tuleva.onboarding.rulebook.Sisekorrad.SISEKORD_16;
 import static ee.tuleva.onboarding.rulebook.Sisekorrad.SISEKORD_4;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,7 +17,7 @@ import org.junit.jupiter.api.TestFactory;
 
 class SisekorradDocsTest {
 
-  private static final List<Sisekord> SISEKORRAD = List.of(SISEKORD_4, SISEKORD_13);
+  private static final List<Sisekord> SISEKORRAD = List.of(SISEKORD_4, SISEKORD_13, SISEKORD_16);
 
   private static final Path DOCS = Path.of("docs", "sisekorrad");
 

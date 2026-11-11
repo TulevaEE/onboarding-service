@@ -19,14 +19,6 @@ public class SavingFundDeadlinesService {
   private static final LocalTime SCREENING_RETRY_CUTOFF_TIME = LocalTime.of(15, 0);
   private static final Duration MINIMUM_SCREENING_RETRY_WINDOW = Duration.ofMinutes(10);
 
-  private LocalDate firstWorkingDayOnOrAfter(LocalDate date) {
-    return publicHolidays.nextWorkingDay(date.minusDays(1));
-  }
-
-  private boolean missedTodaysCutoff(LocalDate date, LocalTime time, LocalDate firstWorkingDay) {
-    return date.equals(firstWorkingDay) && !time.isBefore(SISEKORD_16_P_1_1_3_ORDER_CUTOFF);
-  }
-
   public Instant getCancellationDeadline(RedemptionRequest redemptionRequest) {
     return getCancellationDeadlineFrom(redemptionRequest.getRequestedAt());
   }
@@ -58,13 +50,7 @@ public class SavingFundDeadlinesService {
 
   private LocalDate dealingDay(Instant eventInstant) {
     ZonedDateTime zdt = eventInstant.atZone(estonianClock.getZone());
-    LocalDate date = zdt.toLocalDate();
-    LocalTime time = zdt.toLocalTime();
-
-    LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
-    return missedTodaysCutoff(date, time, firstWorkingDay)
-        ? publicHolidays.nextWorkingDay(firstWorkingDay)
-        : firstWorkingDay;
+    return TradeDay.dealingDay(zdt.toLocalDate(), zdt.toLocalTime(), publicHolidays);
   }
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {

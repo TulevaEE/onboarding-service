@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.rulebook;
 import static ee.tuleva.onboarding.aml.MandateAmlGate.SISEKORD_13_P_4_1_7;
 import static ee.tuleva.onboarding.investment.CashKnownToArrive.SISEKORD_4_P_2_5_3;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
+import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.SISEKORD_13_P_10_8;
 
 import java.time.LocalDate;
@@ -25,6 +26,14 @@ final class Sisekorrad {
           "1.1",
           LocalDate.of(2026, 6, 1),
           List.of(SISEKORD_13_P_4_1_7, SISEKORD_13_P_9_3_3, SISEKORD_13_P_10_8));
+
+  static final Sisekord SISEKORD_16 =
+      new Sisekord(
+          16,
+          "Täiendava Kogumisfondi Osakute registri pidamise sisekord",
+          "1.1",
+          LocalDate.of(2026, 8, 31),
+          List.of(SISEKORD_16_P_1_1_3));
 
   private Sisekorrad() {}
 }

@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.HARD;
-import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
-import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.SOFT;
+import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_2_4_3_11;
 
+import ee.tuleva.onboarding.investment.check.limit.LimitSeverity.Reading;
 import ee.tuleva.onboarding.investment.check.limit.UnderlyingFunds.SizeInEur;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,12 +37,7 @@ class OwnershipLimitChecker {
   }
 
   private BreachSeverity determineSeverity(BigDecimal actualPercent, OwnershipLimit limit) {
-    if (actualPercent.compareTo(limit.hardLimitPercent()) >= 0) {
-      return HARD;
-    }
-    if (actualPercent.compareTo(limit.softLimitPercent()) > 0) {
-      return SOFT;
-    }
-    return OK;
+    return SISEKORD_4_P_2_4_3_11.decide(
+        new Reading(actualPercent, limit.softLimitPercent(), limit.hardLimitPercent()));
   }
 }

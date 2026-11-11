@@ -64,7 +64,7 @@ public class ReturnCalculator {
                   from,
                   to);
             })
-        .orElseGet(() -> new ReturnDto(ZERO, ZERO, ZERO, EUR, from, to));
+        .orElseGet(() -> new ReturnDto(null, ZERO, ZERO, EUR, from, to));
   }
 
   @Nullable

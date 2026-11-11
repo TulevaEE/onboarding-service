@@ -269,7 +269,7 @@ class ReturnCalculatorSpec extends Specification {
     estonianAverageReturn.paymentsSum() == 16 * 30
   }
 
-  def "it handles missing fund values"() {
+  def "has no rate for a comparison fund without values over the period"() {
     given:
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-16")
@@ -291,13 +291,13 @@ class ReturnCalculatorSpec extends Specification {
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageReturn.rate() == 0
+    estonianAverageReturn.rate() == null
     estonianAverageReturn.amount() == 0
     estonianAverageReturn.paymentsSum() == 0
     estonianAverageReturn.from() == LocalDate.parse("2010-01-01")
     estonianAverageReturn.to() == LocalDate.parse("2018-07-16")
 
-    marketAverageReturn.rate() == 0
+    marketAverageReturn.rate() == null
     marketAverageReturn.amount() == 0
     marketAverageReturn.paymentsSum() == 0
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")

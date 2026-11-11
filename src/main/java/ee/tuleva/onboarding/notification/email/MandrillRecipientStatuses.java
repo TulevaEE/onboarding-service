@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -34,8 +35,8 @@ record MandrillRecipientStatuses(
   private static final Set<String> FAILED_STATUSES = Set.of("rejected", "invalid");
 
   static MandrillRecipientStatuses of(MandrillMessage message, MandrillMessageStatus[] statuses) {
-    Set<String> mainRecipients = addressesOf(message, false);
-    Set<String> copyOnlyRecipients = addressesOf(message, true);
+    Set<String> mainRecipients = mainAddressesOf(message);
+    Set<String> copyOnlyRecipients = copyAddressesOf(message);
     copyOnlyRecipients.removeAll(mainRecipients);
     return new MandrillRecipientStatuses(
         Set.copyOf(mainRecipients), Set.copyOf(copyOnlyRecipients), List.of(statuses));
@@ -123,9 +124,17 @@ record MandrillRecipientStatuses(
         .collect(toSet());
   }
 
-  private static Set<String> addressesOf(MandrillMessage message, boolean copies) {
+  private static Set<String> mainAddressesOf(MandrillMessage message) {
+    return addressesOf(message, not(MandrillRecipientStatuses::isCopy));
+  }
+
+  private static Set<String> copyAddressesOf(MandrillMessage message) {
+    return addressesOf(message, MandrillRecipientStatuses::isCopy);
+  }
+
+  private static Set<String> addressesOf(MandrillMessage message, Predicate<Recipient> type) {
     return Optional.ofNullable(message.getTo()).orElse(List.of()).stream()
-        .filter(recipient -> isCopy(recipient) == copies)
+        .filter(type)
         .map(Recipient::getEmail)
         .filter(Objects::nonNull)
         .map(MandrillRecipientStatuses::normalized)

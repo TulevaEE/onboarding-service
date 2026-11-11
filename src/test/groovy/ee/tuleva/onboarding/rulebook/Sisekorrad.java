@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.rulebook;
 
 import static ee.tuleva.onboarding.aml.MandateAmlGate.SISEKORD_13_P_4_1_7;
 import static ee.tuleva.onboarding.investment.CashKnownToArrive.SISEKORD_4_P_2_5_3;
+import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.SISEKORD_4_P_11_11_3;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
 import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.SISEKORD_13_P_10_8;
@@ -17,7 +18,7 @@ final class Sisekorrad {
           "Investeerimistegevuse ja riskijuhtimise sisekord",
           "1.4",
           LocalDate.of(2026, 9, 30),
-          List.of(SISEKORD_4_P_2_5_3));
+          List.of(SISEKORD_4_P_2_5_3, SISEKORD_4_P_11_11_3));
 
   static final Sisekord SISEKORD_13 =
       new Sisekord(

@@ -9,6 +9,8 @@ Tekst on genereeritud reeglite koodist ja iga näide on automaattest. Faili käs
 Kood rakendab järgmisi sisekorra punkte; ülejäänud punktid on sisekorra tekstis.
 
 - p 2.5.3 – Laekuv raha on vaba raha juba enne laekumist
+- p 11.3.1–11.3.3 – Hilinenud puhasväärtusest teavitatakse kiireloomuliselt
+- p 11.3.3 – Täiendava Kogumisfondi puhasväärtus avaldatakse kell 16:00
 - p 11.11.3 – Puhasväärtuse aruanne peatatakse sisemiseks ülevaatuseks
 
 ## p 2.5.3 – Laekuv raha on vaba raha juba enne laekumist
@@ -24,6 +26,33 @@ Näide: arvutus tehakse 31.12.2026 sama päeva kohta – ei rakendu, sest arvest
 Näide: arvutus tehakse 31.12.2026 päeva 01.01.2027 kohta – ei rakendu, sest arvutus tehakse enne 01.01.2027.
 
 Näide: arvutus tehakse 01.01.2027 päeva 31.12.2026 kohta – ei rakendu, sest arvestuspäev on enne 01.01.2027.
+
+## p 11.3.1–11.3.3 – Hilinenud puhasväärtusest teavitatakse kiireloomuliselt
+
+Rakendub, kui täna on tööpäev ja fondi puhasväärtuse aruanne on avaldamata.
+
+Andmed: tähtaeg on TUK75 ja TUK00 puhul kell 11:30, TUV100 ja TKF100 puhul kell 15:30; kontroll tehakse 5 minutit pärast tähtaega; eelhoiatus saadetakse veidi pärast arvutuse algust samal tingimusel; oodatav aruanne on eelmise tööpäeva positsioonide põhjal arvutatud puhasväärtus.
+
+Näide: tööpäeval tähtajaks avaldamata aruanne – rakendub, sest täna on tööpäev ja fondi puhasväärtuse aruanne on avaldamata.
+
+Näide: tööpäeval avaldatud aruanne – ei rakendu, sest fondi puhasväärtuse aruande puudumist ei ole tuvastatud.
+
+Näide: laupäev – ei rakendu, sest täna on laupäev, pühapäev või riigipüha ja fondi puhasväärtuse aruande puudumist ei ole tuvastatud.
+
+## p 11.3.3 – Täiendava Kogumisfondi puhasväärtus avaldatakse kell 16:00
+
+Tulemus on esimene, mille tingimus kehtib:
+
+- näidatakse täna avaldatud puhasväärtust, kui täna on tööpäev ja kell on 16:00 või hiljem;
+- näidatakse eelmisel tööpäeval avaldatud puhasväärtust, kui täna on laupäev, pühapäev või riigipüha või kell on enne 16:00.
+
+Andmed: aeg on Eesti aeg; tööpäeval arvutatakse eelmise tööpäeva puhasväärtus; avaldamise aeg on ühtlasi märkimis- ja tagasivõtmiskorralduste cut-off.
+
+Näide: tööpäeval kell 16:00 – näidatakse täna avaldatud puhasväärtust, sest täna on tööpäev ja kell on 16:00 või hiljem.
+
+Näide: tööpäeval kell 15:59 – näidatakse eelmisel tööpäeval avaldatud puhasväärtust, sest kell on enne 16:00.
+
+Näide: laupäeval kell 17:00 – näidatakse eelmisel tööpäeval avaldatud puhasväärtust, sest täna on laupäev, pühapäev või riigipüha.
 
 ## p 11.11.3 – Puhasväärtuse aruanne peatatakse sisemiseks ülevaatuseks
 

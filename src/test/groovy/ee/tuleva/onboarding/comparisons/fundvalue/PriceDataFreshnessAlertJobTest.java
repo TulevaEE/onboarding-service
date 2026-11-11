@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
@@ -65,6 +66,13 @@ class PriceDataFreshnessAlertJobTest {
   private static final String XETRA_ETF_XETRA_KEY = "IE00BFNM3G45.XETR";
   private static final String PARIS_ETF_EURONEXT_KEY = "LU1708330318.XPAR";
   private static final String DELISTED_ETF_XETRA_KEY = "IE000I9HGDZ3.XETR";
+
+  private static final ComparisonIndexRetriever DEUTSCHE_BOERSE_RETRIEVER =
+      retrieverOf(Set.of(XETRA_ETF_XETRA_KEY, DELISTED_ETF_XETRA_KEY));
+  private static final ComparisonIndexRetriever EURONEXT_RETRIEVER =
+      retrieverOf(Set.of(PARIS_ETF_EURONEXT_KEY));
+  private static final ComparisonIndexRetriever EODHD_RETRIEVER =
+      retrieverOf(Set.of("SGAS.XETRA", "GAGH.PA.EODHD", "XWSC.XETRA"));
 
   @Mock private FundValueRepository fundValueRepository;
   @Mock private OperationsNotificationService notificationService;
@@ -347,6 +355,31 @@ class PriceDataFreshnessAlertJobTest {
     verifyNoInteractions(notificationService);
   }
 
+  @Test
+  void staleKeysOfSourceNotDownloadedInThisEnvironment_doNotAlert() {
+    var job = jobOn(WED_0800_UTC, List.of(EURONEXT_RETRIEVER, EODHD_RETRIEVER));
+    LocalDate tuesday = LocalDate.of(2026, 1, 13);
+    LocalDate friday = LocalDate.of(2026, 1, 9);
+    Map<String, LocalDate> latestDates = buildAllFreshDates(job, tuesday);
+    latestDates.put(XETRA_ETF_XETRA_KEY, friday);
+    when(fundValueRepository.findLatestDateByKeys(any())).thenReturn(latestDates);
+
+    job.checkAfterIndexing();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void buildKeyToProviderMap_omitsKeysNoRetrieverDownloads() {
+    var job = jobOn(WED_0800_UTC, List.of(EURONEXT_RETRIEVER, EODHD_RETRIEVER));
+
+    Map<String, PriceDataFreshnessAlertJob.ProviderKey> map =
+        job.buildKeyToProviderMap(job.getEtfInstruments());
+
+    assertThat(map.keySet())
+        .containsExactlyInAnyOrder("SGAS.XETRA", PARIS_ETF_EURONEXT_KEY, "GAGH.PA.EODHD");
+  }
+
   private void stubAllKeysWithDate(PriceDataFreshnessAlertJob job, LocalDate date) {
     Map<String, LocalDate> freshDates = buildAllFreshDates(job, date);
     when(fundValueRepository.findLatestDateByKeys(any())).thenReturn(freshDates);
@@ -382,12 +415,37 @@ class PriceDataFreshnessAlertJobTest {
   }
 
   private PriceDataFreshnessAlertJob jobOn(String instant) {
+    return jobOn(instant, List.of(DEUTSCHE_BOERSE_RETRIEVER, EURONEXT_RETRIEVER, EODHD_RETRIEVER));
+  }
+
+  private PriceDataFreshnessAlertJob jobOn(
+      String instant, List<ComparisonIndexRetriever> retrievers) {
     Clock clock = Clock.fixed(Instant.parse(instant), TALLINN);
     return new PriceDataFreshnessAlertJob(
         fundValueRepository,
         notificationService,
         publicHolidays,
         instrumentReferenceService,
+        retrievers,
         clock);
+  }
+
+  private static ComparisonIndexRetriever retrieverOf(Set<String> storageKeys) {
+    return new ComparisonIndexRetriever() {
+      @Override
+      public String getKey() {
+        return "FAKE_RETRIEVER";
+      }
+
+      @Override
+      public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
+        return List.of();
+      }
+
+      @Override
+      public Set<String> expectedStorageKeys() {
+        return storageKeys;
+      }
+    };
   }
 }

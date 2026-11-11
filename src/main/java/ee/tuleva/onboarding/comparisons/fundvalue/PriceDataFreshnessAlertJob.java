@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
@@ -30,6 +32,7 @@ public class PriceDataFreshnessAlertJob {
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
   private final InstrumentReferenceService instrumentReferenceService;
+  private final List<ComparisonIndexRetriever> retrievers;
   private final Clock clock;
 
   private final AtomicReference<LocalDate> lastAlertSentDate = new AtomicReference<>();
@@ -114,7 +117,14 @@ public class PriceDataFreshnessAlertJob {
           .ifPresent(key -> map.put(key, new ProviderKey("EURONEXT", key)));
       instrument.getEodhdStorageKey().ifPresent(key -> map.put(key, new ProviderKey("EODHD", key)));
     }
+    map.keySet().retainAll(downloadedStorageKeys());
     return map;
+  }
+
+  private Set<String> downloadedStorageKeys() {
+    return retrievers.stream()
+        .flatMap(retriever -> retriever.expectedStorageKeys().stream())
+        .collect(toSet());
   }
 
   private String formatAlertMessage(

@@ -59,10 +59,17 @@ public record Rule<C>(
     return "Näide: "
         + example.name()
         + " – "
-        + on(context).ruleOutcome()
+        + outcome(on(context))
         + ", sest "
         + because(context)
         + ".";
+  }
+
+  private static String outcome(final Truth truth) {
+    return switch (truth) {
+      case HOLDS -> "rakendub";
+      case FAILS -> "ei rakendu";
+    };
   }
 
   private String because(final C context) {

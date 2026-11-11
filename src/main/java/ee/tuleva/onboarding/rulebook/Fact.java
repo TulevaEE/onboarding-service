@@ -15,9 +15,8 @@ public record Fact<C>(Phrase phrase, Predicate<C> predicate) implements Conditio
     return phrase.text(truth);
   }
 
-  @Override
-  public List<Fact<C>> facts(final C context) {
-    return List.of(this);
+  public String textOn(final C context) {
+    return phrase.text(Truth.of(test(context)));
   }
 
   @Override

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.rulebook;
 
 import static ee.tuleva.onboarding.aml.MandateAmlGate.SISEKORD_13_P_4_1_7;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.SISEKORD_16_P_1_4_1;
 import static ee.tuleva.onboarding.investment.CashKnownToArrive.SISEKORD_4_P_2_5_3;
 import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_2_4_3_11;
 import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_3_6_4_1;
@@ -50,7 +51,7 @@ final class Sisekorrad {
           "Täiendava Kogumisfondi Osakute registri pidamise sisekord",
           "1.1",
           LocalDate.of(2026, 8, 31),
-          List.of(SISEKORD_16_P_1_1_3));
+          List.of(SISEKORD_16_P_1_1_3, SISEKORD_16_P_1_4_1));
 
   private Sisekorrad() {}
 }

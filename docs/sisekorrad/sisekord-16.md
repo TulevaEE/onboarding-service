@@ -9,6 +9,7 @@ Tekst on genereeritud reeglite koodist ja iga näide on automaattest. Faili käs
 Kood rakendab järgmisi sisekorra punkte; ülejäänud punktid on sisekorra tekstis.
 
 - p 1.1.3 – Märkimis- ja tagasivõtmiskorralduse tehingupäev
+- p 1.4.1–1.4.2 – Igaöine pangakontode ja registri rahakontode võrdlus
 
 ## p 1.1.3 – Märkimis- ja tagasivõtmiskorralduse tehingupäev
 
@@ -24,3 +25,19 @@ Näide: tööpäeval kell 15:59 antud korraldus – tehing tehakse järgmisel t�
 Näide: tööpäeval kell 16:00 antud korraldus – tehing tehakse ülejärgmisel tööpäeval, sest korraldus antakse kell 16:00 või hiljem.
 
 Näide: laupäeva hommikul antud korraldus – tehing tehakse ülejärgmisel tööpäeval, sest korraldus antakse laupäeval, pühapäeval või riigipühal.
+
+## p 1.4.1–1.4.2 – Igaöine pangakontode ja registri rahakontode võrdlus
+
+Tulemus on esimene, mille tingimus kehtib:
+
+- viga: saldod ei klapi, kui panga lõppsaldo erineb registri rahakonto saldost päeva lõpus;
+- viga: võrdlus on blokeeritud, kui registris on enne päeva lõppu lahendamata klassifitseerimata pangakandeid;
+- kontroll on korras, kui panga lõppsaldo võrdub registri rahakonto saldoga päeva lõpus ja registris ei ole lahendamata klassifitseerimata pangakandeid.
+
+Andmed: kontrollitakse kogumis-, väljamakse- ja fondikontot; kontroll käivitub, kui eelmise päeva väljavõte on pangast tõmmatud; väljavõtteid tõmmatakse iga 30 minuti järel kella 04:00–23:30; vea korral saadetakse teade Slacki ja kontroll lõpeb veaga; klassifitseerimata kandeid kontrollitakse alles siis, kui saldod klapivad.
+
+Näide: saldod erinevad – viga: saldod ei klapi, sest panga lõppsaldo erineb registri rahakonto saldost päeva lõpus.
+
+Näide: saldod klapivad, üks kanne on klassifitseerimata – viga: võrdlus on blokeeritud, sest panga lõppsaldo võrdub registri rahakonto saldoga päeva lõpus ja registris on enne päeva lõppu lahendamata klassifitseerimata pangakandeid.
+
+Näide: saldod klapivad, kõik kanded on klassifitseeritud – kontroll on korras, sest panga lõppsaldo võrdub registri rahakonto saldoga päeva lõpus ja registris ei ole lahendamata klassifitseerimata pangakandeid.

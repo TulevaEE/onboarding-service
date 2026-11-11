@@ -75,15 +75,15 @@ public class TransactionSettlementService {
       TransactionSettlement recorded = recordSettlement(order, bookingDate, BANK_STATEMENT);
       return recorded.getSource() == BANK_STATEMENT
           ? new BankDating.Settled()
-          : redate(order, recorded, bookingDate);
+          : dateByTheBank(order, recorded, bookingDate);
     }
     if (existing.get().getSource() == BANK_STATEMENT) {
       return new BankDating.AlreadyByTheBank();
     }
-    return redate(order, existing.get(), bookingDate);
+    return dateByTheBank(order, existing.get(), bookingDate);
   }
 
-  private BankDating redate(
+  private BankDating dateByTheBank(
       TransactionOrder order, TransactionSettlement settlement, LocalDate bookingDate) {
     PreviousSettlement previous =
         new PreviousSettlement(settlement.getReportDate(), settlement.getSource());

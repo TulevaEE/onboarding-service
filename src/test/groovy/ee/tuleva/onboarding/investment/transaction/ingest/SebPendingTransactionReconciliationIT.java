@@ -934,6 +934,65 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_absenceAfterASplitWhoseClosingPieceSebRounded_settlesTheRedemption() {
+    TransactionOrder split = givenASplitRedemptionWhoseClosingPieceSebRounds();
+    List<InvestmentReport> history =
+        List.of(
+            redemptionReportOn(
+                SHORT_LISTING,
+                redemptionRow(SPLIT_REF, "DLA3000001", "10000000"),
+                redemptionRow(SPLIT_REF, "DLA3000002", "8811874.1"),
+                keeperListed(),
+                secondKeeperPieceListed()),
+            redemptionReportOn(
+                SHORT_LISTING.plusDays(1), keeperListed(), secondKeeperPieceListed()));
+    entityManager.flush();
+
+    history.forEach(
+        stored -> reconciliationService.replay(stored, alert -> {}, listings, LOCK_HELD));
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(executionRepository.findAllByOrderId(split.getId()))
+        .extracting(TransactionExecution::getExecutedQuantity)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactlyInAnyOrder(new BigDecimal("10000000"), new BigDecimal("8811874.096"));
+    assertThat(settlementRepository.findByOrderId(split.getId()).orElseThrow().getReportDate())
+        .isEqualTo(SHORT_LISTING.plusDays(1));
+  }
+
+  @Test
+  void replay_resumedAfterALiveRunSettledARoundedSplitLater_movesItBackToItsFirstAbsence() {
+    TransactionOrder split = givenASplitRedemptionWhoseClosingPieceSebRounds();
+    InvestmentReport listingTheSplit =
+        redemptionReportOn(
+            SHORT_LISTING,
+            redemptionRow(SPLIT_REF, "DLA3000001", "10000000"),
+            redemptionRow(SPLIT_REF, "DLA3000002", "8811874.1"),
+            keeperListed(),
+            secondKeeperPieceListed());
+    redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed(), secondKeeperPieceListed());
+    InvestmentReport latest =
+        redemptionReportOn(CORRECTED_LISTING, keeperListed(), secondKeeperPieceListed());
+    entityManager.flush();
+    reconciliationService.replay(listingTheSplit, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.reconcile(latest, LOCK_HELD);
+    entityManager.flush();
+    assertThat(settlementRepository.findByOrderId(split.getId()).orElseThrow().getReportDate())
+        .isEqualTo(CORRECTED_LISTING);
+
+    replayerAt(AFTER_THE_REDEMPTION_REPORTS)
+        .replayOldestFirst(SHORT_LISTING, SHORT_LISTING.plusDays(1), LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(split.getId()).orElseThrow().getReportDate())
+        .isEqualTo(SHORT_LISTING.plusDays(1));
+    assertThat(auditEventRepository.findByOrderIdAndEventType(split.getId(), "SETTLEMENT_REDATED"))
+        .hasSize(1);
+  }
+
+  @Test
   void replay_absenceAfterAListingSebRoundedToTenDigits_stillSettlesTheRedemption() {
     givenAHundredUnitRedemptionBesideOneSebKeepsListing();
     UUID roundedRef = UUID.fromString("55555555-5555-5555-5555-555555555555");
@@ -1487,6 +1546,17 @@ class SebPendingTransactionReconciliationIT {
 
   private static Map<String, Object> hundredUnitsListedAs(String quantity) {
     return redemptionRow(HUNDRED_UNITS_REF, "DLA2000000", quantity);
+  }
+
+  private static final UUID SPLIT_REF = UUID.fromString("66666666-6666-6666-6666-666666666666");
+
+  private TransactionOrder givenASplitRedemptionWhoseClosingPieceSebRounds() {
+    redemptionOrder(KEEPER_REF, "1000");
+    return redemptionOrder(SPLIT_REF, "18811874.096");
+  }
+
+  private static Map<String, Object> secondKeeperPieceListed() {
+    return redemptionRow(KEEPER_REF, "DLA2000003", "10");
   }
 
   private static Map<String, Object> keeperListed() {

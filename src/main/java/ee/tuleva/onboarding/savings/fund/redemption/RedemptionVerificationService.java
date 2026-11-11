@@ -2,31 +2,29 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.SISEKORD_13_P_10_8;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.holdReasons;
 
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
-import ee.tuleva.onboarding.aml.ScreeningOutcome;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Evidence;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Onboarding;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -66,20 +64,21 @@ public class RedemptionVerificationService {
         request.getId(),
         request.getPartyId());
 
-    Verdict verdict =
+    Evidence evidence =
         switch (request.getPartyId().type()) {
-          case PERSON -> verifyPerson(request);
-          case LEGAL_ENTITY -> verifyLegalEntity(request);
+          case PERSON -> personEvidence(request);
+          case LEGAL_ENTITY -> legalEntityEvidence(request);
         };
+    Set<RedemptionHoldReason> reasons = holdReasons(evidence);
 
-    switch (verdict) {
-      case Verdict.RetryLater retry -> retryLater(request, retry.holdReasonsAtDeadline());
-      case Verdict.Freeze _ -> holdService.freeze(request.getId());
-      case Verdict.HoldPayout hold -> {
-        holdService.holdPayout(request.getId(), hold.reasons());
+    switch (SISEKORD_13_P_10_8.decide(evidence)) {
+      case RETRY -> retryLater(request, reasons);
+      case FREEZE -> holdService.freeze(request.getId());
+      case HOLD_PAYOUT -> {
+        holdService.holdPayout(request.getId(), reasons);
         redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       }
-      case Verdict.Clear _ -> {
+      case CLEAR -> {
         log.info(
             "Redemption verification passed: id={}, party={}",
             request.getId(),
@@ -116,7 +115,7 @@ public class RedemptionVerificationService {
     return Instant.now(clock).isBefore(deadlinesService.getScreeningRetryDeadline(request));
   }
 
-  private Verdict verifyPerson(RedemptionRequest request) {
+  private Evidence personEvidence(RedemptionRequest request) {
     User user =
         userService
             .findByPersonalCode(request.getPartyId().code())
@@ -134,62 +133,25 @@ public class RedemptionVerificationService {
     Set<Country> allCountries = new HashSet<>(countries);
     allCountries.addAll(sanctionAndPepScreener.recordedCitizenships(user));
 
-    ScreeningOutcome screening = sanctionAndPepScreener.screeningOutcome(user, allCountries);
-    if (screening == ScreeningOutcome.UNAVAILABLE) {
-      return new Verdict.RetryLater(Set.of(SCREENING_UNAVAILABLE));
-    }
-    if (screening == ScreeningOutcome.SANCTION_HIT) {
-      return new Verdict.Freeze();
-    }
-    Set<RedemptionHoldReason> reasons = EnumSet.noneOf(RedemptionHoldReason.class);
-    if (screening == ScreeningOutcome.PEP_HIT) {
-      reasons.add(PEP);
-    }
-    return withRiskLevel(request, reasons);
+    Screening screening = Screening.of(sanctionAndPepScreener.screeningOutcome(user, allCountries));
+    return withRiskLevel(request, screening, Onboarding.NOT_CHECKED);
   }
 
-  private Verdict withRiskLevel(RedemptionRequest request, Set<RedemptionHoldReason> reasons) {
-    try {
-      if (partyIsHighRisk(request)) {
-        log.info(
-            "Redemption party is high risk: id={}, party={}",
-            request.getId(),
-            request.getPartyId());
-        reasons.add(HIGH_RISK);
-      }
-    } catch (RiskLevelUnavailableException _) {
-      return riskLevelUnavailable(request, reasons);
-    }
-    return reasons.isEmpty() ? new Verdict.Clear() : new Verdict.HoldPayout(reasons);
-  }
-
-  private boolean partyIsHighRisk(RedemptionRequest request) {
-    return switch (request.getPartyId().type()) {
-      case PERSON -> riskLevels.isHighRisk(request.getPartyId().code());
-      case LEGAL_ENTITY -> riskLevels.isHighRiskCompany(request.getPartyId().code());
-    };
-  }
-
-  private Verdict riskLevelUnavailable(
-      RedemptionRequest request, Set<RedemptionHoldReason> heldFor) {
-    log.warn(
-        "Risk level unavailable: id={}, partyType={}, heldFor={}",
-        request.getId(),
-        request.getPartyId().type(),
-        heldFor);
-    if (heldFor.isEmpty()) {
-      return new Verdict.RetryLater(Set.of(RISK_LEVEL_UNAVAILABLE));
-    }
-    Set<RedemptionHoldReason> reasons = EnumSet.copyOf(heldFor);
-    reasons.add(RISK_LEVEL_UNAVAILABLE);
-    return new Verdict.HoldPayout(reasons);
-  }
-
-  private Verdict verifyLegalEntity(RedemptionRequest request) {
+  private Evidence legalEntityEvidence(RedemptionRequest request) {
     var registryCode = request.getPartyId().code();
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
-      return withRiskLevel(request, EnumSet.noneOf(RedemptionHoldReason.class));
+      return withRiskLevel(request, Screening.NOT_REPEATED, Onboarding.COMPLETED);
     }
+    Screening screening = reScreen(request, registryCode);
+    Onboarding onboarding =
+        screening == Screening.CLEAR
+                && savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
+            ? Onboarding.COMPLETED
+            : Onboarding.INCOMPLETE;
+    return withRiskLevel(request, screening, onboarding);
+  }
+
+  private Screening reScreen(RedemptionRequest request, String registryCode) {
     List<KybCheck> checks;
     try {
       checks = legalEntityScreener.screenLatest(registryCode);
@@ -199,32 +161,49 @@ public class RedemptionVerificationService {
           request.getId(),
           registryCode,
           e);
-      return new Verdict.RetryLater(Set.of(SCREENING_UNAVAILABLE));
+      return Screening.UNAVAILABLE;
     } catch (RuntimeException e) {
       log.error(
           "Failed to re-screen legal entity for redemption: requestId={}, registryCode={}",
           request.getId(),
           registryCode,
           e);
-      return withRiskLevel(request, EnumSet.of(KYB_SCREENING_FAILED));
+      return Screening.FAILED;
     }
-    if (checks.stream().anyMatch(check -> check.type() == COMPANY_SANCTION && !check.success())) {
-      return new Verdict.Freeze();
-    }
-    return withRiskLevel(
-        request,
-        savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
-            ? EnumSet.noneOf(RedemptionHoldReason.class)
-            : EnumSet.of(ONBOARDING_INCOMPLETE));
+    return checks.stream().anyMatch(check -> check.type() == COMPANY_SANCTION && !check.success())
+        ? Screening.SANCTION_HIT
+        : Screening.CLEAR;
   }
 
-  private sealed interface Verdict {
-    record RetryLater(Set<RedemptionHoldReason> holdReasonsAtDeadline) implements Verdict {}
+  private Evidence withRiskLevel(
+      RedemptionRequest request, Screening screening, Onboarding onboarding) {
+    Risk risk = screening.leavesTheRiskLevelUnasked() ? Risk.NOT_ASKED : riskLevel(request);
+    return new Evidence(screening, risk, onboarding);
+  }
 
-    record Freeze() implements Verdict {}
+  private Risk riskLevel(RedemptionRequest request) {
+    try {
+      if (partyIsHighRisk(request)) {
+        log.info(
+            "Redemption party is high risk: id={}, party={}",
+            request.getId(),
+            request.getPartyId());
+        return Risk.HIGH;
+      }
+      return Risk.NOT_HIGH;
+    } catch (RiskLevelUnavailableException _) {
+      log.warn(
+          "Risk level unavailable: id={}, partyType={}",
+          request.getId(),
+          request.getPartyId().type());
+      return Risk.UNAVAILABLE;
+    }
+  }
 
-    record HoldPayout(Set<RedemptionHoldReason> reasons) implements Verdict {}
-
-    record Clear() implements Verdict {}
+  private boolean partyIsHighRisk(RedemptionRequest request) {
+    return switch (request.getPartyId().type()) {
+      case PERSON -> riskLevels.isHighRisk(request.getPartyId().code());
+      case LEGAL_ENTITY -> riskLevels.isHighRiskCompany(request.getPartyId().code());
+    };
   }
 }

@@ -306,11 +306,6 @@ class SebFundPositionParserTest {
   }
 
   @Test
-  void fundsWithRows_namesOnlyTheFundsOfRowsItWouldReadAsPositions() {
-    assertThat(parser.fundsWithRows(HEADER_TITLE_AND_POSITION_ROWS)).containsExactly(TUK00, TUV100);
-  }
-
-  @Test
   void positionRows_countsRowsShapedLikePositionsWhetherOrNotTheyNameAFund() {
     assertThat(parser.positionRows(HEADER_TITLE_AND_POSITION_ROWS)).isEqualTo(3);
   }

@@ -11,7 +11,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.ZoneOffset.UTC;
-import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalMatchers.and;
 import static org.mockito.AdditionalMatchers.not;
@@ -42,10 +41,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -229,7 +226,7 @@ class FundMissingFromReportIntegrationTest {
 
   @Test
   void aReportWithNoPositionRowsAsksSebToResendItInOneLinePerNavDeadline() {
-    var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 0);
+    var reported = importReport("2026-10-31T07:00:00Z", List.of(), 0);
 
     assertThat(reported).isTrue();
     verify(notificationService)
@@ -253,8 +250,8 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aReportWhosePositionRowsNameNoFundIsPutOnTheFileAndTheParserForEveryFund() {
-    var reported = importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 412);
+  void aReportWhosePositionRowsNameNoFundIsPutOnTheFileAndTheParserAndClearsOnceItsFundsAreRead() {
+    var reported = importReport("2026-10-31T07:00:00Z", List.of(), 412);
 
     assertThat(reported).isTrue();
     verify(notificationService)
@@ -273,33 +270,6 @@ class FundMissingFromReportIntegrationTest {
                                 + " before the 15:20 NAV"))),
                 not(contains("Ask SEB"))),
             eq(INVESTMENT));
-  }
-
-  @Test
-  void aReportWhoseRowsCouldNotBeReadSaysSoPerNavDeadlineAndClearsOnceItsFundRowsCanBeRead() {
-    var unreadReported =
-        importReport("2026-10-31T07:00:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
-
-    assertThat(unreadReported).isTrue();
-    verify(notificationService)
-        .sendMessage(
-            and(
-                and(
-                    contains(
-                        "Funds: TUK75 not read from the report, TUK00 not read from the report,"
-                            + " TUV100 not read from the report, TKF100 not read from the"
-                            + " report\n"),
-                    and(
-                        contains(
-                            "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: "
-                                + ROWS_NOT_READ
-                                + " before the 11:00 NAV"),
-                        contains(
-                            "\n⚠️ [WARNING] FUND_IN_REPORT TUV100, TKF100: "
-                                + ROWS_NOT_READ
-                                + " before the 15:20 NAV"))),
-                not(contains("Ask SEB"))),
-            eq(INVESTMENT));
 
     clearInvocations(notificationService);
     var readReported = importReport("2026-10-31T07:30:00Z", complete(TUK75, TUK00, TUV100, TKF100));
@@ -314,86 +284,51 @@ class FundMissingFromReportIntegrationTest {
   }
 
   @Test
-  void aReSentReportWhoseRowsCannotBeReadAfterAnEmptyOneIsPostedOnceAsAParserProblem() {
-    importReport("2026-10-31T07:00:00Z", List.of(), Set.of(), 0);
+  void aReSentReportWhoseRowsNameNoFundAfterAnEmptyOneIsPostedOnceAsAParserProblem() {
+    importReport("2026-10-31T07:00:00Z", List.of(), 0);
     clearInvocations(notificationService);
 
-    var movedToParser =
-        importReport("2026-10-31T07:30:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
+    var movedToParser = importReport("2026-10-31T07:30:00Z", List.of(), 412);
 
     assertThat(movedToParser).isTrue();
     verify(notificationService)
         .sendMessage(
             contains(
                 "\n⚠️ [WARNING] FUND_IN_REPORT TUK75, TUK00: "
-                    + ROWS_NOT_READ
+                    + NO_ROW_NAMES_A_FUND
                     + " before the 11:00 NAV"),
             eq(INVESTMENT));
 
-    var sameAgain =
-        importReport("2026-10-31T07:35:00Z", List.of(), EnumSet.allOf(TulevaFund.class), 412);
+    var sameAgain = importReport("2026-10-31T07:35:00Z", List.of(), 412);
 
     assertThat(sameAgain).isFalse();
   }
-
-  @Test
-  void aFundWhoseRowsCouldNotBeReadWhileTheOtherFundsWereIsPutOnTheParserNotOnSeb() {
-    var reported =
-        importReport(
-            "2026-10-31T07:00:00Z",
-            complete(TUK75, TUK00, TUV100),
-            EnumSet.allOf(TulevaFund.class),
-            8);
-
-    assertThat(reported).isTrue();
-    verify(notificationService)
-        .sendMessage(
-            and(
-                and(
-                    contains("TKF100 not read from the report"),
-                    contains(
-                        "\n⚠️ [WARNING] FUND_IN_REPORT TKF100: "
-                            + ROWS_NOT_READ
-                            + " before the 15:20 NAV")),
-                not(contains("Ask SEB"))),
-            eq(INVESTMENT));
-  }
-
-  private static final String ROWS_NOT_READ =
-      "rows in SEB's position report for navDate=2026-10-30 name the fund but none could be read"
-          + " as fund positions: check the file and the parser";
 
   private static final String NO_ROW_NAMES_A_FUND =
       "none of the 412 position rows in SEB's position report for navDate=2026-10-30 names a"
           + " fund: check the file and the parser";
 
   private boolean importReport(String at, List<FundPosition> positions) {
-    return importReport(at, positions, fundsOf(positions), positions.size(), Map.of());
+    return importReport(at, positions, positions.size(), Map.of());
   }
 
-  private boolean importReport(
-      String at, List<FundPosition> positions, Set<TulevaFund> fundsWithRows, int positionRows) {
-    return importReport(at, positions, fundsWithRows, positionRows, Map.of());
+  private boolean importReport(String at, List<FundPosition> positions, int positionRows) {
+    return importReport(at, positions, positionRows, Map.of());
   }
 
   private boolean importReport(
       String at, List<FundPosition> positions, Map<TulevaFund, Instant> earlierImports) {
-    return importReport(at, positions, fundsOf(positions), positions.size(), earlierImports);
+    return importReport(at, positions, positions.size(), earlierImports);
   }
 
   private boolean importReport(
       String at,
       List<FundPosition> positions,
-      Set<TulevaFund> fundsWithRows,
       int positionRows,
       Map<TulevaFund, Instant> earlierImports) {
     ClockHolder.setClock(Clock.fixed(Instant.parse(at), UTC));
-    var results = healthCheckService.check(NAV_DATE, positions, fundsWithRows, positionRows);
+    var results = healthCheckService.check(NAV_DATE, positions, positionRows);
     return notifier.notify(SEB, NAV_DATE, results, earlierImports);
-  }
-
-  private static Set<TulevaFund> fundsOf(List<FundPosition> positions) {
-    return positions.stream().map(FundPosition::getFund).collect(toSet());
   }
 
   private static String missingLine(TulevaFund fund, String navTime) {

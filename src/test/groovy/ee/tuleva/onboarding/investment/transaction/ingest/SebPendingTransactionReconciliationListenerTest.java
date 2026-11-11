@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -78,6 +80,20 @@ class SebPendingTransactionReconciliationListenerTest {
 
     verify(reconciliationService, never()).reconcile(any(), any());
     verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
+  }
+
+  @Test
+  void aDeferredReconciliationQueuesTheBankSettlementAfterItSoTheBankStillSettlesSecond() {
+    given(reportService.getReport(SEB, PENDING_TRANSACTIONS, REPORT_DATE))
+        .willReturn(Optional.of(sebPendingReport(REPORT_DATE)));
+
+    listenerLockedBy(RecordingLockProvider.heldElsewhere())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, REPORT_DATE, 1));
+
+    InOrder queued = inOrder(jobTriggerQueue);
+    queued.verify(jobTriggerQueue).defer("SebPendingTransactionReportReconciliationJob:2026-05-13");
+    queued.verify(jobTriggerQueue).defer("SettlementFromBankJob");
   }
 
   @Test

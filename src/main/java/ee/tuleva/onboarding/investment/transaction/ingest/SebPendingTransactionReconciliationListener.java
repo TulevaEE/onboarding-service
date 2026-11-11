@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.RunSettlementFromBankRequested;
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
@@ -50,6 +51,7 @@ class SebPendingTransactionReconciliationListener {
           event.reportDate(),
           trigger);
       jobTriggerQueue.defer(trigger);
+      jobTriggerQueue.defer(RunSettlementFromBankRequested.JOB_NAME);
     }
   }
 

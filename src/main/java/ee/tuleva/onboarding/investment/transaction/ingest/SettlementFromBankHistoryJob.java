@@ -42,6 +42,14 @@ class SettlementFromBankHistoryJob {
           + "Käivita uuesti, kui see on lõppenud: INSERT INTO public.investment_job_trigger"
           + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
 
+  private static final String LOCK_LOST_MESSAGE =
+      "Registri tellimuste arveldamine panga kuupäevadega katkes, sest SEB ootel-tehingute"
+          + " sobitamine sai luku.\n"
+          + "Osa tellimusi võis panga kuupäeva juba saada, uuesti käivitamine ei arvelda midagi"
+          + " topelt.\n"
+          + "Käivita uuesti, kui see on lõppenud: INSERT INTO public.investment_job_trigger"
+          + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
+
   private final StoredTradeReferences storedTradeReferences;
   private final SettlementFromBankService settlementFromBankService;
   private final OperationsNotificationService notificationService;
@@ -69,8 +77,12 @@ class SettlementFromBankHistoryJob {
           settlementFromBankService.settleOrdersBookedSince(
               EPOCH, storedTradeReferences.byLedgerExternalReference(), stillHoldsTheLock);
     } catch (SettlementFromBankLockLostException e) {
-      log.warn("Settling the registry's history from the bank lost its lock, retrying", e);
-      throw e;
+      log.warn("Settling the registry's history from the bank stopped, it lost its lock", e);
+      notificationService.sendMessage(LOCK_LOST_MESSAGE, INVESTMENT, WARNING);
+      throw new IllegalStateException(
+          "Settling the registry's history from the bank stopped, it lost its lock: lock="
+              + SebReconciliationLock.NAME,
+          e);
     } catch (RuntimeException e) {
       notificationService.sendMessage(FAILED_MESSAGE, INVESTMENT, ERROR);
       throw e;

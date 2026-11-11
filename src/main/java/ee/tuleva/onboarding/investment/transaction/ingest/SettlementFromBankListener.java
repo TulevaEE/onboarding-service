@@ -41,14 +41,24 @@ class SettlementFromBankListener {
       return;
     }
     try {
-      if (!settlesUnderTheLock()) {
-        defer("its lock is held");
+      if (!settlesUnderTheLockOrLosesIt()) {
+        log.debug(
+            "Settling registry orders from the bank deferred, its lock is held or was lost:"
+                + " trigger={}",
+            JOB_NAME);
+        jobTriggerQueue.defer(JOB_NAME);
       }
-    } catch (SettlementFromBankLockLostException e) {
-      log.warn("Settling registry orders from the bank lost its lock: trigger={}", JOB_NAME, e);
-      defer("its lock was lost");
     } catch (RuntimeException e) {
       log.error("Settling registry orders from the bank failed: trigger={}", JOB_NAME, e);
+    }
+  }
+
+  private boolean settlesUnderTheLockOrLosesIt() {
+    try {
+      return settlesUnderTheLock();
+    } catch (SettlementFromBankLockLostException e) {
+      log.warn("Settling registry orders from the bank lost its lock: trigger={}", JOB_NAME, e);
+      return false;
     }
   }
 
@@ -95,7 +105,7 @@ class SettlementFromBankListener {
     }
   }
 
-  private static String failedMessage(BankSettlementRun run) {
+  private String failedMessage(BankSettlementRun run) {
     return "Registri tellimuste arveldamine panga kuupäevadega: "
         + run.failed()
         + " tellimuse arveldamine ebaõnnestus (põhjus on logis: \"Settling an order from the bank"
@@ -105,12 +115,9 @@ class SettlementFromBankListener {
         + ", pangakuupäevata jäi "
         + run.withoutBankDate()
         + ".\n"
-        + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud.";
-  }
-
-  private void defer(String reason) {
-    log.debug(
-        "Settling registry orders from the bank deferred: reason={}, trigger={}", reason, JOB_NAME);
-    jobTriggerQueue.defer(JOB_NAME);
+        + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud"
+        + " või tellimus on vanem kui "
+        + scanLookbackDays
+        + " päeva.";
   }
 }

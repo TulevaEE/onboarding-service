@@ -52,8 +52,8 @@ off the company hold.
 
 A person's KYC onboarding risk is assessed while they submit their KYC survey.
 `aml-service.enabled`, the nightly job's flag, chooses how: on, `AmlServiceKycChecker` asks
-aml-service's `POST /v1/kyc-onboarding/assessments`; off (staging, which does not set it),
-`KycCheckRepository` runs the SQL `kyc_ob_assess_user_risk`. Neither falls back to the other.
+aml-service's `POST /v1/kyc-onboarding/assessments`; off, `KycCheckRepository` runs the SQL
+`kyc_ob_assess_user_risk`. Neither falls back to the other.
 aml-service reads in its own transaction, so `KycSurveyService` commits the survey and the
 sanction/PEP screenings `BeforeKycCheckedEvent` writes (the subject's, and a minor's guardians')
 before asking, and `AmlServiceKycChecker` refuses to ask inside a transaction; the SQL runs after
@@ -67,5 +67,11 @@ submission. Open-in-view holds the request's connection through the call, so wit
 before it a slow submission can still exceed Hikari's 10 s leak-detection threshold (a warning). A
 failure fails the submission, with the survey and screenings already committed and no `KYC_CHECK`
 row; a 404 (no such user or no KYC survey) is not retried.
+
+Staging runs no aml-service, so in the `dev` and `staging` profiles the KYC check and the payout
+hold get a mock in its place, whatever the two flags say: `DevKycChecker` passes every KYC check as
+`LOW`, its metadata saying nothing was assessed, and `DevRiskLevels` holds no person's or company's
+payout. Every other profile gets the real ones above, so a missing profile cannot quietly give
+production the fail-open mock.
 
 `ScheduledAmlRiskMetadataRefreshJob` refreshes the views at 12:00 and 16:00 for Metabase.

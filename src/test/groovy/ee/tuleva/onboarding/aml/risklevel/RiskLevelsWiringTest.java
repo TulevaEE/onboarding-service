@@ -15,6 +15,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
@@ -122,6 +125,55 @@ class RiskLevelsWiringTest {
             });
   }
 
+  @ParameterizedTest
+  @CsvSource({"dev, true", "dev, false", "staging, true", "staging, false"})
+  void answersWithTheAmlServiceMockInDevAndStagingWithoutAskingAmlServiceWhateverTheFlag(
+      String profile, String highRiskEnabled) {
+    contextRunner()
+        .withPropertyValues(
+            "spring.profiles.active=" + profile, "aml-service.high-risk-enabled=" + highRiskEnabled)
+        .run(
+            context -> {
+              assertThat(context).getBean(RiskLevels.class).isInstanceOf(DevRiskLevels.class);
+              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
+              assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
+                  .isFalse();
+              assertThat(requestedPaths).isEmpty();
+            });
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"production", "test", "ci,test", "pg,test"})
+  void asksAmlServiceInEveryOtherProfileWhenHighRiskIsEnabled(String profiles) {
+    contextRunner()
+        .withPropertyValues(
+            "spring.profiles.active=" + profiles, "aml-service.high-risk-enabled=true")
+        .run(
+            context -> {
+              assertThat(context)
+                  .getBean(RiskLevels.class)
+                  .isInstanceOf(ConfiguredRiskLevels.class);
+              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
+              assertThat(requestedPaths)
+                  .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
+            });
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"production", "test", "ci,test", "pg,test"})
+  void readsTheLatestAmlChecksInEveryOtherProfileWhenHighRiskIsNotEnabled(String profiles) {
+    contextRunner()
+        .withPropertyValues("spring.profiles.active=" + profiles)
+        .run(
+            context -> {
+              assertThat(context)
+                  .getBean(RiskLevels.class)
+                  .isInstanceOf(ConfiguredRiskLevels.class);
+              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
+              assertThat(requestedPaths).isEmpty();
+            });
+  }
+
   private ApplicationContextRunner contextRunner() {
     return new ApplicationContextRunner()
         .withUserConfiguration(
@@ -130,7 +182,8 @@ class RiskLevelsWiringTest {
             EffectiveRiskLevelConfiguration.class,
             EffectiveRiskLevels.class,
             AmlCheckRiskLevels.class,
-            ConfiguredRiskLevels.class)
+            ConfiguredRiskLevels.class,
+            DevRiskLevels.class)
         .withBean(AmlCheckRepository.class, () -> mock(AmlCheckRepository.class))
         .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
         .withBean(

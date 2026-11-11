@@ -26,8 +26,9 @@ class CustodianOrderEmailNotifier {
   void reportSendAttempt(long batchId, MandrillMessage message) {
     alertRows.recordSendAttempt(
         batchId,
-        "🔴 Orders email result UNKNOWN: %s\nNo send result was recorded: the service may have stopped while sending.\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
-            .formatted(message.getSubject()));
+        resultUnknown(
+            message.getSubject(),
+            "No send result was recorded: the service may have stopped while sending."));
   }
 
   void reportSendResult(long batchId, MandrillMessage message, EmailSendResult result) {
@@ -40,9 +41,7 @@ class CustodianOrderEmailNotifier {
                   : "🔴 Orders emailed, but not to every copy: %s\n%s\nThe orders went out, don't send them again. Find out why Mandrill rejected the copy."
                       .formatted(summary(message), cause(result));
           case FAILED -> ordersNotSent(message.getSubject(), cause(result));
-          case UNKNOWN ->
-              "🔴 Orders email result UNKNOWN: %s\n%s\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
-                  .formatted(message.getSubject(), cause(result));
+          case UNKNOWN -> resultUnknown(message.getSubject(), cause(result));
         };
     post(batchId, text, result.outcome() == SENT && everyoneAccepted ? INFO : ERROR);
   }
@@ -60,6 +59,11 @@ class CustodianOrderEmailNotifier {
 
   private static String notBuilt(String subject, String problem) {
     return ordersNotSent(subject, "The message could not be built: " + problem);
+  }
+
+  private static String resultUnknown(String subject, String cause) {
+    return "🔴 Orders email result UNKNOWN: %s\n%s\nIt may have gone out. Check the Cc copy or ask the desk before sending again."
+        .formatted(subject, cause);
   }
 
   private static String ordersNotSent(String subject, String cause) {

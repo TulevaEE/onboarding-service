@@ -10,4 +10,4 @@ WHERE order_id IN (SELECT o.id
   AND NOT EXISTS (SELECT 1
                   FROM investment_transaction_audit_event e
                   WHERE e.order_id = transaction_settlement.order_id
-                    AND e.event_type = 'SETTLEMENT_DETECTED');
+                    AND e.event_type IN ('SETTLEMENT_DETECTED', 'SETTLEMENT_REDATED'));

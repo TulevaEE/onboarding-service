@@ -29,6 +29,7 @@ class V1_333TransactionSettlementSourceTest {
 
   private SingleConnectionDataSource dataSource;
   private JdbcClient jdbcClient;
+  private long lastId;
 
   @BeforeEach
   void migrateAFreshDatabaseUpToJustBeforeTheSource() {
@@ -92,33 +93,31 @@ class V1_333TransactionSettlementSourceTest {
   }
 
   private long settledOrderIn(String batchCreatedBy) {
-    long batch =
-        jdbcClient
-            .sql(
-                "INSERT INTO investment_transaction_batch (fund_code, created_by)"
-                    + " VALUES ('TKF100', :createdBy) RETURNING id")
-            .param("createdBy", batchCreatedBy)
-            .query(Long.class)
-            .single();
-    long order =
-        jdbcClient
-            .sql(
-                "INSERT INTO investment_transaction_order (batch_id, fund_code, instrument_isin,"
-                    + " transaction_type, instrument_type, order_venue, order_uuid, order_status)"
-                    + " VALUES (:batch, 'TKF100', 'IE00BFG1TM61', 'BUY', 'FUND', 'SEB', :uuid,"
-                    + " 'SETTLED') RETURNING id")
-            .param("batch", batch)
-            .param("uuid", UUID.randomUUID())
-            .query(Long.class)
-            .single();
+    long id = ++lastId;
+    jdbcClient
+        .sql(
+            "INSERT INTO investment_transaction_batch (id, fund_code, created_by)"
+                + " VALUES (:id, 'TKF100', :createdBy)")
+        .param("id", id)
+        .param("createdBy", batchCreatedBy)
+        .update();
+    jdbcClient
+        .sql(
+            "INSERT INTO investment_transaction_order (id, batch_id, fund_code, instrument_isin,"
+                + " transaction_type, instrument_type, order_venue, order_uuid, order_status)"
+                + " VALUES (:id, :id, 'TKF100', 'IE00BFG1TM61', 'BUY', 'FUND', 'SEB', :uuid,"
+                + " 'SETTLED')")
+        .param("id", id)
+        .param("uuid", UUID.randomUUID())
+        .update();
     jdbcClient
         .sql(
             "INSERT INTO transaction_settlement (order_id, settled_at, report_date)"
                 + " VALUES (:order, CURRENT_TIMESTAMP, :reportDate)")
-        .param("order", order)
+        .param("order", id)
         .param("reportDate", REPORT_DATE)
         .update();
-    return order;
+    return id;
   }
 
   private void auditEvent(long order, String eventType) {

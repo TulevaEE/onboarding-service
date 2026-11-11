@@ -15,6 +15,7 @@ record DocumentRow(
     BigDecimal amount,
     LocalDate date,
     List<String> objectCodes,
+    List<String> counterpartyCodes,
     List<String> projectCodes) {
 
   static DocumentRow of(DirectoRow row, LocalDate documentDate) {
@@ -25,14 +26,19 @@ record DocumentRow(
         rowDate == null || rowDate.isBlank()
             ? documentDate
             : DirectoFields.date(rowDate, "rows.date"),
-        Stream.of(row.object(), row.supplier(), row.customer())
+        codes(row.object()),
+        Stream.of(row.supplier(), row.customer())
             .flatMap(commaSeparated -> codes(commaSeparated).stream())
             .toList(),
         codes(row.project()));
   }
 
+  Stream<String> objectAndCounterpartyCodes() {
+    return Stream.concat(objectCodes.stream(), counterpartyCodes.stream());
+  }
+
   Stream<String> dimensionCodes() {
-    return Stream.concat(objectCodes.stream(), projectCodes.stream());
+    return Stream.concat(objectAndCounterpartyCodes(), projectCodes.stream());
   }
 
   private static BigDecimal amount(DirectoRow row) {

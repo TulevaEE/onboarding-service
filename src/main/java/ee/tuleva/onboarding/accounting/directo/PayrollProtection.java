@@ -22,11 +22,9 @@ final class PayrollProtection {
       Set.of("212344", "212401", "212411", "212421", "212422", "212641", "212647", "212648");
 
   private final Set<String> payrollLiabilityAccounts;
-  private final Set<String> knownObjects;
-  private final Set<String> employeeObjects;
+  private final ObjectCatalog objects;
 
-  PayrollProtection(List<DirectoAccount> accounts, List<DirectoObject> objects) {
-    final String EMPLOYEE_OBJECT_LEVEL = "50";
+  PayrollProtection(List<DirectoAccount> accounts, ObjectCatalog objects) {
     payrollLiabilityAccounts =
         Stream.concat(
                 PAYROLL_LIABILITY_ACCOUNTS_OF_THE_COMPANY_CHART.stream(),
@@ -34,16 +32,7 @@ final class PayrollProtection {
                     .filter(PayrollProtection::isPayrollLiability)
                     .map(account -> require(account.code(), "accounts.code")))
             .collect(toSet());
-    knownObjects =
-        objects.stream()
-            .filter(PayrollProtection::isClassified)
-            .map(PayrollProtection::code)
-            .collect(toSet());
-    employeeObjects =
-        objects.stream()
-            .filter(object -> EMPLOYEE_OBJECT_LEVEL.equals(trimmed(object.level())))
-            .map(PayrollProtection::code)
-            .collect(toSet());
+    this.objects = objects;
   }
 
   boolean protects(Document document) {
@@ -56,8 +45,8 @@ final class PayrollProtection {
     final String PAYROLL_ACCOUNT_PREFIX = "54";
     return row.accountCode().startsWith(PAYROLL_ACCOUNT_PREFIX)
         || payrollLiabilityAccounts.contains(row.accountCode())
-        || row.objectCodes().stream()
-            .anyMatch(code -> employeeObjects.contains(code) || !knownObjects.contains(code));
+        || row.objectAndCounterpartyCodes()
+            .anyMatch(code -> objects.isEmployee(code) || !objects.isClassified(code));
   }
 
   private static boolean isPayrollLiability(DirectoAccount account) {
@@ -66,15 +55,6 @@ final class PayrollProtection {
     return LIABILITY_CLASS.equals(trimmed(account.accountClass()))
         && name != null
         && NAME_OF_A_PAYROLL_LIABILITY.matcher(name).find();
-  }
-
-  private static boolean isClassified(DirectoObject object) {
-    var level = object.level();
-    return level != null && !level.isBlank();
-  }
-
-  private static String code(DirectoObject object) {
-    return require(object.code(), "objects.code").trim();
   }
 
   private static @Nullable String trimmed(@Nullable String value) {

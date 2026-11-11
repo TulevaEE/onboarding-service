@@ -124,7 +124,10 @@ class JournalEntryWriter {
         version.getId(),
         metadata,
         version.getEntries().stream()
-            .map(entry -> new LedgerEntryDto(entry.getAccount(), entry.getAmount().negate()))
+            .map(
+                entry ->
+                    new LedgerEntryDto(
+                        entry.getAccount(), entry.getAmount().negate(), entry.getMetadata()))
             .toArray(LedgerEntryDto[]::new));
   }
 
@@ -138,7 +141,10 @@ class JournalEntryWriter {
         part.lines().stream()
             .map(
                 line ->
-                    new LedgerEntryDto(accounts.resolve(entity, line.accountCode()), line.amount()))
+                    new LedgerEntryDto(
+                        accounts.resolve(entity, line.accountCode()),
+                        line.amount(),
+                        Map.<String, Object>copyOf(line.dimensions())))
             .toArray(LedgerEntryDto[]::new));
   }
 

@@ -22,11 +22,14 @@ public class DirectoPartMapper {
         documents.stream().flatMap(Document::identifyingCodes).toList());
     var accounts =
         book.accounts().stream().map(DirectoAccountMapper::toGeneralLedgerAccount).toList();
-    var protection = new PayrollProtection(book.accounts(), book.objects());
+    var objects = new ObjectCatalog(book.objects());
+    var protection = new PayrollProtection(book.accounts(), objects);
     var protectedParts =
         documents.stream().filter(protection::protects).flatMap(Document::parts).toList();
     var ordinaryParts =
-        documents.stream().filter(not(protection::protects)).flatMap(Document::parts);
+        documents.stream()
+            .filter(not(protection::protects))
+            .flatMap(document -> document.parts(objects));
     return new GeneralLedgerBook(
         accounts,
         Stream.concat(ordinaryParts, PayrollSummary.of(protectedParts).stream()).toList(),

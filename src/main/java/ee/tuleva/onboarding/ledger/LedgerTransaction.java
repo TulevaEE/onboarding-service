@@ -116,6 +116,10 @@ public class LedgerTransaction {
   }
 
   LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
+    return addEntry(account, amount, Map.of());
+  }
+
+  LedgerEntry addEntry(LedgerAccount account, BigDecimal amount, Map<String, Object> metadata) {
     if (account == null) {
       throw new IllegalArgumentException("Account cannot be null");
     }
@@ -131,6 +135,7 @@ public class LedgerTransaction {
             .assetType(account.getAssetType())
             .account(account)
             .transaction(this)
+            .metadata(metadata.isEmpty() ? null : Map.copyOf(metadata))
             .build();
 
     entries.add(entry);

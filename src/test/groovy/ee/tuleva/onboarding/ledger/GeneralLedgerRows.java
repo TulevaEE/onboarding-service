@@ -9,24 +9,57 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.boot.test.context.TestComponent;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @TestComponent
 public class GeneralLedgerRows {
 
   private final JdbcClient jdbcClient;
   private final LedgerTransactionRepository transactionRepository;
+  private final TransactionTemplate transactionTemplate;
 
-  GeneralLedgerRows(JdbcClient jdbcClient, LedgerTransactionRepository transactionRepository) {
+  GeneralLedgerRows(
+      JdbcClient jdbcClient,
+      LedgerTransactionRepository transactionRepository,
+      TransactionTemplate transactionTemplate) {
     this.jdbcClient = jdbcClient;
     this.transactionRepository = transactionRepository;
+    this.transactionTemplate = transactionTemplate;
   }
 
   public record JournalEntryVersion(
       UUID id, Instant transactionDate, int revision, String documentType, boolean live) {}
+
+  public record EntryLine(String accountCode, BigDecimal amount, Map<String, Object> dimensions) {}
+
+  public List<EntryLine> entriesOf(UUID journalEntryId) {
+    return transactionTemplate.execute(
+        status ->
+            transactionRepository.findById(journalEntryId).orElseThrow().getEntries().stream()
+                .map(GeneralLedgerRows::entryLine)
+                .toList());
+  }
+
+  public List<EntryLine> reversalEntriesOf(UUID journalEntryId) {
+    var reversal =
+        transactionRepository
+            .findByExternalReferenceAndTransactionType(journalEntryId, JOURNAL_ENTRY_REVERSAL)
+            .orElseThrow();
+    return entriesOf(reversal.getId());
+  }
+
+  private static EntryLine entryLine(LedgerEntry entry) {
+    var accountName = entry.getAccount().getName();
+    return new EntryLine(
+        accountName.substring(accountName.lastIndexOf(':') + 1),
+        entry.getAmount().setScale(2),
+        entry.getMetadata());
+  }
 
   public BigDecimal balanceAtEndOf(String entity, String code, LocalDate date) {
     return jdbcClient

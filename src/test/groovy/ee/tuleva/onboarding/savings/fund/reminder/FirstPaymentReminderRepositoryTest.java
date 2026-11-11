@@ -2,16 +2,20 @@ package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
@@ -19,8 +23,10 @@ import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
+import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.ParentChildLinkStatus;
 import ee.tuleva.onboarding.party.RepresentationType;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -31,6 +37,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +52,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @Import({
   FirstPaymentReminderRepository.class,
   SavingsFundOnboardingRepository.class,
+  ParentChildLinkService.class,
   ClockConfig.class
 })
 class FirstPaymentReminderRepositoryTest {
@@ -61,8 +69,16 @@ class FirstPaymentReminderRepositoryTest {
   private static final String ALREADY_PAID = "60001019906";
   private static final String ALREADY_REMINDED = "30303039816";
   private static final String CHILD = "61506150006";
+  private static final UUID LOWEST_AS_A_SIGNED_JAVA_UUID =
+      UUID.fromString("90000000-0000-4000-8000-000000000001");
+  private static final UUID LOWEST_AS_AN_UNSIGNED_SQL_UUID =
+      UUID.fromString("10000000-0000-4000-8000-000000000001");
+
+  private static final String COMPANY = "11111111";
+  private static final String OTHER_COMPANY = "22222222";
 
   @Autowired FirstPaymentReminderRepository repository;
+  @Autowired ParentChildLinkService parentChildLinkService;
   @Autowired SavingsFundOnboardingRepository onboardingRepository;
   @Autowired ParentChildLinkRepository parentChildLinkRepository;
   @Autowired TestEntityManager entityManager;
@@ -104,6 +120,7 @@ class FirstPaymentReminderRepositoryTest {
                 SAVER + "@example.com",
                 Locale.of("et"),
                 SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+                null,
                 null));
   }
 
@@ -230,6 +247,56 @@ class FirstPaymentReminderRepositoryTest {
   }
 
   @Test
+  void opensTheChildAccountByTheLinkTheRolesEndpointListsWhenTheGuardianHoldsSeveralLinks() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, GUARDIAN);
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(parentChildLinkService.findActivelyRepresentedChildren(SAVER))
+        .containsExactly(entry(CHILD, LOWEST_AS_A_SIGNED_JAVA_UUID));
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountId)
+        .containsExactly(LOWEST_AS_A_SIGNED_JAVA_UUID);
+  }
+
+  @Test
+  void opensTheChildAccountByEachGuardiansOwnLink() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, ENGLISH_SPEAKING_SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::recipientEmail, FirstPaymentReminder::accountId)
+        .containsExactlyInAnyOrder(
+            tuple(SAVER + "@example.com", LOWEST_AS_AN_UNSIGNED_SQL_UUID),
+            tuple(ENGLISH_SPEAKING_SAVER + "@example.com", LOWEST_AS_A_SIGNED_JAVA_UUID));
+  }
+
+  @Test
+  void doesNotOpenTheChildAccountByASuspendedLinkTheRolesEndpointLeavesOut() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    childLink(LOWEST_AS_A_SIGNED_JAVA_UUID, SAVER, CHILD, GUARDIAN);
+    suspend(LOWEST_AS_A_SIGNED_JAVA_UUID);
+    childLink(LOWEST_AS_AN_UNSIGNED_SQL_UUID, SAVER, CHILD, LEGAL_REPRESENTATIVE);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(parentChildLinkService.findActivelyRepresentedChildren(SAVER))
+        .containsExactly(entry(CHILD, LOWEST_AS_AN_UNSIGNED_SQL_UUID));
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountId)
+        .containsExactly(LOWEST_AS_AN_UNSIGNED_SQL_UUID);
+  }
+
+  @Test
   void leavesOutChildAccountsWhoseGuardianLinkIsNotActive() {
     accountOpened(CHILD, NOW.minus(10, DAYS));
     accountOpened(SAVER, NOW.minus(10, DAYS));
@@ -281,6 +348,238 @@ class FirstPaymentReminderRepositoryTest {
     assertThat(reminders)
         .extracting(FirstPaymentReminder::accountHolderName)
         .containsExactly("Saver " + CHILD + " Example");
+  }
+
+  @Test
+  void remindsTheApplicantOfACompanyThatOpenedAnAccountInTheWindowAndNeverPaid() {
+    var company = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    companyAccountOpened("33333333", JUST_OPENED, NOW.minus(2, DAYS));
+    companyAccountOpened("44444444", OPENED_LONG_AGO, NOW.minus(40, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .containsExactly(
+            new FirstPaymentReminder(
+                SAVER,
+                "Saver " + SAVER,
+                "Example",
+                SAVER + "@example.com",
+                Locale.of("et"),
+                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY,
+                company.getId()));
+  }
+
+  @Test
+  void opensTheAccountOfTheCompanyThatHasNotPaidRatherThanAnotherCompanyOfTheApplicant() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(12, DAYS));
+    companyPayment(COMPANY);
+    var unpaid = companyOpenedBy(OTHER_COMPANY, SAVER, NOW.minus(10, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::accountId)
+        .containsExactly(tuple(SAVER, unpaid.getId()));
+  }
+
+  @Test
+  void sendsOneReminderOpeningTheEarliestOpenedCompanyWhenTheApplicantHasSeveralUnpaid() {
+    var later = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    var earliest = companyOpenedBy(OTHER_COMPANY, SAVER, NOW.minus(12, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(later.getId()).isNotEqualTo(earliest.getId());
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::accountId)
+        .containsExactly(tuple(SAVER, earliest.getId()));
+  }
+
+  @Test
+  void remindsOnlyTheBoardMemberWhoLastSubmittedTheCompanySurvey() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    companySurvey(COMPANY, ENGLISH_SPEAKING_SAVER, NOW.minus(12, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
+  }
+
+  @Test
+  void leavesOutCompaniesThatHaveAlreadyPaid() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    companyPayment(COMPANY);
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutCompaniesWhosePaymentCameInWithoutTheAccountItWasFor() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    unattributedPaymentFrom(COMPANY);
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutApplicantsAlreadyRemindedAboutACompany() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    reminderSentTo(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY);
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void remindsTheApplicantAboutTheCompanyEvenAfterAPersonalReminder() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    reminderSentTo(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
+  }
+
+  @Test
+  void leavesOutCompaniesWhoseLatestActivityCheckFlaggedAHighRiskActivity() {
+    var highRisk = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    check(highRisk, SAVER, "KYB_HIGH_RISK_NACE", true, NOW.minus(10, DAYS));
+    check(highRisk, SAVER, "KYB_HIGH_RISK_NACE", false, NOW.minus(1, DAYS));
+
+    var cleared = companyAccountOpened(OTHER_COMPANY, ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    check(cleared, ENGLISH_SPEAKING_SAVER, "KYB_HIGH_RISK_NACE", false, NOW.minus(5, DAYS));
+    check(cleared, ENGLISH_SPEAKING_SAVER, "KYB_HIGH_RISK_NACE", true, NOW.minus(1, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountCode)
+        .containsExactly(ENGLISH_SPEAKING_SAVER);
+  }
+
+  @Test
+  void sendsTheCompanyReminderInTheLanguageTheApplicantPrefers() {
+    companyAccountOpened(COMPANY, ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    languagePreference(ENGLISH_SPEAKING_SAVER, "ENG");
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::locale, FirstPaymentReminder::emailType)
+        .containsExactly(tuple(Locale.ENGLISH, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY));
+  }
+
+  @Test
+  void remindsAnApplicantAboutALaterCompanyAfterARemindedEarlierOne() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    reminderSentTo(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY, NOW.minus(60, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
+  }
+
+  @Test
+  void leavesOutCompaniesKeptOpenForAManualOwnershipReview() {
+    var underReview = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    check(underReview, SAVER, "KYB_DUAL_MEMBER_OWNERSHIP", false, NOW.minus(1, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void ignoresAFailedCheckFromAnApplicationRejectedBeforeTheAccountOpened() {
+    var reapplied = companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    check(reapplied, SAVER, "KYB_SOLE_MEMBER_OWNERSHIP", false, NOW.minus(20, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
+  }
+
+  @Test
+  void leavesOutCompanyAccountsStillWaitingOrRejected() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    companyStatusChanged(COMPANY, PENDING, NOW.minus(9, DAYS));
+    companyAccountOpened(OTHER_COMPANY, ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
+    companyStatusChanged(OTHER_COMPANY, REJECTED, NOW.minus(9, DAYS));
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  private void companyStatusChanged(
+      String registryCode, SavingsFundOnboardingStatus status, Instant changedAt) {
+    ClockHolder.setClock(Clock.fixed(changedAt, ZoneOffset.UTC));
+    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, status);
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+  }
+
+  private Company companyAccountOpened(
+      String registryCode, String applicantPersonalCode, Instant openedAt) {
+    accountOpened(applicantPersonalCode, openedAt);
+    return companyOpenedBy(registryCode, applicantPersonalCode, openedAt);
+  }
+
+  private Company companyOpenedBy(
+      String registryCode, String applicantPersonalCode, Instant openedAt) {
+    var company = company(registryCode);
+    boardMember(company, applicantPersonalCode);
+    companySurvey(registryCode, applicantPersonalCode, openedAt.minus(1, DAYS));
+    ClockHolder.setClock(Clock.fixed(openedAt, ZoneOffset.UTC));
+    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, COMPLETED);
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+    return company;
+  }
+
+  private void companySurvey(String registryCode, String personalCode, Instant submittedAt) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO kyb_survey (user_id, registry_code, survey, created_time)
+            SELECT id, :registryCode, '{}', :submittedAt FROM users WHERE personal_code = :personalCode
+            """)
+        .param("registryCode", registryCode)
+        .param("submittedAt", Timestamp.from(submittedAt))
+        .param("personalCode", personalCode)
+        .update();
+  }
+
+  private void check(
+      Company company, String personalCode, String type, boolean success, Instant checkedAt) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO aml_check (personal_code, company_id, type, success, created_time)
+            VALUES (:personalCode, :companyId, :type, :success, :checkedAt)
+            """)
+        .param("personalCode", personalCode)
+        .param("type", type)
+        .param("companyId", company.getId())
+        .param("success", success)
+        .param("checkedAt", Timestamp.from(checkedAt))
+        .update();
+  }
+
+  private void unattributedPaymentFrom(String remitterIdCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO saving_fund_payment (amount, currency, status, remitter_id_code)
+            VALUES (100.00, 'EUR', 'RECEIVED', :remitterIdCode)
+            """)
+        .param("remitterIdCode", remitterIdCode)
+        .update();
   }
 
   private Company company(String registryCode) {
@@ -345,6 +644,13 @@ class FirstPaymentReminderRepositoryTest {
         .update();
   }
 
+  private void reminderSentTo(String personalCode, EmailType type, Instant sentAt) {
+    ClockHolder.setClock(Clock.fixed(sentAt, ZoneOffset.UTC));
+    reminderSentTo(personalCode, type);
+    entityManager.flush();
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+  }
+
   private void reminderSentTo(String personalCode, EmailType type) {
     entityManager.persist(
         Email.builder()
@@ -402,6 +708,34 @@ class FirstPaymentReminderRepositoryTest {
             .validUntil(validUntil)
             .build());
     entityManager.flush();
+  }
+
+  private void childLink(
+      UUID id,
+      String parentPersonalCode,
+      String childPersonalCode,
+      RepresentationType relationshipType) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO parent_child_link
+              (id, parent_personal_code, child_personal_code, relationship_type, valid_until, status)
+            VALUES (:id, :parentPersonalCode, :childPersonalCode, :relationshipType, :validUntil, 'ACTIVE')
+            """)
+        .param("id", id)
+        .param("parentPersonalCode", parentPersonalCode)
+        .param("childPersonalCode", childPersonalCode)
+        .param("relationshipType", relationshipType.name())
+        .param("validUntil", LocalDate.of(2030, 1, 1))
+        .update();
+  }
+
+  private void suspend(UUID linkId) {
+    jdbcClient
+        .sql("UPDATE parent_child_link SET suspended_at = :suspendedAt WHERE id = :id")
+        .param("suspendedAt", Timestamp.from(NOW.minus(1, DAYS)))
+        .param("id", linkId)
+        .update();
   }
 
   private void languagePreference(String personalCode, String languagePreference) {

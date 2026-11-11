@@ -7,10 +7,13 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu sissemakse ettevõtte Tuleva Täiendavasse Kogumisfondi on tehtud.
-          *|IF:RECIPIENTNAME|*Saaja on *|RECIPIENTNAME|* ja osakud jõuavad ettevõtte kontole
-          kahe tööpäeva jooksul.*|ELSE:|*Osakud jõuavad ettevõtte kontole kahe tööpäeva
-          jooksul.*|END:IF|*
+          *|IF:RECIPIENTNAME|*Sinu sissemakse *|RECIPIENTNAME|* Tuleva Täiendava Kogumisfondi
+          kontole on tehtud. Osakud jõuavad sinna kahe tööpäeva jooksul.*|ELSE:|*Sinu sissemakse
+          ettevõtte Tuleva Täiendavasse Kogumisfondi on tehtud. Osakud jõuavad ettevõtte kontole
+          kahe tööpäeva jooksul.*|END:IF|*
+        </mj-text>
+        <mj-text>
+          Majandusaasta aruande jaoks vajalikud andmed leiad oma OÜ Tuleva kontolt.
         </mj-text>
       </mj-column>
     </mj-section>
@@ -19,16 +22,6 @@
       <mj-column>
         <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
         <mj-include path="./partials/suggest_savings_fund_recurring_et.mjml" />
-        <mj-raw>*|END:IF|*</mj-raw>
-      </mj-column>
-    </mj-section>
-
-    <mj-section padding="0 24px">
-      <mj-column>
-        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
-        <mj-text>
-          Majandusaasta aruande jaoks vajalikud andmed leiad samuti oma OÜ Tuleva kontolt.
-        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

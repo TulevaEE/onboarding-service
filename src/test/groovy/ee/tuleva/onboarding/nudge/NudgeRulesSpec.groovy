@@ -332,6 +332,23 @@ class NudgeRulesSpec extends Specification {
     NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
   }
 
+  def "only a raise leaves room for a nudge after a rate change: #description"() {
+    given:
+    def inputs = open.feeComparison(sampleFeeComparison())
+
+    expect:
+    NudgeRules.decide(inputs.pendingPaymentRateRaise(true).build(), NudgeContext.SECOND_PILLAR_PAYMENT_RATE) == nudgeAfterARaise
+    NudgeRules.decide(inputs.pendingPaymentRateRaise(false).build(), NudgeContext.SECOND_PILLAR_PAYMENT_RATE) == NudgeDecision.of(NONE)
+
+    where:
+    description          | open                                                                         || nudgeAfterARaise
+    "second pillar fees" | everythingSorted().secondPillarFullyConverted(false).secondPillarFee(0.0065) || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
+    "third pillar start" | everythingSorted().thirdPillarActive(false)                                  || NudgeDecision.of(THIRD_PILLAR_START)
+    "third pillar raise" | everythingSorted().taxHeadroom(YES)                                          || NudgeDecision.of(THIRD_PILLAR_RAISE)
+    "savings fund"       | everythingSorted().savesInSavingsFund(NO)                                    || NudgeDecision.savingsFund(0.28)
+    "membership"         | everythingSorted().member(false)                                             || NudgeDecision.of(MEMBERSHIP)
+  }
+
   def "changing the second pillar rate never invites to open a second pillar"() {
     given:
     def inputs = everythingSorted().secondPillarActive(false).build()

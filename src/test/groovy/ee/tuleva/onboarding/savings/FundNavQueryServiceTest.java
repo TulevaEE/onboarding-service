@@ -89,14 +89,6 @@ class FundNavQueryServiceTest {
   }
 
   @Test
-  void findAssetTotal_isEmptyWhenTheDateHasNoPublishedCalculation() {
-    given(navReportRepository.existsPublishedByNavDateAndFundCode(NAV_DATE, "TUK00"))
-        .willReturn(false);
-
-    assertThat(service.findAssetTotal("TUK00", NAV_DATE)).isEmpty();
-  }
-
-  @Test
   void findLatestNavDateOnOrBefore_delegatesToRepositoryWithNavAccountType() {
     given(
             navReportRepository.findLatestNavDateByFundAndAccountTypeOnOrBefore(

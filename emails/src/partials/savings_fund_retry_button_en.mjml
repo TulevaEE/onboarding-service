@@ -1,0 +1,7 @@
+<mj-raw>*|IF:recipientIsChild|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?language=en&utm_content=payment_retry_child">Make a new contribution</mj-button>
+<mj-raw>*|ELSEIF:recipientIsCompany|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?language=en&utm_content=payment_retry_company">Make a new contribution</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">Make a new contribution</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

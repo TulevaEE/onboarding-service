@@ -478,4 +478,31 @@ class NudgeDecisionServiceTest {
     assertThat(serviceOn("2026-12-10").decide(member, self, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
   }
+
+  @Test
+  void raisingTheRateLeavesTheNextNudgeOpen() {
+    given(saverStatus.savesFor(any())).willReturn(false);
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, 6));
+
+    assertThat(service.decide(member, NudgeContext.SECOND_PILLAR_PAYMENT_RATE))
+        .isEqualTo(NudgeDecision.savingsFund(new BigDecimal("0.28")));
+  }
+
+  @Test
+  void loweringTheRateCarriesNoNudgeEvenWhenOneIsOpen() {
+    given(saverStatus.savesFor(any())).willReturn(false);
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(6, 2));
+
+    assertThat(service.decide(member, NudgeContext.SECOND_PILLAR_PAYMENT_RATE))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
+
+  @Test
+  void withdrawingAPendingRaiseCarriesNoNudgeEvenWhenOneIsOpen() {
+    given(saverStatus.savesFor(any())).willReturn(false);
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, 2));
+
+    assertThat(service.decide(member, NudgeContext.SECOND_PILLAR_PAYMENT_RATE))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+  }
 }

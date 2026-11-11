@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMerg
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
+import ee.tuleva.onboarding.auth.role.CompanyRoles;
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -34,6 +35,7 @@ public class LegalEntityOnboardedEmailSender {
   private final EmailPersistenceService emailPersistenceService;
   private final UserService userService;
   private final LatestKybSurveyInputs latestKybSurveyInputs;
+  private final CompanyRoles companyRoles;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = REQUIRES_NEW)
@@ -50,7 +52,7 @@ public class LegalEntityOnboardedEmailSender {
         return;
       }
 
-      send(applicant.get(), event.getCompany().name());
+      send(applicant.get(), registryCode, event.getCompany().name());
     } catch (RuntimeException e) {
       log.error("Failed to send the company onboarded email: registryCode={}", registryCode, e);
     }
@@ -66,7 +68,7 @@ public class LegalEntityOnboardedEmailSender {
     }
   }
 
-  private void send(User applicant, String companyName) {
+  private void send(User applicant, String registryCode, String companyName) {
     if (applicant.getEmail() == null) {
       log.warn(
           "Applicant has no email, skipping the company onboarded email: userId={}",
@@ -77,6 +79,9 @@ public class LegalEntityOnboardedEmailSender {
     var templateName = SAVINGS_FUND_COMPANY_ONBOARDED.getTemplateName(LOCALE);
     var mergeVars = new HashMap<String, Object>(getNameMergeVars(applicant));
     mergeVars.put("recipientName", companyName);
+    companyRoles
+        .findCompany(registryCode)
+        .ifPresent(company -> mergeVars.put("recipientAccountId", company.id().toString()));
 
     var message =
         emailService.newMandrillMessage(applicant.getEmail(), templateName, mergeVars, TAGS);

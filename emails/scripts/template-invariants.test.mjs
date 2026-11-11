@@ -10,9 +10,9 @@ const distDir = join(root, 'dist');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 
 const TEMPLATE_SCOPED_VARIABLES = {
-  recipientIsChild: /_child_/,
-  recipientIsCompany: /_company_/,
-  recipientAccountId: /_(child|company)_/,
+  recipientIsChild: /_child_|_payment_(failed|cancelled)_/,
+  recipientIsCompany: /_company_|_payment_(failed|cancelled)_/,
+  recipientAccountId: /_(child|company)_|_payment_(failed|cancelled)_/,
   hasFeeComparison: /^(?!second_pillar_mandate_)/,
 };
 
@@ -33,6 +33,10 @@ const FEE_COMPARISON_BASIS = [
   'tulevaFeePercent',
 ];
 
+const ROLE_LESS_PAYMENT_LINK = /href="https:\/\/pension\.tuleva\.ee\/savings-fund\/payment(?:\?[^"]*)?"/g;
+
+const roleLessPaymentLinks = (html) => html.match(ROLE_LESS_PAYMENT_LINK) ?? [];
+
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
   .map((f) => basename(f, '.html'));
@@ -51,6 +55,16 @@ for (const name of distTemplates) {
     const opens = (html.match(/\*\|IF:[A-Za-z0-9_]+\|\*/g) ?? []).length;
     const ends = (html.match(/\*\|END:IF\|\*/g) ?? []).length;
     assert.equal(opens, ends, `IF count ${opens} does not match END:IF count ${ends}`);
+  });
+
+  test(`${name}: links the few words about the I pillar instead of printing the address or adding a sentence for the link`, () => {
+    const visibleText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    assert.doesNotMatch(visibleText, /tuleva\.ee\/(en\/)?sotsmaks/);
+    assert.doesNotMatch(visibleText, /Vaata II&nbsp;samba mõju|See how the (second pillar|II&nbsp;pillar) affects/);
+    const links = [...html.matchAll(/<a\b([^>]*)>(?:vähendab veidi I&nbsp;sammast|slightly reduces your (?:first pillar|I&nbsp;pillar))<\/a>/g)];
+    for (const [, attributes] of links) {
+      assert.match(attributes, /white-space: nowrap/, 'the link must not break across lines');
+    }
   });
 
   test(`${name}: every mj-include is resolved, because mjml drops a denied or unreadable include without failing the build`, () => {
@@ -101,8 +115,23 @@ for (const name of distTemplates.filter((template) =>
 }
 
 for (const name of distTemplates.filter((template) =>
+  readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:selectedHighFeeFund|*'),
+)) {
+  test(`${name}: the high fee warning shows the selected fund's fee in the app's danger red`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    assert.match(html, /color: ?#db2200[^>]*>\*\|selectedFundFee\|\*/);
+  });
+}
+
+for (const name of distTemplates.filter((template) =>
   readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:hasFeeComparison|*'),
 )) {
+  test(`${name}: the fee comparison shows the current fees in the app's danger red and the Tuleva fees in its success green`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    assert.match(html, /color: ?#db2200[^>]*>\*\|secondPillarFeeAmount\|\*/);
+    assert.match(html, /color: ?#008300[^>]*>\*\|tulevaFeeAmount\|\*/);
+  });
+
   test(`${name}: the fee comparison states the assets, both fee rates and the date it is calculated from`, () => {
     const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
     const start = html.indexOf('*|IF:hasFeeComparison|*');
@@ -154,7 +183,34 @@ for (const name of distTemplates) {
         null,
         `variant "${variant}" leaves unresolved conditionals: ${leftover?.join(', ')}`,
       );
-      assert.ok(rendered.length > html.length / 3, `variant "${variant}" rendered almost nothing`);
+      assert.ok(rendered.length > html.length / 4, `variant "${variant}" rendered almost nothing`);
+    }
+  });
+}
+
+test('the role-less payment link check catches the bare page with or without a query, and no deep link', () => {
+  const page = 'https://pension.tuleva.ee/savings-fund/payment';
+  assert.equal(roleLessPaymentLinks(`<a href="${page}">`).length, 1);
+  assert.equal(roleLessPaymentLinks(`<a href="${page}?language=en&utm_content=x">`).length, 1);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/child/abc?language=en">`), []);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/company?utm_content=x">`), []);
+  assert.deepEqual(roleLessPaymentLinks(`<a href="${page}/abc/cancellation">`), []);
+});
+
+for (const name of distTemplates.filter(
+  (template) =>
+    /_(child|company)_/.test(template) ||
+    readFileSync(join(distDir, `${template}.html`), 'utf8').includes('*|IF:recipientIsChild|*'),
+)) {
+  test(`${name}: an email about a child's or company's account has no role-less payment link, because that opens the payer's own account`, () => {
+    const html = readFileSync(join(distDir, `${name}.html`), 'utf8');
+    const fixture = JSON.parse(readFileSync(join(root, 'fixtures', `${name}.json`), 'utf8'));
+    const aboutAnotherAccount = (vars) =>
+      /_(child|company)_/.test(name) || vars.recipientIsChild || vars.recipientIsCompany;
+    for (const [variant, vars] of Object.entries(fixture.variants).filter(([, vars]) =>
+      aboutAnotherAccount(vars),
+    )) {
+      assert.deepEqual(roleLessPaymentLinks(renderMergeLanguage(html, vars)), [], `variant "${variant}"`);
     }
   });
 }

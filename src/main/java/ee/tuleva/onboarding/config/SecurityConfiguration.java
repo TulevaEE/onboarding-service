@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
+import static ee.tuleva.onboarding.config.ReadOnlyForWards.unlessWard;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasAuthority;
-import static org.springframework.security.authorization.AuthorizationManagers.allOf;
-import static org.springframework.security.authorization.AuthorizationManagers.not;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
@@ -33,6 +32,18 @@ public class SecurityConfiguration {
     "/v1/capital-transfer-contracts/**",
     "/v1/hackathon-registration/**",
     "/v1/hackathon-ideas/**"
+  };
+
+  private static final String[] MEMBER_READS_THAT_TRANSACT = {
+    "/v1/capital-transfer-contracts/*/signature/*/status"
+  };
+
+  private static final String[] READS_THAT_TRANSACT = {
+    "/v1/mandates/*/signature/*/status",
+    "/v1/mandate-batches/*/signature/*/status",
+    "/v1/insurance-transfer-forms/*/signature/*/status",
+    "/v1/payments/link",
+    "/v1/kyb/surveys/initial-validation"
   };
 
   @Bean
@@ -75,10 +86,16 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(POST, "/v1/connect/*/deny")
                     .permitAll()
+                    .requestMatchers(POST, "/v1/t")
+                    .hasAuthority(USER)
+                    .requestMatchers(MEMBER_READS_THAT_TRANSACT)
+                    .access(unlessWard(hasAuthority(MEMBER)))
                     .requestMatchers(writesTo(MEMBER_PATHS))
-                    .access(allOf(hasAuthority(MEMBER), not(hasAuthority(WARD))))
+                    .access(unlessWard(hasAuthority(MEMBER)))
+                    .requestMatchers(READS_THAT_TRANSACT)
+                    .access(unlessWard(hasAuthority(USER)))
                     .requestMatchers(writesTo("/v1/**"))
-                    .access(allOf(hasAuthority(USER), not(hasAuthority(WARD))))
+                    .access(unlessWard(hasAuthority(USER)))
                     .requestMatchers(
                         GET, "/v1/me/capital", "/v1/me/capital/events", "/v1/capital/total")
                     .hasAuthority(MEMBER)
@@ -112,6 +129,8 @@ public class SecurityConfiguration {
                     .hasAuthority(USER)
                     .anyRequest()
                     .authenticated())
+        .exceptionHandling(
+            exceptions -> exceptions.accessDeniedHandler(new ReadOnlyAccessDeniedHandler()))
         .sessionManagement(
             management ->
                 management.sessionCreationPolicy(IF_REQUIRED).sessionFixation().newSession())

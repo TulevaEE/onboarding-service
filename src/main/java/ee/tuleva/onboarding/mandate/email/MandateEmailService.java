@@ -110,16 +110,9 @@ public class MandateEmailService {
                       new NoSuchElementException(
                           "No second pillar pending payment rate to send an email with")));
       mergeVars.put("oldPaymentRate", paymentRates.getCurrent());
-
-      Integer newRate = paymentRates.getPending().orElseThrow();
-      Integer oldRate =
-          requireNonNull(
-              paymentRates.getCurrent(),
-              "Missing current second pillar payment rate: personalCode=" + user.getPersonalCode());
-      boolean decreased = isPaymentRateDecreased(oldRate, newRate);
-      mergeVars.put("decreased", decreased);
-      mergeVars.put("increased", !decreased);
-      mergeVars.put("maxPaymentRate", isMaxPaymentRate(newRate));
+      mergeVars.put("decreased", paymentRates.hasPendingDecrease());
+      mergeVars.put("increased", paymentRates.hasPendingRaise());
+      mergeVars.put("maxPaymentRate", isMaxPaymentRate(paymentRates.getPending().orElseThrow()));
 
       mergeVars.put(
           "paymentRateFulfillmentDate",
@@ -230,10 +223,6 @@ public class MandateEmailService {
                     EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
                     response.getStatus(),
                     mandate.getIdOrThrow()));
-  }
-
-  boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {
-    return newRate == 2 || newRate < oldRate;
   }
 
   boolean isMaxPaymentRate(Integer newRate) {

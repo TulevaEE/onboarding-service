@@ -7,6 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -27,9 +31,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class KycSurveyServiceTest {
@@ -40,8 +46,9 @@ class KycSurveyServiceTest {
   @Mock private KycSurveyRepository kycSurveyRepository;
   @Mock private KycCheckService kycCheckService;
   @Mock private UserService userService;
+  @Mock private PlatformTransactionManager transactionManager;
 
-  @InjectMocks private KycSurveyService kycSurveyService;
+  private KycSurveyService kycSurveyService;
 
   private final User user =
       User.builder().id(USER_ID).email("test@example.com").phoneNumber("+37255555555").build();
@@ -49,6 +56,15 @@ class KycSurveyServiceTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+    lenient()
+        .when(transactionManager.getTransaction(any()))
+        .thenReturn(new SimpleTransactionStatus());
+    kycSurveyService =
+        new KycSurveyService(
+            kycSurveyRepository,
+            kycCheckService,
+            userService,
+            new TransactionTemplate(transactionManager));
   }
 
   @AfterEach
@@ -70,14 +86,58 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(subject));
-    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     var saved = kycSurveyService.submit(person, survey);
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
+    verify(kycCheckService).beforeCheck(subject, Countries.of("EE"));
+    verify(kycCheckService).check(subject, saved);
+  }
+
+  @Test
+  void submit_commitsTheSurveyAndWhatBeforeCheckWritesBeforeTheCheck() {
+    var person = personResolvingTo(user);
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    var saved = kycSurveyService.submit(person, survey);
+
+    var inOrder = inOrder(transactionManager, kycSurveyRepository, kycCheckService);
+    inOrder.verify(transactionManager).getTransaction(any());
+    inOrder.verify(kycSurveyRepository).save(any(KycSurvey.class));
+    inOrder.verify(kycCheckService).beforeCheck(user, Countries.of("EE"));
+    inOrder.verify(transactionManager).commit(any());
+    inOrder.verify(kycCheckService).check(user, saved);
+  }
+
+  @Test
+  void submit_rollsBackTheSurveyAndAsksForNoCheckWhenBeforeCheckFails() {
+    var person = personResolvingTo(user);
+    var survey =
+        identitySurvey(
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    willThrow(new IllegalStateException("screening failed"))
+        .given(kycCheckService)
+        .beforeCheck(user, Countries.of("EE"));
+
+    assertThatThrownBy(() -> kycSurveyService.submit(person, survey))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(transactionManager).rollback(any());
+    verify(transactionManager, never()).commit(any());
+    verify(kycCheckService, never()).check(any(), any());
   }
 
   @Test
@@ -109,21 +169,22 @@ class KycSurveyServiceTest {
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
     given(userService.findByPersonalCode(person.getPersonalCode()))
         .willReturn(Optional.of(subject));
-    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     var saved = kycSurveyService.submit(person, survey);
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
+    verify(kycCheckService).beforeCheck(subject, Countries.of("EE"));
+    verify(kycCheckService).check(subject, saved);
   }
 
   @Test
   void getIdentity_whenActingAsCompany_returnsRepresentativeIdentity() {
     var person = sampleAuthenticatedPersonLegalEntity().build();
     given(userService.findByPersonalCode(person.getPersonalCode())).willReturn(Optional.of(user));
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.empty());
 
     var identity = kycSurveyService.getIdentity(person);
@@ -136,7 +197,7 @@ class KycSurveyServiceTest {
   @Test
   void getIdentity_returnsUserContactDetailsAndIncompleteWhenNoSurveyExists() {
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.empty());
 
     var identity = kycSurveyService.getIdentity(person);
@@ -158,7 +219,7 @@ class KycSurveyServiceTest {
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -185,7 +246,7 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -213,7 +274,7 @@ class KycSurveyServiceTest {
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(User.builder().id(USER_ID).build());
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -243,7 +304,7 @@ class KycSurveyServiceTest {
             new PhoneNumber(new TextValue("TEXT", "+37211111111")),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -272,7 +333,7 @@ class KycSurveyServiceTest {
             new Email(new EmailValue("TEXT", "founder@example.com")),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(User.builder().id(USER_ID).build());
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -302,7 +363,7 @@ class KycSurveyServiceTest {
             new PhoneNumber(new TextValue("TEXT", "")),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -330,7 +391,7 @@ class KycSurveyServiceTest {
             new Email(new EmailValue("TEXT", "")),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(User.builder().id(USER_ID).build());
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -350,7 +411,7 @@ class KycSurveyServiceTest {
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))),
             new PepSelfDeclaration(new OptionValue<>("OPTION", PepStatus.IS_NOT_PEP)));
     var person = personResolvingTo(user);
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(USER_ID))
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(USER_ID))
         .willReturn(Optional.of(kycSurvey(USER_ID, survey, createdTime)));
 
     var identity = kycSurveyService.getIdentity(person);
@@ -391,11 +452,11 @@ class KycSurveyServiceTest {
                 new AddressValue(
                     "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
     var person = personResolvingTo(subject);
-    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+    given(kycSurveyRepository.save(any(KycSurvey.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     kycSurveyService.submit(person, survey);
 
-    verify(kycCheckService).check(subject, Countries.of("EE", "RU"), survey.purpose());
+    verify(kycCheckService).beforeCheck(subject, Countries.of("EE", "RU"));
   }
 }

@@ -22,7 +22,7 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
 
   private String email;
 
-  private String phoneNumber;
+  @Nullable private String phoneNumber;
 
   @JsonIgnore
   public MandateType getMandateType() {

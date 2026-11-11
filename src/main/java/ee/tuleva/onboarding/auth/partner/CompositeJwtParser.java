@@ -24,7 +24,7 @@ public class CompositeJwtParser {
       try {
         return parser.parseSignedClaims(token);
       } catch (JwtException e) {
-        log.debug("Parser {} failed for token={}", parser, token, e);
+        log.debug("JWT parser failed: reason={}", e.toString());
         if (primaryException == null) {
           primaryException = e;
         } else {

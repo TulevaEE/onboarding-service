@@ -17,7 +17,7 @@ public record LegacyMandateSubmission(
     List<FundTransferInstruction> fundTransferExchanges,
     @Nullable Country address,
     String email,
-    String phoneNumber,
+    @Nullable String phoneNumber,
     @Nullable BigDecimal paymentRate) {
 
   public record FundTransferInstruction(

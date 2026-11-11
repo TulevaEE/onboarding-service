@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.kyc;
 
+import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.type.TypeReference;
@@ -9,6 +11,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+    prefix = "aml-service",
+    name = "enabled",
+    havingValue = "false",
+    matchIfMissing = true)
 public class KycCheckRepository implements KycChecker {
 
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
@@ -17,7 +24,8 @@ public class KycCheckRepository implements KycChecker {
   private final JsonMapper objectMapper;
 
   @Override
-  public KycCheck check(Long userId) {
+  public KycCheck check(User user) {
+    Long userId = user.getIdOrThrow();
     return jdbcClient
         .sql("SELECT risk_level, metadata::text FROM kyc_ob_assess_user_risk(:userId::integer)")
         .param("userId", userId)

@@ -1,0 +1,7 @@
+<mj-raw>*|IF:recipientIsChild|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?utm_content=payment_retry_child">Teen uue sissemakse</mj-button>
+<mj-raw>*|ELSEIF:recipientIsCompany|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?utm_content=payment_retry_company">Teen uue sissemakse</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment">Teen uue sissemakse</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

@@ -15,6 +15,9 @@ final class NudgeRules {
   }
 
   private static NudgeDecision decision(NudgeInputs in, NudgeContext context) {
+    if (rateChangeWithoutARaise(in, context)) {
+      return of(NONE);
+    }
     if (!context.impliesSavingsFundSaver()) {
       return chain(in, context);
     }
@@ -23,6 +26,10 @@ final class NudgeRules {
       case CHILD -> SavingsNudges.savingsFundRecurring(in).orElseGet(() -> chain(in, context));
       case COMPANY -> SavingsNudges.savingsFundRecurring(in).orElse(of(NONE));
     };
+  }
+
+  private static boolean rateChangeWithoutARaise(NudgeInputs in, NudgeContext context) {
+    return context == NudgeContext.SECOND_PILLAR_PAYMENT_RATE && !in.pendingPaymentRateRaise();
   }
 
   private static NudgeDecision chain(NudgeInputs in, NudgeContext context) {

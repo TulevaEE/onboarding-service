@@ -29,4 +29,11 @@ class SecondPillarLeaversTest {
 
     assertThat(secondPillarLeavers.hasLeft("38888888888")).isFalse();
   }
+
+  @Test
+  void asksTheRegistryWhetherContributionsCannotRestart() {
+    given(unitOwnerRepository.contributionsCannotRestart("38888888888")).willReturn(true);
+
+    assertThat(secondPillarLeavers.contributionsCannotRestart("38888888888")).isTrue();
+  }
 }

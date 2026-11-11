@@ -12,6 +12,10 @@
           Tuleva Additional Investment Fund has been received.*|END:IF|* Fund units will appear
           on the company's account within two business days.
         </mj-text>
+        <mj-text>
+          You can find the information needed for the annual report in your company's Tuleva
+          account.
+        </mj-text>
       </mj-column>
     </mj-section>
 
@@ -19,17 +23,6 @@
       <mj-column>
         <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
         <mj-include path="./partials/suggest_savings_fund_recurring_en.mjml" />
-        <mj-raw>*|END:IF|*</mj-raw>
-      </mj-column>
-    </mj-section>
-
-    <mj-section padding="0 24px">
-      <mj-column>
-        <mj-raw>*|IF:suggestSavingsFundRecurringPayment|*</mj-raw>
-        <mj-text>
-          You can also find the information needed for the annual report in your company's Tuleva
-          account.
-        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

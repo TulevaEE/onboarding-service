@@ -158,7 +158,8 @@ class MandateBatchEmailServiceTest {
   void rejoinKeepingTheTulevaStockFundOnFileNamesItAsWhereContributionsGoAgain() {
     var user = sampleUser().build();
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK75)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK75, 2)));
 
     sendEstonianRejoin(sampleRejoinMandate());
 
@@ -169,7 +170,8 @@ class MandateBatchEmailServiceTest {
   void rejoinKeepingTheTulevaBondFundOnFileNamesItAsWhereContributionsGoAgain() {
     var user = sampleUser().build();
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK00)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, TUK00, 2)));
 
     sendEstonianRejoin(sampleRejoinMandate());
 
@@ -180,7 +182,8 @@ class MandateBatchEmailServiceTest {
   void rejoinHoldingTulevaUnitsButContributingElsewhereSaysContributionsGoToTheOldFund() {
     var user = sampleUser().build();
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
-        .willReturn(Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, null)));
+        .willReturn(
+            Optional.of(new PensionRegistrySnapshot(false, true, true, true, true, null, 2)));
 
     sendEstonianRejoin(sampleRejoinMandate());
 
@@ -211,6 +214,43 @@ class MandateBatchEmailServiceTest {
 
     shouldSendEstonianRejoin(
         with(nothingChanged(), Map.of("paymentRateChange", true, "paymentRate", 4)));
+  }
+
+  @Test
+  void rejoinFilingNoRateApplicationNamesTheRateAlreadyOnFile() {
+    givenRegistryPaymentRate(6);
+
+    sendEstonianRejoin(sampleRejoinMandate());
+
+    shouldSendEstonianRejoin(with(nothingChanged(), Map.of("paymentRate", 6)));
+  }
+
+  @Test
+  void rejoinFilingARateApplicationNamesThatRateOverTheOneOnFile() {
+    givenRegistryPaymentRate(6);
+
+    sendEstonianRejoin(
+        sampleRejoinMandate(),
+        sampleMandateWithPaymentRate(new PaymentRateChangeMandateDetails(FOUR)));
+
+    shouldSendEstonianRejoin(
+        with(nothingChanged(), Map.of("paymentRateChange", true, "paymentRate", 4)));
+  }
+
+  @Test
+  void rejoinWithNoRateOnFileNamesTheDefaultRate() {
+    givenRegistryPaymentRate(null);
+
+    sendEstonianRejoin(sampleRejoinMandate());
+
+    shouldSendEstonianRejoin(nothingChanged());
+  }
+
+  private void givenRegistryPaymentRate(Integer paymentRate) {
+    given(pensionRegistry.snapshotFor(sampleUser().build().getPersonalCode()))
+        .willReturn(
+            Optional.of(
+                new PensionRegistrySnapshot(false, false, true, true, true, null, paymentRate)));
   }
 
   private void sendEstonianRejoin(Mandate rejoin, Mandate... alongside) {

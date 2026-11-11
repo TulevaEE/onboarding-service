@@ -1,6 +1,6 @@
 # seb-position-uploader
 
-Google Apps Script that polls the `funds@tuleva.ee` Gmail mailbox for SEB position-report attachments and uploads them to the `tuleva-investment-reports` S3 bucket. The Spring Boot `ReportImportJob` in this repo then pulls those files and ingests them into `investment_report` / `investment_fund_position`. The exact sender allowlist lives in `src/Code.js` (`SOURCES`).
+Google Apps Script that polls the `funds@tuleva.ee` Gmail mailbox for report and trade-confirmation attachments and uploads them to the `tuleva-investment-reports` S3 bucket: SEB position and pending-transaction reports and Swedbank portfolio reports (read by `ReportImportJob` into `investment_report` / `investment_fund_position`), Flow Traders trade confirmations (`ft-confirmations/`, read by `FtConfirmationImportJob`) and SEB mutual-fund trade confirmations (`seb-confirmations/`). The exact sender allowlist lives in `src/Code.js` (`SOURCES`).
 
 This script lives in [Google Apps Script](https://script.google.com), not on our servers. It runs unattended every 5 minutes via a Google time-driven trigger. The source of truth is `src/Code.js` in this repo; the live editor copy is kept in sync via `clasp push`.
 

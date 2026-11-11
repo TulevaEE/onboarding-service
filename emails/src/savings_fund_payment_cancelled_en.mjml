@@ -11,9 +11,7 @@
           request in time and will send the money back today to the same account it came from.
         </mj-text>
         <mj-text>If you like, make a new contribution:</mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
-          Make a new contribution
-        </mj-button>
+        <mj-include path="./partials/savings_fund_retry_button_en.mjml" />
       </mj-column>
     </mj-section>
 

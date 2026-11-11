@@ -15,4 +15,9 @@ public class SecondPillarLeavers implements SecondPillarLeaverStatus {
   public boolean hasLeft(String personalCode) {
     return unitOwnerRepository.hasLeftSecondPillar(personalCode);
   }
+
+  @Override
+  public boolean contributionsCannotRestart(String personalCode) {
+    return unitOwnerRepository.contributionsCannotRestart(personalCode);
+  }
 }

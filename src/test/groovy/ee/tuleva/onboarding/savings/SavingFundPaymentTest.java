@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings;
 
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
@@ -47,5 +48,90 @@ class SavingFundPaymentTest {
 
     assertThat(builder.build()).isEqualTo(payment).hasSameHashCodeAs(payment);
     assertThat(builder.remitterName("Testa Testija").build()).isNotEqualTo(payment);
+  }
+
+  @Test
+  void isPaidByTheUnitHolderWhenVerificationRecordedNoThirdParty() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode(null)
+            .thirdPartyDeposit(false)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isTrue();
+  }
+
+  @Test
+  void isNotPaidByTheUnitHolderWhenVerificationRecordedAThirdParty() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode("38888888888")
+            .thirdPartyDeposit(true)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isFalse();
+  }
+
+  @Test
+  void isPaidByTheUnitHolderWhenAPaymentVerifiedBeforeTheVerdictWasRecordedCameFromTheirOwnCode() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode("61506150006")
+            .thirdPartyDeposit(null)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isTrue();
+  }
+
+  @Test
+  void
+      isNotPaidByTheUnitHolderWhenAPaymentVerifiedBeforeTheVerdictWasRecordedCameFromAnotherCode() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode("38812121215")
+            .thirdPartyDeposit(null)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isFalse();
+  }
+
+  @Test
+  void cannotTellWhoPaidWithoutAVerdictOrARemitterCode() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode(null)
+            .thirdPartyDeposit(null)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isNull();
+  }
+
+  @Test
+  void cannotTellWhoPaidFromARemitterIdentifierThatIsNoEstonianCode() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(PERSON, "61506150006"))
+            .remitterIdCode("P13694547")
+            .thirdPartyDeposit(null)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isNull();
+  }
+
+  @Test
+  void isPaidByTheCompanyThatHoldsTheUnitsFromItsOwnRegistryCode() {
+    var payment =
+        aPayment()
+            .partyId(new PartyId(LEGAL_ENTITY, "12345678"))
+            .remitterIdCode("12345678")
+            .thirdPartyDeposit(null)
+            .build();
+
+    assertThat(payment.paidByUnitHolder()).isTrue();
   }
 }

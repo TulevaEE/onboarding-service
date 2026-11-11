@@ -72,7 +72,12 @@ class ScheduledRiskLevelCheckJobFallbackTest {
               "https://aml-service.test",
               "test-api-token-of-at-least-thirty-two-characters",
               ofSeconds(5),
-              ofSeconds(60)));
+              ofSeconds(60),
+              false,
+              ofSeconds(1),
+              ofSeconds(2),
+              ofSeconds(1),
+              ofSeconds(5)));
 
   @BeforeEach
   void setUp() {

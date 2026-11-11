@@ -521,21 +521,39 @@ class MandateEmailServiceSpec extends Specification {
     Locale.ENGLISH   || "1.23"
   }
 
-  def "isPaymentRateDecreased returns correct value for all rate combinations"() {
-    expect:
-    mandateEmailService.isPaymentRateDecreased(oldRate, newRate) == isPaymentRateDecreased
+  def "a rate application back to the current #rate% is neither an increase nor a decrease"() {
+    given:
+    def user = sampleUser().build()
+    def mandate = sampleMandateWithPaymentRate()
+    def decision = NudgeDecision.of(NONE)
+    def message = new MandrillMessage()
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+
+    def mergeVars = [
+        fname                     : user.firstName,
+        lname                     : user.lastName,
+        paymentRateFulfillmentDate: "01.01.2022",
+        newPaymentRate            : rate,
+        oldPaymentRate            : rate,
+        decreased                 : false,
+        increased                 : false,
+        maxPaymentRate            : rate == 6,
+    ] + decision.mergeVars(Locale.ENGLISH)
+
+    authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
+    secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> new PaymentRates(rate, rate)
+    mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, decision, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, _, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_payment_rate_en") >> Optional.empty()
 
     where:
-    oldRate | newRate || isPaymentRateDecreased
-    2       | 2       || true
-    2       | 4       || false
-    2       | 6       || false
-    4       | 2       || true
-    4       | 4       || false
-    4       | 6       || false
-    6       | 2       || true
-    6       | 4       || true
-    6       | 6       || false
+    rate << [2, 4, 6]
   }
 
 

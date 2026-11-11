@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import ee.tuleva.onboarding.auth.role.CompanyRoles;
+import ee.tuleva.onboarding.auth.role.CompanyRoles.CompanyRole;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.LegalForm;
 import ee.tuleva.onboarding.kyb.PersonalCode;
@@ -26,20 +28,24 @@ import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class LegalEntityOnboardedEmailSenderTest {
+
+  private static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
   private final EmailService emailService = mock(EmailService.class);
   private final EmailPersistenceService emailPersistenceService =
       mock(EmailPersistenceService.class);
   private final UserService userService = mock(UserService.class);
   private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
+  private final CompanyRoles companyRoles = mock(CompanyRoles.class);
 
   private final LegalEntityOnboardedEmailSender sender =
       new LegalEntityOnboardedEmailSender(
-          emailService, emailPersistenceService, userService, latestKybSurveyInputs);
+          emailService, emailPersistenceService, userService, latestKybSurveyInputs, companyRoles);
 
   private final CompanyDto company =
       new CompanyDto(new RegistryCode("12345678"), "Mesila OÜ", List.of("62011"), LegalForm.OÜ);
@@ -80,6 +86,59 @@ class LegalEntityOnboardedEmailSenderTest {
   @Test
   void namesTheCompanyInTheMergeVariables() {
     given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
+
+    sender.onLegalEntityOnboarded(event());
+
+    Map<String, Object> expectedMergeVars =
+        Map.of(
+            "fname",
+            applicant.getFirstName(),
+            "lname",
+            applicant.getLastName(),
+            "recipientName",
+            "Mesila OÜ");
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_company_onboarded_et",
+            expectedMergeVars,
+            List.of("savings_fund"));
+  }
+
+  @Test
+  void passesTheCompanyAccountIdSoTheButtonOpensThisCompanyForABoardMemberOfSeveral() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(companyRoles.findCompany("12345678"))
+        .willReturn(Optional.of(new CompanyRole(COMPANY_ID, "12345678", "Mesila OÜ")));
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
+
+    sender.onLegalEntityOnboarded(event());
+
+    Map<String, Object> expectedMergeVars =
+        Map.of(
+            "fname",
+            applicant.getFirstName(),
+            "lname",
+            applicant.getLastName(),
+            "recipientName",
+            "Mesila OÜ",
+            "recipientAccountId",
+            COMPANY_ID.toString());
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_company_onboarded_et",
+            expectedMergeVars,
+            List.of("savings_fund"));
+  }
+
+  @Test
+  void leavesOutTheAccountIdSoTheButtonUsesTheIdlessLinkWhileTheCompanyIsNotOnFile() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(companyRoles.findCompany("12345678")).willReturn(Optional.empty());
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
 

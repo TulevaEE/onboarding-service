@@ -3,10 +3,17 @@
     "lapse nimi teada": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "savingsFundFee": "0,28"
+      "savingsFundFee": "0,28",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "lapse nimi teadmata": {
       "FNAME": "Mari",
+      "savingsFundFee": "0,28",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "konto tunnuseta": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
       "savingsFundFee": "0,28"
     }
   }

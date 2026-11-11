@@ -2,10 +2,8 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 import com.sun.net.httpserver.HttpServer;
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.time.ClockConfig;
 import java.io.IOException;
@@ -16,7 +14,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.restclient.RestClientCustomizer;
@@ -64,9 +61,8 @@ class RiskLevelsWiringTest {
   }
 
   @Test
-  void asksAmlServiceForTheEffectiveLevelsWhenHighRiskIsEnabled() {
+  void asksAmlServiceForTheEffectiveLevels() {
     contextRunner()
-        .withPropertyValues("aml-service.high-risk-enabled=true")
         .run(
             context -> {
               assertThat(context).hasSingleBean(RiskLevels.class);
@@ -77,9 +73,8 @@ class RiskLevelsWiringTest {
   }
 
   @Test
-  void asksAmlServiceForTheCompanysEffectiveLevelWhenHighRiskIsEnabled() {
+  void asksAmlServiceForTheCompanysEffectiveLevel() {
     contextRunner()
-        .withPropertyValues("aml-service.high-risk-enabled=true")
         .run(
             context -> {
               assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
@@ -90,20 +85,8 @@ class RiskLevelsWiringTest {
   }
 
   @Test
-  void asksAmlServiceForNoCompanysLevelWhenHighRiskIsNotEnabled() {
-    contextRunner()
-        .run(
-            context -> {
-              assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
-                  .isFalse();
-              assertThat(requestedPaths).isEmpty();
-            });
-  }
-
-  @Test
   void keepsThePersonalCodeInTheUrlAwayFromTheApplicationsRestClientCustomizers() {
     contextRunner()
-        .withPropertyValues("aml-service.high-risk-enabled=true")
         .run(
             context -> {
               context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE);
@@ -114,27 +97,15 @@ class RiskLevelsWiringTest {
             });
   }
 
-  @Test
-  void readsTheLatestAmlChecksWithoutAskingAmlServiceWhenHighRiskIsNotEnabled() {
-    contextRunner()
-        .run(
-            context -> {
-              assertThat(context).hasSingleBean(RiskLevels.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
-              assertThat(requestedPaths).isEmpty();
-            });
-  }
-
   @ParameterizedTest
-  @CsvSource({"dev, true", "dev, false", "staging, true", "staging, false"})
-  void answersWithTheAmlServiceMockInDevAndStagingWithoutAskingAmlServiceWhateverTheFlag(
-      String profile, String highRiskEnabled) {
+  @ValueSource(strings = {"dev", "staging"})
+  void answersWithTheAmlServiceMockInDevAndStagingWithoutAskingAmlService(String profile) {
     contextRunner()
-        .withPropertyValues(
-            "spring.profiles.active=" + profile, "aml-service.high-risk-enabled=" + highRiskEnabled)
+        .withPropertyValues("spring.profiles.active=" + profile)
         .run(
             context -> {
               assertThat(context).getBean(RiskLevels.class).isInstanceOf(DevRiskLevels.class);
+              assertThat(context).doesNotHaveBean(EffectiveRiskLevelClient.class);
               assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
               assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
                   .isFalse();
@@ -144,33 +115,15 @@ class RiskLevelsWiringTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"production", "test", "ci,test", "pg,test"})
-  void asksAmlServiceInEveryOtherProfileWhenHighRiskIsEnabled(String profiles) {
-    contextRunner()
-        .withPropertyValues(
-            "spring.profiles.active=" + profiles, "aml-service.high-risk-enabled=true")
-        .run(
-            context -> {
-              assertThat(context)
-                  .getBean(RiskLevels.class)
-                  .isInstanceOf(ConfiguredRiskLevels.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
-              assertThat(requestedPaths)
-                  .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
-            });
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"production", "test", "ci,test", "pg,test"})
-  void readsTheLatestAmlChecksInEveryOtherProfileWhenHighRiskIsNotEnabled(String profiles) {
+  void asksAmlServiceInEveryOtherProfile(String profiles) {
     contextRunner()
         .withPropertyValues("spring.profiles.active=" + profiles)
         .run(
             context -> {
-              assertThat(context)
-                  .getBean(RiskLevels.class)
-                  .isInstanceOf(ConfiguredRiskLevels.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
-              assertThat(requestedPaths).isEmpty();
+              assertThat(context).getBean(RiskLevels.class).isInstanceOf(EffectiveRiskLevels.class);
+              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
+              assertThat(requestedPaths)
+                  .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
             });
   }
 
@@ -181,10 +134,7 @@ class RiskLevelsWiringTest {
             AmlServiceConfiguration.class,
             EffectiveRiskLevelConfiguration.class,
             EffectiveRiskLevels.class,
-            AmlCheckRiskLevels.class,
-            ConfiguredRiskLevels.class,
             DevRiskLevels.class)
-        .withBean(AmlCheckRepository.class, () -> mock(AmlCheckRepository.class))
         .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
         .withBean(
             RestClientCustomizer.class,

@@ -4,12 +4,11 @@ import static java.time.Duration.ofMillis;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -20,6 +19,7 @@ import org.springframework.web.client.RestClient;
 
 @Slf4j
 @Configuration
+@Profile({"!dev & !staging"})
 @EnableConfigurationProperties(AmlServiceProperties.class)
 class AmlServiceConfiguration {
 
@@ -31,24 +31,12 @@ class AmlServiceConfiguration {
   }
 
   private static void warnOfWhatAMissingApiTokenStops(AmlServiceProperties properties) {
-    if (properties.configuredApiToken().isPresent()) {
-      return;
-    }
-    List<String> stopped = new ArrayList<>();
-    if (properties.enabled()) {
-      stopped.add("every KYC survey submission fails");
-      stopped.add("the 05:30 risk level run falls back to the materialized views each night");
-    }
-    if (properties.highRiskEnabled()) {
-      stopped.add(
-          "every person and company redemption that screening does not freeze is held, at its"
-              + " screening deadline at the latest");
-    }
-    if (!stopped.isEmpty()) {
+    if (properties.configuredApiToken().isEmpty()) {
       log.warn(
-          "aml-service API token is not configured, so {} until it is: missing=api-token"
-              + " (AML_SERVICE_API_TOKEN)",
-          String.join(", and ", stopped));
+          "aml-service API token is not configured, so every KYC survey submission fails, the"
+              + " nightly risk level run fails, and every person and company redemption that"
+              + " screening does not freeze is held, at its screening deadline at the latest, until"
+              + " it is: missing=api-token (AML_SERVICE_API_TOKEN)");
     }
   }
 

@@ -25,12 +25,10 @@ class EffectiveRiskLevelConfigurationTest {
     try (var unresponsiveServer = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
       var properties =
           new AmlServiceProperties(
-              true,
               "http://127.0.0.1:" + unresponsiveServer.getLocalPort(),
               "test-api-token-of-at-least-thirty-two-characters",
               ofSeconds(60),
               ofSeconds(60),
-              true,
               ofMillis(500),
               ofMillis(250),
               ofSeconds(1),
@@ -49,15 +47,13 @@ class EffectiveRiskLevelConfigurationTest {
   }
 
   @Test
-  void startsWithHighRiskEnabledWithoutAnApiToken() {
+  void startsWithoutAnApiToken() {
     var properties =
         new AmlServiceProperties(
-            false,
             "https://aml-service.test",
             "",
             ofSeconds(5),
             ofSeconds(60),
-            true,
             ofSeconds(1),
             ofSeconds(2),
             ofSeconds(1),

@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,12 +17,15 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobFailedEvent;
-import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobFellBackEvent;
+import ee.tuleva.onboarding.time.ClockConfig;
 import java.time.Instant;
 import java.util.List;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -37,11 +37,6 @@ import org.springframework.web.client.RestClientResponseException;
 
 class ScheduledRiskLevelCheckJobTest {
 
-  private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
-  private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
-  private static final double EXPECTED_PROBABILITY =
-      MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY / DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN;
-
   private static final AssessedRiskLevels THIRD_PILLAR_RUN =
       new AssessedRiskLevels(Instant.parse("2026-10-28T02:45:00Z"), List.of());
   private static final AssessedRiskLevels TKF_RUN =
@@ -49,22 +44,12 @@ class ScheduledRiskLevelCheckJobTest {
 
   private final RiskLevelService riskLevelService = mock(RiskLevelService.class);
   private final AmlServiceRiskLevels amlServiceRiskLevels = mock(AmlServiceRiskLevels.class);
-  private final AmlRiskReader amlRiskReader = mock(AmlRiskReader.class);
-  private final TkfRiskReader tkfRiskReader = mock(TkfRiskReader.class);
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+  private final ScheduledRiskLevelCheckJob job =
+      new ScheduledRiskLevelCheckJob(riskLevelService, amlServiceRiskLevels, eventPublisher);
 
   @Test
-  void runsTheViewsFlowAtOneAsBefore() throws NoSuchMethodException {
-    Scheduled scheduled =
-        ScheduledRiskLevelCheckJob.class.getMethod("run").getAnnotation(Scheduled.class);
-
-    assertThat(scheduled.cron()).isEqualTo("0 0 1 * * ?");
-    assertThat(scheduled.zone()).isEqualTo("Europe/Tallinn");
-  }
-
-  @Test
-  void runsTheAmlServiceFlowAfterTheNightlyAmlServiceBatchRunsAndOverrideImport()
-      throws NoSuchMethodException {
+  void runsAfterTheNightlyAmlServiceBatchRunsAndOverrideImport() throws NoSuchMethodException {
     Scheduled scheduled =
         ScheduledRiskLevelCheckJob.class
             .getMethod("runFromAmlService")
@@ -75,214 +60,104 @@ class ScheduledRiskLevelCheckJobTest {
   }
 
   @Test
-  void eachRunHasItsOwnLockThatExpiresWellBeforeItsNextRun() throws NoSuchMethodException {
-    SchedulerLock atOne =
-        ScheduledRiskLevelCheckJob.class.getMethod("run").getAnnotation(SchedulerLock.class);
-    SchedulerLock atHalfPastFive =
+  void keepsItsLockThatExpiresWellBeforeItsNextRun() throws NoSuchMethodException {
+    SchedulerLock lock =
         ScheduledRiskLevelCheckJob.class
             .getMethod("runFromAmlService")
             .getAnnotation(SchedulerLock.class);
 
-    assertThat(atOne)
-        .extracting(
-            SchedulerLock::name, SchedulerLock::lockAtMostFor, SchedulerLock::lockAtLeastFor)
-        .containsExactly("ScheduledRiskLevelCheckJob_run", "1h", "30m");
-    assertThat(atHalfPastFive)
+    assertThat(lock)
         .extracting(
             SchedulerLock::name, SchedulerLock::lockAtMostFor, SchedulerLock::lockAtLeastFor)
         .containsExactly("ScheduledRiskLevelCheckJob_runFromAmlService", "1h", "30m");
   }
 
-  @Test
-  void existsWithoutAmlServiceEnabled() {
-    new ApplicationContextRunner()
-        .withUserConfiguration(ScheduledRiskLevelCheckJob.class)
-        .withBean(RiskLevelService.class, () -> riskLevelService)
-        .withBean(AmlServiceRiskLevels.class, () -> amlServiceRiskLevels)
-        .withBean(AmlRiskReader.class, () -> amlRiskReader)
-        .withBean(TkfRiskReader.class, () -> tkfRiskReader)
-        .withBean(AmlServiceProperties.class, () -> properties(false))
+  @ParameterizedTest
+  @ValueSource(strings = {"production", "test", "ci,test", "pg,test"})
+  void existsInEveryProfileThatHasAnAmlService(String profiles) {
+    contextRunner()
+        .withPropertyValues("spring.profiles.active=" + profiles)
         .run(context -> assertThat(context).hasSingleBean(ScheduledRiskLevelCheckJob.class));
   }
 
-  @Test
-  void withoutAmlServiceRunsBothPillarsFromTheViewsAtOneAndNeverAsksAmlService() {
-    job(false).run();
-
-    verify(riskLevelService).runRiskLevelCheck(EXPECTED_PROBABILITY);
-    verify(riskLevelService).runTkfRiskLevelCheck(EXPECTED_PROBABILITY);
-    verifyNoMoreInteractions(riskLevelService);
-    verifyNoInteractions(amlServiceRiskLevels, amlRiskReader, tkfRiskReader, eventPublisher);
+  @ParameterizedTest
+  @ValueSource(strings = {"dev", "staging"})
+  void neitherRunsNorAsksAmlServiceInDevAndStaging(String profile) {
+    contextRunner()
+        .withPropertyValues("spring.profiles.active=" + profile)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context).doesNotHaveBean(ScheduledRiskLevelCheckJob.class);
+              assertThat(context).doesNotHaveBean(AmlServiceRiskLevels.class);
+              assertThat(context).doesNotHaveBean(AmlServiceClient.class);
+            });
   }
 
   @Test
-  void withoutAmlServiceDoesNothingAtHalfPastFive() {
-    job(false).runFromAmlService();
-
-    verifyNoInteractions(
-        riskLevelService, amlServiceRiskLevels, amlRiskReader, tkfRiskReader, eventPublisher);
-  }
-
-  @Test
-  void withAmlServiceOnlyRefreshesTheViewsAtOneAndWritesNothing() {
-    job(true).run();
-
-    InOrder inOrder = inOrder(amlRiskReader, tkfRiskReader);
-    inOrder.verify(amlRiskReader).refreshLatestResidencyView();
-    inOrder.verify(amlRiskReader).refreshAmlRiskMetadataView();
-    inOrder.verify(tkfRiskReader).refreshMaterializedView();
-    verifyNoMoreInteractions(amlRiskReader, tkfRiskReader);
-    verifyNoInteractions(riskLevelService, amlServiceRiskLevels, eventPublisher);
-  }
-
-  @Test
-  void withAmlServiceTheOtherViewsStillRefreshAtOneWhenTheResidencyRefreshFails() {
-    willThrow(new IllegalStateException("residency refresh failed"))
-        .given(amlRiskReader)
-        .refreshLatestResidencyView();
-
-    job(true).run();
-
-    verify(amlRiskReader).refreshAmlRiskMetadataView();
-    verify(tkfRiskReader).refreshMaterializedView();
-  }
-
-  @Test
-  void withAmlServiceTheTkfViewStillRefreshesAtOneWhenTheAmlRiskMetadataRefreshFails() {
-    willThrow(new IllegalStateException("metadata refresh failed"))
-        .given(amlRiskReader)
-        .refreshAmlRiskMetadataView();
-
-    job(true).run();
-
-    verify(tkfRiskReader).refreshMaterializedView();
-  }
-
-  @Test
-  void withAmlServiceTheThirdPillarViewsStillRefreshAtOneWhenTheTkfRefreshFails() {
-    willThrow(new IllegalStateException("tkf refresh failed"))
-        .given(tkfRiskReader)
-        .refreshMaterializedView();
-
-    job(true).run();
-
-    verify(amlRiskReader).refreshLatestResidencyView();
-    verify(amlRiskReader).refreshAmlRiskMetadataView();
-    verifyNoInteractions(riskLevelService);
-  }
-
-  @Test
-  void withoutAmlServiceTkfStillRunsAndNothingIsPostedWhenTheThirdPillarViewCheckFails() {
-    willThrow(new IllegalStateException("view refresh failed"))
-        .given(riskLevelService)
-        .runRiskLevelCheck(anyDouble());
-
-    job(false).run();
-
-    verify(riskLevelService).runTkfRiskLevelCheck(EXPECTED_PROBABILITY);
-    verifyNoInteractions(eventPublisher);
-  }
-
-  @Test
-  void withoutAmlServiceTheThirdPillarStillRunsAndNothingIsPostedWhenTheTkfViewCheckFails() {
-    willThrow(new IllegalStateException("view refresh failed"))
-        .given(riskLevelService)
-        .runTkfRiskLevelCheck(anyDouble());
-
-    job(false).run();
-
-    verify(riskLevelService).runRiskLevelCheck(EXPECTED_PROBABILITY);
-    verifyNoInteractions(eventPublisher);
-  }
-
-  @Test
-  void withAmlServiceWritesBothPillarsFromAmlServiceAtHalfPastFiveAndNeverTouchesTheViews() {
+  void writesBothPillarsFromAmlService() {
     given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
     given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
     verify(riskLevelService).writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
     verify(riskLevelService).writeTkfRiskLevels(TKF_RUN);
     verifyNoMoreInteractions(riskLevelService);
-    verifyNoInteractions(amlRiskReader, tkfRiskReader, eventPublisher);
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test
-  void withAmlServiceFallsBackToTheViewsFlowForTheTkfFetchThatFailed() {
+  void reportsAFailedTkfFetchAsFailedAndStillWritesTheThirdPillar() {
     given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
     willThrow(new RiskLevelsRefusedException("Refusing: family=tkf"))
         .given(amlServiceRiskLevels)
         .fetchTkf();
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
     verify(riskLevelService).writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
-    verify(riskLevelService).runTkfRiskLevelCheck(EXPECTED_PROBABILITY);
     verify(riskLevelService, never()).writeTkfRiskLevels(any());
-    verify(riskLevelService, never()).runRiskLevelCheck(anyDouble());
-    verifyNoInteractions(amlRiskReader, tkfRiskReader);
     verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFellBackEvent("TKF", "Refusing: family=tkf"));
+        .publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "Refusing: family=tkf"));
     verifyNoMoreInteractions(eventPublisher);
   }
 
   @Test
-  void withAmlServiceFallsBackToTheViewsFlowForTheThirdPillarFetchThatFailed() {
+  void reportsAFailedThirdPillarFetchAsFailedAndStillWritesTkf() {
     willThrow(new RiskLevelsRefusedException("Refusing: family=third-pillar"))
         .given(amlServiceRiskLevels)
         .fetchThirdPillar();
     given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
-    verify(riskLevelService).runRiskLevelCheck(EXPECTED_PROBABILITY);
+    verify(riskLevelService, never()).writeThirdPillarRiskLevels(any());
     verify(riskLevelService).writeTkfRiskLevels(TKF_RUN);
-    verify(riskLevelService, never()).runTkfRiskLevelCheck(anyDouble());
     verify(eventPublisher)
         .publishEvent(
-            new AmlRiskLevelJobFellBackEvent("III pillar", "Refusing: family=third-pillar"));
+            new AmlRiskLevelJobFailedEvent("III pillar", "Refusing: family=third-pillar"));
     verifyNoMoreInteractions(eventPublisher);
   }
 
   @Test
-  void withAmlServiceAFailedWriteIsReportedAsFailedAndDoesNotFallBack() {
+  void reportsAFailedWriteAsFailedAndStillWritesTheOtherPillar() {
     given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
     given(amlServiceRiskLevels.fetchTkf()).willReturn(TKF_RUN);
     willThrow(new IllegalStateException("database unavailable"))
         .given(riskLevelService)
-        .writeTkfRiskLevels(TKF_RUN);
+        .writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
-    verify(riskLevelService, never()).runTkfRiskLevelCheck(anyDouble());
-    verify(riskLevelService).writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
+    verify(riskLevelService).writeTkfRiskLevels(TKF_RUN);
     verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "IllegalStateException"));
+        .publishEvent(new AmlRiskLevelJobFailedEvent("III pillar", "IllegalStateException"));
     verifyNoMoreInteractions(eventPublisher);
   }
 
   @Test
-  void withAmlServiceReportsTheFallbacksOwnFailureWhenItFailsToo() {
-    given(amlServiceRiskLevels.fetchThirdPillar()).willReturn(THIRD_PILLAR_RUN);
-    willThrow(new RiskLevelsRefusedException("Refusing: family=tkf"))
-        .given(amlServiceRiskLevels)
-        .fetchTkf();
-    willThrow(new IllegalStateException("view read failed"))
-        .given(riskLevelService)
-        .runTkfRiskLevelCheck(anyDouble());
-
-    job(true).runFromAmlService();
-
-    verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFellBackEvent("TKF", "Refusing: family=tkf"));
-    verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "IllegalStateException"));
-    verify(riskLevelService).writeThirdPillarRiskLevels(THIRD_PILLAR_RUN);
-  }
-
-  @Test
-  void withAmlServiceStillFallsBackAndRunsTkfWhenTheFallbackCannotBeReported() {
+  void stillWritesTkfWhenTheThirdPillarsFailureCannotBeReported() {
     willThrow(new RiskLevelsRefusedException("Refusing: family=third-pillar"))
         .given(amlServiceRiskLevels)
         .fetchThirdPillar();
@@ -291,9 +166,8 @@ class ScheduledRiskLevelCheckJobTest {
         .given(eventPublisher)
         .publishEvent(any(Object.class));
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
-    verify(riskLevelService).runRiskLevelCheck(EXPECTED_PROBABILITY);
     verify(riskLevelService).writeTkfRiskLevels(TKF_RUN);
   }
 
@@ -301,18 +175,18 @@ class ScheduledRiskLevelCheckJobTest {
   void reportsOnlyTheStatusOfAServerErrorWhoseBodyNamesAPersonAndAToken() {
     willThrow(errorFromAmlService(INTERNAL_SERVER_ERROR)).given(amlServiceRiskLevels).fetchTkf();
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
-    verify(eventPublisher).publishEvent(new AmlRiskLevelJobFellBackEvent("TKF", "HTTP 500"));
+    verify(eventPublisher).publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "HTTP 500"));
   }
 
   @Test
   void reportsOnlyTheStatusOfAClientErrorWhoseBodyNamesAPersonAndAToken() {
     willThrow(errorFromAmlService(NOT_FOUND)).given(amlServiceRiskLevels).fetchTkf();
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
-    verify(eventPublisher).publishEvent(new AmlRiskLevelJobFellBackEvent("TKF", "HTTP 404"));
+    verify(eventPublisher).publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "HTTP 404"));
   }
 
   @Test
@@ -324,10 +198,10 @@ class ScheduledRiskLevelCheckJobTest {
         .given(amlServiceRiskLevels)
         .fetchTkf();
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
     verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFellBackEvent("TKF", "ResourceAccessException"));
+        .publishEvent(new AmlRiskLevelJobFailedEvent("TKF", "ResourceAccessException"));
   }
 
   @Test
@@ -336,34 +210,29 @@ class ScheduledRiskLevelCheckJobTest {
         .given(amlServiceRiskLevels)
         .fetchThirdPillar();
 
-    job(true).runFromAmlService();
+    job.runFromAmlService();
 
     verify(eventPublisher)
-        .publishEvent(new AmlRiskLevelJobFellBackEvent("III pillar", "IllegalStateException"));
+        .publishEvent(new AmlRiskLevelJobFailedEvent("III pillar", "IllegalStateException"));
   }
 
-  private ScheduledRiskLevelCheckJob job(boolean amlServiceEnabled) {
-    return new ScheduledRiskLevelCheckJob(
-        riskLevelService,
-        amlServiceRiskLevels,
-        amlRiskReader,
-        tkfRiskReader,
-        eventPublisher,
-        properties(amlServiceEnabled));
-  }
-
-  private static AmlServiceProperties properties(boolean enabled) {
-    return new AmlServiceProperties(
-        enabled,
-        "https://aml-service.test",
-        "test-api-token-of-at-least-thirty-two-characters",
-        ofSeconds(5),
-        ofSeconds(60),
-        false,
-        ofSeconds(1),
-        ofSeconds(2),
-        ofSeconds(1),
-        ofSeconds(5));
+  private ApplicationContextRunner contextRunner() {
+    return new ApplicationContextRunner()
+        .withUserConfiguration(
+            ClockConfig.class,
+            AmlServiceConfiguration.class,
+            AmlServiceRiskLevels.class,
+            ScheduledRiskLevelCheckJob.class)
+        .withBean(RiskLevelService.class, () -> riskLevelService)
+        .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
+        .withPropertyValues(
+            "aml-service.url=https://aml-service.test",
+            "aml-service.connect-timeout=5s",
+            "aml-service.read-timeout=60s",
+            "aml-service.high-risk-connect-timeout=1s",
+            "aml-service.high-risk-read-timeout=2s",
+            "aml-service.kyc-onboarding-connect-timeout=1s",
+            "aml-service.kyc-onboarding-read-timeout=3s");
   }
 
   private static RestClientResponseException errorFromAmlService(HttpStatus status) {

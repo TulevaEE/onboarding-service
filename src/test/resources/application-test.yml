@@ -107,6 +107,9 @@ payment-provider:
 opensanctions:
   url: http://localhost:9
 
+aml-service:
+  url: http://localhost:9
+
 async:
   enabled: false
 

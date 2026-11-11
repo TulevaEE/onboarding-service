@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.aml.notification;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -157,16 +156,5 @@ class AmlCheckNotifierTest {
             "Risk level job failed: pillar=TKF, reason=ResourceAccessException: request timed out",
             AML,
             ERROR);
-  }
-
-  @Test
-  void onAmlRiskLevelJobFellBack_sendsAWarningNamingThePillarAndReason() {
-    notifier.onAmlRiskLevelJobFellBack(new AmlRiskLevelJobFellBackEvent("TKF", "HTTP 404"));
-
-    verify(notificationService)
-        .sendMessage(
-            "Risk level job fell back to the materialized views: pillar=TKF, reason=HTTP 404",
-            AML,
-            WARNING);
   }
 }

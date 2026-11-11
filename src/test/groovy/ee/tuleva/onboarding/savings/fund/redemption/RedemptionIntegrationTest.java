@@ -26,6 +26,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
@@ -106,6 +107,7 @@ class RedemptionIntegrationTest {
   @MockitoBean SebGatewayClient sebGatewayClient;
   @MockitoBean OperationsNotificationService operationsNotificationService;
   @MockitoBean FundNavProvider navProvider;
+  @MockitoBean RiskLevels riskLevels;
 
   User testUser;
   PartyId testParty;

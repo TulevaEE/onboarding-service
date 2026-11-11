@@ -7,12 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "aml-service")
 record AmlServiceProperties(
-    boolean enabled,
     String url,
     @Nullable String apiToken,
     Duration connectTimeout,
     Duration readTimeout,
-    boolean highRiskEnabled,
     Duration highRiskConnectTimeout,
     Duration highRiskReadTimeout,
     Duration kycOnboardingConnectTimeout,

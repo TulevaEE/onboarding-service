@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.aml.notification;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
@@ -59,14 +58,5 @@ public class AmlCheckNotifier {
         "Risk level job failed: pillar=%s, reason=%s".formatted(event.label(), event.reason()),
         AML,
         ERROR);
-  }
-
-  @EventListener
-  public void onAmlRiskLevelJobFellBack(AmlRiskLevelJobFellBackEvent event) {
-    notificationService.sendMessage(
-        "Risk level job fell back to the materialized views: pillar=%s, reason=%s"
-            .formatted(event.label(), event.reason()),
-        AML,
-        WARNING);
   }
 }

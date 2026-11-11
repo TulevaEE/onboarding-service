@@ -26,9 +26,24 @@ final class JournalEntryFingerprint {
 
   private static String normalizedLines(JournalEntryPart part) {
     return part.lines().stream()
-        .map(line -> line.accountCode() + "=" + line.amount().stripTrailingZeros().toPlainString())
+        .map(
+            line ->
+                line.accountCode()
+                    + "="
+                    + line.amount().stripTrailingZeros().toPlainString()
+                    + normalizedDimensions(line))
         .sorted()
         .collect(joining("|"));
+  }
+
+  private static String normalizedDimensions(JournalEntryLine line) {
+    if (line.dimensions().isEmpty()) {
+      return "";
+    }
+    return line.dimensions().entrySet().stream()
+        .map(dimension -> dimension.getKey() + "=" + dimension.getValue())
+        .sorted()
+        .collect(joining(",", "{", "}"));
   }
 
   private static String sha256(String text) {

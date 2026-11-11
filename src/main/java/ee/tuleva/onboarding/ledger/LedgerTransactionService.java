@@ -43,7 +43,7 @@ class LedgerTransactionService {
 
     rejectIfAHolderAccountWouldBeLeftInDebit(ledgerEntryDtos);
     for (LedgerEntryDto ledgerEntryDto : ledgerEntryDtos) {
-      transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount);
+      transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount, ledgerEntryDto.metadata);
     }
 
     return ledgerTransactionRepository.saveAndFlush(transaction);
@@ -109,5 +109,11 @@ class LedgerTransactionService {
         REDEMPTION_PAYOUT, REDEMPTION_REQUEST, ADJUSTMENT);
   }
 
-  public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}
+  public record LedgerEntryDto(
+      LedgerAccount account, BigDecimal amount, Map<String, Object> metadata) {
+
+    public LedgerEntryDto(LedgerAccount account, BigDecimal amount) {
+      this(account, amount, Map.of());
+    }
+  }
 }

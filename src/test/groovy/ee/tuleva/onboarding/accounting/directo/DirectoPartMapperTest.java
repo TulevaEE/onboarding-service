@@ -25,6 +25,16 @@ class DirectoPartMapperTest {
           new DirectoAccount("400100", "Fee income", "3", null, null),
           new DirectoAccount("500100", "Office rent", "4", null, null));
 
+  private static final List<DirectoObject> OBJECTS =
+      List.of(
+          new DirectoObject("TEAM1", "10"),
+          new DirectoObject("TEAM2", "10"),
+          new DirectoObject("FUND1", "20"),
+          new DirectoObject("30001", "30"),
+          new DirectoObject("40015", "40"),
+          new DirectoObject("6001", "60"),
+          new DirectoObject("8001", "80"));
+
   private final DirectoPartMapper mapper = new DirectoPartMapper();
 
   @Test
@@ -251,6 +261,94 @@ class DirectoPartMapperTest {
     assertThat(book.protectedSourceKeys()).isEqualTo(Set.of());
   }
 
+  @Test
+  void aRowCarriesTheObjectsOfItsObjectFieldAsDimensionsNamedAfterTheirLevel() {
+    var book =
+        mapper.map(
+            taggedBook(
+                transaction(
+                    "OST",
+                    "7",
+                    "2026-03-12T00:00:00",
+                    tagged(row("500100", "60.0000", null), "TEAM1, FUND1,30001,40015,8001"),
+                    tagged(row("500100", "40.0000", null), "TEAM1"),
+                    supplied(row("100100", null, "100.0000"), "40015"))));
+
+    assertThat(book.parts())
+        .containsExactly(
+            part(
+                "OST:7:2026-03-12",
+                "OST",
+                "2026-03-12",
+                line(
+                    "500100",
+                    "60.00",
+                    Map.of(
+                        "team", "TEAM1",
+                        "fund", "FUND1",
+                        "client", "30001",
+                        "supplier", "40015",
+                        "capitalization", "8001")),
+                line("500100", "40.00", Map.of("team", "TEAM1")),
+                line("100100", "-100.00")));
+  }
+
+  @Test
+  void anObjectAtALevelWithoutADimensionStopsTheEntity() {
+    var book =
+        taggedBook(
+            transaction(
+                "OST",
+                "7",
+                "2026-03-12T00:00:00",
+                tagged(row("500100", "5.0000", null), "6001"),
+                row("100100", null, "5.0000")));
+
+    assertThatThrownBy(() -> mapper.map(book)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void twoObjectsOfOneLevelOnARowStopTheEntity() {
+    var book =
+        taggedBook(
+            transaction(
+                "OST",
+                "7",
+                "2026-03-12T00:00:00",
+                tagged(row("500100", "5.0000", null), "TEAM1,TEAM2"),
+                row("100100", null, "5.0000")));
+
+    assertThatThrownBy(() -> mapper.map(book)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  private static DirectoBook taggedBook(DirectoTransaction... transactions) {
+    return new DirectoBook(CHART, OBJECTS, List.of(transactions));
+  }
+
+  private static DirectoRow tagged(DirectoRow row, String objects) {
+    return new DirectoRow(
+        row.account(),
+        row.debit(),
+        row.credit(),
+        objects,
+        row.project(),
+        row.supplier(),
+        row.customer(),
+        row.date());
+  }
+
+  private static DirectoRow supplied(DirectoRow row, String supplier) {
+    return new DirectoRow(
+        row.account(),
+        row.debit(),
+        row.credit(),
+        row.object(),
+        row.project(),
+        supplier,
+        row.customer(),
+        row.date());
+  }
+
   private static DirectoBook book(DirectoTransaction... transactions) {
     return new DirectoBook(CHART, List.of(), List.of(transactions));
   }
@@ -288,5 +386,10 @@ class DirectoPartMapperTest {
 
   private static JournalEntryLine line(String accountCode, String amount) {
     return new JournalEntryLine(accountCode, new BigDecimal(amount));
+  }
+
+  private static JournalEntryLine line(
+      String accountCode, String amount, Map<String, String> dimensions) {
+    return new JournalEntryLine(accountCode, new BigDecimal(amount), dimensions);
   }
 }

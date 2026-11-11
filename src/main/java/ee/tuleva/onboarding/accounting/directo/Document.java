@@ -8,8 +8,10 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.ledger.JournalEntryLine;
 import ee.tuleva.onboarding.ledger.JournalEntryPart;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 record Document(String type, String number, List<DocumentRow> rows) {
@@ -29,6 +31,14 @@ record Document(String type, String number, List<DocumentRow> rows) {
   }
 
   Stream<JournalEntryPart> parts() {
+    return parts(row -> Map.of());
+  }
+
+  Stream<JournalEntryPart> parts(ObjectCatalog objects) {
+    return parts(objects::dimensionsOf);
+  }
+
+  private Stream<JournalEntryPart> parts(Function<DocumentRow, Map<String, String>> dimensionsOf) {
     return rows.stream()
         .collect(groupingBy(DocumentRow::date, TreeMap::new, toList()))
         .entrySet()
@@ -39,7 +49,7 @@ record Document(String type, String number, List<DocumentRow> rows) {
                     identity() + ":" + rowsOfADate.getKey(),
                     type,
                     rowsOfADate.getKey(),
-                    nonZeroLines(rowsOfADate.getValue()),
+                    nonZeroLines(rowsOfADate.getValue(), dimensionsOf),
                     Set.of()))
         .filter(part -> !part.lines().isEmpty());
   }
@@ -48,10 +58,11 @@ record Document(String type, String number, List<DocumentRow> rows) {
     return Stream.concat(Stream.of(number), rows.stream().flatMap(DocumentRow::dimensionCodes));
   }
 
-  private static List<JournalEntryLine> nonZeroLines(List<DocumentRow> rows) {
+  private static List<JournalEntryLine> nonZeroLines(
+      List<DocumentRow> rows, Function<DocumentRow, Map<String, String>> dimensionsOf) {
     return rows.stream()
         .filter(row -> row.amount().signum() != 0)
-        .map(row -> new JournalEntryLine(row.accountCode(), row.amount()))
+        .map(row -> new JournalEntryLine(row.accountCode(), row.amount(), dimensionsOf.apply(row)))
         .toList();
   }
 }

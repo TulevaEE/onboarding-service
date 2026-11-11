@@ -15,6 +15,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 import ee.tuleva.onboarding.accounting.directo.DirectoStackConfiguration;
 import ee.tuleva.onboarding.ledger.GeneralLedger;
 import ee.tuleva.onboarding.ledger.GeneralLedgerRows;
+import ee.tuleva.onboarding.ledger.GeneralLedgerRows.EntryLine;
 import ee.tuleva.onboarding.ledger.GeneralLedgerRows.JournalEntryVersion;
 import ee.tuleva.onboarding.ledger.GeneralLedgerStackConfiguration;
 import ee.tuleva.onboarding.ledger.MirrorResult;
@@ -258,6 +259,57 @@ class GeneralLedgerSyncIntegrationTest {
     assertThat(balanceAt("500100", "2026-03-31")).isEqualByComparingTo(rentWithTheSummary);
   }
 
+  @Test
+  void ordinaryEntriesCarryTheTeamFundAndSupplierObjectsOfTheirRow() {
+    respondWith(ACCOUNTS, OBJECTS, withDocument(TRANSACTIONS, A_MARCH_PURCHASE_TAGGED_BY_OBJECTS));
+
+    sync.sync(ENTITY);
+
+    assertThat(rows.entriesOf(liveVersionOf("OST:11:2026-03-12").id()))
+        .containsExactlyInAnyOrder(
+            new EntryLine(
+                "500100",
+                new BigDecimal("60.00"),
+                Map.of("team", "TEAM2", "fund", "FUND1", "supplier", "40015")),
+            new EntryLine("500100", new BigDecimal("40.00"), Map.of("team", "TEAM2")),
+            new EntryLine("200100", new BigDecimal("-100.00"), Map.of()));
+  }
+
+  @Test
+  void retaggingAnObjectRevisesTheEntryWithoutChangingTheBalance() {
+    respondWith(ACCOUNTS, OBJECTS, withDocument(TRANSACTIONS, A_MARCH_PURCHASE_TAGGED_BY_OBJECTS));
+    sync.sync(ENTITY);
+    var rentBeforeRetagging = balanceAt("500100", "2026-03-31");
+    server.reset();
+    respondWith(
+        ACCOUNTS,
+        OBJECTS,
+        withDocument(
+            TRANSACTIONS,
+            A_MARCH_PURCHASE_TAGGED_BY_OBJECTS.replace("TEAM2,FUND1", "TEAM1,FUND1")));
+
+    var result = sync.sync(ENTITY);
+
+    assertThat(result).isEqualTo(new MirrorResult(0, 1, 0, 8, 0, 0));
+    assertThat(rows.versionsOf(ENTITY, SOURCE, "OST:11:2026-03-12"))
+        .extracting(JournalEntryVersion::revision, JournalEntryVersion::live)
+        .containsExactly(tuple(1, false), tuple(2, true));
+    assertThat(rows.entriesOf(liveVersionOf("OST:11:2026-03-12").id()))
+        .contains(
+            new EntryLine(
+                "500100",
+                new BigDecimal("60.00"),
+                Map.of("team", "TEAM1", "fund", "FUND1", "supplier", "40015")));
+    assertThat(balanceAt("500100", "2026-03-31")).isEqualByComparingTo(rentBeforeRetagging);
+  }
+
+  private JournalEntryVersion liveVersionOf(String sourceKey) {
+    return rows.versionsOf(ENTITY, SOURCE, sourceKey).stream()
+        .filter(JournalEntryVersion::live)
+        .findFirst()
+        .orElseThrow();
+  }
+
   private void respondWith(String accounts, String objects, String transactions) {
     server
         .expect(requestTo(BASE_URL + "/accounts"))
@@ -301,6 +353,8 @@ class GeneralLedgerSyncIntegrationTest {
             """
             SELECT (SELECT count(*) FROM ledger.transaction
                     WHERE CAST(metadata AS VARCHAR) LIKE :pattern)
+                 + (SELECT count(*) FROM ledger.entry
+                    WHERE CAST(metadata AS VARCHAR) LIKE :pattern)
                  + (SELECT count(*) FROM ledger.account
                     WHERE name LIKE :pattern OR CAST(metadata AS VARCHAR) LIKE :pattern)
             """)
@@ -336,6 +390,8 @@ class GeneralLedgerSyncIntegrationTest {
       """
       [
         {"code": "TEAM1", "name": "Team One", "type": "Tiim", "level": 10, "hierarchy": "TEAM1"},
+        {"code": "TEAM2", "name": "Team Two", "type": "Tiim", "level": 10},
+        {"code": "FUND1", "name": "Synthetic Fund", "type": "Fond", "level": 20},
         {"code": "40015", "name": "Synthetic Supplier OÜ", "type": "Hankija", "level": 40},
         {"code": "E001", "name": "Synthetic Employee One", "type": "Töötaja", "level": 50},
         {"code": "E002", "name": "Synthetic Employee Two", "type": "Töötaja", "level": 50}
@@ -413,6 +469,15 @@ class GeneralLedgerSyncIntegrationTest {
        "rows": [
          {"rn": 1, "account": "500100", "debitamount": 80.0000, "object": "NEW1"},
          {"rn": 2, "account": "200100", "creditamount": 80.0000}]}
+      """;
+
+  private static final String A_MARCH_PURCHASE_TAGGED_BY_OBJECTS =
+      """
+      {"number": 11, "date": "2026-03-12T00:00:00", "type": "OST",
+       "rows": [
+         {"rn": 1, "account": "500100", "debitamount": 60.0000, "object": "TEAM2,FUND1,40015"},
+         {"rn": 2, "account": "500100", "debitamount": 40.0000, "object": "TEAM2"},
+         {"rn": 3, "account": "200100", "creditamount": 100.0000, "supplier": "40015"}]}
       """;
 
   private static final String OBJECTS_WITH_THE_NEW_OBJECT =

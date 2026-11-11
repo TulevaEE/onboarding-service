@@ -158,7 +158,7 @@ class DirectoPartMapperSpec extends Specification {
   def "theSummaryOfAMonthCoversEveryProtectedDocumentOfIt"() {
     given:
     def payroll = document("PALK", "4", "2026-01-31T00:00:00", [
-        new DirectoRow("540100", 3000.00, null, "E001", null, null, null, null),
+        new DirectoRow("540100", 3000.00, null, "TEAM1,E001", null, null, null, null),
         new DirectoRow("212301", null, 3000.00, "E001", null, null, null, null)])
     def payout = document("FIN", "9", "2026-01-15T00:00:00", [
         new DirectoRow("212301", 2500.00, null, "E001", null, null, null, null),
@@ -178,6 +178,7 @@ class DirectoPartMapperSpec extends Specification {
       date().toString() == "2026-01-31"
       lines()*.accountCode() == ["100100", "212301", "540100"]
       lines()*.amount() == [-2500.00, -500.00, 3000.00]
+      lines()*.dimensions() == [[:], [:], [:]]
     }
   }
 

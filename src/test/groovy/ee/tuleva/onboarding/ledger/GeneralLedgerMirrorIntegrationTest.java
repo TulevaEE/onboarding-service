@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
+import ee.tuleva.onboarding.ledger.GeneralLedgerRows.EntryLine;
 import ee.tuleva.onboarding.ledger.GeneralLedgerRows.JournalEntryVersion;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import java.math.BigDecimal;
@@ -361,6 +362,54 @@ class GeneralLedgerMirrorIntegrationTest {
     assertThat(balanceAt(FEE_INCOME, "2026-01-31")).isEqualTo(new BigDecimal("-250.00"));
   }
 
+  @Test
+  void aRetaggedPartsReversalCarriesTheDimensionsOfTheEntriesItReverses() {
+    var taggedInvoice =
+        part(
+            "ARVE",
+            1,
+            "2026-01-31",
+            line(BANK, "250.00"),
+            line(FEE_INCOME, "-250.00", Map.of("fund", "FUND1")));
+    mirror(List.of(taggedInvoice));
+    var retaggedInvoice =
+        part(
+            "ARVE",
+            1,
+            "2026-01-31",
+            line(BANK, "250.00"),
+            line(FEE_INCOME, "-250.00", Map.of("fund", "FUND2")));
+
+    var result = mirror(List.of(retaggedInvoice));
+
+    assertThat(result).isEqualTo(new MirrorResult(0, 1, 0, 0, 0, 0));
+    var versions = versionsOf(taggedInvoice);
+    assertThat(rows.reversalEntriesOf(versions.getFirst().id()))
+        .containsExactlyInAnyOrder(
+            new EntryLine("100100", new BigDecimal("-250.00"), Map.of()),
+            new EntryLine("400100", new BigDecimal("250.00"), Map.of("fund", "FUND1")));
+    assertThat(rows.entriesOf(versions.getLast().id()))
+        .containsExactlyInAnyOrder(
+            new EntryLine("100100", new BigDecimal("250.00"), Map.of()),
+            new EntryLine("400100", new BigDecimal("-250.00"), Map.of("fund", "FUND2")));
+  }
+
+  @Test
+  void remirroringAnUnchangedTaggedPartPostsNothing() {
+    var taggedInvoice =
+        part(
+            "ARVE",
+            1,
+            "2026-01-31",
+            line(BANK, "250.00"),
+            line(FEE_INCOME, "-250.00", Map.of("fund", "FUND1", "team", "TEAM1")));
+    mirror(List.of(taggedInvoice));
+
+    var result = mirror(List.of(taggedInvoice));
+
+    assertThat(result).isEqualTo(new MirrorResult(0, 0, 0, 1, 0, 0));
+  }
+
   private MirrorResult mirror(List<JournalEntryPart> parts) {
     return generalLedger.mirror(ENTITY, SOURCE, parts, MAX_DELETION_SHARE);
   }
@@ -581,5 +630,10 @@ class GeneralLedgerMirrorIntegrationTest {
 
   private static JournalEntryLine line(GeneralLedgerAccount account, String amount) {
     return new JournalEntryLine(account.code(), new BigDecimal(amount));
+  }
+
+  private static JournalEntryLine line(
+      GeneralLedgerAccount account, String amount, Map<String, String> dimensions) {
+    return new JournalEntryLine(account.code(), new BigDecimal(amount), dimensions);
   }
 }

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
+import static org.hibernate.type.SqlTypes.JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
@@ -14,12 +15,15 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "entry", schema = "ledger")
@@ -61,9 +65,16 @@ public class LedgerEntry {
   @JdbcType(PostgreSQLEnumJdbcType.class)
   private AssetType assetType;
 
+  @JdbcTypeCode(JSON)
+  private @Nullable Map<String, Object> metadata;
+
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
   private Instant createdAt;
+
+  public Map<String, Object> getMetadata() {
+    return metadata == null ? Map.of() : metadata;
+  }
 
   boolean isUserFundUnit() {
     return assetType == FUND_UNIT && account.isUserAccount();

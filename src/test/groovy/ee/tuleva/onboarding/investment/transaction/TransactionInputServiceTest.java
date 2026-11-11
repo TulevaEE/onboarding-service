@@ -178,8 +178,8 @@ class TransactionInputServiceTest {
         PositionLimit.builder()
             .fund(TUV100)
             .isin("IE00A")
-            .softLimitPercent(new BigDecimal("0.50"))
-            .hardLimitPercent(new BigDecimal("0.60"))
+            .softLimitPercent(new BigDecimal("50"))
+            .hardLimitPercent(new BigDecimal("60"))
             .build();
     when(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .thenReturn(List.of(positionLimit));
@@ -195,7 +195,8 @@ class TransactionInputServiceTest {
     assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("600000"));
     assertThat(result.cashBuffer()).isEqualByComparingTo(new BigDecimal("20000"));
     assertThat(result.minTransactionThreshold()).isEqualByComparingTo(new BigDecimal("5000"));
-    assertThat(result.positionLimits()).containsKey("IE00A");
+    assertThat(result.positionLimits().get("IE00A").softLimit()).isEqualByComparingTo("0.50");
+    assertThat(result.positionLimits().get("IE00A").hardLimit()).isEqualByComparingTo("0.60");
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 

@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.investment.portfolio.FundLimit;
 import ee.tuleva.onboarding.investment.portfolio.FundLimitRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -49,6 +50,34 @@ class TransactionParameterLoaderTest {
         .hasMessageContaining("Model weights do not sum to 1")
         .hasMessageContaining("fund=TUV100")
         .hasMessageContaining("sum=0.90");
+  }
+
+  @Test
+  void aPositionLimitStoredInPercentReachesTheTradeEngineAsAPortfolioWeight() {
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUV100)
+            .isin("IE00LIMIT")
+            .weight(new BigDecimal("1.00"))
+            .build();
+    var limit =
+        PositionLimit.builder()
+            .fund(TUV100)
+            .isin("IE00LIMIT")
+            .softLimitPercent(new BigDecimal("19.65000000"))
+            .hardLimitPercent(new BigDecimal("20.00000000"))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of(allocation));
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of(limit));
+
+    var result = loader.load(TUV100, AS_OF_DATE);
+
+    assertThat(result.positionLimits().get("IE00LIMIT").softLimit()).isEqualByComparingTo("0.1965");
+    assertThat(result.positionLimits().get("IE00LIMIT").hardLimit()).isEqualByComparingTo("0.2000");
   }
 
   @Test

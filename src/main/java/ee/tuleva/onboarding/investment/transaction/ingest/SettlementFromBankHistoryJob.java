@@ -103,7 +103,7 @@ class SettlementFromBankHistoryJob {
   private static String completedMessage(BankSettlementRun run) {
     return "Registri tellimuste arveldusi võrreldi panga kirjendustega kogu ajaloo ulatuses.\n"
         + "Panga kuupäeva said "
-        + orders(run.settled() + run.sameDate() + run.newDate())
+        + orders(run.datedByTheBank())
         + ": "
         + run.settled()
         + " arveldati alles nüüd, "

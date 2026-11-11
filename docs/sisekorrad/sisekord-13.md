@@ -10,6 +10,7 @@ Kood rakendab järgmisi sisekorra punkte; ülejäänud punktid on sisekorra teks
 
 - p 4.1.7 – Vabatahtliku pensioni avaldus võetakse vastu pärast isiku tuvastamist
 - p 9.3.3 – Täiendava Kogumisfondiga liitumine KYC riskitaseme järgi
+- p 10.8 – Täiendava Kogumisfondi osakute tagasivõtmine hoolsusmeetmete kontrolli järgi
 
 ## p 4.1.7 – Vabatahtliku pensioni avaldus võetakse vastu pärast isiku tuvastamist
 
@@ -55,3 +56,33 @@ Näide: ootel kõrge riskiga isik – liitumine lükatakse tagasi, sest isiku li
 Näide: lõpetatud liitumisega isik, kelle riskitase tõuseb kõrgeks – liitumine jääb lõpetatuks, sest isiku liitumine on juba lõpetatud.
 
 Näide: tagasi lükatud isik, kelle riskitase langeb madalaks – liitumine lõpetatakse, sest isiku liitumine ei ole lõpetatud ja riskitase on madal.
+
+## p 10.8 – Täiendava Kogumisfondi osakute tagasivõtmine hoolsusmeetmete kontrolli järgi
+
+Tulemus on esimene, mille tingimus kehtib:
+
+- kontrolli korratakse, tähtaja möödudes täidetakse tagasivõtmine, kuid väljamakse peatatakse, kui sanktsioonide ja PEP-i skriinimine ei vasta;
+- tagasivõtmine külmutatakse (p 6.3.2), kui skriinimine leiab sanktsiooni;
+- kontrolli korratakse, tähtaja möödudes täidetakse tagasivõtmine, kuid väljamakse peatatakse, kui riskitase ei ole kättesaadav, skriinimine ei leia PEP-i, ettevõtte skriinimine ei katke ja ettevõtte liitumine ei jää lõpetamata;
+- tagasivõtmine täidetakse, kuid väljamakse peatatakse, kui skriinimine leiab, et isik on PEP, ettevõtte uus skriinimine katkeb veaga, ettevõtte liitumine jääb pärast uut skriinimist lõpetamata, riskitase on kõrge või riskitase ei ole kättesaadav;
+- tagasivõtmine kinnitatakse, kui skriinimine ei leia PEP-i, ettevõtte skriinimine ei katke, ettevõtte liitumine ei jää lõpetamata, riskitase ei ole kõrge ja riskitase on kättesaadav.
+
+Andmed: isikut skriinitakse tema elukoha- ja kodakondsusriikide järgi; ettevõtet skriinitakse äriregistri andmetel uuesti, kui tema liitumine ei ole lõpetatud; riskitase on aml-service'i hinnang; seda küsitakse, kui skriinimine vastas ega leidnud sanktsiooni.
+
+Näide: isik, kelle skriinimine ei vasta – kontrolli korratakse, tähtaja möödudes täidetakse tagasivõtmine, kuid väljamakse peatatakse, sest sanktsioonide ja PEP-i skriinimine ei vasta.
+
+Näide: sanktsioneeritud isik – tagasivõtmine külmutatakse (p 6.3.2), sest skriinimine vastab ja skriinimine leiab sanktsiooni.
+
+Näide: isik, kelle riskitase ei ole kättesaadav – kontrolli korratakse, tähtaja möödudes täidetakse tagasivõtmine, kuid väljamakse peatatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase ei ole kättesaadav, skriinimine ei leia PEP-i, ettevõtte skriinimine ei katke ja ettevõtte liitumine ei jää lõpetamata.
+
+Näide: PEP, kelle riskitase ei ole kättesaadav – tagasivõtmine täidetakse, kuid väljamakse peatatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, skriinimine leiab, et isik on PEP ja riskitase ei ole kättesaadav.
+
+Näide: kõrge riskiga PEP – tagasivõtmine täidetakse, kuid väljamakse peatatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase on kättesaadav, skriinimine leiab, et isik on PEP ja riskitase on kõrge.
+
+Näide: liitumata ettevõte, mille uus skriinimine katkeb veaga – tagasivõtmine täidetakse, kuid väljamakse peatatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase on kättesaadav ja ettevõtte uus skriinimine katkeb veaga.
+
+Näide: ettevõte, mille liitumine jääb pärast uut skriinimist lõpetamata – tagasivõtmine täidetakse, kuid väljamakse peatatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase on kättesaadav ja ettevõtte liitumine jääb pärast uut skriinimist lõpetamata.
+
+Näide: liitunud ettevõte, mille riskitase ei ole kõrge – tagasivõtmine kinnitatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase on kättesaadav, skriinimine ei leia PEP-i, ettevõtte skriinimine ei katke, ettevõtte liitumine ei jää lõpetamata ja riskitase ei ole kõrge.
+
+Näide: isik, kelle skriinimine ei leia midagi ja riskitase ei ole kõrge – tagasivõtmine kinnitatakse, sest skriinimine vastab, skriinimine ei leia sanktsiooni, riskitase on kättesaadav, skriinimine ei leia PEP-i, ettevõtte skriinimine ei katke, ettevõtte liitumine ei jää lõpetamata ja riskitase ei ole kõrge.

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.ingest.ReportedQuantityNormalizer.SEB_REPORTED_PRECISION;
+
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -15,8 +17,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 class QuantityAmountValidator {
-
-  private static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
 
   Optional<QuantityAmountMismatchEvent> validate(
       TransactionOrder order,

@@ -15,8 +15,13 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
+import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -33,14 +38,18 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +59,9 @@ class SettlementFromBankIT {
 
   private static final String EJAP = "LU1291102447";
   private static final LocalDate SINCE = LocalDate.of(2026, 2, 1);
+  private static final BooleanSupplier LOCK_HELD = () -> true;
+  private static final Clock AFTER_THE_BOOKINGS =
+      Clock.fixed(Instant.parse("2026-02-25T08:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
   @Autowired private SettlementFromBankService settlementFromBankService;
   @Autowired private FundBankLedger fundBankLedger;
@@ -60,6 +72,8 @@ class SettlementFromBankIT {
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private InvestmentReportRepository reportRepository;
+  @Autowired private JobTriggerQueue jobTriggerQueue;
+  @Autowired private StoredTradeReferences storedTradeReferences;
 
   @BeforeEach
   void sebsLatestPendingReportListsNoneOfTheOrders() {
@@ -252,7 +266,7 @@ class SettlementFromBankIT {
     reportRepository.deleteAll();
     pendingReport(LocalDate.of(2026, 2, 21), List.of());
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD)).isEmpty();
     assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
   }
 
@@ -266,7 +280,7 @@ class SettlementFromBankIT {
         List.of(anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow(), anotherOrdersRow()));
     pendingReport(LocalDate.of(2026, 2, 22), List.of(anotherOrdersRow()));
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD)).isEmpty();
     assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
   }
 
@@ -286,7 +300,7 @@ class SettlementFromBankIT {
             .build());
     entityManager.flush();
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE)).isEmpty();
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD)).isEmpty();
   }
 
   @Test
@@ -339,12 +353,77 @@ class SettlementFromBankIT {
     TransactionOrder open = executedOrder(OrderVenue.SEB, "11704");
     piece(open, "DLA0553693", "11704");
 
-    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE))
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD))
         .contains(new BankSettlementRun(1, 1, 1, 1, 0));
   }
 
+  @Test
+  void
+      anImportWhileTheReconciliationLockIsHeld_leavesTheOrderOpenUntilItsTriggerFindsTheLockFree() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+
+    listenerLockedBy(RecordingLockProvider.heldElsewhere())
+        .onReportImportCompleted(
+            new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 2, 21), 1));
+    entityManager.flush();
+
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+    assertThat(pendingTriggers()).containsExactly("SettlementFromBankJob");
+
+    listenerLockedBy(RecordingLockProvider.free()).onSettlementFromBankRequested();
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  @Test
+  void
+      aHistoryRunWhileTheReconciliationLockIsHeld_leavesTheOrderOpenAndFailsUntilRunWithTheLockFree() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    SettlementFromBankHistoryJob lockedOut =
+        historyJobLockedBy(RecordingLockProvider.heldElsewhere());
+
+    assertThatThrownBy(lockedOut::run).isInstanceOf(IllegalStateException.class);
+    assertThat(settlementRepository.findByOrderId(order.getId())).isEmpty();
+
+    historyJobLockedBy(RecordingLockProvider.free()).run();
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  private SettlementFromBankListener listenerLockedBy(RecordingLockProvider lockProvider) {
+    return new SettlementFromBankListener(
+        AFTER_THE_BOOKINGS,
+        settlementFromBankService,
+        lockProvider.reconciliationLockAt(AFTER_THE_BOOKINGS),
+        jobTriggerQueue);
+  }
+
+  private SettlementFromBankHistoryJob historyJobLockedBy(RecordingLockProvider lockProvider) {
+    return new SettlementFromBankHistoryJob(
+        storedTradeReferences,
+        settlementFromBankService,
+        mock(OperationsNotificationService.class),
+        lockProvider.reconciliationLockAt(AFTER_THE_BOOKINGS));
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> pendingTriggers() {
+    return entityManager
+        .createNativeQuery(
+            "SELECT job_name FROM investment_job_trigger WHERE status = 'PENDING' ORDER BY id")
+        .getResultList();
+  }
+
   private void settleFromTheBank() {
-    settlementFromBankService.settleOrdersBookedSince(SINCE);
+    settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD);
     entityManager.flush();
     entityManager.clear();
   }

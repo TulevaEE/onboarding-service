@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.ingest.ReportedQuantityNormalizer.SEB_REPORTED_PRECISION;
+import static ee.tuleva.onboarding.investment.transaction.ingest.SebReportedPrecision.asSebReportsIt;
 
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -148,8 +148,7 @@ class QuantityAmountValidator {
     BigDecimal stored = executedValue(order, execution);
     return listed != null
         && stored != null
-        && listed.round(SEB_REPORTED_PRECISION).compareTo(stored.round(SEB_REPORTED_PRECISION))
-            == 0;
+        && asSebReportsIt(listed).compareTo(asSebReportsIt(stored)) == 0;
   }
 
   private static BigDecimal sumExecutedValue(

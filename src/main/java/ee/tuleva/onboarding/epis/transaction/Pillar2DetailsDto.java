@@ -27,6 +27,11 @@ public class Pillar2DetailsDto {
   private LocalDate mmteDate;
 
   private String mmteStatus;
+
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+  private LocalDate mateDate;
+
+  private String mateStatus;
   private Integer rate;
   private Integer nextRate;
 

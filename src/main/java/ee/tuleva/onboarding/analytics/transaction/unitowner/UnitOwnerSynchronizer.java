@@ -88,6 +88,8 @@ public class UnitOwnerSynchronizer
           .p2ravaStatus(p2Dto.getRavaStatus())
           .p2mmteDate(p2Dto.getMmteDate())
           .p2mmteStatus(p2Dto.getMmteStatus())
+          .p2mateDate(p2Dto.getMateDate())
+          .p2mateStatus(p2Dto.getMateStatus())
           .p2rate(p2Dto.getRate())
           .p2nextRate(p2Dto.getNextRate())
           .p2nextRateDate(p2Dto.getNextRateDate())

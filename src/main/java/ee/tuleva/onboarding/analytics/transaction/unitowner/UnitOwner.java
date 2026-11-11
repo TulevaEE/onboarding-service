@@ -81,6 +81,12 @@ public class UnitOwner {
   @Column(name = "p2_mmte_status")
   private String p2mmteStatus;
 
+  @Column(name = "p2_mate_date")
+  private LocalDate p2mateDate;
+
+  @Column(name = "p2_mate_status")
+  private String p2mateStatus;
+
   @Column(name = "p2_rate")
   private Integer p2rate;
 

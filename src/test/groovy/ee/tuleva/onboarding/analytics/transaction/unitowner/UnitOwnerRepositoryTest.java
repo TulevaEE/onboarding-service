@@ -47,6 +47,7 @@ class UnitOwnerRepositoryTest {
           fund_manager VARCHAR(255),
           p2_choice VARCHAR(255), p2_choice_method VARCHAR(255), p2_choice_date DATE,
           p2_rava_date DATE, p2_rava_status VARCHAR(255), p2_mmte_date DATE, p2_mmte_status VARCHAR(255),
+          p2_mate_date DATE, p2_mate_status TEXT,
           p2_rate INTEGER, p2_next_rate INTEGER, p2_next_rate_date DATE,
           p2_ykva_date DATE, p2_plav_date DATE, p2_fpaa_date DATE, p2_duty_start DATE, p2_duty_end DATE,
           p3_identification_date DATE, p3_identifier VARCHAR(255), p3_block_flag VARCHAR(255), p3_blocker VARCHAR(255),

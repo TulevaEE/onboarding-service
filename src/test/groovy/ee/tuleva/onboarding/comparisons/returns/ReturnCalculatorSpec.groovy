@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns
 
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
@@ -23,7 +24,13 @@ class ReturnCalculatorSpec extends Specification {
 
   void setup() {
     fundValueProvider = Mock(FundValueProvider)
-    fundValueProvider.findValuesBetweenDates(_, _, _) >> []
+    fundValueProvider.findValuesBetweenDates(_, _, _) >> { String key, LocalDate start, LocalDate end ->
+      start.datesUntil(end.plusDays(1))
+          .map { LocalDate date -> fundValueProvider.getLatestValue(key, date) }
+          .filter { Optional<FundValue> value -> value.isPresent() && value.get().value() != null }
+          .map { Optional<FundValue> value -> value.get() }
+          .toList()
+    }
     returnCalculator = new ReturnCalculator(fundValueProvider, new PublicHolidays())
   }
 
@@ -230,7 +237,7 @@ class ReturnCalculatorSpec extends Specification {
     marketAverageReturn.to() == LocalDate.parse("2018-07-16")
   }
 
-  def "prices every simulated purchase from a single load of the comparison fund's values"() {
+  def "prices every simulated purchase from one starting value and one load of the comparison fund's values"() {
     given:
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-16")
@@ -252,6 +259,9 @@ class ReturnCalculatorSpec extends Specification {
     def estonianAverageReturn = returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
 
     then:
+    1 * fundValueProvider.getLatestValue(EpiIndex.EPI.key, _ as LocalDate) >> { String key, LocalDate date ->
+      Optional.of(epiValues.findAll { !it.date().isAfter(date) }.last())
+    }
     1 * fundValueProvider.findValuesBetweenDates(EpiIndex.EPI.key, _ as LocalDate, _ as LocalDate) >> epiValues
     0 * fundValueProvider.getLatestValue(_, _)
     estonianAverageReturn.rate() == 0.0326

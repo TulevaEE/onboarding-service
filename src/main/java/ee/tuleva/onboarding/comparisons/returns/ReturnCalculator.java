@@ -5,7 +5,6 @@ import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
@@ -20,11 +19,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,13 +50,21 @@ public class ReturnCalculator {
   }
 
   public ReturnDto getSimulatedReturn(AccountOverview accountOverview, String comparisonFund) {
-    Optional<BigDecimal> endingBalance =
-        getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund);
-    CashReturn cashReturn = getSimulatedCashReturn(accountOverview, endingBalance);
-    BigDecimal rateOfReturn = getSimulatedRateOfReturn(accountOverview, endingBalance);
     LocalDate from = accountOverview.calculateRealBeginningDate();
     LocalDate to = accountOverview.getEndDate();
-    return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from, to);
+    return getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund)
+        .map(
+            endingBalance -> {
+              CashReturn cashReturn = getSimulatedCashReturn(accountOverview, endingBalance);
+              return new ReturnDto(
+                  getSimulatedRateOfReturn(accountOverview, endingBalance),
+                  cashReturn.value,
+                  cashReturn.paymentsSum,
+                  EUR,
+                  from,
+                  to);
+            })
+        .orElseGet(() -> new ReturnDto(ZERO, ZERO, ZERO, EUR, from, to));
   }
 
   @Nullable
@@ -71,70 +77,68 @@ public class ReturnCalculator {
 
   @Nullable
   private BigDecimal getSimulatedRateOfReturn(
-      AccountOverview accountOverview, Optional<BigDecimal> sellAmount) {
-    if (sellAmount.isEmpty()) {
-      return ZERO;
-    }
-
+      AccountOverview accountOverview, BigDecimal sellAmount) {
     return calculateReturn(
         getPurchaseTransactions(accountOverview),
-        sellAmount.orElseThrow(),
+        sellAmount,
         accountOverview.getEndingBalanceTime());
   }
 
   private Optional<BigDecimal> getSimulatedEndingBalanceForAFund(
       AccountOverview accountOverview, String comparisonFund) {
-    List<Transaction> purchaseTransactions = getComparisonPurchases(accountOverview);
-    LocalDate beginningBalanceLookupDate =
-        beginningBalanceIndexDate(accountOverview, comparisonFund);
-    List<LocalDate> lookupDates =
-        IntStream.range(0, purchaseTransactions.size())
-            .mapToObj(
-                i ->
-                    i == 0 && beginningBalanceLookupDate != null
-                        ? beginningBalanceLookupDate
-                        : purchaseTransactions.get(i).date())
-            .toList();
+    List<Transaction> purchases =
+        withFirstPurchaseOn(
+            getComparisonPurchases(accountOverview),
+            beginningBalanceIndexDate(accountOverview, comparisonFund));
     LocalDate endingBalanceDate = accountOverview.getEndingBalanceDate();
-    NavigableMap<LocalDate, BigDecimal> prices =
-        loadPrices(comparisonFund, lookupDates, endingBalanceDate);
-    BigDecimal virtualFundUnitsBought = ZERO;
-    for (int i = 0; i < purchaseTransactions.size(); i++) {
-      Optional<BigDecimal> fundPriceAtTime =
-          priceOnOrBefore(comparisonFund, prices, lookupDates.get(i));
-      if (fundPriceAtTime.isEmpty()) {
-        return Optional.empty();
-      }
-      virtualFundUnitsBought =
-          virtualFundUnitsBought.add(
-              purchaseTransactions
-                  .get(i)
-                  .amount()
-                  .divide(fundPriceAtTime.get(), MathContext.DECIMAL128));
-    }
-    BigDecimal unitsBought = virtualFundUnitsBought;
-    return priceOnOrBefore(comparisonFund, prices, endingBalanceDate)
-        .map(finalPrice -> finalPrice.multiply(unitsBought));
+    return pricesFor(comparisonFund, purchases, endingBalanceDate)
+        .map(
+            prices ->
+                purchases.stream()
+                    .map(
+                        purchase ->
+                            purchase
+                                .amount()
+                                .divide(
+                                    priceOnOrBefore(prices, purchase.date()),
+                                    MathContext.DECIMAL128))
+                    .reduce(ZERO, BigDecimal::add)
+                    .multiply(priceOnOrBefore(prices, endingBalanceDate)));
   }
 
-  private NavigableMap<LocalDate, BigDecimal> loadPrices(
-      String fund, List<LocalDate> lookupDates, LocalDate endingBalanceDate) {
+  private static List<Transaction> withFirstPurchaseOn(
+      List<Transaction> purchases, @Nullable LocalDate firstPurchaseDate) {
+    if (firstPurchaseDate == null || purchases.isEmpty()) {
+      return purchases;
+    }
+    Transaction movedFirstPurchase =
+        new Transaction(
+            purchases.getFirst().amount(), firstPurchaseDate.atStartOfDay(UTC).toInstant());
+    return Stream.concat(Stream.of(movedFirstPurchase), purchases.stream().skip(1)).toList();
+  }
+
+  private Optional<NavigableMap<LocalDate, BigDecimal>> pricesFor(
+      String fund, List<Transaction> purchases, LocalDate endingBalanceDate) {
     List<LocalDate> dates =
-        Stream.concat(lookupDates.stream(), Stream.of(endingBalanceDate)).toList();
-    NavigableMap<LocalDate, BigDecimal> prices = new TreeMap<>();
-    fundValueProvider
-        .findValuesBetweenDates(fund, Collections.min(dates), Collections.max(dates))
-        .forEach(value -> prices.put(value.date(), value.value()));
-    return prices;
+        Stream.concat(purchases.stream().map(Transaction::date), Stream.of(endingBalanceDate))
+            .toList();
+    LocalDate earliest = Collections.min(dates);
+    return fundValueProvider
+        .getLatestValue(fund, earliest)
+        .map(
+            startingValue -> {
+              NavigableMap<LocalDate, BigDecimal> prices = new TreeMap<>();
+              prices.put(earliest, startingValue.value());
+              fundValueProvider
+                  .findValuesBetweenDates(fund, earliest, Collections.max(dates))
+                  .forEach(value -> prices.put(value.date(), value.value()));
+              return prices;
+            });
   }
 
-  private Optional<BigDecimal> priceOnOrBefore(
-      String fund, NavigableMap<LocalDate, BigDecimal> prices, LocalDate date) {
-    Map.Entry<LocalDate, BigDecimal> loaded = prices.floorEntry(date);
-    if (loaded != null) {
-      return Optional.of(loaded.getValue());
-    }
-    return fundValueProvider.getLatestValue(fund, date).map(FundValue::value);
+  private static BigDecimal priceOnOrBefore(
+      NavigableMap<LocalDate, BigDecimal> prices, LocalDate date) {
+    return Objects.requireNonNull(prices.floorEntry(date)).getValue();
   }
 
   /**
@@ -209,11 +213,7 @@ public class ReturnCalculator {
   }
 
   private CashReturn getSimulatedCashReturn(
-      AccountOverview accountOverview, Optional<BigDecimal> endingBalance) {
-    if (endingBalance.isEmpty()) {
-      return new CashReturn();
-    }
-
+      AccountOverview accountOverview, BigDecimal endingBalance) {
     final var paymentsSum =
         accountOverview.getTransactions().stream()
             .map(Transaction::amount)
@@ -222,7 +222,6 @@ public class ReturnCalculator {
 
     BigDecimal cashReturn =
         endingBalance
-            .orElseThrow()
             .subtract(accountOverview.getBeginningBalance())
             .subtract(paymentsSum)
             .setScale(CASH_DECIMAL_PLACES, RoundingMode.HALF_UP);

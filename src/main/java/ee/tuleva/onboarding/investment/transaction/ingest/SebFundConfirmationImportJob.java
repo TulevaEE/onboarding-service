@@ -42,8 +42,13 @@ class SebFundConfirmationImportJob {
       lockAtLeastFor = "1m")
   public void run() {
     List<SebFundConfirmationCheckFailure> failures = new ArrayList<>();
-    Optional<List<String>> listedKeys = recentKeys(failures);
-    List<String> keys = listedKeys.orElse(List.of());
+    List<String> keys;
+    try {
+      keys = s3Source.recentKeys();
+    } catch (RuntimeException e) {
+      reportUnlistedConfirmations(e);
+      return;
+    }
     Uploads uploads = new Uploads();
     keys.forEach(key -> read(key, uploads, failures));
 
@@ -60,7 +65,7 @@ class SebFundConfirmationImportJob {
 
     digest.publish(
         outcomes,
-        listedKeys.isPresent() ? missing(uploads.confirmedReferences(), failures) : List.of(),
+        missing(uploads.confirmedReferences(), failures),
         uploads.unreadable(),
         uploads.misnamed(),
         failures);
@@ -93,15 +98,15 @@ class SebFundConfirmationImportJob {
         });
   }
 
-  private Optional<List<String>> recentKeys(List<SebFundConfirmationCheckFailure> failures) {
-    try {
-      return Optional.of(s3Source.recentKeys());
-    } catch (RuntimeException e) {
-      log.error("SEB fund confirmation listing failed: error={}", e.getMessage(), e);
-      failures.add(
-          new SebFundConfirmationCheckFailure("kinnituste nimekirja lugemine S3-st", reason(e)));
-      return Optional.empty();
-    }
+  private void reportUnlistedConfirmations(RuntimeException e) {
+    log.error("SEB fund confirmation listing failed: error={}", e.getMessage(), e);
+    digest.publish(
+        List.of(),
+        List.of(),
+        List.of(),
+        List.of(),
+        List.of(
+            new SebFundConfirmationCheckFailure("kinnituste nimekirja lugemine S3-st", reason(e))));
   }
 
   private Optional<byte[]> download(String key, List<SebFundConfirmationCheckFailure> failures) {

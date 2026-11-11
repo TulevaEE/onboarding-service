@@ -15,6 +15,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static java.time.temporal.ChronoUnit.DAYS
 
 class ReturnCalculatorSpec extends Specification {
@@ -302,6 +303,34 @@ class ReturnCalculatorSpec extends Specification {
     marketAverageReturn.paymentsSum() == 0
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")
     marketAverageReturn.to() == LocalDate.parse("2018-07-16")
+  }
+
+  def "buys the opening units at the first value of a fund whose values begin on the first day of the period"() {
+    given:
+    def fund = "EE3600001707"
+    Instant startTime = parseInstant("2019-10-14")
+    Instant endTime = parseInstant("2020-10-14")
+    fundValueProvider.getLatestValue(fund, _ as LocalDate) >> { String key, LocalDate date ->
+      date.isBefore(LocalDate.parse("2019-10-14")) ? Optional.empty() :
+          date.isBefore(LocalDate.parse("2020-10-14")) ? Optional.of(aFundValue(fund, LocalDate.parse("2019-10-14"), 1.0)) :
+              Optional.of(aFundValue(fund, LocalDate.parse("2020-10-14"), 1.1))
+    }
+    def overview = AccountOverview.builder()
+        .transactions([])
+        .beginningBalance(1000.0)
+        .endingBalance(1050.0)
+        .startTime(startTime)
+        .endTime(endTime)
+        .beginningBalanceTime(startTime.minus(1, DAYS))
+        .endingBalanceTime(endTime)
+        .pillar(3)
+        .build()
+
+    when:
+    def fundReturn = returnCalculator.getSimulatedReturn(overview, fund)
+
+    then:
+    fundReturn == new ReturnDto(0.0994, 100.00, BigDecimal.ZERO, EUR, LocalDate.parse("2019-10-14"), LocalDate.parse("2020-10-14"))
   }
 
   private static Map<String, BigDecimal> epiFundValues() {

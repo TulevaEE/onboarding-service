@@ -1,14 +1,11 @@
 package ee.tuleva.onboarding.comparisons.returns
 
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnCalculationParameters
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider
-import ee.tuleva.onboarding.deadline.MandateDeadlinesService
-import ee.tuleva.onboarding.deadline.PublicHolidays
-import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.time.Instant
 import java.time.LocalDate
@@ -26,15 +23,13 @@ class ReturnsServiceSpec extends Specification {
   def returnProvider1 = Mock(ReturnProvider)
   def returnProvider2 = Mock(ReturnProvider)
   def returnProvider3 = Mock(ReturnProvider)
-  def fundValueRepository = Mock(FundValueRepository)
-  def mandateDeadlineService = new MandateDeadlinesService(TestClockHolder.clock, new PublicHolidays())
-  def returnsService = new ReturnsService([returnProvider1, returnProvider2, returnProvider3], fundValueRepository, mandateDeadlineService)
+  def returnsService = new ReturnsService([returnProvider1, returnProvider2, returnProvider3])
 
   def "can get returns from multiple providers"() {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = fromDate.plusDays(1).atStartOfDay().toInstant(UTC)
+    def startTime = fromDate.atStartOfDay().toInstant(UTC)
     def endDate = LocalDate.now()
     def endTime = endDate.atStartOfDay().toInstant(UTC)
     def pillar = 3
@@ -50,10 +45,6 @@ class ReturnsServiceSpec extends Specification {
     returnProvider1.getKeys() >> [return1.key]
     returnProvider2.getKeys() >> [return2.key]
     returnProvider3.getKeys() >> [return3.key]
-
-    fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(return1.from)
-    fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(return2.from)
-    fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(return3.from)
 
     when:
     def theReturns = returnsService.get(person, fromDate, endDate, [return1.key, return2.key, return3.key])
@@ -115,10 +106,6 @@ class ReturnsServiceSpec extends Specification {
     returnProvider2.getKeys() >> []
     returnProvider3.getKeys() >> []
 
-    fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(return1.from)
-    fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(return2.from)
-    fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(return3.from)
-
     when:
     def theReturns = returnsService.get(person, fromDate, endDate, [return1.key])
 
@@ -129,190 +116,29 @@ class ReturnsServiceSpec extends Specification {
     }
   }
 
-  def "adjusts fromDate according to data availability and 2nd pillar mandate deadlines"() {
+  @Unroll
+  def "asks for every return over exactly the requested period, whatever is asked for alongside it"() {
     given:
     def person = samplePerson()
-    LocalDate originalFromDate = LocalDate.parse("2020-01-01")
-    LocalDate earliestNavDate = LocalDate.parse("2020-02-01")
-    Instant adjustedStartTime = Instant.parse("2020-05-01T00:00:00Z")
-    LocalDate adjustedStartDate = LocalDate.parse("2020-05-01")
-    LocalDate endDate = LocalDate.now()
-    Instant endTime = endDate.atStartOfDay().toInstant(UTC)
-
-    def (return1, returns1) = sampleReturns1(adjustedStartDate)
-    def (return2, returns2) = sampleReturns2(adjustedStartDate)
-    def (return3, returns3) = sampleReturns3(adjustedStartDate)
-
-
-    returnProvider1.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return1.key])) >> returns1
-    returnProvider2.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return2.key])) >> returns2
-    returnProvider3.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return3.key])) >> returns3
-
-    returnProvider1.getKeys() >> [return1.key]
-    returnProvider2.getKeys() >> [return2.key]
-    returnProvider3.getKeys() >> [return3.key]
-
-    def keys = [return1.key, return2.key]
-
-    fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(earliestNavDate)
-    fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(earliestNavDate)
-
-    when:
-    Returns theReturns = returnsService.get(person, originalFromDate, endDate, keys)
-
-    then:
-    with(theReturns) {
-      returns == [return1, return2]
-      from == adjustedStartDate
-    }
-  }
-
-  def "uses original fromDate when data availability does not require adjustment"() {
-    given:
-    def person = samplePerson()
-    LocalDate originalFromDate = LocalDate.parse("2020-01-01")
-    Instant fromTime = originalFromDate.plusDays(1).atStartOfDay().toInstant(UTC)
-    LocalDate endDate = LocalDate.now()
-    Instant endTime = endDate.atStartOfDay().toInstant(UTC)
-
-    def (return1, returns1) = sampleReturns1(originalFromDate)
-    def (return2, returns2) = sampleReturns2(originalFromDate)
-    def (return3, returns3) = sampleReturns3(originalFromDate)
-
-    returnProvider1.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return1.key])) >> returns1
-    returnProvider2.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return2.key])) >> returns2
-    returnProvider3.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return3.key])) >> returns3
-
-    returnProvider1.getKeys() >> [return1.key]
-    returnProvider2.getKeys() >> [return2.key]
-    returnProvider3.getKeys() >> [return3.key]
-
-    def keys = [return1.key, return2.key, return3.key]
-
-    fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(originalFromDate)
-    fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(originalFromDate)
-    fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(originalFromDate)
-
-    when:
-    Returns theReturns = returnsService.get(person, originalFromDate, endDate, keys)
-
-    then:
-    with(theReturns) {
-      returns == [return1, return2, return3]
-      from == originalFromDate
-    }
-  }
-
-  def "revises the from time correctly"() {
-    given:
     def fromDate = LocalDate.parse(from)
-    def (return1, returns1) = sampleReturns1(fromDate)
-    def keys = [return1.key]
-
-    def earliestNavDate = LocalDate.parse(earliestNav)
-
-    fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(earliestNavDate)
-
-    when:
-    Instant revisedFromTime = returnsService.getRevisedFromTime(fromDate, keys, pillar)
-
-    then:
-    revisedFromTime == Instant.parse(expectedRevision + "T00:00:00Z")
-
-    where:
-    from         | earliestNav  | pillar || expectedRevision
-    "2020-01-01" | "2020-02-01" | 2      || "2020-05-01" // transferMandateFulfillmentDate
-    "2020-01-01" | "2020-02-01" | 3      || "2020-02-02" // earliestNavDate + 1 days
-
-    "2020-02-01" | "2020-02-01" | 2      || "2020-05-01" // transferMandateFulfillmentDate
-    "2020-02-01" | "2020-02-01" | 3      || "2020-02-02" // earliestNavDate + 1 days
-
-    "2020-03-01" | "2020-02-01" | 2      || "2020-05-01" // transferMandateFulfillmentDate
-    "2020-03-01" | "2020-02-01" | 3      || "2020-03-01" // fromDate
-
-    "2020-05-01" | "2020-02-01" | 2      || "2020-05-01" // fromDate = transferMandateFulfillmentDate
-    "2020-06-01" | "2020-02-01" | 2      || "2020-06-01" // fromDate
-    "2020-06-01" | "2020-02-01" | 3      || "2020-06-01" // fromDate
-  }
-
-  def "revises the from time correctly with no comparison keys"() {
-    given:
-    def fromDate = LocalDate.parse(from)
-
-    when:
-    Instant revisedFromTime = returnsService.getRevisedFromTime(fromDate, [], pillar)
-
-    then:
-    revisedFromTime == Instant.parse(expectedRevision + "T00:00:00Z")
-
-    where:
-    from          | pillar || expectedRevision
-    "2020-01-01"  | 2      || "2020-05-01" // transferMandateFulfillmentDate
-    "2020-01-01"  | 3      || "2020-01-01" // fromDate
-  }
-
-  def "does not revise the from time for a personal return"() {
-    expect:
-    returnsService.getRevisedFromTime(LocalDate.parse(from), [key], pillar) == Instant.parse(from + "T00:00:00Z")
-
-    where:
-    from         | key           | pillar
-    "2026-01-01" | SECOND_PILLAR | 2
-    "2026-04-01" | SECOND_PILLAR | 2
-    "2026-05-01" | SECOND_PILLAR | 2
-    "2026-08-01" | SECOND_PILLAR | 2
-    "2026-05-01" | THIRD_PILLAR  | 3
-  }
-
-  def "asks the provider for exactly the period requested for a personal return"() {
-    given:
-    def person = samplePerson()
-    def fromDate = LocalDate.parse("2026-05-01")
     def endDate = LocalDate.parse("2026-08-22")
     def expectedParameters = new ReturnCalculationParameters(
-        person, Instant.parse("2026-05-01T00:00:00Z"), Instant.parse("2026-08-22T00:00:00Z"), 2, [SECOND_PILLAR])
+        person, Instant.parse("${from}T00:00:00Z"), Instant.parse("2026-08-22T00:00:00Z"), pillar, keys)
 
-    def secondPillarReturn = Return.builder()
-        .key(SECOND_PILLAR)
-        .type(PERSONAL)
-        .rate(0.0712)
-        .amount(345.67)
-        .paymentsSum(567.89)
-        .currency(EUR)
-        .from(fromDate)
-        .to(endDate)
-        .build()
-
-    returnProvider1.getKeys() >> [SECOND_PILLAR, THIRD_PILLAR]
+    returnProvider1.getKeys() >> [SECOND_PILLAR, THIRD_PILLAR, UnionStockIndexRetriever.KEY, EpiIndex.EPI.key]
     returnProvider2.getKeys() >> []
     returnProvider3.getKeys() >> []
 
     when:
-    Returns theReturns = returnsService.get(person, fromDate, endDate, [SECOND_PILLAR])
+    returnsService.get(person, fromDate, endDate, keys)
 
     then:
-    1 * returnProvider1.getReturns(expectedParameters) >> Returns.builder().returns([secondPillarReturn]).build()
-    theReturns.returns == [secondPillarReturn]
-  }
-
-  def "still revises the from time when a personal key is mixed with a comparison key"() {
-    given:
-    def fromDate = LocalDate.parse("2020-01-01")
-    def keys = [SECOND_PILLAR, UnionStockIndexRetriever.KEY]
-
-    fundValueRepository.findEarliestDateForKey(SECOND_PILLAR) >> Optional.empty()
-    fundValueRepository.findEarliestDateForKey(UnionStockIndexRetriever.KEY) >> earliestComparisonNav
-
-    when:
-    Instant revisedFromTime = returnsService.getRevisedFromTime(fromDate, keys, 2)
-
-    then:
-    revisedFromTime == Instant.parse("2020-05-01T00:00:00Z")
+    1 * returnProvider1.getReturns(expectedParameters) >> Returns.builder().returns([]).build()
 
     where:
-    earliestComparisonNav                      | _
-    Optional.of(LocalDate.parse("2020-02-01")) | _ // the comparison fund already has NAV history
-    Optional.empty()                           | _ // the comparison fund's NAV history is not backfilled yet
+    from         | keys                                                            | pillar
+    "2020-03-01" | [SECOND_PILLAR, UnionStockIndexRetriever.KEY, EpiIndex.EPI.key] | 2
+    "2019-10-14" | [THIRD_PILLAR, EpiIndex.EPI.key]                                | 3
   }
 
   private def sampleReturns1(LocalDate fromDate) {

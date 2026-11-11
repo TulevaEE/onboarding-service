@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerLease;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -80,6 +81,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
   @Mock private SebPendingTransactionReconciliationService reconciliationService;
   @Mock private TransactionExecutionRepository executionRepository;
   @Mock private TransactionSettlementRepository settlementRepository;
+  @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private OperationsNotificationService notificationService;
 
   private final RecordingLockProvider lockProvider = RecordingLockProvider.free();
@@ -167,6 +169,31 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             (2026-04-21).
             Uusi täitmisi: 1, uusi arveldusi: 1. Saatmata hoiatusi: 0 (koguse või summa \
             lahknevusi: 0, kärbitud raporteid: 0, tükkide hinnaerinevusi: 0).
+            Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
+            Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void run_thatMovedSettlementsBackToAnEarlierAbsence_saysHowManyInTheSummary() {
+    InvestmentReport day27 = report(TODAY.minusDays(27));
+    givenStoredReports(Map.of(27, day27));
+    given(executionRepository.count()).willReturn(10L, 10L);
+    given(settlementRepository.count()).willReturn(3L, 3L);
+    given(auditEventRepository.countByEventType("SETTLEMENT_REDATED")).willReturn(1L, 3L);
+    given(reconciliationService.replay(eq(day27), any(), any(), any()))
+        .willReturn(SettlementCheck.CHECKED);
+
+    job.onSebPendingTransactionReconciliationBackfillRequested(A_YEAR_BACK);
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            SEB ootel-tehingute raportid sobitati uuesti vanimast uusimani. Raporteid: 1 \
+            (2026-04-21).
+            Uusi täitmisi: 0, uusi arveldusi: 0, varasemaks nihutatud arvelduskuupäevi: 2. \
+            Saatmata hoiatusi: 0 (koguse või summa lahknevusi: 0, kärbitud raporteid: 0, \
+            tükkide hinnaerinevusi: 0).
             Lahknevused ja kärbitud raportid on auditis (investment_transaction_audit_event). \
             Uuesti käivitamine ei lisa täitmisi ega arveldusi topelt.""",
             INVESTMENT);
@@ -723,6 +750,7 @@ class SebPendingTransactionReconciliationBackfillJobTest {
             reconciliationService,
             executionRepository,
             settlementRepository,
+            auditEventRepository,
             window,
             jobTriggerLease));
   }

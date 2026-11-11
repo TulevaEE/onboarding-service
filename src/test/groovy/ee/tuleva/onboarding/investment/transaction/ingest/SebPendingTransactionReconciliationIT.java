@@ -28,6 +28,8 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
+import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.ReplaySummary;
 import jakarta.persistence.EntityManager;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -68,6 +70,7 @@ class SebPendingTransactionReconciliationIT {
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private TransactionSettlementRepository settlementRepository;
+  @Autowired private TransactionSettlementService settlementService;
   @Autowired private CsvToJsonConverter csvConverter;
   @Autowired private EntityManager entityManager;
   @Autowired private InvestmentReportService reportService;
@@ -662,6 +665,156 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_resumedAfterALiveRunSettledTheOrderLater_movesItsSettlementBackToItsFirstAbsence() {
+    InvestmentReport latest =
+        givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest();
+
+    ReplaySummary resumed =
+        replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+            .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(FIRST_ABSENCE);
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getOrderStatus())
+        .isEqualTo(SETTLED);
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .singleElement()
+        .satisfies(
+            redated -> {
+              assertThat(redated.getPayload())
+                  .containsEntry("reportDate", FIRST_ABSENCE.toString());
+              assertThat(settlementSnapshot(redated, "before"))
+                  .containsEntry("reportDate", latest.getReportDate().toString());
+              assertThat(settlementSnapshot(redated, "after"))
+                  .containsEntry("reportDate", FIRST_ABSENCE.toString());
+            });
+    assertThat(resumed.redatedSettlements()).isEqualTo(1);
+    assertThat(resumed.newSettlements()).isZero();
+  }
+
+  @Test
+  void replay_runAgainOverTheSameReports_leavesTheMovedSettlementAsItIs() {
+    givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest();
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    TransactionSettlement moved = settlementRepository.findByOrderId(order.getId()).orElseThrow();
+    Instant movedSettledAt = moved.getSettledAt();
+    entityManager.clear();
+
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(report.getReportDate(), report.getReportDate(), LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow())
+        .extracting(TransactionSettlement::getReportDate, TransactionSettlement::getSettledAt)
+        .containsExactly(FIRST_ABSENCE, movedSettledAt);
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .hasSize(1);
+  }
+
+  @Test
+  void replay_settlementAlreadyEarlierThanTheAbsence_isLeftAsItIs() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    reportWhoseFirstRowIs(FIRST_ABSENCE, stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 14));
+    entityManager.flush();
+
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 14));
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void replay_orderNotFullyFilledByWhatTheReplaySawListed_keepsItsLaterSettlement() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    reportWhoseFirstRowIs(FIRST_ABSENCE, stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    order.setOrderAmount(new BigDecimal("200000.00"));
+    orderRepository.save(order);
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 17));
+    entityManager.flush();
+
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 17));
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void replay_orderStillListedByTheReport_keepsTheLaterSettlementALiveRunGaveIt() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    reportListingTheFixtureOrderOn(FIRST_ABSENCE);
+    InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 17), stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.reconcile(latest, LOCK_HELD);
+    entityManager.flush();
+
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(latest.getReportDate());
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void replay_orderTheResumedReplayHasNotSeenListed_keepsTheLaterSettlementALiveRunGaveIt() {
+    InvestmentReport latest =
+        givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest();
+
+    replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+        .replayOldestFirst(FIRST_ABSENCE, FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(latest.getReportDate());
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void reconcile_settlementLaterThanTheLatestReport_isNeverMovedByALiveRun() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 17), stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 20));
+    entityManager.flush();
+
+    reconciliationService.reconcile(latest, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(LocalDate.of(2026, 2, 20));
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
   void reconcile_sameReportsOldestFirst_settlesOnlyOnTheLatestReportsDate() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     InvestmentReport missingFrom = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 16), stillOpen);
@@ -1094,6 +1247,7 @@ class SebPendingTransactionReconciliationIT {
         reconciliationService,
         executionRepository,
         settlementRepository,
+        auditEventRepository,
         new SebReplayWindow("07:45", "18:15"),
         new JobTriggerLease());
   }
@@ -1154,6 +1308,41 @@ class SebPendingTransactionReconciliationIT {
     assertThat(executionRepository.findAllByOrderId(clientRefOwner.getId()))
         .extracting(TransactionExecution::getBrokerTransactionId)
         .doesNotContain("DLA0000000");
+  }
+
+  private static final LocalDate FIRST_ABSENCE = LocalDate.of(2026, 2, 16);
+
+  private InvestmentReport givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    reportWhoseFirstRowIs(FIRST_ABSENCE, stillOpen);
+    InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 17), stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.reconcile(latest, LOCK_HELD);
+    entityManager.flush();
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
+        .isEqualTo(latest.getReportDate());
+    return latest;
+  }
+
+  private InvestmentReport reportListingTheFixtureOrderOn(LocalDate reportDate) {
+    List<Map<String, Object>> rawData = loadFixtureRawData();
+    rawData.get(0).put("Client ref", FIXTURE_CLIENT_REF.toString());
+    return reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(reportDate)
+            .rawData(rawData)
+            .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
+            .createdAt(Instant.now())
+            .build());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> settlementSnapshot(
+      TransactionAuditEvent redated, String side) {
+    return (Map<String, Object>) redated.getPayload().get(side);
   }
 
   @SuppressWarnings("unchecked")

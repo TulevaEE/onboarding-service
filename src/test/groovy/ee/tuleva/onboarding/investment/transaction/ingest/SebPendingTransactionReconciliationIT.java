@@ -7,6 +7,9 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.BANK_STATEMENT;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
+import static ee.tuleva.onboarding.investment.transaction.SettlementSource.PENDING_REPORT_ABSENCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -717,12 +720,55 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void replay_resumedAfterTheBankDatedTheSettlementLater_leavesTheBanksDateAndSource() {
+    givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest();
+    settlementService.settleFromTheBank(order, BANK_BOOKED_AFTER_THE_FIRST_ABSENCE);
+    entityManager.flush();
+
+    ReplaySummary resumed =
+        replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+            .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow())
+        .extracting(TransactionSettlement::getReportDate, TransactionSettlement::getSource)
+        .containsExactly(BANK_BOOKED_AFTER_THE_FIRST_ABSENCE, BANK_STATEMENT);
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+    assertThat(resumed.redatedSettlements()).isZero();
+  }
+
+  @Test
+  void replay_resumedOverASettlementTheHistoricalImportDatedLater_leavesItsDateAndSource() {
+    TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
+    reportWhoseFirstRowIs(FIRST_ABSENCE, stillOpen);
+    entityManager.flush();
+    reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 17), HISTORICAL_IMPORT);
+    entityManager.flush();
+
+    ReplaySummary resumed =
+        replayerAt(SEB_LISTS_NOTHING_MORE_BY)
+            .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow())
+        .extracting(TransactionSettlement::getReportDate, TransactionSettlement::getSource)
+        .containsExactly(LocalDate.of(2026, 2, 17), HISTORICAL_IMPORT);
+    assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+    assertThat(resumed.redatedSettlements()).isZero();
+  }
+
+  @Test
   void replay_settlementAlreadyEarlierThanTheAbsence_isLeftAsItIs() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();
     reportWhoseFirstRowIs(FIRST_ABSENCE, stillOpen);
     entityManager.flush();
     reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
-    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 14));
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 14), PENDING_REPORT_ABSENCE);
     entityManager.flush();
 
     replayerAt(SEB_LISTS_NOTHING_MORE_BY)
@@ -744,7 +790,7 @@ class SebPendingTransactionReconciliationIT {
     reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
     order.setOrderAmount(new BigDecimal("200000.00"));
     orderRepository.save(order);
-    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 17));
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 17), PENDING_REPORT_ABSENCE);
     entityManager.flush();
 
     replayerAt(SEB_LISTS_NOTHING_MORE_BY)
@@ -801,7 +847,7 @@ class SebPendingTransactionReconciliationIT {
     InvestmentReport latest = reportWhoseFirstRowIs(LocalDate.of(2026, 2, 17), stillOpen);
     entityManager.flush();
     reconciliationService.replay(report, alert -> {}, listings, LOCK_HELD);
-    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 20));
+    settlementService.recordSettlement(order, LocalDate.of(2026, 2, 20), PENDING_REPORT_ABSENCE);
     entityManager.flush();
 
     reconciliationService.reconcile(latest, LOCK_HELD);
@@ -1577,6 +1623,7 @@ class SebPendingTransactionReconciliationIT {
   }
 
   private static final LocalDate FIRST_ABSENCE = LocalDate.of(2026, 2, 16);
+  private static final LocalDate BANK_BOOKED_AFTER_THE_FIRST_ABSENCE = LocalDate.of(2026, 2, 18);
 
   private InvestmentReport givenAReplayStoppedBeforeTheFirstAbsenceAndALiveRunSettledOnTheLatest() {
     TransactionOrder stillOpen = givenOrderLeavesAfterFirstReportWhileAnotherStays();

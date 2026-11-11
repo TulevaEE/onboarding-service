@@ -196,7 +196,8 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private static boolean mayBeRedatedTo(TransactionSettlement settlement, LocalDate reportDate) {
-    return settlement.getReportDate().isAfter(reportDate);
+    return settlement.getSource() == PENDING_REPORT_ABSENCE
+        && settlement.getReportDate().isAfter(reportDate);
   }
 
   private boolean absenceMaySettle(

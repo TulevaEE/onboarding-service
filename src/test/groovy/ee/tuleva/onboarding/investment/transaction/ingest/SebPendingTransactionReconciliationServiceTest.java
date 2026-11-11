@@ -110,6 +110,7 @@ class SebPendingTransactionReconciliationServiceTest {
     return new SebPendingTransactionReconciliationService(
         extractor,
         validator,
+        new ReportedQuantityNormalizer(),
         matchingPolicy,
         executionRepository,
         orderRepository,

@@ -42,6 +42,7 @@ public class SebPendingTransactionReconciliationService {
 
   private final SebPendingTransactionExtractor extractor;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final ReportedQuantityNormalizer quantityNormalizer;
   private final TransactionMatchingPolicy matchingPolicy;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
@@ -221,12 +222,14 @@ public class SebPendingTransactionReconciliationService {
       List<TransactionExecution> listed,
       LocalDate reportDate,
       SebReplayListings listings) {
+    List<TransactionExecution> stored = executionRepository.findAllByOrderId(order.getId());
     Optional<TransactionExecution> differing =
         listed.stream()
             .filter(
                 execution ->
                     listings
                         .lastListing(execution.getBrokerTransactionId())
+                        .map(listing -> quantityNormalizer.normalize(order, listing, stored))
                         .filter(
                             listing ->
                                 quantityAmountValidator.fillAsListed(order, execution, listing))

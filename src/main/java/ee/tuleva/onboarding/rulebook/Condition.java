@@ -19,11 +19,8 @@ public sealed interface Condition<C> permits Fact, Junction, Not {
   }
 
   default boolean joined() {
-    return switch (this) {
-      case Fact<C> _ -> false;
-      case Not<C>(Condition<C> negated) -> negated.joined();
-      case Junction<C> _ -> true;
-    };
+    return this instanceof Junction<C>
+        || (this instanceof Not<C>(Condition<C> negated) && negated.joined());
   }
 
   default String bracketed(final Truth truth) {

@@ -99,6 +99,27 @@ class UnitOwnerSynchronizerIntegrationTest {
   }
 
   @Test
+  void sync_storesTheLatestRejoinApplication() {
+    LocalDate snapshotDate = LocalDate.of(2026, 11, 13);
+    mockEpisService.setUnitOwners(
+        List.of(
+            dtoBuilder(PERSON_ID_1)
+                .pillar2Details(
+                    pillar2DetailsDtoBuilder()
+                        .mateDate(LocalDate.of(2026, 11, 2))
+                        .mateStatus("A")
+                        .build())
+                .build()));
+
+    synchronizer.sync(snapshotDate);
+
+    assertThat(repository.findByPersonalIdAndSnapshotDate(PERSON_ID_1, snapshotDate))
+        .get()
+        .extracting(UnitOwner::getP2mateDate, UnitOwner::getP2mateStatus)
+        .containsExactly(LocalDate.of(2026, 11, 2), "A");
+  }
+
+  @Test
   void sync_handlesEmptyResponseGracefully() {
     // given
     LocalDate date1 = LocalDate.of(2025, 4, 20);

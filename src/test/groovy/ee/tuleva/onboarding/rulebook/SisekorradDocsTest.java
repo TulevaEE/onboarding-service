@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.rulebook;
 
-import static ee.tuleva.onboarding.sisekord.Sisekorrad.SISEKORD_13;
-import static ee.tuleva.onboarding.sisekord.Sisekorrad.SISEKORD_4;
+import static ee.tuleva.onboarding.rulebook.Sisekorrad.SISEKORD_13;
+import static ee.tuleva.onboarding.rulebook.Sisekorrad.SISEKORD_4;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;

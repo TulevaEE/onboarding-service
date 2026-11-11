@@ -4,11 +4,14 @@ import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
@@ -16,6 +19,7 @@ import static org.mockito.BDDMockito.willThrow;
 import ee.tuleva.onboarding.investment.event.JobBusyException;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,13 +44,67 @@ class SettlementFromBankListenerTest {
 
   @Mock private SettlementFromBankService settlementFromBankService;
   @Mock private JobTriggerQueue jobTriggerQueue;
+  @Mock private OperationsNotificationService notificationService;
 
   private SettlementFromBankListener listenerLockedBy(RecordingLockProvider lockProvider) {
     return new SettlementFromBankListener(
         CLOCK,
         settlementFromBankService,
         lockProvider.reconciliationLockAt(CLOCK),
-        jobTriggerQueue);
+        jobTriggerQueue,
+        notificationService);
+  }
+
+  @Test
+  void aRunWithOrdersThatFailed_warnsTheInvestmentChannelWithTheCounts() {
+    given(settlementFromBankService.settleOrdersBookedSince(eq(SIXTY_DAYS_AGO), any()))
+        .willReturn(Optional.of(new BankSettlementRun(3, 1, 1, 4, 2)));
+
+    listenerLockedBy(RecordingLockProvider.free()).onReportImportCompleted(SEB_PENDING_IMPORTED);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "Registri tellimuste arveldamine panga kuupäevadega: 2 tellimuse arveldamine"
+                + " ebaõnnestus (põhjus on logis: \"Settling an order from the bank failed\").\n"
+                + "Panga kuupäeva said 5, pangakuupäevata jäi 4.\n"
+                + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud.",
+            INVESTMENT,
+            WARNING);
+  }
+
+  @Test
+  void aRunWithoutFailedOrders_postsNothing() {
+    given(settlementFromBankService.settleOrdersBookedSince(eq(SIXTY_DAYS_AGO), any()))
+        .willReturn(Optional.of(new BankSettlementRun(3, 1, 1, 4, 0)));
+
+    listenerLockedBy(RecordingLockProvider.free()).onReportImportCompleted(SEB_PENDING_IMPORTED);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void aRunWithoutAUsableSebPendingReport_postsNothing() {
+    given(settlementFromBankService.settleOrdersBookedSince(eq(SIXTY_DAYS_AGO), any()))
+        .willReturn(Optional.empty());
+
+    listenerLockedBy(RecordingLockProvider.free()).onReportImportCompleted(SEB_PENDING_IMPORTED);
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void theDeferredTriggerWithFailedOrders_warnsTooAndCompletesWhenTheWarningCannotBePosted() {
+    given(settlementFromBankService.settleOrdersBookedSince(eq(SIXTY_DAYS_AGO), any()))
+        .willReturn(Optional.of(new BankSettlementRun(0, 0, 0, 0, 1)));
+    willThrow(new IllegalStateException("slack down"))
+        .given(notificationService)
+        .sendMessage(any(), eq(INVESTMENT), eq(WARNING));
+    SettlementFromBankListener listener = listenerLockedBy(RecordingLockProvider.free());
+
+    assertThatCode(listener::onSettlementFromBankRequested).doesNotThrowAnyException();
+
+    then(notificationService).should().sendMessage(any(), eq(INVESTMENT), eq(WARNING));
   }
 
   @Test

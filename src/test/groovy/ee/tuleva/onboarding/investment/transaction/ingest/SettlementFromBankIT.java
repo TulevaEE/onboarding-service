@@ -11,12 +11,18 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.SETTLEMENT_FROM_BANK;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 
 import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.banking.seb.SebIntegrationTest;
@@ -75,6 +81,8 @@ class SettlementFromBankIT {
   @Autowired private InvestmentReportRepository reportRepository;
   @Autowired private JobTriggerQueue jobTriggerQueue;
   @Autowired private StoredTradeReferences storedTradeReferences;
+  private final OperationsNotificationService notificationService =
+      mock(OperationsNotificationService.class);
 
   @BeforeEach
   void sebsLatestPendingReportListsNoneOfTheOrders() {
@@ -378,6 +386,32 @@ class SettlementFromBankIT {
   }
 
   @Test
+  void anImportWhoseBookingHasNoCashLeg_warnsTheInvestmentChannelUntilTheBookingIsRepaired() {
+    TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
+    piece(order, "DLA0553690", "11704");
+    UUID broken = bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    dropTheCashLegs(broken);
+    SettlementFromBankListener listener = listenerLockedBy(RecordingLockProvider.free());
+    ReportImportCompleted imported =
+        new ReportImportCompleted(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 2, 21), 1);
+
+    listener.onReportImportCompleted(imported);
+
+    then(notificationService).should().sendMessage(anyString(), eq(INVESTMENT), eq(WARNING));
+
+    reset(notificationService);
+    deleteTheBooking(broken);
+    bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+
+    listener.onReportImportCompleted(imported);
+
+    then(notificationService).shouldHaveNoInteractions();
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(settlementOf(order).getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  @Test
   void anImportWhileTheLockIsHeld_leavesTheOrderOpenUntilItsTriggerFindsTheLockFree() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
@@ -421,14 +455,15 @@ class SettlementFromBankIT {
         AFTER_THE_BOOKINGS,
         settlementFromBankService,
         lockProvider.reconciliationLockAt(AFTER_THE_BOOKINGS),
-        jobTriggerQueue);
+        jobTriggerQueue,
+        notificationService);
   }
 
   private SettlementFromBankHistoryJob historyJobLockedBy(RecordingLockProvider lockProvider) {
     return new SettlementFromBankHistoryJob(
         storedTradeReferences,
         settlementFromBankService,
-        mock(OperationsNotificationService.class),
+        notificationService,
         lockProvider.reconciliationLockAt(AFTER_THE_BOOKINGS));
   }
 
@@ -542,6 +577,18 @@ class SettlementFromBankIT {
             bookingDate);
     entityManager.flush();
     return booking.getId();
+  }
+
+  private void deleteTheBooking(UUID bookingId) {
+    entityManager
+        .createNativeQuery("DELETE FROM ledger.entry WHERE transaction_id = :bookingId")
+        .setParameter("bookingId", bookingId)
+        .executeUpdate();
+    entityManager
+        .createNativeQuery("DELETE FROM ledger.transaction WHERE id = :bookingId")
+        .setParameter("bookingId", bookingId)
+        .executeUpdate();
+    entityManager.clear();
   }
 
   private void dropTheCashLegs(UUID bookingId) {

@@ -1,14 +1,24 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.BREACHED;
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.WITHIN;
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.SISEKORD_4_P_11_8;
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.BREACH;
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.CLEAN;
+
+import ee.tuleva.onboarding.investment.check.tracking.ConsecutiveBreachTracker.ConsecutiveBreachInfo;
+import ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Escalation;
+import ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Streak;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boolean fallback) {
 
-  private static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
-  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
+  static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
+  static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
 
   static EscalationRule on(LocalDate checkDate, TrackingDifferenceCalculator calculator) {
     try {
@@ -28,21 +38,28 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   }
 
   private boolean escalates(TrackingDifferenceResult result) {
-    return (result.hasAnyBreach() && theStreakThroughTheCheckDateEscalates(result))
-        || theStreakBeforeTheCheckDateOwesTheNotification(result);
+    return SISEKORD_4_P_11_8.appliesTo(
+        new Escalation(
+            result.hasAnyBreach() ? BREACH : CLEAN,
+            new Streak(
+                result.consecutiveBreachDays(),
+                result.consecutiveBreachDays(),
+                result.consecutiveNetTd(),
+                result.escalationNavResidualBreach() ? BREACHED : WITHIN),
+            before(result.streakBefore()),
+            notificationWorkingDay,
+            netTdThreshold));
   }
 
-  private boolean theStreakThroughTheCheckDateEscalates(TrackingDifferenceResult result) {
-    return result.consecutiveBreachDays() >= notificationWorkingDay
-        && ((result.consecutiveNetTd() != null
-                && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
-            || result.escalationNavResidualBreach());
-  }
-
-  private boolean theStreakBeforeTheCheckDateOwesTheNotification(TrackingDifferenceResult result) {
-    var streakBefore = result.streakBefore();
-    return streakBefore != null
-        && streakBefore.owesTheNotification(notificationWorkingDay, netTdThreshold);
+  private static @Nullable Streak before(@Nullable ConsecutiveBreachInfo streakBefore) {
+    if (streakBefore == null) {
+      return null;
+    }
+    return new Streak(
+        streakBefore.count(),
+        streakBefore.streakDaysBeforeTheCheckDate(),
+        streakBefore.compoundedTd(),
+        streakBefore.hadNavResidualBreach() ? BREACHED : WITHIN);
   }
 
   record Verdict(

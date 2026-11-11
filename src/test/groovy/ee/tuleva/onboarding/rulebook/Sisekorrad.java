@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD
 import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_3_6_5;
 import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_9_5;
 import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.SISEKORD_4_P_11_11_3;
+import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.SISEKORD_4_P_11_8;
 import static ee.tuleva.onboarding.savings.NavPublication.SISEKORD_4_P_11_3_3;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
 import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3;
@@ -32,6 +33,7 @@ final class Sisekorrad {
               SISEKORD_4_P_9_5,
               SISEKORD_4_P_11_3_1,
               SISEKORD_4_P_11_3_3,
+              SISEKORD_4_P_11_8,
               SISEKORD_4_P_11_11_3));
 
   static final Sisekord SISEKORD_13 =

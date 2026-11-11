@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 class ConsecutiveBreachTracker {
 
   private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
-  private static final int LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES = 10;
+  static final int LONGEST_UNCHECKED_GAP_A_STREAK_BRIDGES = 10;
 
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;

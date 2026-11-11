@@ -15,6 +15,7 @@ Kood rakendab järgmisi sisekorra punkte; ülejäänud punktid on sisekorra teks
 - p 9.5 – Optimaalse ja minimaalse likviidsusreservi kontroll
 - p 11.3.1–11.3.3 – Hilinenud puhasväärtusest teavitatakse kiireloomuliselt
 - p 11.3.3 – Täiendava Kogumisfondi puhasväärtus avaldatakse kell 16:00
+- p 11.8 – Püsivast jälgimisvahest teavitatakse automaatselt
 - p 11.11.3 – Puhasväärtuse aruanne peatatakse sisemiseks ülevaatuseks
 
 ## p 2.4.3.11 – Täiendava Kogumisfondi osalus ühes investeerimisfondis
@@ -115,6 +116,26 @@ Näide: tööpäeval kell 16:00 – näidatakse täna avaldatud puhasväärtust,
 Näide: tööpäeval kell 15:59 – näidatakse eelmisel tööpäeval avaldatud puhasväärtust, sest kell on enne 16:00.
 
 Näide: laupäeval kell 17:00 – näidatakse eelmisel tööpäeval avaldatud puhasväärtust, sest täna on laupäev, pühapäev või riigipüha.
+
+## p 11.8 – Püsivast jälgimisvahest teavitatakse automaatselt
+
+Rakendub, kui (tänane kontroll ületab lävendit, tänaseni kestnud ületamiste jada ulatub teavituspäevani ja (jada liitjälgimisvahe ulatub lävendini või jadas on NAV-jäägi ületamisega päev)) või (eelmise päevani kestnud jada kontrollitud ületamispäevi on vähem kui teavituspäeva number, täna on eelmise päevani kestnud jada teavituspäev või hilisem ja (eelmise päevani kestnud jada liitjälgimisvahe ulatub lävendini või eelmise päevani kestnud jadas on NAV-jäägi ületamisega päev)).
+
+Andmed: päeva lävend on parameeter TRACKING_BREACH_THRESHOLD andmebaasist; ületamiseks loetakse ka mudelportfelli NAV-jäägi ulatumist lävendini; teavituspäev ja jada liitjälgimisvahe lävend on parameetrid investment_parameter andmebaasist; kui neid ei saa lugeda, on teavituspäev 4. tööpäev ja lävend 0,1%; jada sees kuni 10 järjestikust kontrollimata tööpäeva loetakse ületanuks.
+
+Näide: neljas järjestikune ületamispäev – rakendub, sest tänane kontroll ületab lävendit, tänaseni kestnud ületamiste jada ulatub teavituspäevani, jada liitjälgimisvahe ulatub lävendini, eelmise päevani kestnud jada kontrollitud ületamispäevi on vähem kui teavituspäeva number, täna on eelmise päevani kestnud jada teavituspäev või hilisem ja eelmise päevani kestnud jada liitjälgimisvahe ulatub lävendini.
+
+Näide: kolm ületamispäeva, neljas päev puhas – rakendub, sest eelmise päevani kestnud jada kontrollitud ületamispäevi on vähem kui teavituspäeva number, täna on eelmise päevani kestnud jada teavituspäev või hilisem ja eelmise päevani kestnud jada liitjälgimisvahe ulatub lävendini.
+
+Näide: kaks ületamispäeva ja kontrollimata kolmas, neljas päev puhas – rakendub, sest eelmise päevani kestnud jada kontrollitud ületamispäevi on vähem kui teavituspäeva number, täna on eelmise päevani kestnud jada teavituspäev või hilisem ja eelmise päevani kestnud jada liitjälgimisvahe ulatub lävendini.
+
+Näide: kolm ületamispäeva väikese liitjälgimisvahega, ühel NAV-jäägi ületamine – rakendub, sest eelmise päevani kestnud jada kontrollitud ületamispäevi on vähem kui teavituspäeva number, täna on eelmise päevani kestnud jada teavituspäev või hilisem ja eelmise päevani kestnud jadas on NAV-jäägi ületamisega päev.
+
+Näide: kolm ületamispäeva, mille liitjälgimisvahe jääb alla lävendi – ei rakendu, sest tänane kontroll ei ületa lävendit, tänaseni kestnud ületamiste jada ei ulatu teavituspäevani, jada liitjälgimisvahe jääb alla lävendi, jadas ei ole NAV-jäägi ületamisega päeva, eelmise päevani kestnud jada liitjälgimisvahe jääb alla lävendi ja eelmise päevani kestnud jadas ei ole NAV-jäägi ületamisega päeva.
+
+Näide: puhas päev pärast viit ületamispäeva – ei rakendu, sest tänane kontroll ei ületa lävendit, tänaseni kestnud ületamiste jada ei ulatu teavituspäevani, jada liitjälgimisvahe jääb alla lävendi, jadas ei ole NAV-jäägi ületamisega päeva ja eelmise päevani kestnud jada puudub või sellest on juba teavitatud.
+
+Näide: puhas päev pärast kahte ületamispäeva – ei rakendu, sest tänane kontroll ei ületa lävendit, tänaseni kestnud ületamiste jada ei ulatu teavituspäevani, jada liitjälgimisvahe jääb alla lävendi, jadas ei ole NAV-jäägi ületamisega päeva ja eelmise päevani kestnud jada on teavituspäevaks liiga lühike.
 
 ## p 11.11.3 – Puhasväärtuse aruanne peatatakse sisemiseks ülevaatuseks
 

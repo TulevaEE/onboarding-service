@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -169,7 +171,50 @@ public class SebPendingTransactionReconciliationService {
         .filter(order -> !settlementRepository.existsByOrderId(order.getId()))
         .filter(order -> executedBefore(order, reportDate, run))
         .forEach(order -> settleByAbsence(order, reportDate, run));
+    if (run.mode() == ReconciliationMode.REPLAY) {
+      moveLaterSettlementsBackToThisAbsence(reportDate, since, presentOrderIds, run);
+    }
     return SettlementCheck.CHECKED;
+  }
+
+  private void moveLaterSettlementsBackToThisAbsence(
+      LocalDate reportDate, Instant since, Set<Long> presentOrderIds, ReconciliationRun run) {
+    orderRepository
+        .findByOrderStatusInAndOrderTimestampSince(List.of(OrderStatus.SETTLED), since)
+        .stream()
+        .filter(order -> order.getOrderVenue() == OrderVenue.SEB)
+        .filter(order -> !presentOrderIds.contains(order.getId()))
+        .forEach(
+            order ->
+                settlementRepository
+                    .findByOrderId(order.getId())
+                    .filter(settlement -> mayBeRedatedTo(settlement, reportDate))
+                    .filter(settlement -> absenceSettles(order, reportDate, run))
+                    .ifPresent(settlement -> redateByAbsence(order, settlement, reportDate)));
+  }
+
+  private static boolean mayBeRedatedTo(TransactionSettlement settlement, LocalDate reportDate) {
+    return settlement.getReportDate().isAfter(reportDate);
+  }
+
+  private boolean absenceSettles(
+      TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
+    return executedBefore(order, reportDate, run)
+        && !quantityAmountValidator.isShortFill(
+            order, executionsListedBy(order, run), matchingPolicy.current());
+  }
+
+  private void redateByAbsence(
+      TransactionOrder order, TransactionSettlement settlement, LocalDate reportDate) {
+    log.info(
+        "Settlement moved back to an earlier absence from the pending report: orderId={},"
+            + " fromReportDate={}, toReportDate={}",
+        order.getId(),
+        settlement.getReportDate(),
+        reportDate);
+    Map<String, Object> before = ReconciliationAuditRecorder.settlementSnapshot(settlement);
+    settlementService.redate(settlement, reportDate);
+    auditRecorder.recordSettlementRedated(order, reportDate, before, settlement);
   }
 
   private boolean isLatestReport(LocalDate reportDate) {

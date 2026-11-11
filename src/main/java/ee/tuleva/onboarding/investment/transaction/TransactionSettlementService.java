@@ -48,4 +48,11 @@ public class TransactionSettlementService {
         settlement.getId());
     return settlement;
   }
+
+  @Transactional
+  public void redate(TransactionSettlement settlement, LocalDate reportDate) {
+    settlement.setReportDate(reportDate);
+    settlement.setSettledAt(clock.instant());
+    settlementRepository.save(settlement);
+  }
 }

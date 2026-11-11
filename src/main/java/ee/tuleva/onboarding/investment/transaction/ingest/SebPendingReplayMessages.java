@@ -104,6 +104,7 @@ final class SebPendingReplayMessages {
         + summary.newExecutions()
         + ", uusi arveldusi: "
         + summary.newSettlements()
+        + redatedSettlementsClause(summary.redatedSettlements())
         + ". Saatmata hoiatusi: "
         + alerts.size()
         + " (koguse või summa lahknevusi: "
@@ -115,6 +116,12 @@ final class SebPendingReplayMessages {
         + ").\n"
         + skippedChecksLine(summary.skippedChecks())
         + priceDivergenceLines(alerts);
+  }
+
+  private static String redatedSettlementsClause(long redatedSettlements) {
+    return redatedSettlements == 0
+        ? ""
+        : ", varasemaks nihutatud arvelduskuupäevi: " + redatedSettlements;
   }
 
   private static long count(
@@ -150,6 +157,7 @@ final class SebPendingReplayMessages {
       List<LocalDate> replayed,
       long newExecutions,
       long newSettlements,
+      long redatedSettlements,
       List<ReconciliationAlert> alerts,
       List<SkippedCheck> skippedChecks,
       Optional<Stop> stop) {}

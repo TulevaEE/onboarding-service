@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.SebPendingRepla
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerLease;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.ingest.SebPendingReplayMessages.ReplaySummary;
@@ -36,6 +37,7 @@ class SebPendingReportReplayer {
   private final SebPendingTransactionReconciliationService reconciliationService;
   private final TransactionExecutionRepository executionRepository;
   private final TransactionSettlementRepository settlementRepository;
+  private final TransactionAuditEventRepository auditEventRepository;
   private final SebReplayWindow replayWindow;
   private final JobTriggerLease jobTriggerLease;
 
@@ -50,12 +52,14 @@ class SebPendingReportReplayer {
           List.of(),
           0,
           0,
+          0,
           List.of(),
           List.of(),
           Optional.of(new Stop(firstReportDate, stoppedReadingHistory.get())));
     }
     long executionsBefore = executionRepository.count();
     long settlementsBefore = settlementRepository.count();
+    long redatedBefore = redatedSettlements();
     List<ReconciliationAlert> heldBackAlerts = new ArrayList<>();
     List<SkippedCheck> skippedChecks = new ArrayList<>();
     List<LocalDate> replayed = new ArrayList<>();
@@ -101,9 +105,14 @@ class SebPendingReportReplayer {
         List.copyOf(replayed),
         executionRepository.count() - executionsBefore,
         settlementRepository.count() - settlementsBefore,
+        redatedSettlements() - redatedBefore,
         List.copyOf(heldBackAlerts),
         List.copyOf(skippedChecks),
         stop);
+  }
+
+  private long redatedSettlements() {
+    return auditEventRepository.countByEventType(ReconciliationAuditRecorder.SETTLEMENT_REDATED);
   }
 
   private Instant stopBy() {

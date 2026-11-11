@@ -24,6 +24,7 @@ class ReconciliationAuditRecorder {
   static final String QUANTITY_AMOUNT_MISMATCH = "QUANTITY_AMOUNT_MISMATCH";
   static final String SETTLEMENT_DETECTED = "SETTLEMENT_DETECTED";
   static final String SETTLEMENT_REAPPEARED = "SETTLEMENT_REAPPEARED";
+  static final String SETTLEMENT_REDATED = "SETTLEMENT_REDATED";
   static final String INCONSISTENT_MATCHED_ROW = "INCONSISTENT_MATCHED_ROW";
   static final String POSSIBLE_REPORT_TRUNCATION = "POSSIBLE_REPORT_TRUNCATION";
 
@@ -98,6 +99,24 @@ class ReconciliationAuditRecorder {
 
   void recordSettlementDetected(TransactionOrder order, LocalDate reportDate) {
     save(SETTLEMENT_DETECTED, order, orderPayload(order, reportDate));
+  }
+
+  void recordSettlementRedated(
+      TransactionOrder order,
+      LocalDate reportDate,
+      Map<String, Object> before,
+      TransactionSettlement after) {
+    Map<String, Object> payload = orderPayload(order, reportDate);
+    payload.put("before", before);
+    payload.put("after", settlementSnapshot(after));
+    save(SETTLEMENT_REDATED, order, payload);
+  }
+
+  static Map<String, Object> settlementSnapshot(TransactionSettlement settlement) {
+    Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("reportDate", settlement.getReportDate().toString());
+    snapshot.put("settledAt", settlement.getSettledAt().toString());
+    return snapshot;
   }
 
   void recordSettlementReappeared(

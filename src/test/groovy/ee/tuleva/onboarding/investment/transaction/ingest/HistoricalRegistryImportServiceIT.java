@@ -206,6 +206,32 @@ class HistoricalRegistryImportServiceIT {
   }
 
   @Test
+  void anEtfFillGetsItsTradeDateAsItsNavDate() {
+    importService.importCsv(FULL_CSV);
+
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-1001").orElseThrow();
+
+    assertThat(execution.getNavDate()).isEqualTo(LocalDate.of(2025, 3, 10));
+  }
+
+  @Test
+  void aMutualFundFillLeavesItsNavDateToItsSebConfirmation() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9204,EE3600109443,LU0826455353,BR-9204,BUY,FUND,5000.00,,2025-05-05 09:00:00,EXECUTED,2025-05-09,,2025-05-05 14:30:00,4000.000000,1.25,5000.00,5000.00,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-9204").orElseThrow();
+    assertThat(execution.getNavDate()).isNull();
+  }
+
+  @Test
   void reportedDateFallsBackToTheOrderTimestampWhenThereIsNoTradeDate() {
     String csv =
         """

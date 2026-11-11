@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.SettlementSource.HISTORICAL_IMPORT;
+import static ee.tuleva.onboarding.investment.transaction.ingest.TransactionExecutionMapper.navDateOfAnEtfFill;
 
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
@@ -160,6 +161,7 @@ public class HistoricalRegistryImportService {
         .orderId(order.getId())
         .brokerTransactionId(row.brokerTransactionId())
         .executionTimestamp(row.executionTimestamp())
+        .navDate(navDateOfAnEtfFill(row.instrumentType(), row.executionTimestamp()))
         .executedQuantity(row.executedQuantity())
         .unitPrice(row.unitPrice())
         .totalConsideration(row.totalConsideration())

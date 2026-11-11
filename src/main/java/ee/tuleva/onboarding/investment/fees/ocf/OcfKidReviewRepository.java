@@ -68,6 +68,7 @@ class OcfKidReviewRepository {
                         rs.getString("reviewed_by"),
                         rs.getString("reason"),
                         rs.getTimestamp("reviewed_at").toInstant())))
+        .list()
         .stream()
         .filter(reviewed -> !kid.precision().differ(reviewed.ocf(), ocf))
         .map(ReviewedFigure::review)

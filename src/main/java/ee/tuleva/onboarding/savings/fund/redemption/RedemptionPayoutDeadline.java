@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
+import static ee.tuleva.onboarding.savings.TradeDay.dealingDay;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -19,12 +19,7 @@ class RedemptionPayoutDeadline {
 
   LocalDate orderDay(Instant requestedAt) {
     var ordered = requestedAt.atZone(TALLINN);
-    var date = ordered.toLocalDate();
-    if (publicHolidays.isWorkingDay(date)
-        && ordered.toLocalTime().isBefore(SISEKORD_16_P_1_1_3_ORDER_CUTOFF)) {
-      return date;
-    }
-    return publicHolidays.nextWorkingDay(date);
+    return dealingDay(ordered.toLocalDate(), ordered.toLocalTime(), publicHolidays);
   }
 
   LocalDate warnFrom(Instant requestedAt) {

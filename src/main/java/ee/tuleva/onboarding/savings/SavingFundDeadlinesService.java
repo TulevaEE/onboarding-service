@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings;
 
+import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
+
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import java.time.*;
@@ -14,7 +16,6 @@ public class SavingFundDeadlinesService {
   private final PublicHolidays publicHolidays;
   private final Clock estonianClock;
 
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final LocalTime SCREENING_RETRY_CUTOFF_TIME = LocalTime.of(15, 0);
   private static final Duration MINIMUM_SCREENING_RETRY_WINDOW = Duration.ofMinutes(10);
 
@@ -23,7 +24,7 @@ public class SavingFundDeadlinesService {
   }
 
   private boolean missedTodaysCutoff(LocalDate date, LocalTime time, LocalDate firstWorkingDay) {
-    return date.equals(firstWorkingDay) && !time.isBefore(CUTOFF_TIME);
+    return date.equals(firstWorkingDay) && !time.isBefore(SISEKORD_16_P_1_1_3_ORDER_CUTOFF);
   }
 
   public Instant getCancellationDeadline(RedemptionRequest redemptionRequest) {
@@ -49,7 +50,10 @@ public class SavingFundDeadlinesService {
   }
 
   private Instant getCancellationDeadlineFrom(Instant eventInstant) {
-    return dealingDay(eventInstant).atTime(CUTOFF_TIME).atZone(estonianClock.getZone()).toInstant();
+    return dealingDay(eventInstant)
+        .atTime(SISEKORD_16_P_1_1_3_ORDER_CUTOFF)
+        .atZone(estonianClock.getZone())
+        .toInstant();
   }
 
   private LocalDate dealingDay(Instant eventInstant) {
@@ -79,6 +83,6 @@ public class SavingFundDeadlinesService {
     LocalDate date = zdt.toLocalDate();
 
     LocalDate nextWorkingDay = publicHolidays.addWorkingDays(date, 1);
-    return nextWorkingDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
+    return nextWorkingDay.atTime(SISEKORD_16_P_1_1_3_ORDER_CUTOFF).atZone(timeZone).toInstant();
   }
 }

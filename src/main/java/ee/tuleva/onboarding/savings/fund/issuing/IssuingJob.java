@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.WRONG_NAV_ISSUANCE;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
@@ -26,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class IssuingJob {
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
   private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
   private final Clock clock;
   private final IssuerService issuerService;
@@ -111,6 +111,6 @@ public class IssuingJob {
   }
 
   private Instant getCutoff(LocalDate date) {
-    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
+    return ZonedDateTime.of(date, SISEKORD_16_P_1_1_3_ORDER_CUTOFF, CUTOFF_TIMEZONE).toInstant();
   }
 }

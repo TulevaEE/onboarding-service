@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings;
 
+import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 
@@ -20,7 +21,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FundNavProvider implements SavingsFundNav {
 
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final BigDecimal MAX_DAILY_CHANGE = new BigDecimal("0.20");
 
@@ -119,7 +119,8 @@ public class FundNavProvider implements SavingsFundNav {
 
     LocalDate previousWorkingDay = publicHolidays.previousWorkingDay(today);
 
-    boolean afterCutoff = publicHolidays.isWorkingDay(today) && !time.isBefore(CUTOFF_TIME);
+    boolean afterCutoff =
+        publicHolidays.isWorkingDay(today) && !time.isBefore(SISEKORD_16_P_1_1_3_ORDER_CUTOFF);
     if (afterCutoff) {
       return previousWorkingDay;
     }

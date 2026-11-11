@@ -3,12 +3,13 @@ package ee.tuleva.onboarding.savings;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
 
 import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
-import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Assessment;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
@@ -58,10 +59,8 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
   public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
     SavingsFundOnboardingStatus oldStatus =
         savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);
-    if (oldStatus == COMPLETED) {
-      return;
-    }
-    SavingsFundOnboardingStatus newStatus = mapRiskLevelToStatus(kycCheck.riskLevel());
+    SavingsFundOnboardingStatus newStatus =
+        SISEKORD_13_P_9_3_3.decide(new Assessment(oldStatus, kycCheck.riskLevel()));
     if (newStatus == oldStatus) {
       return;
     }
@@ -82,13 +81,5 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     eventData.put("newStatus", newStatus);
     eventPublisher.publishEvent(
         new TrackableEvent(user, SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, eventData));
-  }
-
-  private SavingsFundOnboardingStatus mapRiskLevelToStatus(RiskLevel riskLevel) {
-    return switch (riskLevel) {
-      case LOW, NONE -> COMPLETED;
-      case MEDIUM -> PENDING;
-      case HIGH -> REJECTED;
-    };
   }
 }

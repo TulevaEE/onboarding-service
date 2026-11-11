@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.transaction;
+package ee.tuleva.onboarding.investment;
 
 import static ee.tuleva.onboarding.rulebook.Condition.and;
 import static ee.tuleva.onboarding.rulebook.Example.applies;

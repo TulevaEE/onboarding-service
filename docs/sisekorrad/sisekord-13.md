@@ -9,6 +9,7 @@ Tekst on genereeritud reeglite koodist ja iga näide on automaattest. Faili käs
 Kood rakendab järgmisi sisekorra punkte; ülejäänud punktid on sisekorra tekstis.
 
 - p 4.1.7 – Vabatahtliku pensioni avaldus võetakse vastu pärast isiku tuvastamist
+- p 9.3.3 – Täiendava Kogumisfondiga liitumine KYC riskitaseme järgi
 
 ## p 4.1.7 – Vabatahtliku pensioni avaldus võetakse vastu pärast isiku tuvastamist
 
@@ -31,3 +32,26 @@ Näide: tegevusala kontroll puudub – ei rakendu, sest tegevusala kontroll ei o
 Näide: isikut tõendavat dokumenti ei ole kontrollitud – ei rakendu, sest isikut tõendavat dokumenti ei ole kontrollitud.
 
 Näide: kontrolle ei ole – ei rakendu, sest isik ei ole andnud PEP-deklaratsiooni, automaatne PEP-kontroll ei ole läbitud, PEP-kontrolli tulemust ei ole käsitsi üle kinnitatud, sanktsioonikontroll ei ole läbitud, sanktsioonikontrolli tulemust ei ole käsitsi üle kinnitatud, nime vastavust SK andmetele ei ole kinnitatud, nime vastavust Pensionikeskuse andmetele ei ole kinnitatud, isikut tõendavat dokumenti ei ole kontrollitud, tegevusala kontroll ei ole läbitud, elukoha automaatne kontroll ei ole läbitud ja elukohta ei ole käsitsi kontrollitud.
+
+## p 9.3.3 – Täiendava Kogumisfondiga liitumine KYC riskitaseme järgi
+
+Tulemus on esimene, mille tingimus kehtib:
+
+- liitumine jääb lõpetatuks, kui isiku liitumine on juba lõpetatud;
+- liitumine lõpetatakse, kui riskitase puudub või riskitase on madal;
+- liitumine jääb ootele, kui riskitase on keskmine;
+- liitumine lükatakse tagasi, kui riskitase on kõrge.
+
+Andmed: riskitase on isiku viimase KYC kontrolli tulemus.
+
+Näide: uus madala riskiga isik – liitumine lõpetatakse, sest isiku liitumine ei ole lõpetatud ja riskitase on madal.
+
+Näide: ootel isik, kelle riskitase puudub – liitumine lõpetatakse, sest isiku liitumine ei ole lõpetatud ja riskitase puudub.
+
+Näide: uus keskmise riskiga isik – liitumine jääb ootele, sest isiku liitumine ei ole lõpetatud, riskitase on määratud, riskitase ei ole madal ja riskitase on keskmine.
+
+Näide: ootel kõrge riskiga isik – liitumine lükatakse tagasi, sest isiku liitumine ei ole lõpetatud, riskitase on määratud, riskitase ei ole madal, riskitase ei ole keskmine ja riskitase on kõrge.
+
+Näide: lõpetatud liitumisega isik, kelle riskitase tõuseb kõrgeks – liitumine jääb lõpetatuks, sest isiku liitumine on juba lõpetatud.
+
+Näide: tagasi lükatud isik, kelle riskitase langeb madalaks – liitumine lõpetatakse, sest isiku liitumine ei ole lõpetatud ja riskitase on madal.

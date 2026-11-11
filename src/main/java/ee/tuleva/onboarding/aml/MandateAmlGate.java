@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-final class MandateAmlGate {
+public final class MandateAmlGate {
 
-  record RecentChecks(Set<AmlCheckType> recorded, Set<AmlCheckType> passed) {
+  public record RecentChecks(Set<AmlCheckType> recorded, Set<AmlCheckType> passed) {
 
-    RecentChecks {
+    public RecentChecks {
       recorded = Set.copyOf(recorded);
       passed = Set.copyOf(passed);
     }
@@ -110,7 +110,7 @@ final class MandateAmlGate {
           "elukoht on käsitsi kontrollitud",
           "elukohta ei ole käsitsi kontrollitud");
 
-  static final Rule<RecentChecks> SISEKORD_13_P_4_1_7 =
+  public static final Rule<RecentChecks> SISEKORD_13_P_4_1_7 =
       new Rule<>(
           "4.1.7",
           "Vabatahtliku pensioni avaldus võetakse vastu pärast isiku tuvastamist",

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.rulebook;
 
-import static ee.tuleva.onboarding.aml.AmlSisekord.SISEKORD_13;
-import static ee.tuleva.onboarding.investment.InvestmentSisekord.SISEKORD_4;
+import static ee.tuleva.onboarding.sisekord.Sisekorrad.SISEKORD_13;
+import static ee.tuleva.onboarding.sisekord.Sisekorrad.SISEKORD_4;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -26,18 +26,18 @@ class SisekorradDocsTest {
         .flatMap(sisekord -> sisekord.rules().stream().flatMap(rule -> examples(sisekord, rule)));
   }
 
-  private static <C> Stream<DynamicTest> examples(Sisekord sisekord, Rule<C> rule) {
-    return rule.examples().stream()
+  private static Stream<DynamicTest> examples(Sisekord sisekord, Provision provision) {
+    return provision.exampleNames().stream()
         .map(
             example ->
                 dynamicTest(
                     "sisekord "
                         + sisekord.number()
                         + " p "
-                        + rule.paragraph()
+                        + provision.paragraph()
                         + ": "
-                        + example.name(),
-                    () -> assertThat(rule.decidesAsLabelled(example)).isTrue()));
+                        + example,
+                    () -> assertThat(provision.decidesAsLabelled(example)).isTrue()));
   }
 
   @TestFactory

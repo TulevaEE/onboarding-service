@@ -139,8 +139,13 @@ class TransactionParameterLoader {
                 PositionLimit::getIsin,
                 limit ->
                     new PositionLimitSnapshot(
-                        limit.getSoftLimitPercent(), limit.getHardLimitPercent()),
+                        weightOf(limit.getSoftLimitPercent()),
+                        weightOf(limit.getHardLimitPercent())),
                 (a, b) -> b));
+  }
+
+  private static BigDecimal weightOf(BigDecimal percent) {
+    return percent.movePointLeft(2);
   }
 
   private Set<String> getFastSellIsins(

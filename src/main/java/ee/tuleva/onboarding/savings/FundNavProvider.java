@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings;
 
-import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
+import static ee.tuleva.onboarding.savings.NavPublication.SISEKORD_4_P_11_3_3;
+import static ee.tuleva.onboarding.savings.TradeDay.Day.DAY_OFF;
+import static ee.tuleva.onboarding.savings.TradeDay.Day.WORKING_DAY;
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 
@@ -8,6 +10,7 @@ import ee.tuleva.onboarding.account.SavingsFundNav;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.savings.NavPublication.Moment;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -118,13 +121,11 @@ public class FundNavProvider implements SavingsFundNav {
     LocalTime time = now.toLocalTime();
 
     LocalDate previousWorkingDay = publicHolidays.previousWorkingDay(today);
-
-    boolean afterCutoff =
-        publicHolidays.isWorkingDay(today) && !time.isBefore(SISEKORD_16_P_1_1_3_ORDER_CUTOFF);
-    if (afterCutoff) {
-      return previousWorkingDay;
-    }
-
-    return publicHolidays.previousWorkingDay(previousWorkingDay);
+    var moment = new Moment(publicHolidays.isWorkingDay(today) ? WORKING_DAY : DAY_OFF, time);
+    return switch (SISEKORD_4_P_11_3_3.decide(moment)) {
+      case PUBLISHED_TODAY -> previousWorkingDay;
+      case PUBLISHED_ON_THE_PREVIOUS_WORKING_DAY ->
+          publicHolidays.previousWorkingDay(previousWorkingDay);
+    };
   }
 }

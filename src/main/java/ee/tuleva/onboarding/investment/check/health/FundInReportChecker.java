@@ -28,10 +28,7 @@ class FundInReportChecker {
   private final Clock clock;
 
   List<HealthCheckResult> fundsNotRead(
-      LocalDate navDate,
-      Set<TulevaFund> fundsWithRows,
-      int positionRows,
-      Set<TulevaFund> fundsRead) {
+      LocalDate navDate, int positionRows, Set<TulevaFund> fundsRead) {
     var fundsNotRead =
         Arrays.stream(TulevaFund.values())
             .filter(TulevaFund::hasNavCalculation)
@@ -46,7 +43,7 @@ class FundInReportChecker {
           .map(fund -> missingFromReport(navDate, fund, noPositionRows(fund, navDate)))
           .toList();
     }
-    if (fundsWithRows.isEmpty()) {
+    if (fundsRead.isEmpty()) {
       return fundsNotRead.stream()
           .map(
               fund ->
@@ -54,11 +51,7 @@ class FundInReportChecker {
           .toList();
     }
     return fundsNotRead.stream()
-        .map(
-            fund ->
-                fundsWithRows.contains(fund)
-                    ? notReadFromReport(navDate, fund, rowsNotRead(fund, navDate))
-                    : missingFromReport(navDate, fund, notInReport(fund, navDate)))
+        .map(fund -> missingFromReport(navDate, fund, notInReport(fund, navDate)))
         .toList();
   }
 
@@ -97,15 +90,6 @@ class FundInReportChecker {
         ("none of the %d position rows in SEB's position report for navDate=%s names a fund:"
                 + " check the file and the parser")
             .formatted(positionRows, navDate),
-        fund,
-        navDate);
-  }
-
-  private String rowsNotRead(TulevaFund fund, LocalDate navDate) {
-    return withNavDeadline(
-        ("rows in SEB's position report for navDate=%s name the fund but none could be read as"
-                + " fund positions: check the file and the parser")
-            .formatted(navDate),
         fund,
         navDate);
   }

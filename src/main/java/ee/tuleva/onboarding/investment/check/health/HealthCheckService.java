@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,10 +62,7 @@ public class HealthCheckService {
   }
 
   public List<HealthCheckResult> check(
-      LocalDate navDate,
-      List<FundPosition> positions,
-      Set<TulevaFund> fundsWithRows,
-      int positionRows) {
+      LocalDate navDate, List<FundPosition> positions, int positionRows) {
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
     var executedSellsByFund = executedPriceSource.executedSellPricesByFund(navDate);
@@ -84,8 +80,7 @@ public class HealthCheckService {
               tradeListsByDate);
       results.add(result);
     }
-    for (var result :
-        fundInReportChecker.fundsNotRead(navDate, fundsWithRows, positionRows, byFund.keySet())) {
+    for (var result : fundInReportChecker.fundsNotRead(navDate, positionRows, byFund.keySet())) {
       saveEvents(result);
       results.add(result);
     }

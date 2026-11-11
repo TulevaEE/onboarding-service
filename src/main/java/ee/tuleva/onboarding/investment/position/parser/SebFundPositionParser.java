@@ -14,10 +14,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -66,15 +64,6 @@ public class SebFundPositionParser implements FundPositionParser {
         .map(row -> parseRow(row, effectiveNavDate, effectiveReportDate))
         .flatMap(Optional::stream)
         .toList();
-  }
-
-  public Set<TulevaFund> fundsWithRows(List<Map<String, Object>> rawData) {
-    return rawData.stream()
-        .filter(this::isPositionRow)
-        .map(this::extractFundCode)
-        .filter(Objects::nonNull)
-        .map(TulevaFund::fromCode)
-        .collect(Collectors.toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
   }
 
   public int positionRows(List<Map<String, Object>> rawData) {

@@ -18,7 +18,6 @@ class SchedulerLockAnnotationTest {
           ee.tuleva.onboarding.aml.ScheduledAmlCheckJob.class,
           ee.tuleva.onboarding.aml.health.AmlHealthThresholdCache.class,
           ee.tuleva.onboarding.aml.health.ScheduledAmlHealthCheckJob.class,
-          ee.tuleva.onboarding.aml.risklevel.ScheduledAmlRiskMetadataRefreshJob.class,
           ee.tuleva.onboarding.aml.risklevel.ScheduledRiskLevelCheckJob.class,
           ee.tuleva.onboarding.analytics.transaction.exchange
               .ScheduledExchangeTransactionSynchronizationJob.class,

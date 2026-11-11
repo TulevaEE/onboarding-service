@@ -25,44 +25,17 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class RiskLevelService {
 
-  private final AmlRiskReader amlRiskReader;
-  private final TkfRiskReader tkfRiskReader;
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
 
   private static final int HIGH_RISK_LEVEL = 1;
 
-  public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
-    scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
-  }
-
   void writeThirdPillarRiskLevels(AssessedRiskLevels riskLevels) {
     writeFromAmlService("III pillar", RISK_LEVEL, riskLevels);
   }
 
-  public void runTkfRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
-    scorePillar("TKF", tkfRiskReader, TKF_RISK_LEVEL, mediumRiskIndividualSelectionProbability);
-  }
-
   void writeTkfRiskLevels(AssessedRiskLevels riskLevels) {
     writeFromAmlService("TKF", TKF_RISK_LEVEL, riskLevels);
-  }
-
-  private void scorePillar(
-      String label, RiskReader reader, AmlCheckType checkType, double selectionProbability) {
-    log.info("Refreshing {} risk views", label);
-    reader.refreshMaterializedView();
-
-    List<RiskLevelResult> highRiskRows = reader.getHighRiskRows();
-    List<RiskLevelResult> mediumRiskSamples = reader.getMediumRiskRowsSample(selectionProbability);
-
-    log.info(
-        "{}: Identified {} high-risk rows and {} medium-risk samples",
-        label,
-        highRiskRows.size(),
-        mediumRiskSamples.size());
-
-    writeChecks(label, checkType, highRiskRows, mediumRiskSamples);
   }
 
   private void writeFromAmlService(

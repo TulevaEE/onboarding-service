@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,9 +35,6 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
 
   Optional<AmlCheck> findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
       UUID companyId, AmlCheckType type);
-
-  Optional<AmlCheck> findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
-      String personalCode, Collection<AmlCheckType> types);
 
   List<AmlCheck> findAllByPersonalCodeAndType(String personalCode, AmlCheckType type);
 

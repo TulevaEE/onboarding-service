@@ -323,12 +323,10 @@ class EffectiveRiskLevelsTest {
     try {
       var properties =
           new AmlServiceProperties(
-              true,
               "http://127.0.0.1:" + stallingAmlService.getAddress().getPort(),
               API_TOKEN,
               ofSeconds(5),
               ofSeconds(60),
-              true,
               ofSeconds(1),
               ofSeconds(1),
               ofSeconds(1),
@@ -551,12 +549,10 @@ class EffectiveRiskLevelsTest {
         new EffectiveRiskLevelClient(
             restClient,
             new AmlServiceProperties(
-                true,
                 BASE_URL,
                 apiToken,
                 ofSeconds(5),
                 ofSeconds(60),
-                true,
                 ofSeconds(1),
                 ofSeconds(2),
                 ofSeconds(1),

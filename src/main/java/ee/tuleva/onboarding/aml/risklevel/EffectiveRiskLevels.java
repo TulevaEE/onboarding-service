@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml.risklevel;
 import static ee.tuleva.onboarding.aml.risklevel.EffectiveRiskLevel.HIGH;
 
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
+import ee.tuleva.onboarding.aml.RiskLevels;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -12,14 +13,16 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientResponseException;
 
 @Slf4j
 @Component
+@Profile({"!dev & !staging"})
 @RequiredArgsConstructor
-class EffectiveRiskLevels {
+class EffectiveRiskLevels implements RiskLevels {
 
   private static final Duration QUIET_AFTER_AML_SERVICE_FAILED = Duration.ofSeconds(30);
 
@@ -27,7 +30,8 @@ class EffectiveRiskLevels {
   private final Clock clock;
   private volatile @Nullable Instant quietUntil;
 
-  boolean isHighRisk(String personalCode) {
+  @Override
+  public boolean isHighRisk(String personalCode) {
     failWhileQuiet();
     try {
       return effectiveRiskLevelClient.effectiveRiskLevels(personalCode).contains(HIGH);
@@ -39,7 +43,8 @@ class EffectiveRiskLevels {
     }
   }
 
-  boolean isHighRiskCompany(String registryCode) {
+  @Override
+  public boolean isHighRiskCompany(String registryCode) {
     failWhileQuiet();
     try {
       return effectiveRiskLevelClient.effectiveCompanyRiskLevels(registryCode).contains(HIGH);

@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
@@ -31,13 +30,11 @@ class RiskLevelServiceFromAmlServiceTest {
 
   private static final Instant TODAYS_RUN = Instant.parse("2020-01-01T02:15:00.123456Z");
 
-  private final AmlRiskReader amlRiskReader = mock(AmlRiskReader.class);
-  private final TkfRiskReader tkfRiskReader = mock(TkfRiskReader.class);
   private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
   private final List<Object> publishedEvents = new ArrayList<>();
   private final ApplicationEventPublisher eventPublisher = publishedEvents::add;
   private final RiskLevelService riskLevelService =
-      new RiskLevelService(amlRiskReader, tkfRiskReader, amlCheckRepository, eventPublisher);
+      new RiskLevelService(amlCheckRepository, eventPublisher);
 
   @BeforeEach
   void setUp() {
@@ -191,19 +188,6 @@ class RiskLevelServiceFromAmlServiceTest {
 
     verify(amlCheckRepository, never()).save(any());
     assertJobRun("TKF", 1, 0, 0);
-  }
-
-  @Test
-  void neverTouchesTheViews() {
-    AssessedRiskLevels thirdPillarRun =
-        todaysRun(new RiskLevelResult("38888888888", 1, Map.of("key", 999)));
-    AssessedRiskLevels tkfRun =
-        todaysRun(new RiskLevelResult("38888888888", 1, Map.of("key", 999)));
-
-    riskLevelService.writeThirdPillarRiskLevels(thirdPillarRun);
-    riskLevelService.writeTkfRiskLevels(tkfRun);
-
-    verifyNoInteractions(amlRiskReader, tkfRiskReader);
   }
 
   private static AssessedRiskLevels todaysRun(RiskLevelResult... results) {

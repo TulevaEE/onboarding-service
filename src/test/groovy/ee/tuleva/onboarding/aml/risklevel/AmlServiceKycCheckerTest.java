@@ -224,12 +224,10 @@ class AmlServiceKycCheckerTest {
         kycOnboardingRestClient,
         AmlServiceConfiguration.amlServiceRetryTemplate(),
         new AmlServiceProperties(
-            true,
             BASE_URL,
             apiToken,
             ofSeconds(5),
             ofSeconds(60),
-            false,
             ofSeconds(1),
             ofSeconds(2),
             ofSeconds(1),

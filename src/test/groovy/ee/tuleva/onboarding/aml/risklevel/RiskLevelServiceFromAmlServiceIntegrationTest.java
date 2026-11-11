@@ -7,7 +7,6 @@ import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.ExpectedCount.times;
@@ -39,7 +38,6 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -73,8 +71,6 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
 
   @Autowired RiskLevelService riskLevelService;
   @Autowired AmlServiceRiskLevels amlServiceRiskLevels;
-  @MockitoBean AmlRiskReader amlRiskReader;
-  @MockitoBean TkfRiskReader tkfRiskReader;
   @Autowired AmlCheckRepository amlCheckRepository;
   @Autowired TestEntityManager entityManager;
   @Autowired MockRestServiceServer server;
@@ -131,7 +127,6 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
             AmlCheck::getMetadata)
         .containsExactly(
             PERSONAL_CODE, TKF_RISK_LEVEL, false, metadataAsReadFromTheView(TKF_VIEW_METADATA, 1));
-    verifyNoInteractions(amlRiskReader, tkfRiskReader);
     server.verify();
   }
 
@@ -241,12 +236,10 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
                 amlServiceRestClient,
                 AmlServiceConfiguration.amlServiceRetryTemplate(),
                 new AmlServiceProperties(
-                    true,
                     BASE_URL,
                     "",
                     ofSeconds(5),
                     ofSeconds(60),
-                    false,
                     ofSeconds(1),
                     ofSeconds(2),
                     ofSeconds(1),
@@ -327,12 +320,10 @@ class RiskLevelServiceFromAmlServiceIntegrationTest {
           amlServiceRestClient,
           AmlServiceConfiguration.amlServiceRetryTemplate(),
           new AmlServiceProperties(
-              true,
               BASE_URL,
               API_TOKEN,
               ofSeconds(5),
               ofSeconds(60),
-              false,
               ofSeconds(1),
               ofSeconds(2),
               ofSeconds(1),

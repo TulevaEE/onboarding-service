@@ -44,12 +44,13 @@ public class TradeSettlementBookings {
         cashAmount(transaction));
   }
 
-  private static BigDecimal cashAmount(LedgerTransaction transaction) {
+  private static @Nullable BigDecimal cashAmount(LedgerTransaction transaction) {
     return transaction.getEntries().stream()
         .filter(TradeSettlementBookings::isTradeCash)
         .map(LedgerEntry::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add)
-        .negate();
+        .reduce(BigDecimal::add)
+        .map(BigDecimal::negate)
+        .orElse(null);
   }
 
   private static @Nullable TulevaFund fund(LedgerTransaction transaction) {

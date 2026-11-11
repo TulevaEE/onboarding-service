@@ -1,13 +1,21 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRADE_SETTLEMENT;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.BROKER_REFERENCE;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.INSTRUMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.ledger.SystemAccount.SECURITIES_CUSTODY;
+import static ee.tuleva.onboarding.ledger.SystemAccount.TRADE_UNIT_SETTLEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.time.ClockConfig;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +39,8 @@ class TradeSettlementBookingsTest {
 
   @Autowired FundBankLedger fundBankLedger;
   @Autowired TradeSettlementBookings tradeSettlementBookings;
+  @Autowired LedgerTransactionService ledgerTransactionService;
+  @Autowired LedgerAccountService ledgerAccountService;
 
   @Test
   void bookedSince_givesEachTradeItsSebReferenceIsinBookingDateAndCash() {
@@ -65,6 +75,30 @@ class TradeSettlementBookingsTest {
     assertThat(tradeSettlementBookings.bookedSince(LocalDate.of(2026, 5, 1)))
         .extracting(TradeSettlementBooking::brokerReference)
         .containsExactly("DLA0553685");
+  }
+
+  @Test
+  void bookedSince_aTradeBookedWithoutACashLeg_hasNoCashAmountRatherThanZero() {
+    LedgerAccount unitSettlement = instrumentAccount(TRADE_UNIT_SETTLEMENT);
+    LedgerAccount custody = instrumentAccount(SECURITIES_CUSTODY);
+    ledgerTransactionService.createTransaction(
+        TRADE_SETTLEMENT,
+        LocalDate.of(2026, 5, 28).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
+        randomUUID(),
+        Map.of(BROKER_REFERENCE.getKey(), "DLA0553690", INSTRUMENT.getKey(), EJAP),
+        new LedgerEntryDto(unitSettlement, new BigDecimal("-11704.00000")),
+        new LedgerEntryDto(custody, new BigDecimal("11704.00000")));
+
+    assertThat(tradeSettlementBookings.bookedSince(LocalDate.of(2026, 5, 1)))
+        .singleElement()
+        .satisfies(booking -> assertThat(booking.cashAmount()).isNull());
+  }
+
+  private LedgerAccount instrumentAccount(SystemAccount systemAccount) {
+    return ledgerAccountService.createSystemAccount(
+        systemAccount.getAccountName(TKF100, EJAP),
+        systemAccount.getAccountType(),
+        systemAccount.getAssetType());
   }
 
   private void bookTrade(

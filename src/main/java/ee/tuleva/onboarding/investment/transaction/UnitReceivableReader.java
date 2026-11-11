@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
+import static ee.tuleva.onboarding.investment.transaction.CashKnownToArrive.SISEKORD_4_P_2_5_3;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.CashKnownToArrive.Calculation;
 import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.ledger.RegistrarContribution;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -25,8 +27,6 @@ import org.springframework.stereotype.Component;
 class UnitReceivableReader {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
-  private static final LocalDate SISEKORD_4_P_2_5_3_CASH_KNOWN_TO_ARRIVE_INVESTABLE_FROM =
-      LocalDate.of(2027, 1, 1);
 
   private final FundPositionRepository fundPositionRepository;
   private final RegistrarCashFlowRepository registrarCashFlows;
@@ -39,7 +39,7 @@ class UnitReceivableReader {
     return new UnitReceivable(
         reported(fund, positionDate),
         receivedAfter(fund, positionDate, asOfDate),
-        whenCounted(earlierOf(asOfDate, LocalDate.now(clock.withZone(TALLINN)))));
+        whenCounted(new Calculation(asOfDate, LocalDate.now(clock.withZone(TALLINN)))));
   }
 
   private BigDecimal reported(TulevaFund fund, LocalDate positionDate) {
@@ -58,13 +58,7 @@ class UnitReceivableReader {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private static UnitReceivable.Counted whenCounted(LocalDate tradeDay) {
-    return tradeDay.isBefore(SISEKORD_4_P_2_5_3_CASH_KNOWN_TO_ARRIVE_INVESTABLE_FROM)
-        ? ONCE_IT_ARRIVES
-        : BEFORE_IT_ARRIVES;
-  }
-
-  private static LocalDate earlierOf(LocalDate one, LocalDate other) {
-    return one.isBefore(other) ? one : other;
+  private static UnitReceivable.Counted whenCounted(Calculation calculation) {
+    return SISEKORD_4_P_2_5_3.appliesTo(calculation) ? BEFORE_IT_ARRIVES : ONCE_IT_ARRIVES;
   }
 }

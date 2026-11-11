@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3_ORDER_CUTOFF;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
@@ -18,7 +19,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -39,7 +39,6 @@ import org.springframework.stereotype.Component;
 public class NavTransactionImpactAlertJob {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
-  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final RedemptionRequestRepository redemptionRequestRepository;
@@ -94,7 +93,8 @@ public class NavTransactionImpactAlertJob {
     try {
       BigDecimal threshold = investmentParameters.navImpactVolumeThreshold(today);
 
-      Instant cutoff = ZonedDateTime.of(navDate, CUTOFF_TIME, TALLINN).toInstant();
+      Instant cutoff =
+          ZonedDateTime.of(navDate, SISEKORD_16_P_1_1_3_ORDER_CUTOFF, TALLINN).toInstant();
 
       List<SavingFundPayment> reservedPayments =
           savingFundPaymentRepository.findPaymentsWithStatus(RESERVED).stream()

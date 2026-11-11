@@ -1,11 +1,23 @@
 package ee.tuleva.onboarding.banking.seb.reconciliation;
 
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Balance.DIFFERS;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Balance.MATCHES;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.SISEKORD_16_P_1_4_1;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.CLEAR;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.NOT_CHECKED;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.UNRESOLVED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Balance;
+import ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Check;
+import ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import java.math.BigDecimal;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,35 +58,20 @@ public class SebReconciliator {
             .getSystemAccount(account.ledgerAccount(), account.fund())
             .getBalanceAt(reconciliationTime);
 
-    if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
-      eventPublisher.publishEvent(
-          new ReconciliationCompletedEvent(
-              account,
-              closingBankBalance.time(),
-              closingBankBalance.balance(),
-              ledgerAccountBalance,
-              false));
+    var balance =
+        ledgerAccountBalance.compareTo(closingBankBalance.balance()) == 0 ? MATCHES : DIFFERS;
+    long unresolvedUnclassifiedEntries =
+        balance == MATCHES
+            ? fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(
+                account.fund(), reconciliationTime)
+            : 0;
+    var suspense = suspense(balance, unresolvedUnclassifiedEntries);
 
-      var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
-      throw new IllegalStateException(
-          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
-              .formatted(
-                  account,
-                  closingBankBalance.balance(),
-                  account.ledgerAccount(),
-                  ledgerAccountBalance,
-                  diff));
-    }
-
-    var unresolvedUnclassifiedEntries =
-        fundBankLedger.countUnresolvedUnclassifiedEntriesBefore(account.fund(), reconciliationTime);
-    if (unresolvedUnclassifiedEntries > 0) {
-      eventPublisher.publishEvent(
-          new ReconciliationBlockedEvent(
-              account, closingBankBalance.time(), unresolvedUnclassifiedEntries));
-      throw new IllegalStateException(
-          "Unresolved unclassified bank entries: fund=%s, count=%d"
-              .formatted(account.fund(), unresolvedUnclassifiedEntries));
+    switch (SISEKORD_16_P_1_4_1.decide(new Check(balance, suspense))) {
+      case MISMATCH -> failOnMismatch(account, closingBankBalance, ledgerAccountBalance);
+      case BLOCKED ->
+          failOnUnresolvedEntries(account, closingBankBalance, unresolvedUnclassifiedEntries);
+      case RECONCILED -> {}
     }
 
     eventPublisher.publishEvent(
@@ -90,5 +87,44 @@ public class SebReconciliator {
         account,
         closingBankBalance.balance(),
         account.ledgerAccount());
+  }
+
+  private static Suspense suspense(Balance balance, long unresolvedUnclassifiedEntries) {
+    if (balance == DIFFERS) {
+      return NOT_CHECKED;
+    }
+    return unresolvedUnclassifiedEntries > 0 ? UNRESOLVED : CLEAR;
+  }
+
+  private void failOnMismatch(
+      BankAccount account,
+      BankStatementBalance closingBankBalance,
+      BigDecimal ledgerAccountBalance) {
+    eventPublisher.publishEvent(
+        new ReconciliationCompletedEvent(
+            account,
+            closingBankBalance.time(),
+            closingBankBalance.balance(),
+            ledgerAccountBalance,
+            false));
+
+    var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
+    throw new IllegalStateException(
+        "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
+            .formatted(
+                account,
+                closingBankBalance.balance(),
+                account.ledgerAccount(),
+                ledgerAccountBalance,
+                diff));
+  }
+
+  private void failOnUnresolvedEntries(
+      BankAccount account, BankStatementBalance closingBankBalance, long unresolvedEntries) {
+    eventPublisher.publishEvent(
+        new ReconciliationBlockedEvent(account, closingBankBalance.time(), unresolvedEntries));
+    throw new IllegalStateException(
+        "Unresolved unclassified bank entries: fund=%s, count=%d"
+            .formatted(account.fund(), unresolvedEntries));
   }
 }

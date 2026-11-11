@@ -15,17 +15,7 @@ record Not<C>(Condition<C> negated) implements Condition<C> {
   }
 
   @Override
-  public List<Fact<C>> facts(final C context) {
-    return negated.facts(context);
-  }
-
-  @Override
   public List<String> notes() {
     return negated.notes();
-  }
-
-  @Override
-  public boolean joined() {
-    return negated.joined();
   }
 }

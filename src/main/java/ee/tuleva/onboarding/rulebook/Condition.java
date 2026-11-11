@@ -8,16 +8,22 @@ public sealed interface Condition<C> permits Fact, Junction, Not {
 
   String text(Truth truth);
 
-  List<Fact<C>> facts(C context);
-
   List<String> notes();
 
-  default String textOn(final C context) {
-    return text(Truth.of(test(context)));
+  default List<Fact<C>> facts(final C context) {
+    return switch (this) {
+      case Fact<C> fact -> List.of(fact);
+      case Not<C>(Condition<C> negated) -> negated.facts(context);
+      case Junction<C> junction -> junction.decidingFacts(context);
+    };
   }
 
   default boolean joined() {
-    return false;
+    return switch (this) {
+      case Fact<C> _ -> false;
+      case Not<C>(Condition<C> negated) -> negated.joined();
+      case Junction<C> _ -> true;
+    };
   }
 
   default String bracketed(final Truth truth) {

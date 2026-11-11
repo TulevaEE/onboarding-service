@@ -48,8 +48,7 @@ record Junction<C>(Kind kind, List<Condition<C>> conditions) implements Conditio
         kind.conjunction(truth));
   }
 
-  @Override
-  public List<Fact<C>> facts(final C context) {
+  List<Fact<C>> decidingFacts(final C context) {
     var holds = test(context);
     return conditions.stream()
         .filter(condition -> condition.test(context) == holds)
@@ -61,10 +60,5 @@ record Junction<C>(Kind kind, List<Condition<C>> conditions) implements Conditio
   @Override
   public List<String> notes() {
     return conditions.stream().flatMap(condition -> condition.notes().stream()).distinct().toList();
-  }
-
-  @Override
-  public boolean joined() {
-    return true;
   }
 }

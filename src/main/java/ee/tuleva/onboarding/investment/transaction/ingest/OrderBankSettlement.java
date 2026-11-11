@@ -104,7 +104,7 @@ class OrderBankSettlement {
           order.getInstrumentIsin(),
           booking.isin(),
           order.getTransactionType(),
-          booking.cashAmount());
+          cash);
       return Optional.empty();
     }
     return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash));

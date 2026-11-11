@@ -111,7 +111,7 @@ class SettlementFromBankListener {
         + " tellimuse arveldamine ebaõnnestus (põhjus on logis: \"Settling an order from the bank"
         + " failed\").\n"
         + "Panga kuupäeva said "
-        + (run.settled() + run.sameDate() + run.newDate())
+        + run.datedByTheBank()
         + ", pangakuupäevata jäi "
         + run.withoutBankDate()
         + ".\n"

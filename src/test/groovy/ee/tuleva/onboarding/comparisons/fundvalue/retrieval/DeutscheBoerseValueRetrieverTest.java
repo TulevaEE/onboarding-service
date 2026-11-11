@@ -4,12 +4,16 @@ import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -18,17 +22,21 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(DeutscheBoerseValueRetriever.class)
 @Import(ClockConfig.class)
+@TestPropertySource(properties = "deutsche-boerse.rate-limit-retry-delay=1ms")
 class DeutscheBoerseValueRetrieverTest {
 
   @Autowired DeutscheBoerseValueRetriever retriever;
@@ -36,6 +44,8 @@ class DeutscheBoerseValueRetrieverTest {
   @Autowired MockRestServiceServer server;
 
   @MockitoBean InstrumentReferenceService instrumentReferenceService;
+
+  @MockitoBean FundValueRepository fundValueRepository;
 
   private static final List<String> XETRA_ISINS = List.of("IE00B4L5Y983", "IE00BFNM3G45");
 
@@ -606,6 +616,187 @@ class DeutscheBoerseValueRetrieverTest {
                 new BigDecimal("9.947"),
                 "DEUTSCHE_BOERSE",
                 Instant.parse("2026-07-21T05:00:00Z")));
+  }
+
+  @Test
+  void skipsIsinAlreadyStoredThroughLatestFinalizedDay() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var storedIsin = XETRA_ISINS.getFirst();
+    var staleIsin = XETRA_ISINS.getLast();
+    given(
+            fundValueRepository.findLatestDateByKeys(
+                Set.of(storedIsin + ".XETR", staleIsin + ".XETR")))
+        .willReturn(
+            Map.of(
+                storedIsin + ".XETR", LocalDate.of(2026, 7, 20),
+                staleIsin + ".XETR", LocalDate.of(2026, 7, 17)));
+    server
+        .expect(requestTo(priceHistoryUrl(staleIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(staleIsin), APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(staleIsin)))
+        .andRespond(
+            withSuccess(
+                quoteBoxResponse(staleIsin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result)
+        .containsExactly(
+            new FundValue(
+                staleIsin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+    server.verify();
+  }
+
+  @Test
+  void skipsIsinStoredThroughFridayUntilMondayCloseIsFinalized() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-20T05:00:00Z"), UTC));
+    var storedIsin = XETRA_ISINS.getFirst();
+    var staleIsin = XETRA_ISINS.getLast();
+    given(
+            fundValueRepository.findLatestDateByKeys(
+                Set.of(storedIsin + ".XETR", staleIsin + ".XETR")))
+        .willReturn(
+            Map.of(
+                storedIsin + ".XETR", LocalDate.of(2026, 7, 17),
+                staleIsin + ".XETR", LocalDate.of(2026, 7, 16)));
+    var bars =
+        """
+        {
+          "isin": "%s",
+          "data": [
+            {"date": "2026-07-17", "open": 9.900, "close": 9.92, "high": 9.924, "low": 9.900, "turnoverPieces": 0, "turnoverEuro": 0.0}
+          ],
+          "totalCount": 1
+        }
+        """
+            .formatted(staleIsin);
+    server
+        .expect(requestTo(priceHistoryUrl(staleIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(bars, APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(staleIsin)))
+        .andRespond(withSuccess("{}", APPLICATION_JSON));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result)
+        .containsExactly(
+            new FundValue(
+                staleIsin + ".XETR",
+                LocalDate.of(2026, 7, 17),
+                new BigDecimal("9.92"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-20T05:00:00Z")));
+    server.verify();
+  }
+
+  @Test
+  void retriesRateLimitedRequestsUntilTheyGoThrough() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var isin = XETRA_ISINS.getFirst();
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withStatus(SERVICE_UNAVAILABLE));
+    server
+        .expect(requestTo(priceHistoryUrl(isin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON));
+    server.expect(requestTo(quoteBoxUrl(isin))).andRespond(withStatus(SERVICE_UNAVAILABLE));
+    server
+        .expect(requestTo(quoteBoxUrl(isin)))
+        .andRespond(
+            withSuccess(quoteBoxResponse(isin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+    expectNoDataForOtherIsins(isin, "2026-07-17", "2026-07-20");
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result)
+        .containsExactly(
+            new FundValue(
+                isin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+    server.verify();
+  }
+
+  @Test
+  void defersRemainingIsinsToNextRunWhenRateLimitPersists() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var fetchedIsin = "IE00B4L5Y983";
+    var rateLimitedIsin = "IE00BFNM3G45";
+    var deferredIsin = "IE00B5BMR087";
+    given(instrumentReferenceService.getXetraIsins())
+        .willReturn(List.of(fetchedIsin, rateLimitedIsin, deferredIsin));
+    server
+        .expect(requestTo(priceHistoryUrl(fetchedIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(fetchedIsin), APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(fetchedIsin)))
+        .andRespond(
+            withSuccess(
+                quoteBoxResponse(fetchedIsin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+    server
+        .expect(times(4), requestTo(priceHistoryUrl(rateLimitedIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withStatus(SERVICE_UNAVAILABLE));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result)
+        .containsExactly(
+            new FundValue(
+                fetchedIsin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+    server.verify();
+  }
+
+  @Test
+  void defersRemainingIsinsToNextRunWhenQuoteBoxRateLimitPersists() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-07-21T05:00:00Z"), UTC));
+    var fetchedIsin = "IE00B4L5Y983";
+    var rateLimitedIsin = "IE00BFNM3G45";
+    var deferredIsin = "IE00B5BMR087";
+    given(instrumentReferenceService.getXetraIsins())
+        .willReturn(List.of(fetchedIsin, rateLimitedIsin, deferredIsin));
+    server
+        .expect(requestTo(priceHistoryUrl(fetchedIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(fetchedIsin), APPLICATION_JSON));
+    server
+        .expect(requestTo(quoteBoxUrl(fetchedIsin)))
+        .andRespond(
+            withSuccess(
+                quoteBoxResponse(fetchedIsin, "9.947", "2026-07-20T15:35:48Z"), APPLICATION_JSON));
+    server
+        .expect(requestTo(priceHistoryUrl(rateLimitedIsin, "2026-07-17", "2026-07-20")))
+        .andRespond(withSuccess(emptyResponse(rateLimitedIsin), APPLICATION_JSON));
+    server
+        .expect(times(4), requestTo(quoteBoxUrl(rateLimitedIsin)))
+        .andRespond(withStatus(SERVICE_UNAVAILABLE));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 7, 17), LocalDate.of(2026, 7, 20));
+
+    assertThat(result)
+        .containsExactly(
+            new FundValue(
+                fetchedIsin + ".XETR",
+                LocalDate.of(2026, 7, 20),
+                new BigDecimal("9.947"),
+                "DEUTSCHE_BOERSE",
+                Instant.parse("2026-07-21T05:00:00Z")));
+    server.verify();
   }
 
   private void expectNoDataForOtherIsins(String isin, String startDate, String endDate) {

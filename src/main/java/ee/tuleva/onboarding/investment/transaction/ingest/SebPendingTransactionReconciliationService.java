@@ -201,16 +201,19 @@ public class SebPendingTransactionReconciliationService {
       TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
     return switch (run.mode()) {
       case LIVE -> executedBefore(order, reportDate, run);
-      case REPLAY -> absenceSettlesInAReplay(order, reportDate, run);
+      case REPLAY -> {
+        List<TransactionExecution> listed = executionsListedBy(order, run);
+        yield tradedBefore(listed, reportDate)
+            && filledAsLastListed(order, listed, reportDate, run.listings());
+      }
     };
   }
 
   private boolean absenceSettlesInAReplay(
       TransactionOrder order, LocalDate reportDate, ReconciliationRun run) {
-    List<TransactionExecution> listed = executionsListedBy(order, run);
-    return tradedBefore(listed, reportDate)
-        && filledAsLastListed(order, listed, reportDate, run.listings())
-        && !quantityAmountValidator.isShortFill(order, listed, matchingPolicy.current());
+    return absenceMaySettle(order, reportDate, run)
+        && !quantityAmountValidator.isShortFill(
+            order, executionsListedBy(order, run), matchingPolicy.current());
   }
 
   private boolean filledAsLastListed(

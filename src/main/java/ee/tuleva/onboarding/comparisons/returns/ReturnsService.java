@@ -1,41 +1,29 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
-import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR;
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
 import static java.time.ZoneOffset.UTC;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnCalculationParameters;
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
-import ee.tuleva.onboarding.deadline.MandateDeadlines;
-import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class ReturnsService {
 
-  private static final Set<String> PERSONAL_KEYS = Set.of(SECOND_PILLAR, THIRD_PILLAR);
-
   private final List<ReturnProvider> returnProviders;
-  private final FundValueRepository fundValueRepository;
-  private final MandateDeadlinesService mandateDeadlinesService;
 
   public Returns get(Person person, LocalDate fromDate, LocalDate endDate, List<String> keys) {
     int pillar = getPillar(keys);
-    Instant fromTime = getRevisedFromTime(fromDate, keys, pillar);
-    Instant toTime = endDate.atStartOfDay().atZone(UTC).toInstant();
+    Instant fromTime = toInstant(fromDate);
+    Instant toTime = toInstant(endDate);
 
     List<Return> allReturns = new ArrayList<>();
 
@@ -62,7 +50,6 @@ public class ReturnsService {
     return allReturns;
   }
 
-  @NotNull
   private List<String> getRelevantKeysForTheProvider(List<String> keys, ReturnProvider provider) {
     List<String> relevantKeysForTheProvider = new ArrayList<>(provider.getKeys());
 
@@ -70,48 +57,6 @@ public class ReturnsService {
       relevantKeysForTheProvider.retainAll(keys);
     }
     return relevantKeysForTheProvider;
-  }
-
-  Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
-    boolean hasKeys = keys != null && !keys.isEmpty();
-
-    if (hasKeys && PERSONAL_KEYS.containsAll(keys)) {
-      return toInstant(fromDate);
-    }
-
-    LocalDate latestCommonStartDate = latestCommonStartDate(keys, fromDate);
-
-    if (pillar == 3) {
-      // plus 1 day so you could always get the previous day's nav for the beginning balance
-      return toInstant(
-          hasKeys && !fromDate.isAfter(latestCommonStartDate)
-              ? latestCommonStartDate.plusDays(1)
-              : fromDate);
-    }
-
-    // pillar == 2
-    MandateDeadlines deadlines =
-        mandateDeadlinesService.getDeadlines(toInstant(latestCommonStartDate));
-    LocalDate transferMandateFulfillmentDate = deadlines.getTransferMandateFulfillmentDate();
-    LocalDate navDatePlus1 =
-        new PublicHolidays().previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
-
-    if (!hasKeys
-        || !fromDate.isAfter(latestCommonStartDate)
-        || transferMandateFulfillmentDate.isAfter(fromDate)) {
-      return toInstant(navDatePlus1);
-    }
-    return toInstant(fromDate);
-  }
-
-  private LocalDate latestCommonStartDate(List<String> keys, LocalDate fromDate) {
-    if (keys == null || keys.isEmpty()) return fromDate;
-
-    return keys.stream()
-        .map(fundValueRepository::findEarliestDateForKey)
-        .flatMap(Optional::stream)
-        .max(LocalDate::compareTo)
-        .orElse(fromDate);
   }
 
   private Integer getPillar(List<String> keys) {

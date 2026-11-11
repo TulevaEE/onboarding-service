@@ -5,6 +5,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
@@ -91,7 +92,7 @@ public class ReturnCalculator {
             getComparisonPurchases(accountOverview),
             beginningBalanceIndexDate(accountOverview, comparisonFund));
     LocalDate endingBalanceDate = accountOverview.getEndingBalanceDate();
-    return pricesFor(comparisonFund, purchases, endingBalanceDate)
+    return pricesFor(comparisonFund, purchases, accountOverview.getStartDate(), endingBalanceDate)
         .map(
             prices ->
                 purchases.stream()
@@ -118,13 +119,15 @@ public class ReturnCalculator {
   }
 
   private Optional<NavigableMap<LocalDate, BigDecimal>> pricesFor(
-      String fund, List<Transaction> purchases, LocalDate endingBalanceDate) {
+      String fund,
+      List<Transaction> purchases,
+      LocalDate firstDayOfPeriod,
+      LocalDate endingBalanceDate) {
     List<LocalDate> dates =
         Stream.concat(purchases.stream().map(Transaction::date), Stream.of(endingBalanceDate))
             .toList();
     LocalDate earliest = Collections.min(dates);
-    return fundValueProvider
-        .getLatestValue(fund, earliest)
+    return startingValue(fund, earliest, firstDayOfPeriod)
         .map(
             startingValue -> {
               NavigableMap<LocalDate, BigDecimal> prices = new TreeMap<>();
@@ -134,6 +137,13 @@ public class ReturnCalculator {
                   .forEach(value -> prices.put(value.date(), value.value()));
               return prices;
             });
+  }
+
+  private Optional<FundValue> startingValue(
+      String fund, LocalDate earliestPurchaseDate, LocalDate firstDayOfPeriod) {
+    return fundValueProvider
+        .getLatestValue(fund, earliestPurchaseDate)
+        .or(() -> fundValueProvider.getLatestValue(fund, firstDayOfPeriod));
   }
 
   private static BigDecimal priceOnOrBefore(

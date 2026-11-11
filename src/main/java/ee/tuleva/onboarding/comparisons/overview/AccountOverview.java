@@ -39,7 +39,7 @@ public class AccountOverview {
     return getStartDate();
   }
 
-  private LocalDate getStartDate() {
+  public LocalDate getStartDate() {
     return startTime.atOffset(UTC).toLocalDate();
   }
 

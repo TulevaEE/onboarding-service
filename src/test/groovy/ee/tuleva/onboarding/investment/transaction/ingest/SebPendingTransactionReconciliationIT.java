@@ -700,9 +700,9 @@ class SebPendingTransactionReconciliationIT {
     replayerAt(SEB_LISTS_NOTHING_MORE_BY)
         .replayOldestFirst(report.getReportDate(), FIRST_ABSENCE, LOCK_HELD);
     entityManager.flush();
-    TransactionSettlement moved = settlementRepository.findByOrderId(order.getId()).orElseThrow();
-    Instant movedSettledAt = moved.getSettledAt();
     entityManager.clear();
+    Instant movedSettledAt =
+        settlementRepository.findByOrderId(order.getId()).orElseThrow().getSettledAt();
 
     replayerAt(SEB_LISTS_NOTHING_MORE_BY)
         .replayOldestFirst(report.getReportDate(), report.getReportDate(), LOCK_HELD);

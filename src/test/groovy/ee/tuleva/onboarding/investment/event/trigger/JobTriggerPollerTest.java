@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.investment.event.RunR16FlowRecalcRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliationRequested;
 import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReportReconciliationRequested;
+import ee.tuleva.onboarding.investment.event.RunSettlementFromBankRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -94,6 +95,17 @@ class JobTriggerPollerTest {
         .publishEvent(any(RunOverdueSettlementRequested.class));
     thenCompleted(current);
     thenCompleted(alias);
+  }
+
+  @Test
+  void aDeferredSettlementFromTheBankTriggerSettlesFromTheBank() {
+    var trigger = JobTrigger.builder().jobName("SettlementFromBankJob").status("PENDING").build();
+    givenPending(trigger);
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(new RunSettlementFromBankRequested());
+    thenCompleted(trigger);
   }
 
   @Test

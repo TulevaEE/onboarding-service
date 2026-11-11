@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.banking.StoredTradeReferences;
 import ee.tuleva.onboarding.investment.event.RunSettlementFromBankHistoryRequested;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -34,17 +35,42 @@ class SettlementFromBankHistoryJob {
           + "Käivita uuesti pärast järgmist raportit: INSERT INTO public.investment_job_trigger"
           + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
 
+  private static final String LOCK_HELD_MESSAGE =
+      "Registri tellimuste arveldamine panga kuupäevadega ei alanud, sest SEB ootel-tehingute"
+          + " sobitamine käib.\n"
+          + "Midagi ei muudetud.\n"
+          + "Käivita uuesti, kui see on lõppenud: INSERT INTO public.investment_job_trigger"
+          + " (job_name) VALUES ('SettlementFromBankHistoryJob')";
+
   private final StoredTradeReferences storedTradeReferences;
   private final SettlementFromBankService settlementFromBankService;
   private final OperationsNotificationService notificationService;
+  private final SebReconciliationLock reconciliationLock;
 
   @EventListener(RunSettlementFromBankHistoryRequested.class)
   void run() {
+    if (!reconciliationLock.runIfFree(this::settleTheHistory)) {
+      log.warn(
+          "Settling the registry's history from the bank refused, the reconciliation lock is held:"
+              + " lock={}",
+          SebReconciliationLock.NAME);
+      notificationService.sendMessage(LOCK_HELD_MESSAGE, INVESTMENT, WARNING);
+      throw new IllegalStateException(
+          "Settling the registry's history from the bank refused, the reconciliation lock is"
+              + " held: lock="
+              + SebReconciliationLock.NAME);
+    }
+  }
+
+  private void settleTheHistory(BooleanSupplier stillHoldsTheLock) {
     Optional<BankSettlementRun> settled;
     try {
       settled =
           settlementFromBankService.settleOrdersBookedSince(
-              EPOCH, storedTradeReferences.byLedgerExternalReference());
+              EPOCH, storedTradeReferences.byLedgerExternalReference(), stillHoldsTheLock);
+    } catch (SettlementFromBankLockLostException e) {
+      log.warn("Settling the registry's history from the bank lost its lock, retrying", e);
+      throw e;
     } catch (RuntimeException e) {
       notificationService.sendMessage(FAILED_MESSAGE, INVESTMENT, ERROR);
       throw e;

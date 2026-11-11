@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,12 +28,15 @@ class SettlementFromBankService {
   private final LatestPendingReport latestPendingReport;
   private final OrderBankSettlement orderBankSettlement;
 
-  Optional<BankSettlementRun> settleOrdersBookedSince(LocalDate since) {
-    return settleOrdersBookedSince(since, Map.of());
+  Optional<BankSettlementRun> settleOrdersBookedSince(
+      LocalDate since, BooleanSupplier stillHoldsTheLock) {
+    return settleOrdersBookedSince(since, Map.of(), stillHoldsTheLock);
   }
 
   Optional<BankSettlementRun> settleOrdersBookedSince(
-      LocalDate since, Map<UUID, String> referencesOfOlderBookings) {
+      LocalDate since,
+      Map<UUID, String> referencesOfOlderBookings,
+      BooleanSupplier stillHoldsTheLock) {
     Optional<PendingListing> listing = latestPendingReport.listing();
     if (listing.isEmpty()) {
       return Optional.empty();
@@ -46,7 +50,11 @@ class SettlementFromBankService {
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     List<BankSettlementOutcome> outcomes =
         orders.stream()
-            .map(order -> settle(order, bookings, listing.get(), matchingProperties))
+            .map(
+                order -> {
+                  stopIfTheLockIsLost(order, stillHoldsTheLock);
+                  return settle(order, bookings, listing.get(), matchingProperties);
+                })
             .toList();
     return Optional.of(
         new BankSettlementRun(
@@ -55,6 +63,13 @@ class SettlementFromBankService {
             count(outcomes, BankSettlementOutcome.NEW_DATE),
             count(outcomes, BankSettlementOutcome.NO_BANK_DATE),
             count(outcomes, BankSettlementOutcome.FAILED)));
+  }
+
+  private static void stopIfTheLockIsLost(
+      TransactionOrder nextOrder, BooleanSupplier stillHoldsTheLock) {
+    if (!stillHoldsTheLock.getAsBoolean()) {
+      throw new SettlementFromBankLockLostException(nextOrder.getId());
+    }
   }
 
   private BankSettlementOutcome settle(

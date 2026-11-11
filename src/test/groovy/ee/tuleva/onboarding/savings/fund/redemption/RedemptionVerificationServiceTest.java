@@ -78,12 +78,13 @@ class RedemptionVerificationServiceTest {
         redemptionRequestRepository,
         redemptionStatusService,
         holdService,
-        userService,
-        kycCountryService,
-        sanctionAndPepScreener,
-        riskLevels,
-        savingsFundOnboardingRepository,
-        legalEntityScreener,
+        new RedemptionEvidenceCollector(
+            userService,
+            kycCountryService,
+            sanctionAndPepScreener,
+            riskLevels,
+            savingsFundOnboardingRepository,
+            legalEntityScreener),
         new SavingFundDeadlinesService(new PublicHolidays(), clock),
         clock);
   }

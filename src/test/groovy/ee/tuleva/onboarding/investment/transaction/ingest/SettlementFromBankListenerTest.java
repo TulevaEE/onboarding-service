@@ -68,7 +68,8 @@ class SettlementFromBankListenerTest {
             "Registri tellimuste arveldamine panga kuupäevadega: 2 tellimuse arveldamine"
                 + " ebaõnnestus (põhjus on logis: \"Settling an order from the bank failed\").\n"
                 + "Panga kuupäeva said 5, pangakuupäevata jäi 4.\n"
-                + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud.",
+                + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud"
+                + " või tellimus on vanem kui 60 päeva.",
             INVESTMENT,
             WARNING);
   }
@@ -164,6 +165,20 @@ class SettlementFromBankListenerTest {
         .doesNotThrowAnyException();
 
     then(jobTriggerQueue).should().defer("SettlementFromBankJob");
+  }
+
+  @Test
+  void aSettlementThatLosesTheLockAndCannotBeDeferred_stillDoesNotFailTheImport() {
+    willThrow(new SettlementFromBankLockLostException(42L))
+        .given(settlementFromBankService)
+        .settleOrdersBookedSince(eq(SIXTY_DAYS_AGO), any());
+    willThrow(new IllegalStateException("database down"))
+        .given(jobTriggerQueue)
+        .defer("SettlementFromBankJob");
+    SettlementFromBankListener listener = listenerLockedBy(RecordingLockProvider.free());
+
+    assertThatCode(() -> listener.onReportImportCompleted(SEB_PENDING_IMPORTED))
+        .doesNotThrowAnyException();
   }
 
   @Test

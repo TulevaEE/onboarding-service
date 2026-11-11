@@ -93,14 +93,26 @@ class SettlementFromBankHistoryJobTest {
   }
 
   @Test
-  void run_thatLosesTheLock_waitsAsBusyForTheNextPollWithoutPostingAFailure() {
+  void run_thatLosesTheLock_warnsAndFailsItsTriggerLikeARunThatFoundItHeld() {
     given(storedTradeReferences.byLedgerExternalReference()).willReturn(OLDER_REFERENCES);
     given(settlementFromBankService.settleOrdersBookedSince(any(), any(), any()))
         .willThrow(new SettlementFromBankLockLostException(42L));
 
-    assertThatThrownBy(() -> job().run()).isInstanceOf(JobBusyException.class);
+    assertThatThrownBy(() -> job().run())
+        .isInstanceOf(IllegalStateException.class)
+        .isNotInstanceOf(JobBusyException.class);
 
-    then(notificationService).shouldHaveNoInteractions();
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "Registri tellimuste arveldamine panga kuupäevadega katkes, sest SEB"
+                + " ootel-tehingute sobitamine sai luku.\n"
+                + "Osa tellimusi võis panga kuupäeva juba saada, uuesti käivitamine ei arvelda"
+                + " midagi topelt.\n"
+                + "Käivita uuesti, kui see on lõppenud: INSERT INTO public.investment_job_trigger"
+                + " (job_name) VALUES ('SettlementFromBankHistoryJob')",
+            INVESTMENT,
+            WARNING);
   }
 
   @Test

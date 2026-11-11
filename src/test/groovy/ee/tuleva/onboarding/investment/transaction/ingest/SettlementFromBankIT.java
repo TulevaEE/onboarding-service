@@ -37,6 +37,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.TradeSettlementDetails;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -358,8 +359,26 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void
-      anImportWhileTheReconciliationLockIsHeld_leavesTheOrderOpenUntilItsTriggerFindsTheLockFree() {
+  void aBookingWithoutACashLeg_failsItsOrderAndTheOtherOrdersStillSettle() {
+    TransactionOrder withoutCash = executedOrder(OrderVenue.SEB, "11704");
+    piece(withoutCash, "DLA0553690", "11704");
+    UUID bookingWithoutCash =
+        bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+    dropTheCashLegs(bookingWithoutCash);
+    TransactionOrder settles = executedOrder(OrderVenue.SEB, "11704");
+    piece(settles, "DLA0553691", "11704");
+    bankBooks("DLA0553691", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
+
+    assertThat(settlementFromBankService.settleOrdersBookedSince(SINCE, LOCK_HELD))
+        .contains(new BankSettlementRun(1, 0, 0, 0, 1));
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(settlementRepository.findByOrderId(withoutCash.getId())).isEmpty();
+    assertThat(settlementOf(settles).getSource()).isEqualTo(BANK_STATEMENT);
+  }
+
+  @Test
+  void anImportWhileTheLockIsHeld_leavesTheOrderOpenUntilItsTriggerFindsTheLockFree() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
@@ -380,8 +399,7 @@ class SettlementFromBankIT {
   }
 
   @Test
-  void
-      aHistoryRunWhileTheReconciliationLockIsHeld_leavesTheOrderOpenAndFailsUntilRunWithTheLockFree() {
+  void aHistoryRunWhileTheLockIsHeld_failsAndLeavesTheOrderOpenUntilRunWithTheLockFree() {
     TransactionOrder order = executedOrder(OrderVenue.SEB, "11704");
     piece(order, "DLA0553690", "11704");
     bankBooks("DLA0553690", EJAP, "-209025.86", LocalDate.of(2026, 2, 12));
@@ -505,22 +523,34 @@ class SettlementFromBankIT {
     entityManager.flush();
   }
 
-  private void bankBooks(String brokerReference, String isin, String cash, LocalDate bookingDate) {
-    bankBooks(TKF100, brokerReference, isin, cash, bookingDate);
+  private UUID bankBooks(String brokerReference, String isin, String cash, LocalDate bookingDate) {
+    return bankBooks(TKF100, brokerReference, isin, cash, bookingDate);
   }
 
-  private void bankBooks(
+  private UUID bankBooks(
       TulevaFund fund, String brokerReference, String isin, String cash, LocalDate bookingDate) {
     BigDecimal amount = new BigDecimal(cash);
-    fundBankLedger.recordTradeSettlement(
-        fund,
-        amount,
-        new BigDecimal("11704"),
-        randomUUID(),
-        FUND_INVESTMENT_CASH_CLEARING,
-        new TradeSettlementDetails(
-            brokerReference, isin, "EJAP", "test instrument", BigDecimal.ONE),
-        bookingDate);
+    LedgerTransaction booking =
+        fundBankLedger.recordTradeSettlement(
+            fund,
+            amount,
+            new BigDecimal("11704"),
+            randomUUID(),
+            FUND_INVESTMENT_CASH_CLEARING,
+            new TradeSettlementDetails(
+                brokerReference, isin, "EJAP", "test instrument", BigDecimal.ONE),
+            bookingDate);
     entityManager.flush();
+    return booking.getId();
+  }
+
+  private void dropTheCashLegs(UUID bookingId) {
+    entityManager
+        .createNativeQuery(
+            "DELETE FROM ledger.entry WHERE transaction_id = :bookingId AND account_id IN"
+                + " (SELECT id FROM ledger.account WHERE asset_type = 'EUR')")
+        .setParameter("bookingId", bookingId)
+        .executeUpdate();
+    entityManager.clear();
   }
 }

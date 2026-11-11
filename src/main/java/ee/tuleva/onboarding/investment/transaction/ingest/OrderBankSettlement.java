@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import ee.tuleva.onboarding.ledger.TradeSettlementBooking;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -51,16 +52,13 @@ class OrderBankSettlement {
       return BankSettlementOutcome.NO_BANK_DATE;
     }
     LocalDate bookingDate =
-        bookedPieces.stream()
-            .map(piece -> piece.booking().bookingDate())
-            .max(naturalOrder())
-            .orElseThrow();
+        bookedPieces.stream().map(BookedPiece::bookingDate).max(naturalOrder()).orElseThrow();
     if (!listing.settlesOn(bookingDate, order, executions)) {
       return BankSettlementOutcome.NO_BANK_DATE;
     }
     bookedPieces.forEach(
         piece -> {
-          piece.execution().setNetSettlementAmount(piece.booking().cashAmount().abs());
+          piece.execution().setNetSettlementAmount(piece.cash().abs());
           executionRepository.save(piece.execution());
         });
     return switch (settlementService.settleFromTheBank(order, bookingDate)) {
@@ -85,9 +83,17 @@ class OrderBankSettlement {
       return Optional.empty();
     }
     TradeSettlementBooking booking = found.get();
+    BigDecimal cash = booking.cashAmount();
+    if (cash == null) {
+      throw new IllegalStateException(
+          "Bank booking has no trade cash leg: orderId="
+              + order.getId()
+              + ", brokerReference="
+              + execution.getBrokerTransactionId());
+    }
     if (order.getFund() != booking.fund()
         || !order.getInstrumentIsin().equals(booking.isin())
-        || cashLeftTheFund(booking) != (order.getTransactionType() == BUY)) {
+        || cashLeftTheFund(cash) != (order.getTransactionType() == BUY)) {
       log.warn(
           "Bank booking does not fit its order: orderId={}, brokerReference={}, orderFund={},"
               + " bookingFund={}, orderIsin={}, bookingIsin={}, side={}, cash={}",
@@ -101,12 +107,13 @@ class OrderBankSettlement {
           booking.cashAmount());
       return Optional.empty();
     }
-    return Optional.of(new BookedPiece(execution, booking));
+    return Optional.of(new BookedPiece(execution, booking.bookingDate(), cash));
   }
 
-  private static boolean cashLeftTheFund(TradeSettlementBooking booking) {
-    return booking.cashAmount().signum() < 0;
+  private static boolean cashLeftTheFund(BigDecimal cash) {
+    return cash.signum() < 0;
   }
 
-  private record BookedPiece(TransactionExecution execution, TradeSettlementBooking booking) {}
+  private record BookedPiece(
+      TransactionExecution execution, LocalDate bookingDate, BigDecimal cash) {}
 }

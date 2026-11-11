@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -82,10 +83,10 @@ public class UnitOwner {
   private String p2mmteStatus;
 
   @Column(name = "p2_mate_date")
-  private LocalDate p2mateDate;
+  private @Nullable LocalDate p2mateDate;
 
   @Column(name = "p2_mate_status")
-  private String p2mateStatus;
+  private @Nullable String p2mateStatus;
 
   @Column(name = "p2_rate")
   private Integer p2rate;

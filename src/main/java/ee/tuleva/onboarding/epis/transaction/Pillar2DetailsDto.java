@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -29,9 +30,9 @@ public class Pillar2DetailsDto {
   private String mmteStatus;
 
   @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-  private LocalDate mateDate;
+  private @Nullable LocalDate mateDate;
 
-  private String mateStatus;
+  private @Nullable String mateStatus;
   private Integer rate;
   private Integer nextRate;
 

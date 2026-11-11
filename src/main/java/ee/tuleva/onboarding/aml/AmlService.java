@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.MandateAmlGate.SISEKORD_13_P_4_1_7;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
-import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.aml.MandateAmlGate.RecentChecks;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
@@ -178,33 +179,7 @@ public class AmlService {
     if (!isMandateAmlCheckRequired(user, mandate)) {
       return true;
     }
-    var successfulTypes =
-        getChecks(user).stream()
-            .filter(AmlCheck::isSuccess)
-            .map(AmlCheck::getType)
-            .collect(toSet());
-
-    var allTypes = getChecks(user).stream().map(AmlCheck::getType).collect(toSet());
-    var hasManualPepDeclaration = allTypes.contains(POLITICALLY_EXPOSED_PERSON);
-    var pepCheck =
-        hasManualPepDeclaration
-            || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_AUTO)
-            || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_OVERRIDE);
-    var sanctionCheck =
-        successfulTypes.contains(SANCTION) || successfulTypes.contains(SANCTION_OVERRIDE);
-    var nameCheck =
-        successfulTypes.contains(SK_NAME) || successfulTypes.contains(PENSION_REGISTRY_NAME);
-    var documentCheck = successfulTypes.contains(DOCUMENT);
-    var occupationCheck = successfulTypes.contains(OCCUPATION);
-    var residencyCheck =
-        successfulTypes.contains(RESIDENCY_AUTO) || successfulTypes.contains(RESIDENCY_MANUAL);
-
-    if (pepCheck
-        && sanctionCheck
-        && nameCheck
-        && documentCheck
-        && occupationCheck
-        && residencyCheck) {
+    if (SISEKORD_13_P_4_1_7.appliesTo(RecentChecks.of(getChecks(user)))) {
       return true;
     }
     log.info("All necessary AML checks not passed for user userId={}", user.getId());

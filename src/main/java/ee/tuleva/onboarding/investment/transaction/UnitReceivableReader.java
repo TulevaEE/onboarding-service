@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.CashKnownToArrive.SISEKORD_4_P_2_5_3;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
-import static ee.tuleva.onboarding.investment.transaction.CashKnownToArrive.SISEKORD_4_P_2_5_3;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.investment.CashKnownToArrive.Calculation;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
-import ee.tuleva.onboarding.investment.transaction.CashKnownToArrive.Calculation;
 import ee.tuleva.onboarding.ledger.RegistrarCashFlowRepository;
 import ee.tuleva.onboarding.ledger.RegistrarContribution;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;

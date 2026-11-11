@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public record Rule<C>(
-    String paragraph, String name, Condition<C> condition, List<Example<C>> examples) {
+    String paragraph, String name, Condition<C> condition, List<Example<C>> examples)
+    implements Provision {
 
   public Rule {
     examples = List.copyOf(examples);
@@ -34,10 +35,19 @@ public record Rule<C>(
     return examples.stream().filter(example -> !decidesAsLabelled(example)).toList();
   }
 
-  String heading() {
-    return "p " + paragraph + " – " + name;
+  @Override
+  public List<String> exampleNames() {
+    return examples.stream().map(Example::name).toList();
   }
 
+  @Override
+  public boolean decidesAsLabelled(final String exampleName) {
+    return examples.stream()
+        .filter(example -> example.name().equals(exampleName))
+        .allMatch(this::decidesAsLabelled);
+  }
+
+  @Override
   public List<String> markdown() {
     return Stream.of(
             Stream.of("## " + heading(), "Rakendub, kui " + condition.text(Truth.HOLDS) + "."),

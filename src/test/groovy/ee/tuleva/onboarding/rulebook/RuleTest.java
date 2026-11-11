@@ -91,6 +91,13 @@ class RuleTest {
   }
 
   @Test
+  void aRuleNamesItsExamplesAndSaysByNameWhetherEachDecidesAsLabelled() {
+    assertThat(REBALANCE.exampleNames())
+        .containsExactly("suur fond palju raha", "väike fond palju raha");
+    assertThat(REBALANCE.decidesAsLabelled("suur fond palju raha")).isTrue();
+  }
+
+  @Test
   void aRuleWhoseExamplesDecideAsLabelledHasNoneMislabelled() {
     assertThat(REBALANCE.mislabelled()).isEmpty();
   }

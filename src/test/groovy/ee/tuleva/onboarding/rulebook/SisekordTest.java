@@ -47,6 +47,22 @@ class SisekordTest {
   }
 
   @Test
+  void aSisekordListsADecisionInItsCoverageBesideItsRules() {
+    var sisekord =
+        new Sisekord(
+            13,
+            "Rahapesu tõkestamise sisekord",
+            "1.1",
+            LocalDate.of(2026, 6, 1),
+            List.of(REBALANCE, DecisionTest.ONBOARDING));
+
+    assertThat(sisekord.markdown())
+        .contains(
+            "- p 2.6 – Suur fond tasakaalustatakse\n- p 9.3 – Liitumise staatus riskitaseme järgi",
+            "## p 9.3 – Liitumise staatus riskitaseme järgi");
+  }
+
+  @Test
   void aSisekordIsCheckedInUnderItsNumber() {
     var sisekord =
         new Sisekord(

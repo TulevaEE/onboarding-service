@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public record Sisekord(
-    int number, String title, String version, LocalDate validFrom, List<Rule<?>> rules) {
+    int number, String title, String version, LocalDate validFrom, List<Provision> rules) {
 
   public Sisekord {
     rules = List.copyOf(rules);

@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 @Component
 class QuantityAmountValidator {
 
+  private static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
+
   Optional<QuantityAmountMismatchEvent> validate(
       TransactionOrder order,
       SebPendingTransactionRow row,
@@ -140,17 +142,33 @@ class QuantityAmountValidator {
         : cumulative.subtract(target).compareTo(tolerance) > 0;
   }
 
+  boolean fillAsListed(
+      TransactionOrder order, TransactionExecution execution, SebPendingTransactionRow listing) {
+    BigDecimal listed = actual(order, listing);
+    BigDecimal stored = executedValue(order, execution);
+    return listed != null
+        && stored != null
+        && listed.round(SEB_REPORTED_PRECISION).compareTo(stored.round(SEB_REPORTED_PRECISION))
+            == 0;
+  }
+
   private static BigDecimal sumExecutedValue(
       TransactionOrder order,
       List<TransactionExecution> executions,
       @Nullable String excludeBrokerRef) {
-    boolean amount = kind(order) == MismatchKind.FUND_BUY_AMOUNT;
     return executions.stream()
         .filter(
             e -> excludeBrokerRef == null || !excludeBrokerRef.equals(e.getBrokerTransactionId()))
-        .map(e -> amount ? e.getTotalConsideration() : e.getExecutedQuantity())
+        .map(e -> executedValue(order, e))
         .filter(Objects::nonNull)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private static @Nullable BigDecimal executedValue(
+      TransactionOrder order, TransactionExecution execution) {
+    return kind(order) == MismatchKind.FUND_BUY_AMOUNT
+        ? execution.getTotalConsideration()
+        : execution.getExecutedQuantity();
   }
 
   private static BigDecimal relativeExcess(BigDecimal target, BigDecimal cumulative) {

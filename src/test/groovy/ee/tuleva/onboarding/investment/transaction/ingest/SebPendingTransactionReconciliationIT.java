@@ -520,7 +520,7 @@ class SebPendingTransactionReconciliationIT {
                 .brokerTransactionId("DLA0000000")
                 .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
                 .executedQuantity(new BigDecimal("2669.9"))
-                .totalConsideration(new BigDecimal("50000.00"))
+                .totalConsideration(new BigDecimal("91782.00"))
                 .source("HISTORICAL_IMPORT")
                 .reportedDate(LocalDate.of(2026, 2, 10))
                 .build());
@@ -534,7 +534,7 @@ class SebPendingTransactionReconciliationIT {
 
     TransactionExecution dated = executionRepository.findById(imported.getId()).orElseThrow();
     assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
-    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("50000.00");
+    assertThat(dated.getUnitPrice()).isNull();
     assertThat(dated.getSource()).isEqualTo("HISTORICAL_IMPORT");
     assertThat(settlementRepository.findByOrderId(order.getId()).orElseThrow().getReportDate())
         .isEqualTo(LocalDate.of(2026, 2, 16));
@@ -812,6 +812,152 @@ class SebPendingTransactionReconciliationIT {
         .isEqualTo(LocalDate.of(2026, 2, 20));
     assertThat(auditEventRepository.findByOrderIdAndEventType(order.getId(), "SETTLEMENT_REDATED"))
         .isEmpty();
+  }
+
+  @Test
+  void
+      replay_twiceOverAShortListingSebCorrectsLater_settlesOnTheAbsenceAfterTheCorrectionBothTimes() {
+    TransactionOrder hundredUnits = givenAHundredUnitRedemptionBesideOneSebKeepsListing();
+    List<InvestmentReport> history =
+        List.of(
+            redemptionReportOn(SHORT_LISTING, hundredUnitsListedAs("40"), keeperListed()),
+            redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed()),
+            redemptionReportOn(CORRECTED_LISTING, hundredUnitsListedAs("100"), keeperListed()),
+            redemptionReportOn(ABSENCE_AFTER_THE_CORRECTION, keeperListed()));
+    entityManager.flush();
+
+    for (int run = 0; run < 2; run++) {
+      SebReplayListings freshListings = new SebReplayListings();
+      history.forEach(
+          stored -> reconciliationService.replay(stored, alert -> {}, freshListings, LOCK_HELD));
+      entityManager.flush();
+      assertThat(
+              settlementRepository
+                  .findByOrderId(hundredUnits.getId())
+                  .orElseThrow()
+                  .getReportDate())
+          .isEqualTo(ABSENCE_AFTER_THE_CORRECTION);
+    }
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                hundredUnits.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void
+      replay_resumedAfterALiveRunSettledTheCorrectedOrder_leavesItOnTheAbsenceAfterTheCorrection() {
+    TransactionOrder hundredUnits = givenAHundredUnitRedemptionBesideOneSebKeepsListing();
+    InvestmentReport shortListing =
+        redemptionReportOn(SHORT_LISTING, hundredUnitsListedAs("40"), keeperListed());
+    redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed());
+    InvestmentReport corrected =
+        redemptionReportOn(CORRECTED_LISTING, hundredUnitsListedAs("100"), keeperListed());
+    entityManager.flush();
+    reconciliationService.replay(shortListing, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.reconcile(corrected, LOCK_HELD);
+    InvestmentReport latest = redemptionReportOn(ABSENCE_AFTER_THE_CORRECTION, keeperListed());
+    entityManager.flush();
+    reconciliationService.reconcile(latest, LOCK_HELD);
+    entityManager.flush();
+    assertThat(
+            settlementRepository.findByOrderId(hundredUnits.getId()).orElseThrow().getReportDate())
+        .isEqualTo(ABSENCE_AFTER_THE_CORRECTION);
+
+    replayerAt(AFTER_THE_REDEMPTION_REPORTS)
+        .replayOldestFirst(SHORT_LISTING, SHORT_LISTING.plusDays(1), LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(
+            settlementRepository.findByOrderId(hundredUnits.getId()).orElseThrow().getReportDate())
+        .isEqualTo(ABSENCE_AFTER_THE_CORRECTION);
+    assertThat(
+            auditEventRepository.findByOrderIdAndEventType(
+                hundredUnits.getId(), "SETTLEMENT_REDATED"))
+        .isEmpty();
+  }
+
+  @Test
+  void replay_resumedAfterALiveRunStoredTheCorrection_settlesOnTheAbsenceAfterTheCorrection() {
+    TransactionOrder hundredUnits = givenAHundredUnitRedemptionBesideOneSebKeepsListing();
+    InvestmentReport shortListing =
+        redemptionReportOn(SHORT_LISTING, hundredUnitsListedAs("40"), keeperListed());
+    redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed());
+    InvestmentReport corrected =
+        redemptionReportOn(CORRECTED_LISTING, hundredUnitsListedAs("100"), keeperListed());
+    entityManager.flush();
+    reconciliationService.replay(shortListing, alert -> {}, listings, LOCK_HELD);
+    reconciliationService.reconcile(corrected, LOCK_HELD);
+    redemptionReportOn(ABSENCE_AFTER_THE_CORRECTION, keeperListed());
+    entityManager.flush();
+    assertThat(settlementRepository.findByOrderId(hundredUnits.getId())).isEmpty();
+
+    replayerAt(AFTER_THE_REDEMPTION_REPORTS)
+        .replayOldestFirst(SHORT_LISTING, SHORT_LISTING.plusDays(1), LOCK_HELD);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(
+            settlementRepository.findByOrderId(hundredUnits.getId()).orElseThrow().getReportDate())
+        .isEqualTo(ABSENCE_AFTER_THE_CORRECTION);
+  }
+
+  @Test
+  void replay_absenceAfterAListingWithoutItsQuantity_leavesTheStoredFillForALaterReport() {
+    TransactionOrder hundredUnits = givenAHundredUnitRedemptionBesideOneSebKeepsListing();
+    hundredUnits.setOrderStatus(EXECUTED);
+    orderRepository.save(hundredUnits);
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(hundredUnits.getId())
+            .brokerTransactionId("DLA2000000")
+            .executionTimestamp(Instant.parse("2026-08-24T09:48:09Z"))
+            .executedQuantity(new BigDecimal("100"))
+            .source("HISTORICAL_IMPORT")
+            .reportedDate(SHORT_LISTING.minusDays(1))
+            .build());
+    Map<String, Object> withoutItsQuantity = hundredUnitsListedAs("100");
+    withoutItsQuantity.remove("Quantity");
+    List<InvestmentReport> history =
+        List.of(
+            redemptionReportOn(SHORT_LISTING, withoutItsQuantity, keeperListed()),
+            redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed()));
+    entityManager.flush();
+
+    history.forEach(
+        stored -> reconciliationService.replay(stored, alert -> {}, listings, LOCK_HELD));
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(settlementRepository.findByOrderId(hundredUnits.getId())).isEmpty();
+  }
+
+  @Test
+  void replay_absenceAfterAListingSebRoundedToTenDigits_stillSettlesTheRedemption() {
+    givenAHundredUnitRedemptionBesideOneSebKeepsListing();
+    UUID roundedRef = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    TransactionOrder rounded = redemptionOrder(roundedRef, "18811874.096");
+    List<InvestmentReport> history =
+        List.of(
+            redemptionReportOn(
+                SHORT_LISTING,
+                redemptionRow(roundedRef, "DLA1116935", "18811874.1"),
+                keeperListed()),
+            redemptionReportOn(SHORT_LISTING.plusDays(1), keeperListed()));
+    entityManager.flush();
+
+    history.forEach(
+        stored -> reconciliationService.replay(stored, alert -> {}, listings, LOCK_HELD));
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(executionRepository.findAllByOrderId(rounded.getId()))
+        .singleElement()
+        .extracting(TransactionExecution::getExecutedQuantity)
+        .satisfies(stored -> assertThat(stored).isEqualByComparingTo("18811874.096"));
+    assertThat(settlementRepository.findByOrderId(rounded.getId()).orElseThrow().getReportDate())
+        .isEqualTo(SHORT_LISTING.plusDays(1));
   }
 
   @Test
@@ -1276,7 +1422,7 @@ class SebPendingTransactionReconciliationIT {
             .brokerTransactionId("DLA0000000")
             .executionTimestamp(Instant.parse("2026-02-10T16:06:58Z"))
             .executedQuantity(new BigDecimal("2669.9"))
-            .totalConsideration(new BigDecimal("50000.00"))
+            .totalConsideration(new BigDecimal("91782.00"))
             .source("HISTORICAL_IMPORT")
             .reportedDate(LocalDate.of(2026, 3, 1))
             .build());
@@ -1289,7 +1435,7 @@ class SebPendingTransactionReconciliationIT {
     assertThat(dated.getOrderId()).isEqualTo(order.getId());
     assertThat(dated.getReportedDate()).isEqualTo(LocalDate.of(2026, 2, 12));
     assertThat(dated.getExecutedQuantity()).isEqualByComparingTo("2669.9");
-    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("50000.00");
+    assertThat(dated.getTotalConsideration()).isEqualByComparingTo("91782.00");
     assertThat(dated.getUnitPrice()).isNull();
     assertThat(dated.getSource()).isEqualTo("HISTORICAL_IMPORT");
     List<TransactionAuditEvent> updates =
@@ -1308,6 +1454,56 @@ class SebPendingTransactionReconciliationIT {
     assertThat(executionRepository.findAllByOrderId(clientRefOwner.getId()))
         .extracting(TransactionExecution::getBrokerTransactionId)
         .doesNotContain("DLA0000000");
+  }
+
+  private static final UUID HUNDRED_UNITS_REF =
+      UUID.fromString("33333333-3333-3333-3333-333333333333");
+  private static final UUID KEEPER_REF = UUID.fromString("44444444-4444-4444-4444-444444444444");
+  private static final LocalDate SHORT_LISTING = LocalDate.of(2026, 8, 25);
+  private static final LocalDate CORRECTED_LISTING = LocalDate.of(2026, 8, 27);
+  private static final LocalDate ABSENCE_AFTER_THE_CORRECTION = LocalDate.of(2026, 8, 28);
+  private static final Instant AFTER_THE_REDEMPTION_REPORTS = Instant.parse("2026-08-30T20:00:00Z");
+
+  private TransactionOrder givenAHundredUnitRedemptionBesideOneSebKeepsListing() {
+    redemptionOrder(KEEPER_REF, "1000");
+    return redemptionOrder(HUNDRED_UNITS_REF, "100");
+  }
+
+  private TransactionOrder redemptionOrder(UUID clientRef, String quantity) {
+    return orderRepository.save(
+        TransactionOrder.builder()
+            .batch(order.getBatch())
+            .fund(TKF100)
+            .instrumentIsin("IE0009FT4LX4")
+            .transactionType(SELL)
+            .instrumentType(FUND)
+            .orderQuantity(new BigDecimal(quantity))
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(clientRef)
+            .orderStatus(SENT)
+            .orderTimestamp(Instant.parse("2026-08-24T08:00:00Z"))
+            .build());
+  }
+
+  private static Map<String, Object> hundredUnitsListedAs(String quantity) {
+    return redemptionRow(HUNDRED_UNITS_REF, "DLA2000000", quantity);
+  }
+
+  private static Map<String, Object> keeperListed() {
+    return redemptionRow(KEEPER_REF, "DLA2000001", "10");
+  }
+
+  @SafeVarargs
+  private InvestmentReport redemptionReportOn(LocalDate reportDate, Map<String, Object>... rows) {
+    return reportRepository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(reportDate)
+            .rawData(List.of(rows))
+            .metadata(Map.of("source", "fixture", "asOfDate", reportDate.minusDays(1).toString()))
+            .createdAt(Instant.now())
+            .build());
   }
 
   private static final LocalDate FIRST_ABSENCE = LocalDate.of(2026, 2, 16);

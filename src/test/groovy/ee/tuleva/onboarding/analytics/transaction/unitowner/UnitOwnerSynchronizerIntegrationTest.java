@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
 import ee.tuleva.onboarding.epis.transaction.UnitOwnerDto;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ class UnitOwnerSynchronizerIntegrationTest {
   @Autowired private UnitOwnerSynchronizer synchronizer;
   @Autowired private UnitOwnerRepository repository;
   @Autowired private EpisServiceHolder episServiceHolder;
+  @Autowired private EntityManager entityManager;
   private MockEpisService mockEpisService;
 
   @BeforeEach
@@ -112,6 +114,8 @@ class UnitOwnerSynchronizerIntegrationTest {
                 .build()));
 
     synchronizer.sync(snapshotDate);
+    entityManager.flush();
+    entityManager.clear();
 
     assertThat(repository.findByPersonalIdAndSnapshotDate(PERSON_ID_1, snapshotDate))
         .get()

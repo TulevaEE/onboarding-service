@@ -160,6 +160,15 @@ class SebFundConfirmationImportJobTest {
   }
 
   @Test
+  void run_doesNotLookForMissingConfirmationsWhenItCouldNotListTheUploadedOnes() {
+    willThrow(new IllegalStateException("S3 unavailable")).given(s3Source).recentKeys();
+
+    job.run();
+
+    then(missingFinder).shouldHaveNoInteractions();
+  }
+
+  @Test
   void run_checksOnlyTheLatestUploadOfATradeSebConfirmedTwice() {
     String correctedKey = "seb-confirmations/DLA0000001-002.pdf";
     byte[] correctedPdf = {3};

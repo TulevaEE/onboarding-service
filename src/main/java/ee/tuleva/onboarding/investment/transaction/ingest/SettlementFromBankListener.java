@@ -3,10 +3,13 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.event.RunSettlementFromBankRequested.JOB_NAME;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunSettlementFromBankRequested;
 import ee.tuleva.onboarding.investment.event.trigger.JobTriggerQueue;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.function.BooleanSupplier;
@@ -26,6 +29,7 @@ class SettlementFromBankListener {
   private final SettlementFromBankService settlementFromBankService;
   private final SebReconciliationLock reconciliationLock;
   private final JobTriggerQueue jobTriggerQueue;
+  private final OperationsNotificationService notificationService;
 
   @Value("${transaction-registry.settlement-check.scan-lookback-days:60}")
   private int scanLookbackDays = 60;
@@ -64,7 +68,44 @@ class SettlementFromBankListener {
 
   private void settleTheLookback(BooleanSupplier stillHoldsTheLock) {
     LocalDate since = LocalDate.now(clock).minusDays(scanLookbackDays);
-    settlementFromBankService.settleOrdersBookedSince(since, stillHoldsTheLock);
+    settlementFromBankService
+        .settleOrdersBookedSince(since, stillHoldsTheLock)
+        .ifPresentOrElse(
+            run -> report(since, run),
+            () ->
+                log.warn(
+                    "Settled no registry orders from the bank, no usable SEB pending report:"
+                        + " since={}",
+                    since));
+  }
+
+  private void report(LocalDate since, BankSettlementRun run) {
+    if (run.failed() == 0) {
+      log.info("Settled registry orders from the bank: since={}, run={}", since, run);
+      return;
+    }
+    log.warn("Settled registry orders from the bank, some failed: since={}, run={}", since, run);
+    try {
+      notificationService.sendMessage(failedMessage(run), INVESTMENT, WARNING);
+    } catch (RuntimeException e) {
+      log.error(
+          "Settling registry orders from the bank could not post its warning: failed={}",
+          run.failed(),
+          e);
+    }
+  }
+
+  private static String failedMessage(BankSettlementRun run) {
+    return "Registri tellimuste arveldamine panga kuupäevadega: "
+        + run.failed()
+        + " tellimuse arveldamine ebaõnnestus (põhjus on logis: \"Settling an order from the bank"
+        + " failed\").\n"
+        + "Panga kuupäeva said "
+        + (run.settled() + run.sameDate() + run.newDate())
+        + ", pangakuupäevata jäi "
+        + run.withoutBankDate()
+        + ".\n"
+        + "Teade kordub iga SEB ootel-tehingute raporti järel, kuni põhjus on parandatud.";
   }
 
   private void defer(String reason) {

@@ -4,6 +4,7 @@ package ee.tuleva.onboarding.comparisons.returns
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
@@ -373,7 +374,7 @@ class ReturnCalculatorSpec extends Specification {
         Optional.of(aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
   }
 
-  def "aligns beginning balance index lookup when synthetic date crosses weekend"() {
+  def "aligns beginning balance index lookup when synthetic date crosses weekend for the US-close world indexes"() {
     given: "start dates where the synthetic transaction (startTime - 1 day) lands on a weekend"
     Instant startTime = parseInstant(startDate)
     Instant endTime = parseInstant(endDate)
@@ -389,7 +390,6 @@ class ReturnCalculatorSpec extends Specification {
         .build()
 
     and: "index prices that reflect a crash: Thu=400, Fri=380 (5% drop), end=480"
-    def indexKey = UnionStockIndexRetriever.KEY
     fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
       def values = [
           "2025-04-03": 400.0,  // Thursday (pre-Friday crash)
@@ -410,9 +410,11 @@ class ReturnCalculatorSpec extends Specification {
     simulatedReturn.amount() == 2000.00
 
     where: "both Sunday and Monday starts have synthetic dates on weekend"
-    startDate       | endDate
-    "2025-04-06"    | "2026-04-06"   // Sunday start → synthetic Sat
-    "2025-04-07"    | "2026-04-07"   // Monday start → synthetic Sun
+    startDate       | endDate      | indexKey
+    "2025-04-06"    | "2026-04-06" | UnionStockIndexRetriever.KEY       // Sunday start → synthetic Sat
+    "2025-04-07"    | "2026-04-07" | UnionStockIndexRetriever.KEY       // Monday start → synthetic Sun
+    "2025-04-06"    | "2026-04-06" | AdjustedAcwiIndexRetriever.KEY
+    "2025-04-07"    | "2026-04-07" | AdjustedAcwiIndexRetriever.KEY
   }
 
   def "weekday start with weekday synthetic date uses standard index lookup"() {

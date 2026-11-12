@@ -10,7 +10,9 @@ import static java.util.stream.Collectors.toSet;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
@@ -21,47 +23,68 @@ import org.jspecify.annotations.Nullable;
 public final class EquityCappedSeries {
 
   private static final int RESTART_CLOSE_AT_MOST_DAYS_OLD = 7;
+  private static final double EQUITY_ONLY = 1.0;
 
-  private final EquityCap cap;
+  private final List<EquityCap> caps;
   private final NavigableMap<LocalDate, FundValue> bondCloses;
-  private final @Nullable LocalDate lift;
+  private final Map<LocalDate, EquityCap> lifts;
   private final Set<LocalDate> restarts;
 
   private EquityCappedSeries(
-      EquityCap cap,
+      List<EquityCap> caps,
       NavigableMap<LocalDate, FundValue> bondCloses,
-      @Nullable LocalDate lift,
+      Map<LocalDate, EquityCap> lifts,
       Set<LocalDate> restarts) {
-    this.cap = cap;
+    this.caps = caps;
     this.bondCloses = bondCloses;
-    this.lift = lift;
+    this.lifts = lifts;
     this.restarts = restarts;
   }
 
   public static List<FundValue> of(
-      List<FundValue> equity, List<FundValue> bond, EquityCap cap, LocalDate fundStart) {
+      List<FundValue> equity, List<FundValue> bond, List<EquityCap> caps, LocalDate fundStart) {
+    var capsInForceOrder = caps.stream().sorted(comparing(EquityCap::liftedOn)).toList();
     refuseANonPositiveValue(equity);
     refuseANonPositiveValue(bond);
-    refuseAMissingBondUnderTheCap(equity, bond, cap);
+    refuseAMissingBondUnderACap(equity, bond, capsInForceOrder);
     var bondCloses = new TreeMap<LocalDate, FundValue>();
     bond.forEach(close -> bondCloses.put(close.date(), close));
     var closes =
         equity.stream()
             .sorted(comparing(FundValue::date))
             .filter(
-                close -> !cap.holdsOn(close.date()) || bondCloses.floorKey(close.date()) != null)
+                close ->
+                    capOn(capsInForceOrder, close.date()).isEmpty()
+                        || bondCloses.floorKey(close.date()) != null)
             .toList();
-    var lift =
-        closes.stream().anyMatch(close -> !cap.holdsOn(close.date()))
-            ? lastOnOrBefore(closes, cap.liftedOn()).orElse(null)
-            : null;
-    if (lift != null && lift.isBefore(cap.liftedOn().minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
+    var lifts = lifts(closes, capsInForceOrder);
+    var series =
+        new EquityCappedSeries(
+            capsInForceOrder, bondCloses, lifts, restarts(closes, fundStart, lifts.keySet()));
+    return series.levels(closes.stream().map(series::day).toList());
+  }
+
+  private static Map<LocalDate, EquityCap> lifts(List<FundValue> closes, List<EquityCap> caps) {
+    var lifts = new HashMap<LocalDate, EquityCap>();
+    caps.stream()
+        .filter(cap -> closes.stream().anyMatch(close -> !cap.holdsOn(close.date())))
+        .forEach(
+            cap ->
+                lastOnOrBefore(closes, cap.liftedOn())
+                    .ifPresent(
+                        lift -> {
+                          refuseAnEquityCloseTooOldAtTheLift(cap, lift);
+                          lifts.put(lift, cap);
+                        }));
+    return Map.copyOf(lifts);
+  }
+
+  private static void refuseAnEquityCloseTooOldAtTheLift(EquityCap cap, LocalDate lift) {
+    if (lift.isBefore(cap.liftedOn().minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
       throw new EquityCappedSeriesRefusedException(
           "Equity close too old at the equity cap's lift: liftedOn=%s, equityClose=%s"
               .formatted(cap.liftedOn(), lift));
     }
-    var series = new EquityCappedSeries(cap, bondCloses, lift, restarts(closes, fundStart, lift));
-    return series.levels(closes.stream().map(series::day).toList());
   }
 
   private static void refuseANonPositiveValue(List<FundValue> values) {
@@ -75,39 +98,62 @@ public final class EquityCappedSeries {
             });
   }
 
-  private static void refuseAMissingBondUnderTheCap(
-      List<FundValue> equity, List<FundValue> bond, EquityCap cap) {
-    if (bond.isEmpty() && equity.stream().anyMatch(close -> cap.holdsOn(close.date()))) {
-      throw new EquityCappedSeriesRefusedException(
-          "No bond series for the equity cap: bondKey=%s".formatted(cap.bondKey()));
+  private static void refuseAMissingBondUnderACap(
+      List<FundValue> equity, List<FundValue> bond, List<EquityCap> caps) {
+    if (!bond.isEmpty()) {
+      return;
     }
+    equity.stream()
+        .map(close -> capOn(caps, close.date()))
+        .flatMap(Optional::stream)
+        .findFirst()
+        .ifPresent(
+            cap -> {
+              throw new EquityCappedSeriesRefusedException(
+                  "No bond series for the equity cap: bondKey=%s".formatted(cap.bondKey()));
+            });
+  }
+
+  private static Optional<EquityCap> capOn(List<EquityCap> capsInForceOrder, LocalDate date) {
+    return capsInForceOrder.stream().filter(cap -> cap.holdsOn(date)).findFirst();
   }
 
   private List<FundValue> levels(List<Day> days) {
     if (days.isEmpty()) {
       return List.of();
     }
-    var equityWeight = cap.equityWeight().doubleValue();
     var levels = new ArrayList<FundValue>();
-    var holding = new Holding(days.getFirst(), days.getFirst().equity().value().doubleValue());
-    for (var day : days) {
-      var level = holding.levelOn(day, equityWeight);
+    var holding =
+        new Holding(
+            days.getFirst(), days.getFirst().equity().value().doubleValue(), weightAfter(days, 0));
+    for (var index = 0; index < days.size(); index++) {
+      var day = days.get(index);
+      var level = holding.levelOn(day);
       levels.add(day.at(level));
       if (restarts.contains(day.date())) {
-        holding = new Holding(day, level);
+        holding = new Holding(day, level, weightAfter(days, index));
       }
     }
     return List.copyOf(levels);
   }
 
-  private Day day(FundValue equityClose) {
-    return cap.holdsOn(equityClose.date())
-        ? new Day(equityClose, bondCloseFor(equityClose.date()))
-        : new Day(equityClose, null);
+  private double weightAfter(List<Day> days, int index) {
+    return index + 1 < days.size()
+        ? capOn(caps, days.get(index + 1).date())
+            .map(cap -> cap.equityWeight().doubleValue())
+            .orElse(EQUITY_ONLY)
+        : EQUITY_ONLY;
   }
 
-  private FundValue bondCloseFor(LocalDate day) {
-    var valuedOn = day.equals(lift) ? cap.liftedOn() : day;
+  private Day day(FundValue equityClose) {
+    return capOn(caps, equityClose.date())
+        .map(cap -> new Day(equityClose, bondCloseFor(equityClose.date(), cap)))
+        .orElseGet(() -> new Day(equityClose, null));
+  }
+
+  private FundValue bondCloseFor(LocalDate day, EquityCap cap) {
+    var liftedThatDay = lifts.get(day);
+    var valuedOn = liftedThatDay == null ? day : liftedThatDay.liftedOn();
     var bondClose = requireNonNull(bondCloses.floorEntry(valuedOn)).getValue();
     if (restarts.contains(day)
         && bondClose.date().isBefore(valuedOn.minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
@@ -119,15 +165,15 @@ public final class EquityCappedSeries {
   }
 
   private static Set<LocalDate> restarts(
-      List<FundValue> closes, LocalDate fundStart, @Nullable LocalDate lift) {
+      List<FundValue> closes, LocalDate fundStart, Set<LocalDate> liftDays) {
     var yearEnds =
         closes.stream()
             .collect(toMap(close -> close.date().getYear(), FundValue::date, maxBy(naturalOrder())))
             .values()
             .stream();
-    var fundStartAndLift =
-        Stream.concat(lastOnOrBefore(closes, fundStart).stream(), Stream.ofNullable(lift));
-    return Stream.concat(yearEnds, fundStartAndLift).collect(toSet());
+    var fundStartAndLifts =
+        Stream.concat(lastOnOrBefore(closes, fundStart).stream(), liftDays.stream());
+    return Stream.concat(yearEnds, fundStartAndLifts).collect(toSet());
   }
 
   private static Optional<LocalDate> lastOnOrBefore(List<FundValue> closes, LocalDate date) {
@@ -157,9 +203,9 @@ public final class EquityCappedSeries {
     }
   }
 
-  private record Holding(Day start, double level) {
+  private record Holding(Day start, double level, double equityWeight) {
 
-    double levelOn(Day day, double equityWeight) {
+    double levelOn(Day day) {
       var equityGrowth = ratio(day.equity(), start.equity());
       var startBond = start.bond();
       var dayBond = day.bond();

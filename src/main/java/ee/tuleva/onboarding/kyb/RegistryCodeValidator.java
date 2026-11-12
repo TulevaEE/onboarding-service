@@ -13,7 +13,7 @@ public class RegistryCodeValidator implements ConstraintValidator<ValidRegistryC
 
   @Override
   public boolean isValid(String registryCode, ConstraintValidatorContext context) {
-    return isValidRegistryCode(registryCode);
+    return isValid(registryCode);
   }
 
   private static boolean isValidRegistryCode(String registryCode) {

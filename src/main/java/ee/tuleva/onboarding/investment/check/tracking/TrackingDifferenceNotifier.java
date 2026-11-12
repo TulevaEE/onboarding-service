@@ -295,7 +295,12 @@ class TrackingDifferenceNotifier {
           if (message.length() > 0) {
             message.append("\n");
           }
-          var icon = fundCodesNotMeasured.contains(fundCode) ? "⚠️" : "✅";
+          var icon =
+              fundCodesNotMeasured.contains(fundCode)
+                      || fundResults.stream()
+                          .anyMatch(SecurityAttributionSection::measuredAgainstAStaleBenchmarkPrice)
+                  ? "⚠️"
+                  : "✅";
           message.append("%s %s TD check completed: within limits".formatted(icon, fundCode));
           fundResults.stream()
               .sorted(Comparator.comparing(r -> r.checkType().name()))
@@ -304,7 +309,8 @@ class TrackingDifferenceNotifier {
                       message
                           .append(formatWithinLimits(r))
                           .append(formatCountWarnings(r))
-                          .append(formatBenchmarkGap(r)));
+                          .append(formatBenchmarkGap(r))
+                          .append(SecurityAttributionSection.staleBenchmarkPriceWarnings(r)));
         });
     return message.toString();
   }
@@ -338,9 +344,11 @@ class TrackingDifferenceNotifier {
     if (verdict.escalation()) {
       return EndedStreakNotice.format(result, verdict.notificationWorkingDay())
           + formatCountWarnings(result)
-          + formatBenchmarkGap(result);
+          + formatBenchmarkGap(result)
+          + SecurityAttributionSection.staleBenchmarkPriceWarnings(result);
     }
-    return formatCountWarnings(result);
+    return formatCountWarnings(result)
+        + SecurityAttributionSection.staleBenchmarkPriceWarnings(result);
   }
 
   private @Nullable RedemptionCycleHint redemptionCycle(TrackingDifferenceResult result) {

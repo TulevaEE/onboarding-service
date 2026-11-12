@@ -7,9 +7,6 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceC
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
-import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
-import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.Measured;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NoHoldingMeasured;
 import ee.tuleva.onboarding.investment.check.tracking.BenchmarkModelCheck.NothingToMeasure;
@@ -56,8 +53,7 @@ class BenchmarkCheckBuilder {
   }
 
   private final TrackingDifferenceCalculator calculator;
-  private final FundValueProvider fundValueProvider;
-  private final PriorityPriceProvider priorityPriceProvider;
+  private final BenchmarkPrices benchmarkPrices;
   private final BenchmarkLegResolver benchmarkLegResolver;
   private final ConsecutiveBreachTracker consecutiveBreachTracker;
 
@@ -143,8 +139,8 @@ class BenchmarkCheckBuilder {
       BenchmarkConfig config, LocalDate checkDate, LocalDate previousDate) {
 
     if (config.singleKey() != null) {
-      var today = fundValueProvider.getLatestValue(config.singleKey(), checkDate);
-      var yesterday = fundValueProvider.getLatestValue(config.singleKey(), previousDate);
+      var today = benchmarkPrices.indexValue(config.singleKey(), checkDate);
+      var yesterday = benchmarkPrices.indexValue(config.singleKey(), previousDate);
       if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
         return Optional.empty();
       }
@@ -158,8 +154,8 @@ class BenchmarkCheckBuilder {
 
     var totalReturn = ZERO;
     for (var component : config.components()) {
-      var today = priorityPriceProvider.resolve(component.key(), checkDate);
-      var yesterday = priorityPriceProvider.resolve(component.key(), previousDate);
+      var today = benchmarkPrices.instrumentPrice(component.key(), checkDate);
+      var yesterday = benchmarkPrices.instrumentPrice(component.key(), previousDate);
       if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
         return Optional.empty();
       }
@@ -201,43 +197,50 @@ class BenchmarkCheckBuilder {
     var benchmarksWithoutPrices = new ArrayList<Map.Entry<SecurityData, String>>();
 
     for (var s : validSecurities) {
-      var benchmarkKey = resolveBenchmarkKey(s.isin(), checkDate);
-      if (benchmarkKey == null) {
+      var benchmark = benchmarkLegResolver.resolve(s.isin(), checkDate).orElse(null);
+      if (benchmark == null) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
         holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
-      var bmReturn =
-          lookupReturn(
-              benchmarkKey,
-              s.today().requireDate(s.isin()),
+      var benchmarkLeg =
+          benchmarkPrices.legReturn(
+              benchmark,
               s.previous().requireDate(s.isin()),
+              s.today().requireDate(s.isin()),
               maxDailyReturn);
-      if (bmReturn.isEmpty()) {
+      if (benchmarkLeg.isEmpty()) {
         log.warn(
             "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
             fund,
             s.isin(),
-            benchmarkKey);
+            benchmark.storageKey());
         holdingsReportedAsBenchmarkGap.add(s);
-        benchmarksWithoutPrices.add(Map.entry(s, benchmarkKey));
+        benchmarksWithoutPrices.add(Map.entry(s, benchmark.storageKey()));
         continue;
       }
+      var bmReturn = benchmarkLeg.get().value();
       var secReturn =
           safeDailyReturn(
               s.today().requirePrice(s.isin()),
               s.previous().requirePrice(s.isin()),
               maxDailyReturn);
       var weight = s.actualWeight();
-      var returnDiff = secReturn.subtract(bmReturn.get()).setScale(SCALE, RoundingMode.HALF_UP);
+      var returnDiff = secReturn.subtract(bmReturn).setScale(SCALE, RoundingMode.HALF_UP);
       var contribution = weight.multiply(returnDiff).setScale(SCALE, RoundingMode.HALF_UP);
       totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
-      totalWeightedBenchmarkReturn =
-          totalWeightedBenchmarkReturn.add(weight.multiply(bmReturn.get()));
+      totalWeightedBenchmarkReturn = totalWeightedBenchmarkReturn.add(weight.multiply(bmReturn));
       totalWeight = totalWeight.add(weight);
       attributions.add(
           new SecurityAttribution(
-              s.isin(), null, weight, null, secReturn, bmReturn.get(), contribution));
+              s.isin(),
+              null,
+              weight,
+              null,
+              secReturn,
+              bmReturn,
+              contribution,
+              benchmarkLeg.get().stalePricesIfHeld(weight)));
     }
 
     if (totalWeight.signum() == 0) {
@@ -319,23 +322,5 @@ class BenchmarkCheckBuilder {
 
   private static BigDecimal totalActualWeight(List<SecurityData> holdings) {
     return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
-  }
-
-  private @Nullable String resolveBenchmarkKey(String isin, LocalDate checkDate) {
-    return benchmarkLegResolver
-        .resolve(isin, checkDate)
-        .map(BenchmarkProxy::storageKey)
-        .orElse(null);
-  }
-
-  private Optional<BigDecimal> lookupReturn(
-      String key, LocalDate todayDate, LocalDate previousDate, BigDecimal maxDailyReturn) {
-    var today = fundValueProvider.getLatestValue(key, todayDate);
-    var yesterday = fundValueProvider.getLatestValue(key, previousDate);
-    if (today.isEmpty() || yesterday.isEmpty() || yesterday.get().value().signum() == 0) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
   }
 }

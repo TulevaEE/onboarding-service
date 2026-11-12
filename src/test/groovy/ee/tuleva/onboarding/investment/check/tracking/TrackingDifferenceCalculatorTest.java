@@ -245,7 +245,8 @@ class TrackingDifferenceCalculatorTest {
                 ZERO,
                 new BigDecimal("0.02"),
                 null,
-                ZERO),
+                ZERO,
+                List.of()),
             new SecurityAttribution(
                 "IE00B",
                 new BigDecimal("0.50"),
@@ -253,7 +254,8 @@ class TrackingDifferenceCalculatorTest {
                 ZERO,
                 new BigDecimal("-0.02"),
                 null,
-                ZERO));
+                ZERO,
+                List.of()));
     assertThat(result.residual()).isEqualByComparingTo(ZERO);
   }
 
@@ -274,7 +276,14 @@ class TrackingDifferenceCalculatorTest {
         .usingRecursiveFieldByFieldElementComparator(BIG_DECIMALS_BY_VALUE)
         .containsExactly(
             new SecurityAttribution(
-                "IE00A", new BigDecimal("0.50"), ONE, new BigDecimal("0.50"), ZERO, null, ZERO),
+                "IE00A",
+                new BigDecimal("0.50"),
+                ONE,
+                new BigDecimal("0.50"),
+                ZERO,
+                null,
+                ZERO,
+                List.of()),
             new SecurityAttribution(
                 "IE00B",
                 new BigDecimal("0.50"),
@@ -282,7 +291,8 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("-0.50"),
                 new BigDecimal("0.02"),
                 null,
-                new BigDecimal("-0.01")));
+                new BigDecimal("-0.01"),
+                List.of()));
     assertThat(result.residual()).isEqualByComparingTo(ZERO);
   }
 

@@ -64,12 +64,13 @@ class PaymentVerificationServiceTest {
       new PaymentVerificationService(
           savingFundPaymentRepository,
           userRepository,
-          savingsFundOnboardingService,
           savingsFundLedger,
           applicationEventPublisher,
-          new NameMatcher(),
-          partyResolver,
-          parentChildLinkService);
+          new PaymentFactsCollector(
+              savingsFundOnboardingService,
+              new NameMatcher(),
+              partyResolver,
+              parentChildLinkService));
 
   @Test
   void process_returnsPaymentWhenNoCodeAnywhere() {

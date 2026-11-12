@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.HARD;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
-import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_3_6_4_1;
+import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.freeCashAboveMaximum;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitSeverity.FreeCash;
 import ee.tuleva.onboarding.investment.portfolio.FundLimit;
@@ -32,9 +32,7 @@ class FreeCashLimitChecker {
             .subtract(pendingCashImpact)
             .subtract(fundLimit.getReserveSoft());
     var severity =
-        SISEKORD_4_P_3_6_4_1.appliesTo(new FreeCash(freeCash, fundLimit.getMaxFreeCash()))
-            ? HARD
-            : OK;
+        freeCashAboveMaximum(new FreeCash(freeCash, fundLimit.getMaxFreeCash())) ? HARD : OK;
     return new FreeCashBreach(
         fund,
         freeCash,

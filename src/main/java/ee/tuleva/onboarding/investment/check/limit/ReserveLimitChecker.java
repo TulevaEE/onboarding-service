@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_9_5;
+import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.reserveSeverity;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitSeverity.Reading;
@@ -27,7 +27,7 @@ class ReserveLimitChecker {
   }
 
   private BreachSeverity determineSeverity(BigDecimal cashBalance, FundLimit fundLimit) {
-    return SISEKORD_4_P_9_5.decide(
+    return reserveSeverity(
         new Reading(
             cashBalance,
             requireNonNull(fundLimit.getReserveSoft()),

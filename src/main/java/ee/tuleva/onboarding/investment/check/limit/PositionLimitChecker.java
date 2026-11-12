@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_3_6_5;
+import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.positionSeverity;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitSeverity.Reading;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
@@ -66,7 +66,7 @@ class PositionLimitChecker {
   }
 
   private BreachSeverity determineSeverity(BigDecimal actualPercent, PositionLimit limit) {
-    return SISEKORD_4_P_3_6_5.decide(
+    return positionSeverity(
         new Reading(actualPercent, limit.getSoftLimitPercent(), limit.getHardLimitPercent()));
   }
 }

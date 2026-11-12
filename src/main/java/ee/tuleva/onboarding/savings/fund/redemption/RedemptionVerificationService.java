@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.SISEKORD_13_P_10_8;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.holdReasons;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.outcome;
 
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Evidence;
@@ -43,7 +43,7 @@ public class RedemptionVerificationService {
     Evidence evidence = evidenceCollector.collect(request);
     Set<RedemptionHoldReason> reasons = holdReasons(evidence);
 
-    switch (SISEKORD_13_P_10_8.decide(evidence)) {
+    switch (outcome(evidence)) {
       case RETRY -> retryLater(request, reasons);
       case FREEZE -> holdService.freeze(request.getId());
       case HOLD_PAYOUT -> {

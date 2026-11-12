@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.banking.seb.reconciliation;
 
 import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Balance.DIFFERS;
 import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Balance.MATCHES;
-import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.SISEKORD_16_P_1_4_1;
 import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.CLEAR;
 import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.NOT_CHECKED;
 import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.Suspense.UNRESOLVED;
+import static ee.tuleva.onboarding.banking.seb.reconciliation.BankReconciliation.outcome;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -67,7 +67,7 @@ public class SebReconciliator {
             : 0;
     var suspense = suspense(balance, unresolvedUnclassifiedEntries);
 
-    switch (SISEKORD_16_P_1_4_1.decide(new Check(balance, suspense))) {
+    switch (outcome(new Check(balance, suspense))) {
       case MISMATCH -> failOnMismatch(account, closingBankBalance, ledgerAccountBalance);
       case BLOCKED ->
           failOnUnresolvedEntries(account, closingBankBalance, unresolvedUnclassifiedEntries);

@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.Resid
 import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.Run.COMPLETED;
 import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.Run.FAILED;
 import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.Run.INCOMPLETE_PRICES;
-import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.SISEKORD_4_P_11_11_3;
+import static ee.tuleva.onboarding.investment.check.tracking.NavReportHold.holdsTheReport;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
@@ -78,7 +78,7 @@ public class NavTrackingDifferenceGate implements NavPublicationGate {
   private static Optional<String> hold(
       TulevaFund fund, LocalDate navDate, Run run, List<TrackingDifferenceResult> breaches) {
     var check = new Check(run, breaches.isEmpty() ? BELOW_THRESHOLD : AT_THRESHOLD);
-    if (!SISEKORD_4_P_11_11_3.appliesTo(check)) {
+    if (!holdsTheReport(check)) {
       return Optional.empty();
     }
     var details =

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.CashKnownToArrive.SISEKORD_4_P_2_5_3;
+import static ee.tuleva.onboarding.investment.CashKnownToArrive.investableBeforeItArrives;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.BEFORE_IT_ARRIVES;
 import static ee.tuleva.onboarding.investment.transaction.UnitReceivable.Counted.ONCE_IT_ARRIVES;
@@ -59,6 +59,6 @@ class UnitReceivableReader {
   }
 
   private static UnitReceivable.Counted whenCounted(Calculation calculation) {
-    return SISEKORD_4_P_2_5_3.appliesTo(calculation) ? BEFORE_IT_ARRIVES : ONCE_IT_ARRIVES;
+    return investableBeforeItArrives(calculation) ? BEFORE_IT_ARRIVES : ONCE_IT_ARRIVES;
   }
 }

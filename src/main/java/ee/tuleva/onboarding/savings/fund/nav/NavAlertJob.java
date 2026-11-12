@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.savings.TradeDay.Day.DAY_OFF;
 import static ee.tuleva.onboarding.savings.TradeDay.Day.WORKING_DAY;
-import static ee.tuleva.onboarding.savings.fund.nav.NavDeadline.SISEKORD_4_P_11_3_1;
 import static ee.tuleva.onboarding.savings.fund.nav.NavDeadline.SISEKORD_4_P_11_3_1_PILLAR_2_NAV_DEADLINE;
 import static ee.tuleva.onboarding.savings.fund.nav.NavDeadline.SISEKORD_4_P_11_3_2_PILLAR_3_AND_TKF_NAV_DEADLINE;
+import static ee.tuleva.onboarding.savings.fund.nav.NavDeadline.isLate;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -120,7 +120,7 @@ public class NavAlertJob {
     Day day = publicHolidays.isWorkingDay(today) ? WORKING_DAY : DAY_OFF;
     return funds.stream()
         .filter(TulevaFund::hasNavCalculation)
-        .filter(fund -> SISEKORD_4_P_11_3_1.appliesTo(new Status(day, report(day, fund, today))))
+        .filter(fund -> isLate(new Status(day, report(day, fund, today))))
         .toList();
   }
 

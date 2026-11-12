@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings;
 
-import static ee.tuleva.onboarding.savings.NavPublication.SISEKORD_4_P_11_3_3;
+import static ee.tuleva.onboarding.savings.NavPublication.shown;
 import static ee.tuleva.onboarding.savings.TradeDay.Day.DAY_OFF;
 import static ee.tuleva.onboarding.savings.TradeDay.Day.WORKING_DAY;
 import static java.math.RoundingMode.HALF_UP;
@@ -122,7 +122,7 @@ public class FundNavProvider implements SavingsFundNav {
 
     LocalDate previousWorkingDay = publicHolidays.previousWorkingDay(today);
     var moment = new Moment(publicHolidays.isWorkingDay(today) ? WORKING_DAY : DAY_OFF, time);
-    return switch (SISEKORD_4_P_11_3_3.decide(moment)) {
+    return switch (shown(moment)) {
       case PUBLISHED_TODAY -> previousWorkingDay;
       case PUBLISHED_ON_THE_PREVIOUS_WORKING_DAY ->
           publicHolidays.previousWorkingDay(previousWorkingDay);

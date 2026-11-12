@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
-import static ee.tuleva.onboarding.aml.MandateAmlGate.SISEKORD_13_P_4_1_7;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
@@ -179,7 +178,7 @@ public class AmlService {
     if (!isMandateAmlCheckRequired(user, mandate)) {
       return true;
     }
-    if (SISEKORD_13_P_4_1_7.appliesTo(RecentChecks.of(getChecks(user)))) {
+    if (MandateAmlGate.passes(RecentChecks.of(getChecks(user)))) {
       return true;
     }
     log.info("All necessary AML checks not passed for user userId={}", user.getId());

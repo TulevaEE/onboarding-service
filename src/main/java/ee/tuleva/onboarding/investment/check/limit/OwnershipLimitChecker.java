@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.SISEKORD_4_P_2_4_3_11;
+import static ee.tuleva.onboarding.investment.check.limit.LimitSeverity.ownershipSeverity;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitSeverity.Reading;
 import ee.tuleva.onboarding.investment.check.limit.UnderlyingFunds.SizeInEur;
@@ -37,7 +37,7 @@ class OwnershipLimitChecker {
   }
 
   private BreachSeverity determineSeverity(BigDecimal actualPercent, OwnershipLimit limit) {
-    return SISEKORD_4_P_2_4_3_11.decide(
+    return ownershipSeverity(
         new Reading(actualPercent, limit.softLimitPercent(), limit.hardLimitPercent()));
   }
 }

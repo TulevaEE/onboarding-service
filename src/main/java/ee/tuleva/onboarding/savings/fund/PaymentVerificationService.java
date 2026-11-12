@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPA
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.GUARDIAN;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDER;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
-import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.SISEKORD_16_P_1_2_4;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
@@ -107,7 +107,7 @@ public class PaymentVerificationService {
           payment.getId());
     }
     var partyIdOpt = partyIdFromDescription.or(() -> remitterPartyId);
-    if (SISEKORD_16_P_1_2_4.decide(Payment.identified(partyIdOpt.isPresent() ? FOUND : MISSING))
+    if (outcome(Payment.identified(partyIdOpt.isPresent() ? FOUND : MISSING))
         == RETURN_UNIDENTIFIED) {
       identityCheckFailure(payment, UNIDENTIFIED);
       return;
@@ -124,7 +124,7 @@ public class PaymentVerificationService {
   }
 
   private boolean returned(SavingFundPayment payment, PartyId partyId, Payment facts) {
-    var outcome = SISEKORD_16_P_1_2_4.decide(facts);
+    var outcome = outcome(facts);
     VerificationMessages.forType(partyId.type())
         .reason(outcome)
         .ifPresent(reason -> identityCheckFailure(payment, partyId, reason));

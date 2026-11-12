@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
-import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
+import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusFor;
 
 import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -60,7 +60,7 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     SavingsFundOnboardingStatus oldStatus =
         savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);
     SavingsFundOnboardingStatus newStatus =
-        SISEKORD_13_P_9_3_3.decide(new Assessment(oldStatus, kycCheck.riskLevel()));
+        statusFor(new Assessment(oldStatus, kycCheck.riskLevel()));
     if (newStatus == oldStatus) {
       return;
     }

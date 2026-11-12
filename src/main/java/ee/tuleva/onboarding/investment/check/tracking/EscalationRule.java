@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.BREACHED;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.WITHIN;
-import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.SISEKORD_4_P_11_8;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.BREACH;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.CLEAN;
 
@@ -38,7 +37,7 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   }
 
   private boolean escalates(TrackingDifferenceResult result) {
-    return SISEKORD_4_P_11_8.appliesTo(
+    return TdEscalation.escalates(
         new Escalation(
             result.hasAnyBreach() ? BREACH : CLEAN,
             new Streak(

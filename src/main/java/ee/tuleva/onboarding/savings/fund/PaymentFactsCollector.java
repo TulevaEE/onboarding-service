@@ -18,7 +18,7 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPA
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.GUARDIAN;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDER;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
-import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.SISEKORD_16_P_1_2_4;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
@@ -71,7 +71,7 @@ class PaymentFactsCollector {
   }
 
   private static boolean alreadyReturned(Payment facts) {
-    return SISEKORD_16_P_1_2_4.decide(facts) != VERIFY;
+    return outcome(facts) != VERIFY;
   }
 
   private Remitter remitter(

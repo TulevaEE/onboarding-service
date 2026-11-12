@@ -7,8 +7,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
-public record Transaction(BigDecimal amount, Instant time) implements Comparable<Transaction> {
+public record Transaction(BigDecimal amount, Instant time, @Nullable String isin)
+    implements Comparable<Transaction> {
+
+  public Transaction(BigDecimal amount, Instant time) {
+    this(amount, time, null);
+  }
 
   public LocalDate date() {
     return time.atZone(ZoneOffset.UTC).toLocalDate();

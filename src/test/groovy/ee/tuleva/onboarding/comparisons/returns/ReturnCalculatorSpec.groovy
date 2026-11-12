@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRet
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
-import ee.tuleva.onboarding.deadline.PublicHolidays
 import spock.lang.Specification
 
 import java.time.Instant
@@ -22,6 +21,7 @@ import static java.time.temporal.ChronoUnit.DAYS
 class ReturnCalculatorSpec extends Specification {
 
   FundValueProvider fundValueProvider
+  FundPriceTiming fundPriceTiming
   ReturnCalculator returnCalculator
 
   void setup() {
@@ -33,7 +33,8 @@ class ReturnCalculatorSpec extends Specification {
           .map { Optional<FundValue> value -> value.get() }
           .toList()
     }
-    returnCalculator = new ReturnCalculator(fundValueProvider, new PublicHolidays())
+    fundPriceTiming = Mock(FundPriceTiming)
+    returnCalculator = new ReturnCalculator(fundValueProvider, fundPriceTiming)
   }
 
   def "it successfully calculates a return of 0%"() {
@@ -374,218 +375,158 @@ class ReturnCalculatorSpec extends Specification {
         Optional.of(aFundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
   }
 
-  def "aligns beginning balance index lookup when synthetic date crosses weekend for the US-close world indexes"() {
-    given: "start dates where the synthetic transaction (startTime - 1 day) lands on a weekend"
-    Instant startTime = parseInstant(startDate)
-    Instant endTime = parseInstant(endDate)
+  def "prices a contribution into a fund that follows the index a day late at the previous trading day's close"() {
+    given:
+    fundPriceTiming.sameDayWeight("DAY_LATE", AdjustedAcwiIndexRetriever.KEY, _) >> 0.0
+    stubIndex(["2026-03-10": 100.0, "2026-03-11": 110.0, "2026-03-12": 120.0, "2026-03-13": 130.0])
+    def overview = overviewEndingOn("2026-03-13",
+        [new Transaction(1000.0, parseInstant("2026-03-11"), "DAY_LATE")], ["DAY_LATE": 1200.0])
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY)
+
+    then:
+    simulatedReturn.amount() == 200.00
+  }
+
+  def "skips the weekend rows that repeat Friday's close when finding the previous trading day's close"() {
+    given:
+    fundPriceTiming.sameDayWeight("DAY_LATE", UnionStockIndexRetriever.KEY, _) >> 0.0
+    stubIndex(UnionStockIndexRetriever.KEY, [
+        "2026-03-05": 100.0, "2026-03-06": 90.0, "2026-03-07": 90.0, "2026-03-08": 90.0,
+        "2026-03-12": 120.0, "2026-03-13": 120.0])
+    def overview = overviewEndingOn("2026-03-13",
+        [new Transaction(1000.0, parseInstant("2026-03-08"), "DAY_LATE")], ["DAY_LATE": 1200.0])
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
+
+    then:
+    simulatedReturn.amount() == (1000.0 / 100.0 * 120.0 - 1000.0).round(2)
+  }
+
+  def "prices the same day when a fund's timing cannot be estimated yet"() {
+    given:
+    fundPriceTiming.sameDayWeight("NEW_FUND", AdjustedAcwiIndexRetriever.KEY, _) >> null
+    stubIndex(["2026-03-10": 100.0, "2026-03-11": 110.0, "2026-03-12": 120.0, "2026-03-13": 130.0])
+    def overview = overviewEndingOn("2026-03-13",
+        [new Transaction(1000.0, parseInstant("2026-03-11"), "NEW_FUND")], ["NEW_FUND": 1200.0])
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY)
+
+    then:
+    simulatedReturn.amount() == (1000.0 / 110.0 * 130.0 - 1000.0).round(2)
+  }
+
+  def "blends the day's close with the previous one by the fund's same-day weight"() {
+    given:
+    fundPriceTiming.sameDayWeight("MIXED", AdjustedAcwiIndexRetriever.KEY, _) >> 0.3
+    stubIndex(["2026-03-10": 100.0, "2026-03-11": 110.0, "2026-03-12": 120.0, "2026-03-13": 130.0])
+    def overview = overviewEndingOn("2026-03-13",
+        [new Transaction(1000.0, parseInstant("2026-03-11"), "MIXED")], ["MIXED": 1200.0])
+
+    when:
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY)
+
+    then:
+    def bought = Math.pow(110.0, 0.3) * Math.pow(100.0, 0.7)
+    def sold = Math.pow(130.0, 0.3) * Math.pow(120.0, 0.7)
+    simulatedReturn.amount() == (1000.0 / bought * sold - 1000.0).round(2)
+  }
+
+  def "values the opening balance with the timing of the funds held then, weighted by amount"() {
+    given:
+    fundPriceTiming.sameDayWeight("DAY_LATE", AdjustedAcwiIndexRetriever.KEY, _) >> 0.0
+    fundPriceTiming.sameDayWeight("SAME_DAY", AdjustedAcwiIndexRetriever.KEY, _) >> 1.0
+    stubIndex(["2026-02-26": 100.0, "2026-02-27": 110.0, "2026-03-12": 120.0, "2026-03-13": 120.0])
     def overview = AccountOverview.builder()
         .transactions([])
-        .beginningBalance(10000.0)
-        .endingBalance(12000.0)
-        .startTime(startTime)
-        .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
+        .beginningBalance(1000.0)
+        .endingBalance(1100.0)
+        .startTime(parseInstant("2026-02-28"))
+        .endTime(parseInstant("2026-03-13"))
+        .beginningBalanceTime(parseInstant("2026-02-27"))
+        .endingBalanceTime(parseInstant("2026-03-13"))
+        .beginningHoldings(["DAY_LATE": 750.0, "SAME_DAY": 250.0])
+        .endingHoldings(["SAME_DAY": 1100.0])
         .pillar(2)
         .build()
 
-    and: "index prices that reflect a crash: Thu=400, Fri=380 (5% drop), end=480"
-    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
-      def values = [
-          "2025-04-03": 400.0,  // Thursday (pre-Friday crash)
-          "2025-04-04": 380.0,  // Friday (post-crash US close)
-          "2025-04-05": 380.0,  // Saturday (carry-forward)
-          "2025-04-06": 380.0,  // Sunday (carry-forward)
-          "2026-04-06": 480.0,
-          "2026-04-07": 480.0,
-      ]
-      def value = values[date.toString()]
-      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
-    }
-
     when:
-    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY)
 
-    then: "uses Thursday price (400) not Friday (380), so ending = 10000/400 * 480 = 12000"
-    simulatedReturn.amount() == 2000.00
-
-    where: "both Sunday and Monday starts have synthetic dates on weekend"
-    startDate       | endDate      | indexKey
-    "2025-04-06"    | "2026-04-06" | UnionStockIndexRetriever.KEY       // Sunday start → synthetic Sat
-    "2025-04-07"    | "2026-04-07" | UnionStockIndexRetriever.KEY       // Monday start → synthetic Sun
-    "2025-04-06"    | "2026-04-06" | AdjustedAcwiIndexRetriever.KEY
-    "2025-04-07"    | "2026-04-07" | AdjustedAcwiIndexRetriever.KEY
+    then:
+    def bought = Math.pow(110.0, 0.25) * Math.pow(100.0, 0.75)
+    simulatedReturn.amount() == (1000.0 / bought * 120.0 - 1000.0).round(2)
   }
 
-  def "weekday start with weekday synthetic date uses standard index lookup"() {
-    given: "a Wednesday start where synthetic date (Tuesday) is a working day"
-    Instant startTime = parseInstant("2025-04-09") // Wednesday
-    Instant endTime = parseInstant("2026-04-09")
-    def overview = AccountOverview.builder()
-        .transactions([])
-        .beginningBalance(10000.0)
-        .endingBalance(12000.0)
-        .startTime(startTime)
-        .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
-        .pillar(2)
-        .build()
-
-    and: "index prices where Tuesday and Monday differ"
-    def indexKey = UnionStockIndexRetriever.KEY
-    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
-      def values = [
-          "2025-04-07": 370.0,  // Monday (would be wrong if fix over-applied)
-          "2025-04-08": 390.0,  // Tuesday (synthetic date = Wed - 1 day)
-          "2026-04-09": 480.0,  // End date
-      ]
-      def value = values[date.toString()]
-      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
-    }
+  def "prices comparisons other than the US-close world indexes at the day's own value"() {
+    given:
+    stubIndex(EpiIndex.EPI.key, ["2026-03-10": 100.0, "2026-03-11": 110.0, "2026-03-12": 120.0, "2026-03-13": 130.0])
+    def overview = overviewEndingOn("2026-03-13",
+        [new Transaction(1000.0, parseInstant("2026-03-11"), "DAY_LATE")], ["DAY_LATE": 1200.0])
 
     when:
-    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
 
-    then: "uses Tuesday price (390), so ending = 10000/390 * 480 = 12307.69"
-    simulatedReturn.amount() == 2307.69
+    then:
+    simulatedReturn.amount() == (1000.0 / 110.0 * 130.0 - 1000.0).round(2)
+    0 * fundPriceTiming.sameDayWeight(_, _, _)
   }
 
-  def "weekend start does not adjust index lookup for non-UNION_STOCK_INDEX comparisons"() {
-    given: "a Sunday start with a beginning balance, comparing against EPI (European-close pricing)"
-    Instant startTime = parseInstant("2025-04-06") // Sunday
-    Instant endTime = parseInstant("2026-04-06")
-    def overview = AccountOverview.builder()
-        .transactions([])
-        .beginningBalance(10000.0)
-        .endingBalance(12000.0)
-        .startTime(startTime)
-        .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
-        .pillar(2)
-        .build()
-
-    and: "EPI prices where Friday (standard lookup) differs from Thursday (shifted lookup)"
-    def epiKey = EpiIndex.EPI.key
-    fundValueProvider.getLatestValue(epiKey, _ as LocalDate) >> { String fund, LocalDate date ->
-      def values = [
-          "2025-04-03": 999.0,  // Thursday — would be used if fix incorrectly applied
-          "2025-04-04": 400.0,  // Friday — should be used (standard lookup via Sat carry-back)
-          "2025-04-05": 400.0,  // Saturday (synthetic date)
-          "2026-04-06": 480.0,  // End date
-      ]
-      def value = values[date.toString()]
-      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
-    }
-
-    when:
-    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, epiKey)
-
-    then: "uses Friday price (400) not Thursday (999), so ending = 10000/400 * 480 = 12000"
-    simulatedReturn.amount() == 2000.00
-  }
-
-  def "weekend start with zero beginning balance does not adjust index lookup"() {
-    given: "a Sunday start with no beginning balance"
-    Instant startTime = parseInstant("2025-04-06") // Sunday
-    Instant endTime = parseInstant("2026-04-06")
-    def overview = AccountOverview.builder()
-        .transactions([new Transaction(1000.0, parseInstant("2025-05-01"))])
-        .beginningBalance(0.0)
-        .endingBalance(1200.0)
-        .startTime(startTime)
-        .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
-        .pillar(2)
-        .build()
-
-    and: "index prices for the contribution and end date"
-    def indexKey = UnionStockIndexRetriever.KEY
-    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
-      def values = [
-          "2025-05-01": 400.0,  // Contribution date
-          "2026-04-06": 480.0,  // End date
-      ]
-      def value = values[date.toString()]
-      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
-    }
-
-    when:
-    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
-
-    then: "contribution uses standard lookup: 1000/400 * 480 = 1200"
-    simulatedReturn.amount() == 200.00 // 1200 - 1000
-  }
-
-  def "real data: Monday start during April 2025 crash reduces index gap from 5pp to 1pp"() {
-    given: "real 2nd pillar cash flows for a Monday start during the tariff crash"
-    Instant startTime = parseInstant("2025-04-07") // Monday — synthetic date is Sunday
-    Instant endTime = parseInstant("2026-04-07")
-    def beginningBalance = 30809.92
-    def endingBalance = 45244.78
-
+  def "real data: pricing at a day-late fund's timing removes most of a crash day's gap that the same day's close opens"() {
+    given:
+    fundPriceTiming.sameDayWeight("EE3600109435", AdjustedAcwiIndexRetriever.KEY, _) >> 0.27
+    def contribution = { String date, BigDecimal amount -> new Transaction(amount, parseInstant(date), "EE3600109435") }
     def transactions = [
-        new Transaction(706.66, parseInstant("2025-04-15")),
-        new Transaction(706.66, parseInstant("2025-05-15")),
-        new Transaction(706.66, parseInstant("2025-06-13")),
-        new Transaction(706.66, parseInstant("2025-07-15")),
-        new Transaction(706.66, parseInstant("2025-08-14")),
-        new Transaction(706.66, parseInstant("2025-09-15")),
-        new Transaction(706.66, parseInstant("2025-10-14")),
-        new Transaction(706.66, parseInstant("2025-12-15")),
-        new Transaction(706.66, parseInstant("2026-01-15")),
-        new Transaction(707.01, parseInstant("2026-02-13")),
-        new Transaction(707.01, parseInstant("2026-03-13")),
+        contribution("2025-04-15", 706.66), contribution("2025-05-15", 706.66), contribution("2025-06-13", 706.66),
+        contribution("2025-07-15", 706.66), contribution("2025-08-14", 706.66), contribution("2025-09-15", 706.66),
+        contribution("2025-10-14", 706.66), contribution("2025-12-15", 706.66), contribution("2026-01-15", 706.66),
+        contribution("2026-02-13", 707.01), contribution("2026-03-13", 707.01),
     ]
     def overview = AccountOverview.builder()
         .transactions(transactions)
-        .beginningBalance(beginningBalance)
-        .endingBalance(endingBalance)
-        .startTime(startTime)
-        .endTime(endTime)
-        .beginningBalanceTime(startTime.minus(1, DAYS))
-        .endingBalanceTime(endTime)
+        .beginningBalance(30809.92)
+        .endingBalance(45244.78)
+        .startTime(parseInstant("2025-04-07"))
+        .endTime(parseInstant("2026-04-07"))
+        .beginningBalanceTime(parseInstant("2025-04-06"))
+        .endingBalanceTime(parseInstant("2026-04-07"))
+        .beginningHoldings(["EE3600109435": 30809.92])
+        .endingHoldings(["EE3600109435": 45244.78])
         .pillar(2)
         .build()
 
-    and: "real UNION_STOCK_INDEX values from prod DB"
-    def indexKey = UnionStockIndexRetriever.KEY
-    fundValueProvider.getLatestValue(indexKey, _ as LocalDate) >> { String fund, LocalDate date ->
-      def values = [
-          "2025-04-03": 402.09336,  // Thursday (fix uses this for beginning balance)
-          "2025-04-04": 385.62221,  // Friday US close
-          "2025-04-05": 385.62221,  // Saturday (carry-forward)
-          "2025-04-06": 385.62221,  // Sunday (carry-forward, synthetic date lands here)
-          "2025-04-15": 392.58059,
-          "2025-05-15": 434.49828,
-          "2025-06-13": 428.33231,
-          "2025-07-15": 440.81159,
-          "2025-08-14": 454.53635,
-          "2025-09-15": 463.28622,
-          "2025-10-14": 470.54212,
-          "2025-12-15": 478.99370,
-          "2026-01-15": 501.72402,
-          "2026-02-13": 494.78222,
-          "2026-03-13": 490.46782,
-          "2026-04-06": 486.55963,
-          "2026-04-07": 486.55963,  // end date (same as Apr 6, latest available)
-      ]
-      def value = values[date.toString()]
-      value != null ? Optional.of(aFundValue(fund, date, value)) : Optional.empty()
-    }
+    and:
+    stubIndex([
+        "2025-04-02": 371.94814, "2025-04-03": 350.85246, "2025-04-04": 335.96977, "2025-04-07": 329.70106,
+        "2025-04-14": 340.33268, "2025-04-15": 342.63989, "2025-05-14": 377.38254, "2025-05-15": 379.38728,
+        "2025-06-12": 376.71247, "2025-06-13": 373.85824, "2025-07-14": 383.77719, "2025-07-15": 384.61398,
+        "2025-08-13": 395.16376, "2025-08-14": 396.72494, "2025-09-12": 403.26630, "2025-09-15": 404.09045,
+        "2025-10-13": 413.27711, "2025-10-14": 410.92449, "2025-12-12": 419.30358, "2025-12-15": 418.01996,
+        "2026-01-14": 434.00590, "2026-01-15": 436.94631, "2026-02-12": 429.53483, "2026-02-13": 429.85173,
+        "2026-03-12": 427.76519, "2026-03-13": 427.07497, "2026-04-06": 423.33994, "2026-04-07": 422.42101,
+    ])
 
     when:
     def personalReturn = returnCalculator.getReturn(overview)
-    def simulatedReturn = returnCalculator.getSimulatedReturn(overview, indexKey)
+    def atTheFundsTiming = returnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY)
+    def atTheSameDaysClose = returnCalculator.getSimulatedReturn(AccountOverview.builder()
+        .transactions(transactions.collect { new Transaction(it.amount(), it.time()) })
+        .beginningBalance(30809.92)
+        .endingBalance(45244.78)
+        .startTime(parseInstant("2025-04-07"))
+        .endTime(parseInstant("2026-04-07"))
+        .beginningBalanceTime(parseInstant("2025-04-06"))
+        .endingBalanceTime(parseInstant("2026-04-07"))
+        .pillar(2)
+        .build(), AdjustedAcwiIndexRetriever.KEY)
 
-    then: "personal return matches the real API value"
+    then:
     personalReturn.rate() == 0.1907
-
-    and: "index return is close to personal (within ~1pp tracking difference), not 5pp inflated"
-    simulatedReturn.rate() == 0.1998
-    (simulatedReturn.rate() - personalReturn.rate()) < 0.02 // less than 2pp gap
+    atTheFundsTiming.rate() == 0.2081
+    atTheSameDaysClose.rate() == 0.2405
   }
 
   def "annualizes the personal return over the days between the prices that valued the balances"() {
@@ -687,4 +628,29 @@ class ReturnCalculatorSpec extends Specification {
       new Transaction(30.0, parseInstant("2017-07-01")),
       new Transaction(30.0, parseInstant("2018-01-01")),
   ]
+
+  private void stubIndex(Map<String, BigDecimal> closes) {
+    stubIndex(AdjustedAcwiIndexRetriever.KEY, closes)
+  }
+
+  private void stubIndex(String key, Map<String, BigDecimal> closes) {
+    fundValueProvider.getLatestValue(key, _ as LocalDate) >> { String fund, LocalDate date ->
+      def latest = closes.keySet().findAll { !LocalDate.parse(it).isAfter(date) }.max()
+      latest == null ? Optional.empty() : Optional.of(aFundValue(fund, LocalDate.parse(latest), closes[latest]))
+    }
+  }
+
+  private static AccountOverview overviewEndingOn(String endDate, List<Transaction> transactions, Map<String, BigDecimal> endingHoldings) {
+    AccountOverview.builder()
+        .transactions(transactions)
+        .beginningBalance(0.0)
+        .endingBalance(endingHoldings.values().sum() as BigDecimal)
+        .startTime(parseInstant("2026-03-01"))
+        .endTime(parseInstant(endDate))
+        .beginningBalanceTime(parseInstant("2026-02-28"))
+        .endingBalanceTime(parseInstant(endDate))
+        .endingHoldings(endingHoldings)
+        .pillar(2)
+        .build()
+  }
 }

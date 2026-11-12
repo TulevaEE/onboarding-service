@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
 
@@ -22,6 +23,8 @@ public class AccountOverview {
   Instant beginningBalanceTime;
   Instant endingBalanceTime;
   Integer pillar;
+  @Builder.Default Map<String, BigDecimal> beginningHoldings = Map.of();
+  @Builder.Default Map<String, BigDecimal> endingHoldings = Map.of();
 
   public AccountOverview sort() {
     Collections.sort(transactions);

@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.BalancePriceDates
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnCalculationParameters
-import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.epis.CashFlow
 import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.epis.EpisService
@@ -70,7 +69,7 @@ class PersonalReturnPricingDatesSpec extends Specification {
     def accountOverviewProvider =
         new AccountOverviewProvider(fundRepository, episService, new BalancePriceDates(fundValueProvider), clock)
     return new PersonalReturnProvider(
-        accountOverviewProvider, new ReturnCalculator(fundValueProvider, new PublicHolidays()))
+        accountOverviewProvider, new ReturnCalculator(fundValueProvider, Mock(FundPriceTiming)))
   }
 
   private void pricesPublishedOn(LocalDate... priceDates) {

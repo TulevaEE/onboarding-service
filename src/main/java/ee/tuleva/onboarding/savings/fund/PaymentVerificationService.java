@@ -4,19 +4,29 @@ import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Code.FOUND;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Code.MISSING;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name.MATCHES;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.RETURN_UNIDENTIFIED;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.VERIFY;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.ANOTHER_COMPANY;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.ANOTHER_PERSON;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPANY_NAME_WITHOUT_CODE;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.GUARDIAN;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDER;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.SISEKORD_16_P_1_2_4;
 
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.RegistryCodeValidator;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.ParentChildLinkService;
-import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome;
+import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -40,15 +50,14 @@ public class PaymentVerificationService {
   private static final RegistryCodeValidator registryCodeValidator = new RegistryCodeValidator();
   private static final String COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT =
       "ettevõte saab teha sissemakseid ainult enda kontole";
+  private static final String UNIDENTIFIED =
+      "makse ei sisalda tuvastatavat isikukoodi/registrikoodi";
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundLedger savingsFundLedger;
   private final ApplicationEventPublisher applicationEventPublisher;
-  private final NameMatcher nameMatcher;
-  private final PartyResolver partyResolver;
-  private final ParentChildLinkService parentChildLinkService;
+  private final PaymentFactsCollector paymentFactsCollector;
 
   record VerificationMessages(
       String codeMismatch, String notClient, String nameMismatch, String notOnboarded) {
@@ -71,6 +80,19 @@ public class PaymentVerificationService {
       return Objects.requireNonNull(
           BY_TYPE.get(type), "Missing verification messages: type=" + type);
     }
+
+    Optional<String> reason(Outcome outcome) {
+      return switch (outcome) {
+        case RETURN_UNIDENTIFIED -> Optional.of(UNIDENTIFIED);
+        case RETURN_COMPANY_PAYING_FOR_SOMEONE_ELSE ->
+            Optional.of(COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT);
+        case RETURN_CODE_MISMATCH -> Optional.of(codeMismatch);
+        case RETURN_NOT_A_CLIENT -> Optional.of(notClient);
+        case RETURN_NAME_MISMATCH -> Optional.of(nameMismatch);
+        case RETURN_NOT_ONBOARDED -> Optional.of(notOnboarded);
+        case VERIFY -> Optional.empty();
+      };
+    }
   }
 
   @Transactional
@@ -79,74 +101,42 @@ public class PaymentVerificationService {
 
     var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
     var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    var partyIdOpt = partyIdFromDescription;
-    if (partyIdOpt.isEmpty()) {
+    if (partyIdFromDescription.isEmpty()) {
       log.info(
           "Payment {} has no code in description, falling back to remitter id code",
           payment.getId());
-      partyIdOpt = remitterPartyId;
     }
-    if (partyIdOpt.isEmpty()) {
-      identityCheckFailure(payment, "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
+    var partyIdOpt = partyIdFromDescription.or(() -> remitterPartyId);
+    if (SISEKORD_16_P_1_2_4.decide(Payment.identified(partyIdOpt.isPresent() ? FOUND : MISSING))
+        == RETURN_UNIDENTIFIED) {
+      identityCheckFailure(payment, UNIDENTIFIED);
       return;
     }
 
-    PartyId partyId = partyIdOpt.get();
-    var messages = VerificationMessages.forType(partyId.type());
-
-    if (isCompanyPayingForSomeoneElse(remitterPartyId, payment.getRemitterName(), partyId)) {
-      identityCheckFailure(payment, partyId, COMPANY_CAN_ONLY_PAY_INTO_ITS_OWN_ACCOUNT);
+    PartyId partyId = partyIdOpt.orElseThrow();
+    var facts =
+        paymentFactsCollector.collect(payment, partyId, partyIdFromDescription, remitterPartyId);
+    if (returned(payment, partyId, facts)) {
       return;
     }
 
-    boolean acceptedFromAnyRemitter =
-        partyIdFromDescription.isPresent()
-            && partyId.type() == PERSON
-            && isRepresentedWhenTheMoneyArrived(partyId, payment);
+    verify(payment, partyId, remitterPartyId, facts);
+  }
 
-    boolean guardianFundingTheirWard =
-        remitterPartyId
-            .filter(r -> !r.equals(partyId))
-            .map(r -> isGuardianOf(r, partyId))
-            .orElse(false);
+  private boolean returned(SavingFundPayment payment, PartyId partyId, Payment facts) {
+    var outcome = SISEKORD_16_P_1_2_4.decide(facts);
+    VerificationMessages.forType(partyId.type())
+        .reason(outcome)
+        .ifPresent(reason -> identityCheckFailure(payment, partyId, reason));
+    return outcome != VERIFY;
+  }
 
-    if (!acceptedFromAnyRemitter
-        && remitterPartyId.isPresent()
-        && !remitterPartyId.get().equals(partyId)
-        && !guardianFundingTheirWard) {
-      identityCheckFailure(payment, partyId, messages.codeMismatch());
-      return;
-    }
-
-    Optional<Party> party = partyResolver.resolve(partyId);
-    if (party.isEmpty()) {
-      identityCheckFailure(payment, partyId, messages.notClient());
-      return;
-    }
-
-    boolean remitterNameIsUnitHolder =
-        nameMatcher.isSameName(party.get().name(), payment.getRemitterName());
-
-    if (!acceptedFromAnyRemitter && remitterPartyId.isEmpty() && !remitterNameIsUnitHolder) {
-      identityCheckFailure(payment, partyId, messages.nameMismatch());
-      return;
-    }
-
-    if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
-      identityCheckFailure(payment, partyId, messages.notOnboarded());
-      return;
-    }
-
-    @Nullable Boolean thirdPartyDeposit;
-    if (remitterPartyId.isPresent()) {
-      thirdPartyDeposit = !remitterPartyId.get().equals(partyId);
-    } else if (remitterNameIsUnitHolder) {
-      thirdPartyDeposit = false;
-    } else {
-      thirdPartyDeposit = null;
-    }
-
-    savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit);
+  private void verify(
+      SavingFundPayment payment,
+      PartyId partyId,
+      Optional<PartyId> remitterPartyId,
+      Payment facts) {
+    savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit(facts));
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
@@ -158,16 +148,25 @@ public class PaymentVerificationService {
         Objects.requireNonNull(
             payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
-    if (guardianFundingTheirWard) {
+    if (facts.remitter() == GUARDIAN) {
       applicationEventPublisher.publishEvent(
           new TrackableSystemEvent(
               TrackableEventType.MINOR_DEPOSIT_VERIFIED,
               Map.of(
-                  "parentPersonalCode", remitterPartyId.get().code(),
+                  "parentPersonalCode", remitterPartyId.orElseThrow().code(),
                   "childPersonalCode", partyId.code(),
                   "paymentId", payment.getId(),
                   "amount", payment.getAmount())));
     }
+  }
+
+  private static @Nullable Boolean thirdPartyDeposit(Payment facts) {
+    return switch (facts.remitter()) {
+      case HOLDER -> Boolean.FALSE;
+      case GUARDIAN, ANOTHER_PERSON, ANOTHER_COMPANY -> Boolean.TRUE;
+      case NO_CODE, COMPANY_NAME_WITHOUT_CODE, NOT_CHECKED ->
+          facts.name() == MATCHES ? Boolean.FALSE : null;
+    };
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {
@@ -210,24 +209,6 @@ public class PaymentVerificationService {
     return Optional.ofNullable(payment.getPartyId())
         .map(PartyId::code)
         .flatMap(userRepository::findByPersonalCode);
-  }
-
-  private boolean isCompanyPayingForSomeoneElse(
-      Optional<PartyId> remitterPartyId, @Nullable String remitterName, PartyId partyId) {
-    return remitterPartyId
-        .map(remitter -> remitter.type() == LEGAL_ENTITY && !remitter.equals(partyId))
-        .orElseGet(() -> partyId.type() == PERSON && nameMatcher.looksLikeACompany(remitterName));
-  }
-
-  private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {
-    return parentChildLinkService.hasRestrictedLegalCapacity(
-        partyId.code(), payment.bookingDateOrThrow());
-  }
-
-  private boolean isGuardianOf(PartyId remitter, PartyId party) {
-    return remitter.type() == PERSON
-        && party.type() == PERSON
-        && parentChildLinkService.isGuardian(remitter.code(), party.code());
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

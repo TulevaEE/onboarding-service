@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.SISEKO
 import static ee.tuleva.onboarding.savings.NavPublication.SISEKORD_4_P_11_3_3;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.SISEKORD_13_P_9_3_3;
 import static ee.tuleva.onboarding.savings.TradeDay.SISEKORD_16_P_1_1_3;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.SISEKORD_16_P_1_2_4;
 import static ee.tuleva.onboarding.savings.fund.nav.NavDeadline.SISEKORD_4_P_11_3_1;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.SISEKORD_13_P_10_8;
 
@@ -51,7 +52,7 @@ final class Sisekorrad {
           "Täiendava Kogumisfondi Osakute registri pidamise sisekord",
           "1.1",
           LocalDate.of(2026, 8, 31),
-          List.of(SISEKORD_16_P_1_1_3, SISEKORD_16_P_1_4_1));
+          List.of(SISEKORD_16_P_1_1_3, SISEKORD_16_P_1_2_4, SISEKORD_16_P_1_4_1));
 
   private Sisekorrad() {}
 }

@@ -114,7 +114,9 @@ class FundPriceTiming {
     }
 
     private static double sumOfProducts(
-        List<DailyMove> moves, ToDoubleFunction<DailyMove> left, ToDoubleFunction<DailyMove> right) {
+        List<DailyMove> moves,
+        ToDoubleFunction<DailyMove> left,
+        ToDoubleFunction<DailyMove> right) {
       return moves.stream()
           .mapToDouble(move -> left.applyAsDouble(move) * right.applyAsDouble(move))
           .sum();

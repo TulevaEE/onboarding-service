@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static java.math.BigDecimal.ZERO;
 import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
-import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;

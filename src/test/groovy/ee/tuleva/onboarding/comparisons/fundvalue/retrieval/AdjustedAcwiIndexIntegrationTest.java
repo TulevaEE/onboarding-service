@@ -22,7 +22,7 @@ class AdjustedAcwiIndexIntegrationTest {
   @Autowired AdjustedAcwiIndexRetriever retriever;
 
   @Test
-  void storesAWorldIndexHeldAtWhatTheIiPillarLawAllowedInStocksFromTwoThousandThree() {
+  void storesAWorldIndexHeldFivePointsUnderTheIiPillarStockLimitsFromTwoThousandThree() {
     fundValueRepository.saveAll(
         List.of(
             value("MSCI_ACWI", "2003-01-07", 100),
@@ -50,11 +50,11 @@ class AdjustedAcwiIndexIntegrationTest {
             "MSCI_ACWI_ADJUSTED", LocalDate.parse("2003-01-07"), LocalDate.parse("2026-11-12"));
     assertThat(stored).extracting(FundValue::date).hasSize(7);
     assertThat(growth(stored, "2003-01-07", "2008-11-13"))
-        .isCloseTo(0.5 * 90 / 100 + 0.5 * 63 / 50, within(1e-5));
+        .isCloseTo(0.45 * 90 / 100 + 0.55 * 63 / 50, within(1e-5));
     assertThat(growth(stored, "2008-11-13", "2008-12-31"))
-        .isCloseTo(0.75 * 80 / 90 + 0.25 * 64 / 63, within(1e-5));
+        .isCloseTo(0.70 * 80 / 90 + 0.30 * 64 / 63, within(1e-5));
     assertThat(growth(stored, "2018-12-31", "2019-12-31"))
-        .isCloseTo((0.75 * 200 / 180 + 0.25 * 130 / 118) * 220 / 200, within(1e-5));
+        .isCloseTo((0.70 * 200 / 180 + 0.30 * 130 / 118) * 220 / 200, within(1e-5));
   }
 
   private static double growth(List<FundValue> series, String from, String to) {

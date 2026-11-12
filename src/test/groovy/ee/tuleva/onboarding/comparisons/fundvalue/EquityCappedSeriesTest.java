@@ -1,11 +1,10 @@
-package ee.tuleva.onboarding.investment.kid.performance;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -135,7 +134,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2016-12-30", 50), bond("2017-12-21", 51), bond("2018-01-02", 52));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -145,7 +144,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2016-12-30", 50), bond("2017-03-17", 50), bond("2017-12-29", 52));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, LocalDate.of(2017, 3, 28)))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -170,7 +169,7 @@ class EquityCappedSeriesTest {
 
     assertThatThrownBy(
             () -> EquityCappedSeries.of(equity, List.of(), CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -180,7 +179,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2019-08-01", 50));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -190,7 +189,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2018-12-31", 50), bond("2019-08-23", 51));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -214,7 +213,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2018-12-31", 100), bond("2019-08-25", 100), bond("2019-09-02", 120));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -224,7 +223,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2017-12-29", 50), bond("2018-06-29", 50), bond("2018-12-31", 51));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   @Test
@@ -233,7 +232,7 @@ class EquityCappedSeriesTest {
     var bond = List.of(bond("2018-12-31", 50), bond("2019-01-02", 0));
 
     assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
-        .isInstanceOf(PastPerformanceRefusedException.class);
+        .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
   private static double growth(List<FundValue> series, String from, String to) {

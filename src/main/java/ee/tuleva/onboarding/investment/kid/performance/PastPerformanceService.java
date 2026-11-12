@@ -4,6 +4,9 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCap;
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCappedSeries;
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCappedSeriesRefusedException;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -48,7 +51,7 @@ class PastPerformanceService {
     var benchmarkValues =
         equityCap == null
             ? plainBenchmarkValues
-            : EquityCappedSeries.of(
+            : heldAtTheEquityCap(
                 plainBenchmarkValues,
                 values(equityCap.bondKey(), firstYearShown, asOf),
                 equityCap,
@@ -82,6 +85,15 @@ class PastPerformanceService {
         asOf,
         years.stream().anyMatch(year -> !year.partialYear() && !year.yearToDate()),
         years);
+  }
+
+  private static List<FundValue> heldAtTheEquityCap(
+      List<FundValue> equity, List<FundValue> bond, EquityCap cap, LocalDate fundStart) {
+    try {
+      return EquityCappedSeries.of(equity, bond, cap, fundStart);
+    } catch (EquityCappedSeriesRefusedException refusal) {
+      throw new PastPerformanceRefusedException(refusal);
+    }
   }
 
   private LocalDate asOf(String fundKey, @Nullable String benchmarkKey, LocalDate today) {

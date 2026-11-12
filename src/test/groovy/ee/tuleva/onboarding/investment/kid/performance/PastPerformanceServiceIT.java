@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCap;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.JdbcFundValueRepository;
 import java.math.BigDecimal;
 import java.time.Clock;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.kid.performance;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
@@ -7,7 +7,6 @@ import static java.util.function.BinaryOperator.maxBy;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -19,7 +18,7 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
-final class EquityCappedSeries {
+public final class EquityCappedSeries {
 
   private static final int RESTART_CLOSE_AT_MOST_DAYS_OLD = 7;
 
@@ -39,10 +38,10 @@ final class EquityCappedSeries {
     this.restarts = restarts;
   }
 
-  static List<FundValue> of(
+  public static List<FundValue> of(
       List<FundValue> equity, List<FundValue> bond, EquityCap cap, LocalDate fundStart) {
-    CalendarYearReturns.refuseANonPositiveValue(equity);
-    CalendarYearReturns.refuseANonPositiveValue(bond);
+    refuseANonPositiveValue(equity);
+    refuseANonPositiveValue(bond);
     refuseAMissingBondUnderTheCap(equity, bond, cap);
     var bondCloses = new TreeMap<LocalDate, FundValue>();
     bond.forEach(close -> bondCloses.put(close.date(), close));
@@ -57,7 +56,7 @@ final class EquityCappedSeries {
             ? lastOnOrBefore(closes, cap.liftedOn()).orElse(null)
             : null;
     if (lift != null && lift.isBefore(cap.liftedOn().minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
-      throw new PastPerformanceRefusedException(
+      throw new EquityCappedSeriesRefusedException(
           "Equity close too old at the equity cap's lift: liftedOn=%s, equityClose=%s"
               .formatted(cap.liftedOn(), lift));
     }
@@ -65,10 +64,21 @@ final class EquityCappedSeries {
     return series.levels(closes.stream().map(series::day).toList());
   }
 
+  private static void refuseANonPositiveValue(List<FundValue> values) {
+    values.stream()
+        .filter(value -> value.value().signum() <= 0)
+        .min(comparing(FundValue::date))
+        .ifPresent(
+            value -> {
+              throw new EquityCappedSeriesRefusedException(
+                  "Value not positive: key=%s, date=%s".formatted(value.key(), value.date()));
+            });
+  }
+
   private static void refuseAMissingBondUnderTheCap(
       List<FundValue> equity, List<FundValue> bond, EquityCap cap) {
     if (bond.isEmpty() && equity.stream().anyMatch(close -> cap.holdsOn(close.date()))) {
-      throw new PastPerformanceRefusedException(
+      throw new EquityCappedSeriesRefusedException(
           "No bond series for the equity cap: bondKey=%s".formatted(cap.bondKey()));
     }
   }
@@ -101,7 +111,7 @@ final class EquityCappedSeries {
     var bondClose = requireNonNull(bondCloses.floorEntry(valuedOn)).getValue();
     if (restarts.contains(day)
         && bondClose.date().isBefore(valuedOn.minusDays(RESTART_CLOSE_AT_MOST_DAYS_OLD))) {
-      throw new PastPerformanceRefusedException(
+      throw new EquityCappedSeriesRefusedException(
           "Bond close too old on a day the equity-capped blend restarts: bondKey=%s, day=%s, valuedOn=%s, bondClose=%s"
               .formatted(cap.bondKey(), day, valuedOn, bondClose.date()));
     }

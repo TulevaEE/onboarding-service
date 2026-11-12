@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCap;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

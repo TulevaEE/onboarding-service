@@ -39,7 +39,7 @@ final class CalendarYearReturns {
     return Map.copyOf(returns);
   }
 
-  static void refuseANonPositiveValue(List<FundValue> values) {
+  private static void refuseANonPositiveValue(List<FundValue> values) {
     values.stream()
         .filter(value -> value.value().signum() <= 0)
         .min(comparing(FundValue::date))

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.kid.performance;
+package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

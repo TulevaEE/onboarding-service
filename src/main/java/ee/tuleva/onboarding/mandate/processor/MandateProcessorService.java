@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,20 +37,17 @@ public class MandateProcessorService {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-    if (mandate.supportsSubmission()) {
-      prepareOrRecordNotSent(mandate, this::getMandateSubmissionCommand)
-          .map(mandateGateway::sendMandateV2)
-          .ifPresent(this::handleMandateProcessResult);
-    } else {
-      prepareOrRecordNotSent(mandate, this::getLegacyMandateSubmission)
-          .map(mandateGateway::sendMandate)
-          .ifPresent(this::handleMandateProcessResult);
-    }
+    prepareSending(mandate).map(Supplier::get).ifPresent(this::handleMandateProcessResult);
   }
 
-  private <T> Optional<T> prepareOrRecordNotSent(Mandate mandate, Function<Mandate, T> prepare) {
+  private Optional<Supplier<MandateProcessResult>> prepareSending(Mandate mandate) {
     try {
-      return Optional.of(prepare.apply(mandate));
+      if (mandate.supportsSubmission()) {
+        var command = getMandateSubmissionCommand(mandate);
+        return Optional.of(() -> mandateGateway.sendMandateV2(command));
+      }
+      var submission = getLegacyMandateSubmission(mandate);
+      return Optional.of(() -> mandateGateway.sendMandate(submission));
     } catch (RuntimeException e) {
       log.error(
           "Mandate could not be prepared for EPIS and was not sent: mandateId={}",

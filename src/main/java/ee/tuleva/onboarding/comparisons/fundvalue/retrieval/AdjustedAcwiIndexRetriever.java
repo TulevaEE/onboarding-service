@@ -30,18 +30,18 @@ public class AdjustedAcwiIndexRetriever implements ComparisonIndexRetriever {
 
   private static final String EURO_BOND_LEG = "EURO_BOND_LEG";
   private static final EquityCap
-      II_PILLAR_HALF_IN_SHARES_COUNTING_EQUITY_FUNDS_UNTIL_THE_75_PERCENT_LIMIT_OF_14_NOVEMBER_2008 =
-          new EquityCap(EURO_BOND_LEG, new BigDecimal("0.50"), LocalDate.of(2008, 11, 13));
+      FIVE_POINTS_UNDER_THE_II_PILLAR_50_PERCENT_SHARE_LIMIT_THAT_COUNTED_EQUITY_FUNDS_UNTIL_14_NOVEMBER_2008 =
+          new EquityCap(EURO_BOND_LEG, new BigDecimal("0.45"), LocalDate.of(2008, 11, 13));
   private static final EquityCap
-      II_PILLAR_THREE_QUARTERS_IN_SHARES_AND_EQUITY_FUNDS_UNTIL_THE_CAP_WAS_LIFTED_2_SEPTEMBER_2019 =
-          new EquityCap(EURO_BOND_LEG, new BigDecimal("0.75"), LocalDate.of(2019, 9, 2));
-  private static final List<EquityCap> II_PILLAR_EQUITY_CAPS =
+      FIVE_POINTS_UNDER_THE_II_PILLAR_75_PERCENT_EQUITY_LIMIT_UNTIL_IT_WAS_LIFTED_2_SEPTEMBER_2019 =
+          new EquityCap(EURO_BOND_LEG, new BigDecimal("0.70"), LocalDate.of(2019, 9, 2));
+  private static final List<EquityCap> STOCK_SHARES_A_COMPLIANT_II_PILLAR_FUND_COULD_HOLD =
       List.of(
-          II_PILLAR_HALF_IN_SHARES_COUNTING_EQUITY_FUNDS_UNTIL_THE_75_PERCENT_LIMIT_OF_14_NOVEMBER_2008,
-          II_PILLAR_THREE_QUARTERS_IN_SHARES_AND_EQUITY_FUNDS_UNTIL_THE_CAP_WAS_LIFTED_2_SEPTEMBER_2019);
+          FIVE_POINTS_UNDER_THE_II_PILLAR_50_PERCENT_SHARE_LIMIT_THAT_COUNTED_EQUITY_FUNDS_UNTIL_14_NOVEMBER_2008,
+          FIVE_POINTS_UNDER_THE_II_PILLAR_75_PERCENT_EQUITY_LIMIT_UNTIL_IT_WAS_LIFTED_2_SEPTEMBER_2019);
   private static final LocalDate SERIES_START = EuroGovernmentBondRetriever.SERIES_START;
   private static final LocalDate LAST_CAPPED_DAY =
-      II_PILLAR_THREE_QUARTERS_IN_SHARES_AND_EQUITY_FUNDS_UNTIL_THE_CAP_WAS_LIFTED_2_SEPTEMBER_2019
+      FIVE_POINTS_UNDER_THE_II_PILLAR_75_PERCENT_EQUITY_LIMIT_UNTIL_IT_WAS_LIFTED_2_SEPTEMBER_2019
           .liftedOn();
   private static final int BOND_CLOSE_AT_MOST_DAYS_OLD = 7;
   private static final int INDEX_VALUES_SCALE = 5;
@@ -83,7 +83,8 @@ public class AdjustedAcwiIndexRetriever implements ComparisonIndexRetriever {
 
   private List<FundValue> adjusted(List<FundValue> acwi, List<FundValue> bondLeg) {
     try {
-      return EquityCappedSeries.of(acwi, bondLeg, II_PILLAR_EQUITY_CAPS, SERIES_START);
+      return EquityCappedSeries.of(
+          acwi, bondLeg, STOCK_SHARES_A_COMPLIANT_II_PILLAR_FUND_COULD_HOLD, SERIES_START);
     } catch (EquityCappedSeriesRefusedException refusal) {
       throw new IllegalStateException(
           "Adjusted ACWI cannot be calculated from the stored series: key="

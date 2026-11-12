@@ -57,25 +57,25 @@ class AdjustedAcwiIndexRetrieverTest {
           aggregate("2019-09-09", 131));
 
   @Test
-  void holdsHalfInBondsWhileTheLawCountedEquityFundsIntoTheFiftyPercentShareLimit() {
+  void holdsFivePointsUnderTheFiftyPercentShareLimitWhileTheLawCountedEquityFundsIntoIt() {
     givenTheSeries(ACWI, GOVERNMENT_BONDS, AGGREGATE_BONDS);
 
     var index = retriever.retrieveValuesForRange(date("2003-01-07"), date("2019-12-31"));
 
     assertThat(growth(index, "2003-01-07", "2007-12-31"))
-        .isCloseTo(0.5 * 150 / 100 + 0.5 * 60 / 50, within(1e-6));
+        .isCloseTo(0.45 * 150 / 100 + 0.55 * 60 / 50, within(1e-6));
     assertThat(growth(index, "2007-12-31", "2008-11-13"))
-        .isCloseTo(0.5 * 90 / 150 + 0.5 * 63 / 60, within(1e-6));
+        .isCloseTo(0.45 * 90 / 150 + 0.55 * 63 / 60, within(1e-6));
   }
 
   @Test
-  void movesToThreeQuartersInStocksTheDayEquityFundsGotTheirOwnSeventyFivePercentLimit() {
+  void movesToFivePointsUnderTheSeventyFivePercentLimitTheDayEquityFundsGotIt() {
     givenTheSeries(ACWI, GOVERNMENT_BONDS, AGGREGATE_BONDS);
 
     var index = retriever.retrieveValuesForRange(date("2003-01-07"), date("2019-12-31"));
 
     assertThat(growth(index, "2008-11-13", "2008-12-31"))
-        .isCloseTo(0.75 * 80 / 90 + 0.25 * 64 / 63, within(1e-6));
+        .isCloseTo(0.70 * 80 / 90 + 0.30 * 64 / 63, within(1e-6));
   }
 
   @Test
@@ -85,7 +85,7 @@ class AdjustedAcwiIndexRetrieverTest {
     var index = retriever.retrieveValuesForRange(date("2003-01-07"), date("2019-12-31"));
 
     assertThat(growth(index, "2008-12-31", "2016-12-30"))
-        .isCloseTo(0.75 * 170 / 80 + 0.25 * (90.0 / 64) * (118.0 / 120), within(1e-6));
+        .isCloseTo(0.70 * 170 / 80 + 0.30 * (90.0 / 64) * (118.0 / 120), within(1e-6));
   }
 
   @Test
@@ -95,7 +95,7 @@ class AdjustedAcwiIndexRetrieverTest {
     var index = retriever.retrieveValuesForRange(date("2003-01-07"), date("2019-12-31"));
 
     assertThat(growth(index, "2016-12-30", "2019-09-02"))
-        .isCloseTo(0.75 * 200 / 170 + 0.25 * 130 / 118, within(1e-6));
+        .isCloseTo(0.70 * 200 / 170 + 0.30 * 130 / 118, within(1e-6));
     assertThat(growth(index, "2019-09-02", "2019-12-31")).isCloseTo(220.0 / 200, within(1e-6));
   }
 

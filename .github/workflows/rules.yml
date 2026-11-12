@@ -1,0 +1,88 @@
+name: rules
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
+      - src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
+      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
+      - src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitSeverity.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TdEscalation.java
+      - src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
+      - src/main/java/ee/tuleva/onboarding/savings/NavPublication.java
+      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
+      - src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
+      - src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
+      - build.gradle.kts
+      - .github/workflows/rules.yml
+  pull_request:
+    paths:
+      - src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
+      - src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
+      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
+      - src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitSeverity.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java
+      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TdEscalation.java
+      - src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
+      - src/main/java/ee/tuleva/onboarding/savings/NavPublication.java
+      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
+      - src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
+      - src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
+      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
+      - build.gradle.kts
+      - .github/workflows/rules.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check the rules against this commit
+        env:
+          GH_TOKEN: ${{ secrets.RULES_DISPATCH_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PUBLISH: ${{ github.event_name == 'push' }}
+          REPO: TulevaEE/auto-generated-rules
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "No dispatch token configured; skipping"; exit 0; fi
+          request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh workflow run generate.yml -R "$REPO" -f onboarding_sha="$SHA" -f publish="$PUBLISH" -f request_id="$request" >/dev/null
+          run=""
+          for _ in $(seq 1 30); do
+            run=$(gh run list -R "$REPO" -w generate.yml -e workflow_dispatch -L 20 --json databaseId,displayTitle \
+              --jq ".[] | select(.displayTitle | endswith(\"$request\")) | .databaseId" | head -n1)
+            [ -n "$run" ] && break
+            sleep 10
+          done
+          if [ -z "$run" ]; then echo "The rules run did not start"; exit 1; fi
+          if gh run watch "$run" -R "$REPO" --exit-status --interval 30 >/dev/null 2>&1; then
+            echo "Rules match this commit"
+          else
+            echo "Rules do not match this commit; see the private repository"
+            exit 1
+          fi

@@ -114,8 +114,8 @@ class DirectoPartMapperSpec extends Specification {
     "the supplier is an employee"           | "OST"  | "500100" | null           | "E001"   | null     | null      || true
     "the customer is an employee"           | "ARVE" | "500100" | null           | null     | "E001"   | null      || true
     "an object is unknown"                  | "OST"  | "500100" | "TEAM1,X404"   | null     | null     | null      || true
-    "the supplier is unknown"               | "OST"  | "500100" | null           | "40016"  | null     | null      || true
-    "the customer is unknown"               | "ARVE" | "500100" | null           | null     | "C10"    | null      || true
+    "the supplier is unknown"               | "OST"  | "500100" | null           | "40016"  | null     | null      || false
+    "the customer is unknown"               | "ARVE" | "500100" | null           | null     | "C10"    | null      || false
     "an object has no level"                | "OST"  | "500100" | "UNCLASSIFIED" | null     | null     | null      || true
     "nothing matches"                       | "OST"  | "500100" | "TEAM1"        | "40015"  | "C9"     | null      || false
     "only the project is unknown"           | "OST"  | "500100" | " TEAM1 , "    | null     | null     | "PRJ-NEW" || false

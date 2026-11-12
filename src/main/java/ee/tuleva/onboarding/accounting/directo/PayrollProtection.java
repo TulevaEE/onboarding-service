@@ -45,8 +45,8 @@ final class PayrollProtection {
     final String PAYROLL_ACCOUNT_PREFIX = "54";
     return row.accountCode().startsWith(PAYROLL_ACCOUNT_PREFIX)
         || payrollLiabilityAccounts.contains(row.accountCode())
-        || row.objectAndCounterpartyCodes()
-            .anyMatch(code -> objects.isEmployee(code) || !objects.isClassified(code));
+        || row.objectAndCounterpartyCodes().anyMatch(objects::isEmployee)
+        || row.objectCodes().stream().anyMatch(code -> !objects.isClassified(code));
   }
 
   private static boolean isPayrollLiability(DirectoAccount account) {

@@ -276,6 +276,23 @@ class GeneralLedgerSyncIntegrationTest {
   }
 
   @Test
+  void aFeeInvoiceToACustomerMissingFromTheObjectsIsItsOwnEntryWithItsFundObject() {
+    respondWith(
+        ACCOUNTS,
+        OBJECTS,
+        withDocument(TRANSACTIONS, A_MARCH_FEE_INVOICE_TO_A_CUSTOMER_MISSING_FROM_THE_OBJECTS));
+
+    sync.sync(ENTITY);
+
+    assertThat(rows.entriesOf(liveVersionOf("ARVE:12:2026-03-31").id()))
+        .containsExactlyInAnyOrder(
+            new EntryLine("100100", new BigDecimal("90.00"), Map.of()),
+            new EntryLine("400100", new BigDecimal("-90.00"), Map.of("fund", "FUND1")));
+    assertThat(rows.versionsOf(ENTITY, SOURCE, "PAYROLL:2026-03")).isEmpty();
+    assertThat(storedTextsContaining("30099")).isZero();
+  }
+
+  @Test
   void retaggingAnObjectRevisesTheEntryWithoutChangingTheBalance() {
     respondWith(ACCOUNTS, OBJECTS, withDocument(TRANSACTIONS, A_MARCH_PURCHASE_TAGGED_BY_OBJECTS));
     sync.sync(ENTITY);
@@ -469,6 +486,15 @@ class GeneralLedgerSyncIntegrationTest {
        "rows": [
          {"rn": 1, "account": "500100", "debitamount": 80.0000, "object": "NEW1"},
          {"rn": 2, "account": "200100", "creditamount": 80.0000}]}
+      """;
+
+  private static final String A_MARCH_FEE_INVOICE_TO_A_CUSTOMER_MISSING_FROM_THE_OBJECTS =
+      """
+      {"number": 12, "date": "2026-03-31T00:00:00", "type": "ARVE",
+       "rows": [
+         {"rn": 1, "account": "100100", "debitamount": 90.0000, "customer": "30099"},
+         {"rn": 2, "account": "400100", "creditamount": 90.0000, "object": "FUND1",
+          "customer": "30099"}]}
       """;
 
   private static final String A_MARCH_PURCHASE_TAGGED_BY_OBJECTS =

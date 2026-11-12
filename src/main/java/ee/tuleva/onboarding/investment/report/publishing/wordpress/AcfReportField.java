@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 record AcfReportField(@Nullable Object storedValue) {
 
-  private static final String NAME = "investment_report_file";
+  static final String NAME = "investment_report_file";
   private static final List<String> ATTACHMENT_ID_KEYS = List.of("ID", "id");
 
   static Map<String, Object> pageUpdate(int attachmentId) {

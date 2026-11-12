@@ -240,7 +240,7 @@ class BenchmarkCheckBuilder {
               secReturn,
               bmReturn,
               contribution,
-              benchmarkLeg.get().stalePrices()));
+              benchmarkLeg.get().stalePricesIfHeld(weight)));
     }
 
     if (totalWeight.signum() == 0) {

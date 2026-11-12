@@ -165,6 +165,28 @@ class BenchmarkCheckBuilderTest {
   }
 
   @Test
+  void anUnheldAllocationWhoseProxyIsStaleRaisesNoFlagSinceItMeasuresNothing() {
+    givenProxyCloseInBothSources(PREVIOUS_DATE, "128.65");
+    given(fundValueProvider.getLatestValue(PROXY_DEUTSCHE_BOERSE_KEY, CHECK_DATE))
+        .willReturn(Optional.of(price(PROXY_DEUTSCHE_BOERSE_KEY, PREVIOUS_DATE, "128.65")));
+    given(fundValueProvider.getLatestValue(PROXY_EODHD_KEY, CHECK_DATE))
+        .willReturn(Optional.of(price(PROXY_EODHD_KEY, PREVIOUS_DATE, "128.65")));
+
+    var result =
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE),
+                    flatHolding(DEVELOPED_MARKETS_ETF_ISIN, BigDecimal.ZERO))));
+
+    assertThat(result.securityAttributions())
+        .flatExtracting(SecurityAttribution::staleBenchmarkPrices)
+        .isEmpty();
+  }
+
+  @Test
   void aMutualFundWhoseIndexSeriesLacksItsPreviousPriceDateIsFlaggedUnderTheSeriesKey() {
     var twoDaysBefore = PREVIOUS_DATE.minusDays(1);
     given(fundValueProvider.getLatestValue(EMERGING_MARKETS_INDEX, PREVIOUS_DATE))

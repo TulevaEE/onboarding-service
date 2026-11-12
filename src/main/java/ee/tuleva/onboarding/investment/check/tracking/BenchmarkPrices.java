@@ -21,7 +21,12 @@ class BenchmarkPrices {
   private final FundValueProvider fundValueProvider;
   private final PriorityPriceProvider priorityPriceProvider;
 
-  record LegReturn(BigDecimal value, List<StaleBenchmarkPrice> stalePrices) {}
+  record LegReturn(BigDecimal value, List<StaleBenchmarkPrice> stalePrices) {
+
+    List<StaleBenchmarkPrice> stalePricesIfHeld(BigDecimal actualWeight) {
+      return actualWeight.signum() > 0 ? stalePrices : List.of();
+    }
+  }
 
   Optional<FundValue> indexValue(String key, LocalDate date) {
     return fundValueProvider.getLatestValue(key, date);

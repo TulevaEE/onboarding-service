@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.kid.performance;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCap;
 import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 

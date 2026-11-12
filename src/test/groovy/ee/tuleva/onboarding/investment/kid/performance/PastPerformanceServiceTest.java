@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.EquityCap;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import java.math.BigDecimal;
@@ -390,6 +391,36 @@ class PastPerformanceServiceTest {
                                 false,
                                 false))
                     .toList()));
+  }
+
+  @Test
+  void refusesWhenTheBenchmarkHeldAtTheEquityCapHasNoBondSeriesToBlendWith() {
+    var fund =
+        IntStream.rangeClosed(2017, 2025)
+            .mapToObj(
+                year ->
+                    aFundValue(
+                        "EE3600109435", LocalDate.of(year, 12, 29), Math.pow(1.1, year - 2017)))
+            .toList();
+    var benchmark =
+        IntStream.rangeClosed(2015, 2025)
+            .mapToObj(
+                year ->
+                    aFundValue(
+                        "MSCI_ACWI", LocalDate.of(year, 12, 29), 100 * Math.pow(1.05, year - 2015)))
+            .toList();
+    givenTheSeries(fund, LocalDate.of(2017, 3, 28), benchmark, LocalDate.of(2015, 1, 2));
+    var benchmarks =
+        new FundBenchmarks(
+            Map.of(
+                TUK75,
+                new Benchmark(
+                    "MSCI_ACWI",
+                    new EquityCap("BOND", new BigDecimal("0.75"), LocalDate.of(2019, 9, 2)))));
+
+    assertThatThrownBy(
+            () -> serviceOn(LocalDate.of(2026, 2, 10), benchmarks).pastPerformance(TUK75))
+        .isInstanceOf(PastPerformanceRefusedException.class);
   }
 
   private PastPerformanceService serviceOn(LocalDate today) {

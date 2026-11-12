@@ -37,7 +37,7 @@ public class MandateDto {
 
   @Nullable private Country address;
 
-  private String email;
+  @Nullable private String email;
 
   @Nullable private String phoneNumber;
 

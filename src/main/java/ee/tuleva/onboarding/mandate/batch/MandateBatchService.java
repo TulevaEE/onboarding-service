@@ -222,6 +222,7 @@ public class MandateBatchService {
         mandates.stream()
             .map(mandate -> mandateProcessor.getErrors(mandate).getErrors())
             .flatMap(List::stream)
+            .distinct()
             .toList();
 
     ErrorsResponse errorsResponse = new ErrorsResponse(errorResponses);

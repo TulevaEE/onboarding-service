@@ -8,9 +8,11 @@ import ee.tuleva.onboarding.mandate.MandateProcessResult
 import ee.tuleva.onboarding.mandate.MandateRepository
 import ee.tuleva.onboarding.mandate.MandateSubmissionCommand
 import ee.tuleva.onboarding.user.User
+import org.springframework.web.client.ResourceAccessException
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.MandateType.*
@@ -56,9 +58,9 @@ class MandateProcessorServiceSpec extends Specification {
     3      | null
   }
 
-  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email and phone #phoneNumber"() {
+  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email #email and phone #phoneNumber"() {
     given:
-    User user = sampleUser().phoneNumber(phoneNumber).build()
+    User user = sampleUser().email(email).phoneNumber(phoneNumber).build()
     Mandate mandate = sampleMandate()
     mandate.paymentRate = BigDecimal.valueOf(4)
     mandate.user = user
@@ -72,7 +74,7 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
       submission.paymentRate() == mandate.paymentRate &&
           submission.futureContributionFundIsin() == futureContibutionFundIsin &&
-          submission.email() == user.email &&
+          submission.email() == email &&
           submission.phoneNumber() == phoneNumber &&
           submission.fundTransferExchanges().size() == 3 &&
           submission.fundTransferExchanges().every { it.processId() != null } &&
@@ -81,7 +83,11 @@ class MandateProcessorServiceSpec extends Specification {
           submission.fundTransferExchanges()*.targetFundIsin.every { it == futureContibutionFundIsin }
     }) >> mandateResult
     where:
-    phoneNumber << ["+37255555555", null]
+    email                | phoneNumber
+    "jordan@example.com" | "+37255555555"
+    "jordan@example.com" | null
+    null                 | "+37255555555"
+    null                 | null
   }
 
   def "Start: persists the outcome success flag and error code onto the matching mandate process"() {
@@ -100,6 +106,52 @@ class MandateProcessorServiceSpec extends Specification {
     2 * mandateProcessRepository.save(_) >> { args -> args[0] }
     process.getSuccessful() == Optional.of(false)
     process.getErrorCode() == Optional.of(40551)
+  }
+
+  def "Start: a failed call to EPIS leaves the outcome unknown, so no process is recorded as rejected and the failure reaches the caller"() {
+    given:
+    Mandate mandate = sampleWithdrawalCancellationMandate()
+    mandateRepository.findById(mandate.id) >> Optional.of(mandate)
+    mandateProcessRepository.save(_) >> { args -> args[0] }
+    mandateGateway.sendMandateV2(_) >> { throw new ResourceAccessException("Connection reset") }
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    thrown(ResourceAccessException)
+    0 * mandateProcessRepository.save({ MandateProcess process -> process.isSuccessful().isPresent() })
+  }
+
+  def "Start: a legacy mandate that fails while being prepared closes the processes it already recorded as unsuccessful and is not sent"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.user = sampleUser
+    MandateProcess recordedTransfer = MandateProcess.builder().mandate(mandate).processId("1").type(TRANSFER).build()
+    int saves = 0
+    mandateProcessRepository.save(_) >> { args ->
+      if (++saves == 2) {
+        throw new IllegalStateException("database unavailable")
+      }
+      args[0]
+    }
+    mandateProcessRepository.findAllByMandate(mandate) >> [recordedTransfer]
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    noExceptionThrown()
+    0 * mandateGateway.sendMandate(_)
+    1 * mandateProcessRepository.save({ MandateProcess process -> process.is(recordedTransfer) && process.getSuccessful() == Optional.of(false) })
+  }
+
+  def "Start: a mandate that fails before any process is recorded is not sent and start still returns"() {
+    given:
+    Mandate mandate = sampleWithdrawalCancellationMandate()
+    mandateRepository.findById(mandate.id) >> Optional.empty()
+    mandateProcessRepository.findAllByMandate(mandate) >> []
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    noExceptionThrown()
+    0 * mandateGateway.sendMandateV2(_)
   }
 
   def "Start: starts processing cancellation mandate and saves mandate processes"() {
@@ -123,9 +175,9 @@ class MandateProcessorServiceSpec extends Specification {
     }) >> response
   }
 
-  def "Start: processes mandate with payment rate and saves processes, phone #phoneNumber"() {
+  def "Start: processes mandate with payment rate and saves processes, email #email and phone #phoneNumber"() {
     given:
-    User user = sampleUser().phoneNumber(phoneNumber).build()
+    User user = sampleUser().email(email).phoneNumber(phoneNumber).build()
     Mandate mandate = sampleMandateWithPaymentRate()
     mandate.address = countryFixture().build()
     mandate.user = user
@@ -141,11 +193,16 @@ class MandateProcessorServiceSpec extends Specification {
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
     1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
-      cmd.submission().phoneNumber() == phoneNumber &&
+      cmd.submission().email() == email &&
+          cmd.submission().phoneNumber() == phoneNumber &&
           cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
     }) >> response
     where:
-    phoneNumber << ["+37255555555", null]
+    email                | phoneNumber
+    "jordan@example.com" | "+37255555555"
+    "jordan@example.com" | null
+    null                 | "+37255555555"
+    null                 | null
   }
 //  def "Start: processes mandate with payment rate and saves processes"() {
 //    given:

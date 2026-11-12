@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculat
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -145,7 +146,7 @@ class BenchmarkCheckBuilderIT {
         .param("date", date)
         .param("value", new BigDecimal(value))
         .param("provider", provider)
-        .param("updatedAt", Instant.parse("2026-11-12T05:00:00Z"))
+        .param("updatedAt", Timestamp.from(Instant.parse("2026-11-12T05:00:00Z")))
         .update();
   }
 }

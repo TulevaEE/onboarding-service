@@ -23,6 +23,10 @@ class SavingsCompanyOnboarding implements CompanyOnboarding {
                   case PENDING -> State.PENDING;
                   case REJECTED -> State.REJECTED;
                   case COMPLETED -> State.COMPLETED;
+                  case CLOSED ->
+                      throw new IllegalStateException(
+                          "Company savings fund accounts cannot be closed: registryCode="
+                              + registryCode);
                 });
   }
 }

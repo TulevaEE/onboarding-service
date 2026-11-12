@@ -159,7 +159,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
           startDate,
           chartStartDate);
     }
-    ChartHistory history =
+    var history =
         rateLimitRetryTemplate.invoke(
             () ->
                 restClient
@@ -251,8 +251,8 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
       LocalDate startDate,
       LocalDate endDate,
       Instant now) {
-    BigDecimal lastPrice = information.lastPrice();
-    OffsetDateTime timestampLastPrice = information.timestampLastPrice();
+    var lastPrice = information.lastPrice();
+    var timestampLastPrice = information.timestampLastPrice();
     if (lastPrice == null
         || timestampLastPrice == null
         || information.lastPriceIndicator() != null) {
@@ -280,8 +280,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
   }
 
   private LocalDate latestFinalizedDate() {
-    ZonedDateTime nowInExchangeTimezone =
-        ZonedDateTime.now(clock).withZoneSameInstant(XETRA_TIMEZONE);
+    var nowInExchangeTimezone = ZonedDateTime.now(clock).withZoneSameInstant(XETRA_TIMEZONE);
     if (nowInExchangeTimezone.toLocalTime().isBefore(CLOSING_PRICE_FINALIZED_TIME)) {
       return nowInExchangeTimezone.toLocalDate().minusDays(2);
     }

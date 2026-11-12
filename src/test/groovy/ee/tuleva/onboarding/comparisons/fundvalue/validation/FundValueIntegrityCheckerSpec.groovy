@@ -258,6 +258,52 @@ class FundValueIntegrityCheckerSpec extends Specification {
     criticalDiscrepancies.isEmpty()
   }
 
+  def "does not report a Deutsche Börse close within half a unit of the chart feed's three decimals: #xetraClose vs EODHD #eodhdClose"() {
+    given:
+    def ticker = ISHARES_USA_ESG_SCREENED
+    LocalDate date = LocalDate.of(2026, 11, 11)
+    def xetraKey = ticker.isin + ".XETR"
+
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, eodhdClose)]
+    fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [aFundValue(xetraKey, date, xetraClose)]
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    discrepancies.isEmpty()
+
+    where:
+    eodhdClose | xetraClose
+    4.8748     | 4.875
+    4.8745     | 4.875
+    4.8745     | 4.874
+  }
+
+  def "reports CRITICAL when Deutsche Börse differs from EODHD by more than half a chart unit: #xetraClose vs EODHD #eodhdClose"() {
+    given:
+    def ticker = ISHARES_USA_ESG_SCREENED
+    LocalDate date = LocalDate.of(2026, 11, 11)
+    def xetraKey = ticker.isin + ".XETR"
+
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, date, date) >> [aFundValue(ticker.eodhdTicker, date, eodhdClose)]
+    fundValueRepository.findValuesBetweenDates(xetraKey, date, date) >> [aFundValue(xetraKey, date, xetraClose)]
+    fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, date, date) >> []
+
+    when:
+    def discrepancies = checker.checkCrossProviderIntegrity(ticker, date, date)
+
+    then:
+    discrepancies*.severity() == [Severity.CRITICAL]
+    discrepancies*.comparisonDescription() == ["EODHD vs Exchange"]
+
+    where:
+    eodhdClose | xetraClose
+    4.8748     | 4.876
+    4.8745     | 4.8754
+  }
+
   def "should skip cross-provider comparison when only one provider has data"() {
     given:
     def ticker = ISHARES_USA_ESG_SCREENED

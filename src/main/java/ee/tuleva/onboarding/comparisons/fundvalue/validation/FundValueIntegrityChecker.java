@@ -50,6 +50,7 @@ public class FundValueIntegrityChecker {
   static final int MAX_SOURCE_LAG_WORKING_DAYS = 3;
   private static final int MORNINGSTAR_SCALE = 2;
   private static final int EUFUND_SCALE = 3;
+  private static final BigDecimal HALF_UNIT_OF_THREE_DECIMAL_CHART_CLOSE = new BigDecimal("0.0005");
   private static final LocalDate CROSS_PROVIDER_CHECK_START_DATE = LocalDate.of(2026, 2, 11);
 
   private final FundValueRepository fundValueRepository;
@@ -142,7 +143,12 @@ public class FundValueIntegrityChecker {
               storageKey,
               storageKey.endsWith(".EUFUND") ? EUFUND_SCALE : DATABASE_SCALE);
       case DEUTSCHE_BOERSE ->
-          new InstrumentSource("Exchange", "Deutsche Börse", storageKey, DATABASE_SCALE);
+          new InstrumentSource(
+              "Exchange",
+              "Deutsche Börse",
+              storageKey,
+              DATABASE_SCALE,
+              HALF_UNIT_OF_THREE_DECIMAL_CHART_CLOSE);
       case EURONEXT -> new InstrumentSource("Exchange", "Euronext", storageKey, DATABASE_SCALE);
       case YAHOO -> new InstrumentSource("Yahoo", "Yahoo", storageKey, DATABASE_SCALE);
     };
@@ -209,11 +215,14 @@ public class FundValueIntegrityChecker {
     BigDecimal anchorValue = anchor.valueOn(date).setScale(scale, HALF_UP);
     BigDecimal comparedValue = compared.valueOn(date).setScale(scale, HALF_UP);
     BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
-    if (percentageDiff.compareTo(thresholdPercent) <= 0) {
+    BigDecimal difference = anchorValue.subtract(comparedValue).abs();
+    BigDecimal roundingTolerance =
+        anchor.source().roundingTolerance().max(compared.source().roundingTolerance());
+    if (percentageDiff.compareTo(thresholdPercent) <= 0
+        || difference.compareTo(roundingTolerance) <= 0) {
       return Optional.empty();
     }
     Severity severity = compared.source().name().equals("Yahoo") ? INFO : CRITICAL;
-    BigDecimal difference = anchorValue.subtract(comparedValue).abs();
     return Optional.of(
         new Discrepancy(
             instrument.getDisplayName()

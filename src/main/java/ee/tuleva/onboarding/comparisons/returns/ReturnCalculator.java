@@ -7,6 +7,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,8 @@ public class ReturnCalculator {
 
   private static final int RETURN_DECIMAL_PLACES = 4;
   private static final int CASH_DECIMAL_PLACES = 2;
+  private static final Set<String> WORLD_INDEXES_PRICED_AT_US_CLOSE =
+      Set.of(UnionStockIndexRetriever.KEY, AdjustedAcwiIndexRetriever.KEY);
 
   private final FundValueProvider fundValueProvider;
   private final PublicHolidays publicHolidays;
@@ -156,9 +160,9 @@ public class ReturnCalculator {
    * fund's NAV timing to prevent inflated simulated returns.
    *
    * <p>Fund NAVs (from EPIS/Pensionikeskus) are priced at European market close (~17:00 CET), while
-   * the comparison index (UNION_STOCK_INDEX, sourced from Morningstar) is priced at US market close
-   * (~22:00 CET). On normal days the 5-hour gap is negligible, but during crashes it can cause a
-   * significant bias:
+   * the world comparison indexes (UNION_STOCK_INDEX from Morningstar, MSCI_ACWI_ADJUSTED from MSCI)
+   * are priced at US market close (~22:00 CET). On normal days the 5-hour gap is negligible, but
+   * during crashes it can cause a significant bias:
    *
    * <p>Example: "Last year" starting Monday Apr 7, 2025 (during the tariff crash):
    *
@@ -177,14 +181,14 @@ public class ReturnCalculator {
    * business day back to align: Thursday US close (~22:00) is the last full global market close
    * BEFORE Friday's European close (~17:00), where the fund NAV is set.
    *
-   * <p>Only applies to UNION_STOCK_INDEX (sourced from Morningstar, US close). Other comparison
-   * targets (EPI, CPI, individual fund ISINs) use European-close pricing and don't need adjustment.
+   * <p>Only applies to the world indexes priced at US close. Other comparison targets (EPI, CPI,
+   * individual fund ISINs) use European-close pricing and don't need adjustment.
    *
    * @return adjusted lookup date, or null to use the default (transaction date)
    */
   private @Nullable LocalDate beginningBalanceIndexDate(
       AccountOverview accountOverview, String comparisonFund) {
-    if (!UnionStockIndexRetriever.KEY.equals(comparisonFund)) {
+    if (!WORLD_INDEXES_PRICED_AT_US_CLOSE.contains(comparisonFund)) {
       return null;
     }
     if (accountOverview.getBeginningBalance().compareTo(ZERO) == 0) {

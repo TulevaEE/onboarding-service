@@ -90,7 +90,7 @@ class PastPerformanceService {
   private static List<FundValue> heldAtTheEquityCap(
       List<FundValue> equity, List<FundValue> bond, EquityCap cap, LocalDate fundStart) {
     try {
-      return EquityCappedSeries.of(equity, bond, cap, fundStart);
+      return EquityCappedSeries.of(equity, bond, List.of(cap), fundStart);
     } catch (EquityCappedSeriesRefusedException refusal) {
       throw new PastPerformanceRefusedException(refusal);
     }

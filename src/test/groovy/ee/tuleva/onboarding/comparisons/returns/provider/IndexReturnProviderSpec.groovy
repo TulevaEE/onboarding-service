@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
@@ -57,6 +58,8 @@ class IndexReturnProviderSpec extends Specification {
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
         rateOfReturnCalculator.getSimulatedReturn(overview, CpiValueRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
+        rateOfReturnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY) >>
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
 
 
         when:
@@ -104,7 +107,45 @@ class IndexReturnProviderSpec extends Specification {
           from == earliestTransactionDate
           to == LocalDate.now()
         }
+        with(returns.returns[4]) {
+          key == AdjustedAcwiIndexRetriever.KEY
+          type == INDEX
+          rate == expectedReturn
+          amount == returnAsAmount
+          paymentsSum == payments
+          currency == EUR
+          from == earliestTransactionDate
+          to == LocalDate.now()
+        }
         returns.returns.size() == returnProvider.getKeys().size()
         returns.from == earliestTransactionDate
+    }
+
+    def "calculates only the comparison indexes the request asked for"() {
+        given:
+        def person = samplePerson()
+        def startTime = Instant.parse("2019-08-28T10:06:01Z")
+        def endTime = Instant.now()
+        def overview = AccountOverview.builder()
+            .transactions([])
+            .beginningBalance(0.0)
+            .endingBalance(0.0)
+            .startTime(startTime)
+            .endTime(endTime)
+            .beginningBalanceTime(startTime)
+            .endingBalanceTime(endTime)
+            .pillar(2)
+            .build()
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, 2) >> overview
+
+        when:
+        def returns = returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, endTime, 2, [AdjustedAcwiIndexRetriever.KEY]))
+
+        then:
+        1 * rateOfReturnCalculator.getSimulatedReturn(overview, AdjustedAcwiIndexRetriever.KEY) >>
+            new ReturnDto(0.05, 50.0, 1000.0, EUR, LocalDate.parse("2019-08-28"), LocalDate.now())
+        0 * rateOfReturnCalculator.getSimulatedReturn(_, _)
+        returns.returns*.key == [AdjustedAcwiIndexRetriever.KEY]
     }
 }

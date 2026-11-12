@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
@@ -13,12 +14,19 @@ import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class IndexReturnProvider implements ReturnProvider {
+
+  private static final List<String> COMPARISON_INDEXES =
+      List.of(
+          EpiIndex.EPI.getKey(),
+          EpiIndex.EPI_3.getKey(),
+          UnionStockIndexRetriever.KEY,
+          CpiValueRetriever.KEY,
+          AdjustedAcwiIndexRetriever.KEY);
 
   private final AccountOverviewProvider accountOverviewProvider;
   private final ReturnCalculator rateOfReturnCalculator;
@@ -30,7 +38,8 @@ public class IndexReturnProvider implements ReturnProvider {
             parameters.person(), parameters.startTime(), parameters.endTime(), parameters.pillar());
 
     List<Return> returns =
-        comparisonIndexes().stream()
+        getKeys().stream()
+            .filter(parameters.keys()::contains)
             .map(
                 comparisonIndex -> {
                   ReturnDto aReturn =
@@ -58,15 +67,6 @@ public class IndexReturnProvider implements ReturnProvider {
 
   @Override
   public List<String> getKeys() {
-    return comparisonIndexes();
-  }
-
-  @NotNull
-  private static List<String> comparisonIndexes() {
-    return List.of(
-        EpiIndex.EPI.getKey(),
-        EpiIndex.EPI_3.getKey(),
-        UnionStockIndexRetriever.KEY,
-        CpiValueRetriever.KEY);
+    return COMPARISON_INDEXES;
   }
 }

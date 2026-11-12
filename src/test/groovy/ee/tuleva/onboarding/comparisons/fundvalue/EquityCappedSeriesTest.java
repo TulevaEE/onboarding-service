@@ -30,7 +30,7 @@ class EquityCappedSeriesTest {
                 bond("2017-12-29", 50),
                 bond("2018-06-29", 49),
                 bond("2018-12-31", 55)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2017-12-29", "2018-12-31"))
@@ -47,7 +47,7 @@ class EquityCappedSeriesTest {
                 equity("2019-09-03", 99),
                 equity("2019-12-31", 121)),
             List.of(bond("2018-12-31", 50), bond("2019-09-02", 52), bond("2019-09-03", 60)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2018-12-31", "2019-12-31"))
@@ -61,7 +61,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2016-12-30", 100), equity("2017-03-28", 105), equity("2017-12-29", 126)),
             List.of(bond("2016-12-30", 50), bond("2017-03-28", 50), bond("2017-12-29", 52)),
-            CAP,
+            List.of(CAP),
             LocalDate.of(2017, 3, 28));
 
     assertThat(growth(series, "2017-03-28", "2017-12-29"))
@@ -74,7 +74,7 @@ class EquityCappedSeriesTest {
         EquityCappedSeries.of(
             List.of(equity("2019-12-31", 100), equity("2020-12-31", 90)),
             List.of(bond("2019-09-09", 53)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2019-12-31", "2020-12-31")).isCloseTo(0.9, within(1e-12));
@@ -87,7 +87,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2018-12-31", 100), equity("2019-08-30", 100), equity("2019-12-31", 110)),
             List.of(bond("2018-12-31", 100), bond("2019-08-30", 100), bond("2019-09-02", 120)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2018-12-31", "2019-12-31"))
@@ -101,7 +101,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2016-12-30", 100), equity("2017-06-30", 105), equity("2017-12-29", 110)),
             List.of(bond("2016-12-30", 50), bond("2017-01-02", 51), bond("2017-12-29", 52)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2016-12-30", "2017-12-29"))
@@ -116,7 +116,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2016-12-30", 100), equity("2017-12-29", 110), equity("2018-01-02", 111)),
             List.of(bond("2016-12-30", 50), bond("2017-12-22", 51), bond("2018-01-02", 52)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2016-12-30", "2017-12-29"))
@@ -133,7 +133,8 @@ class EquityCappedSeriesTest {
             equity("2018-01-02", 111));
     var bond = List.of(bond("2016-12-30", 50), bond("2017-12-21", 51), bond("2018-01-02", 52));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -143,7 +144,8 @@ class EquityCappedSeriesTest {
         List.of(equity("2016-12-30", 100), equity("2017-03-28", 105), equity("2017-12-29", 110));
     var bond = List.of(bond("2016-12-30", 50), bond("2017-03-17", 50), bond("2017-12-29", 52));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, LocalDate.of(2017, 3, 28)))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), LocalDate.of(2017, 3, 28)))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -154,7 +156,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2016-05-31", 100), equity("2016-06-01", 101), equity("2016-06-02", 102)),
             List.of(bond("2016-06-01", 50), bond("2016-06-02", 51)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(series)
@@ -168,7 +170,7 @@ class EquityCappedSeriesTest {
         List.of(equity("2017-12-29", 100), equity("2018-12-31", 105), equity("2019-12-31", 110));
 
     assertThatThrownBy(
-            () -> EquityCappedSeries.of(equity, List.of(), CAP, FUND_STARTED_LONG_BEFORE))
+            () -> EquityCappedSeries.of(equity, List.of(), List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -178,7 +180,8 @@ class EquityCappedSeriesTest {
         List.of(equity("2019-08-01", 100), equity("2019-09-02", 101), equity("2019-09-03", 102));
     var bond = List.of(bond("2019-08-01", 50));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -188,7 +191,8 @@ class EquityCappedSeriesTest {
         List.of(equity("2018-12-31", 100), equity("2019-08-30", 100), equity("2019-09-03", 101));
     var bond = List.of(bond("2018-12-31", 50), bond("2019-08-23", 51));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -199,7 +203,7 @@ class EquityCappedSeriesTest {
             List.of(
                 equity("2018-12-31", 100), equity("2019-08-26", 100), equity("2019-12-31", 110)),
             List.of(bond("2018-12-31", 100), bond("2019-08-26", 100), bond("2019-09-02", 120)),
-            CAP,
+            List.of(CAP),
             FUND_STARTED_LONG_BEFORE);
 
     assertThat(growth(series, "2018-12-31", "2019-12-31"))
@@ -212,7 +216,8 @@ class EquityCappedSeriesTest {
         List.of(equity("2018-12-31", 100), equity("2019-08-25", 100), equity("2019-12-31", 110));
     var bond = List.of(bond("2018-12-31", 100), bond("2019-08-25", 100), bond("2019-09-02", 120));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -222,7 +227,8 @@ class EquityCappedSeriesTest {
         List.of(equity("2017-12-29", 100), equity("2018-06-29", 0), equity("2018-12-31", 110));
     var bond = List.of(bond("2017-12-29", 50), bond("2018-06-29", 50), bond("2018-12-31", 51));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
   }
 
@@ -231,8 +237,49 @@ class EquityCappedSeriesTest {
     var equity = List.of(equity("2018-12-31", 100), equity("2019-01-02", 101));
     var bond = List.of(bond("2018-12-31", 50), bond("2019-01-02", 0));
 
-    assertThatThrownBy(() -> EquityCappedSeries.of(equity, bond, CAP, FUND_STARTED_LONG_BEFORE))
+    assertThatThrownBy(
+            () -> EquityCappedSeries.of(equity, bond, List.of(CAP), FUND_STARTED_LONG_BEFORE))
         .isInstanceOf(EquityCappedSeriesRefusedException.class);
+  }
+
+  @Test
+  void aRaisedCapRestartsTheBlendAtTheHigherEquityWeightFromTheDayItCameIntoForce() {
+    var halfInShares = new EquityCap("BOND", new BigDecimal("0.50"), LocalDate.of(2008, 11, 13));
+    var series =
+        EquityCappedSeries.of(
+            List.of(
+                equity("2007-12-31", 100),
+                equity("2008-11-13", 60),
+                equity("2008-12-31", 50),
+                equity("2009-12-31", 70)),
+            List.of(
+                bond("2007-12-31", 50),
+                bond("2008-11-13", 53),
+                bond("2008-12-31", 54),
+                bond("2009-12-31", 56)),
+            List.of(halfInShares, CAP),
+            FUND_STARTED_LONG_BEFORE);
+
+    assertThat(growth(series, "2007-12-31", "2009-12-31"))
+        .isCloseTo(
+            (0.5 * 60 / 100 + 0.5 * 53 / 50)
+                * (0.75 * 50 / 60 + 0.25 * 54 / 53)
+                * (0.75 * 70 / 50 + 0.25 * 56 / 54),
+            within(1e-12));
+  }
+
+  @Test
+  void theDayARaisedCapCameIntoForceIsStillValuedAtTheLowerWeight() {
+    var halfInShares = new EquityCap("BOND", new BigDecimal("0.50"), LocalDate.of(2008, 11, 13));
+    var series =
+        EquityCappedSeries.of(
+            List.of(equity("2007-12-31", 100), equity("2008-11-13", 60)),
+            List.of(bond("2007-12-31", 50), bond("2008-11-13", 53)),
+            List.of(halfInShares, CAP),
+            FUND_STARTED_LONG_BEFORE);
+
+    assertThat(growth(series, "2007-12-31", "2008-11-13"))
+        .isCloseTo(0.5 * 60 / 100 + 0.5 * 53 / 50, within(1e-12));
   }
 
   private static double growth(List<FundValue> series, String from, String to) {

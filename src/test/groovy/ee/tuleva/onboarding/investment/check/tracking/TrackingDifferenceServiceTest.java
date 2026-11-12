@@ -153,8 +153,7 @@ class TrackingDifferenceServiceTest {
             consecutiveBreachTracker,
             new BenchmarkCheckBuilder(
                 calculator,
-                fundValueProvider,
-                priorityPriceProvider,
+                new BenchmarkPrices(fundValueProvider, priorityPriceProvider),
                 new BenchmarkLegResolver(trackedInstruments()),
                 consecutiveBreachTracker),
             new StaleFundReturnDetector(eventRepository, fundNavQueryService, publicHolidays),
@@ -852,7 +851,8 @@ class TrackingDifferenceServiceTest {
                 ZERO,
                 new BigDecimal("0.02"),
                 null,
-                ZERO),
+                ZERO,
+                List.of()),
             new SecurityAttribution(
                 isinB,
                 new BigDecimal("0.50"),
@@ -860,7 +860,8 @@ class TrackingDifferenceServiceTest {
                 ZERO,
                 new BigDecimal("-0.02"),
                 null,
-                ZERO));
+                ZERO,
+                List.of()));
     assertThat(model.residual()).isEqualByComparingTo(ZERO);
   }
 
@@ -1630,10 +1631,10 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // IWDA.DE benchmark looked up on instrument's actual price dates
-    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", todayPriceDate))
-        .willReturn(Optional.of(fundValue("81.60")));
-    given(fundValueProvider.getLatestValue("IE00B4L5Y983.XETR", previousPriceDate))
-        .willReturn(Optional.of(fundValue("80.00")));
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", todayPriceDate))
+        .willReturn(Optional.of(fundValue("81.60", todayPriceDate)));
+    given(priorityPriceProvider.resolve("IE00B4L5Y983", previousPriceDate))
+        .willReturn(Optional.of(fundValue("80.00", previousPriceDate)));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -1715,10 +1716,12 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // IEAG.DE benchmark for Euro Aggregate bonds
-    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("105.30")));
-    given(fundValueProvider.getLatestValue("IE00B3DKXQ41.XETR", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("105.00")));
+    lenient()
+        .when(priorityPriceProvider.resolve("IE00B3DKXQ41", CHECK_DATE))
+        .thenReturn(Optional.of(fundValue("105.30", CHECK_DATE)));
+    lenient()
+        .when(priorityPriceProvider.resolve("IE00B3DKXQ41", PREVIOUS_DATE))
+        .thenReturn(Optional.of(fundValue("105.00", PREVIOUS_DATE)));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -2032,10 +2035,10 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     // EUNM.DE benchmark for EM ETF
-    given(fundValueProvider.getLatestValue("IE00B4L5YC18.XETR", CHECK_DATE))
-        .willReturn(Optional.of(fundValue("40.80")));
-    given(fundValueProvider.getLatestValue("IE00B4L5YC18.XETR", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue("40.00")));
+    given(priorityPriceProvider.resolve("IE00B4L5YC18", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("40.80", CHECK_DATE)));
+    given(priorityPriceProvider.resolve("IE00B4L5YC18", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("40.00", PREVIOUS_DATE)));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 

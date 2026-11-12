@@ -227,8 +227,47 @@ class BreachMessageFormatterTest {
     assertThat(message).doesNotContain("cancels out");
   }
 
+  @Test
+  void aHoldingMeasuredAgainstAnOutOfDateIndexPriceNamesTheMissingDateAndTheOneUsed() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(
+                List.of(
+                    benchmarkAttribution(
+                        "IE000I9HGDZ3",
+                        "0.0214",
+                        "0",
+                        List.of(
+                            new StaleBenchmarkPrice(
+                                "IE00B4L5Y983",
+                                LocalDate.of(2026, 11, 11),
+                                LocalDate.of(2026, 11, 10)))),
+                    benchmarkAttribution("IE00BKPTWY98", "0.0195", "0.0189")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message)
+        .contains(
+            "\n  IE000I9HGDZ3: instrument +2.14%, index 0.00%, contributes 0.00% to TD"
+                + " — index price out of date: IE00B4L5Y983 has no price for 2026-11-11 in any"
+                + " source, used 2026-11-10\n")
+        .containsOnlyOnce("out of date");
+  }
+
   private SecurityAttribution benchmarkAttribution(
       String isin, String securityReturn, String benchmarkReturn) {
+    return benchmarkAttribution(isin, securityReturn, benchmarkReturn, List.of());
+  }
+
+  private SecurityAttribution benchmarkAttribution(
+      String isin,
+      String securityReturn,
+      String benchmarkReturn,
+      List<StaleBenchmarkPrice> staleBenchmarkPrices) {
     return new SecurityAttribution(
         isin,
         BigDecimal.ZERO,
@@ -236,7 +275,8 @@ class BreachMessageFormatterTest {
         null,
         new BigDecimal(securityReturn),
         new BigDecimal(benchmarkReturn),
-        BigDecimal.ZERO);
+        BigDecimal.ZERO,
+        staleBenchmarkPrices);
   }
 
   @Test
@@ -367,6 +407,7 @@ class BreachMessageFormatterTest {
         new BigDecimal(weightDiff),
         new BigDecimal(securityReturn),
         null,
-        BigDecimal.ZERO);
+        BigDecimal.ZERO,
+        List.of());
   }
 }

@@ -73,6 +73,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   SecurityDataBuilder.class,
   ConsecutiveBreachTracker.class,
   BenchmarkCheckBuilder.class,
+  BenchmarkPrices.class,
   BenchmarkLegResolver.class,
   StaleFundReturnDetector.class,
   MissingNavClassifier.class,
@@ -381,7 +382,14 @@ class TrackingDifferenceServiceGapFillIT {
         .securityAttributions(
             List.of(
                 new SecurityAttribution(
-                    HELD_ISIN, BigDecimal.ONE, BigDecimal.ONE, ZERO, onePercent, null, ZERO)))
+                    HELD_ISIN,
+                    BigDecimal.ONE,
+                    BigDecimal.ONE,
+                    ZERO,
+                    onePercent,
+                    null,
+                    ZERO,
+                    List.of())))
         .cashDrag(ZERO)
         .feeDrag(ZERO)
         .residual(ZERO)

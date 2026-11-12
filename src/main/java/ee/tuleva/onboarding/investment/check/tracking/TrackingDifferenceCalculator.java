@@ -187,7 +187,14 @@ class TrackingDifferenceCalculator {
     var weightDiff = bodWeight.subtract(security.modelWeight()).setScale(SCALE, HALF_UP);
     var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
     return new SecurityAttribution(
-        isin, security.modelWeight(), bodWeight, weightDiff, secReturn, null, contribution);
+        isin,
+        security.modelWeight(),
+        bodWeight,
+        weightDiff,
+        secReturn,
+        null,
+        contribution,
+        List.of());
   }
 
   private NavResidualCheck computeNavResidual(

@@ -304,7 +304,8 @@ class TrackingDifferenceNotifier {
                       message
                           .append(formatWithinLimits(r))
                           .append(formatCountWarnings(r))
-                          .append(formatBenchmarkGap(r)));
+                          .append(formatBenchmarkGap(r))
+                          .append(SecurityAttributionSection.staleBenchmarkPriceWarnings(r)));
         });
     return message.toString();
   }
@@ -338,7 +339,8 @@ class TrackingDifferenceNotifier {
     if (verdict.escalation()) {
       return EndedStreakNotice.format(result, verdict.notificationWorkingDay())
           + formatCountWarnings(result)
-          + formatBenchmarkGap(result);
+          + formatBenchmarkGap(result)
+          + SecurityAttributionSection.staleBenchmarkPriceWarnings(result);
     }
     return formatCountWarnings(result);
   }

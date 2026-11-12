@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
+import static java.util.stream.Collectors.joining;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -45,7 +46,21 @@ class SecurityAttributionSection {
       if (cancelsOut(attr)) {
         sb.append(" — stale on both legs, cancels out — not the cause");
       }
+      attr.staleBenchmarkPrices()
+          .forEach(stale -> sb.append(" — index price out of date: ").append(stale.describe()));
     }
+  }
+
+  static String staleBenchmarkPriceWarnings(TrackingDifferenceResult result) {
+    return result.securityAttributions().stream()
+        .flatMap(
+            attribution ->
+                attribution.staleBenchmarkPrices().stream()
+                    .map(
+                        stale ->
+                            "\n  ⚠️ %s: index price out of date: %s"
+                                .formatted(attribution.isin(), stale.describe())))
+        .collect(joining());
   }
 
   private static boolean cancelsOut(SecurityAttribution attr) {

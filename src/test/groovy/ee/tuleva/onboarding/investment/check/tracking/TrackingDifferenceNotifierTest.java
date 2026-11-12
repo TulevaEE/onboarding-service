@@ -148,7 +148,8 @@ class TrackingDifferenceNotifierTest {
                 new BigDecimal("-0.05"),
                 new BigDecimal("0.02"),
                 null,
-                new BigDecimal("-0.001")),
+                new BigDecimal("-0.001"),
+                List.of()),
             new SecurityAttribution(
                 "IE00B",
                 new BigDecimal("0.20"),
@@ -156,7 +157,8 @@ class TrackingDifferenceNotifierTest {
                 new BigDecimal("0.05"),
                 new BigDecimal("-0.01"),
                 null,
-                new BigDecimal("-0.0005")),
+                new BigDecimal("-0.0005"),
+                List.of()),
             new SecurityAttribution(
                 "IE00C",
                 new BigDecimal("0.10"),
@@ -164,7 +166,8 @@ class TrackingDifferenceNotifierTest {
                 new BigDecimal("0.00"),
                 new BigDecimal("0.005"),
                 null,
-                new BigDecimal("0.0000")),
+                new BigDecimal("0.0000"),
+                List.of()),
             new SecurityAttribution(
                 "IE00D",
                 new BigDecimal("0.10"),
@@ -172,7 +175,8 @@ class TrackingDifferenceNotifierTest {
                 new BigDecimal("0.00"),
                 new BigDecimal("-0.003"),
                 null,
-                new BigDecimal("0.0000")));
+                new BigDecimal("0.0000"),
+                List.of()));
 
     var result =
         TrackingDifferenceResult.builder()
@@ -475,6 +479,50 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void withinLimitsStillNamesAHoldingMeasuredAgainstAnOutOfDateIndexPrice() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 11, 11))
+            .checkType(BENCHMARK_MODEL)
+            .trackingDifference(new BigDecimal("0.0005"))
+            .fundReturn(new BigDecimal("0.0005"))
+            .benchmarkReturn(BigDecimal.ZERO)
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .consecutiveNetTd(BigDecimal.ZERO)
+            .securityAttributions(
+                List.of(
+                    new SecurityAttribution(
+                        "IE000I9HGDZ3",
+                        null,
+                        new BigDecimal("0.25"),
+                        null,
+                        new BigDecimal("0.0005"),
+                        BigDecimal.ZERO,
+                        new BigDecimal("0.0005"),
+                        List.of(
+                            new StaleBenchmarkPrice(
+                                "IE00B4L5Y983",
+                                LocalDate.of(2026, 11, 11),
+                                LocalDate.of(2026, 11, 10))))))
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("within limits")
+        .contains(
+            "\n  ⚠️ IE000I9HGDZ3: index price out of date: IE00B4L5Y983 has no price for"
+                + " 2026-11-11 in any source, used 2026-11-10");
+  }
+
+  @Test
   void alertsWhenNavResidualBreachesEvenIfModelTdWithinLimits() {
     // NAV error whose effect offsets the model deviation: fund-vs-model TD is below threshold but
     // the navResidual breaches and blocks the NAV report — must not be reported as within limits.
@@ -562,7 +610,8 @@ class TrackingDifferenceNotifierTest {
                 null,
                 new BigDecimal("0.015"),
                 new BigDecimal("0.010"),
-                new BigDecimal("0.002")),
+                new BigDecimal("0.002"),
+                List.of()),
             new SecurityAttribution(
                 "IE00BKPTWY98",
                 null,
@@ -570,7 +619,8 @@ class TrackingDifferenceNotifierTest {
                 null,
                 new BigDecimal("0.008"),
                 new BigDecimal("0.012"),
-                new BigDecimal("-0.0008")));
+                new BigDecimal("-0.0008"),
+                List.of()));
 
     var result =
         TrackingDifferenceResult.builder()

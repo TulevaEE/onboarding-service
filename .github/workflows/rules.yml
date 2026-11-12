@@ -61,15 +61,31 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    env:
+      HAS_APP_KEY: ${{ secrets.RULES_APP_PRIVATE_KEY != '' }}
     steps:
+      - name: Skip without the rules app
+        if: env.HAS_APP_KEY != 'true' || vars.RULES_APP_ID == ''
+        run: echo "Rules app not configured; skipping"
+
+      - name: Mint a token for the rules repository
+        id: token
+        if: env.HAS_APP_KEY == 'true' && vars.RULES_APP_ID != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RULES_APP_ID }}
+          private-key: ${{ secrets.RULES_APP_PRIVATE_KEY }}
+          owner: TulevaEE
+          repositories: auto-generated-rules
+
       - name: Check the rules against this commit
+        if: steps.token.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.RULES_DISPATCH_TOKEN }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PUBLISH: ${{ github.event_name == 'push' }}
           REPO: TulevaEE/auto-generated-rules
         run: |
-          if [ -z "$GH_TOKEN" ]; then echo "No dispatch token configured; skipping"; exit 0; fi
           request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           gh workflow run generate.yml -R "$REPO" -f onboarding_sha="$SHA" -f publish="$PUBLISH" -f request_id="$request" >/dev/null
           run=""

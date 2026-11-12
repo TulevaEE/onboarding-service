@@ -294,6 +294,29 @@ class DirectoPartMapperTest {
   }
 
   @Test
+  void aFeeInvoiceToACustomerMissingFromTheObjectsIsItsOwnPartWithItsFundObject() {
+    var book =
+        mapper.map(
+            taggedBook(
+                transaction(
+                    "ARVE",
+                    "12",
+                    "2026-03-31T00:00:00",
+                    invoicedTo(row("100100", "90.0000", null), "30099"),
+                    invoicedTo(tagged(row("400100", null, "90.0000"), "FUND1"), "30099"))));
+
+    assertThat(book.parts())
+        .containsExactly(
+            part(
+                "ARVE:12:2026-03-31",
+                "ARVE",
+                "2026-03-31",
+                line("100100", "90.00"),
+                line("400100", "-90.00", Map.of("fund", "FUND1"))));
+    assertThat(book.protectedSourceKeys()).isEqualTo(Set.of());
+  }
+
+  @Test
   void anObjectAtALevelWithoutADimensionStopsTheEntity() {
     var book =
         taggedBook(
@@ -346,6 +369,18 @@ class DirectoPartMapperTest {
         row.project(),
         supplier,
         row.customer(),
+        row.date());
+  }
+
+  private static DirectoRow invoicedTo(DirectoRow row, String customer) {
+    return new DirectoRow(
+        row.account(),
+        row.debit(),
+        row.credit(),
+        row.object(),
+        row.project(),
+        row.supplier(),
+        customer,
         row.date());
   }
 

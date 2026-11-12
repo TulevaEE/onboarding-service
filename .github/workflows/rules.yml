@@ -87,7 +87,8 @@ jobs:
           REPO: TulevaEE/auto-generated-rules
         run: |
           request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          gh workflow run generate.yml -R "$REPO" -f onboarding_sha="$SHA" -f publish="$PUBLISH" -f request_id="$request" >/dev/null
+          gh api -X POST "repos/$REPO/actions/workflows/generate.yml/dispatches" \
+            -f ref=main -f "inputs[onboarding_sha]=$SHA" -f "inputs[publish]=$PUBLISH" -f "inputs[request_id]=$request" >/dev/null
           run=""
           for _ in $(seq 1 30); do
             run=$(gh run list -R "$REPO" -w generate.yml -e workflow_dispatch -L 20 --json databaseId,displayTitle \

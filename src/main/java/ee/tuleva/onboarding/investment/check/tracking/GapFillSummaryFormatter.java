@@ -45,6 +45,10 @@ final class GapFillSummaryFormatter {
     } else {
       breaches.forEach(result -> message.append(formatBreach(result)));
     }
+    alertableResults.stream()
+        .sorted(BY_DATE_FUND_AND_CHECK_TYPE)
+        .map(SecurityAttributionSection::staleBenchmarkPriceWarnings)
+        .forEach(message::append);
     return message.toString();
   }
 

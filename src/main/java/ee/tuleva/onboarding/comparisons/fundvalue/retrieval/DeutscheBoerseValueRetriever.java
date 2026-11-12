@@ -7,6 +7,7 @@ import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
@@ -16,13 +17,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -146,37 +150,40 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
 
   private List<FundValue> retrieveValuesForIsin(
       String isin, LocalDate startDate, LocalDate endDate, LocalDate cutoff) {
-    var uri = buildUri(isin, startDate, endDate);
-
-    DeutscheBoerseResponse response =
+    LocalDate chartStartDate =
+        Collections.max(List.of(startDate, firstDayChartFeedServes(endDate)));
+    if (chartStartDate.isAfter(startDate)) {
+      log.info(
+          "Deutsche Boerse chart history reaches back nine years only: isin={}, requestedStartDate={}, chartStartDate={}",
+          isin,
+          startDate,
+          chartStartDate);
+    }
+    ChartHistory history =
         rateLimitRetryTemplate.invoke(
             () ->
                 restClient
                     .get()
-                    .uri(uri)
+                    .uri(chartHistoryUri(isin, chartStartDate, endDate))
                     .accept(APPLICATION_JSON)
                     .retrieve()
-                    .body(DeutscheBoerseResponse.class));
-
-    if (response == null || response.data() == null) {
-      return List.of();
+                    .body(ChartHistory.class));
+    if (history == null) {
+      throw new IllegalStateException("Chart history returned no body: isin=" + isin);
     }
+    List<DailyClose> dailyCloses = history.dailyCloses();
 
     var storageKey = storageKey(isin);
     var now = Instant.now(clock);
+    Optional<PriceInformation> priceInformation = fetchPriceInformation(isin);
     List<FundValue> barValues =
-        response.data().stream()
-            .map(
-                priceData ->
-                    new FundValue(storageKey, priceData.date(), priceData.close(), PROVIDER, now))
+        dailyCloses.stream()
+            .map(close -> new FundValue(storageKey, close.date(), close.value(), PROVIDER, now))
             .toList();
-
-    Optional<QuoteBoxResponse> quoteBox = fetchQuoteBox(isin);
     Optional<FundValue> officialLastPrice =
-        quoteBox.flatMap(
-            quoteBoxResponse ->
-                officialLastPrice(quoteBoxResponse, storageKey, startDate, endDate, now));
-    List<FundValue> allValues = withOfficialLastPrice(barValues, officialLastPrice);
+        priceInformation.flatMap(
+            information -> officialLastPrice(information, storageKey, startDate, endDate, now));
+    List<FundValue> allValues = replacingSameDate(barValues, officialLastPrice);
 
     logLatestValue(storageKey, allValues);
 
@@ -190,31 +197,31 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
 
     boolean cutoffDayConfirmed =
         officialLastPrice.isPresent()
-            || quoteBox.filter(QuoteBoxResponse::isRetailSessionPrint).isPresent();
+            || priceInformation.filter(PriceInformation::isRetailSessionPrint).isPresent();
 
     return nonZeroValues.stream()
+        .filter(fundValue -> !fundValue.date().isBefore(startDate))
         .filter(fundValue -> !fundValue.date().isAfter(cutoff))
         .filter(fundValue -> cutoffDayConfirmed || !fundValue.date().equals(cutoff))
         .toList();
   }
 
-  private List<FundValue> withOfficialLastPrice(
-      List<FundValue> barValues, Optional<FundValue> officialLastPrice) {
-    return officialLastPrice
+  private static List<FundValue> replacingSameDate(
+      List<FundValue> values, Optional<FundValue> replacement) {
+    return replacement
         .map(
-            official ->
+            precise ->
                 Stream.concat(
-                        barValues.stream()
-                            .filter(barValue -> !barValue.date().equals(official.date())),
-                        Stream.of(official))
+                        values.stream().filter(value -> !value.date().equals(precise.date())),
+                        Stream.of(precise))
                     .toList())
-        .orElse(barValues);
+        .orElse(values);
   }
 
-  private Optional<QuoteBoxResponse> fetchQuoteBox(String isin) {
+  private Optional<PriceInformation> fetchPriceInformation(String isin) {
     var uri =
         UriComponentsBuilder.fromUriString(
-                "https://api.live.deutsche-boerse.com/v1/data/quote_box/single")
+                "https://api.live.deutsche-boerse.com/v1/data/price_information/single")
             .queryParam("isin", isin)
             .queryParam("mic", XETRA_MARKET_IDENTIFIER_CODE)
             .build()
@@ -229,33 +236,34 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
                       .uri(uri)
                       .accept(APPLICATION_JSON)
                       .retrieve()
-                      .body(QuoteBoxResponse.class)));
+                      .body(PriceInformation.class)));
     } catch (ServiceUnavailable e) {
       throw e;
     } catch (Exception e) {
-      log.warn("Failed to retrieve official last price for ISIN: {}", isin, e);
+      log.warn("Failed to retrieve price information: isin={}", isin, e);
       return Optional.empty();
     }
   }
 
   private Optional<FundValue> officialLastPrice(
-      QuoteBoxResponse response,
+      PriceInformation information,
       String storageKey,
       LocalDate startDate,
       LocalDate endDate,
       Instant now) {
-    if (response.lastPrice() == null
-        || response.timestampLastPrice() == null
-        || response.lastPriceIndicator() != null) {
+    BigDecimal lastPrice = information.lastPrice();
+    OffsetDateTime timestampLastPrice = information.timestampLastPrice();
+    if (lastPrice == null
+        || timestampLastPrice == null
+        || information.lastPriceIndicator() != null) {
       return Optional.empty();
     }
 
-    LocalDate lastPriceDate = response.timestampLastPrice().atZone(XETRA_TIMEZONE).toLocalDate();
+    LocalDate lastPriceDate = timestampLastPrice.atZoneSameInstant(XETRA_TIMEZONE).toLocalDate();
     if (lastPriceDate.isBefore(startDate) || lastPriceDate.isAfter(endDate)) {
       return Optional.empty();
     }
-    return Optional.of(
-        new FundValue(storageKey, lastPriceDate, response.lastPrice(), PROVIDER, now));
+    return Optional.of(new FundValue(storageKey, lastPriceDate, lastPrice, PROVIDER, now));
   }
 
   private void logLatestValue(String identifier, List<FundValue> values) {
@@ -280,30 +288,58 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
     return nowInExchangeTimezone.toLocalDate().minusDays(1);
   }
 
-  private String buildUri(String isin, LocalDate startDate, LocalDate endDate) {
+  private static String chartHistoryUri(String isin, LocalDate startDate, LocalDate endDate) {
     return UriComponentsBuilder.fromUriString(
-            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history")
-        .queryParam("isin", isin)
-        .queryParam("mic", XETRA_MARKET_IDENTIFIER_CODE)
-        .queryParam("minDate", startDate)
-        .queryParam("maxDate", endDate)
+            "https://api.live.deutsche-boerse.com/v1/tradingview/history")
+        .queryParam("symbol", XETRA_MARKET_IDENTIFIER_CODE + ":" + isin)
+        .queryParam("resolution", "1D")
+        .queryParam("from", startDate.atStartOfDay(XETRA_TIMEZONE).toEpochSecond())
+        .queryParam("to", endDate.plusDays(1).atStartOfDay(XETRA_TIMEZONE).toEpochSecond() - 1)
         .build()
         .toUriString();
   }
 
-  record DeutscheBoerseResponse(String isin, List<PriceData> data, Integer totalCount) {}
+  private static LocalDate firstDayChartFeedServes(LocalDate endDate) {
+    return endDate.minusYears(9);
+  }
 
-  record PriceData(
-      LocalDate date,
-      BigDecimal open,
-      BigDecimal close,
-      BigDecimal high,
-      BigDecimal low,
-      Long turnoverPieces,
-      BigDecimal turnoverEuro) {}
+  record ChartHistory(
+      @JsonProperty("s") @Nullable String status,
+      @JsonProperty("t") @Nullable List<Long> timestamps,
+      @JsonProperty("c") @Nullable List<BigDecimal> closes) {
 
-  record QuoteBoxResponse(
-      BigDecimal lastPrice, Instant timestampLastPrice, String lastPriceIndicator) {
+    List<DailyClose> dailyCloses() {
+      if ("no_data".equals(status)) {
+        return List.of();
+      }
+      if (!"ok".equals(status)
+          || timestamps == null
+          || closes == null
+          || timestamps.size() != closes.size()) {
+        throw new IllegalStateException(
+            "Chart history is malformed: status=%s, timestamps=%s, closes=%s"
+                .formatted(
+                    status,
+                    timestamps == null ? "absent" : timestamps.size(),
+                    closes == null ? "absent" : closes.size()));
+      }
+      return IntStream.range(0, timestamps.size())
+          .filter(i -> timestamps.get(i) != null && closes.get(i) != null)
+          .mapToObj(
+              i ->
+                  new DailyClose(
+                      Instant.ofEpochSecond(timestamps.get(i)).atZone(XETRA_TIMEZONE).toLocalDate(),
+                      closes.get(i)))
+          .toList();
+    }
+  }
+
+  record DailyClose(LocalDate date, BigDecimal value) {}
+
+  record PriceInformation(
+      @Nullable BigDecimal lastPrice,
+      @Nullable OffsetDateTime timestampLastPrice,
+      @Nullable String lastPriceIndicator) {
 
     boolean isRetailSessionPrint() {
       return "R".equals(lastPriceIndicator);

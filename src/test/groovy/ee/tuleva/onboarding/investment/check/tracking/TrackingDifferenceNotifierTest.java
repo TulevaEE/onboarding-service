@@ -479,47 +479,64 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
-  void withinLimitsStillNamesAHoldingMeasuredAgainstAnOutOfDateIndexPrice() {
-    var result =
-        TrackingDifferenceResult.builder()
-            .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 11, 11))
-            .checkType(BENCHMARK_MODEL)
-            .trackingDifference(new BigDecimal("0.0005"))
-            .fundReturn(new BigDecimal("0.0005"))
-            .benchmarkReturn(BigDecimal.ZERO)
-            .breach(false)
-            .consecutiveBreachDays(0)
-            .consecutiveNetTd(BigDecimal.ZERO)
-            .securityAttributions(
-                List.of(
-                    new SecurityAttribution(
-                        "IE000I9HGDZ3",
-                        null,
-                        new BigDecimal("0.25"),
-                        null,
-                        new BigDecimal("0.0005"),
-                        BigDecimal.ZERO,
-                        new BigDecimal("0.0005"),
-                        List.of(
-                            new StaleBenchmarkPrice(
-                                "IE00B4L5Y983",
-                                LocalDate.of(2026, 11, 11),
-                                LocalDate.of(2026, 11, 10))))))
-            .cashDrag(BigDecimal.ZERO)
-            .feeDrag(BigDecimal.ZERO)
-            .residual(BigDecimal.ZERO)
-            .build();
-
-    notifier.notify(List.of(result));
+  void withinLimitsFlagsAFundMeasuredAgainstAnOutOfDateIndexPriceAndNamesTheHolding() {
+    notifier.notify(List.of(withinLimitsAgainstAStaleProxyPrice()));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue())
-        .contains("within limits")
-        .contains(
-            "\n  ⚠️ IE000I9HGDZ3: index price out of date: IE00B4L5Y983 has no price for"
-                + " 2026-11-11 in any source, used 2026-11-10");
+        .startsWith("⚠️ TUK75 TD check completed: within limits")
+        .contains(STALE_PROXY_PRICE_WARNING);
+  }
+
+  @Test
+  void anOutOfDateIndexPriceOnAFundWithinLimitsStillShowsWhenAnotherFundBreaches() {
+    var otherFundBreach =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().fund(TUV100).build();
+
+    notifier.notify(List.of(withinLimitsAgainstAStaleProxyPrice(), otherFundBreach));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .startsWith("🛑 TD BREACH DETECTED\n")
+        .contains(STALE_PROXY_PRICE_WARNING);
+  }
+
+  private static final String STALE_PROXY_PRICE_WARNING =
+      "\n  ⚠️ TUK75 BENCHMARK_MODEL: IE000I9HGDZ3 index price out of date: IE00B4L5Y983 has no"
+          + " price for 2026-11-11 in any source, used 2026-11-10";
+
+  private static TrackingDifferenceResult withinLimitsAgainstAStaleProxyPrice() {
+    return TrackingDifferenceResult.builder()
+        .fund(TUK75)
+        .checkDate(LocalDate.of(2026, 11, 11))
+        .checkType(BENCHMARK_MODEL)
+        .trackingDifference(new BigDecimal("0.0005"))
+        .fundReturn(new BigDecimal("0.0005"))
+        .benchmarkReturn(BigDecimal.ZERO)
+        .breach(false)
+        .consecutiveBreachDays(0)
+        .consecutiveNetTd(BigDecimal.ZERO)
+        .securityAttributions(
+            List.of(
+                new SecurityAttribution(
+                    "IE000I9HGDZ3",
+                    null,
+                    new BigDecimal("0.25"),
+                    null,
+                    new BigDecimal("0.0005"),
+                    BigDecimal.ZERO,
+                    new BigDecimal("0.0005"),
+                    List.of(
+                        new StaleBenchmarkPrice(
+                            "IE00B4L5Y983",
+                            LocalDate.of(2026, 11, 11),
+                            LocalDate.of(2026, 11, 10))))))
+        .cashDrag(BigDecimal.ZERO)
+        .feeDrag(BigDecimal.ZERO)
+        .residual(BigDecimal.ZERO)
+        .build();
   }
 
   @Test

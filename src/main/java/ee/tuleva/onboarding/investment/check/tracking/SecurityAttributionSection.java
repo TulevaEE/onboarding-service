@@ -58,9 +58,18 @@ class SecurityAttributionSection {
                 attribution.staleBenchmarkPrices().stream()
                     .map(
                         stale ->
-                            "\n  ⚠️ %s: index price out of date: %s"
-                                .formatted(attribution.isin(), stale.describe())))
+                            "\n  ⚠️ %s %s: %s index price out of date: %s"
+                                .formatted(
+                                    result.fund().getCode(),
+                                    result.checkType(),
+                                    attribution.isin(),
+                                    stale.describe())))
         .collect(joining());
+  }
+
+  static boolean measuredAgainstAStaleBenchmarkPrice(TrackingDifferenceResult result) {
+    return result.securityAttributions().stream()
+        .anyMatch(attribution -> !attribution.staleBenchmarkPrices().isEmpty());
   }
 
   private static boolean cancelsOut(SecurityAttribution attr) {

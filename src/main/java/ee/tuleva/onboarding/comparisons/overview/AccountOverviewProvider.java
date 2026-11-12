@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.overview;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.CashFlow;
@@ -60,6 +61,8 @@ public class AccountOverviewProvider {
                     holdings(cashFlowStatement.getEndBalance(), pillarFilter), toLocalDate(endTime))
                 .orElse(endTime))
         .pillar(pillar)
+        .beginningHoldings(holdingsByFund(cashFlowStatement.getStartBalance(), pillarFilter))
+        .endingHoldings(holdingsByFund(cashFlowStatement.getEndBalance(), pillarFilter))
         .build()
         .sort();
   }
@@ -77,6 +80,12 @@ public class AccountOverviewProvider {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
+  private Map<String, BigDecimal> holdingsByFund(
+      Map<String, CashFlow> balance, Predicate<CashFlow> cashFlowFilter) {
+    return holdings(balance, cashFlowFilter).stream()
+        .collect(toMap(CashFlow::getIsin, CashFlow::getAmount, BigDecimal::add));
+  }
+
   private List<CashFlow> holdings(
       Map<String, CashFlow> balance, Predicate<CashFlow> cashFlowFilter) {
     return balance.values().stream().filter(cashFlowFilter).toList();
@@ -86,7 +95,9 @@ public class AccountOverviewProvider {
       List<CashFlow> cashFlows, Predicate<CashFlow> cashFlowFilter) {
     return cashFlows.stream()
         .filter(cashFlowFilter)
-        .map(cashFlow -> new Transaction(cashFlow.getAmount(), cashFlow.getPriceTime()))
+        .map(
+            cashFlow ->
+                new Transaction(cashFlow.getAmount(), cashFlow.getPriceTime(), cashFlow.getIsin()))
         .collect(toList()); // needs to be a mutable list for sorting later
   }
 

@@ -23,6 +23,10 @@ final class BackfillSummaryFormatter {
         .forEach(
             (fundAndCheckType, group) ->
                 message.append(formatBackfillGroup(fundAndCheckType, group)));
+    results.stream()
+        .sorted(Comparator.comparing(TrackingDifferenceResult::checkDate))
+        .map(SecurityAttributionSection::staleBenchmarkPriceWarnings)
+        .forEach(message::append);
     return message.toString();
   }
 

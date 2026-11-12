@@ -503,6 +503,30 @@ class TrackingDifferenceNotifierTest {
         .contains(STALE_PROXY_PRICE_WARNING);
   }
 
+  @Test
+  void aGapFillSummaryNamesARewrittenDayMeasuredAgainstAnOutOfDateIndexPrice() {
+    notifier.notifyGapFillSummary(
+        gapFill(withinLimitsAgainstAStaleProxyPrice(), result(false, 0, ZERO)));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("No breach on any of them.")
+        .contains(STALE_PROXY_PRICE_WARNING);
+  }
+
+  @Test
+  void aBackfillSummaryNamesABackfilledDayMeasuredAgainstAnOutOfDateIndexPrice() {
+    notifier.notifyBackfillSummary(
+        7, List.of(withinLimitsAgainstAStaleProxyPrice(), result(false, 0, ZERO)));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75 BENCHMARK_MODEL: 1 check dates")
+        .contains(STALE_PROXY_PRICE_WARNING);
+  }
+
   private static final String STALE_PROXY_PRICE_WARNING =
       "\n  ⚠️ TUK75 BENCHMARK_MODEL: IE000I9HGDZ3 index price out of date: IE00B4L5Y983 has no"
           + " price for 2026-11-11 in any source, used 2026-11-10";

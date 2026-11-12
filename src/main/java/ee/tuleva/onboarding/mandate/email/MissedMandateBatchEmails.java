@@ -53,8 +53,13 @@ public class MissedMandateBatchEmails {
             now.minus(TIME_THE_PROCESSING_POLLER_MAY_STILL_BE_COMPLETING_A_BATCH))
         .stream()
         .filter(this::acceptedByPensionikeskus)
+        .filter(MissedMandateBatchEmails::ownerHasAnEmail)
         .filter(batch -> !emailPersistenceService.hasEmailsForMandateBatch(idOf(batch)))
         .toList();
+  }
+
+  private static boolean ownerHasAnEmail(MandateBatch batch) {
+    return batch.getMandates().getFirst().getUser().getEmail() != null;
   }
 
   private boolean acceptedByPensionikeskus(MandateBatch batch) {

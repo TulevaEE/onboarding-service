@@ -25,6 +25,26 @@ public class ContactDetailsService {
     ContactDetails contactDetails = episService.getContactDetails(person);
     contactDetails.setEmail(email);
     contactDetails.setPhoneNumber(phoneNumber);
+    return save(person, contactDetails, address);
+  }
+
+  public ContactDetails updateKnownContactDetails(
+      Person person,
+      @Nullable String email,
+      @Nullable String phoneNumber,
+      @Nullable Country address) {
+    ContactDetails contactDetails = episService.getContactDetails(person);
+    if (email != null) {
+      contactDetails.setEmail(email);
+    }
+    if (phoneNumber != null) {
+      contactDetails.setPhoneNumber(phoneNumber);
+    }
+    return save(person, contactDetails, address);
+  }
+
+  private ContactDetails save(
+      Person person, ContactDetails contactDetails, @Nullable Country address) {
     if (address != null) {
       contactDetails.setAddress(address);
     }

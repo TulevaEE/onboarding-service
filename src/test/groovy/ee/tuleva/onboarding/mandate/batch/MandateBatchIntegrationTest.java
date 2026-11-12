@@ -16,8 +16,10 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN;
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -36,6 +38,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.error.response.ErrorResponse;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateProcessResult.MandateProcessOutcome;
@@ -51,7 +56,9 @@ import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.mandate.details.RejoinCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.RejoinMandateDetails;
 import ee.tuleva.onboarding.mandate.details.SelectionMandateDetails;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
+import ee.tuleva.onboarding.mandate.processor.MandateProcess;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -432,6 +439,7 @@ class MandateBatchIntegrationTest {
     batch.setFile(new byte[] {1, 2, 3});
     batch.setStatus(SIGNED);
     mandateBatchRepository.save(batch);
+    mandateRepository.findAll().forEach(this::recordAcceptedByEpis);
 
     mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(batch, Locale.ENGLISH);
     mandateBatchProcessingPoller.processQueue();
@@ -530,6 +538,100 @@ class MandateBatchIntegrationTest {
     assertThat(applicationsSentToEpis)
         .containsExactlyInAnyOrder(REJOIN, PAYMENT_RATE_CHANGE, SELECTION);
     then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void signingARejoinWithNoEmailOrPhoneOnFileStillSendsEveryApplicationToEpis() {
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    given(episService.updateContactDetails(any(), any()))
+        .willAnswer(invocation -> invocation.getArgument(1));
+    var applicationsSentToEpis = new CopyOnWriteArrayList<MandateType>();
+    given(episService.sendMandateV2(any()))
+        .willAnswer(
+            invocation -> {
+              MandateSubmissionCommand<?> command = invocation.getArgument(0);
+              applicationsSentToEpis.add(command.submission().getMandateType());
+              return new MandateProcessResult(
+                  List.of(new MandateProcessOutcome(command.processId(), true, null)));
+            });
+    var batch = createRejoinBatch();
+    var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
+    signer.setEmail(null);
+    signer.setPhoneNumber(null);
+    userRepository.save(signer);
+    given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
+        .willReturn(new byte[] {1, 2, 3});
+
+    var status =
+        mandateBatchService.finalizeMobileSignature(
+            signer.getId(), batch.getId(), mock(MobileIdSignatureSession.class), Locale.ENGLISH);
+
+    assertThat(status).isEqualTo(OUTSTANDING_TRANSACTION);
+    assertThat(applicationsSentToEpis)
+        .containsExactlyInAnyOrder(REJOIN, PAYMENT_RATE_CHANGE, SELECTION);
+    mandateBatchProcessingPoller.processQueue();
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () ->
+                then(emailService)
+                    .should()
+                    .send(any(), any(), eq(SECOND_PILLAR_REJOIN.getTemplateName(Locale.ENGLISH))));
+  }
+
+  @Test
+  void aSignedBatchWhoseApplicationsNeverReachedEpisIsReportedAsNotSentInsteadOfSigned() {
+    given(episService.getCashFlowStatement(any(), any(), any()))
+        .willReturn(new CashFlowStatement());
+    given(episService.getContactDetails(any())).willReturn(contactDetailsFixture());
+    var batch = createRejoinBatch();
+    batch.setFile(new byte[] {1, 2, 3});
+    batch.setStatus(SIGNED);
+    mandateBatchRepository.save(batch);
+    var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
+    var notSent =
+        ErrorResponse.builder()
+            .code("mandate.processing.error.not.sent")
+            .message("Mandate was not sent to EPIS")
+            .build();
+
+    assertThatThrownBy(
+            () ->
+                mandateBatchService.finalizeMobileSignature(
+                    signer.getId(),
+                    batch.getId(),
+                    mock(MobileIdSignatureSession.class),
+                    Locale.ENGLISH))
+        .isInstanceOfSatisfying(
+            MandateProcessingException.class,
+            rejection ->
+                assertThat(rejection.getErrorsResponse())
+                    .isEqualTo(new ErrorsResponse(List.of(notSent))));
+  }
+
+  private MandateBatch createRejoinBatch() {
+    restTestClient
+        .post()
+        .uri("/v1/mandate-batches")
+        .headers(headers -> headers.addAll(getHeaders()))
+        .body(
+            MandateBatchDto.builder()
+                .mandates(
+                    List.of(
+                        MandateDto.builder().details(new RejoinMandateDetails()).build(),
+                        MandateDto.builder()
+                            .details(new PaymentRateChangeMandateDetails(SIX))
+                            .build(),
+                        MandateDto.builder()
+                            .details(new SelectionMandateDetails("EE3600109435"))
+                            .build()))
+                .build())
+        .exchange()
+        .expectStatus()
+        .isOk();
+    return Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
   }
 
   @Test
@@ -749,6 +851,16 @@ class MandateBatchIntegrationTest {
                     mandateId,
                     mock(MobileIdSignatureSession.class),
                     Locale.ENGLISH));
+  }
+
+  private void recordAcceptedByEpis(Mandate mandate) {
+    mandateProcessRepository.save(
+        MandateProcess.builder()
+            .mandate(mandate)
+            .processId("accepted" + mandate.getId())
+            .type(ApplicationType.FUND_PENSION_OPENING)
+            .successful(true)
+            .build());
   }
 
   private static ApplicationSnapshot pendingRejoinFiledOn(Instant date) {

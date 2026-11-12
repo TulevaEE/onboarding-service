@@ -32,11 +32,54 @@ class ContactDetailsServiceSpec extends Specification {
     1 * episService.updateContactDetails({ person ->
       person == user
     }, { contactDetails ->
-      contactDetails.email == user.email
-      contactDetails.phoneNumber == user.phoneNumber
-      contactDetails.country == address.countryCode
+      contactDetails.email == user.email &&
+          contactDetails.phoneNumber == user.phoneNumber &&
+          contactDetails.country == address.countryCode
     })
     1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
+  }
+
+  def "updating only the known details keeps the email and phone Pensionikeskus has when we hold none"() {
+    given:
+    def user = sampleUser().build()
+    def onRecord = contactDetailsFixture()
+    def emailOnRecord = onRecord.email
+    def phoneOnRecord = onRecord.phoneNumber
+    episService.getContactDetails(user) >> onRecord
+
+    when:
+    contactDetailsService.updateKnownContactDetails(user, null, null, null)
+
+    then:
+    1 * episService.updateContactDetails(user, { contactDetails ->
+      contactDetails.email == emailOnRecord && contactDetails.phoneNumber == phoneOnRecord
+    })
+  }
+
+  def "updating only the known details writes the ones we hold"() {
+    given:
+    def user = sampleUser().build()
+    episService.getContactDetails(user) >> contactDetailsFixture()
+
+    when:
+    contactDetailsService.updateKnownContactDetails(user, "new@example.com", "+37255555555", null)
+
+    then:
+    1 * episService.updateContactDetails(user, { contactDetails ->
+      contactDetails.email == "new@example.com" && contactDetails.phoneNumber == "+37255555555"
+    })
+  }
+
+  def "a profile update that leaves out the phone clears the phone Pensionikeskus has"() {
+    given:
+    def user = sampleUser().build()
+    episService.getContactDetails(user) >> contactDetailsFixture()
+
+    when:
+    contactDetailsService.updateContactDetails(user, user.email, null, countryFixture().build())
+
+    then:
+    1 * episService.updateContactDetails(user, { contactDetails -> contactDetails.phoneNumber == null })
   }
 
   def "can get contact details with token"() {

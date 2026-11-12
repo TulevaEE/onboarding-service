@@ -136,6 +136,15 @@ class MissedMandateBatchEmailsTest {
   }
 
   @Test
+  void skipsABatchWhoseOwnerHasNoEmailToSendItTo() {
+    owner.setEmail(null);
+    owner = entityManager.merge(owner);
+    batch(SIGNED, TWO_DAYS_AGO, true);
+
+    assertThat(missedMandateBatchEmails.find(7)).isEmpty();
+  }
+
+  @Test
   void resendEmailsEachMissedBatchToItsOwnerInEstonian() {
     var missed = batch(SIGNED, TWO_DAYS_AGO, true);
     willAnswer(invocation -> emailSaved(missed))

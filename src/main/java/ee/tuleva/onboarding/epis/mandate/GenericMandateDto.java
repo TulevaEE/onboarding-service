@@ -20,7 +20,7 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
 
   @Nullable private Country address;
 
-  private String email;
+  @Nullable private String email;
 
   @Nullable private String phoneNumber;
 

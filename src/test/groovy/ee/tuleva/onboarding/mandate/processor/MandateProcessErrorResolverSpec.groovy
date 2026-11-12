@@ -32,6 +32,13 @@ class MandateProcessErrorResolverSpec extends Specification {
 
     }
 
+    def "getErrors: a signed mandate with no process on record was never sent to EPIS"() {
+        when:
+        ErrorsResponse errors = service.getErrors([])
+        then:
+        errors == ErrorsResponse.ofSingleError("mandate.processing.error.not.sent", "Mandate was not sent to EPIS")
+    }
+
     List<MandateProcess> sampleProcesses = [
             MandateProcess.builder()
                     .successful(false)

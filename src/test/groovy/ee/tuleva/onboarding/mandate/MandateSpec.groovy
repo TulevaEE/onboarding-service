@@ -79,6 +79,15 @@ class MandateSpec extends Specification {
     mandate.getPhoneNumber() == user.phoneNumber
   }
 
+  def "getEmail is null when the user has no email"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.user = sampleUser().email(null).build()
+
+    expect:
+    mandate.getEmail() == null
+  }
+
   def "getPhoneNumber is null when the user has no phone number"() {
     given:
     Mandate mandate = sampleMandate()

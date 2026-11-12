@@ -247,8 +247,8 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public String getEmail() {
-    return requireNonNull(user.getEmail(), "User missing email: mandateId=" + id);
+  public @Nullable String getEmail() {
+    return user.getEmail();
   }
 
   @JsonIgnore

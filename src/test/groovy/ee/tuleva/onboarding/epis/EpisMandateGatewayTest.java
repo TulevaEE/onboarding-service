@@ -57,14 +57,14 @@ class EpisMandateGatewayTest {
   }
 
   @Test
-  void delegatesUpdateContactDetails() {
+  void delegatesTheUpdateAfterSigningAsAnUpdateOfOnlyTheKnownDetails() {
     Person person = samplePerson();
     Country address = Country.builder().countryCode("EE").build();
 
     contacts.updateContactDetails(person, "email@tuleva.ee", "+372555", address);
 
     verify(contactDetailsService)
-        .updateContactDetails(person, "email@tuleva.ee", "+372555", address);
+        .updateKnownContactDetails(person, "email@tuleva.ee", "+372555", address);
   }
 
   @Test

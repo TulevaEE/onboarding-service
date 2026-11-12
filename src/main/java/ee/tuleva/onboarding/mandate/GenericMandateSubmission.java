@@ -12,7 +12,7 @@ public record GenericMandateSubmission<T extends MandateDetails>(
     T details,
     @Nullable Instant createdDate,
     @Nullable Country address,
-    String email,
+    @Nullable String email,
     @Nullable String phoneNumber) {
 
   public MandateType getMandateType() {

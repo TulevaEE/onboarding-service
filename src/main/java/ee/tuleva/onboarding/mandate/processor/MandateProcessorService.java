@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,12 +38,37 @@ public class MandateProcessorService {
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
     if (mandate.supportsSubmission()) {
-      final var response = mandateGateway.sendMandateV2(getMandateSubmissionCommand(mandate));
-      handleMandateProcessResult(response);
+      prepareOrRecordNotSent(mandate, this::getMandateSubmissionCommand)
+          .map(mandateGateway::sendMandateV2)
+          .ifPresent(this::handleMandateProcessResult);
     } else {
-      final var response = mandateGateway.sendMandate(getLegacyMandateSubmission(mandate));
-      handleMandateProcessResult(response);
+      prepareOrRecordNotSent(mandate, this::getLegacyMandateSubmission)
+          .map(mandateGateway::sendMandate)
+          .ifPresent(this::handleMandateProcessResult);
     }
+  }
+
+  private <T> Optional<T> prepareOrRecordNotSent(Mandate mandate, Function<Mandate, T> prepare) {
+    try {
+      return Optional.of(prepare.apply(mandate));
+    } catch (RuntimeException e) {
+      log.error(
+          "Mandate could not be prepared for EPIS and was not sent: mandateId={}",
+          mandate.getId(),
+          e);
+      closeOpenProcessesAsUnsuccessful(mandate);
+      return Optional.empty();
+    }
+  }
+
+  private void closeOpenProcessesAsUnsuccessful(Mandate mandate) {
+    mandateProcessRepository.findAllByMandate(mandate).stream()
+        .filter(process -> process.isSuccessful().isEmpty())
+        .forEach(
+            process -> {
+              process.setSuccessful(false);
+              mandateProcessRepository.save(process);
+            });
   }
 
   private LegacyMandateSubmission getLegacyMandateSubmission(Mandate mandate) {

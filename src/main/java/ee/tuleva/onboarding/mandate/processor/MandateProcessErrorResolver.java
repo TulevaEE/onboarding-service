@@ -16,6 +16,10 @@ import org.springframework.stereotype.Service;
 public class MandateProcessErrorResolver {
 
   public ErrorsResponse getErrors(List<MandateProcess> processes) {
+    if (processes.isEmpty()) {
+      return ErrorsResponse.ofSingleError(
+          "mandate.processing.error.not.sent", "Mandate was not sent to EPIS");
+    }
 
     return new ErrorsResponse(
         processes.stream()

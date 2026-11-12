@@ -26,7 +26,7 @@ class EpisMandateContacts implements MandateContacts {
       @Nullable String email,
       @Nullable String phoneNumber,
       @Nullable Country address) {
-    contactDetailsService.updateContactDetails(person, email, phoneNumber, address);
+    contactDetailsService.updateKnownContactDetails(person, email, phoneNumber, address);
   }
 
   @Override

@@ -1,47 +1,95 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
-
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LeftUnchanged;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.LinkUnknown;
+import ee.tuleva.onboarding.investment.report.publishing.wordpress.PageUpdateFailed.NotLinked;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient;
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressMediaClient.UploadResult;
-import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
+@EnableConfigurationProperties(InvestmentReportPublishingProperties.class)
 @RequiredArgsConstructor
 public class InvestmentReportPublisher {
 
   private static final int MIN_END_OF_MONTH_DAY = 25;
   private static final BigDecimal ALLOCATION_LOWER = new BigDecimal("0.985");
   private static final BigDecimal ALLOCATION_UPPER = new BigDecimal("1.015");
+  private static final String LOST_THE_LOCK_BEFORE_THE_REPOINT =
+      "The publish lost its lock, so this fund page was not repointed: fund=%s";
+  private static final String LOST_THE_LOCK_BEFORE_THE_EMAIL =
+      "The publish lost its lock after repointing the fund pages, so the reports were not"
+          + " e-mailed: month=%s";
+  private static final String UPDATE_NOT_LINKED =
+      "WordPress page update failed, so the uploaded report was not linked; link it or delete it"
+          + " from the media library: fund=%s, file=%s, cause=%s";
+  private static final String UPDATE_OUTCOME_UNKNOWN =
+      "WordPress page update did not finish in a way the page shows, so whether it links the"
+          + " uploaded report is unknown; check the fund page before deleting anything:"
+          + " fund=%s, file=%s, cause=%s";
+  private static final String UPLOAD_NOT_LINKED =
+      "Uploaded report was not linked; link it or delete it from the media library:"
+          + " fund=%s, file=%s";
 
   private final InvestmentReportDataService dataService;
   private final InvestmentReportPdfGenerator pdfGenerator;
+  private final ReportUploads reportUploads;
   private final WordPressMediaClient wordPressClient;
-  private final EmailService emailService;
+  private final NewerReportCheck newerReportCheck;
+  private final InvestmentReportMailer mailer;
+  private final InvestmentReportPublishingLock publishingLock;
+  private final InvestmentReportPublishingProperties properties;
 
-  public InvestmentReportPublishingResult publish(YearMonth month) {
-    log.info("Starting investment report publishing for month={}", month);
+  public InvestmentReportPublishingResult publish(
+      final YearMonth month, final Set<String> unrecognisedFilesToReplace) {
+    return publishingLock.whileNoOtherPublishRuns(
+        lockStillHeld ->
+            publishWhileNoOtherPublishRuns(month, unrecognisedFilesToReplace, lockStillHeld),
+        refusal -> anotherPublishIsRunning(month, refusal));
+  }
+
+  private static InvestmentReportPublishingResult anotherPublishIsRunning(
+      YearMonth month, String refusal) {
+    var error = "%s, month=%s".formatted(refusal, month);
+    log.warn("Nothing published: {}", error);
+    return abortedWithoutPublishing(List.of(error));
+  }
+
+  private InvestmentReportPublishingResult publishWhileNoOtherPublishRuns(
+      YearMonth month, Set<String> unrecognisedFilesToReplace, BooleanSupplier lockStillHeld) {
+    log.info(
+        "Starting investment report publishing: month={}, unrecognisedFilesToReplace={}",
+        month,
+        unrecognisedFilesToReplace);
 
     var navDateErrors = validateNavDates(month);
     if (!navDateErrors.isEmpty()) {
       log.warn("Pre-publish validation failed: {}", navDateErrors);
       return abortedWithoutPublishing(navDateErrors);
+    }
+
+    var fundPages =
+        newerReportCheck.reasonsNotToPublish(
+            configuredReports(), month, unrecognisedFilesToReplace);
+    if (!fundPages.refusals().isEmpty()) {
+      log.warn(
+          "Fund page check refused the publish: month={}, errors={}", month, fundPages.refusals());
+      return abortedWithoutPublishing(fundPages.refusals());
     }
 
     logQuantityWarnings(month);
@@ -57,26 +105,41 @@ public class InvestmentReportPublisher {
     }
     var pdfs = generation.pdfs();
 
-    var uploadErrors = new ArrayList<String>();
-    var uploads = uploadAllReports(month, pdfs, uploadErrors);
-    if (!uploadErrors.isEmpty()) {
-      log.warn("Uploads failed, no fund pages changed, website unchanged: {}", uploadErrors);
-      return abortedWithoutPublishing(uploadErrors);
+    var uploadProblems = new PublishProblems();
+    var uploads = reportUploads.uploadAll(month, pdfs, fundPages.linkedReports(), uploadProblems);
+    if (uploadProblems.any()) {
+      uploads.forEach(
+          (mapping, upload) ->
+              uploadProblems.addLeavingUploadUnlinked(
+                  UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+                  upload.sourceUrl()));
+      log.warn("Uploads failed, no fund pages changed: {}", uploadProblems.lines());
+      mailer.alertPartialPublish(month, Map.of(), uploadProblems);
+      return abortedWithoutPublishing(uploadProblems.lines());
     }
 
-    var repointErrors = new ArrayList<String>();
-    var publishedUrls = repointFundPages(uploads, repointErrors);
-    if (!repointErrors.isEmpty()) {
+    var repointProblems = new PublishProblems();
+    var publishedUrls =
+        repointFundPages(
+            month, unrecognisedFilesToReplace, lockStillHeld, uploads, repointProblems);
+    if (repointProblems.any()) {
       log.error(
           "Partial publish, some fund pages updated and some not: updated={}, errors={}",
           publishedUrls.keySet(),
-          repointErrors);
-      alertPartialPublish(month, publishedUrls.keySet(), repointErrors);
-      return new InvestmentReportPublishingResult(publishedUrls, false, repointErrors);
+          repointProblems.lines());
+      mailer.alertPartialPublish(month, publishedUrls, repointProblems);
+      return new InvestmentReportPublishingResult(publishedUrls, false, repointProblems.lines());
+    }
+    if (!lockStillHeld.getAsBoolean()) {
+      var lostTheLock = new PublishProblems();
+      lostTheLock.add(LOST_THE_LOCK_BEFORE_THE_EMAIL.formatted(month));
+      log.error("Pages repointed but the reports not e-mailed: {}", lostTheLock.lines());
+      mailer.alertPartialPublish(month, publishedUrls, lostTheLock);
+      return new InvestmentReportPublishingResult(publishedUrls, false, lostTheLock.lines());
     }
 
     var emailErrors = new ArrayList<String>();
-    var emailSent = emailReports(month, pdfs, emailErrors);
+    var emailSent = mailer.emailReports(month, pdfs, emailErrors);
     log.info(
         "Investment report publishing completed: publishedFunds={}, emailSent={}",
         publishedUrls.size(),
@@ -88,8 +151,12 @@ public class InvestmentReportPublisher {
     return new InvestmentReportPublishingResult(Map.of(), false, errors);
   }
 
+  private List<FundReportMapping> configuredReports() {
+    return properties.funds().stream().map(FundReportMapping::forFund).toList();
+  }
+
   private void logQuantityWarnings(YearMonth month) {
-    for (var mapping : FundReportMapping.all()) {
+    for (var mapping : configuredReports()) {
       var quantityWarnings = dataService.validateQuantities(mapping.fund(), month);
       if (!quantityWarnings.isEmpty()) {
         log.warn(
@@ -102,7 +169,7 @@ public class InvestmentReportPublisher {
     var pdfs = new LinkedHashMap<FundReportMapping, byte[]>();
     var errors = new ArrayList<String>();
     var allocationErrors = new ArrayList<String>();
-    for (var mapping : FundReportMapping.all()) {
+    for (var mapping : configuredReports()) {
       try {
         var context = dataService.getReportData(mapping.fund(), month);
         var allocationError = validateAllocation(mapping.fund().getCode(), context);
@@ -122,110 +189,66 @@ public class InvestmentReportPublisher {
     return new ReportGeneration(pdfs, errors, allocationErrors);
   }
 
-  private Map<FundReportMapping, UploadResult> uploadAllReports(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
-    var uploads = new LinkedHashMap<FundReportMapping, UploadResult>();
-    for (var entry : pdfs.entrySet()) {
-      var mapping = entry.getKey();
-      try {
-        uploads.put(
-            mapping, wordPressClient.upload(mapping.buildPdfFilename(month), entry.getValue()));
-      } catch (Exception e) {
-        log.error("WordPress upload failed for {}", mapping.fund().getCode(), e);
-        errors.add(
-            "WordPress upload failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage()));
-      }
-    }
-    return uploads;
-  }
-
   private Map<String, String> repointFundPages(
-      Map<FundReportMapping, UploadResult> uploads, List<String> errors) {
+      YearMonth month,
+      Set<String> unrecognisedFilesToReplace,
+      BooleanSupplier lockStillHeld,
+      Map<FundReportMapping, UploadResult> uploads,
+      PublishProblems problems) {
     var publishedUrls = new LinkedHashMap<String, String>();
     for (var entry : uploads.entrySet()) {
       var mapping = entry.getKey();
       var upload = entry.getValue();
+      var refusedSinceTheCheck =
+          lockStillHeld.getAsBoolean()
+              ? newerReportCheck.reasonsNotToRepoint(mapping, month, unrecognisedFilesToReplace)
+              : List.of(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
+      if (!refusedSinceTheCheck.isEmpty()) {
+        problems.addAll(refusedSinceTheCheck);
+        problems.addLeavingUploadUnlinked(
+            UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+            upload.sourceUrl());
+        continue;
+      }
       try {
-        wordPressClient.updateAcfReportField(mapping.pageSlug(), upload.attachmentId());
+        wordPressClient.updateAcfReportField(
+            mapping.pageSlug(), upload.attachmentId(), lockStillHeld);
         publishedUrls.put(mapping.fund().getCode(), upload.sourceUrl());
-      } catch (Exception e) {
-        log.error("WordPress page update failed for {}", mapping.fund().getCode(), e);
-        errors.add(
-            "WordPress page update failed for %s: %s"
-                .formatted(mapping.fund().getCode(), e.getMessage()));
+      } catch (LeftUnchanged lockLostBeforeAnyPost) {
+        problems.add(LOST_THE_LOCK_BEFORE_THE_REPOINT.formatted(mapping.fund().getCode()));
+        problems.addLeavingUploadUnlinked(
+            UPLOAD_NOT_LINKED.formatted(mapping.fund().getCode(), upload.sourceUrl()),
+            upload.sourceUrl());
+      } catch (NotLinked notLinked) {
+        problems.addLeavingUploadUnlinked(
+            UPDATE_NOT_LINKED.formatted(
+                mapping.fund().getCode(), upload.sourceUrl(), notLinked.failedBecause()),
+            upload.sourceUrl());
+      } catch (LinkUnknown linkUnknown) {
+        problems.add(
+            UPDATE_OUTCOME_UNKNOWN.formatted(
+                mapping.fund().getCode(), upload.sourceUrl(), linkUnknown.failedBecause()));
+      } catch (RuntimeException lookupFailedBeforeAnyPost) {
+        log.error(
+            "WordPress page lookup failed for {}",
+            mapping.fund().getCode(),
+            lookupFailedBeforeAnyPost);
+        problems.addLeavingUploadUnlinked(
+            UPDATE_NOT_LINKED.formatted(
+                mapping.fund().getCode(),
+                upload.sourceUrl(),
+                lookupFailedBeforeAnyPost.getClass().getSimpleName()),
+            upload.sourceUrl());
       }
     }
     return publishedUrls;
   }
 
-  private boolean emailReports(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs, List<String> errors) {
-    try {
-      var message = new MandrillMessage();
-      message.setFromEmail("funds@tuleva.ee");
-      message.setFromName("Tuleva");
-      message.setSubject("Tuleva investeeringute aruanded " + month);
-      message.setHtml(
-          "<p>Tere,</p>"
-              + "<p>Manuses on Tuleva pensionifondide investeeringute aruanded.</p>"
-              + "<p>See on automaatne kiri.</p>"
-              + "<p>Parimat,<br>Tuleva robot</p>");
-      var recipient = new Recipient();
-      recipient.setEmail("funds@tuleva.ee");
-      recipient.setType(TO);
-      message.setTo(List.of(recipient));
-      message.setAttachments(emailAttachments(month, pdfs));
-      return emailService.sendSystemEmail(message);
-    } catch (Exception e) {
-      log.error("Email send failed", e);
-      errors.add("Email send failed: " + e.getMessage());
-      return false;
-    }
-  }
-
-  private static List<MessageContent> emailAttachments(
-      YearMonth month, Map<FundReportMapping, byte[]> pdfs) {
-    var attachments = new ArrayList<MessageContent>();
-    for (var entry : pdfs.entrySet()) {
-      if (entry.getKey().includeInEmail()) {
-        var attachment = new MessageContent();
-        attachment.setName(entry.getKey().buildPdfFilename(month));
-        attachment.setType("application/pdf");
-        attachment.setContent(Base64.getEncoder().encodeToString(entry.getValue()));
-        attachments.add(attachment);
-      }
-    }
-    return attachments;
-  }
-
-  private void alertPartialPublish(
-      YearMonth month, Set<String> publishedFunds, List<String> errors) {
-    try {
-      var message = new MandrillMessage();
-      message.setFromEmail("funds@tuleva.ee");
-      message.setFromName("Tuleva");
-      message.setSubject("Investeeringute aruannete avaldamine jäi pooleli: " + month);
-      message.setText(
-          ("Investment report publish for %s left the website in a partial state.%n"
-                  + "Fund pages updated: %s%nErrors: %s%n"
-                  + "Manual attention needed to make all fund pages consistent.")
-              .formatted(month, publishedFunds, errors));
-      var recipient = new Recipient();
-      recipient.setEmail("funds@tuleva.ee");
-      recipient.setType(TO);
-      message.setTo(List.of(recipient));
-      emailService.sendSystemEmail(message);
-    } catch (Exception e) {
-      log.error("Failed to send partial-publish alert: {}", e.getMessage(), e);
-    }
-  }
-
   private List<String> validateNavDates(YearMonth month) {
-    var navDates = dataService.findNavDatesForAllFunds(month);
+    var navDates = dataService.findNavDates(properties.funds(), month);
     var errors = new ArrayList<String>();
 
-    var allFundCodes = FundReportMapping.all().stream().map(m -> m.fund().getCode()).toList();
+    var allFundCodes = properties.funds().stream().map(TulevaFund::getCode).toList();
     var missingFunds = allFundCodes.stream().filter(code -> !navDates.containsKey(code)).toList();
     if (!missingFunds.isEmpty()) {
       errors.add("No published NAV data for funds: %s (month=%s)".formatted(missingFunds, month));

@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
 import static java.lang.Integer.parseInt;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.investment.report.publishing.wordpress.WordPressSlug;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.net.URLDecoder;
 import java.time.YearMonth;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -99,15 +100,19 @@ public enum FundReportMapping {
     return mapping;
   }
 
-  public static List<FundReportMapping> all() {
-    return List.of(values());
-  }
-
   public static String estonianMonth(int month) {
     if (month < 1 || month > 12) {
       throw new IllegalArgumentException("Month must be between 1 and 12: " + month);
     }
     return ESTONIAN_MONTHS[month - 1];
+  }
+
+  public Optional<YearMonth> reportPeriodLinkedBy(String reportUrl) {
+    return reportPeriodNamedBy(filenameIn(reportUrl));
+  }
+
+  static String filenameIn(String url) {
+    return URLDecoder.decode(url.substring(url.lastIndexOf('/') + 1), UTF_8);
   }
 
   public Optional<YearMonth> reportPeriodNamedBy(String filename) {

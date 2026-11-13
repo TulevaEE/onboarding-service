@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -97,6 +98,47 @@ class CustodianPositionComparatorTest {
     assertThat(comparator.compare(TUK75, NAV_DATE))
         .get()
         .returns(true, CustodianDayComparison::matches);
+  }
+
+  @Test
+  void cashMatchesWhenTheCustodianRenamesItsCashRowAfterTheBank() {
+    givenNav(reSentNavLines());
+    givenPositions(withCashRowsOf(reSentPositions(), position(CASH, "Cash account", "738961.19")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE))
+        .get()
+        .returns(true, CustodianDayComparison::matches)
+        .returns(new BigDecimal("0.00"), CustodianDayComparison::navImpact);
+  }
+
+  @Test
+  void aCashRowReSentUnderTheNewNameBesideTheOldOneIsComparedByNameSoTheDoubleCountShows() {
+    givenNav(withNavCashOf("1477922.38"));
+    givenPositions(
+        withCashRowsOf(
+            reSentPositions(),
+            position(CASH, CASH_ACCOUNT, "738961.19"),
+            position(CASH, "Cash account", "738961.19")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE).orElseThrow().differences())
+        .containsExactly(
+            new CustodianLineDifference("Cash account", new BigDecimal("738961.19"), ZERO),
+            new CustodianLineDifference(
+                CASH_ACCOUNT, new BigDecimal("738961.19"), new BigDecimal("1477922.38")));
+  }
+
+  @Test
+  void aCashDifferenceIsReportedAsTheCashLineWhateverEitherSideCallsIt() {
+    givenNav(reSentNavLines());
+    givenPositions(withCashRowsOf(reSentPositions(), position(CASH, "Cash account", "738861.19")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE).orElseThrow().differences())
+        .containsExactly(
+            new CustodianLineDifference(
+                "Cash account", new BigDecimal("738861.19"), new BigDecimal("738961.19")));
   }
 
   // The netted cash/receivable/payable difference is +325 708 788.10, but the fund is only worth
@@ -213,6 +255,27 @@ class CustodianPositionComparatorTest {
                     ? position(CASH, CASH_ACCOUNT, null, null, null, cash)
                     : position)
         .toList();
+  }
+
+  private List<NavAccountLine> withNavCashOf(String cash) {
+    var lines = new ArrayList<NavAccountLine>();
+    lines.add(navLine("CASH", CASH_ACCOUNT, cash));
+    lines.addAll(
+        reSentNavLines().stream().filter(line -> !"CASH".equals(line.accountType())).toList());
+    return lines;
+  }
+
+  private List<FundPosition> withCashRowsOf(
+      List<FundPosition> positions, FundPosition... cashRows) {
+    var replaced =
+        new ArrayList<>(
+            positions.stream().filter(position -> position.getAccountType() != CASH).toList());
+    replaced.addAll(List.of(cashRows));
+    return replaced;
+  }
+
+  private FundPosition position(AccountType accountType, String accountName, String marketValue) {
+    return position(accountType, accountName, null, null, null, marketValue);
   }
 
   private NavAccountLine navLine(String accountType, String accountName, String marketValue) {

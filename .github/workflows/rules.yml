@@ -122,11 +122,20 @@ jobs:
           PUBLISH: ${{ github.event_name == 'push' }}
           BRANCH: ${{ github.head_ref }}
           REPO: TulevaEE/auto-generated-rules
+          READ_TOKEN: ${{ github.token }}
         run: |
           request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [ -z "$BRANCH" ] && [ "$GITHUB_EVENT_NAME" = push ]; then
+            BRANCH=$(GH_TOKEN="$READ_TOKEN" gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
+              --jq '[.[] | select(.merged_at != null) | .head.ref] | first // empty')
+          fi
           ref=main
           if [ -n "$BRANCH" ] && gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1; then
             ref="$BRANCH"
+          fi
+          if [ "$ref" != main ] && [ "$PUBLISH" = true ]; then
+            PUBLISH=false
+            echo "::warning::The rules branch $ref is not merged into main yet; merging it there publishes the docs"
           fi
           echo "Checking against the rules branch $ref"
           gh api -X POST "repos/$REPO/actions/workflows/generate.yml/dispatches" \

@@ -99,6 +99,20 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
+  void onKycCheckPerformed_keepsRejectedWhenTheRepeatedSurveyComesOutLowRisk() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED);
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(REJECTED);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
+    assertThat(applicationEvents.stream(TrackableEvent.class)).isEmpty();
+  }
+
+  @Test
   void onKycCheckPerformed_createsRecordWhenNoneExists() {
     assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).isEqualTo(Optional.empty());
 

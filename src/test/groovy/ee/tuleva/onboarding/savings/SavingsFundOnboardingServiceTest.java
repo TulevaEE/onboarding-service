@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -20,6 +21,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -110,6 +113,20 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+  }
+
+  @ParameterizedTest
+  @EnumSource(RiskLevel.class)
+  void updateOnboardingStatusIfNeeded_keepsRejectedOnboardingRejectedWhateverTheNewRiskLevel(
+      RiskLevel riskLevel) {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(REJECTED));
+    var kycCheck = new KycCheck(riskLevel, Map.of());
+
+    savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test

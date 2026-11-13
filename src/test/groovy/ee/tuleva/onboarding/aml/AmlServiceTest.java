@@ -507,8 +507,8 @@ class AmlServiceTest {
                 OCCUPATION,
                 RESIDENCY_AUTO,
                 PENSION_REGISTRY_NAME),
-            true,
-            false));
+            false,
+            true));
   }
 
   @ParameterizedTest
@@ -535,6 +535,95 @@ class AmlServiceTest {
     } else {
       verify(eventPublisher, never()).publishEvent(any(TrackableEvent.class));
     }
+  }
+
+  @Test
+  void thirdPillarMandateIsRefusedWhenTheLatestSanctionCheckFailedAfterAnEarlierCleanOne() {
+    var checks =
+        withOtherChecksPassed(
+            cleanSanctionCheck(1L, daysAgo(30)), failedSanctionCheck(2L, daysAgo(2)));
+
+    assertThat(thirdPillarMandateAllowedWith(checks)).isFalse();
+  }
+
+  @Test
+  void thirdPillarMandateIsAllowedWhenTheLatestSanctionCheckIsCleanAfterAnEarlierFailedOne() {
+    var checks =
+        withOtherChecksPassed(
+            failedSanctionCheck(1L, daysAgo(30)), cleanSanctionCheck(2L, daysAgo(2)));
+
+    assertThat(thirdPillarMandateAllowedWith(checks)).isTrue();
+  }
+
+  @Test
+  void thirdPillarMandateIsRefusedWhenTheFailedSanctionCheckWasSavedLastAtTheSameTime() {
+    var checks =
+        withOtherChecksPassed(
+            failedSanctionCheck(2L, daysAgo(2)), cleanSanctionCheck(1L, daysAgo(2)));
+
+    assertThat(thirdPillarMandateAllowedWith(checks)).isFalse();
+  }
+
+  @Test
+  void thirdPillarMandateIsRefusedWhenASanctionOverrideIsNotYetReflectedInTheLatestSanctionCheck() {
+    var checks =
+        withOtherChecksPassed(
+            failedSanctionCheck(1L, daysAgo(30)), sanctionOverride(2L, daysAgo(2)));
+
+    assertThat(thirdPillarMandateAllowedWith(checks)).isFalse();
+  }
+
+  @Test
+  void thirdPillarMandateIsRefusedWhenASanctionCheckFailsAfterAnEarlierSanctionOverride() {
+    var checks =
+        withOtherChecksPassed(
+            sanctionOverride(1L, daysAgo(30)), failedSanctionCheck(2L, daysAgo(2)));
+
+    assertThat(thirdPillarMandateAllowedWith(checks)).isFalse();
+  }
+
+  private boolean thirdPillarMandateAllowedWith(List<AmlCheck> checks) {
+    User user = User.builder().id(1L).personalCode("38888888888").build();
+    given(
+            amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+                "38888888888", aYearAgoFromTestClock))
+        .willReturn(checks);
+    given(userConversionService.getConversion(user)).willReturn(fullyConverted());
+    return amlService.allChecksPassed(user, thirdPillarMandate());
+  }
+
+  private static List<AmlCheck> withOtherChecksPassed(AmlCheck... sanctionChecks) {
+    return Stream.concat(
+            successfulChecks(
+                POLITICALLY_EXPOSED_PERSON_AUTO, SK_NAME, DOCUMENT, OCCUPATION, RESIDENCY_AUTO)
+                .stream(),
+            stream(sanctionChecks))
+        .toList();
+  }
+
+  private static AmlCheck cleanSanctionCheck(Long id, Instant createdTime) {
+    return savedCheck(SANCTION, id, createdTime).success(true).build();
+  }
+
+  private static AmlCheck failedSanctionCheck(Long id, Instant createdTime) {
+    return savedCheck(SANCTION, id, createdTime).success(false).build();
+  }
+
+  private static AmlCheck sanctionOverride(Long id, Instant createdTime) {
+    return savedCheck(SANCTION_OVERRIDE, id, createdTime).success(true).build();
+  }
+
+  private static AmlCheck.AmlCheckBuilder savedCheck(
+      AmlCheckType type, Long id, Instant createdTime) {
+    return AmlCheck.builder()
+        .id(id)
+        .personalCode("38888888888")
+        .type(type)
+        .createdTime(createdTime);
+  }
+
+  private static Instant daysAgo(int days) {
+    return FIXED_INSTANT.minus(days, ChronoUnit.DAYS);
   }
 
   private static Stream<Arguments> amlChecksRequiredMandateScenarios() {

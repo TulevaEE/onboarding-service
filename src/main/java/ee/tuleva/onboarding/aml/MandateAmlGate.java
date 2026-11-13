@@ -9,10 +9,11 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_O
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_MANUAL;
 import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
-import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION_OVERRIDE;
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -26,10 +27,22 @@ public final class MandateAmlGate {
       passed = Set.copyOf(passed);
     }
 
+    private static final Comparator<AmlCheck> SAVED_ORDER =
+        comparing(AmlCheck::getCreatedTime).thenComparing(AmlCheck::getId);
+
     static RecentChecks of(List<AmlCheck> checks) {
       return new RecentChecks(
           checks.stream().map(AmlCheck::getType).collect(toSet()),
-          checks.stream().filter(AmlCheck::isSuccess).map(AmlCheck::getType).collect(toSet()));
+          Stream.concat(
+                  checks.stream().filter(check -> check.getType() != SANCTION),
+                  latestSanctionCheck(checks))
+              .filter(AmlCheck::isSuccess)
+              .map(AmlCheck::getType)
+              .collect(toSet()));
+    }
+
+    private static Stream<AmlCheck> latestSanctionCheck(List<AmlCheck> checks) {
+      return checks.stream().filter(check -> check.getType() == SANCTION).max(SAVED_ORDER).stream();
     }
 
     boolean passedAny(AmlCheckType... types) {
@@ -43,7 +56,7 @@ public final class MandateAmlGate {
     return (checks.recorded().contains(POLITICALLY_EXPOSED_PERSON)
             || checks.passedAny(
                 POLITICALLY_EXPOSED_PERSON_AUTO, POLITICALLY_EXPOSED_PERSON_OVERRIDE))
-        && checks.passedAny(SANCTION, SANCTION_OVERRIDE)
+        && checks.passedAny(SANCTION)
         && checks.passedAny(SK_NAME, PENSION_REGISTRY_NAME)
         && checks.passedAny(DOCUMENT)
         && checks.passedAny(OCCUPATION)

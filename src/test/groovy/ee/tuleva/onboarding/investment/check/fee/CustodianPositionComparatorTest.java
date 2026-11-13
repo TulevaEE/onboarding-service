@@ -112,12 +112,12 @@ class CustodianPositionComparatorTest {
   }
 
   @Test
-  void cashRowsUnderTwoBanksNamesOnOneDayAreComparedAsTheFundsCash() {
+  void everyCashAccountOfTheFundIsComparedAsTheOneCashLine() {
     givenNav(reSentNavLines());
     givenPositions(
         withCashRowsOf(
             reSentPositions(),
-            position(CASH, "Swedbank AS", "38961.19"),
+            position(CASH, "Cash account USD", "38961.19"),
             position(CASH, CASH_ACCOUNT, "700000.00")));
     givenPositionWrittenAt(BEFORE_CALCULATION);
 

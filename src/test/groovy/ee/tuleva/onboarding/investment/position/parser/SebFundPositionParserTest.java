@@ -57,6 +57,19 @@ class SebFundPositionParserTest {
   }
 
   @Test
+  void parse_parsesTheCashRowAsCashAfterTheCustodianRenamesItWithoutTheBank() {
+    List<Map<String, Object>> rawData =
+        List.of(createDataRow("TKF100", "Cash account", "5302814.90"));
+
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
+
+    assertThat(positions)
+        .singleElement()
+        .returns(CASH, FundPosition::getAccountType)
+        .returns("Cash account", FundPosition::getAccountName);
+  }
+
+  @Test
   void parse_extractsDatesFromHeaders() {
     Map<String, Object> sentRow = new HashMap<>();
     sentRow.put("Tuleva Fondid AS", "2026-01-26");

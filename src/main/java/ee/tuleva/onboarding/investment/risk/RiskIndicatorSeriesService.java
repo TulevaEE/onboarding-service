@@ -68,7 +68,10 @@ class RiskIndicatorSeriesService {
                 srriCalculator.calculate(prices, evaluationStart, anchor), List.of());
     var points = calculated.points();
 
-    var changes = save(fund, indicatorType, sourceKeys(segments), points);
+    var sourceKeys = sourceKeys(segments);
+    var stored = pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(indicatorType, fund);
+    var changes = save(fund, indicatorType, sourceKeys, points, stored);
+    removePointsTheCurrentSourcesNoLongerProduce(stored, sourceKeys, points, evaluationStart);
     return new SeriesRefresh(
         points, changes.driftedDates(), changes.redefinitions(), calculated.skippedDates());
   }
@@ -89,9 +92,10 @@ class RiskIndicatorSeriesService {
       TulevaFund fund,
       RiskIndicatorType indicatorType,
       String sourceKeys,
-      List<ReferencePoint> points) {
+      List<ReferencePoint> points,
+      List<RiskIndicatorPoint> storedPoints) {
     var existing =
-        pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(indicatorType, fund).stream()
+        storedPoints.stream()
             .collect(Collectors.toMap(RiskIndicatorPoint::getAsOfDate, point -> point));
 
     var toSave = new ArrayList<RiskIndicatorPoint>();
@@ -101,23 +105,62 @@ class RiskIndicatorSeriesService {
       var stored = existing.get(point.date());
       if (stored == null) {
         toSave.add(newPoint(fund, indicatorType, sourceKeys, point));
-      } else if (!hasDrifted(stored, point)) {
-        continue;
-      } else if (holdingPeriodChanged(stored, point)) {
-        var redefinition = holdingPeriodRedefinition(stored, point);
-        toSave.add(applyRedefinition(stored, point, redefinition));
-        redefined.add(redefinition);
-      } else if (publishedClassChangedWhileTheMeasurementsDidNot(stored, point)) {
-        var redefinition = publicationRuleRedefinition(stored, point);
-        toSave.add(applyRedefinition(stored, point, redefinition));
-        redefined.add(redefinition);
-      } else {
-        toSave.add(applyDrift(stored, point));
-        drifted.add(point.date());
+      } else if (hasDrifted(stored, point)) {
+        var redefinition = redefinition(stored, point, sourceKeys);
+        if (redefinition == null) {
+          toSave.add(applyDrift(stored, point));
+          drifted.add(point.date());
+        } else {
+          stored.setSourceKeys(sourceKeys);
+          toSave.add(applyRedefinition(stored, point, redefinition));
+          redefined.add(redefinition);
+        }
+      } else if (!stored.getSourceKeys().equals(sourceKeys)) {
+        stored.setSourceKeys(sourceKeys);
+        toSave.add(stored);
       }
     }
     pointRepository.saveAll(toSave);
     return new StoredChanges(List.copyOf(drifted), List.copyOf(redefined));
+  }
+
+  private void removePointsTheCurrentSourcesNoLongerProduce(
+      List<RiskIndicatorPoint> storedPoints,
+      String sourceKeys,
+      List<ReferencePoint> points,
+      LocalDate evaluationStart) {
+    var produced = points.stream().map(ReferencePoint::date).collect(Collectors.toSet());
+    var obsolete =
+        storedPoints.stream()
+            .filter(point -> !point.getAsOfDate().isBefore(evaluationStart))
+            .filter(point -> !produced.contains(point.getAsOfDate()))
+            .filter(point -> !point.getSourceKeys().equals(sourceKeys))
+            .toList();
+    if (obsolete.isEmpty()) {
+      return;
+    }
+    log.info(
+        "Risk indicator points removed, the current sources produce none on their dates:"
+            + " sources={}, count={}, first={}, last={}",
+        sourceKeys,
+        obsolete.size(),
+        obsolete.getFirst().getAsOfDate(),
+        obsolete.getLast().getAsOfDate());
+    pointRepository.deleteAll(obsolete);
+  }
+
+  private @Nullable Redefinition redefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed, String sourceKeys) {
+    if (!stored.getSourceKeys().equals(sourceKeys)) {
+      return new Redefinition.Sources(recomputed.date(), stored.getSourceKeys(), sourceKeys);
+    }
+    if (holdingPeriodChanged(stored, recomputed)) {
+      return holdingPeriodRedefinition(stored, recomputed);
+    }
+    if (publishedClassChangedWhileTheMeasurementsDidNot(stored, recomputed)) {
+      return publicationRuleRedefinition(stored, recomputed);
+    }
+    return null;
   }
 
   private record StoredChanges(List<LocalDate> driftedDates, List<Redefinition> redefinitions) {}

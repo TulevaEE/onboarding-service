@@ -129,6 +129,19 @@ class SplicedPriceSeriesTest {
   }
 
   @Test
+  void refusesToContinueFromAPreviousSegmentWhoseLastCloseIsNotPositive() {
+    given(fundValueQueries.findValuesBetweenDates(INDEX, FROM, LocalDate.of(2026, 2, 28)))
+        .willReturn(
+            List.of(
+                aFundValue(INDEX, LocalDate.of(2026, 2, 26), 202.0),
+                aFundValue(INDEX, LocalDate.of(2026, 2, 27), BigDecimal.ZERO)));
+
+    assertThatThrownBy(() -> series.closes(INDEX_THEN_OWN_NAV, FROM, TO))
+        .isInstanceOf(SeriesSpliceRefusedException.class);
+    verify(fundValueQueries, never()).findValuesBetweenDates(eq(OWN_NAV), any(), any());
+  }
+
+  @Test
   void refusesALaterSegmentWhoseCloseOnThePreviousSegmentsLastCloseIsNotPositive() {
     given(fundValueQueries.findValuesBetweenDates(INDEX, FROM, LocalDate.of(2026, 2, 28)))
         .willReturn(List.of(aFundValue(INDEX, LocalDate.of(2026, 2, 27), 204.0)));

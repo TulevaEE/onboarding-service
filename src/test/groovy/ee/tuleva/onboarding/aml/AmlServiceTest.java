@@ -530,7 +530,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_MANUAL,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             true,
             false),
         Arguments.of(
@@ -550,7 +550,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_MANUAL,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             true,
             false),
         Arguments.of(
@@ -561,6 +561,30 @@ class AmlServiceTest {
                 .toList(),
             true,
             false),
+        Arguments.of(
+            successfulChecks(
+                POLITICALLY_EXPOSED_PERSON,
+                SANCTION,
+                DOCUMENT,
+                OCCUPATION,
+                RESIDENCY_AUTO,
+                PENSION_REGISTRY_NAME),
+            false,
+            true),
+        Arguments.of(
+            Stream.concat(
+                    successfulChecks(
+                        POLITICALLY_EXPOSED_PERSON,
+                        SANCTION,
+                        DOCUMENT,
+                        OCCUPATION,
+                        RESIDENCY_AUTO,
+                        PENSION_REGISTRY_NAME)
+                        .stream(),
+                    failedChecks(SK_NAME).stream())
+                .toList(),
+            false,
+            true),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON, DOCUMENT, OCCUPATION, RESIDENCY_AUTO, SK_NAME),
@@ -578,7 +602,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_AUTO,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             true,
             false));
   }

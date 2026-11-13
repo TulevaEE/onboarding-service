@@ -118,11 +118,17 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PUBLISH: ${{ github.event_name == 'push' }}
+          BRANCH: ${{ github.head_ref }}
           REPO: TulevaEE/auto-generated-rules
         run: |
           request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ref=main
+          if [ -n "$BRANCH" ] && gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1; then
+            ref="$BRANCH"
+          fi
+          echo "Checking against the rules branch $ref"
           gh api -X POST "repos/$REPO/actions/workflows/generate.yml/dispatches" \
-            -f ref=main -f "inputs[onboarding_sha]=$SHA" -f "inputs[publish]=$PUBLISH" -f "inputs[request_id]=$request" >/dev/null
+            -f "ref=$ref" -f "inputs[onboarding_sha]=$SHA" -f "inputs[publish]=$PUBLISH" -f "inputs[request_id]=$request" >/dev/null
           run=""
           for _ in $(seq 1 30); do
             run=$(gh run list -R "$REPO" -w generate.yml -e workflow_dispatch -L 20 --json databaseId,displayTitle \

@@ -41,6 +41,8 @@ class LegalEntityScreenerTest {
   private final KybCompanyDataMapper kybCompanyDataMapper = mock(KybCompanyDataMapper.class);
   private final KybScreeningService kybScreeningService = mock(KybScreeningService.class);
   private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
+  private final RelatedPersonsSanctionScreener relatedPersonsSanctionScreener =
+      mock(RelatedPersonsSanctionScreener.class);
 
   private final LegalEntityScreener screener =
       new LegalEntityScreener(
@@ -48,6 +50,7 @@ class LegalEntityScreenerTest {
           kybCompanyDataMapper,
           kybScreeningService,
           latestKybSurveyInputs,
+          relatedPersonsSanctionScreener,
           FIXED_CLOCK);
 
   @Test
@@ -117,6 +120,22 @@ class LegalEntityScreenerTest {
 
     assertThat(result).isEqualTo(checks);
     verify(kybScreeningService).screen(companyData, SUBMISSION);
+  }
+
+  @Test
+  void screenRelatedPersonsScreensTheCurrentBoardMembersAndBeneficialOwners() {
+    var boardMember = relationship("JUHL", "Jaan", "Tamm", "38501010002");
+    var founder = relationship("A", "Mari", "Asutaja", "39901010001");
+    given(
+            ariregisterClient.getActiveCompanyRelationships(
+                REGISTRY_CODE, LocalDate.now(FIXED_CLOCK)))
+        .willReturn(List.of(boardMember, founder));
+    given(ariregisterClient.getBeneficialOwners(REGISTRY_CODE)).willReturn(BENEFICIAL_OWNERS);
+
+    screener.screenRelatedPersons(REGISTRY_CODE);
+
+    verify(relatedPersonsSanctionScreener)
+        .screen(REGISTRY_CODE, List.of(boardMember), BENEFICIAL_OWNERS);
   }
 
   @Test

@@ -94,4 +94,26 @@ class KybMonitoringServiceTest {
 
     verify(eventPublisher).publishEvent(new KybMonitoringCompletedEvent(NOW));
   }
+
+  @Test
+  void screenRelatedPersonsOfAllCompaniesScreensThePeopleOfEachCompany() {
+    given(onboardedCompanies.registryCodes()).willReturn(List.of("11111111", "22222222"));
+
+    service.screenRelatedPersonsOfAllCompanies();
+
+    verify(legalEntityScreener).screenRelatedPersons("11111111");
+    verify(legalEntityScreener).screenRelatedPersons("22222222");
+  }
+
+  @Test
+  void screenRelatedPersonsOfAllCompaniesContinuesWhenOneCompanyFails() {
+    given(onboardedCompanies.registryCodes()).willReturn(List.of("11111111", "22222222"));
+    doThrow(new IllegalStateException("registry unavailable"))
+        .when(legalEntityScreener)
+        .screenRelatedPersons("11111111");
+
+    service.screenRelatedPersonsOfAllCompanies();
+
+    verify(legalEntityScreener).screenRelatedPersons("22222222");
+  }
 }

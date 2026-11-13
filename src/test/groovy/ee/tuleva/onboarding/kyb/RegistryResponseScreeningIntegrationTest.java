@@ -62,6 +62,7 @@ class RegistryResponseScreeningIntegrationTest {
             new KybCompanyDataMapper(mock(KycChecks.class)),
             screeningService,
             mock(LatestKybSurveyInputs.class),
+            mock(RelatedPersonsSanctionScreener.class),
             CLOCK);
   }
 

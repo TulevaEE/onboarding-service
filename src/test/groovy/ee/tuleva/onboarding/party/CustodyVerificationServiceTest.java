@@ -249,17 +249,39 @@ class CustodyVerificationServiceTest {
             new PopulationRegisterResult<>(
                 List.of(
                     new Guardian(
-                        PARENT, PROPERTY_CUSTODY, VALID, ALIVE), // the requester -> excluded
-                    new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE), // kept
+                        PARENT,
+                        PROPERTY_CUSTODY,
+                        VALID,
+                        ALIVE,
+                        null,
+                        null), // the requester -> excluded
+                    new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu"), // kept
+                    new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, null, null), // repeated
                     new Guardian(
-                        "60303030004", PERSONAL_CUSTODY, VALID, ALIVE), // personal care only
+                        "60303030004",
+                        PERSONAL_CUSTODY,
+                        VALID,
+                        ALIVE,
+                        null,
+                        null), // personal care only
                     new Guardian(
-                        "60404040005", PROPERTY_CUSTODY, INVALID, ALIVE), // custody not valid
+                        "60404040005",
+                        PROPERTY_CUSTODY,
+                        INVALID,
+                        ALIVE,
+                        null,
+                        null), // custody not valid
                     new Guardian(
-                        "60505050006", PROPERTY_CUSTODY, VALID, INACTIVE)), // guardian not alive
+                        "60505050006",
+                        PROPERTY_CUSTODY,
+                        VALID,
+                        INACTIVE,
+                        null,
+                        null)), // guardian not alive
                 CUSTODY_MESSAGE_ID));
 
-    assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).containsExactly(CO_PARENT);
+    assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT))
+        .containsExactly(new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu"));
   }
 
   @Test
@@ -267,7 +289,8 @@ class CustodyVerificationServiceTest {
     given(populationRegisterClient.fetchGuardians(PARENT, CHILD))
         .willReturn(
             new PopulationRegisterResult<>(
-                List.of(new Guardian(PARENT, PROPERTY_CUSTODY, VALID, ALIVE)), CUSTODY_MESSAGE_ID));
+                List.of(new Guardian(PARENT, PROPERTY_CUSTODY, VALID, ALIVE, null, null)),
+                CUSTODY_MESSAGE_ID));
 
     assertThat(service.findGuardiansWithAssetManagement(CHILD, PARENT)).isEmpty();
   }

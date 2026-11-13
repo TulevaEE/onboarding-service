@@ -16,7 +16,13 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
@@ -56,7 +62,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @Transactional
@@ -80,6 +88,10 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private UnattributedPaymentAttributionService attributionService;
   @Autowired private ParentChildLinkRepository parentChildLinkRepository;
 
+  @MockitoBean private PepAndSanctionCheckService pepAndSanctionCheckService;
+
+  private static final JsonMapper JSON = JsonMapper.builder().build();
+
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
 
@@ -92,6 +104,8 @@ class SavingsFundPaymentIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(new MatchResponse(JSON.createArrayNode(), JSON.createObjectNode()));
 
     // Create user and complete savings fund onboarding
     testUser =
@@ -461,6 +475,38 @@ class SavingsFundPaymentIntegrationTest {
 
   private boolean isOwnEntry(LedgerEntry entry) {
     return ownedPaymentIds.contains(entry.getTransaction().getExternalReference());
+  }
+
+  @Test
+  void sanctionedUnitHoldersPayment_isFrozenAndNoUnitsAreIssued() {
+    var hit = JSON.createObjectNode().put("id", "sanction-match").put("match", true);
+    hit.set(
+        "properties",
+        JSON.createObjectNode().set("topics", JSON.createArrayNode().add("sanction")));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(new MatchResponse(JSON.createArrayNode().add(hit), JSON.createObjectNode()));
+    persistXmlMessage(
+        createPaymentFromJuriTammXml(
+            "test-sanctioned", "2025092909000-9", "Payment " + testUser.getPersonalCode()),
+        NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    var paymentId = paymentRepository.findByExternalId("2025092909000-9").orElseThrow().getId();
+    ownedPaymentIds.add(paymentId);
+
+    paymentVerificationJob.runJob();
+    savingsFundReservationJob.runJob();
+    issuingJob.runJob();
+
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(FROZEN);
+    assertThat(payment.getPartyId()).isEqualTo(new PartyId(PERSON, testUser.getPersonalCode()));
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(paymentAmount);
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserUnitsAccount())).isEqualByComparingTo(ZERO);
   }
 
   @Test

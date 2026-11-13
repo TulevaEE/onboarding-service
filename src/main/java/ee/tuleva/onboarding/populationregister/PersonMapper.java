@@ -69,7 +69,9 @@ class PersonMapper {
         require(custody.otherPersonCode(), "teineIsikIsikukood"),
         toCustodyType(custody.type()),
         hasCode(custody.status(), VALID_CUSTODY_CODE) ? VALID : INVALID,
-        toStatus(custody.otherPersonStatus()));
+        toStatus(custody.otherPersonStatus()),
+        capitalizeName(custody.otherPersonFirstName()),
+        capitalizeName(custody.otherPersonLastName()));
   }
 
   private static CustodyRight toCustodyRight(Custody custody) {

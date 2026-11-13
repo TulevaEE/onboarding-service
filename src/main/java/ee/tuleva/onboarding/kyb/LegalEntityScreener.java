@@ -22,6 +22,7 @@ public class LegalEntityScreener {
   private final KybCompanyDataMapper kybCompanyDataMapper;
   private final KybScreeningService kybScreeningService;
   private final LatestKybSurveyInputs latestKybSurveyInputs;
+  private final RelatedPersonsSanctionScreener relatedPersonsSanctionScreener;
   private final Clock clock;
 
   public List<CompanyRelationship> fetchActiveRelationships(String registryCode) {
@@ -55,6 +56,13 @@ public class LegalEntityScreener {
         surveyInputs.selfCertification(),
         relationships,
         RESCREENING);
+  }
+
+  public void screenRelatedPersons(String registryCode) {
+    relatedPersonsSanctionScreener.screen(
+        registryCode,
+        fetchActiveRelationships(registryCode),
+        ariregisterClient.getBeneficialOwners(registryCode));
   }
 
   public ValidationResult validate(

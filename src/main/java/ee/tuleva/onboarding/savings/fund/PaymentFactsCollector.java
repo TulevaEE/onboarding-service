@@ -20,6 +20,7 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDE
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
@@ -31,6 +32,9 @@ import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Minor;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter;
+import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -44,6 +48,8 @@ class PaymentFactsCollector {
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
   private final ParentChildLinkService parentChildLinkService;
+  private final UserRepository userRepository;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
 
   Payment collect(
       SavingFundPayment payment,
@@ -66,8 +72,27 @@ class PaymentFactsCollector {
     if (alreadyReturned(facts)) {
       return facts;
     }
-    return facts.withOnboarding(
-        savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
+    facts =
+        facts.withOnboarding(
+            savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
+    if (alreadyReturned(facts)) {
+      return facts;
+    }
+    return facts.withScreening(screening(partyId));
+  }
+
+  private Screening screening(PartyId partyId) {
+    return switch (partyId.type()) {
+      case PERSON -> Screening.of(sanctionAndPepScreener.screeningOutcome(unitHolder(partyId)));
+      case LEGAL_ENTITY -> Screening.NOT_CHECKED;
+    };
+  }
+
+  private User unitHolder(PartyId partyId) {
+    return userRepository
+        .findByPersonalCode(partyId.code())
+        .orElseThrow(
+            () -> new IllegalStateException("Payment party user not found: party=" + partyId));
   }
 
   private static boolean alreadyReturned(Payment facts) {

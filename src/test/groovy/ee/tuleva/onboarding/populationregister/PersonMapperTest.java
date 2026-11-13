@@ -82,8 +82,17 @@ class PersonMapperTest {
 
     assertThat(PersonMapper.toGuardians(response(valid, invalid)))
         .containsExactly(
-            new Guardian("38888888888", PROPERTY_CUSTODY, VALID, ALIVE),
-            new Guardian("38888888888", PROPERTY_CUSTODY, INVALID, ALIVE));
+            new Guardian("38888888888", PROPERTY_CUSTODY, VALID, ALIVE, null, null),
+            new Guardian("38888888888", PROPERTY_CUSTODY, INVALID, ALIVE, null, null));
+  }
+
+  @Test
+  void guardianCarriesTheNameTheRegisterHoldsForThem() {
+    var custody = new Custody(code("H20"), code("H1"), "38888888888", code("E"), "KATI", "KARU");
+
+    assertThat(PersonMapper.toGuardians(response(custody)))
+        .containsExactly(
+            new Guardian("38888888888", PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu"));
   }
 
   private static PopulationRegisterPerson toPersonWithCitizenship(Citizenship citizenship) {

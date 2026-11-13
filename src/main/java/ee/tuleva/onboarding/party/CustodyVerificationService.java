@@ -43,17 +43,17 @@ public class CustodyVerificationService {
     }
   }
 
-  public List<String> findGuardiansWithAssetManagement(
+  public List<Guardian> findGuardiansWithAssetManagement(
       String childPersonalCode, String requesterPersonalCode) {
-    return populationRegisterClient
+    Map<String, Guardian> byCode = new LinkedHashMap<>();
+    populationRegisterClient
         .fetchGuardians(requesterPersonalCode, childPersonalCode)
         .data()
         .stream()
         .filter(Guardian::grantsAssetManagement)
-        .map(Guardian::personalCode)
-        .filter(guardianCode -> !guardianCode.equals(requesterPersonalCode))
-        .distinct()
-        .toList();
+        .filter(guardian -> !guardian.personalCode().equals(requesterPersonalCode))
+        .forEach(guardian -> byCode.putIfAbsent(guardian.personalCode(), guardian));
+    return List.copyOf(byCode.values());
   }
 
   public List<CustodyRight> findChildrenWithAssetManagementCustody(

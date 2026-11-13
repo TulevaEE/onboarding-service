@@ -2,15 +2,16 @@ package ee.tuleva.onboarding.kyb.screener;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_PEP;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
+import static java.util.function.Predicate.not;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.aml.sanctions.ScreenedCompany;
+import ee.tuleva.onboarding.country.EuropeanEconomicArea;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -19,11 +20,6 @@ import tools.jackson.databind.node.ArrayNode;
 @Component
 @RequiredArgsConstructor
 public class CompanySanctionScreener implements KybScreener {
-
-  static final Set<String> EU_COUNTRY_CODES =
-      Set.of(
-          "at", "be", "bg", "hr", "cy", "cz", "dk", "ee", "fi", "fr", "de", "gr", "hu", "ie", "it",
-          "lv", "lt", "lu", "mt", "nl", "pl", "pt", "ro", "sk", "si", "es", "se");
 
   private final PepAndSanctionCheckService sanctionCheckService;
 
@@ -43,8 +39,8 @@ public class CompanySanctionScreener implements KybScreener {
   }
 
   private KybCheck pepCheck(MatchResponse response) {
-    boolean hasNonEuPep = hasNonEuPepMatch(response.results());
-    return new KybCheck(COMPANY_PEP, !hasNonEuPep, buildMetadata(response));
+    boolean hasPepOutsideTheEea = hasPepMatchOutsideTheEea(response.results());
+    return new KybCheck(COMPANY_PEP, !hasPepOutsideTheEea, buildMetadata(response));
   }
 
   private boolean hasMatchWithTopic(ArrayNode results, String topicPrefix) {
@@ -61,7 +57,7 @@ public class CompanySanctionScreener implements KybScreener {
     return false;
   }
 
-  private boolean hasNonEuPepMatch(ArrayNode results) {
+  private boolean hasPepMatchOutsideTheEea(ArrayNode results) {
     for (JsonNode result : results) {
       if (!result.path("match").asBoolean(false)) {
         continue;
@@ -73,24 +69,20 @@ public class CompanySanctionScreener implements KybScreener {
           break;
         }
       }
-      if (isPep && hasNonEuCountry(result)) {
+      if (isPep && hasCountryOutsideTheEea(result)) {
         return true;
       }
     }
     return false;
   }
 
-  private boolean hasNonEuCountry(JsonNode result) {
+  private boolean hasCountryOutsideTheEea(JsonNode result) {
     var countries = result.path("properties").path("country");
-    if (countries.isEmpty()) {
-      return true;
-    }
-    for (JsonNode country : countries) {
-      if (!EU_COUNTRY_CODES.contains(country.asString().toLowerCase())) {
-        return true;
-      }
-    }
-    return false;
+    return countries.isEmpty()
+        || countries
+            .valueStream()
+            .map(JsonNode::asString)
+            .anyMatch(not(EuropeanEconomicArea::includes));
   }
 
   private Map<String, Object> buildMetadata(MatchResponse response) {

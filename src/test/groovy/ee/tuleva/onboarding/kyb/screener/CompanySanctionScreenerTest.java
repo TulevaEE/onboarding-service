@@ -7,14 +7,17 @@ import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.kyb.*;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -31,7 +34,7 @@ class CompanySanctionScreenerTest {
 
   @Test
   void noMatchesBothChecksSucceed() {
-    when(sanctionCheckService.matchCompany(any())).thenReturn(emptyResponse());
+    given(sanctionCheckService.matchCompany(any())).willReturn(emptyResponse());
     var data = companyData();
 
     var results = screener.screen(data);
@@ -43,7 +46,7 @@ class CompanySanctionScreenerTest {
 
   @Test
   void sanctionMatchFailsSanctionCheck() {
-    when(sanctionCheckService.matchCompany(any())).thenReturn(responseWithMatch("sanction", "ee"));
+    given(sanctionCheckService.matchCompany(any())).willReturn(responseWithMatch("sanction", "ee"));
     var data = companyData();
 
     var results = screener.screen(data);
@@ -54,8 +57,8 @@ class CompanySanctionScreenerTest {
   }
 
   @Test
-  void pepMatchFromEuCountryDoesNotFailPepCheck() {
-    when(sanctionCheckService.matchCompany(any())).thenReturn(responseWithMatch("role.pep", "ee"));
+  void pepMatchFromEeaCountryDoesNotFailPepCheck() {
+    given(sanctionCheckService.matchCompany(any())).willReturn(responseWithMatch("role.pep", "ee"));
     var data = companyData();
 
     var results = screener.screen(data);
@@ -65,9 +68,30 @@ class CompanySanctionScreenerTest {
     assertThat(pepCheck.get().success()).isTrue();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"no", "is", "li"})
+  void pepMatchFromAnEeaCountryOutsideTheEuDoesNotFailPepCheck(String country) {
+    var response = responseWithMatch("role.pep", country);
+    given(sanctionCheckService.matchCompany(any())).willReturn(response);
+
+    var pepChecks =
+        screener.screen(companyData()).stream().filter(c -> c.type() == COMPANY_PEP).toList();
+
+    assertThat(pepChecks)
+        .containsExactly(
+            new KybCheck(
+                COMPANY_PEP,
+                true,
+                Map.of(
+                    "results",
+                    response.results().toString(),
+                    "query",
+                    response.query().toString())));
+  }
+
   @Test
-  void pepMatchFromNonEuCountryFailsPepCheck() {
-    when(sanctionCheckService.matchCompany(any())).thenReturn(responseWithMatch("role.pep", "ru"));
+  void pepMatchFromOutsideTheEeaFailsPepCheck() {
+    given(sanctionCheckService.matchCompany(any())).willReturn(responseWithMatch("role.pep", "ru"));
     var data = companyData();
 
     var results = screener.screen(data);
@@ -78,12 +102,12 @@ class CompanySanctionScreenerTest {
   }
 
   @Test
-  void mixedPepMatchesWithNonEuCountryFailsPepCheck() {
+  void mixedPepMatchesWithOneOutsideTheEeaFailPepCheck() {
     var results1 = objectMapper.createArrayNode();
     results1.add(matchNode("role.pep", "de"));
     results1.add(matchNode("role.pep", "ru"));
-    when(sanctionCheckService.matchCompany(any()))
-        .thenReturn(new MatchResponse(results1, objectMapper.createObjectNode()));
+    given(sanctionCheckService.matchCompany(any()))
+        .willReturn(new MatchResponse(results1, objectMapper.createObjectNode()));
     var data = companyData();
 
     var results = screener.screen(data);
@@ -95,7 +119,7 @@ class CompanySanctionScreenerTest {
 
   @Test
   void sanctionMatchDoesNotAffectPepCheck() {
-    when(sanctionCheckService.matchCompany(any())).thenReturn(responseWithMatch("sanction", "ee"));
+    given(sanctionCheckService.matchCompany(any())).willReturn(responseWithMatch("sanction", "ee"));
     var data = companyData();
 
     var results = screener.screen(data);
@@ -141,8 +165,8 @@ class CompanySanctionScreenerTest {
     props.set("country", objectMapper.createArrayNode().add("ru"));
     nonMatch.set("properties", props);
     results.add(nonMatch);
-    when(sanctionCheckService.matchCompany(any()))
-        .thenReturn(new MatchResponse(results, objectMapper.createObjectNode()));
+    given(sanctionCheckService.matchCompany(any()))
+        .willReturn(new MatchResponse(results, objectMapper.createObjectNode()));
     var data = companyData();
 
     var checkResults = screener.screen(data);
@@ -154,7 +178,7 @@ class CompanySanctionScreenerTest {
   }
 
   @Test
-  void pepMatchWithNoCountryTreatedAsNonEu() {
+  void pepMatchWithNoCountryTreatedAsOutsideTheEea() {
     var results = objectMapper.createArrayNode();
     var node = objectMapper.createObjectNode();
     node.put("match", true);
@@ -163,8 +187,8 @@ class CompanySanctionScreenerTest {
     props.set("topics", objectMapper.createArrayNode().add("role.pep"));
     node.set("properties", props);
     results.add(node);
-    when(sanctionCheckService.matchCompany(any()))
-        .thenReturn(new MatchResponse(results, objectMapper.createObjectNode()));
+    given(sanctionCheckService.matchCompany(any()))
+        .willReturn(new MatchResponse(results, objectMapper.createObjectNode()));
     var data = companyData();
 
     var checkResults = screener.screen(data);

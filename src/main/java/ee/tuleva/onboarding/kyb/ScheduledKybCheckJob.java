@@ -20,4 +20,15 @@ public class ScheduledKybCheckJob {
   public void run() {
     kybMonitoringService.screenAllCompanies();
   }
+
+  @Scheduled(
+      cron = "${kyb.jobs.related-persons.cron:0 40 19 * * SUN}",
+      zone = "${kyb.jobs.monitoring.zone:Europe/Tallinn}")
+  @SchedulerLock(
+      name = "ScheduledKybCheckJob_screenRelatedPersonsWeekly",
+      lockAtMostFor = "2h",
+      lockAtLeastFor = "5m")
+  public void screenRelatedPersonsWeekly() {
+    kybMonitoringService.screenRelatedPersonsOfAllCompanies();
+  }
 }

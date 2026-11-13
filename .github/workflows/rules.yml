@@ -13,12 +13,15 @@ env:
     src/main/java/ee/tuleva/onboarding/aml/AmlService.java
     src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
     src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
+    src/main/java/ee/tuleva/onboarding/aml/ScheduledAmlCheckJob.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
     src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java
+    src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentTypeExtractor.java
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
     src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java
+    src/main/java/ee/tuleva/onboarding/country/EuropeanEconomicArea.java
     src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/FreeCashLimitChecker.java

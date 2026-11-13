@@ -55,7 +55,12 @@ class KybNasdaqCsdScreeningTest {
           FIXED_CLOCK);
   private final LegalEntityScreener screener =
       new LegalEntityScreener(
-          ariregisterClient, mapper, screeningService, latestKybSurveyInputs, FIXED_CLOCK);
+          ariregisterClient,
+          mapper,
+          screeningService,
+          latestKybSurveyInputs,
+          mock(RelatedPersonsSanctionScreener.class),
+          FIXED_CLOCK);
 
   @Test
   void nasdaqCsdRegisteredSoleOwnerOuIsNotRejectedForStructureOrOwnership() {

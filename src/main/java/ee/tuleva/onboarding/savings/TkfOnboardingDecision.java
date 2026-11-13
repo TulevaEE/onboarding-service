@@ -17,6 +17,9 @@ public final class TkfOnboardingDecision {
     if (assessment.current() == COMPLETED) {
       return COMPLETED;
     }
+    if (assessment.current() == REJECTED) {
+      return REJECTED;
+    }
     return switch (assessment.risk()) {
       case NONE, LOW -> COMPLETED;
       case MEDIUM -> PENDING;

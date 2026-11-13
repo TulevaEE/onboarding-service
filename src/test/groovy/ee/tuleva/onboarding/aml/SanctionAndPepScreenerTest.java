@@ -525,6 +525,18 @@ class SanctionAndPepScreenerTest {
   }
 
   @Test
+  void screeningOutcome_ofAUserScreensOnKycSurveyCountriesAndRecordedCitizenships() {
+    User user = savingsFundCustomer("38812121215", 5L);
+    given(kycCountryService.getCountries(5L)).willReturn(Optional.of(Countries.of("EE")));
+    givenRecordedCitizenships(user.getPersonalCode(), List.of("UA"));
+    given(pepAndSanctionCheckService.match(user, Countries.of("EE", "UA")))
+        .willReturn(sanctionAndPepMatch());
+    latestCheckIs(SANCTION, false);
+
+    assertThat(sanctionAndPepScreener.screeningOutcome(user)).isEqualTo(SANCTION_HIT);
+  }
+
+  @Test
   void screeningOutcome_isUnavailableWhenTheScreeningServiceThrows() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");

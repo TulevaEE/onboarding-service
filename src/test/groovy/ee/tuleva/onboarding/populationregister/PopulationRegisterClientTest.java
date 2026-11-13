@@ -453,8 +453,8 @@ class PopulationRegisterClientTest {
 
     assertThat(guardians)
         .containsExactly(
-            new Guardian(REQUESTER, PROPERTY_CUSTODY, VALID, ALIVE),
-            new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));
+            new Guardian(REQUESTER, PROPERTY_CUSTODY, VALID, ALIVE, null, null),
+            new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE, null, null));
     verify(store, never()).findFresh(any(), any(), any());
     verify(store, never()).save(any(), any(), any(), any());
     server.verify();
@@ -510,7 +510,7 @@ class PopulationRegisterClientTest {
     List<Guardian> guardians = client.fetchGuardians(REQUESTER, childCode).data();
 
     assertThat(guardians)
-        .containsExactly(new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE));
+        .containsExactly(new Guardian(otherGuardian, PROPERTY_CUSTODY, VALID, ALIVE, null, null));
     server.verify();
   }
 

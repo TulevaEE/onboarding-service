@@ -77,6 +77,10 @@ public class SanctionAndPepScreener {
     return Set.of();
   }
 
+  public ScreeningOutcome screeningOutcome(User user) {
+    return screeningOutcome(user, knownCountries(user));
+  }
+
   public ScreeningOutcome screeningOutcome(Person person, Set<Country> countries) {
     if (screenForSanctionAndPep(person, countries).failed()) {
       return UNAVAILABLE;

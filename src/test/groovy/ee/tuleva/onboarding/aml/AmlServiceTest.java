@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
@@ -226,37 +225,16 @@ class AmlServiceTest {
 
   @Test
   void checkUserBeforeLogin_recordsAFreshSkNameCheckWhenTheLatestOneFailed() {
-    User user =
-        User.builder()
-            .id(1L)
-            .personalCode("38888888888")
-            .firstName("Test")
-            .lastName("User")
-            .build();
-    given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
-                "38888888888", SK_NAME, aYearAgoFromTestClock))
-        .willReturn(true);
-    given(
-            amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
-                    "38888888888", SK_NAME, aYearAgoFromTestClock))
-        .willReturn(
-            Optional.of(
-                AmlCheck.builder()
-                    .personalCode("38888888888")
-                    .type(SK_NAME)
-                    .success(false)
-                    .build()));
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(false).build());
 
     amlService.checkUserBeforeLogin(user, user, null);
 
     then(amlCheckRepository)
         .should()
         .save(
-            AmlCheck.builder()
-                .personalCode("38888888888")
-                .type(SK_NAME)
+            skNameCheck()
                 .success(true)
                 .metadata(Map.of("user", new PersonImpl(user), "person", new PersonImpl(user)))
                 .build());
@@ -264,34 +242,56 @@ class AmlServiceTest {
 
   @Test
   void checkUserBeforeLogin_recordsNoSkNameCheckWhenTheLatestOnePassed() {
-    User user =
-        User.builder()
-            .id(1L)
-            .personalCode("38888888888")
-            .firstName("Test")
-            .lastName("User")
-            .build();
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(true).build());
+
+    amlService.checkUserBeforeLogin(user, user, null);
+
+    then(amlCheckRepository).should(never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void checkUserBeforeLogin_recordsNoFurtherFailingSkNameCheckWhileTheLatestOneFailed() {
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(false).build());
+
+    amlService.checkUserBeforeLogin(user, aUser("Test", "Renamed"), null);
+
+    then(amlCheckRepository).should(never()).save(any(AmlCheck.class));
+  }
+
+  private static User aUser(String firstName, String lastName) {
+    return User.builder()
+        .id(1L)
+        .personalCode("38888888888")
+        .firstName(firstName)
+        .lastName(lastName)
+        .build();
+  }
+
+  private static AmlCheck.AmlCheckBuilder skNameCheck() {
+    return AmlCheck.builder().personalCode("38888888888").type(SK_NAME);
+  }
+
+  private void givenOtherLoginChecksAlreadyRecorded() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+                "38888888888", DOCUMENT, aYearAgoFromTestClock))
+        .willReturn(true);
     given(
             amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
                 "38888888888", SK_NAME, aYearAgoFromTestClock))
         .willReturn(true);
+  }
+
+  private void givenLatestSkNameCheck(AmlCheck latest) {
     given(
             amlCheckRepository
                 .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", SK_NAME, aYearAgoFromTestClock))
-        .willReturn(
-            Optional.of(
-                AmlCheck.builder()
-                    .personalCode("38888888888")
-                    .type(SK_NAME)
-                    .success(true)
-                    .build()));
-
-    amlService.checkUserBeforeLogin(user, user, null);
-
-    then(amlCheckRepository)
-        .should(never())
-        .save(argThat((AmlCheck check) -> check.getType() == SK_NAME));
+        .willReturn(Optional.of(latest));
   }
 
   @Test

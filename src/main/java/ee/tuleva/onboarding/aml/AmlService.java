@@ -64,16 +64,24 @@ public class AmlService {
   }
 
   private void addSkNameCheck(User user, Person person) {
-    if (latestCheckIsSuccessful(user.getPersonalCode(), SK_NAME)) {
-      return;
-    }
-    addCheck(
+    AmlCheck skNameCheck =
         AmlCheck.builder()
             .personalCode(user.getPersonalCode())
             .type(SK_NAME)
             .success(personDataMatches(user, person))
             .metadata(metadata(user, person))
-            .build());
+            .build();
+    if (skNameCheckAlreadyRecorded(skNameCheck)) {
+      return;
+    }
+    addCheck(skNameCheck);
+  }
+
+  private boolean skNameCheckAlreadyRecorded(AmlCheck skNameCheck) {
+    if (skNameCheck.isSuccess()) {
+      return latestCheckIsSuccessful(skNameCheck.getPersonalCode(), SK_NAME);
+    }
+    return hasCheck(skNameCheck.getPersonalCode(), SK_NAME);
   }
 
   public Optional<AmlCheck> addContactDetailsCheckIfMissing(Person user) {

@@ -127,7 +127,7 @@ jobs:
           request="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           if [ -z "$BRANCH" ] && [ "$GITHUB_EVENT_NAME" = push ]; then
             BRANCH=$(GH_TOKEN="$READ_TOKEN" gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
-              --jq '[.[] | select(.merged_at != null) | .head.ref] | first // empty')
+              --jq '[.[] | select(.merged_at != null) | .head.ref] | first // empty') || BRANCH=""
           fi
           ref=main
           if [ -n "$BRANCH" ] && gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1; then

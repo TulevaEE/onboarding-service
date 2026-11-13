@@ -71,10 +71,7 @@ class CountryCodesSpec extends Specification {
 
     def "every AML high-risk and EEA country used by the risk views is mapped"() {
         given:
-        def required = [
-            "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
-            "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
-            "IS", "LI", "NO",
+        def required = EuropeanEconomicArea.COUNTRY_CODES + [
             "AF", "DZ", "AO", "BY", "BA", "BF", "BI", "CM", "CF", "CN", "CU", "CD", "EG", "GT",
             "GN", "GW", "HT", "IR", "IQ", "JO", "KG", "LB", "LY", "ML", "ME", "MA", "MZ", "MM",
             "NI", "NE", "NG", "KP", "PK", "PS", "RU", "RS", "SO", "SS", "SD", "SY", "TJ", "TN",

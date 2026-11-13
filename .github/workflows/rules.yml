@@ -19,6 +19,7 @@ env:
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
     src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java
+    src/main/java/ee/tuleva/onboarding/country/EuropeanEconomicArea.java
     src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
     src/main/java/ee/tuleva/onboarding/investment/check/limit/FreeCashLimitChecker.java

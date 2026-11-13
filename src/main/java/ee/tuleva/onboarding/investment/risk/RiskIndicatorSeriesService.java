@@ -274,6 +274,8 @@ class RiskIndicatorSeriesService {
             String.valueOf(stored.getObservationCount()),
             "previousSourceKeys",
             stored.getSourceKeys(),
+            "previousMetrics",
+            metricsWithoutHistory(stored),
             "newClass",
             String.valueOf(recomputed.riskClass())));
     metrics.put("driftHistory", history);
@@ -291,6 +293,12 @@ class RiskIndicatorSeriesService {
     stored.setVolatility(recomputed.volatility());
     stored.setMetrics(metrics);
     return stored;
+  }
+
+  private static Map<String, Object> metricsWithoutHistory(RiskIndicatorPoint stored) {
+    return stored.getMetrics().entrySet().stream()
+        .filter(entry -> !entry.getKey().equals("driftHistory"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   @SuppressWarnings("unchecked")

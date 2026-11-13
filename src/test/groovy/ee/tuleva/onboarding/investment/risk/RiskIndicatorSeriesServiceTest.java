@@ -163,13 +163,22 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(history(stored))
         .containsExactly(
             Map.of(
-                "detectedAt", ANCHOR.toString(),
-                "kind", "SOURCES",
-                "previousClass", "1",
-                "previousVolatility", "0.999",
-                "previousObservationCount", "1",
-                "previousSourceKeys", ACWI,
-                "newClass", String.valueOf(stored.getRiskClass())));
+                "detectedAt",
+                ANCHOR.toString(),
+                "kind",
+                "SOURCES",
+                "previousClass",
+                "1",
+                "previousVolatility",
+                "0.999",
+                "previousObservationCount",
+                "1",
+                "previousSourceKeys",
+                ACWI,
+                "previousMetrics",
+                Map.of("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD),
+                "newClass",
+                String.valueOf(stored.getRiskClass())));
   }
 
   @Test
@@ -256,7 +265,33 @@ class RiskIndicatorSeriesServiceTest {
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
     assertThat(history(stored))
         .singleElement()
-        .satisfies(entry -> assertThat(entry).containsEntry("kind", "HOLDING_PERIOD"));
+        .satisfies(
+            entry ->
+                assertThat(entry)
+                    .containsEntry("kind", "HOLDING_PERIOD")
+                    .containsEntry("previousMetrics", Map.of("holdingPeriodTradingDays", "1300")));
+  }
+
+  @Test
+  void everyRecalculationKeepsTheMetricsThePointHeldBeforeItInItsHistory() {
+    var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
+    givenPrices(prices);
+    var stored = storedPoint(Map.of("holdingPeriodTradingDays", "1300", "dailySigma", "0.5"));
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of(stored));
+    service.refreshSeries(TKF100, SRI, 1);
+    var firstRecalculation = Map.copyOf(stored.getMetrics());
+    stored.setVolatility(valueOf(0.999));
+
+    service.refreshSeries(TKF100, SRI, 1);
+
+    var expectedSecondPrevious = new HashMap<>(firstRecalculation);
+    expectedSecondPrevious.remove("driftHistory");
+    assertThat(history(stored))
+        .extracting(entry -> entry.get("previousMetrics"))
+        .containsExactly(
+            Map.of("holdingPeriodTradingDays", "1300", "dailySigma", "0.5"),
+            expectedSecondPrevious);
   }
 
   private static RiskIndicatorPoint storedPoint(Map<String, Object> metrics) {
@@ -417,8 +452,8 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static List<Map<String, String>> history(RiskIndicatorPoint point) {
-    return (List<Map<String, String>>) point.getMetrics().get("driftHistory");
+  private static List<Map<String, Object>> history(RiskIndicatorPoint point) {
+    return (List<Map<String, Object>>) point.getMetrics().get("driftHistory");
   }
 
   private static int weekdaysAfterUpTo(LocalDate after, LocalDate upTo) {

@@ -78,6 +78,46 @@ class SplicedPriceSeriesTest {
   }
 
   @Test
+  void aLaterSegmentStartsOnItsOwnStartDateEvenWhenTheEarlierSegmentEndedDaysBefore() {
+    given(fundValueQueries.findValuesBetweenDates(INDEX, FROM, LocalDate.of(2026, 2, 28)))
+        .willReturn(
+            List.of(
+                aFundValue(INDEX, LocalDate.of(2026, 2, 25), 200.0),
+                aFundValue(INDEX, LocalDate.of(2026, 2, 26), 202.0)));
+    given(fundValueQueries.findValuesBetweenDates(OWN_NAV, LocalDate.of(2026, 2, 26), TO))
+        .willReturn(
+            List.of(
+                aFundValue(OWN_NAV, LocalDate.of(2026, 2, 26), 1.00),
+                aFundValue(OWN_NAV, LocalDate.of(2026, 2, 27), 1.02),
+                aFundValue(OWN_NAV, LocalDate.of(2026, 3, 2), 1.01)));
+
+    var spliced = series.closes(INDEX_THEN_OWN_NAV, FROM, TO);
+
+    var key = "MSCI_ACWI+EE0000003283";
+    assertThat(spliced)
+        .usingRecursiveFieldByFieldElementComparatorIgnoringFields("updatedAt")
+        .usingComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .containsExactly(
+            aFundValue(key, LocalDate.of(2026, 2, 25), 200.0),
+            aFundValue(key, LocalDate.of(2026, 2, 26), 202.0),
+            aFundValue(key, LocalDate.of(2026, 3, 2), 204.02));
+  }
+
+  @Test
+  void readsOnlyTheRequestedDaysEvenIfTheSourceAnswersMore() {
+    given(fundValueQueries.findValuesBetweenDates(INDEX, FROM, TO))
+        .willReturn(
+            List.of(
+                aFundValue(INDEX, LocalDate.of(2026, 2, 24), 199.0),
+                aFundValue(INDEX, LocalDate.of(2026, 2, 25), 200.0),
+                aFundValue(INDEX, LocalDate.of(2026, 3, 4), 205.0)));
+
+    var spliced = series.closes(List.of(new SeriesSegment(INDEX, null)), FROM, TO);
+
+    assertThat(spliced).extracting(FundValue::date).containsExactly(LocalDate.of(2026, 2, 25));
+  }
+
+  @Test
   void refusesALaterSegmentWithNoCloseOnThePreviousSegmentsLastClose() {
     given(fundValueQueries.findValuesBetweenDates(INDEX, FROM, LocalDate.of(2026, 2, 28)))
         .willReturn(List.of(aFundValue(INDEX, LocalDate.of(2026, 2, 27), 204.0)));

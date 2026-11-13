@@ -14,12 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.JdbcFundValueRepository;
+import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
+import ee.tuleva.onboarding.investment.series.SplicedPriceSeries;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -30,6 +34,7 @@ import org.springframework.context.annotation.Import;
 @DataJpaTest
 @Import({
   JdbcFundValueRepository.class,
+  SplicedPriceSeries.class,
   KidConfiguration.class,
   KidFiguresService.class,
   PerformanceScenarioCalculator.class,
@@ -55,7 +60,7 @@ class KidFiguresServiceIT {
         .isEqualTo(
             new KidFigures(
                 TKF100,
-                "MSCI_ACWI",
+                List.of(new SeriesSegment("MSCI_ACWI", null)),
                 LocalDate.of(2016, 9, 30),
                 LocalDate.of(2026, 9, 30),
                 ONGOING_CHARGES,
@@ -194,6 +199,12 @@ class KidFiguresServiceIT {
     @Bean
     Clock clock() {
       return Clock.fixed(Instant.parse("2026-10-22T09:00:00Z"), ZoneId.of("Europe/Tallinn"));
+    }
+
+    @Bean
+    RiskIndicatorProperties riskIndicatorProperties() {
+      return new RiskIndicatorProperties(
+          Map.of(TKF100, List.of(new SeriesSegment("MSCI_ACWI", null))));
     }
   }
 }

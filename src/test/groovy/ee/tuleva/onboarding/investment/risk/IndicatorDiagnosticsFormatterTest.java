@@ -130,6 +130,30 @@ class IndicatorDiagnosticsFormatterTest {
   }
 
   @Test
+  void aSeriesReadFromNewSourcesIsReportedAsARedefinitionRatherThanSourceDataDrift() {
+    var outcome =
+        new RiskIndicatorService.RiskIndicatorOutcome(
+            stableSri(),
+            null,
+            RiskIndicatorPublication.builder().build(),
+            List.of(),
+            List.of(
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 3, 2), "MSCI_ACWI", "MSCI_ACWI,EE0000003283"),
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 6, 30), "MSCI_ACWI", "MSCI_ACWI,EE0000003283")),
+            List.of());
+
+    var lines = diagnosticsFormatter.withDiagnostics(new ArrayList<>(), outcome);
+
+    assertThat(lines)
+        .containsExactly(
+            "ℹ️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber (vanim 2026-03-02, viimane"
+                + " 2026-06-30) — allikad MSCI_ACWI → MSCI_ACWI,EE0000003283. Alusandmed ei"
+                + " muutunud.");
+  }
+
+  @Test
   void aClassWithheldByAChangedRuleIsReportedAsARedefinitionRatherThanSourceDataDrift() {
     var outcome =
         new RiskIndicatorService.RiskIndicatorOutcome(

@@ -36,25 +36,21 @@ class RiskIndicatorPropertiesTest {
   }
 
   @Test
-  void aSplicedSourceMustSayWhereEachLaterSegmentStarts() {
-    var properties =
-        propertiesWith(
-            List.of(new SeriesSegment("MSCI_ACWI", null), new SeriesSegment("EE0000003283", null)));
+  void aSplicedSourceThatDoesNotSayWhereALaterSegmentStartsFailsWhenTheConfigIsBound() {
+    var segments =
+        List.of(new SeriesSegment("MSCI_ACWI", null), new SeriesSegment("EE0000003283", null));
 
-    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
-        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> propertiesWith(segments)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  void splicedSegmentsMustStartInOrder() {
-    var properties =
-        propertiesWith(
-            List.of(
-                new SeriesSegment("MSCI_ACWI", LocalDate.of(2026, 2, 2)),
-                new SeriesSegment("EE0000003283", LocalDate.of(2020, 1, 1))));
+  void splicedSegmentsOutOfOrderFailWhenTheConfigIsBound() {
+    var segments =
+        List.of(
+            new SeriesSegment("MSCI_ACWI", LocalDate.of(2026, 2, 2)),
+            new SeriesSegment("EE0000003283", LocalDate.of(2020, 1, 1)));
 
-    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
-        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> propertiesWith(segments)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test

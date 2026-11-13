@@ -17,6 +17,7 @@ class IndicatorDiagnosticsFormatter {
     dataQualityLine(outcome.indicator()).ifPresent(block::add);
     truncatedHistoryLine(outcome.indicator()).ifPresent(block::add);
     driftLine(outcome).ifPresent(block::add);
+    sourceChangeLine(outcome).ifPresent(block::add);
     redefinitionLine(outcome).ifPresent(block::add);
     skippedLine(outcome).ifPresent(block::add);
     return block;
@@ -48,8 +49,41 @@ class IndicatorDiagnosticsFormatter {
             + " allikaandmed muutusid tagantjärele.");
   }
 
+  private Optional<String> sourceChangeLine(RiskIndicatorOutcome outcome) {
+    var sourceChanges =
+        outcome.redefinitions().stream()
+            .filter(Redefinition.Sources.class::isInstance)
+            .map(Redefinition.Sources.class::cast)
+            .toList();
+    if (sourceChanges.isEmpty()) {
+      return Optional.empty();
+    }
+    var first = sourceChanges.getFirst();
+    var classChanges = sourceChanges.stream().filter(Redefinition.Sources::changedTheClass).count();
+    var summary =
+        "%s %s: allikad muutusid (%s → %s), %d varasemat referentspunkti arvutati uue seeriaga"
+                .formatted(
+                    outcome.indicator().fund(),
+                    outcome.indicator().indicatorType(),
+                    first.previousSourceKeys(),
+                    first.sourceKeys(),
+                    sourceChanges.size())
+            + " ümber (vanim %s, viimane %s)."
+                .formatted(first.date(), sourceChanges.getLast().date());
+    return Optional.of(
+        classChanges == 0
+            ? "ℹ️ " + summary + " Ükski klass ei muutunud."
+            : "⚠️ "
+                + summary
+                + " Klass muutus %d punktil. 👉 Tegevus: kontrolli, kas avaldatud klass peab muutuma."
+                    .formatted(classChanges));
+  }
+
   private Optional<String> redefinitionLine(RiskIndicatorOutcome outcome) {
-    var redefinitions = outcome.redefinitions();
+    var redefinitions =
+        outcome.redefinitions().stream()
+            .filter(redefinition -> !(redefinition instanceof Redefinition.Sources))
+            .toList();
     if (redefinitions.isEmpty()) {
       return Optional.empty();
     }

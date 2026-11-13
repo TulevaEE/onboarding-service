@@ -2,13 +2,13 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.FROZEN;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Code.FOUND;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Code.MISSING;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name.MATCHES;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.RETURN_UNIDENTIFIED;
-import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.VERIFY;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.ANOTHER_COMPANY;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.ANOTHER_PERSON;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.COMPANY_NAME_WITHOUT_CODE;
@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
+import ee.tuleva.onboarding.savings.fund.notification.SanctionedPaymentFrozenEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -90,7 +91,7 @@ public class PaymentVerificationService {
         case RETURN_NOT_A_CLIENT -> Optional.of(notClient);
         case RETURN_NAME_MISMATCH -> Optional.of(nameMismatch);
         case RETURN_NOT_ONBOARDED -> Optional.of(notOnboarded);
-        case VERIFY -> Optional.empty();
+        case FREEZE, RETRY, VERIFY -> Optional.empty();
       };
     }
   }
@@ -116,19 +117,34 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.orElseThrow();
     var facts =
         paymentFactsCollector.collect(payment, partyId, partyIdFromDescription, remitterPartyId);
-    if (returned(payment, partyId, facts)) {
-      return;
+    var outcome = outcome(facts);
+    switch (outcome) {
+      case VERIFY -> verify(payment, partyId, remitterPartyId, facts);
+      case FREEZE -> freeze(payment, partyId, facts);
+      case RETRY ->
+          log.warn(
+              "Sanction screening unavailable, payment stays received: paymentId={}",
+              payment.getId());
+      case RETURN_UNIDENTIFIED,
+          RETURN_COMPANY_PAYING_FOR_SOMEONE_ELSE,
+          RETURN_CODE_MISMATCH,
+          RETURN_NOT_A_CLIENT,
+          RETURN_NAME_MISMATCH,
+          RETURN_NOT_ONBOARDED ->
+          identityCheckFailure(
+              payment,
+              partyId,
+              VerificationMessages.forType(partyId.type()).reason(outcome).orElseThrow());
     }
-
-    verify(payment, partyId, remitterPartyId, facts);
   }
 
-  private boolean returned(SavingFundPayment payment, PartyId partyId, Payment facts) {
-    var outcome = outcome(facts);
-    VerificationMessages.forType(partyId.type())
-        .reason(outcome)
-        .ifPresent(reason -> identityCheckFailure(payment, partyId, reason));
-    return outcome != VERIFY;
+  private void freeze(SavingFundPayment payment, PartyId partyId, Payment facts) {
+    log.info("Payment frozen on a sanctions hit: paymentId={}", payment.getId());
+    savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit(facts));
+    savingFundPaymentRepository.changeStatus(payment.getId(), FROZEN);
+    recordUnattributed(payment);
+    applicationEventPublisher.publishEvent(
+        new SanctionedPaymentFrozenEvent(payment.getId(), payment.getAmount()));
   }
 
   private void verify(
@@ -186,14 +202,18 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
+    recordUnattributed(payment);
+
+    applicationEventPublisher.publishEvent(
+        new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
+  }
+
+  private void recordUnattributed(SavingFundPayment payment) {
     savingsFundLedger.recordUnattributedPayment(
         payment.getAmount(),
         payment.getId(),
         Objects.requireNonNull(
             payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
-
-    applicationEventPublisher.publishEvent(
-        new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
   }
 
   private void publishFailed(User payer, PartyId recipient) {

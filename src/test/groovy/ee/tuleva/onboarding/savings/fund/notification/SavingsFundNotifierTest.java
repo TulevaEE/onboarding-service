@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.notification;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -113,6 +117,34 @@ class SavingsFundNotifierTest {
         .sendMessage(
             "Savings fund unattributed payment: amount=100.00 EUR, reason=selgituses puudub isikukood, paymentId=22222222-2222-2222-2222-222222222222",
             SAVINGS);
+  }
+
+  @Test
+  void onSanctionedPaymentFrozen_alertsTheAmlChannel() {
+    var paymentId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+
+    notifier.onSanctionedPaymentFrozen(
+        new SanctionedPaymentFrozenEvent(paymentId, new BigDecimal("100.00")));
+
+    verify(notificationService)
+        .sendMessage(
+            "AML: SANCTIONS HIT, incoming savings fund payment frozen:"
+                + " paymentId=44444444-4444-4444-4444-444444444444, amount=100.00 EUR."
+                + " No units are issued for it until it is handled.",
+            AML);
+  }
+
+  @Test
+  void onSanctionedPaymentFrozen_swallowsANotificationFailure() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(), any());
+
+    assertThatCode(
+            () ->
+                notifier.onSanctionedPaymentFrozen(
+                    new SanctionedPaymentFrozenEvent(UUID.randomUUID(), new BigDecimal("1.00"))))
+        .doesNotThrowAnyException();
   }
 
   @Test

@@ -18,7 +18,13 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
@@ -56,6 +62,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @Transactional
@@ -63,6 +70,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   @MockitoBean private PaymentEmailSender paymentEmailSender;
+  @MockitoBean private PepAndSanctionCheckService pepAndSanctionCheckService;
 
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
@@ -75,6 +83,9 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
+    var json = JsonMapper.builder().build();
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(new MatchResponse(json.createArrayNode(), json.createObjectNode()));
   }
 
   @AfterEach

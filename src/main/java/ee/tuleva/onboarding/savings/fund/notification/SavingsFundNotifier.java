@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.notification;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
@@ -104,6 +105,22 @@ public class SavingsFundNotifier {
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send unattributed payment notification", e);
+    }
+  }
+
+  @TransactionalEventListener(phase = AFTER_COMMIT)
+  public void onSanctionedPaymentFrozen(SanctionedPaymentFrozenEvent event) {
+    try {
+      notificationService.sendMessage(
+          ("AML: SANCTIONS HIT, incoming savings fund payment frozen: paymentId=%s, amount=%s EUR."
+                  + " No units are issued for it until it is handled.")
+              .formatted(event.paymentId(), event.amount().toPlainString()),
+          AML);
+    } catch (Exception e) {
+      log.error(
+          "Failed to send sanctioned payment frozen notification: paymentId={}",
+          event.paymentId(),
+          e);
     }
   }
 

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.webeid;
 
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
+import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.EUROPEAN_CITIZEN_ID_CARD;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificate;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithIssuer;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithSubjectDn;
@@ -9,6 +10,7 @@ import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certific
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -111,6 +113,7 @@ class WebEidAuthServiceTest {
         "DIGITAL_ID_CARD",
         "LONG_TERM_RESIDENCE_CARD",
         "TEMPORARY_RESIDENCE_CARD",
+        "EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD",
         "DIPLOMATIC_ID_CARD"
       })
   void authenticate_extractsDocumentTypeFromCertificatePolicyOid(IdDocumentType documentType)
@@ -236,18 +239,23 @@ class WebEidAuthServiceTest {
   }
 
   @Test
-  void authenticate_refusesAnEuCitizenIdCard() throws AuthTokenException {
+  void authenticate_acceptsAnEuCitizenIdCard() throws AuthTokenException {
     setupNonceStore();
-    when(authTokenValidator.validate(any(), any()))
-        .thenReturn(
+    given(authTokenValidator.validate(any(), any()))
+        .willReturn(
             certificate(
-                TEST_FIRST_NAME,
-                TEST_LAST_NAME,
-                TEST_PERSONAL_CODE,
-                IdDocumentType.EUROPEAN_CITIZEN_ID_CARD));
+                TEST_FIRST_NAME, TEST_LAST_NAME, TEST_PERSONAL_CODE, EUROPEAN_CITIZEN_ID_CARD));
 
-    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
-        .isInstanceOf(UnsupportedDocumentTypeException.class);
+    var session = service.authenticate(new WebEidAuthToken());
+
+    var expected =
+        IdCardSession.builder()
+            .firstName(TEST_FIRST_NAME)
+            .lastName(TEST_LAST_NAME)
+            .personalCode(TEST_PERSONAL_CODE)
+            .documentType(EUROPEAN_CITIZEN_ID_CARD)
+            .build();
+    assertThat(session).isEqualTo(expected);
   }
 
   @Test

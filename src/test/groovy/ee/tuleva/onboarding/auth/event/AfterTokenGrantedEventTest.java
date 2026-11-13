@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.auth.GrantType.SMART_ID;
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE;
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.EUROPEAN_CITIZEN_ID_CARD;
+import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.E_RESIDENT_DIGITAL_ID_CARD;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -80,13 +81,24 @@ class AfterTokenGrantedEventTest {
   }
 
   @Test
-  void isResidentIsFalseForAEuropeanCitizenIdCard() {
+  void isResidentIsFalseForAnEResidentDigitalId() {
+    var person =
+        sampleAuthenticatedPersonAndMember()
+            .attributes(Map.of(ID_DOCUMENT_TYPE, E_RESIDENT_DIGITAL_ID_CARD.name()))
+            .build();
+    var event = new AfterTokenGrantedEvent(this, person, ID_CARD, TOKENS);
+
+    assertThat(event.isResident()).isFalse();
+  }
+
+  @Test
+  void isResidentIsUnknownForAEuropeanCitizenIdCard() {
     var person =
         sampleAuthenticatedPersonAndMember()
             .attributes(Map.of(ID_DOCUMENT_TYPE, EUROPEAN_CITIZEN_ID_CARD.name()))
             .build();
     var event = new AfterTokenGrantedEvent(this, person, ID_CARD, TOKENS);
 
-    assertThat(event.isResident()).isFalse();
+    assertThat(event.isResident()).isNull();
   }
 }

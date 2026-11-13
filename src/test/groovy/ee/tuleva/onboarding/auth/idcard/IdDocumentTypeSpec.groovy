@@ -20,8 +20,8 @@ class IdDocumentTypeSpec extends Specification {
         OLD_ID_CARD                                   | true
         EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD | false
         E_RESIDENT_DIGITAL_ID_CARD                    | false
-        EUROPEAN_CITIZEN_ID_CARD                      | false
         DIPLOMATIC_ID_CARD                            | false
+        EUROPEAN_CITIZEN_ID_CARD                      | null
         DIGITAL_ID_CARD                               | null
         OLD_DIGITAL_ID_CARD                           | null
     }
@@ -41,8 +41,8 @@ class IdDocumentTypeSpec extends Specification {
         TEMPORARY_RESIDENCE_CARD                      | true
         EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD | true
         DIPLOMATIC_ID_CARD                            | true
+        EUROPEAN_CITIZEN_ID_CARD                      | true
         E_RESIDENT_DIGITAL_ID_CARD                    | false
-        EUROPEAN_CITIZEN_ID_CARD                      | false
     }
 
     @Unroll

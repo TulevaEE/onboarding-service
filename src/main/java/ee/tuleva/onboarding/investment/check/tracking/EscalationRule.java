@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.BREACHED;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Residual.WITHIN;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.BREACH;
 import static ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Today.CLEAN;
 
+import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.investment.check.tracking.ConsecutiveBreachTracker.ConsecutiveBreachInfo;
 import ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Escalation;
 import ee.tuleva.onboarding.investment.check.tracking.TdEscalation.Streak;
@@ -16,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 @Slf4j
 record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boolean fallback) {
 
+  private static final TrackingCheckType SISEKORD_4_P_11_8_CHECK = MODEL_PORTFOLIO;
   static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
   static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
 
@@ -37,6 +40,9 @@ record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boo
   }
 
   private boolean escalates(TrackingDifferenceResult result) {
+    if (result.checkType() != SISEKORD_4_P_11_8_CHECK) {
+      return false;
+    }
     return TdEscalation.escalates(
         new Escalation(
             result.hasAnyBreach() ? BREACH : CLEAN,

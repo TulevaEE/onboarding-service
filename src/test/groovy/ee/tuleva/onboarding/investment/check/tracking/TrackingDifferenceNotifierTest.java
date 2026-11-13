@@ -1391,6 +1391,46 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aHoldingsVsIndexBreachOnTheFourthDayOfAStreakIsABreachButNotAnEscalation() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var fourthBreachDay =
+        result(true, 4, new BigDecimal("0.0060")).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(fourthBreachDay));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("🛑 TD BREACH DETECTED\n")
+                        .contains("[TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
+                        .doesNotContain("TD ESCALATION")
+                        .doesNotContain("consecutive days")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aModelPortfolioBreachBesideAHoldingsVsIndexBreachStillEscalatesOnItsOwnStreak() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var modelPortfolio = result(true, 4, new BigDecimal("0.0060"));
+    var benchmarkModel = modelPortfolio.toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(modelPortfolio, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n")
+                        .containsOnlyOnce("consecutive days, compounded TD=+0.60%")),
+            eq(INVESTMENT));
+  }
+
+  @Test
   void aBackfillThatRewroteNothingSaysTheStoredEventsKeptTheirOldDefinition() {
     notifier.notifyBackfillSummary(7, List.of());
 

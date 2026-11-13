@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
 class CustodianPositionComparator {
 
   private static final List<AccountType> CUSTODIAN_TYPES = List.of(CASH, RECEIVABLES, LIABILITY);
-  private static final String EVERY_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT = "Cash account";
+  private static final String THE_FUNDS_ONE_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT = "Cash account";
   private static final BigDecimal BASIS_POINTS = new BigDecimal("10000");
   private static final int BASIS_POINT_SCALE = 2;
   private static final int CENTS = 2;
@@ -59,8 +59,9 @@ class CustodianPositionComparator {
   private CustodianDayComparison compare(
       TulevaFund fund, LocalDate navDate, NavCalculation calculation) {
     var positions = fundPositionRepository.findCustodianSourced(fund, navDate, fund.getIsin());
-    var reported = reportedValues(positions);
-    var recognised = recognisedValues(calculation);
+    var cashLines = CashLines.of(positions, calculation);
+    var reported = reportedValues(positions, cashLines);
+    var recognised = recognisedValues(calculation, cashLines);
 
     var navImpact =
         totalDifference(reported, recognised)
@@ -109,32 +110,52 @@ class CustodianPositionComparator {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private Map<String, BigDecimal> reportedValues(List<FundPosition> positions) {
+  private Map<String, BigDecimal> reportedValues(
+      List<FundPosition> positions, CashLines cashLines) {
     return positions.stream()
         .filter(position -> CUSTODIAN_TYPES.contains(position.getAccountType()))
         .collect(
             toMap(
                 position ->
-                    comparedLine(position.getAccountType().name(), position.getAccountName()),
+                    cashLines.lineName(position.getAccountType().name(), position.getAccountName()),
                 position -> value(position.getMarketValue()),
                 BigDecimal::add,
                 LinkedHashMap::new));
   }
 
-  private Map<String, BigDecimal> recognisedValues(NavCalculation calculation) {
+  private Map<String, BigDecimal> recognisedValues(
+      NavCalculation calculation, CashLines cashLines) {
     return calculation.custodianComparableLines().stream()
         .collect(
             toMap(
-                line -> comparedLine(line.accountType(), line.accountName()),
+                line -> cashLines.lineName(line.accountType(), line.accountName()),
                 NavAccountLine::value,
                 BigDecimal::add,
                 LinkedHashMap::new));
   }
 
-  private String comparedLine(String accountType, String accountName) {
-    return CASH.name().equals(accountType)
-        ? EVERY_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT
-        : accountName;
+  private enum CashLines {
+    ONE_ROW_ON_EACH_SIDE_COMPARED_WHATEVER_THE_BANK_CALLS_IT,
+    SEVERAL_ROWS_COMPARED_BY_NAME_SO_A_DOUBLE_COUNT_SHOWS;
+
+    static CashLines of(List<FundPosition> positions, NavCalculation calculation) {
+      var custodianCashRows =
+          positions.stream().filter(position -> position.getAccountType() == CASH).count();
+      var navCashLines =
+          calculation.custodianComparableLines().stream()
+              .filter(line -> CASH.name().equals(line.accountType()))
+              .count();
+      return custodianCashRows == 1 && navCashLines == 1
+          ? ONE_ROW_ON_EACH_SIDE_COMPARED_WHATEVER_THE_BANK_CALLS_IT
+          : SEVERAL_ROWS_COMPARED_BY_NAME_SO_A_DOUBLE_COUNT_SHOWS;
+    }
+
+    String lineName(String accountType, String accountName) {
+      return this == ONE_ROW_ON_EACH_SIDE_COMPARED_WHATEVER_THE_BANK_CALLS_IT
+              && CASH.name().equals(accountType)
+          ? THE_FUNDS_ONE_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT
+          : accountName;
+    }
   }
 
   private Map<String, BigDecimal> reportedQuantities(List<FundPosition> positions) {

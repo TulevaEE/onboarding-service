@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -112,18 +113,20 @@ class CustodianPositionComparatorTest {
   }
 
   @Test
-  void everyCashAccountOfTheFundIsComparedAsTheOneCashLine() {
-    givenNav(reSentNavLines());
+  void aCashRowReSentUnderTheNewNameBesideTheOldOneIsComparedByNameSoTheDoubleCountShows() {
+    givenNav(withNavCashOf("1477922.38"));
     givenPositions(
         withCashRowsOf(
             reSentPositions(),
-            position(CASH, "Cash account USD", "38961.19"),
-            position(CASH, CASH_ACCOUNT, "700000.00")));
+            position(CASH, CASH_ACCOUNT, "738961.19"),
+            position(CASH, "Cash account", "738961.19")));
     givenPositionWrittenAt(BEFORE_CALCULATION);
 
-    assertThat(comparator.compare(TUK75, NAV_DATE))
-        .get()
-        .returns(true, CustodianDayComparison::matches);
+    assertThat(comparator.compare(TUK75, NAV_DATE).orElseThrow().differences())
+        .containsExactly(
+            new CustodianLineDifference("Cash account", new BigDecimal("738961.19"), ZERO),
+            new CustodianLineDifference(
+                CASH_ACCOUNT, new BigDecimal("738961.19"), new BigDecimal("1477922.38")));
   }
 
   @Test
@@ -252,6 +255,14 @@ class CustodianPositionComparatorTest {
                     ? position(CASH, CASH_ACCOUNT, null, null, null, cash)
                     : position)
         .toList();
+  }
+
+  private List<NavAccountLine> withNavCashOf(String cash) {
+    var lines = new ArrayList<NavAccountLine>();
+    lines.add(navLine("CASH", CASH_ACCOUNT, cash));
+    lines.addAll(
+        reSentNavLines().stream().filter(line -> !"CASH".equals(line.accountType())).toList());
+    return lines;
   }
 
   private List<FundPosition> withCashRowsOf(

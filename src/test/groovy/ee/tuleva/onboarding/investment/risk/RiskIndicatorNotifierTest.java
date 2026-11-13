@@ -17,10 +17,10 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.ProxyReview;
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.PublicationSnapshot;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -127,10 +127,10 @@ class RiskIndicatorNotifierTest {
     var properties =
         new RiskIndicatorProperties(
             Map.of(
-                TKF100, List.of(new Source("MSCI_ACWI", null)),
-                TUK75, List.of(new Source(TUK75.getIsin(), null)),
-                TUK00, List.of(new Source(TUK00.getIsin(), null)),
-                TUV100, List.of(new Source(TUV100.getIsin(), null))),
+                TKF100, List.of(new SeriesSegment("MSCI_ACWI", null)),
+                TUK75, List.of(new SeriesSegment(TUK75.getIsin(), null)),
+                TUK00, List.of(new SeriesSegment(TUK00.getIsin(), null)),
+                TUV100, List.of(new SeriesSegment(TUV100.getIsin(), null))),
             proxyReviews);
     var clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
     var detailFormatter =

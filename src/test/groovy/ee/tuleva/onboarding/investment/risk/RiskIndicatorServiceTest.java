@@ -12,7 +12,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -42,8 +42,8 @@ class RiskIndicatorServiceTest {
   private final RiskIndicatorProperties properties =
       new RiskIndicatorProperties(
           Map.of(
-              TKF100, List.of(new Source("MSCI_ACWI", null)),
-              TUK75, List.of(new Source(TUK75.getIsin(), null))),
+              TKF100, List.of(new SeriesSegment("MSCI_ACWI", null)),
+              TUK75, List.of(new SeriesSegment(TUK75.getIsin(), null))),
           Map.of());
 
   private final RiskIndicatorService service =

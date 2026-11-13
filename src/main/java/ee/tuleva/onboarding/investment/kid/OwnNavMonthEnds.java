@@ -24,7 +24,7 @@ record OwnNavMonthEnds(@Nullable YearMonth firstMonth) {
   private static YearMonth firstWholeMonth(SeriesSegment ownNav) {
     var from = ownNav.from();
     if (from == null || from.getDayOfMonth() != 1) {
-      throw new KidCalculationRefusedException(
+      throw new IllegalStateException(
           "The fund's own NAV must start on a month's first day: key=%s, from=%s"
               .formatted(ownNav.key(), from));
     }

@@ -71,7 +71,7 @@ class OwnNavMonthEndsTest {
     var midMonth = new SeriesSegment(TKF100.getIsin(), LocalDate.of(2026, 3, 2));
 
     assertThatThrownBy(() -> OwnNavMonthEnds.of(TKF100, List.of(INDEX, midMonth)))
-        .isInstanceOf(KidCalculationRefusedException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -79,6 +79,6 @@ class OwnNavMonthEndsTest {
     var ownNavOnly = new SeriesSegment(TKF100.getIsin(), null);
 
     assertThatThrownBy(() -> OwnNavMonthEnds.of(TKF100, List.of(ownNavOnly)))
-        .isInstanceOf(KidCalculationRefusedException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 }

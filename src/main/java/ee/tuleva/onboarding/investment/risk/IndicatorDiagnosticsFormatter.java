@@ -71,6 +71,8 @@ class IndicatorDiagnosticsFormatter {
       case Redefinition.HoldingPeriod holdingPeriod ->
           " hoidmisperioodi kauplemispäevi %s → %s."
               .formatted(text(holdingPeriod.previousTradingDays()), holdingPeriod.tradingDays());
+      case Redefinition.Sources sources ->
+          " allikad %s → %s.".formatted(sources.previousSourceKeys(), sources.sourceKeys());
       case Redefinition.PublicationRule publicationRule ->
           " avaldamisreegel muutus, klass %s → %s."
               .formatted(

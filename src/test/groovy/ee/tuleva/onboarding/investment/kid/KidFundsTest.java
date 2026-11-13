@@ -20,18 +20,16 @@ class KidFundsTest {
 
   @Test
   void refusesAHoldingPeriodNoLongerThanTheOneYearPeriodItIsShownBeside() {
-    assertThatThrownBy(() -> new FundSettings("MSCI_ACWI", 1))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new FundSettings(1)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void acceptsAFiveYearHoldingPeriod() {
-    assertThatCode(() -> new FundSettings("MSCI_ACWI", 5)).doesNotThrowAnyException();
+    assertThatCode(() -> new FundSettings(5)).doesNotThrowAnyException();
   }
 
   @Test
   void refusesAHoldingPeriodLongerThanFiveYearsWhoseLongerScenarioPeriodIsNotBuilt() {
-    assertThatThrownBy(() -> new FundSettings("MSCI_ACWI", 6))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new FundSettings(6)).isInstanceOf(IllegalArgumentException.class);
   }
 }

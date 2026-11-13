@@ -10,6 +10,9 @@ sealed interface Redefinition {
   record HoldingPeriod(LocalDate date, @Nullable String previousTradingDays, String tradingDays)
       implements Redefinition {}
 
+  record Sources(LocalDate date, String previousSourceKeys, String sourceKeys)
+      implements Redefinition {}
+
   record PublicationRule(
       LocalDate date, @Nullable Integer previousRiskClass, @Nullable Integer riskClass)
       implements Redefinition {}

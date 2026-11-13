@@ -16,6 +16,7 @@ env:
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
     src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java
+    src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentTypeExtractor.java
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
     src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
     src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java

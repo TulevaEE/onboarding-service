@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.analytics.ThirdPillarHolder;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.KycCountryService;
@@ -449,6 +450,85 @@ class AmlBatchScreenerTest {
         .sendMessage(anyString(), any());
 
     assertDoesNotThrow(() -> amlBatchScreener.runAmlChecksOnSavingsFundCustomers());
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_screensAGuardianWhoHoldsNoUnitsOnTheirOwnUserAccount() {
+    User childHolder = savingsFundCustomer("60001019906", 2L);
+    User guardian = savingsFundCustomer("38888888881", 1L);
+    given(savingsFundCustomers.personalCodes()).willReturn(List.of(childHolder.getPersonalCode()));
+    given(savingsFundCustomers.guardians())
+        .willReturn(List.of(new SavingsFundGuardian(guardian.getPersonalCode(), null, null)));
+    given(
+            userRepository.findAllByPersonalCodeIn(
+                List.of(childHolder.getPersonalCode(), guardian.getPersonalCode())))
+        .willReturn(List.of(childHolder, guardian));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.of(Countries.of("EE")));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(emptyMatchResponse());
+
+    amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService).match(childHolder, Countries.<String>of());
+    verify(pepAndSanctionCheckService).match(guardian, Countries.of("EE"));
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_screensAGuardianWithoutAUserAccountByTheRecordedName() {
+    User childHolder = savingsFundCustomer("60001019906", 2L);
+    var guardian = new SavingsFundGuardian("38888888881", "Mari", "Maasikas");
+    given(savingsFundCustomers.personalCodes()).willReturn(List.of(childHolder.getPersonalCode()));
+    given(savingsFundCustomers.guardians()).willReturn(List.of(guardian));
+    given(
+            userRepository.findAllByPersonalCodeIn(
+                List.of(childHolder.getPersonalCode(), guardian.personalCode())))
+        .willReturn(List.of(childHolder));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(emptyMatchResponse());
+
+    amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService).match(childHolder, Countries.<String>of());
+    verify(pepAndSanctionCheckService)
+        .match(new PersonImpl("38888888881", "Mari", "Maasikas"), Countries.<String>of());
+    verify(notificationService, never()).sendMessage(anyString(), any());
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_reportsGuardiansItCannotScreenForWantOfAName() {
+    given(savingsFundCustomers.personalCodes()).willReturn(List.of("60001019906"));
+    given(savingsFundCustomers.guardians())
+        .willReturn(List.of(new SavingsFundGuardian("38888888881", null, null)));
+    given(userRepository.findAllByPersonalCodeIn(List.of("60001019906", "38888888881")))
+        .willReturn(List.of());
+
+    amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService, never()).match(any(Person.class), anySet());
+    verify(notificationService)
+        .sendMessage(
+            "AML batch: 1 savings fund guardians have no user account or recorded name and were not screened this run",
+            AML);
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_screensAGuardianWhoAlsoHoldsUnitsOnce() {
+    User holderAndGuardian = savingsFundCustomer("38888888881", 1L);
+    given(savingsFundCustomers.personalCodes())
+        .willReturn(List.of(holderAndGuardian.getPersonalCode()));
+    given(savingsFundCustomers.guardians())
+        .willReturn(
+            List.of(new SavingsFundGuardian(holderAndGuardian.getPersonalCode(), null, null)));
+    given(userRepository.findAllByPersonalCodeIn(List.of(holderAndGuardian.getPersonalCode())))
+        .willReturn(List.of(holderAndGuardian));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(emptyMatchResponse());
+
+    amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService).match(holderAndGuardian, Countries.<String>of());
+    verifyNoMoreInteractions(pepAndSanctionCheckService);
   }
 
   @Test

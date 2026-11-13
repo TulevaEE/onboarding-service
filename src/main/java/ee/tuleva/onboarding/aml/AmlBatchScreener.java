@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_A
 import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
@@ -20,8 +21,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -100,15 +103,55 @@ class AmlBatchScreener {
   }
 
   void runAmlChecksOnSavingsFundCustomers() {
-    List<String> personalCodes = savingsFundCustomers.personalCodes();
-    List<User> customers = userRepository.findAllByPersonalCodeIn(personalCodes);
+    List<String> holderCodes = savingsFundCustomers.personalCodes();
+    List<SavingsFundGuardian> guardians = savingsFundCustomers.guardians();
+    List<String> personalCodes =
+        Stream.concat(
+                holderCodes.stream(), guardians.stream().map(SavingsFundGuardian::personalCode))
+            .distinct()
+            .toList();
+    List<User> users = userRepository.findAllByPersonalCodeIn(personalCodes);
+    Set<String> userCodes = users.stream().map(User::getPersonalCode).collect(toSet());
+    List<SavingsFundGuardian> guardiansWithoutUser =
+        guardians.stream()
+            .filter(guardian -> !userCodes.contains(guardian.personalCode()))
+            .toList();
+    List<Person> recordedGuardians =
+        guardiansWithoutUser.stream()
+            .map(SavingsFundGuardian::recordedPerson)
+            .flatMap(Optional::stream)
+            .toList();
 
     log.info(
-        "Resolved savings fund customers to screen: onboarded={}, resolved={}",
-        personalCodes.size(),
-        customers.size());
+        "Resolved savings fund customers to screen: onboarded={}, guardians={}, resolved={}, guardiansByRecordedName={}",
+        holderCodes.size(),
+        guardians.size(),
+        users.size(),
+        recordedGuardians.size());
 
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, sanctionAndPepScreener::knownCountries);
+    screenBatch(ScreeningBatch.SAVINGS_FUND, users, sanctionAndPepScreener::knownCountries);
+    screenBatch(
+        ScreeningBatch.SAVINGS_FUND_GUARDIANS,
+        recordedGuardians,
+        sanctionAndPepScreener::recordedCitizenships);
+    alertOnUnscreenableGuardians(guardiansWithoutUser.size() - recordedGuardians.size());
+  }
+
+  private void alertOnUnscreenableGuardians(int unscreenableCount) {
+    if (unscreenableCount == 0) {
+      return;
+    }
+    log.error(
+        "Savings fund guardians not screened, no user account or recorded name: count={}",
+        unscreenableCount);
+    try {
+      notificationService.sendMessage(
+          "AML batch: %d savings fund guardians have no user account or recorded name and were not screened this run"
+              .formatted(unscreenableCount),
+          AML);
+    } catch (RuntimeException e) {
+      log.error("Failed to send unscreenable savings fund guardians alert", e);
+    }
   }
 
   private <T extends Person> int screenBatch(

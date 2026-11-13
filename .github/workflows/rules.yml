@@ -13,6 +13,7 @@ env:
     src/main/java/ee/tuleva/onboarding/aml/AmlService.java
     src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
     src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
+    src/main/java/ee/tuleva/onboarding/aml/ScheduledAmlCheckJob.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
     src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java

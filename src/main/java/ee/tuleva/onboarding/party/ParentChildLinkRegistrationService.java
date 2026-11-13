@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
@@ -45,31 +46,44 @@ public class ParentChildLinkRegistrationService {
   // join the already-committed transaction and its writes would never be committed.
   @Transactional(propagation = REQUIRES_NEW)
   public ParentChildLink registerPending(
-      String coParentPersonalCode,
-      String childPersonalCode,
-      String childFirstName,
-      String childLastName) {
+      Guardian coParent, String childPersonalCode, String childFirstName, String childLastName) {
 
     requireMinor(childPersonalCode);
     upsertPerson(childPersonalCode, childFirstName, childLastName);
     return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
-            coParentPersonalCode, childPersonalCode, LEGAL_REPRESENTATIVE)
-        .orElseGet(() -> createPendingLink(coParentPersonalCode, childPersonalCode));
+            coParent.personalCode(), childPersonalCode, LEGAL_REPRESENTATIVE)
+        .map(existing -> withRecordedName(existing, coParent))
+        .orElseGet(() -> createPendingLink(coParent, childPersonalCode));
   }
 
-  private ParentChildLink createPendingLink(String coParentPersonalCode, String childPersonalCode) {
+  private ParentChildLink withRecordedName(ParentChildLink existing, Guardian coParent) {
+    String firstName = coParent.firstName();
+    String lastName = coParent.lastName();
+    if (!existing.isPending()
+        || existing.hasRecordedParentName()
+        || firstName == null
+        || lastName == null) {
+      return existing;
+    }
+    existing.recordParentName(firstName, lastName);
+    return parentChildLinkRepository.save(existing);
+  }
+
+  private ParentChildLink createPendingLink(Guardian coParent, String childPersonalCode) {
     log.info(
         "Capturing pending parent-child link: coParentCode={}, childCode={}",
-        coParentPersonalCode,
+        coParent.personalCode(),
         childPersonalCode);
     return parentChildLinkRepository.save(
         ParentChildLink.builder()
-            .parentPersonalCode(coParentPersonalCode)
+            .parentPersonalCode(coParent.personalCode())
             .childPersonalCode(childPersonalCode)
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(eighteenthBirthday(childPersonalCode))
             .status(PENDING_KYC)
+            .parentFirstName(coParent.firstName())
+            .parentLastName(coParent.lastName())
             .build());
   }
 

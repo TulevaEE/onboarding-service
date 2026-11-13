@@ -54,4 +54,22 @@ public class KybMonitoringService {
         skippedWithoutSurvey.size());
     eventPublisher.publishEvent(new KybMonitoringCompletedEvent(startedAt));
   }
+
+  public void screenRelatedPersonsOfAllCompanies() {
+    var registryCodes = onboardedCompanies.registryCodes();
+    log.info("Starting weekly related persons screening: companyCount={}", registryCodes.size());
+    int failureCount = 0;
+    for (var registryCode : registryCodes) {
+      try {
+        legalEntityScreener.screenRelatedPersons(registryCode);
+      } catch (RuntimeException e) {
+        failureCount++;
+        log.error("Related persons screening failed: registryCode={}", registryCode, e);
+      }
+    }
+    log.info(
+        "Weekly related persons screening completed: companyCount={}, failureCount={}",
+        registryCodes.size(),
+        failureCount);
+  }
 }

@@ -51,7 +51,7 @@ class CustodyPredicatesTest {
 
   private static Guardian guardian(
       CustodyRight.Type type, CustodyValidity validity, PopulationRegisterPerson.Status status) {
-    return new Guardian("38888888888", type, validity, status);
+    return new Guardian("38888888888", type, validity, status, null, null);
   }
 
   private static PopulationRegisterPerson person(PopulationRegisterPerson.Status status) {

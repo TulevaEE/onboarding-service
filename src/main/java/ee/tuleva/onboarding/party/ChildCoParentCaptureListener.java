@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.party;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,9 @@ public class ChildCoParentCaptureListener {
   @Async
   @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onChildOnboarded(ChildOnboardedEvent event) {
-    List<String> coParentPersonalCodes;
+    List<Guardian> coParents;
     try {
-      coParentPersonalCodes =
+      coParents =
           custodyVerificationService.findGuardiansWithAssetManagement(
               event.childPersonalCode(), event.parentPersonalCode());
     } catch (RuntimeException e) {
@@ -37,44 +39,52 @@ public class ChildCoParentCaptureListener {
           e);
       return;
     }
-    coParentPersonalCodes.forEach(coParentPersonalCode -> capture(coParentPersonalCode, event));
+    coParents.forEach(coParent -> capture(coParent, event));
   }
 
-  private void capture(String coParentPersonalCode, ChildOnboardedEvent event) {
+  private void capture(Guardian coParent, ChildOnboardedEvent event) {
     try {
       parentChildLinkRegistrationService.registerPending(
-          coParentPersonalCode,
-          event.childPersonalCode(),
-          event.childFirstName(),
-          event.childLastName());
+          coParent, event.childPersonalCode(), event.childFirstName(), event.childLastName());
     } catch (RuntimeException e) {
       log.error(
           "Failed to capture pending co-parent: coParentCode={}, childCode={}",
-          coParentPersonalCode,
+          coParent.personalCode(),
           event.childPersonalCode(),
           e);
       return;
     }
-    screenCoParent(coParentPersonalCode, event.childPersonalCode());
+    screenCoParent(coParent, event.childPersonalCode());
   }
 
-  private void screenCoParent(String coParentPersonalCode, String childPersonalCode) {
+  private void screenCoParent(Guardian coParent, String childPersonalCode) {
     try {
       userService
-          .findByPersonalCode(coParentPersonalCode)
+          .findByPersonalCode(coParent.personalCode())
           .ifPresentOrElse(
               sanctionAndPepScreener::addSanctionAndPepCheckIfMissing,
-              () ->
-                  log.info(
-                      "Co-parent has no user account, skipping sanction/PEP screening: coParentCode={}, childCode={}",
-                      coParentPersonalCode,
-                      childPersonalCode));
+              () -> screenCoParentWithoutUserAccount(coParent, childPersonalCode));
     } catch (RuntimeException e) {
       log.error(
           "Co-parent screening failed: coParentCode={}, childCode={}",
-          coParentPersonalCode,
+          coParent.personalCode(),
           childPersonalCode,
           e);
     }
+  }
+
+  private void screenCoParentWithoutUserAccount(Guardian coParent, String childPersonalCode) {
+    String firstName = coParent.firstName();
+    String lastName = coParent.lastName();
+    if (firstName == null || lastName == null) {
+      log.warn(
+          "Co-parent has no user account or registered name, skipping sanction/PEP screening: coParentCode={}, childCode={}",
+          coParent.personalCode(),
+          childPersonalCode);
+      return;
+    }
+    var person = new PersonImpl(coParent.personalCode(), firstName, lastName);
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
+        person, sanctionAndPepScreener.recordedCitizenships(person));
   }
 }

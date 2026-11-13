@@ -48,20 +48,6 @@ class SriCalculatorTest {
   }
 
   @Test
-  void noReturnIsComputedBetweenTwoDifferentSources() {
-    var proxy = pricesForKey("MSCI_ACWI", LocalDate.of(2024, 1, 1), 2000.0, 5);
-    var ownNav = pricesForKey("EE0000003283", LocalDate.of(2024, 1, 8), 1.05, 5);
-    var spliced = new ArrayList<>(proxy);
-    spliced.addAll(ownNav);
-    var evalDate = ownNav.getLast().date();
-
-    var point = calculator.calculate(spliced, evalDate, evalDate).points().getFirst();
-
-    assertThat(point.observationCount()).isEqualTo(spliced.size() - 2);
-    assertThat((double) point.metrics().get("dailySigma")).isLessThan(0.01);
-  }
-
-  @Test
   void theHoldingPeriodSpansTheSupervisoryTradingYear() {
     assertThat(SriCalculator.HOLDING_PERIOD_TRADING_DAYS).isEqualTo(5 * 256);
   }

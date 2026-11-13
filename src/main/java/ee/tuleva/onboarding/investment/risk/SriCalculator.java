@@ -4,12 +4,12 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -46,7 +46,7 @@ class SriCalculator {
     if (series.size() <= MINIMUM_RETURNS) {
       return CalculatedSeries.empty();
     }
-    var returns = logReturnsWithinOneInstrument(series);
+    var returns = logReturns(series);
     var evaluations =
         series.stream()
             .skip(1)
@@ -67,25 +67,17 @@ class SriCalculator {
         .toList();
   }
 
-  private List<DatedReturn> logReturnsWithinOneInstrument(List<FundValue> series) {
-    var returns = new ArrayList<DatedReturn>(series.size());
-    for (int i = 1; i < series.size(); i++) {
-      var current = series.get(i);
-      var previous = series.get(i - 1);
-      if (!isSameInstrument(previous, current)) {
-        continue;
-      }
-      returns.add(
-          new DatedReturn(
-              current.date(),
-              previous.date(),
-              Math.log(current.value().doubleValue() / previous.value().doubleValue())));
-    }
-    return returns;
-  }
-
-  private boolean isSameInstrument(FundValue previous, FundValue current) {
-    return current.key().equals(previous.key());
+  private List<DatedReturn> logReturns(List<FundValue> series) {
+    return IntStream.range(1, series.size())
+        .mapToObj(
+            i ->
+                new DatedReturn(
+                    series.get(i).date(),
+                    series.get(i - 1).date(),
+                    Math.log(
+                        series.get(i).value().doubleValue()
+                            / series.get(i - 1).value().doubleValue())))
+        .toList();
   }
 
   private Evaluation evaluate(List<DatedReturn> returns, LocalDate evalDate) {

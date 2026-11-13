@@ -2,9 +2,8 @@ package ee.tuleva.onboarding.investment.risk;
 
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
-import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
+import ee.tuleva.onboarding.investment.series.SplicedPriceSeries;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -31,7 +30,7 @@ class RiskIndicatorSeriesService {
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
   private final Clock clock;
-  private final FundValueQueries fundValueQueries;
+  private final SplicedPriceSeries priceSeries;
   private final RiskIndicatorPointRepository pointRepository;
   private final RiskIndicatorProperties properties;
   private final SriCalculator sriCalculator;
@@ -40,13 +39,13 @@ class RiskIndicatorSeriesService {
   SeriesRefresh refreshSeries(
       TulevaFund fund, RiskIndicatorType indicatorType, int lookbackMonths) {
     var segments = properties.sourcesFor(fund);
-    var anchor = anchorDate(segments);
+    var anchor = priceSeries.lastCloseDate(segments).orElse(null);
     if (anchor == null) {
       log.warn(
           "No source data for risk indicator: fund={}, type={}, sources={}",
           fund,
           indicatorType,
-          sourceKeys(segments));
+          SplicedPriceSeries.key(segments));
       return SeriesRefresh.empty();
     }
     failIfSourceStoppedUpdating(anchor, segments);
@@ -57,7 +56,7 @@ class RiskIndicatorSeriesService {
             .minusYears(OBSERVATION_WINDOW_YEARS)
             .minus(indicatorType == SRI ? SRI_PRECEDING_PRICE_BUFFER : SRRI_PRECEDING_PRICE_BUFFER);
 
-    var prices = loadSegments(segments, loadStart, anchor);
+    var prices = priceSeries.closes(segments, loadStart, anchor);
     if (prices.isEmpty()) {
       return SeriesRefresh.empty();
     }
@@ -69,64 +68,30 @@ class RiskIndicatorSeriesService {
                 srriCalculator.calculate(prices, evaluationStart, anchor), List.of());
     var points = calculated.points();
 
-    var changes = save(fund, indicatorType, sourceKeys(segments), points);
+    var changes = save(fund, indicatorType, segments, points);
     return new SeriesRefresh(
         points, changes.driftedDates(), changes.redefinitions(), calculated.skippedDates());
   }
 
-  private void failIfSourceStoppedUpdating(LocalDate anchor, List<Source> segments) {
+  private void failIfSourceStoppedUpdating(LocalDate anchor, List<SeriesSegment> segments) {
     if (anchor.isBefore(LocalDate.now(clock).minusDays(MAX_SOURCE_AGE_DAYS))) {
       throw new IllegalStateException(
           "source data is stale: lastValue=%s, maxAgeDays=%d, sources=%s"
-              .formatted(anchor, MAX_SOURCE_AGE_DAYS, sourceKeys(segments)));
+              .formatted(anchor, MAX_SOURCE_AGE_DAYS, SplicedPriceSeries.key(segments)));
     }
   }
 
-  private List<FundValue> loadSegments(
-      List<Source> segments, LocalDate loadStart, LocalDate anchor) {
-    var prices = new ArrayList<FundValue>();
-    for (int i = 0; i < segments.size(); i++) {
-      var segment = segments.get(i);
-      var segmentStart = maxDate(segment.from(), loadStart);
-      var segmentEnd = minDate(nextSegmentStart(segments, i), anchor);
-      if (segmentStart.isAfter(segmentEnd)) {
-        continue;
-      }
-      prices.addAll(
-          fundValueQueries.findValuesBetweenDates(segment.key(), segmentStart, segmentEnd));
-    }
-    return prices;
-  }
-
-  private @Nullable LocalDate nextSegmentStart(List<Source> segments, int index) {
-    if (index + 1 >= segments.size()) {
-      return null;
-    }
-    var next = segments.get(index + 1).from();
-    return next == null ? null : next.minusDays(1);
-  }
-
-  private LocalDate maxDate(@Nullable LocalDate a, LocalDate b) {
-    return a == null || a.isBefore(b) ? b : a;
-  }
-
-  private LocalDate minDate(@Nullable LocalDate a, LocalDate b) {
-    return a == null || a.isAfter(b) ? b : a;
-  }
-
-  private @Nullable LocalDate anchorDate(List<Source> segments) {
-    var activeKey = segments.getLast().key();
-    return fundValueQueries.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
-  }
-
-  private String sourceKeys(List<Source> segments) {
-    return segments.stream().map(Source::key).collect(Collectors.joining(","));
+  private static String sourceKeysOn(List<SeriesSegment> segments, LocalDate date) {
+    return SplicedPriceSeries.key(
+        segments.stream()
+            .filter(segment -> segment.from() == null || !segment.from().isAfter(date))
+            .toList());
   }
 
   private StoredChanges save(
       TulevaFund fund,
       RiskIndicatorType indicatorType,
-      String sourceKeys,
+      List<SeriesSegment> segments,
       List<ReferencePoint> points) {
     var existing =
         pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(indicatorType, fund).stream()
@@ -137,25 +102,41 @@ class RiskIndicatorSeriesService {
     var redefined = new ArrayList<Redefinition>();
     for (var point : points) {
       var stored = existing.get(point.date());
+      var sourceKeys = sourceKeysOn(segments, point.date());
       if (stored == null) {
         toSave.add(newPoint(fund, indicatorType, sourceKeys, point));
-      } else if (!hasDrifted(stored, point)) {
-        continue;
-      } else if (holdingPeriodChanged(stored, point)) {
-        var redefinition = holdingPeriodRedefinition(stored, point);
-        toSave.add(applyRedefinition(stored, point, redefinition));
-        redefined.add(redefinition);
-      } else if (publishedClassChangedWhileTheMeasurementsDidNot(stored, point)) {
-        var redefinition = publicationRuleRedefinition(stored, point);
-        toSave.add(applyRedefinition(stored, point, redefinition));
-        redefined.add(redefinition);
-      } else {
-        toSave.add(applyDrift(stored, point));
-        drifted.add(point.date());
+      } else if (hasDrifted(stored, point)) {
+        var redefinition = redefinition(stored, point, sourceKeys);
+        if (redefinition == null) {
+          toSave.add(applyDrift(stored, point));
+          drifted.add(point.date());
+        } else {
+          toSave.add(applyRedefinition(stored, point, sourceKeys, redefinition));
+          redefined.add(redefinition);
+        }
       }
     }
     pointRepository.saveAll(toSave);
     return new StoredChanges(List.copyOf(drifted), List.copyOf(redefined));
+  }
+
+  private @Nullable Redefinition redefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed, String sourceKeys) {
+    if (!stored.getSourceKeys().equals(sourceKeys)) {
+      return new Redefinition.Sources(
+          recomputed.date(),
+          stored.getSourceKeys(),
+          sourceKeys,
+          stored.getRiskClass(),
+          recomputed.riskClass());
+    }
+    if (holdingPeriodChanged(stored, recomputed)) {
+      return holdingPeriodRedefinition(stored, recomputed);
+    }
+    if (publishedClassChangedWhileTheMeasurementsDidNot(stored, recomputed)) {
+      return publicationRuleRedefinition(stored, recomputed);
+    }
+    return null;
   }
 
   private record StoredChanges(List<LocalDate> driftedDates, List<Redefinition> redefinitions) {}
@@ -198,7 +179,10 @@ class RiskIndicatorSeriesService {
   }
 
   private RiskIndicatorPoint applyRedefinition(
-      RiskIndicatorPoint stored, ReferencePoint recomputed, Redefinition redefinition) {
+      RiskIndicatorPoint stored,
+      ReferencePoint recomputed,
+      String sourceKeys,
+      Redefinition redefinition) {
     log.info(
         "Risk indicator point recomputed under a new definition: fund={}, type={}, date={},"
             + " storedClass={}, recomputedClass={}, storedVolatility={}, recomputedVolatility={},"
@@ -212,12 +196,16 @@ class RiskIndicatorSeriesService {
         recomputed.volatility(),
         redefinition);
 
-    var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
-    var history = driftHistory(stored);
-    if (!history.isEmpty()) {
-      metrics.put("driftHistory", history);
-    }
-    return apply(stored, recomputed, metrics);
+    return apply(
+        stored, recomputed, sourceKeys, withHistory(stored, recomputed, kind(redefinition)));
+  }
+
+  private static String kind(Redefinition redefinition) {
+    return switch (redefinition) {
+      case Redefinition.Sources sources -> "SOURCES";
+      case Redefinition.HoldingPeriod holdingPeriod -> "HOLDING_PERIOD";
+      case Redefinition.PublicationRule publicationRule -> "PUBLICATION_RULE";
+    };
   }
 
   record SeriesRefresh(
@@ -264,29 +252,53 @@ class RiskIndicatorSeriesService {
         stored.getVolatility(),
         recomputed.volatility());
 
+    return apply(
+        stored, recomputed, stored.getSourceKeys(), withHistory(stored, recomputed, "DRIFT"));
+  }
+
+  private Map<String, Object> withHistory(
+      RiskIndicatorPoint stored, ReferencePoint recomputed, String kind) {
     var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
     var history = new ArrayList<>(driftHistory(stored));
     history.add(
         Map.of(
             "detectedAt",
             LocalDate.now(clock).toString(),
+            "kind",
+            kind,
             "previousClass",
             String.valueOf(stored.getRiskClass()),
             "previousVolatility",
             String.valueOf(stored.getVolatility()),
+            "previousObservationCount",
+            String.valueOf(stored.getObservationCount()),
+            "previousSourceKeys",
+            stored.getSourceKeys(),
+            "previousMetrics",
+            metricsWithoutHistory(stored),
             "newClass",
             String.valueOf(recomputed.riskClass())));
     metrics.put("driftHistory", history);
-    return apply(stored, recomputed, metrics);
+    return metrics;
   }
 
   private RiskIndicatorPoint apply(
-      RiskIndicatorPoint stored, ReferencePoint recomputed, Map<String, Object> metrics) {
+      RiskIndicatorPoint stored,
+      ReferencePoint recomputed,
+      String sourceKeys,
+      Map<String, Object> metrics) {
+    stored.setSourceKeys(sourceKeys);
     stored.setRiskClass(recomputed.riskClass());
     stored.setObservationCount(recomputed.observationCount());
     stored.setVolatility(recomputed.volatility());
     stored.setMetrics(metrics);
     return stored;
+  }
+
+  private static Map<String, Object> metricsWithoutHistory(RiskIndicatorPoint stored) {
+    return stored.getMetrics().entrySet().stream()
+        .filter(entry -> !entry.getKey().equals("driftHistory"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   @SuppressWarnings("unchecked")

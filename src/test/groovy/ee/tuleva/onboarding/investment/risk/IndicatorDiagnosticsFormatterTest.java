@@ -130,6 +130,55 @@ class IndicatorDiagnosticsFormatterTest {
   }
 
   @Test
+  void aSourceChangeThatLeavesEveryPointsClassAsItWasIsInformationNotDrift() {
+    var outcome =
+        new RiskIndicatorService.RiskIndicatorOutcome(
+            stableSri(),
+            null,
+            RiskIndicatorPublication.builder().build(),
+            List.of(),
+            List.of(
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 3, 2), "MSCI_ACWI", "MSCI_ACWI+EE0000003283", 4, 4),
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 6, 30), "MSCI_ACWI", "MSCI_ACWI+EE0000003283", 4, 4)),
+            List.of());
+
+    var lines = diagnosticsFormatter.withDiagnostics(new ArrayList<>(), outcome);
+
+    assertThat(lines)
+        .containsExactly(
+            "ℹ️ TKF100 SRI: allikad muutusid (MSCI_ACWI → MSCI_ACWI+EE0000003283), 2 varasemat"
+                + " referentspunkti arvutati uue seeriaga ümber (vanim 2026-03-02, viimane"
+                + " 2026-06-30). Ükski klass ei muutunud.");
+  }
+
+  @Test
+  void aSourceChangeThatMovesAPointsClassIsAWarningUntilEveryRecomputedClassHolds() {
+    var outcome =
+        new RiskIndicatorService.RiskIndicatorOutcome(
+            stableSri(),
+            null,
+            RiskIndicatorPublication.builder().build(),
+            List.of(),
+            List.of(
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 3, 2), "MSCI_ACWI", "MSCI_ACWI+EE0000003283", 4, 4),
+                new Redefinition.Sources(
+                    LocalDate.of(2026, 6, 30), "MSCI_ACWI", "MSCI_ACWI+EE0000003283", 4, 5)),
+            List.of());
+
+    var lines = diagnosticsFormatter.withDiagnostics(new ArrayList<>(), outcome);
+
+    assertThat(lines)
+        .containsExactly(
+            "⚠️ TKF100 SRI: allikad muutusid (MSCI_ACWI → MSCI_ACWI+EE0000003283), 2 varasemat"
+                + " referentspunkti arvutati uue seeriaga ümber (vanim 2026-03-02, viimane"
+                + " 2026-06-30). Klass muutus 1 punktil. 👉 Tegevus: kontrolli, kas avaldatud"
+                + " klass peab muutuma.");
+  }
+
+  @Test
   void aClassWithheldByAChangedRuleIsReportedAsARedefinitionRatherThanSourceDataDrift() {
     var outcome =
         new RiskIndicatorService.RiskIndicatorOutcome(

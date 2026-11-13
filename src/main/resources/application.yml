@@ -342,6 +342,18 @@ investment:
     s3:
       access-key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
       secret-key: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
+  risk:
+    sources:
+      TKF100:
+        - key: MSCI_ACWI
+        - key: EE0000003283
+          from: 2026-03-01
+      TUK75:
+        - key: EE3600109435
+      TUK00:
+        - key: EE3600109443
+      TUV100:
+        - key: EE3600001707
 
 ledger:
   unit-balance-guard:
@@ -495,22 +507,6 @@ investment-report-publishing:
     api-base: ${WP_API_BASE:https://tuleva.ee/wp-json/wp/v2}
     username: ${WP_USERNAME:}
     app-password: ${WP_APP_PASSWORD:}
-
-investment:
-  risk:
-    sources:
-      TKF100:
-        - key: MSCI_ACWI
-      TUK75:
-        - key: EE3600109435
-      TUK00:
-        - key: EE3600109443
-      TUV100:
-        - key: EE3600001707
-    proxy-review:
-      TKF100:
-        own-history-key: EE0000003283
-        required-years: 2
 
 #Sentry environment configuration
 ---

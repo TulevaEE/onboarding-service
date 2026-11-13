@@ -56,24 +56,6 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void noReturnIsComputedBetweenTwoDifferentSources() {
-    var navs = new ArrayList<FundValue>();
-    for (int week = 0; week < 4; week++) {
-      navs.add(navForKey("MSCI_ACWI", weekEnd(FIRST_MONDAY.plusWeeks(week)), 2000.0 + week));
-    }
-    for (int week = 4; week < 8; week++) {
-      navs.add(
-          navForKey("EE0000003283", weekEnd(FIRST_MONDAY.plusWeeks(week)), 1.05 + week * 0.01));
-    }
-    var evalDate = weekEnd(FIRST_MONDAY.plusWeeks(6));
-
-    var point = calculator.calculate(navs, evalDate, evalDate).getFirst();
-
-    assertThat(point.observationCount()).isEqualTo(5);
-    assertThat(point.volatility().doubleValue()).isLessThan(0.5);
-  }
-
-  @Test
   void excludesNonPositiveNavs() {
     var navs =
         List.of(

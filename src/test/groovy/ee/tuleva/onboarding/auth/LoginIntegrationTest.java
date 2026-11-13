@@ -706,6 +706,29 @@ class LoginIntegrationTest {
   }
 
   @Test
+  void theLoginAfterANameChangeRecordsAPassingSkNameCheckAgainstTheUpdatedName() throws Exception {
+    userRepository.save(
+        User.builder()
+            .firstName("Aadu")
+            .lastName("Kadakas")
+            .personalCode(personalCode)
+            .active(true)
+            .build());
+    completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"), false);
+
+    completeQrLogin(anAuthenticationIdentity("AADU", "KUUSK-ÕUNAPUU"), false);
+
+    assertThat(
+            amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(personalCode, SK_NAME, true))
+        .singleElement()
+        .extracting(AmlCheck::getMetadata)
+        .isEqualTo(
+            Map.of(
+                "user", new PersonImpl(personalCode, "Aadu", "Kuusk-Õunapuu"),
+                "person", new PersonImpl(personalCode, "Aadu", "Kuusk-Õunapuu")));
+  }
+
+  @Test
   void aMobileIdLoginWithRememberMeRemembersTheCanonicalPhoneOnThisBrowser() throws Exception {
     MvcResult granted = completeMobileIdLogin("+372 5555 5555", true);
 

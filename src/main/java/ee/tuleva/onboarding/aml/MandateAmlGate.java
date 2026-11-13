@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT;
 import static ee.tuleva.onboarding.aml.AmlCheckType.OCCUPATION;
-import static ee.tuleva.onboarding.aml.AmlCheckType.PENSION_REGISTRY_NAME;
 import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON;
 import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_AUTO;
 import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE;
@@ -57,7 +56,7 @@ public final class MandateAmlGate {
             || checks.passedAny(
                 POLITICALLY_EXPOSED_PERSON_AUTO, POLITICALLY_EXPOSED_PERSON_OVERRIDE))
         && checks.passedAny(SANCTION)
-        && checks.passedAny(SK_NAME, PENSION_REGISTRY_NAME)
+        && checks.passedAny(SK_NAME)
         && checks.passedAny(DOCUMENT)
         && checks.passedAny(OCCUPATION)
         && checks.passedAny(RESIDENCY_AUTO, RESIDENCY_MANUAL);

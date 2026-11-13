@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 import static org.mockito.quality.Strictness.LENIENT;
 
@@ -220,6 +221,77 @@ class AmlServiceTest {
         .success(success)
         .createdTime(createdTime)
         .build();
+  }
+
+  @Test
+  void checkUserBeforeLogin_recordsAFreshSkNameCheckWhenTheLatestOneFailed() {
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(false).build());
+
+    amlService.checkUserBeforeLogin(user, user, null);
+
+    then(amlCheckRepository)
+        .should()
+        .save(
+            skNameCheck()
+                .success(true)
+                .metadata(Map.of("user", new PersonImpl(user), "person", new PersonImpl(user)))
+                .build());
+  }
+
+  @Test
+  void checkUserBeforeLogin_recordsNoSkNameCheckWhenTheLatestOnePassed() {
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(true).build());
+
+    amlService.checkUserBeforeLogin(user, user, null);
+
+    then(amlCheckRepository).should(never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void checkUserBeforeLogin_recordsNoFurtherFailingSkNameCheckWhileTheLatestOneFailed() {
+    User user = aUser("Test", "User");
+    givenOtherLoginChecksAlreadyRecorded();
+    givenLatestSkNameCheck(skNameCheck().success(false).build());
+
+    amlService.checkUserBeforeLogin(user, aUser("Test", "Renamed"), null);
+
+    then(amlCheckRepository).should(never()).save(any(AmlCheck.class));
+  }
+
+  private static User aUser(String firstName, String lastName) {
+    return User.builder()
+        .id(1L)
+        .personalCode("38888888888")
+        .firstName(firstName)
+        .lastName(lastName)
+        .build();
+  }
+
+  private static AmlCheck.AmlCheckBuilder skNameCheck() {
+    return AmlCheck.builder().personalCode("38888888888").type(SK_NAME);
+  }
+
+  private void givenOtherLoginChecksAlreadyRecorded() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+                "38888888888", DOCUMENT, aYearAgoFromTestClock))
+        .willReturn(true);
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+                "38888888888", SK_NAME, aYearAgoFromTestClock))
+        .willReturn(true);
+  }
+
+  private void givenLatestSkNameCheck(AmlCheck latest) {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", SK_NAME, aYearAgoFromTestClock))
+        .willReturn(Optional.of(latest));
   }
 
   @Test
@@ -458,7 +530,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_MANUAL,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             true,
             false),
         Arguments.of(
@@ -478,7 +550,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_MANUAL,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             true,
             false),
         Arguments.of(
@@ -489,6 +561,30 @@ class AmlServiceTest {
                 .toList(),
             true,
             false),
+        Arguments.of(
+            successfulChecks(
+                POLITICALLY_EXPOSED_PERSON,
+                SANCTION,
+                DOCUMENT,
+                OCCUPATION,
+                RESIDENCY_AUTO,
+                PENSION_REGISTRY_NAME),
+            false,
+            true),
+        Arguments.of(
+            Stream.concat(
+                    successfulChecks(
+                        POLITICALLY_EXPOSED_PERSON,
+                        SANCTION,
+                        DOCUMENT,
+                        OCCUPATION,
+                        RESIDENCY_AUTO,
+                        PENSION_REGISTRY_NAME)
+                        .stream(),
+                    failedChecks(SK_NAME).stream())
+                .toList(),
+            false,
+            true),
         Arguments.of(
             successfulChecks(
                 POLITICALLY_EXPOSED_PERSON, DOCUMENT, OCCUPATION, RESIDENCY_AUTO, SK_NAME),
@@ -506,7 +602,7 @@ class AmlServiceTest {
                 DOCUMENT,
                 OCCUPATION,
                 RESIDENCY_AUTO,
-                PENSION_REGISTRY_NAME),
+                SK_NAME),
             false,
             true));
   }

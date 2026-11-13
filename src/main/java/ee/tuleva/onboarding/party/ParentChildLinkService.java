@@ -44,6 +44,10 @@ public class ParentChildLinkService implements ChildRepresentations {
     return children;
   }
 
+  public List<ParentChildLink> findCurrentRepresentatives() {
+    return parentChildLinkRepository.findBySuspendedAtIsNullAndValidUntilAfter(today());
+  }
+
   public Optional<String> findFirstActiveRepresentative(String childPersonalCode) {
     return parentChildLinkRepository
         .findByChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(

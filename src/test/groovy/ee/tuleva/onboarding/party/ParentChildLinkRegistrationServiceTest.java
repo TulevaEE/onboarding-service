@@ -4,6 +4,9 @@ import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
+import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
@@ -13,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
@@ -38,6 +42,8 @@ class ParentChildLinkRegistrationServiceTest {
   private static final LocalDate GUARDIANSHIP_VALID_UNTIL = LocalDate.of(2099, 12, 31);
 
   private static final String CO_PARENT = "38002020008";
+  private static final Guardian CO_PARENT_GUARDIAN =
+      new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu");
 
   @Mock private ParentChildLinkRepository parentChildLinkRepository;
   @Mock private UserService userService;
@@ -146,7 +152,7 @@ class ParentChildLinkRegistrationServiceTest {
         .willReturn(Optional.empty());
     given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
 
-    ParentChildLink saved = service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink saved = service.registerPending(CO_PARENT_GUARDIAN, CHILD, "mari", "maasikas");
 
     verify(userService)
         .createNewUser(
@@ -161,6 +167,8 @@ class ParentChildLinkRegistrationServiceTest {
     assertThat(saved.getRelationshipType()).isEqualTo(LEGAL_REPRESENTATIVE);
     assertThat(saved.getValidUntil()).isEqualTo(CHILD_EIGHTEENTH_BIRTHDAY);
     assertThat(saved.isPending()).isTrue();
+    assertThat(saved.getParentFirstName()).isEqualTo("Kati");
+    assertThat(saved.getParentLastName()).isEqualTo("Karu");
   }
 
   @Test
@@ -180,7 +188,7 @@ class ParentChildLinkRegistrationServiceTest {
                     CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
         .willReturn(Optional.of(existingActive));
 
-    ParentChildLink result = service.registerPending(CO_PARENT, CHILD, "mari", "maasikas");
+    ParentChildLink result = service.registerPending(CO_PARENT_GUARDIAN, CHILD, "mari", "maasikas");
 
     assertThat(result).isSameAs(existingActive);
     assertThat(result.getStatus()).isEqualTo(ACTIVE);
@@ -188,8 +196,35 @@ class ParentChildLinkRegistrationServiceTest {
   }
 
   @Test
+  void registerPending_recordsTheRegisterNameOnAnExistingLinkThatHasNone() {
+    given(userService.findByPersonalCode(CHILD)).willReturn(Optional.empty());
+    ParentChildLink existingPending =
+        ParentChildLink.builder()
+            .parentPersonalCode(CO_PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(CHILD_EIGHTEENTH_BIRTHDAY)
+            .status(PENDING_KYC)
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
+                    CO_PARENT, CHILD, LEGAL_REPRESENTATIVE))
+        .willReturn(Optional.of(existingPending));
+    given(parentChildLinkRepository.save(any())).willAnswer(returnsFirstArg());
+
+    ParentChildLink result = service.registerPending(CO_PARENT_GUARDIAN, CHILD, "mari", "maasikas");
+
+    assertThat(result.getParentFirstName()).isEqualTo("Kati");
+    assertThat(result.getParentLastName()).isEqualTo("Karu");
+    assertThat(result.isPending()).isTrue();
+    verify(parentChildLinkRepository).save(existingPending);
+  }
+
+  @Test
   void registerPending_rejectsAdultChild() {
-    assertThatThrownBy(() -> service.registerPending(CO_PARENT, "38812121215", "Ad", "Ult"))
+    assertThatThrownBy(
+            () -> service.registerPending(CO_PARENT_GUARDIAN, "38812121215", "Ad", "Ult"))
         .isInstanceOf(ChildIsNotAMinorException.class);
 
     verifyNoInteractions(userService);

@@ -55,6 +55,10 @@ public class ParentChildLink {
 
   private @Nullable Instant suspendedAt;
 
+  private @Nullable String parentFirstName;
+
+  private @Nullable String parentLastName;
+
   @Column(nullable = false, updatable = false)
   private @Nullable Instant createdDate;
 
@@ -71,6 +75,15 @@ public class ParentChildLink {
 
   public boolean isPending() {
     return status == PENDING_KYC;
+  }
+
+  public boolean hasRecordedParentName() {
+    return parentFirstName != null && parentLastName != null;
+  }
+
+  void recordParentName(String firstName, String lastName) {
+    parentFirstName = firstName;
+    parentLastName = lastName;
   }
 
   void activate() {

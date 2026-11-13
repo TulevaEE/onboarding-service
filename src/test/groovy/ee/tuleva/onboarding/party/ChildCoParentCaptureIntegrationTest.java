@@ -1,9 +1,13 @@
 package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
+import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
+import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
+import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +47,8 @@ class ChildCoParentCaptureIntegrationTest {
   @Test
   void persistsThePendingCoParentLinkAfterTheOnboardingTransactionCommits() {
     given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
-        .willReturn(List.of(CO_PARENT));
+        .willReturn(
+            List.of(new Guardian(CO_PARENT, PROPERTY_CUSTODY, VALID, ALIVE, "Kati", "Karu")));
 
     transactionTemplate.executeWithoutResult(
         status ->
@@ -56,6 +61,8 @@ class ChildCoParentCaptureIntegrationTest {
                 CO_PARENT, CHILD, LEGAL_REPRESENTATIVE)
             .orElseThrow();
     assertThat(saved.isPending()).isTrue();
+    assertThat(saved.getParentFirstName()).isEqualTo("Kati");
+    assertThat(saved.getParentLastName()).isEqualTo("Karu");
     assertThat(userRepository.findByPersonalCode(CHILD)).isPresent();
   }
 }

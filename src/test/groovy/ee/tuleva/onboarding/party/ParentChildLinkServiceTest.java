@@ -410,4 +410,13 @@ class ParentChildLinkServiceTest {
         .createdDate(createdDate)
         .build();
   }
+
+  @Test
+  void findsTheCurrentRepresentativesAsOfToday() {
+    var link = aLink();
+    given(parentChildLinkRepository.findBySuspendedAtIsNullAndValidUntilAfter(TODAY))
+        .willReturn(List.of(link));
+
+    assertThat(service.findCurrentRepresentatives()).containsExactly(link);
+  }
 }

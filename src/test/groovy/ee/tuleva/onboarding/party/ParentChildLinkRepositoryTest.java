@@ -381,4 +381,44 @@ class ParentChildLinkRepositoryTest {
                 ACTIVE, EIGHTEENTH_BIRTHDAY))
         .isEmpty();
   }
+
+  @Test
+  void currentLinksAreTheUnsuspendedOnesStillValidWhateverTheirStatus() {
+    var active = savedLink(null);
+    var pending = savedPendingLink(OTHER_PARENT);
+    var guardian = savedGuardianLink("38888888881", ACTIVE);
+    savedLink("38888888882", SUSPENDED);
+    repository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode("38888888883")
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2026, 5, 22))
+            .build());
+
+    assertThat(repository.findBySuspendedAtIsNullAndValidUntilAfter(LocalDate.of(2026, 5, 22)))
+        .containsExactlyInAnyOrder(active, pending, guardian);
+  }
+
+  @Test
+  void keepsTheParentsRecordedName() {
+    var link =
+        repository.save(
+            ParentChildLink.builder()
+                .parentPersonalCode(OTHER_PARENT)
+                .childPersonalCode(CHILD)
+                .relationshipType(LEGAL_REPRESENTATIVE)
+                .validUntil(EIGHTEENTH_BIRTHDAY)
+                .status(PENDING_KYC)
+                .parentFirstName("Mari")
+                .parentLastName("Maasikas")
+                .build());
+
+    assertThat(repository.findById(link.getId()))
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.getParentFirstName()).isEqualTo("Mari");
+              assertThat(found.getParentLastName()).isEqualTo("Maasikas");
+            });
+  }
 }

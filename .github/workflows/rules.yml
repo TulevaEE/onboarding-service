@@ -3,152 +3,107 @@ name: rules
 on:
   push:
     branches: [master]
-    paths:
-      - src/main/java/ee/tuleva/onboarding/aml/AmlBatchScreener.java
-      - src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
-      - src/main/java/ee/tuleva/onboarding/aml/AmlService.java
-      - src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
-      - src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
-      - src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
-      - src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
-      - src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java
-      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
-      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
-      - src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java
-      - src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/FreeCashLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitCheckService.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitSeverity.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/OwnershipLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/PositionLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/ReserveLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavTrackingDifferenceGate.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TdEscalation.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TrackingDifferenceNotifier.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/DepotFeeCalculator.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/FeeAccrualBuilder.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/ManagementFeeCalculator.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionInputService.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/UnitReceivableReader.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/UnsettledTradeReader.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/HeadroomRedistribution.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/TradeCalculationEngine.java
-      - src/main/java/ee/tuleva/onboarding/kyb/screener/CompanySanctionScreener.java
-      - src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
-      - src/main/java/ee/tuleva/onboarding/ledger/NavFeeAccrualLedger.java
-      - src/main/java/ee/tuleva/onboarding/ledger/NavPositionLedger.java
-      - src/main/java/ee/tuleva/onboarding/savings/FundNavProvider.java
-      - src/main/java/ee/tuleva/onboarding/savings/NavPublication.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingFundDeadlinesService.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingService.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
-      - src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
-      - src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentFactsCollector.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentVerificationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/SavingFundPaymentCancellationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/issuing/IssuingJob.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavAlertJob.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavPublisher.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionPayoutValidator.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerificationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportCsvGenerator.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportRow.java
-      - build.gradle.kts
-      - .github/workflows/rules.yml
   pull_request:
-    paths:
-      - src/main/java/ee/tuleva/onboarding/aml/AmlBatchScreener.java
-      - src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
-      - src/main/java/ee/tuleva/onboarding/aml/AmlService.java
-      - src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
-      - src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
-      - src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
-      - src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
-      - src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java
-      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
-      - src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
-      - src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java
-      - src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/FreeCashLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitCheckService.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitSeverity.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/OwnershipLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/PositionLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/limit/ReserveLimitChecker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavTrackingDifferenceGate.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TdEscalation.java
-      - src/main/java/ee/tuleva/onboarding/investment/check/tracking/TrackingDifferenceNotifier.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/DepotFeeCalculator.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/FeeAccrualBuilder.java
-      - src/main/java/ee/tuleva/onboarding/investment/fees/ManagementFeeCalculator.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionInputService.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/UnitReceivableReader.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/UnsettledTradeReader.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/HeadroomRedistribution.java
-      - src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/TradeCalculationEngine.java
-      - src/main/java/ee/tuleva/onboarding/kyb/screener/CompanySanctionScreener.java
-      - src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
-      - src/main/java/ee/tuleva/onboarding/ledger/NavFeeAccrualLedger.java
-      - src/main/java/ee/tuleva/onboarding/ledger/NavPositionLedger.java
-      - src/main/java/ee/tuleva/onboarding/savings/FundNavProvider.java
-      - src/main/java/ee/tuleva/onboarding/savings/NavPublication.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingFundDeadlinesService.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingService.java
-      - src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
-      - src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
-      - src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentFactsCollector.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/PaymentVerificationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/SavingFundPaymentCancellationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/issuing/IssuingJob.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavAlertJob.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavPublisher.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionPayoutValidator.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerificationService.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportCsvGenerator.java
-      - src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportRow.java
-      - build.gradle.kts
-      - .github/workflows/rules.yml
+  merge_group:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: rules-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  WATCHED: |
+    src/main/java/ee/tuleva/onboarding/aml/AmlBatchScreener.java
+    src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
+    src/main/java/ee/tuleva/onboarding/aml/AmlService.java
+    src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
+    src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
+    src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
+    src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeReader.java
+    src/main/java/ee/tuleva/onboarding/auth/idcard/IdDocumentType.java
+    src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/BankReconciliation.java
+    src/main/java/ee/tuleva/onboarding/banking/seb/reconciliation/SebReconciliator.java
+    src/main/java/ee/tuleva/onboarding/comparisons/fundvalue/PriorityPriceProvider.java
+    src/main/java/ee/tuleva/onboarding/investment/CashKnownToArrive.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/BreachSeverity.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/FreeCashLimitChecker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitCheckService.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/LimitSeverity.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/OwnershipLimitChecker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/PositionLimitChecker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/limit/ReserveLimitChecker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/ConsecutiveBreachTracker.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/EscalationRule.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavReportHold.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/NavTrackingDifferenceGate.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/TdEscalation.java
+    src/main/java/ee/tuleva/onboarding/investment/check/tracking/TrackingDifferenceNotifier.java
+    src/main/java/ee/tuleva/onboarding/investment/fees/DepotFeeCalculator.java
+    src/main/java/ee/tuleva/onboarding/investment/fees/FeeAccrualBuilder.java
+    src/main/java/ee/tuleva/onboarding/investment/fees/ManagementFeeCalculator.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionInputService.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/UnitReceivableReader.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/UnsettledTradeReader.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/HeadroomRedistribution.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/TradeCalculationEngine.java
+    src/main/java/ee/tuleva/onboarding/kyb/screener/CompanySanctionScreener.java
+    src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
+    src/main/java/ee/tuleva/onboarding/ledger/NavFeeAccrualLedger.java
+    src/main/java/ee/tuleva/onboarding/ledger/NavPositionLedger.java
+    src/main/java/ee/tuleva/onboarding/savings/FundNavProvider.java
+    src/main/java/ee/tuleva/onboarding/savings/NavPublication.java
+    src/main/java/ee/tuleva/onboarding/savings/SavingFundDeadlinesService.java
+    src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingService.java
+    src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
+    src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
+    src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/PaymentFactsCollector.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/PaymentVerificationService.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/SavingFundPaymentCancellationService.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/issuing/IssuingJob.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavAlertJob.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavPublisher.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionPayoutValidator.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerificationService.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportCsvGenerator.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportRow.java
+    build.gradle.kts
+    .github/workflows/rules.yml
 
 jobs:
   rules:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
       HAS_APP_KEY: ${{ secrets.RULES_APP_PRIVATE_KEY != '' }}
     steps:
+      - name: Find whether a watched file changed
+        id: changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          case "$EVENT" in
+            pull_request) files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename') ;;
+            push) files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$SHA" --jq '.files[].filename') ;;
+            *) files="" ;;
+          esac
+          if printf '%s\n' "$files" | grep -qxFf <(printf '%s' "$WATCHED" | sed '/^$/d'); then
+            echo "watched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No watched file changed; nothing to check"
+          fi
+
       - name: Skip without the rules app
-        if: env.HAS_APP_KEY != 'true' || vars.RULES_APP_ID == ''
+        if: steps.changed.outputs.watched == 'true' && (env.HAS_APP_KEY != 'true' || vars.RULES_APP_ID == '')
         run: echo "Rules app not configured; skipping"
 
       - name: Mint a token for the rules repository
         id: token
-        if: env.HAS_APP_KEY == 'true' && vars.RULES_APP_ID != ''
+        if: steps.changed.outputs.watched == 'true' && env.HAS_APP_KEY == 'true' && vars.RULES_APP_ID != ''
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.RULES_APP_ID }}

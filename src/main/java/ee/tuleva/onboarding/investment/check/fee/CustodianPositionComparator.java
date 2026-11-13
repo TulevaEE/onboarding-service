@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 class CustodianPositionComparator {
 
   private static final List<AccountType> CUSTODIAN_TYPES = List.of(CASH, RECEIVABLES, LIABILITY);
+  private static final String EVERY_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT = "Cash account";
   private static final BigDecimal BASIS_POINTS = new BigDecimal("10000");
   private static final int BASIS_POINT_SCALE = 2;
   private static final int CENTS = 2;
@@ -113,7 +114,8 @@ class CustodianPositionComparator {
         .filter(position -> CUSTODIAN_TYPES.contains(position.getAccountType()))
         .collect(
             toMap(
-                FundPosition::getAccountName,
+                position ->
+                    comparedLine(position.getAccountType().name(), position.getAccountName()),
                 position -> value(position.getMarketValue()),
                 BigDecimal::add,
                 LinkedHashMap::new));
@@ -123,10 +125,16 @@ class CustodianPositionComparator {
     return calculation.custodianComparableLines().stream()
         .collect(
             toMap(
-                NavAccountLine::accountName,
+                line -> comparedLine(line.accountType(), line.accountName()),
                 NavAccountLine::value,
                 BigDecimal::add,
                 LinkedHashMap::new));
+  }
+
+  private String comparedLine(String accountType, String accountName) {
+    return CASH.name().equals(accountType)
+        ? EVERY_CASH_ROW_WHATEVER_THE_BANK_CALLS_IT
+        : accountName;
   }
 
   private Map<String, BigDecimal> reportedQuantities(List<FundPosition> positions) {

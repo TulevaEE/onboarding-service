@@ -99,6 +99,45 @@ class CustodianPositionComparatorTest {
         .returns(true, CustodianDayComparison::matches);
   }
 
+  @Test
+  void cashMatchesWhenTheCustodianRenamesItsCashRowAfterTheBank() {
+    givenNav(reSentNavLines());
+    givenPositions(withCashRowsOf(reSentPositions(), position(CASH, "Cash account", "738961.19")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE))
+        .get()
+        .returns(true, CustodianDayComparison::matches)
+        .returns(new BigDecimal("0.00"), CustodianDayComparison::navImpact);
+  }
+
+  @Test
+  void cashRowsUnderTwoBanksNamesOnOneDayAreComparedAsTheFundsCash() {
+    givenNav(reSentNavLines());
+    givenPositions(
+        withCashRowsOf(
+            reSentPositions(),
+            position(CASH, "Swedbank AS", "38961.19"),
+            position(CASH, CASH_ACCOUNT, "700000.00")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE))
+        .get()
+        .returns(true, CustodianDayComparison::matches);
+  }
+
+  @Test
+  void aCashDifferenceIsReportedAsTheCashLineWhateverEitherSideCallsIt() {
+    givenNav(reSentNavLines());
+    givenPositions(withCashRowsOf(reSentPositions(), position(CASH, "Cash account", "738861.19")));
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE).orElseThrow().differences())
+        .containsExactly(
+            new CustodianLineDifference(
+                "Cash account", new BigDecimal("738861.19"), new BigDecimal("738961.19")));
+  }
+
   // The netted cash/receivable/payable difference is +325 708 788.10, but the fund is only worth
   // 75 247.49 less: the redemption came in below what the NAV still valued the holding at. Only
   // reading the security leg as well turns the alert into a number worth deciding on.
@@ -213,6 +252,19 @@ class CustodianPositionComparatorTest {
                     ? position(CASH, CASH_ACCOUNT, null, null, null, cash)
                     : position)
         .toList();
+  }
+
+  private List<FundPosition> withCashRowsOf(
+      List<FundPosition> positions, FundPosition... cashRows) {
+    var replaced =
+        new ArrayList<>(
+            positions.stream().filter(position -> position.getAccountType() != CASH).toList());
+    replaced.addAll(List.of(cashRows));
+    return replaced;
+  }
+
+  private FundPosition position(AccountType accountType, String accountName, String marketValue) {
+    return position(accountType, accountName, null, null, null, marketValue);
   }
 
   private NavAccountLine navLine(String accountType, String accountName, String marketValue) {

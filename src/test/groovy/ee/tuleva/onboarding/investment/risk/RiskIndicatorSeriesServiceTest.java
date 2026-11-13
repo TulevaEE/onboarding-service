@@ -16,6 +16,9 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
+import ee.tuleva.onboarding.investment.series.SeriesSpliceRefusedException;
+import ee.tuleva.onboarding.investment.series.SplicedPriceSeries;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -219,10 +222,10 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   @Test
-  void doesNotComputeAReturnAcrossASegmentJoin() {
+  void continuesTheOwnNavFromTheProxysLastCloseSoTheJoinNeitherInventsNorLosesAReturn() {
     var acwiPrices =
         dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
-    var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(2), ANCHOR, 1.05);
+    var navPrices = dailyPrices(TKF_ISIN, acwiPrices.getLast().date(), ANCHOR, 1.05);
     given(fundValueQueries.findLastValueForFund(TKF_ISIN))
         .willReturn(Optional.of(navPrices.getLast()));
     given(fundValueQueries.findValuesBetweenDates(eq(ACWI), any(), any())).willReturn(acwiPrices);
@@ -238,12 +241,35 @@ class RiskIndicatorSeriesServiceTest {
     verify(pointRepository).saveAll(saved.capture());
     assertThat(((List<RiskIndicatorPoint>) saved.getValue()).getFirst().getSourceKeys())
         .isEqualTo(ACWI + "," + TKF_ISIN);
-
-    // Without the same-key guard the join yields ln(1.05 / 2000) ≈ -7.55, which dominates sigma
-    // and saturates the class at 7 for every evaluation date whose window spans the join.
-    assertThat(points).isNotEmpty();
     assertThat(points).allSatisfy(point -> assertThat(point.riskClass()).isLessThan(7));
-    assertThat(points.getLast().volatility().doubleValue()).isLessThan(0.5);
+    assertThat(points.getLast().observationCount())
+        .isEqualTo(weekdaysAfterUpTo(ANCHOR.minusYears(5), ANCHOR));
+  }
+
+  @Test
+  void refusesASpliceWhoseOwnNavHasNoCloseOnTheProxysLastClose() {
+    var acwiPrices =
+        dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
+    var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(2), ANCHOR, 1.05);
+    given(fundValueQueries.findLastValueForFund(TKF_ISIN))
+        .willReturn(Optional.of(navPrices.getLast()));
+    given(fundValueQueries.findValuesBetweenDates(eq(ACWI), any(), any())).willReturn(acwiPrices);
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+        .willReturn(navPrices);
+    var splicedService = serviceWith(splicedProperties());
+
+    assertThatThrownBy(() -> splicedService.refreshSeries(TKF100, SRI, 1))
+        .isInstanceOf(SeriesSpliceRefusedException.class);
+    verify(pointRepository, never()).saveAll(any());
+  }
+
+  private static int weekdaysAfterUpTo(LocalDate after, LocalDate upTo) {
+    return (int)
+        after
+            .plusDays(1)
+            .datesUntil(upTo.plusDays(1))
+            .filter(date -> date.getDayOfWeek().getValue() <= 5)
+            .count();
   }
 
   @Test
@@ -273,8 +299,8 @@ class RiskIndicatorSeriesServiceTest {
             Map.of(
                 TKF100,
                 List.of(
-                    new RiskIndicatorProperties.Source(ACWI, null),
-                    new RiskIndicatorProperties.Source(TKF_ISIN, ANCHOR.minusYears(20)))),
+                    new SeriesSegment(ACWI, null),
+                    new SeriesSegment(TKF_ISIN, ANCHOR.minusYears(20)))),
             Map.of());
 
     var points = serviceWith(longRetiredProxy).refreshSeries(TKF100, SRI, 1).points();
@@ -295,10 +321,7 @@ class RiskIndicatorSeriesServiceTest {
         .willReturn(List.of());
     var onlyOwnHistory =
         new RiskIndicatorProperties(
-            Map.of(
-                TKF100,
-                List.of(new RiskIndicatorProperties.Source(TKF_ISIN, explicitSegmentStart))),
-            Map.of());
+            Map.of(TKF100, List.of(new SeriesSegment(TKF_ISIN, explicitSegmentStart))), Map.of());
 
     serviceWith(onlyOwnHistory).refreshSeries(TKF100, SRI, 1);
 
@@ -326,7 +349,7 @@ class RiskIndicatorSeriesServiceTest {
     return new RiskIndicatorSeriesService(
         java.time.Clock.fixed(
             ANCHOR.atStartOfDay(java.time.ZoneOffset.UTC).toInstant(), java.time.ZoneOffset.UTC),
-        fundValueQueries,
+        new SplicedPriceSeries(fundValueQueries),
         pointRepository,
         properties,
         new SriCalculator(),
@@ -337,9 +360,9 @@ class RiskIndicatorSeriesServiceTest {
     return new RiskIndicatorProperties(
         Map.of(
             TKF100,
-            List.of(new RiskIndicatorProperties.Source(ACWI, null)),
+            List.of(new SeriesSegment(ACWI, null)),
             TUK75,
-            List.of(new RiskIndicatorProperties.Source("EE3600109435", null))),
+            List.of(new SeriesSegment("EE3600109435", null))),
         Map.of());
   }
 
@@ -348,8 +371,7 @@ class RiskIndicatorSeriesServiceTest {
         Map.of(
             TKF100,
             List.of(
-                new RiskIndicatorProperties.Source(ACWI, null),
-                new RiskIndicatorProperties.Source(TKF_ISIN, ANCHOR.minusYears(2)))),
+                new SeriesSegment(ACWI, null), new SeriesSegment(TKF_ISIN, ANCHOR.minusYears(2)))),
         Map.of());
   }
 

@@ -54,6 +54,11 @@ public class SplicedPriceSeries {
       String segmentKey,
       LocalDate segmentFrom,
       LocalDate segmentTo) {
+    if (previousClose.value().signum() <= 0) {
+      throw new SeriesSpliceRefusedException(
+          "Previous segment's last close is not positive: key=%s, date=%s, value=%s"
+              .formatted(previousClose.key(), previousClose.date(), previousClose.value()));
+    }
     var closes = closesOf(segmentKey, previousClose.date(), segmentTo);
     var base =
         closes.stream()

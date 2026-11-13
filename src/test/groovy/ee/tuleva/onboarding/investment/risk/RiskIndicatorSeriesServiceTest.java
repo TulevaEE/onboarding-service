@@ -139,7 +139,7 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   @Test
-  void aPointRecomputedFromNewSourcesIsRedefinedRatherThanReportedAsDrift() {
+  void aPointRecomputedFromNewSourcesIsRedefinedAndKeepsWhatItHeldInItsHistory() {
     var acwiPrices =
         dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
     var navPrices = dailyPrices(TKF_ISIN, acwiPrices.getLast().date(), ANCHOR, 1.05);
@@ -156,9 +156,20 @@ class RiskIndicatorSeriesServiceTest {
 
     assertThat(refresh.driftedDates()).isEmpty();
     assertThat(refresh.redefinitions())
-        .containsExactly(new Redefinition.Sources(ANCHOR, ACWI, ACWI + "," + TKF_ISIN));
-    assertThat(stored.getSourceKeys()).isEqualTo(ACWI + "," + TKF_ISIN);
-    assertThat(stored.getMetrics()).doesNotContainKey("driftHistory");
+        .containsExactly(
+            new Redefinition.Sources(
+                ANCHOR, ACWI, ACWI + "+" + TKF_ISIN, 1, stored.getRiskClass()));
+    assertThat(stored.getSourceKeys()).isEqualTo(ACWI + "+" + TKF_ISIN);
+    assertThat(history(stored))
+        .containsExactly(
+            Map.of(
+                "detectedAt", ANCHOR.toString(),
+                "kind", "SOURCES",
+                "previousClass", "1",
+                "previousVolatility", "0.999",
+                "previousObservationCount", "1",
+                "previousSourceKeys", ACWI,
+                "newClass", String.valueOf(stored.getRiskClass())));
   }
 
   @Test
@@ -176,8 +187,15 @@ class RiskIndicatorSeriesServiceTest {
         .containsExactly(new Redefinition.HoldingPeriod(ANCHOR, null, CURRENT_HOLDING_PERIOD));
     assertThat(stored.getRiskClass()).isNotEqualTo(1);
     assertThat(stored.getMetrics())
-        .doesNotContainKey("driftHistory")
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+    assertThat(history(stored))
+        .singleElement()
+        .satisfies(
+            entry ->
+                assertThat(entry)
+                    .containsEntry("kind", "HOLDING_PERIOD")
+                    .containsEntry("previousClass", "1")
+                    .containsEntry("previousVolatility", "0.999"));
     var saved = ArgumentCaptor.forClass(List.class);
     verify(pointRepository).saveAll(saved.capture());
     assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(stored);
@@ -211,7 +229,14 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(refresh.redefinitions())
         .containsExactly(
             new Redefinition.PublicationRule(withheld.getAsOfDate(), null, previouslyPublished));
-    assertThat(withheld.getMetrics()).doesNotContainKey("driftHistory");
+    assertThat(history(withheld))
+        .singleElement()
+        .satisfies(
+            entry ->
+                assertThat(entry)
+                    .containsEntry("kind", "PUBLICATION_RULE")
+                    .containsEntry("previousClass", "null")
+                    .containsEntry("newClass", String.valueOf(previouslyPublished)));
   }
 
   @Test
@@ -228,8 +253,10 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(refresh.redefinitions())
         .containsExactly(new Redefinition.HoldingPeriod(ANCHOR, "1300", CURRENT_HOLDING_PERIOD));
     assertThat(stored.getMetrics())
-        .doesNotContainKey("driftHistory")
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+    assertThat(history(stored))
+        .singleElement()
+        .satisfies(entry -> assertThat(entry).containsEntry("kind", "HOLDING_PERIOD"));
   }
 
   private static RiskIndicatorPoint storedPoint(Map<String, Object> metrics) {
@@ -264,7 +291,7 @@ class RiskIndicatorSeriesServiceTest {
     var saved = ArgumentCaptor.forClass(List.class);
     verify(pointRepository).saveAll(saved.capture());
     assertThat(((List<RiskIndicatorPoint>) saved.getValue()).getFirst().getSourceKeys())
-        .isEqualTo(ACWI + "," + TKF_ISIN);
+        .isEqualTo(ACWI + "+" + TKF_ISIN);
     assertThat(points).allSatisfy(point -> assertThat(point.riskClass()).isLessThan(7));
     assertThat(points.getLast().observationCount())
         .isEqualTo(weekdaysAfterUpTo(ANCHOR.minusYears(5), ANCHOR));
@@ -288,36 +315,31 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   @Test
-  void aPointTheOldSourcesStoredOnADayTheNewSeriesHasNoCloseOrAfterItsLatestCloseIsRemoved() {
-    var holidayWithAnOldPoint = LocalDate.of(2026, 6, 23);
-    var holidayWithACurrentPoint = LocalDate.of(2026, 6, 24);
+  void aStoredPointTheCurrentSourcesNoLongerProduceStaysStored() {
+    var navHoliday = LocalDate.of(2026, 6, 23);
     var acwiPrices =
         dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
     var navPrices =
         dailyPrices(TKF_ISIN, acwiPrices.getLast().date(), ANCHOR, 1.05).stream()
-            .filter(close -> !close.date().equals(holidayWithAnOldPoint))
-            .filter(close -> !close.date().equals(holidayWithACurrentPoint))
+            .filter(close -> !close.date().equals(navHoliday))
             .toList();
     given(fundValueQueries.findLastValueForFund(TKF_ISIN))
         .willReturn(Optional.of(navPrices.getLast()));
     given(fundValueQueries.findValuesBetweenDates(eq(ACWI), any(), any())).willReturn(acwiPrices);
     given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
         .willReturn(navPrices);
-    var oldSourcesPoint = storedPointOn(holidayWithAnOldPoint, ACWI);
-    var currentSourcesPoint = storedPointOn(holidayWithACurrentPoint, ACWI + "," + TKF_ISIN);
-    var oldSourcesPointAfterTheLatestOwnNav = storedPointOn(ANCHOR.plusDays(1), ACWI);
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
-        .willReturn(
-            List.of(oldSourcesPoint, currentSourcesPoint, oldSourcesPointAfterTheLatestOwnNav));
+        .willReturn(List.of(storedPointOn(navHoliday, ACWI)));
 
     serviceWith(splicedProperties()).refreshSeries(TKF100, SRI, 1);
 
-    verify(pointRepository)
-        .deleteAll(List.of(oldSourcesPoint, oldSourcesPointAfterTheLatestOwnNav));
+    verify(pointRepository, never()).deleteAll(any());
+    verify(pointRepository, never()).delete(any());
+    verify(pointRepository, never()).deleteAllInBatch(any());
   }
 
   @Test
-  void aPointTheNewSourcesReproduceTakesTheirNameSoALaterIndexCorrectionIsStillDrift() {
+  void aPointBeforeTheNewSegmentKeepsTheSourcesItWasComputedFromSoALaterIndexCorrectionIsDrift() {
     var spliceFrom = LocalDate.of(2026, 6, 22);
     var acwiPrices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR, 2000.0);
     var stored = new HashMap<LocalDate, RiskIndicatorPoint>();
@@ -354,7 +376,11 @@ class RiskIndicatorSeriesServiceTest {
         .isNotEmpty()
         .allSatisfy(redefinition -> assertThat(redefinition.date()).isAfterOrEqualTo(spliceFrom));
     assertThat(stored.values())
-        .allSatisfy(point -> assertThat(point.getSourceKeys()).isEqualTo(ACWI + "," + TKF_ISIN));
+        .allSatisfy(
+            point ->
+                assertThat(point.getSourceKeys())
+                    .isEqualTo(
+                        point.getAsOfDate().isBefore(spliceFrom) ? ACWI : ACWI + "+" + TKF_ISIN));
 
     var correctedAcwi =
         acwiPrices.stream()
@@ -388,6 +414,11 @@ class RiskIndicatorSeriesServiceTest {
         .volatility(valueOf(0.999))
         .metrics(Map.of())
         .build();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Map<String, String>> history(RiskIndicatorPoint point) {
+    return (List<Map<String, String>>) point.getMetrics().get("driftHistory");
   }
 
   private static int weekdaysAfterUpTo(LocalDate after, LocalDate upTo) {

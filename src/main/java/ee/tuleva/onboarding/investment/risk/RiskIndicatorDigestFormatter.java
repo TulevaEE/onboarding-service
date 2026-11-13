@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.risk;
 
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
+import ee.tuleva.onboarding.investment.series.SplicedPriceSeries;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class RiskIndicatorDigestFormatter {
-
-  private static final Locale ESTONIAN = Locale.of("et", "EE");
 
   private final RiskIndicatorProperties properties;
   private final IndicatorDetailFormatter detailFormatter;
@@ -126,14 +124,13 @@ class RiskIndicatorDigestFormatter {
   }
 
   private String footer(RiskIndicatorRun run) {
-    var sources = new ArrayList<String>();
-    for (var outcome : run.outcomes()) {
-      var sourceKeys = new ArrayList<String>();
-      for (var source : properties.sourcesFor(outcome.indicator().fund())) {
-        sourceKeys.add(source.key());
-      }
-      sources.add("%s: %s".formatted(outcome.indicator().fund(), String.join("+", sourceKeys)));
-    }
+    var sources =
+        run.outcomes().stream()
+            .map(outcome -> outcome.indicator().fund())
+            .map(
+                fund ->
+                    "%s: %s".formatted(fund, SplicedPriceSeries.key(properties.sourcesFor(fund))))
+            .toList();
     return "Allikad: %s. SRI = MRM, eeldusel CRM = %d.%n"
         .formatted(
             String.join("; ", sources),

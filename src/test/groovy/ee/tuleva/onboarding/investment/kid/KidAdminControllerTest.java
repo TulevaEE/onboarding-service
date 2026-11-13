@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
+import ee.tuleva.onboarding.investment.series.SeriesSegment;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -56,7 +57,7 @@ class KidAdminControllerTest {
                     """
                     {
                       "fund": "TKF100",
-                      "seriesKey": "MSCI_ACWI",
+                      "series": [{ "key": "MSCI_ACWI", "from": null }],
                       "periodStart": "2016-09-30",
                       "periodEnd": "2026-09-30",
                       "ongoingCharges": 0.005,
@@ -155,7 +156,7 @@ class KidAdminControllerTest {
   private static KidFigures figures() {
     return new KidFigures(
         TKF100,
-        "MSCI_ACWI",
+        List.of(new SeriesSegment("MSCI_ACWI", null)),
         LocalDate.of(2016, 9, 30),
         LocalDate.of(2026, 9, 30),
         ONGOING_CHARGES,

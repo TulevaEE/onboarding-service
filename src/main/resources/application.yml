@@ -501,16 +501,14 @@ investment:
     sources:
       TKF100:
         - key: MSCI_ACWI
+        - key: EE0000003283
+          from: 2026-03-01
       TUK75:
         - key: EE3600109435
       TUK00:
         - key: EE3600109443
       TUV100:
         - key: EE3600001707
-    proxy-review:
-      TKF100:
-        own-history-key: EE0000003283
-        required-years: 2
 
 #Sentry environment configuration
 ---

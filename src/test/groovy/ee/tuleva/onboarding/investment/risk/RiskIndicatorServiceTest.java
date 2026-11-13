@@ -43,8 +43,7 @@ class RiskIndicatorServiceTest {
       new RiskIndicatorProperties(
           Map.of(
               TKF100, List.of(new SeriesSegment("MSCI_ACWI", null)),
-              TUK75, List.of(new SeriesSegment(TUK75.getIsin(), null))),
-          Map.of());
+              TUK75, List.of(new SeriesSegment(TUK75.getIsin(), null))));
 
   private final RiskIndicatorService service =
       new RiskIndicatorService(

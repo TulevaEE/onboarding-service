@@ -43,13 +43,17 @@ public class SplicedPriceSeries {
       spliced.addAll(
           spliced.isEmpty()
               ? renamed(key, closesOf(segment.key(), segmentFrom, segmentTo))
-              : continuing(key, spliced.getLast(), segment.key(), segmentTo));
+              : continuing(key, spliced.getLast(), segment.key(), segmentFrom, segmentTo));
     }
     return List.copyOf(spliced);
   }
 
   private List<FundValue> continuing(
-      String key, FundValue previousClose, String segmentKey, LocalDate segmentTo) {
+      String key,
+      FundValue previousClose,
+      String segmentKey,
+      LocalDate segmentFrom,
+      LocalDate segmentTo) {
     var closes = closesOf(segmentKey, previousClose.date(), segmentTo);
     var base =
         closes.stream()
@@ -62,7 +66,7 @@ public class SplicedPriceSeries {
                         "No positive close to splice on: key=%s, date=%s"
                             .formatted(segmentKey, previousClose.date())));
     return closes.stream()
-        .filter(close -> close.date().isAfter(previousClose.date()))
+        .filter(close -> !close.date().isBefore(segmentFrom))
         .map(
             close ->
                 new FundValue(
@@ -79,6 +83,7 @@ public class SplicedPriceSeries {
 
   private List<FundValue> closesOf(String segmentKey, LocalDate from, LocalDate to) {
     return fundValueQueries.findValuesBetweenDates(segmentKey, from, to).stream()
+        .filter(close -> !close.date().isBefore(from) && !close.date().isAfter(to))
         .sorted(comparing(FundValue::date))
         .toList();
   }

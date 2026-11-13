@@ -21,7 +21,7 @@ class RiskIndicatorPropertiesTest {
 
   @Test
   void aFundWithNoConfiguredSourceIsARefusalRatherThanAnEmptySeries() {
-    var properties = new RiskIndicatorProperties(null, null);
+    var properties = new RiskIndicatorProperties(null);
 
     assertThatThrownBy(() -> properties.sourcesFor(TKF100))
         .isInstanceOf(IllegalStateException.class);
@@ -69,6 +69,6 @@ class RiskIndicatorPropertiesTest {
   }
 
   private static RiskIndicatorProperties propertiesWith(List<SeriesSegment> sources) {
-    return new RiskIndicatorProperties(Map.of(TKF100, sources), Map.of());
+    return new RiskIndicatorProperties(Map.of(TKF100, sources));
   }
 }

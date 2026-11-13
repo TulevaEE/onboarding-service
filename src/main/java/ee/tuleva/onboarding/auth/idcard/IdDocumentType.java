@@ -46,7 +46,7 @@ public enum IdDocumentType {
   }
 
   public boolean isAllowedToLogIn() {
-    return !List.of(E_RESIDENT_DIGITAL_ID_CARD, EUROPEAN_CITIZEN_ID_CARD).contains(this);
+    return this != E_RESIDENT_DIGITAL_ID_CARD;
   }
 
   public @Nullable Boolean isResident() {
@@ -55,8 +55,7 @@ public enum IdDocumentType {
     } else if (List.of(
             DIPLOMATIC_ID_CARD,
             E_RESIDENT_DIGITAL_ID_CARD,
-            EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD,
-            EUROPEAN_CITIZEN_ID_CARD)
+            EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD)
         .contains(this)) {
       return false;
     }

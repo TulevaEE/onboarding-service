@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
-import static java.time.ZoneOffset.UTC;
-import static java.time.temporal.ChronoUnit.DAYS;
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -11,16 +11,17 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.AdjustedAcwiIndexRet
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
@@ -43,8 +44,10 @@ public class ReturnCalculator {
   private static final Set<String> WORLD_INDEXES_PRICED_AT_US_CLOSE =
       Set.of(UnionStockIndexRetriever.KEY, AdjustedAcwiIndexRetriever.KEY);
 
+  private static final int CALENDAR_DAYS_BEFORE_THE_FIRST_PURCHASE_FOR_ITS_PREVIOUS_CLOSE = 10;
+
   private final FundValueProvider fundValueProvider;
-  private final PublicHolidays publicHolidays;
+  private final FundPriceTiming fundPriceTiming;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
@@ -91,11 +94,10 @@ public class ReturnCalculator {
 
   private Optional<BigDecimal> getSimulatedEndingBalanceForAFund(
       AccountOverview accountOverview, String comparisonFund) {
-    List<Transaction> purchases =
-        withFirstPurchaseOn(
-            getComparisonPurchases(accountOverview),
-            beginningBalanceIndexDate(accountOverview, comparisonFund));
+    List<IndexPurchase> purchases = comparisonPurchases(accountOverview, comparisonFund);
     LocalDate endingBalanceDate = accountOverview.getEndingBalanceDate();
+    double endingSameDayWeight =
+        sameDayWeight(accountOverview.getEndingHoldings(), comparisonFund, endingBalanceDate);
     return pricesFor(comparisonFund, purchases, accountOverview.getStartDate(), endingBalanceDate)
         .map(
             prices ->
@@ -105,42 +107,104 @@ public class ReturnCalculator {
                             purchase
                                 .amount()
                                 .divide(
-                                    priceOnOrBefore(prices, purchase.date()),
+                                    priceAt(prices, purchase.date(), purchase.sameDayWeight()),
                                     MathContext.DECIMAL128))
                     .reduce(ZERO, BigDecimal::add)
-                    .multiply(priceOnOrBefore(prices, endingBalanceDate)));
+                    .multiply(priceAt(prices, endingBalanceDate, endingSameDayWeight)));
   }
 
-  private static List<Transaction> withFirstPurchaseOn(
-      List<Transaction> purchases, @Nullable LocalDate firstPurchaseDate) {
-    if (firstPurchaseDate == null || purchases.isEmpty()) {
-      return purchases;
+  private record IndexPurchase(BigDecimal amount, LocalDate date, double sameDayWeight) {}
+
+  private List<IndexPurchase> comparisonPurchases(
+      AccountOverview accountOverview, String comparisonFund) {
+    List<IndexPurchase> purchases = new ArrayList<>();
+    BigDecimal beginningBalance = accountOverview.getBeginningBalance();
+    if (beginningBalance.compareTo(ZERO) != 0) {
+      LocalDate dayBeforeStart = accountOverview.getStartDate().minusDays(1);
+      purchases.add(
+          new IndexPurchase(
+              beginningBalance,
+              dayBeforeStart,
+              sameDayWeight(
+                  accountOverview.getBeginningHoldings(), comparisonFund, dayBeforeStart)));
     }
-    Transaction movedFirstPurchase =
-        new Transaction(
-            purchases.getFirst().amount(), firstPurchaseDate.atStartOfDay(UTC).toInstant());
-    return Stream.concat(Stream.of(movedFirstPurchase), purchases.stream().skip(1)).toList();
+    accountOverview
+        .getTransactions()
+        .forEach(
+            transaction ->
+                purchases.add(
+                    new IndexPurchase(
+                        transaction.amount(),
+                        transaction.date(),
+                        sameDayWeight(transaction.isin(), comparisonFund, transaction.date()))));
+    return purchases;
+  }
+
+  private double sameDayWeight(
+      Map<String, BigDecimal> holdings, String comparisonFund, LocalDate date) {
+    var heldFunds =
+        holdings.entrySet().stream().filter(holding -> holding.getValue().signum() > 0).toList();
+    BigDecimal total = heldFunds.stream().map(Map.Entry::getValue).reduce(ZERO, BigDecimal::add);
+    if (!pricedAtUsClose(comparisonFund) || total.signum() == 0) {
+      return FundPriceTiming.SAME_DAY;
+    }
+    return heldFunds.stream()
+            .mapToDouble(
+                holding ->
+                    holding.getValue().doubleValue()
+                        * sameDayWeight(holding.getKey(), comparisonFund, date))
+            .sum()
+        / total.doubleValue();
+  }
+
+  private double sameDayWeight(@Nullable String isin, String comparisonFund, LocalDate date) {
+    if (isin == null || !pricedAtUsClose(comparisonFund)) {
+      return FundPriceTiming.SAME_DAY;
+    }
+    Double estimated = fundPriceTiming.sameDayWeight(isin, comparisonFund, YearMonth.from(date));
+    return estimated == null ? FundPriceTiming.SAME_DAY : estimated;
+  }
+
+  private static boolean pricedAtUsClose(String comparisonFund) {
+    return WORLD_INDEXES_PRICED_AT_US_CLOSE.contains(comparisonFund);
   }
 
   private Optional<NavigableMap<LocalDate, BigDecimal>> pricesFor(
       String fund,
-      List<Transaction> purchases,
+      List<IndexPurchase> purchases,
       LocalDate firstDayOfPeriod,
       LocalDate endingBalanceDate) {
     List<LocalDate> dates =
-        Stream.concat(purchases.stream().map(Transaction::date), Stream.of(endingBalanceDate))
+        Stream.concat(purchases.stream().map(IndexPurchase::date), Stream.of(endingBalanceDate))
             .toList();
     LocalDate earliest = Collections.min(dates);
+    LocalDate loadFrom =
+        pricedAtUsClose(fund)
+            ? earliest.minusDays(CALENDAR_DAYS_BEFORE_THE_FIRST_PURCHASE_FOR_ITS_PREVIOUS_CLOSE)
+            : earliest;
     return startingValue(fund, earliest, firstDayOfPeriod)
         .map(
             startingValue -> {
               NavigableMap<LocalDate, BigDecimal> prices = new TreeMap<>();
-              prices.put(earliest, startingValue.value());
+              LocalDate startingDate =
+                  startingValue.date().isAfter(earliest) ? earliest : startingValue.date();
+              prices.put(startingDate, startingValue.value());
               fundValueProvider
-                  .findValuesBetweenDates(fund, earliest, Collections.max(dates))
+                  .findValuesBetweenDates(fund, loadFrom, Collections.max(dates))
                   .forEach(value -> prices.put(value.date(), value.value()));
-              return prices;
+              return pricedAtUsClose(fund)
+                  ? withoutWeekendRowsRepeatingFridaysClose(prices, earliest)
+                  : prices;
             });
+  }
+
+  private static NavigableMap<LocalDate, BigDecimal> withoutWeekendRowsRepeatingFridaysClose(
+      NavigableMap<LocalDate, BigDecimal> prices, LocalDate earliest) {
+    NavigableMap<LocalDate, BigDecimal> tradingCloses = new TreeMap<>(prices);
+    tradingCloses
+        .keySet()
+        .removeIf(date -> date.getDayOfWeek() == SATURDAY || date.getDayOfWeek() == SUNDAY);
+    return tradingCloses.floorKey(earliest) == null ? prices : tradingCloses;
   }
 
   private Optional<FundValue> startingValue(
@@ -150,57 +214,17 @@ public class ReturnCalculator {
         .or(() -> fundValueProvider.getLatestValue(fund, firstDayOfPeriod));
   }
 
-  private static BigDecimal priceOnOrBefore(
-      NavigableMap<LocalDate, BigDecimal> prices, LocalDate date) {
-    return Objects.requireNonNull(prices.floorEntry(date)).getValue();
-  }
-
-  /**
-   * When the comparison period starts on a weekend/holiday, aligns the index lookup date with the
-   * fund's NAV timing to prevent inflated simulated returns.
-   *
-   * <p>Fund NAVs (from EPIS/Pensionikeskus) are priced at European market close (~17:00 CET), while
-   * the world comparison indexes (UNION_STOCK_INDEX from Morningstar, MSCI_ACWI_ADJUSTED from MSCI)
-   * are priced at US market close (~22:00 CET). On normal days the 5-hour gap is negligible, but
-   * during crashes it can cause a significant bias:
-   *
-   * <p>Example: "Last year" starting Monday Apr 7, 2025 (during the tariff crash):
-   *
-   * <ul>
-   *   <li>Synthetic beginning balance transaction lands on Sunday Apr 6
-   *   <li>Index lookup falls back to Friday Apr 4 US close (385.62), because of weekend
-   *       carry-forward
-   *   <li>EPIS beginning balance uses TUK75 Friday NAV (European close, 17:00, value 1.13907)
-   *   <li>The 5-hour gap (European close → US close) saw a ~4% further decline on the crash day
-   *   <li>Higher beginning balance / lower index price = ~4% excess virtual units → ~5pp inflated
-   *       XIRR
-   * </ul>
-   *
-   * <p>Fix: when the synthetic transaction date (startTime - 1 day) falls on a non-working day, the
-   * index lookup crosses a weekend/holiday boundary to an earlier business day. We shift one more
-   * business day back to align: Thursday US close (~22:00) is the last full global market close
-   * BEFORE Friday's European close (~17:00), where the fund NAV is set.
-   *
-   * <p>Only applies to the world indexes priced at US close. Other comparison targets (EPI, CPI,
-   * individual fund ISINs) use European-close pricing and don't need adjustment.
-   *
-   * @return adjusted lookup date, or null to use the default (transaction date)
-   */
-  private @Nullable LocalDate beginningBalanceIndexDate(
-      AccountOverview accountOverview, String comparisonFund) {
-    if (!WORLD_INDEXES_PRICED_AT_US_CLOSE.contains(comparisonFund)) {
-      return null;
+  private static BigDecimal priceAt(
+      NavigableMap<LocalDate, BigDecimal> prices, LocalDate date, double sameDayWeight) {
+    Map.Entry<LocalDate, BigDecimal> close = Objects.requireNonNull(prices.floorEntry(date));
+    Map.Entry<LocalDate, BigDecimal> previousClose = prices.lowerEntry(close.getKey());
+    if (sameDayWeight >= FundPriceTiming.SAME_DAY || previousClose == null) {
+      return close.getValue();
     }
-    if (accountOverview.getBeginningBalance().compareTo(ZERO) == 0) {
-      return null;
-    }
-    LocalDate syntheticDate =
-        accountOverview.getStartTime().minus(1, DAYS).atOffset(UTC).toLocalDate();
-    if (publicHolidays.isWorkingDay(syntheticDate)) {
-      return null;
-    }
-    LocalDate effectiveDate = publicHolidays.previousWorkingDay(syntheticDate);
-    return publicHolidays.previousWorkingDay(effectiveDate);
+    return BigDecimal.valueOf(
+        Math.exp(
+            sameDayWeight * Math.log(close.getValue().doubleValue())
+                + (1 - sameDayWeight) * Math.log(previousClose.getValue().doubleValue())));
   }
 
   private record CashReturn(BigDecimal paymentsSum, BigDecimal value) {
@@ -244,22 +268,12 @@ public class ReturnCalculator {
   }
 
   private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
-    return purchasesWithBeginningBalanceAt(
-        accountOverview, accountOverview.getBeginningBalanceTime());
-  }
-
-  private List<Transaction> getComparisonPurchases(AccountOverview accountOverview) {
-    return purchasesWithBeginningBalanceAt(
-        accountOverview, accountOverview.getStartTime().minus(1, DAYS));
-  }
-
-  private List<Transaction> purchasesWithBeginningBalanceAt(
-      AccountOverview accountOverview, Instant beginningBalanceTime) {
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
     BigDecimal beginningBalance = accountOverview.getBeginningBalance();
     if (beginningBalance.compareTo(ZERO) != 0) {
-      purchaseTransactions.add(new Transaction(beginningBalance, beginningBalanceTime));
+      purchaseTransactions.add(
+          new Transaction(beginningBalance, accountOverview.getBeginningBalanceTime()));
     }
     purchaseTransactions.addAll(accountOverview.getTransactions());
 

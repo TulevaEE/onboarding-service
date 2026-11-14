@@ -79,6 +79,23 @@ class AccountOverviewProviderSpec extends Specification {
         accountOverview.transactions[1].time == cashFlowStatement.transactions[1].priceTime
     }
 
+  def "keeps the fund each transaction went into"() {
+    when:
+    AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar)
+
+    then:
+    accountOverview.transactions*.isin() == ["1", "2"]
+  }
+
+  def "keeps the opening and closing balances of each fund of the pillar"() {
+    when:
+    AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar)
+
+    then:
+    accountOverview.beginningHoldings == ["1": 1000.0, "2": 115.0]
+    accountOverview.endingHoldings == ["1": 1100.0, "2": 125.0]
+  }
+
   def "when a start time is set in the future, then set the end time to the given start time to avoid invalid arguments"() {
     given:
         CashFlowStatement cashFlowStatement = cashFlowFixture()

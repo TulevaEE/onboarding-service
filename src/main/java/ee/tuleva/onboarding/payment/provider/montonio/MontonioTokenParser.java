@@ -40,11 +40,10 @@ public class MontonioTokenParser {
   public void verifyToken(JWSObject token) {
     Object accessKeyValue = token.getPayload().toJSONObject().get("accessKey");
     String accessKey = requireNonNull(accessKeyValue, "Missing accessKey in token").toString();
-    MontonioPaymentChannel paymentChannelConfiguration =
-        Optional.ofNullable(
-                montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey))
+    String secretKey =
+        Optional.ofNullable(montonioPaymentChannelConfiguration.getSecretKey(accessKey))
             .orElseThrow(() -> new BadCredentialsException("Unknown payment channel"));
-    verifyToken(token, paymentChannelConfiguration.getSecretKey());
+    verifyToken(token, secretKey);
   }
 
   @SneakyThrows

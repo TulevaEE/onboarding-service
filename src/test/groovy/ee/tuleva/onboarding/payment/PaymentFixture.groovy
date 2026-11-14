@@ -74,4 +74,12 @@ class PaymentFixture {
     )
   }
 
+  static MontonioPaymentChannel aMontonioPaymentChannel(String accessKey, String secretKey, String bic) {
+    return new MontonioPaymentChannel(
+        accessKey: accessKey,
+        secretKey: secretKey,
+        bic: bic
+    )
+  }
+
 }

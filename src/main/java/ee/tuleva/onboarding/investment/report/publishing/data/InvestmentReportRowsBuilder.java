@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class InvestmentReportRowsBuilder {
+
+  private static final LocalDate AS_SEB_PANK_RENAMED_SEB_BANK_AS_ON = LocalDate.of(2027, 1, 1);
+  private static final String DEPOSITARY_CASH_ROW_NAMED_WITHOUT_THE_BANK = "cash account";
 
   private final InstrumentReferenceService instrumentReferenceService;
 
@@ -101,7 +105,7 @@ class InvestmentReportRowsBuilder {
     }
 
     for (var cash : cashRows) {
-      var cashInfo = formatCashAccount(cash.getAccountName());
+      var cashInfo = formatCashAccount(cash.getAccountName(), cash.getNavDate());
       var pct =
           fundNav.signum() != 0
               ? cash.getMarketValue().divide(fundNav, 6, RoundingMode.HALF_UP)
@@ -143,14 +147,25 @@ class InvestmentReportRowsBuilder {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  static CashAccountInfo formatCashAccount(String accountName) {
+  static CashAccountInfo formatCashAccount(String accountName, LocalDate reportDate) {
     if (accountName == null) return new CashAccountInfo("Arvelduskonto", accountName);
     var lower = accountName.toLowerCase();
-    if (lower.contains("seb")) return new CashAccountInfo("Arvelduskonto", "AS SEB Pank");
+    if (isDepositaryCashAccount(lower)) {
+      return new CashAccountInfo("Arvelduskonto", depositaryNameOn(reportDate));
+    }
     if (lower.contains("swedbank")) return new CashAccountInfo("Arvelduskonto", "Swedbank AS");
     if (lower.contains("lhv")) return new CashAccountInfo("Arvelduskonto", "AS LHV Pank");
     if (lower.contains("luminor")) return new CashAccountInfo("Arvelduskonto", "Luminor Bank AS");
     return new CashAccountInfo("Arvelduskonto", accountName);
+  }
+
+  private static boolean isDepositaryCashAccount(String lowerCaseAccountName) {
+    return lowerCaseAccountName.contains("seb")
+        || lowerCaseAccountName.strip().equals(DEPOSITARY_CASH_ROW_NAMED_WITHOUT_THE_BANK);
+  }
+
+  private static String depositaryNameOn(LocalDate reportDate) {
+    return reportDate.isBefore(AS_SEB_PANK_RENAMED_SEB_BANK_AS_ON) ? "AS SEB Pank" : "SEB Bank AS";
   }
 
   record CashAccountInfo(String name, String institution) {}

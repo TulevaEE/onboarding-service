@@ -113,6 +113,18 @@ class CustodianPositionComparatorTest {
   }
 
   @Test
+  void cashMatchesWhenOurNavRenamesItsCashRowBeforeTheCustodianDoes() {
+    givenNav(withNavCashRowNamed("Cash account"));
+    givenPositions(reSentPositions());
+    givenPositionWrittenAt(BEFORE_CALCULATION);
+
+    assertThat(comparator.compare(TUK75, NAV_DATE))
+        .get()
+        .returns(true, CustodianDayComparison::matches)
+        .returns(new BigDecimal("0.00"), CustodianDayComparison::navImpact);
+  }
+
+  @Test
   void aCashRowReSentUnderTheNewNameBesideTheOldOneIsComparedByNameSoTheDoubleCountShows() {
     givenNav(withNavCashOf("1477922.38"));
     givenPositions(
@@ -263,6 +275,12 @@ class CustodianPositionComparatorTest {
     lines.addAll(
         reSentNavLines().stream().filter(line -> !"CASH".equals(line.accountType())).toList());
     return lines;
+  }
+
+  private List<NavAccountLine> withNavCashRowNamed(String name) {
+    return reSentNavLines().stream()
+        .map(line -> "CASH".equals(line.accountType()) ? navLine("CASH", name, "738961.19") : line)
+        .toList();
   }
 
   private List<FundPosition> withCashRowsOf(

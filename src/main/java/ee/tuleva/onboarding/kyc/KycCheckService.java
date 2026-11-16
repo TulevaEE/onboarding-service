@@ -31,6 +31,15 @@ public class KycCheckService {
         status -> publishUnlessANewerSurveyCommitted(subject, submitted, kycCheck));
   }
 
+  public boolean checkLatestOnboardingSurvey(User subject) {
+    var latest =
+        kycSurveyRepository
+            .findFirstByUserIdOrderByCreatedTimeDescIdDesc(subject.getIdOrThrow())
+            .filter(survey -> survey.getSurvey().purpose() == KycSurveyPurpose.PERSONAL_ONBOARDING);
+    latest.ifPresent(survey -> check(subject, survey));
+    return latest.isPresent();
+  }
+
   private void publishUnlessANewerSurveyCommitted(
       User subject, KycSurvey submitted, KycCheck kycCheck) {
     var latest =

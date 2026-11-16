@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Review;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -85,6 +86,21 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
         oldStatus,
         newStatus);
     changeStatus(user, newStatus);
+  }
+
+  @Transactional
+  public boolean holdForReview(User user, Instant rejectedBefore) {
+    if (!savingsFundOnboardingRepository.holdRejectedPerson(
+        user.getPersonalCode(), rejectedBefore)) {
+      return false;
+    }
+    log.info("Savings fund onboarding held for review again: userId={}", user.getId());
+    eventPublisher.publishEvent(
+        new TrackableEvent(
+            user,
+            SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+            Map.of("oldStatus", REJECTED, "newStatus", ON_HOLD)));
+    return true;
   }
 
   private void changeStatus(User user, SavingsFundOnboardingStatus newStatus) {

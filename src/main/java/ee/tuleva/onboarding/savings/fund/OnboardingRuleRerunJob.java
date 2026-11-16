@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
 
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
@@ -11,8 +14,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.EnumMap;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -42,37 +47,52 @@ class OnboardingRuleRerunJob {
     if (!LocalDate.now(clock.withZone(TALLINN)).equals(RERUN_ON)) {
       return;
     }
-    int held =
+    Map<Rerun, Long> held =
         forEachUser(
             savingsFundOnboardingRepository.findPersonCodes(
                 REJECTED, REJECTED_BY_THE_EARLIER_RULE_BEFORE),
-            savingsFundOnboardingService::holdForReview);
-    int assessed =
+            user ->
+                savingsFundOnboardingService.holdForReview(
+                    user, REJECTED_BY_THE_EARLIER_RULE_BEFORE));
+    Map<Rerun, Long> assessed =
         forEachUser(
             savingsFundOnboardingRepository.findPersonCodes(PENDING, clock.instant()),
             kycCheckService::checkLatestOnboardingSurvey);
     log.info(
-        "Re-ran the savings fund onboarding rule for existing onboardings: rejectedHeld={},"
-            + " pendingAssessed={}",
+        "Re-ran the savings fund onboarding rule for existing onboardings: rejected={},"
+            + " pending={}",
         held,
         assessed);
   }
 
-  private int forEachUser(List<String> personalCodes, Consumer<User> action) {
-    int done = 0;
-    for (String personalCode : personalCodes) {
-      var user = userService.findByPersonalCode(personalCode);
-      if (user.isEmpty()) {
-        continue;
-      }
-      try {
-        action.accept(user.get());
-        done++;
-      } catch (Exception e) {
-        log.error(
-            "Failed to re-run the savings fund onboarding rule: userId={}", user.get().getId(), e);
-      }
-    }
-    return done;
+  enum Rerun {
+    DONE,
+    UNCHANGED,
+    NO_USER,
+    FAILED
+  }
+
+  private Map<Rerun, Long> forEachUser(List<String> personalCodes, Predicate<User> action) {
+    return personalCodes.stream()
+        .map(personalCode -> rerun(personalCode, action))
+        .collect(groupingBy(identity(), () -> new EnumMap<>(Rerun.class), counting()));
+  }
+
+  private Rerun rerun(String personalCode, Predicate<User> action) {
+    return userService
+        .findByPersonalCode(personalCode)
+        .map(
+            user -> {
+              try {
+                return action.test(user) ? Rerun.DONE : Rerun.UNCHANGED;
+              } catch (Exception e) {
+                log.error(
+                    "Failed to re-run the savings fund onboarding rule: userId={}",
+                    user.getId(),
+                    e);
+                return Rerun.FAILED;
+              }
+            })
+        .orElse(Rerun.NO_USER);
   }
 }

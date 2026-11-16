@@ -52,6 +52,23 @@ public class SavingsFundOnboardingRepository {
         .toList();
   }
 
+  @Transactional
+  public boolean holdRejectedPerson(String code, Instant rejectedBefore) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE savings_fund_onboarding
+                SET status = 'ON_HOLD', updated_at = :updatedAt
+                WHERE code = :code AND type = 'PERSON' AND status = 'REJECTED'
+                  AND updated_at < :rejectedBefore
+                """)
+            .param("code", code)
+            .param("updatedAt", Timestamp.from(clock.instant()))
+            .param("rejectedBefore", Timestamp.from(rejectedBefore))
+            .update()
+        > 0;
+  }
+
   public List<String> findPendingLegalEntityCodes() {
     return jdbcClient
         .sql(

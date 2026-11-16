@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.savings.fund.OnboardingRuleRerunJob.REJECTED_BY_THE_EARLIER_RULE_BEFORE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -14,7 +15,10 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -52,12 +56,35 @@ class OnboardingRuleRerunJobTest {
         .willReturn(Optional.of(pending));
     willThrow(new IllegalStateException("write failed"))
         .given(savingsFundOnboardingService)
-        .holdForReview(rejected);
+        .holdForReview(rejected, REJECTED_BY_THE_EARLIER_RULE_BEFORE);
 
     job("2026-11-18T20:00:00").rerun();
 
-    then(savingsFundOnboardingService).should().holdForReview(otherRejected);
+    then(savingsFundOnboardingService)
+        .should()
+        .holdForReview(otherRejected, REJECTED_BY_THE_EARLIER_RULE_BEFORE);
     then(kycCheckService).should().checkLatestOnboardingSurvey(pending);
+  }
+
+  @Test
+  void skipsAPersonWithoutAUser() {
+    given(
+            savingsFundOnboardingRepository.findPersonCodes(
+                REJECTED, REJECTED_BY_THE_EARLIER_RULE_BEFORE))
+        .willReturn(List.of(rejected.getPersonalCode()));
+    given(savingsFundOnboardingRepository.findPersonCodes(PENDING, at("2026-11-18T20:00:00")))
+        .willReturn(List.of());
+    given(userService.findByPersonalCode(rejected.getPersonalCode())).willReturn(Optional.empty());
+
+    job("2026-11-18T20:00:00").rerun();
+
+    then(savingsFundOnboardingService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void countsTheEarlierRulesRejectionsUntilTheStartOfTheSeventeenthInTallinn() {
+    assertThat(REJECTED_BY_THE_EARLIER_RULE_BEFORE)
+        .isEqualTo(LocalDate.of(2026, 11, 17).atStartOfDay(TALLINN).toInstant());
   }
 
   @Test
@@ -76,10 +103,10 @@ class OnboardingRuleRerunJobTest {
         userService,
         savingsFundOnboardingService,
         kycCheckService,
-        Clock.fixed(at(tallinnTime), TALLINN));
+        Clock.fixed(at(tallinnTime), ZoneOffset.UTC));
   }
 
   private static Instant at(String tallinnTime) {
-    return java.time.LocalDateTime.parse(tallinnTime).atZone(TALLINN).toInstant();
+    return LocalDateTime.parse(tallinnTime).atZone(TALLINN).toInstant();
   }
 }

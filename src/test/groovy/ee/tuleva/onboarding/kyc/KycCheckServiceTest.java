@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyc;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -131,7 +132,7 @@ class KycCheckServiceTest {
         .willReturn(Optional.of(submitted));
     given(kycChecker.check(subject)).willReturn(KYC_CHECK);
 
-    kycCheckService.checkLatestOnboardingSurvey(subject);
+    assertThat(kycCheckService.checkLatestOnboardingSurvey(subject)).isTrue();
 
     verify(eventPublisher)
         .publishEvent(
@@ -147,7 +148,7 @@ class KycCheckServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(7L))
         .willReturn(Optional.of(survey(Instant.parse("2026-11-04T10:00:00Z"), IDENTITY_ONLY)));
 
-    kycCheckService.checkLatestOnboardingSurvey(subject);
+    assertThat(kycCheckService.checkLatestOnboardingSurvey(subject)).isFalse();
 
     verifyNoInteractions(kycChecker, eventPublisher);
   }
@@ -157,7 +158,7 @@ class KycCheckServiceTest {
     given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(7L))
         .willReturn(Optional.empty());
 
-    kycCheckService.checkLatestOnboardingSurvey(subject);
+    assertThat(kycCheckService.checkLatestOnboardingSurvey(subject)).isFalse();
 
     verifyNoInteractions(kycChecker, eventPublisher);
   }

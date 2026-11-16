@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -250,14 +251,13 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void holdForReview_holdsARejectedOnboardingForReview() {
-    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .willReturn(Optional.of(REJECTED));
+    var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
     given(
-            savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, ON_HOLD))
-        .willReturn(Optional.of(REJECTED));
+            savingsFundOnboardingRepository.holdRejectedPerson(
+                user.getPersonalCode(), rejectedBefore))
+        .willReturn(true);
 
-    savingsFundOnboardingService.holdForReview(user);
+    assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isTrue();
 
     verify(eventPublisher)
         .publishEvent(
@@ -268,18 +268,16 @@ class SavingsFundOnboardingServiceTest {
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
   }
 
-  @ParameterizedTest
-  @EnumSource(
-      value = SavingsFundOnboardingStatus.class,
-      names = "REJECTED",
-      mode = EnumSource.Mode.EXCLUDE)
-  void holdForReview_holdsNothingButARejectedOnboarding(SavingsFundOnboardingStatus current) {
-    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .willReturn(Optional.of(current));
+  @Test
+  void holdForReview_publishesNothingWhenNoRejectionWasHeld() {
+    var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
+    given(
+            savingsFundOnboardingRepository.holdRejectedPerson(
+                user.getPersonalCode(), rejectedBefore))
+        .willReturn(false);
 
-    savingsFundOnboardingService.holdForReview(user);
+    assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isFalse();
 
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
     verifyNoInteractions(eventPublisher);
   }
 

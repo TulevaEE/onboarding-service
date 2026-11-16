@@ -31,11 +31,13 @@ public class KycCheckService {
         status -> publishUnlessANewerSurveyCommitted(subject, submitted, kycCheck));
   }
 
-  public void checkLatestOnboardingSurvey(User subject) {
-    kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDescIdDesc(subject.getIdOrThrow())
-        .filter(survey -> survey.getSurvey().purpose() == KycSurveyPurpose.PERSONAL_ONBOARDING)
-        .ifPresent(survey -> check(subject, survey));
+  public boolean checkLatestOnboardingSurvey(User subject) {
+    var latest =
+        kycSurveyRepository
+            .findFirstByUserIdOrderByCreatedTimeDescIdDesc(subject.getIdOrThrow())
+            .filter(survey -> survey.getSurvey().purpose() == KycSurveyPurpose.PERSONAL_ONBOARDING);
+    latest.ifPresent(survey -> check(subject, survey));
+    return latest.isPresent();
   }
 
   private void publishUnlessANewerSurveyCommitted(

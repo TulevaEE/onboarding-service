@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
+
 import ee.tuleva.onboarding.aml.OnboardingReview;
 import ee.tuleva.onboarding.aml.OnboardingReviews;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -21,7 +26,10 @@ class OnboardingReviewJob {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
 
   @Scheduled(cron = "0 */5 * * * *", zone = "Europe/Tallinn")
-  @SchedulerLock(name = "OnboardingReviewJob_applySettledReviews", lockAtMostFor = "4m")
+  @SchedulerLock(
+      name = "OnboardingReviewJob_applySettledReviews",
+      lockAtMostFor = "4m",
+      lockAtLeastFor = "1m")
   public void applySettledReviews() {
     List<OnboardingReview> settled;
     try {
@@ -30,27 +38,41 @@ class OnboardingReviewJob {
       log.error("Failed to read the settled onboarding reviews, applying none this time", e);
       return;
     }
-    settled.forEach(this::apply);
+    if (settled.isEmpty()) {
+      return;
+    }
+    Map<Applied, Long> counts =
+        settled.stream().map(this::apply).collect(groupingBy(identity(), counting()));
+    log.info(
+        "Applied the settled onboarding reviews: applied={}, noUser={}, failed={}",
+        counts.getOrDefault(Applied.APPLIED, 0L),
+        counts.getOrDefault(Applied.NO_USER, 0L),
+        counts.getOrDefault(Applied.FAILED, 0L));
   }
 
-  private void apply(OnboardingReview review) {
-    userService
+  private enum Applied {
+    APPLIED,
+    NO_USER,
+    FAILED
+  }
+
+  private Applied apply(OnboardingReview review) {
+    return userService
         .findByPersonalCode(review.personalCode())
-        .ifPresentOrElse(
+        .map(
             user -> {
               try {
                 savingsFundOnboardingService.applyReview(user, review.outcome());
+                return Applied.APPLIED;
               } catch (Exception e) {
                 log.error(
                     "Failed to apply an onboarding review: userId={}, outcome={}",
                     user.getId(),
                     review.outcome(),
                     e);
+                return Applied.FAILED;
               }
-            },
-            () ->
-                log.error(
-                    "Onboarding review names no user, applying it later: outcome={}",
-                    review.outcome()));
+            })
+        .orElse(Applied.NO_USER);
   }
 }

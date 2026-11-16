@@ -219,7 +219,13 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"REJECTED, REJECT", "PENDING, COMPLETE", "PENDING, REJECT", "COMPLETED, REJECT"})
+  @CsvSource({
+    "REJECTED, REJECT",
+    "PENDING, COMPLETE",
+    "PENDING, REJECT",
+    "COMPLETED, COMPLETE",
+    "COMPLETED, REJECT"
+  })
   void applyReview_changesNothingButAHeldOnboardingOrARejectedOneLetThrough(
       SavingsFundOnboardingStatus current, Outcome outcome) {
     given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))

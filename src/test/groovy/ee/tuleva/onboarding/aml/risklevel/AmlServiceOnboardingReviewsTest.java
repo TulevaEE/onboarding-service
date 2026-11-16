@@ -67,20 +67,36 @@ class AmlServiceOnboardingReviewsTest {
     server.verify();
   }
 
+  @Test
+  void refusesAnAnswerWithoutAList() {
+    server
+        .expect(once(), requestTo(OUTCOMES_URL))
+        .andRespond(withSuccess("null", APPLICATION_JSON));
+
+    assertThatThrownBy(() -> reviews(API_TOKEN).settled())
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
   @ParameterizedTest
   @ValueSource(
       strings = {
         "null",
-        "[null]",
-        "[{\"outcome\": \"COMPLETE\"}]",
-        "[{\"personalCode\": \"38888888888\"}]",
-        "[{\"personalCode\": \"38888888888\", \"outcome\": null}]"
+        "{\"outcome\": \"COMPLETE\"}",
+        "{\"personalCode\": \"38888888888\"}",
+        "{\"personalCode\": \"38888888888\", \"outcome\": null}",
+        "{\"personalCode\": \"38888888888\", \"outcome\": \"WAIT\"}"
       })
-  void refusesAnAnswerMissingARequiredValue(String body) {
-    server.expect(once(), requestTo(OUTCOMES_URL)).andRespond(withSuccess(body, APPLICATION_JSON));
+  void leavesOutAnUnusableReviewAndKeepsTheOthers(String unusable) {
+    server
+        .expect(once(), requestTo(OUTCOMES_URL))
+        .andRespond(
+            withSuccess(
+                "[" + unusable + ", {\"personalCode\": \"48888888888\", \"outcome\": \"REJECT\"}]",
+                APPLICATION_JSON));
 
-    assertThatThrownBy(() -> reviews(API_TOKEN).settled())
-        .isInstanceOf(IllegalStateException.class);
+    assertThat(reviews(API_TOKEN).settled())
+        .containsExactly(new OnboardingReview("48888888888", REJECT));
     server.verify();
   }
 

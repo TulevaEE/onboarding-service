@@ -6,14 +6,17 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import ee.tuleva.onboarding.aml.OnboardingReview;
 import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
 import ee.tuleva.onboarding.aml.OnboardingReviews;
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.web.client.RestClient;
 
+@Slf4j
 @RequiredArgsConstructor
 class AmlServiceOnboardingReviews implements OnboardingReviews {
 
@@ -38,9 +41,16 @@ class AmlServiceOnboardingReviews implements OnboardingReviews {
     if (answer == null) {
       throw new IllegalStateException("aml-service answered without settled onboarding reviews");
     }
-    return IntStream.range(0, answer.size())
-        .mapToObj(index -> toReview(index, answer.get(index)))
-        .toList();
+    List<OnboardingReview> usable =
+        answer.stream().flatMap(review -> usable(review).stream()).toList();
+    if (usable.size() < answer.size()) {
+      log.error(
+          "aml-service answered settled onboarding reviews without a code or a known outcome,"
+              + " leaving them out: unusable={}, usable={}",
+          answer.size() - usable.size(),
+          usable.size());
+    }
+    return usable;
   }
 
   private @Nullable List<@Nullable SettledReview> fetch(String apiToken) {
@@ -53,23 +63,17 @@ class AmlServiceOnboardingReviews implements OnboardingReviews {
         .body(SETTLED);
   }
 
-  private static OnboardingReview toReview(int index, @Nullable SettledReview review) {
-    String field = "[" + index + "]";
-    SettledReview present = required(review, field);
-    return new OnboardingReview(
-        required(present.personalCode(), field + ".personalCode"),
-        required(present.outcome(), field + ".outcome"));
-  }
-
-  private static <T> T required(@Nullable T value, String field) {
-    if (value == null) {
-      throw new IllegalStateException(
-          "aml-service answered a settled onboarding review without a required value: field="
-              + field);
+  private static Optional<OnboardingReview> usable(@Nullable SettledReview review) {
+    if (review == null || review.personalCode() == null || review.outcome() == null) {
+      return Optional.empty();
     }
-    return value;
+    String personalCode = review.personalCode();
+    return Arrays.stream(Outcome.values())
+        .filter(outcome -> outcome.name().equals(review.outcome()))
+        .findFirst()
+        .map(outcome -> new OnboardingReview(personalCode, outcome));
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record SettledReview(@Nullable String personalCode, @Nullable Outcome outcome) {}
+  record SettledReview(@Nullable String personalCode, @Nullable String outcome) {}
 }

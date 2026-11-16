@@ -34,8 +34,16 @@ public final class TkfOnboardingDecision {
 
   public static @Nullable SavingsFundOnboardingStatus statusAfter(Review review) {
     return switch (review.current()) {
-      case ON_HOLD -> review.outcome() == Outcome.COMPLETE ? COMPLETED : REJECTED;
-      case REJECTED -> review.outcome() == Outcome.COMPLETE ? COMPLETED : REJECTED;
+      case ON_HOLD ->
+          switch (review.outcome()) {
+            case COMPLETE -> COMPLETED;
+            case REJECT -> REJECTED;
+          };
+      case REJECTED ->
+          switch (review.outcome()) {
+            case COMPLETE -> COMPLETED;
+            case REJECT -> REJECTED;
+          };
       case null, default -> review.current();
     };
   }

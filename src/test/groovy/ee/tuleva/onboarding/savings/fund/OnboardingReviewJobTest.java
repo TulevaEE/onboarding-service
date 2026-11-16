@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.aml.OnboardingReview;
 import ee.tuleva.onboarding.aml.OnboardingReviews;
@@ -78,7 +77,7 @@ class OnboardingReviewJobTest {
 
     job.applySettledReviews();
 
-    then(savingsFundOnboardingService).should(never()).applyReview(completed, COMPLETE);
+    then(savingsFundOnboardingService).shouldHaveNoInteractions();
     then(userService).shouldHaveNoInteractions();
   }
 }

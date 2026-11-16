@@ -54,8 +54,8 @@ user or no KYC survey) is not retried.
 A person's savings fund onboarding held for review (`ON_HOLD`), or rejected, moves on by the
 reviewer's decision recorded in aml-service. `OnboardingReviewJob` (savings module) asks
 `AmlServiceOnboardingReviews` every five minutes for `GET /v1/tkf-onboarding/outcomes`, the
-onboardings whose decisions are settled (`COMPLETE` or `REJECT`; the personal codes come in the
-body), and `SavingsFundOnboardingService.applyReview` moves a held one to `COMPLETED` or
+onboardings whose decisions are settled (`{"code", "type", "outcome"}`, `COMPLETE` or `REJECT`; the
+codes come in the body; only persons' are applied so far), and `SavingsFundOnboardingService.applyReview` moves a held one to `COMPLETED` or
 `REJECTED` and a rejected one to `COMPLETED` only, with the same events as a survey's completion.
 Anything else, such as a pending or completed onboarding, is left as it is. A failed read applies
 nothing and the next run asks again; one person's failure does not stop the others. In dev and

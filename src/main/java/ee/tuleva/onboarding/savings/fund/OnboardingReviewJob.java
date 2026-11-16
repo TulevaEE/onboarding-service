@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 
 import ee.tuleva.onboarding.aml.OnboardingReview;
+import ee.tuleva.onboarding.aml.OnboardingReview.PartyType;
 import ee.tuleva.onboarding.aml.OnboardingReviews;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.UserService;
@@ -44,21 +45,26 @@ class OnboardingReviewJob {
     Map<Applied, Long> counts =
         settled.stream().map(this::apply).collect(groupingBy(identity(), counting()));
     log.info(
-        "Applied the settled onboarding reviews: applied={}, noUser={}, failed={}",
+        "Applied the settled onboarding reviews: applied={}, noUser={}, notAPerson={}, failed={}",
         counts.getOrDefault(Applied.APPLIED, 0L),
         counts.getOrDefault(Applied.NO_USER, 0L),
+        counts.getOrDefault(Applied.NOT_A_PERSON, 0L),
         counts.getOrDefault(Applied.FAILED, 0L));
   }
 
   private enum Applied {
     APPLIED,
     NO_USER,
+    NOT_A_PERSON,
     FAILED
   }
 
   private Applied apply(OnboardingReview review) {
+    if (review.partyType() != PartyType.PERSON) {
+      return Applied.NOT_A_PERSON;
+    }
     return userService
-        .findByPersonalCode(review.personalCode())
+        .findByPersonalCode(review.code())
         .map(
             user -> {
               try {

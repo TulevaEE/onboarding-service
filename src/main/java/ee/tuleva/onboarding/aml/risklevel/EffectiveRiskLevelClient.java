@@ -114,10 +114,27 @@ class EffectiveRiskLevelClient {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record FamilyRiskLevel(
-      @Nullable String family, @Nullable String effective, @Nullable Instant decidedAt) {
+      @Nullable String family,
+      @Nullable String effective,
+      @Nullable Instant decidedAt,
+      @Nullable OverrideInForce override) {
 
     EffectiveFamilyLevel with(EffectiveRiskLevel level) {
-      return new EffectiveFamilyLevel(family, level, decidedAt);
+      return new EffectiveFamilyLevel(family, level, assessedAt());
+    }
+
+    private @Nullable Instant assessedAt() {
+      return override != null && override.setsTheLevel() ? override.createdAt() : decidedAt;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record OverrideInForce(@Nullable String outcome, @Nullable Instant createdAt) {
+
+    private static final String OVERRIDDEN = "OVERRIDDEN";
+
+    boolean setsTheLevel() {
+      return OVERRIDDEN.equals(outcome);
     }
   }
 }

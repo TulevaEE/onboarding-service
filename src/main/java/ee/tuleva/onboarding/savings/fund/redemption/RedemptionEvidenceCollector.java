@@ -146,9 +146,9 @@ class RedemptionEvidenceCollector {
     if (screening == Screening.PEP_HIT && !pepHitIncludedIn(level, user)) {
       log.info(
           "Redemption party's TKF risk level was not decided after its PEP hit: id={},"
-              + " tkfDecidedAt={}",
+              + " tkfAssessedAt={}",
           request.getId(),
-          level.tkfDecidedAt());
+          level.tkfAssessedAt());
       return Risk.DECIDED_BEFORE_PEP_HIT;
     }
     return Risk.NOT_HIGH;

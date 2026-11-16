@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.user;
 
+import static ee.tuleva.onboarding.user.SecondPillarExit.PAYMENTS_STOPPED;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -18,13 +21,15 @@ import org.springframework.stereotype.Component;
 public class SecondPillarContributions {
 
   private final Clock clock;
+  private final SecondPillarExits exits;
 
-  public boolean mayRejoinToday(List<SecondPillarContributionPeriod> periods) {
-    SecondPillarContributionStatus status = statusOf(periods);
+  public boolean mayRejoinToday(Person person, List<SecondPillarContributionPeriod> periods) {
+    SecondPillarContributionStatus status = statusOf(person, periods);
     return status != null && status.mayRejoinOn(today());
   }
 
-  @Nullable SecondPillarContributionStatus statusOf(List<SecondPillarContributionPeriod> periods) {
+  @Nullable SecondPillarContributionStatus statusOf(
+      Person person, List<SecondPillarContributionPeriod> periods) {
     LocalDate today = today();
     if (periods.stream().noneMatch(period -> period.hasStartedBy(today))) {
       return null;
@@ -36,7 +41,8 @@ public class SecondPillarContributions {
     if (restartDate != null) {
       return new SecondPillarContributionStatus(false, restartDate, null);
     }
-    return new SecondPillarContributionStatus(false, null, rejoinPossibleFrom(today, periods));
+    return new SecondPillarContributionStatus(
+        false, null, rejoinPossibleFrom(today, periods, () -> exits.of(person)));
   }
 
   private LocalDate today() {
@@ -71,24 +77,38 @@ public class SecondPillarContributions {
   }
 
   private static @Nullable LocalDate rejoinPossibleFrom(
-      LocalDate day, List<SecondPillarContributionPeriod> periods) {
+      LocalDate day,
+      List<SecondPillarContributionPeriod> periods,
+      Supplier<SecondPillarExit> howThePersonLeft) {
     final Period FUNDED_PENSIONS_ACT_27_2_LG_1_CONTRIBUTIONS_RESTART_AFTER_THEY_ENDED =
         Period.ofYears(5);
     final Period FILING_WINDOW_OPENS_BEFORE_THE_CONTRIBUTIONS_IT_STARTS = Period.ofMonths(9);
     final LocalDate FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM =
         LocalDate.of(2026, 11, 1);
+    final LocalDate FUNDED_PENSIONS_ACT_27_2_LG_1_PAYMENT_STOPPERS_RESUME_AT_WILL_FROM =
+        LocalDate.of(2028, 1, 1);
     return stopStartDate(day, periods)
         .map(
-            stopStart ->
-                stopStart
-                    .plus(FUNDED_PENSIONS_ACT_27_2_LG_1_CONTRIBUTIONS_RESTART_AFTER_THEY_ENDED)
-                    .minus(FILING_WINDOW_OPENS_BEFORE_THE_CONTRIBUTIONS_IT_STARTS))
-        .map(
-            filingOpens ->
-                filingOpens.isAfter(FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
-                    ? filingOpens
-                    : FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM)
+            stopStart -> {
+              LocalDate filingOpens =
+                  later(
+                      stopStart
+                          .plus(
+                              FUNDED_PENSIONS_ACT_27_2_LG_1_CONTRIBUTIONS_RESTART_AFTER_THEY_ENDED)
+                          .minus(FILING_WINDOW_OPENS_BEFORE_THE_CONTRIBUTIONS_IT_STARTS),
+                      FUNDED_PENSIONS_ACT_27_2_LG_1_FIVE_YEAR_RULE_IN_FORCE_FROM);
+              return filingOpens.isAfter(
+                          FUNDED_PENSIONS_ACT_27_2_LG_1_PAYMENT_STOPPERS_RESUME_AT_WILL_FROM)
+                      && howThePersonLeft.get() == PAYMENTS_STOPPED
+                  ? later(
+                      stopStart, FUNDED_PENSIONS_ACT_27_2_LG_1_PAYMENT_STOPPERS_RESUME_AT_WILL_FROM)
+                  : filingOpens;
+            })
         .orElse(null);
+  }
+
+  private static LocalDate later(LocalDate first, LocalDate second) {
+    return first.isAfter(second) ? first : second;
   }
 
   private static Optional<LocalDate> stopStartDate(

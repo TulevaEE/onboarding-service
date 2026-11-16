@@ -43,7 +43,7 @@ class KnownLookupsTest {
   void aLeaverWhoseDateHasComeMayRejoinWhenAnApplicationEndedTheirContributions() {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
-    given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(true);
+    given(secondPillarContributions.mayRejoinToday(user, List.of())).willReturn(true);
     given(leaverStatus.contributionsCannotRestart(user.getPersonalCode())).willReturn(false);
 
     assertThat(lookups.mayRejoinSecondPillar(user)).isEqualTo(Known.YES);
@@ -53,7 +53,7 @@ class KnownLookupsTest {
   void aLeaverWhoseDateHasComeMayNotRejoinWhenTheirContributionsCannotRestart() {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
-    given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(true);
+    given(secondPillarContributions.mayRejoinToday(user, List.of())).willReturn(true);
     given(leaverStatus.contributionsCannotRestart(user.getPersonalCode())).willReturn(true);
 
     assertThat(lookups.mayRejoinSecondPillar(user)).isEqualTo(Known.NO);
@@ -63,7 +63,7 @@ class KnownLookupsTest {
   void aLeaverWhoseDateHasNotComeMayNotRejoinAndTheRegistryIsNotRead() {
     given(userContacts.forPerson(user))
         .willReturn(contactSummaryWithContributionPeriods(List.of()));
-    given(secondPillarContributions.mayRejoinToday(List.of())).willReturn(false);
+    given(secondPillarContributions.mayRejoinToday(user, List.of())).willReturn(false);
 
     assertThat(lookups.mayRejoinSecondPillar(user)).isEqualTo(Known.NO);
     verifyNoInteractions(leaverStatus);

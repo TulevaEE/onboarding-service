@@ -40,7 +40,7 @@ class KnownLookups {
         "mayRejoinSecondPillar",
         () ->
             secondPillarContributions.mayRejoinToday(
-                    userContacts.forPerson(person).secondPillarContributionPeriods())
+                    person, userContacts.forPerson(person).secondPillarContributionPeriods())
                 && !leaverStatus.contributionsCannotRestart(person.getPersonalCode()));
   }
 

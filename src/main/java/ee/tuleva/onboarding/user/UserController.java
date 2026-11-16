@@ -40,7 +40,8 @@ public class UserController {
         user,
         contactSummary,
         secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
-        secondPillarContributions.statusOf(contactSummary.secondPillarContributionPeriods()),
+        secondPillarContributions.statusOf(
+            authenticatedPerson, contactSummary.secondPillarContributionPeriods()),
         authenticatedPerson.getRole());
   }
 
@@ -71,7 +72,8 @@ public class UserController {
           user,
           contactSummary,
           secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
-          secondPillarContributions.statusOf(contactSummary.secondPillarContributionPeriods()));
+          secondPillarContributions.statusOf(
+              authenticatedPerson, contactSummary.secondPillarContributionPeriods()));
     }
 
     return UserResponse.from(user);

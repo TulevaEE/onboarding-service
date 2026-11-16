@@ -32,7 +32,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
   UserController controller = new UserController(
       userService, userContacts, secondPillarPaymentRateService,
-      new SecondPillarContributions(Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneOffset.UTC)))
+      new SecondPillarContributions(Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneOffset.UTC), { person -> SecondPillarExit.MONEY_WITHDRAWN } as SecondPillarExits))
 
   def "/me endpoint works with non member"() {
     given:

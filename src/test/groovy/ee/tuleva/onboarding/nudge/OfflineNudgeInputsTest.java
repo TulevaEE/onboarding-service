@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.user.SecondPillarContributions;
+import ee.tuleva.onboarding.user.SecondPillarExit;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserContacts;
 import java.math.BigDecimal;
@@ -60,7 +61,7 @@ class OfflineNudgeInputsTest {
             actingParties,
             savingsFundFeeRate,
             userContacts,
-            new SecondPillarContributions(clock)),
+            new SecondPillarContributions(clock, person -> SecondPillarExit.MONEY_WITHDRAWN)),
         new PaymentRateSeasons(clock, mandateDeadlinesService),
         new SecondPillarRejoinWindows(clock, mandateDeadlinesService));
   }

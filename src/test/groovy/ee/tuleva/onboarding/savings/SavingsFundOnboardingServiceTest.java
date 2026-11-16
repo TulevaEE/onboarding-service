@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -245,6 +246,38 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.applyReview(user, COMPLETE);
 
     verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void holdForReview_holdsARejectedOnboardingForReview() {
+    var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
+    given(
+            savingsFundOnboardingRepository.holdRejectedPerson(
+                user.getPersonalCode(), rejectedBefore))
+        .willReturn(true);
+
+    assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isTrue();
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user,
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                Map.of("oldStatus", REJECTED, "newStatus", ON_HOLD)));
+    verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+  }
+
+  @Test
+  void holdForReview_publishesNothingWhenNoRejectionWasHeld() {
+    var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
+    given(
+            savingsFundOnboardingRepository.holdRejectedPerson(
+                user.getPersonalCode(), rejectedBefore))
+        .willReturn(false);
+
+    assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isFalse();
+
     verifyNoInteractions(eventPublisher);
   }
 

@@ -42,6 +42,44 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void findsThePersonsOfAStatusLastChangedBeforeAnInstant() {
+    var cutoff = Instant.parse("2026-11-16T22:00:00Z");
+    ClockHolder.setClock(Clock.fixed(cutoff.minusSeconds(1), ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888881", PERSON, REJECTED);
+    repository.saveOnboardingStatus("38888888892", PERSON, PENDING);
+    repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    ClockHolder.setClock(Clock.fixed(cutoff, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888903", PERSON, REJECTED);
+
+    assertThat(repository.findPersonCodes(REJECTED, cutoff)).containsExactly("38888888881");
+    assertThat(repository.findPersonCodes(PENDING, cutoff.plusSeconds(1)))
+        .containsExactly("38888888892");
+  }
+
+  @Test
+  void holdsOnlyAPersonsRejectionMadeBeforeTheCutoff() {
+    var cutoff = Instant.parse("2026-11-16T22:00:00Z");
+    ClockHolder.setClock(Clock.fixed(cutoff.minusSeconds(1), ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888881", PERSON, REJECTED);
+    repository.saveOnboardingStatus("38888888892", PERSON, COMPLETED);
+    repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    ClockHolder.setClock(Clock.fixed(cutoff, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888903", PERSON, REJECTED);
+    ClockHolder.setClock(Clock.fixed(cutoff.plusSeconds(3600), ZoneOffset.UTC));
+
+    assertThat(repository.holdRejectedPerson("38888888881", cutoff)).isTrue();
+    assertThat(repository.holdRejectedPerson("38888888881", cutoff)).isFalse();
+    assertThat(repository.holdRejectedPerson("38888888892", cutoff)).isFalse();
+    assertThat(repository.holdRejectedPerson("12345678", cutoff)).isFalse();
+    assertThat(repository.holdRejectedPerson("38888888903", cutoff)).isFalse();
+
+    assertThat(repository.findStatus("38888888881", PERSON)).contains(ON_HOLD);
+    assertThat(repository.findStatus("38888888892", PERSON)).contains(COMPLETED);
+    assertThat(repository.findStatus("12345678", LEGAL_ENTITY)).contains(REJECTED);
+    assertThat(repository.findStatus("38888888903", PERSON)).contains(REJECTED);
+  }
+
+  @Test
   void findsCompletedLegalEntitiesWithFailedOwnershipChecksSince() {
     var since = Instant.parse("2026-07-02T00:00:00Z");
 

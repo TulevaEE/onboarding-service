@@ -112,7 +112,7 @@ class NavReportMapperTest {
     assertThat(rows.get(1).getMarketValue()).isEqualTo(new BigDecimal("1303067.06"));
 
     assertThat(rows.get(2).getAccountType()).isEqualTo("CASH");
-    assertThat(rows.get(2).getAccountName()).isEqualTo("Cash account in SEB Pank");
+    assertThat(rows.get(2).getAccountName()).isEqualTo("Cash account");
     assertThat(rows.get(2).getAccountId()).isEqualTo("EE0000003283");
     assertThat(rows.get(2).getQuantity()).isEqualTo(new BigDecimal("370794.18"));
     assertThat(rows.get(2).getMarketPrice()).isEqualTo(new BigDecimal("1.00"));

@@ -25,7 +25,10 @@ than one per person. The verification job retries an unavailable risk level unti
 deadline, then holds the payout with `RISK_LEVEL_UNAVAILABLE`, which the AML channel hears about
 with the request id. A PEP hit holds nothing on its own: its payout is held only when the risk
 level is high, and when the risk level is unavailable it is retried and then held with
-`RISK_LEVEL_UNAVAILABLE`, as for anyone else.
+`RISK_LEVEL_UNAVAILABLE`, as for anyone else. A level that is not high counts for a PEP hit only
+when aml-service decided its TKF level (`decidedAt`) after the hit's check was recorded: the level
+comes from a batch decision, and the hit counts only from the next one. Until then, and whenever
+the answer carries no `decidedAt`, the risk level counts as unavailable.
 
 `EffectiveRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
 through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening

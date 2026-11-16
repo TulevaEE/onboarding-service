@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Out
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.FREEZE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.HOLD_PAYOUT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.RETRY;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk.DECIDED_BEFORE_PEP_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk.HIGH;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.SANCTION_HIT;
@@ -52,6 +53,7 @@ public final class RedemptionVerdict {
   public enum Risk {
     HIGH,
     NOT_HIGH,
+    DECIDED_BEFORE_PEP_HIT,
     UNAVAILABLE,
     NOT_ASKED
   }
@@ -122,6 +124,6 @@ public final class RedemptionVerdict {
   }
 
   private static boolean riskLevelUnavailable(Evidence evidence) {
-    return evidence.risk() == Risk.UNAVAILABLE;
+    return evidence.risk() == Risk.UNAVAILABLE || evidence.risk() == DECIDED_BEFORE_PEP_HIT;
   }
 }

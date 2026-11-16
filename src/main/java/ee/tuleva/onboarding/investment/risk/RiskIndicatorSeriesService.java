@@ -202,9 +202,9 @@ class RiskIndicatorSeriesService {
 
   private static String kind(Redefinition redefinition) {
     return switch (redefinition) {
-      case Redefinition.Sources sources -> "SOURCES";
-      case Redefinition.HoldingPeriod holdingPeriod -> "HOLDING_PERIOD";
-      case Redefinition.PublicationRule publicationRule -> "PUBLICATION_RULE";
+      case Redefinition.Sources _ -> "SOURCES";
+      case Redefinition.HoldingPeriod _ -> "HOLDING_PERIOD";
+      case Redefinition.PublicationRule _ -> "PUBLICATION_RULE";
     };
   }
 

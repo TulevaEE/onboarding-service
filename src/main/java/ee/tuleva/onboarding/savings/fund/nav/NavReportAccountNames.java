@@ -4,7 +4,7 @@ import java.util.List;
 
 public final class NavReportAccountNames {
 
-  static final String CASH = "Cash account in SEB Pank";
+  static final String CASH = "Cash account";
   static final String TRADE_RECEIVABLES = "Total receivables of unsettled transactions";
   static final String TRADE_PAYABLES = "Total payables of unsettled transactions";
   static final String PENDING_SUBSCRIPTIONS = "Receivables of outstanding units";

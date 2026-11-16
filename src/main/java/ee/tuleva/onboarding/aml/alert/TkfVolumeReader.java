@@ -2,31 +2,18 @@ package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
-/**
- * Reads per-party TKF volume aggregates (persons and legal entities), mirroring the volume CTEs of
- * T1_ulevaatamist_vajavad.sql: deposits from saving_fund_payment (EUR, effected statuses) and
- * redemptions from ledger REDEMPTIONS entries whose transaction touches a TKF100 system account.
- * Emits one aggregate per (party, calendar month) for the current AND previous month (15k/30k) and
- * one per (party, calendar year) for the current AND previous year (49k), so a breach that ages
- * across a boundary is still caught up after a scheduler outage. Legal entities are classified as
- * present, new clients (so the 15k/49k rules apply; the 30k existing-client rule never does), as
- * the person-keyed mv_crm has no rows for them. Window boundaries come from the injected Clock
- * zone, not the database clock. The TkfVolumeEvaluator applies the thresholds and the override.
- */
 @Service
 @RequiredArgsConstructor
 public class TkfVolumeReader {
@@ -84,36 +71,6 @@ public class TkfVolumeReader {
                crm.balance_in_tuk75, crm.balance_in_tuk00, ov.manual_date
       """;
 
-  private static final String YEARLY_SQL =
-      """
-      SELECT
-        f.party_code AS personal_id,
-        f.party_type AS party_type,
-        f.period AS period,
-        SUM(f.amount) AS deposits_year,
-        MAX(f.created_at) AS last_deposit_year,
-        CASE WHEN crm.personal_id IS NULL THEN false ELSE true END AS present_in_crm,
-        (COALESCE(crm.balance_in_third_pillar, false)
-          OR COALESCE(crm.balance_in_tuk75, false)
-          OR COALESCE(crm.balance_in_tuk00, false)) AS existing_client,
-        ov.manual_date AS last_manual_review
-      FROM (
-        SELECT party_code, party_type, amount, created_at, date_trunc('year', created_at) AS period
-        FROM saving_fund_payment
-        WHERE party_type IN ('PERSON', 'LEGAL_ENTITY')
-          AND currency = 'EUR'
-          AND status IN ('RECEIVED', 'VERIFIED', 'RESERVED', 'ISSUED', 'PROCESSED')
-          AND created_at >= :yearFloor
-      ) f
-      LEFT JOIN analytics.mv_crm crm ON crm.personal_id = f.party_code
-      LEFT JOIN (
-        SELECT personal_code, MAX(created_time) AS manual_date
-        FROM aml_check WHERE type = 'TKF_RISK_LEVEL_OVERRIDE' GROUP BY personal_code
-      ) ov ON ov.personal_code = f.party_code
-      GROUP BY f.party_code, f.party_type, f.period, crm.personal_id, crm.balance_in_third_pillar,
-               crm.balance_in_tuk75, crm.balance_in_tuk00, ov.manual_date
-      """;
-
   private final JdbcClient jdbcClient;
   private final Clock clock;
 
@@ -121,22 +78,11 @@ public class TkfVolumeReader {
     ZoneId zone = clock.getZone();
     LocalDate today = LocalDate.now(clock);
     Instant monthFloor = today.withDayOfMonth(1).minusMonths(1).atStartOfDay(zone).toInstant();
-    Instant yearFloor = today.withDayOfYear(1).minusYears(1).atStartOfDay(zone).toInstant();
-
-    var aggregates = new ArrayList<TkfVolumeAggregate>();
-    aggregates.addAll(
-        jdbcClient
-            .sql(MONTHLY_SQL)
-            .param("monthFloor", Timestamp.from(monthFloor))
-            .query((rs, rowNum) -> monthlyAggregate(rs, zone))
-            .list());
-    aggregates.addAll(
-        jdbcClient
-            .sql(YEARLY_SQL)
-            .param("yearFloor", Timestamp.from(yearFloor))
-            .query((rs, rowNum) -> yearlyAggregate(rs, zone))
-            .list());
-    return aggregates;
+    return jdbcClient
+        .sql(MONTHLY_SQL)
+        .param("monthFloor", Timestamp.from(monthFloor))
+        .query((rs, rowNum) -> monthlyAggregate(rs, zone))
+        .list();
   }
 
   private TkfVolumeAggregate monthlyAggregate(java.sql.ResultSet rs, ZoneId zone)
@@ -150,29 +96,6 @@ public class TkfVolumeReader {
         toInstant(rs.getTimestamp("last_deposit_month")),
         toInstant(rs.getTimestamp("last_redemption_month")),
         LocalDate.ofInstant(period, zone).format(MONTH_KEY),
-        BigDecimal.ZERO,
-        null,
-        "",
-        presentInCrm(rs, partyType),
-        existingClient(rs, partyType),
-        toInstant(rs.getTimestamp("last_manual_review")),
-        partyType);
-  }
-
-  private TkfVolumeAggregate yearlyAggregate(java.sql.ResultSet rs, ZoneId zone)
-      throws java.sql.SQLException {
-    Instant period = rs.getTimestamp("period").toInstant();
-    AlertPartyType partyType = partyType(rs);
-    return new TkfVolumeAggregate(
-        rs.getString("personal_id"),
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        null,
-        null,
-        "",
-        rs.getBigDecimal("deposits_year"),
-        toInstant(rs.getTimestamp("last_deposit_year")),
-        String.valueOf(LocalDate.ofInstant(period, zone).getYear()),
         presentInCrm(rs, partyType),
         existingClient(rs, partyType),
         toInstant(rs.getTimestamp("last_manual_review")),

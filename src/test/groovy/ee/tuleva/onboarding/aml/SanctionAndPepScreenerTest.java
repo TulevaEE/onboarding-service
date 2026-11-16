@@ -560,6 +560,44 @@ class SanctionAndPepScreenerTest {
   }
 
   @Test
+  void pepHitAt_isWhenTheLatestPepCheckThatFailedWasRecorded() {
+    User user = createUser("123", "First", "Last", 1L);
+    Instant recordedAt = Instant.parse("2026-11-16T09:00:00Z");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+                "123", POLITICALLY_EXPOSED_PERSON_AUTO))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode("123")
+                    .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+                    .success(false)
+                    .createdTime(recordedAt)
+                    .build()));
+
+    assertThat(sanctionAndPepScreener.pepHitAt(user)).contains(recordedAt);
+  }
+
+  @Test
+  void pepHitAt_isEmptyWhenTheLatestPepCheckPassed() {
+    User user = createUser("123", "First", "Last", 1L);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
+
+    assertThat(sanctionAndPepScreener.pepHitAt(user)).isEmpty();
+  }
+
+  @Test
+  void pepHitAt_isEmptyWithoutAPepCheck() {
+    User user = createUser("123", "First", "Last", 1L);
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+                "123", POLITICALLY_EXPOSED_PERSON_AUTO))
+        .willReturn(Optional.empty());
+
+    assertThat(sanctionAndPepScreener.pepHitAt(user)).isEmpty();
+  }
+
+  @Test
   void screeningOutcome_isUnavailableWhenOnlyThePepRecordIsMissing() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");

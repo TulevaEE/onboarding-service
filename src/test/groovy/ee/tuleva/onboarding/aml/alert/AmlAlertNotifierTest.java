@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.aml.alert;
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
-import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_49K_YEARLY;
+import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLIENT;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -82,15 +82,15 @@ class AmlAlertNotifierTest {
     notifier.onAmlThresholdAlert(
         new AmlThresholdAlertEvent(
             this,
-            TKF_VOLUME_49K_YEARLY,
+            TKF_VOLUME_15K_NEW_CLIENT,
             "12345678",
             new BigDecimal("100000.00"),
-            "COMBINED/2026",
+            "IN/2026-06",
             LEGAL_ENTITY));
 
     verify(notificationService)
         .sendMessage(
-            "AML alert: TKF_VOLUME_49K_YEARLY, code=12345678, amount=100000.00, ref=COMBINED/2026",
+            "AML alert: TKF_VOLUME_15K_NEW_CLIENT, code=12345678, amount=100000.00, ref=IN/2026-06",
             AML);
     verifyNoInteractions(userService);
   }

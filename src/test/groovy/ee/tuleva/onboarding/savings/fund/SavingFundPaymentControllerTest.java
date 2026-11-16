@@ -257,6 +257,25 @@ class SavingFundPaymentControllerTest {
   }
 
   @Test
+  void getLegalEntityOnboardingStatus_showsACompanyHeldForReviewAsPending() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(legalEntitySavingsFundOnboardingService.getOnboardingStatus(
+            person.getPersonalCode(), "12345678"))
+        .thenReturn(Optional.of(ON_HOLD));
+
+    mvc.perform(
+            get("/v1/savings/onboarding/status/legal-entity")
+                .param("registry-code", "12345678")
+                .with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"PENDING\"}"));
+  }
+
+  @Test
   void getLegalEntityOnboardingStatus_shouldReturnNullStatus() throws Exception {
     var person = sampleAuthenticatedPersonAndMember().build();
     var auth =

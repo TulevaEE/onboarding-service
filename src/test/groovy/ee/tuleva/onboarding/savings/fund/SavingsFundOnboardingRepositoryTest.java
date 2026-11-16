@@ -57,6 +57,15 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void changesAStatusOnlyFromTheOneExpected() {
+    repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+
+    assertThat(repository.changeStatus("12345678", LEGAL_ENTITY, PENDING, COMPLETED)).isFalse();
+    assertThat(repository.changeStatus("12345678", LEGAL_ENTITY, ON_HOLD, COMPLETED)).isTrue();
+    assertThat(repository.findStatus("12345678", LEGAL_ENTITY)).contains(COMPLETED);
+  }
+
+  @Test
   void holdsOnlyAPersonsRejectionMadeBeforeTheCutoff() {
     var cutoff = Instant.parse("2026-11-16T22:00:00Z");
     ClockHolder.setClock(Clock.fixed(cutoff.minusSeconds(1), ZoneOffset.UTC));
@@ -67,11 +76,11 @@ class SavingsFundOnboardingRepositoryTest {
     repository.saveOnboardingStatus("38888888903", PERSON, REJECTED);
     ClockHolder.setClock(Clock.fixed(cutoff.plusSeconds(3600), ZoneOffset.UTC));
 
-    assertThat(repository.holdRejectedPerson("38888888881", cutoff)).isTrue();
-    assertThat(repository.holdRejectedPerson("38888888881", cutoff)).isFalse();
-    assertThat(repository.holdRejectedPerson("38888888892", cutoff)).isFalse();
-    assertThat(repository.holdRejectedPerson("12345678", cutoff)).isFalse();
-    assertThat(repository.holdRejectedPerson("38888888903", cutoff)).isFalse();
+    assertThat(repository.holdRejected("38888888881", PERSON, cutoff)).isTrue();
+    assertThat(repository.holdRejected("38888888881", PERSON, cutoff)).isFalse();
+    assertThat(repository.holdRejected("38888888892", PERSON, cutoff)).isFalse();
+    assertThat(repository.holdRejected("12345678", PERSON, cutoff)).isFalse();
+    assertThat(repository.holdRejected("38888888903", PERSON, cutoff)).isFalse();
 
     assertThat(repository.findStatus("38888888881", PERSON)).contains(ON_HOLD);
     assertThat(repository.findStatus("38888888892", PERSON)).contains(COMPLETED);

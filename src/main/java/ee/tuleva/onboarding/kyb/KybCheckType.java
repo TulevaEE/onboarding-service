@@ -37,6 +37,14 @@ public enum KybCheckType {
         || this == SINGLE_BOARD_MEMBER_OWNERSHIP;
   }
 
+  public boolean isHighRiskIndicator() {
+    return isOwnershipCheck()
+        || this == COMPANY_ACTIVE
+        || this == COMPANY_SANCTION
+        || this == COMPANY_PEP
+        || this == HIGH_RISK_NACE;
+  }
+
   public boolean isManuallyForceable() {
     return isOwnershipCheck() || this == SELF_CERTIFICATION || this == HIGH_RISK_NACE;
   }

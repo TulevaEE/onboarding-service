@@ -253,8 +253,8 @@ class SavingsFundOnboardingServiceTest {
   void holdForReview_holdsARejectedOnboardingForReview() {
     var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
     given(
-            savingsFundOnboardingRepository.holdRejectedPerson(
-                user.getPersonalCode(), rejectedBefore))
+            savingsFundOnboardingRepository.holdRejected(
+                user.getPersonalCode(), PERSON, rejectedBefore))
         .willReturn(true);
 
     assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isTrue();
@@ -272,8 +272,8 @@ class SavingsFundOnboardingServiceTest {
   void holdForReview_publishesNothingWhenNoRejectionWasHeld() {
     var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
     given(
-            savingsFundOnboardingRepository.holdRejectedPerson(
-                user.getPersonalCode(), rejectedBefore))
+            savingsFundOnboardingRepository.holdRejected(
+                user.getPersonalCode(), PERSON, rejectedBefore))
         .willReturn(false);
 
     assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isFalse();

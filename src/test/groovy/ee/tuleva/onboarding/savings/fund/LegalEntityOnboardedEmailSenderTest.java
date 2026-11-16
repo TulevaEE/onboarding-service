@@ -62,7 +62,7 @@ class LegalEntityOnboardedEmailSenderTest {
   }
 
   private LegalEntityOnboardedEvent event() {
-    return new LegalEntityOnboardedEvent(this, company);
+    return new LegalEntityOnboardedEvent(this, company.registryCode(), company.name());
   }
 
   @Test

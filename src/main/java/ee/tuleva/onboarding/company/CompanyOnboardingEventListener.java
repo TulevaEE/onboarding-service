@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ariregister.RepresentationRight;
-import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybRelatedPerson;
 import java.util.ArrayList;
@@ -34,7 +33,7 @@ public class CompanyOnboardingEventListener {
         companyRepository
             .findByRegistryCode(event.getCompany().registryCode().value())
             .orElseGet(() -> createCompany(event));
-    if (allGateChecksPassed(event)) {
+    if (onlyHighRiskIndicatorsFailed(event)) {
       replaceParties(company, event);
       replaceRepresentationRights(company, event);
     }
@@ -92,10 +91,10 @@ public class CompanyOnboardingEventListener {
         .build();
   }
 
-  private boolean allGateChecksPassed(KybCheckPerformedEvent event) {
+  private static boolean onlyHighRiskIndicatorsFailed(KybCheckPerformedEvent event) {
     return event.getChecks().stream()
-        .filter(check -> check.type().isOnboardingGate())
-        .allMatch(KybCheck::success);
+        .filter(check -> check.type().isOnboardingGate() && !check.success())
+        .allMatch(check -> check.type().isHighRiskIndicator());
   }
 
   private Company createCompany(KybCheckPerformedEvent event) {

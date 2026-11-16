@@ -25,6 +25,7 @@ class OnboardingReviewJob {
   private final OnboardingReviews onboardingReviews;
   private final UserService userService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final LegalEntitySavingsFundOnboardingService legalEntityOnboardingService;
 
   @Scheduled(cron = "0 */5 * * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -45,23 +46,35 @@ class OnboardingReviewJob {
     Map<Applied, Long> counts =
         settled.stream().map(this::apply).collect(groupingBy(identity(), counting()));
     log.info(
-        "Applied the settled onboarding reviews: applied={}, noUser={}, notAPerson={}, failed={}",
+        "Applied the settled onboarding reviews: applied={}, noUser={}, failed={}",
         counts.getOrDefault(Applied.APPLIED, 0L),
         counts.getOrDefault(Applied.NO_USER, 0L),
-        counts.getOrDefault(Applied.NOT_A_PERSON, 0L),
         counts.getOrDefault(Applied.FAILED, 0L));
+  }
+
+  private Applied applyToCompany(OnboardingReview review) {
+    try {
+      legalEntityOnboardingService.applyReview(review.code(), review.outcome());
+      return Applied.APPLIED;
+    } catch (Exception e) {
+      log.error(
+          "Failed to apply an onboarding review: registryCode={}, outcome={}",
+          review.code(),
+          review.outcome(),
+          e);
+      return Applied.FAILED;
+    }
   }
 
   private enum Applied {
     APPLIED,
     NO_USER,
-    NOT_A_PERSON,
     FAILED
   }
 
   private Applied apply(OnboardingReview review) {
-    if (review.partyType() != PartyType.PERSON) {
-      return Applied.NOT_A_PERSON;
+    if (review.partyType() == PartyType.LEGAL_ENTITY) {
+      return applyToCompany(review);
     }
     return userService
         .findByPersonalCode(review.code())

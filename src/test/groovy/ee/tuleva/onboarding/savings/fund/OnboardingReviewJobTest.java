@@ -28,6 +28,7 @@ class OnboardingReviewJobTest {
   @Mock private OnboardingReviews onboardingReviews;
   @Mock private UserService userService;
   @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
+  @Mock private LegalEntitySavingsFundOnboardingService legalEntityOnboardingService;
   @InjectMocks private OnboardingReviewJob job;
 
   private final User completed = sampleUser().id(1L).personalCode("38888888888").build();
@@ -74,12 +75,13 @@ class OnboardingReviewJobTest {
   }
 
   @Test
-  void leavesACompanysReviewAlone() {
+  void appliesACompanysReviewToTheCompanysOnboarding() {
     given(onboardingReviews.settled())
         .willReturn(List.of(new OnboardingReview("12345678", LEGAL_ENTITY, COMPLETE)));
 
     job.applySettledReviews();
 
+    then(legalEntityOnboardingService).should().applyReview("12345678", COMPLETE);
     then(userService).shouldHaveNoInteractions();
     then(savingsFundOnboardingService).shouldHaveNoInteractions();
   }

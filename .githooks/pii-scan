@@ -97,7 +97,9 @@ if (@ARGV == 2 && $ARGV[0] eq '--hash') {
 }
 
 # Estonian personal ID code: mod-11 check digit, so that arbitrary 11-digit
-# numbers (timestamps, ids, amounts) do not match.
+# numbers (timestamps, ids, amounts) do not match. Digits glued to a letter on
+# either side are part of a hash or an identifier, not a code, so they do not
+# match either.
 sub is_id_code {
   my @d = split //, shift;
   my @w1 = (1, 2, 3, 4, 5, 6, 7, 8, 9, 1);
@@ -155,7 +157,7 @@ while (my $raw = <STDIN>) {
   chomp $content;
   my $at = sub { push @findings, [$file, $line, $_[0], $_[1]] };
 
-  while ($content =~ /(?<![0-9])([1-6][0-9]{10})(?![0-9])/g) {
+  while ($content =~ /(?<![0-9A-Za-z])([1-6][0-9]{10})(?![0-9A-Za-z])/g) {
     $at->('Estonian personal ID code', $1)
       if is_id_code($1) && !$ALLOWED_ID_CODES{$1};
   }

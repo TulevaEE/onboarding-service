@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import static ee.tuleva.onboarding.aml.risklevel.EffectiveRiskLevel.HIGH;
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.HIGH;
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 
+import ee.tuleva.onboarding.aml.PersonRiskLevel;
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import java.time.Clock;
@@ -9,6 +11,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,16 +29,17 @@ import org.springframework.web.client.RestClientResponseException;
 class EffectiveRiskLevels implements RiskLevels {
 
   private static final Duration QUIET_AFTER_AML_SERVICE_FAILED = Duration.ofSeconds(30);
+  private static final String TKF_FAMILY = "tkf";
 
   private final EffectiveRiskLevelClient effectiveRiskLevelClient;
   private final Clock clock;
   private volatile @Nullable Instant quietUntil;
 
   @Override
-  public boolean isHighRisk(String personalCode) {
+  public PersonRiskLevel riskLevel(String personalCode) {
     failWhileQuiet();
     try {
-      return effectiveRiskLevelClient.effectiveRiskLevels(personalCode).contains(HIGH);
+      return personRiskLevel(effectiveRiskLevelClient.effectiveRiskLevels(personalCode));
     } catch (RuntimeException e) {
       if (!concernsOnlyThisPerson(e)) {
         quietUntil = clock.instant().plus(QUIET_AFTER_AML_SERVICE_FAILED);
@@ -47,10 +52,22 @@ class EffectiveRiskLevels implements RiskLevels {
   public boolean isHighRiskCompany(String registryCode) {
     failWhileQuiet();
     try {
-      return effectiveRiskLevelClient.effectiveCompanyRiskLevels(registryCode).contains(HIGH);
+      return effectiveRiskLevelClient.effectiveCompanyRiskLevels(registryCode).stream()
+          .anyMatch(EffectiveFamilyLevel::isHigh);
     } catch (RuntimeException e) {
       throw unavailable(e);
     }
+  }
+
+  private static PersonRiskLevel personRiskLevel(List<EffectiveFamilyLevel> families) {
+    return new PersonRiskLevel(
+        families.stream().anyMatch(EffectiveFamilyLevel::isHigh) ? HIGH : NOT_HIGH,
+        families.stream()
+            .filter(family -> TKF_FAMILY.equals(family.family()))
+            .map(EffectiveFamilyLevel::assessedAt)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null));
   }
 
   private void failWhileQuiet() {

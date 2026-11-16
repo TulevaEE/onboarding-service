@@ -59,3 +59,7 @@ The script reads these from `PropertiesService.getScriptProperties()` at runtime
 - `AWS_REGION` (defaults to `eu-central-1`)
 - `DRIVE_SEB_REPORT_FOLDER_ID` — the Drive folder for the SEB report copies, the same folder tuleva's `seb-import` reads. `funds@tuleva.ee` needs edit access to it. When it isn't set, the script skips the Drive copy and alerts once a day.
 - `SLACK_WEBHOOK_URL` — Slack incoming webhook for error and skip alerts. When it isn't set, the script only logs the alert.
+
+The script keeps its own records there too: `report_source:` and `drive_source:` per report, holding the e-mail it came from; `us_name_alerted:` per e-mail and `_US.csv` attachment; `skipped_notified:` per unmatched-attachment alert, holding when it was sent. Each time a report's e-mail is recorded, the records whose e-mail or alert is more than 45 days old are dropped. A run scans whole threads, so a reply brings an old e-mail back into it; an unmatched attachment is alerted about only while its e-mail is 30 days old or younger (the longest catch-up window), so a dropped record cannot bring its alert back.
+
+With more than 50 properties the Project Settings list is read-only. Set or delete one from a temporary function run in the editor (`PropertiesService.getScriptProperties().setProperty(name, value)` or `.deleteProperty(name)`), then delete that function.

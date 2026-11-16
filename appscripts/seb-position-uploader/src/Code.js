@@ -117,9 +117,11 @@ function processHistoricalEmails() {
     });
 }
 
+var LONGEST_CATCH_UP_DAYS = 30;
+
 function processHistoricalEmails30Days() {
     runAloneOrRefuse("processHistoricalEmails30Days", function () {
-        processEmailsFromDays(30);
+        processEmailsFromDays(LONGEST_CATCH_UP_DAYS);
     });
 }
 
@@ -320,9 +322,11 @@ function shouldNotifyAboutSkipped(messageId, filenames, alreadyNotified) {
     return !(dedupKeyFor(messageId, filenames) in alreadyNotified);
 }
 
+var SKIPPED_NOTIFIED_PROPERTY_PREFIX = "skipped_notified:";
+
 function dedupKeyFor(messageId, filenames) {
     var sortedNames = filenames.slice().sort().join(",");
-    return "skipped_notified:" + messageId + ":" + simpleHash(sortedNames);
+    return SKIPPED_NOTIFIED_PROPERTY_PREFIX + messageId + ":" + simpleHash(sortedNames);
 }
 
 function formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, dedupKey) {
@@ -332,7 +336,7 @@ function formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount
     return prefix + "Sender: `" + sender +
         "`. Unmatched files: `" + unmatchedFilenames.join(",") +
         "`. Probably a new filename variant — check the regex in `appscripts/seb-position-uploader/src/Code.js`. " +
-        "(To re-alert: delete the `" + dedupKey + "` Script Property.)";
+        "(To re-alert while the e-mail is " + LONGEST_CATCH_UP_DAYS + " days old or younger: delete the `" + dedupKey + "` Script Property.)";
 }
 
 function simpleHash(str) {
@@ -357,10 +361,14 @@ function messageHasMatchingAttachments(message) {
         ", matched=[" + partition.matched.join(",") +
         "], unmatched=[" + partition.unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched)) {
+    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
         notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
     }
     return partition.matched.length > 0;
+}
+
+function isWithinTheLongestCatchUp(messageDate, now) {
+    return now.getTime() - messageDate.getTime() <= LONGEST_CATCH_UP_DAYS * DAY_MILLIS;
 }
 
 function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames, matchedCount) {
@@ -375,7 +383,7 @@ function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames
         ? "WARNING: Known sender with mixed matched (" + matchedCount + ") + unmatched attachments: "
         : "WARNING: Known sender but no attachments matched any pattern: ";
     Logger.log(logPrefix + "sender=" + sender + ", unmatched=" + unmatchedFilenames.join(",") + ", messageId=" + messageId);
-    notifySlack(formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, key));
+    if (!notifySlack(formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, key))) return;
     props.setProperty(key, new Date().toISOString());
 }
 
@@ -475,7 +483,7 @@ function keysOfAttachmentsWithoutUsEnding(source, attachments) {
 }
 
 var REPORT_SOURCE_PROPERTY_PREFIX = "report_source:";
-var REPORT_SOURCE_KEEP_DAYS = 45;
+var RECORD_KEEP_DAYS = 45;
 
 function emailSourceOf(message) {
     return { date: message.getDate().toISOString(), id: message.getId() };
@@ -507,9 +515,9 @@ function recordEmailSource(s3Key, emailSource) {
     var props = PropertiesService.getScriptProperties();
     props.setProperty(REPORT_SOURCE_PROPERTY_PREFIX + s3Key, JSON.stringify(emailSource));
     try {
-        forgetOldReportSources(props, new Date());
+        forgetOldRecords(props, new Date());
     } catch (e) {
-        Logger.log("Old e-mail records not pruned: error=" + e.message);
+        Logger.log("Old records not pruned: error=" + e.message);
     }
 }
 
@@ -954,19 +962,18 @@ function isOlderThanCurrentSource(source, current) {
     return sourceTime < currentTime || (sourceTime === currentTime && source.id < current.id);
 }
 
-function forgetOldReportSources(props, now) {
-    var oldest = now.getTime() - REPORT_SOURCE_KEEP_DAYS * 24 * 60 * 60 * 1000;
+function forgetOldRecords(props, now) {
+    var oldest = now.getTime() - RECORD_KEEP_DAYS * DAY_MILLIS;
     var all = props.getProperties();
     Object.keys(all).forEach(function (key) {
-        if (!isEmailRecordKey(key)) return;
-        if (sourceTime(all[key]) < oldest) props.deleteProperty(key);
+        var readTime = recordTimeReaderFor(key);
+        if (readTime && readTime(all[key]) < oldest) props.deleteProperty(key);
     });
 }
 
-function isEmailRecordKey(key) {
-    return [REPORT_SOURCE_PROPERTY_PREFIX, DRIVE_SOURCE_PROPERTY_PREFIX, US_NAME_ALERT_PROPERTY_PREFIX].some(function (prefix) {
-        return key.indexOf(prefix) === 0;
-    });
+function recordTimeReaderFor(key) {
+    var record = RECORD_TIME_READERS.find(function (candidate) { return key.indexOf(candidate.prefix) === 0; });
+    return record ? record.readTime : null;
 }
 
 function sourceTime(record) {
@@ -975,6 +982,17 @@ function sourceTime(record) {
     } catch (e) {
         return 0;
     }
+}
+
+var RECORD_TIME_READERS = [
+    { prefix: REPORT_SOURCE_PROPERTY_PREFIX, readTime: sourceTime },
+    { prefix: DRIVE_SOURCE_PROPERTY_PREFIX, readTime: sourceTime },
+    { prefix: US_NAME_ALERT_PROPERTY_PREFIX, readTime: sourceTime },
+    { prefix: SKIPPED_NOTIFIED_PROPERTY_PREFIX, readTime: alertTime },
+];
+
+function alertTime(record) {
+    return new Date(record).getTime() || 0;
 }
 
 function driveReportFamily(folder, fileConfig, reportDate) {
@@ -1376,7 +1394,7 @@ if (typeof module !== "undefined" && module.exports) {
         saveThreadToDrive,
         saveReportToDrive,
         isOlderThanCurrentSource,
-        forgetOldReportSources,
+        forgetOldRecords,
         driveReportFamily,
         isSameDriveReport,
         isVersionedDriveName,

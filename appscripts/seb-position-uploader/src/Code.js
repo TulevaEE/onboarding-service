@@ -336,7 +336,7 @@ function formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount
     return prefix + "Sender: `" + sender +
         "`. Unmatched files: `" + unmatchedFilenames.join(",") +
         "`. Probably a new filename variant — check the regex in `appscripts/seb-position-uploader/src/Code.js`. " +
-        "(To re-alert: delete the `" + dedupKey + "` Script Property.)";
+        "(To re-alert while the e-mail is " + LONGEST_CATCH_UP_DAYS + " days old or younger: delete the `" + dedupKey + "` Script Property.)";
 }
 
 function simpleHash(str) {
@@ -361,10 +361,14 @@ function messageHasMatchingAttachments(message) {
         ", matched=[" + partition.matched.join(",") +
         "], unmatched=[" + partition.unmatched.join(",") + "]");
 
-    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched)) {
+    if (shouldAlertOnUnmatched(sender, partition.matched.length, partition.unmatched) && isWithinTheLongestCatchUp(message.getDate(), new Date())) {
         notifyOnceForUnmatchedAttachments(message.getId(), sender, partition.unmatched, partition.matched.length);
     }
     return partition.matched.length > 0;
+}
+
+function isWithinTheLongestCatchUp(messageDate, now) {
+    return now.getTime() - messageDate.getTime() <= LONGEST_CATCH_UP_DAYS * DAY_MILLIS;
 }
 
 function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames, matchedCount) {
@@ -984,7 +988,12 @@ var RECORD_TIME_READERS = [
     { prefix: REPORT_SOURCE_PROPERTY_PREFIX, readTime: sourceTime },
     { prefix: DRIVE_SOURCE_PROPERTY_PREFIX, readTime: sourceTime },
     { prefix: US_NAME_ALERT_PROPERTY_PREFIX, readTime: sourceTime },
+    { prefix: SKIPPED_NOTIFIED_PROPERTY_PREFIX, readTime: alertTime },
 ];
+
+function alertTime(record) {
+    return new Date(record).getTime() || 0;
+}
 
 function driveReportFamily(folder, fileConfig, reportDate) {
     var current = [];

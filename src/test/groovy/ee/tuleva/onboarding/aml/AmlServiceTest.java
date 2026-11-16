@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -107,6 +108,20 @@ class AmlServiceTest {
   @AfterEach
   void tearDown() {
     ClockHolder.setDefaultClock();
+  }
+
+  @Test
+  void addKycCheck_passesAMediumRiskCheck() {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.empty());
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(MEDIUM, Map.of("riskLevel", "MEDIUM")));
+
+    assertThat(result).hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
   }
 
   @Test

@@ -42,6 +42,21 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void findsThePersonsOfAStatusLastChangedBeforeAnInstant() {
+    var cutoff = Instant.parse("2026-11-16T22:00:00Z");
+    ClockHolder.setClock(Clock.fixed(cutoff.minusSeconds(1), ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888881", PERSON, REJECTED);
+    repository.saveOnboardingStatus("38888888892", PERSON, PENDING);
+    repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    ClockHolder.setClock(Clock.fixed(cutoff, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888903", PERSON, REJECTED);
+
+    assertThat(repository.findPersonCodes(REJECTED, cutoff)).containsExactly("38888888881");
+    assertThat(repository.findPersonCodes(PENDING, cutoff.plusSeconds(1)))
+        .containsExactly("38888888892");
+  }
+
+  @Test
   void findsCompletedLegalEntitiesWithFailedOwnershipChecksSince() {
     var since = Instant.parse("2026-07-02T00:00:00Z");
 

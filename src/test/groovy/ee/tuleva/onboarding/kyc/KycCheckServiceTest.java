@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyc;
 
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -124,14 +125,54 @@ class KycCheckServiceTest {
     verifyNoInteractions(eventPublisher, transactionManager, kycSurveyRepository);
   }
 
+  @Test
+  void checkLatestOnboardingSurvey_assessesThePersonsLatestOnboardingSurveyAgain() {
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(7L))
+        .willReturn(Optional.of(submitted));
+    given(kycChecker.check(subject)).willReturn(KYC_CHECK);
+
+    kycCheckService.checkLatestOnboardingSurvey(subject);
+
+    verify(eventPublisher)
+        .publishEvent(
+            argThat(
+                (KycCheckPerformedEvent performed) ->
+                    performed.getPersonalCode().equals("38888888888")
+                        && performed.getKycCheck().equals(KYC_CHECK)
+                        && performed.getPurpose() == PERSONAL_ONBOARDING));
+  }
+
+  @Test
+  void checkLatestOnboardingSurvey_assessesNothingWithoutAnOnboardingSurvey() {
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(7L))
+        .willReturn(Optional.of(survey(Instant.parse("2026-11-04T10:00:00Z"), IDENTITY_ONLY)));
+
+    kycCheckService.checkLatestOnboardingSurvey(subject);
+
+    verifyNoInteractions(kycChecker, eventPublisher);
+  }
+
+  @Test
+  void checkLatestOnboardingSurvey_assessesNothingWithoutASurvey() {
+    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDescIdDesc(7L))
+        .willReturn(Optional.empty());
+
+    kycCheckService.checkLatestOnboardingSurvey(subject);
+
+    verifyNoInteractions(kycChecker, eventPublisher);
+  }
+
   private static KycSurvey survey(Instant createdTime) {
+    return survey(createdTime, PERSONAL_ONBOARDING);
+  }
+
+  private static KycSurvey survey(Instant createdTime, KycSurveyPurpose purpose) {
     return KycSurvey.builder()
         .id(UUID.randomUUID())
         .userId(7L)
         .survey(
             new KycSurveyResponse(
-                List.of(new Email(new EmailValue("TEXT", "someone@example.com"))),
-                PERSONAL_ONBOARDING))
+                List.of(new Email(new EmailValue("TEXT", "someone@example.com"))), purpose))
         .createdTime(createdTime)
         .build();
   }

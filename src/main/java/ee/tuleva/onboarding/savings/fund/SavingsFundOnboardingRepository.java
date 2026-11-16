@@ -34,6 +34,24 @@ public class SavingsFundOnboardingRepository {
         .toList();
   }
 
+  public List<String> findPersonCodes(SavingsFundOnboardingStatus status, Instant changedBefore) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT code
+            FROM savings_fund_onboarding
+            WHERE type = 'PERSON' AND status = :status AND updated_at < :changedBefore
+            ORDER BY code
+            """)
+        .param("status", status.name())
+        .param("changedBefore", Timestamp.from(changedBefore))
+        .query(String.class)
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
+  }
+
   public List<String> findPendingLegalEntityCodes() {
     return jdbcClient
         .sql(

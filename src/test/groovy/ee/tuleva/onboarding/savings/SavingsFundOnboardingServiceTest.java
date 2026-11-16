@@ -249,6 +249,41 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @Test
+  void holdForReview_holdsARejectedOnboardingForReview() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(REJECTED));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, ON_HOLD))
+        .willReturn(Optional.of(REJECTED));
+
+    savingsFundOnboardingService.holdForReview(user);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user,
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                Map.of("oldStatus", REJECTED, "newStatus", ON_HOLD)));
+    verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = SavingsFundOnboardingStatus.class,
+      names = "REJECTED",
+      mode = EnumSource.Mode.EXCLUDE)
+  void holdForReview_holdsNothingButARejectedOnboarding(SavingsFundOnboardingStatus current) {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(current));
+
+    savingsFundOnboardingService.holdForReview(user);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
   void isOnboardingCompleted_delegatesToRepository() {
     given(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001", PERSON))
         .willReturn(true);

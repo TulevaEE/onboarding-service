@@ -87,6 +87,16 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     changeStatus(user, newStatus);
   }
 
+  @Transactional
+  public void holdForReview(User user) {
+    if (savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null)
+        != REJECTED) {
+      return;
+    }
+    log.info("Savings fund onboarding held for review again: userId={}", user.getId());
+    changeStatus(user, ON_HOLD);
+  }
+
   private void changeStatus(User user, SavingsFundOnboardingStatus newStatus) {
     SavingsFundOnboardingStatus previousStatus =
         savingsFundOnboardingRepository

@@ -62,6 +62,7 @@ class RedemptionVerificationServiceTest {
   private static final Instant THURSDAY_EVENING = Instant.parse("2026-08-27T19:19:35Z");
   private static final Instant FRIDAY_NOON = Instant.parse("2026-08-28T09:00:00Z");
   private static final Instant FRIDAY_HALF_PAST_THREE = Instant.parse("2026-08-28T12:30:00Z");
+  private static final Instant WEDNESDAY_NOON = Instant.parse("2026-08-26T09:00:00Z");
   private static final Instant THURSDAY_NIGHT = Instant.parse("2026-08-27T01:15:00Z");
   private static final PersonRiskLevel NOT_HIGH_DECIDED_LAST_NIGHT =
       new PersonRiskLevel(Level.NOT_HIGH, THURSDAY_NIGHT);
@@ -127,16 +128,63 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_personRequest_verifiesAPepHitWithoutHoldingThePayoutWhenThePartyIsNotHighRisk() {
+  void
+      process_personRequest_verifiesAPepHitWithoutHoldingThePayoutOnceItsTkfLevelDecidedAfterTheHitIsNotHigh() {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(WEDNESDAY_NOON));
     given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
+  }
+
+  @Test
+  void process_personRequest_retriesAPepHitWhileItsTkfLevelWasDecidedBeforeTheHit() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(THURSDAY_EVENING));
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void process_personRequest_retriesAPepHitWhileAmlServiceGivesNoTkfDecisionTime() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(WEDNESDAY_NOON));
+    given(riskLevels.riskLevel(PERSONAL_CODE))
+        .willReturn(new PersonRiskLevel(Level.NOT_HIGH, null));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionRequestRepository).markVerificationAttempted(request.getId(), FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void
+      process_personRequest_holdsAPepHitAsRiskLevelUnavailableWhenNoTkfLevelDecidedAfterTheHitCameByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(THURSDAY_EVENING));
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+    verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }
 
   @Test

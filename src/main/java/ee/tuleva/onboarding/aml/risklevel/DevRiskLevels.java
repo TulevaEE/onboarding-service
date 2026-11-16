@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
+
+import ee.tuleva.onboarding.aml.PersonRiskLevel;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -11,9 +14,9 @@ import org.springframework.stereotype.Service;
 class DevRiskLevels implements RiskLevels {
 
   @Override
-  public boolean isHighRisk(String personalCode) {
+  public PersonRiskLevel riskLevel(String personalCode) {
     log.info("Person's risk level answered by the aml-service mock: highRisk=false");
-    return false;
+    return new PersonRiskLevel(NOT_HIGH, null);
   }
 
   @Override

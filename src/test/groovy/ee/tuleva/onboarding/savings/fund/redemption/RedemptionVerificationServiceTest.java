@@ -25,6 +25,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.aml.PersonRiskLevel;
+import ee.tuleva.onboarding.aml.PersonRiskLevel.Level;
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
@@ -60,6 +62,11 @@ class RedemptionVerificationServiceTest {
   private static final Instant THURSDAY_EVENING = Instant.parse("2026-08-27T19:19:35Z");
   private static final Instant FRIDAY_NOON = Instant.parse("2026-08-28T09:00:00Z");
   private static final Instant FRIDAY_HALF_PAST_THREE = Instant.parse("2026-08-28T12:30:00Z");
+  private static final Instant THURSDAY_NIGHT = Instant.parse("2026-08-27T01:15:00Z");
+  private static final PersonRiskLevel NOT_HIGH_DECIDED_LAST_NIGHT =
+      new PersonRiskLevel(Level.NOT_HIGH, THURSDAY_NIGHT);
+  private static final PersonRiskLevel HIGH_DECIDED_LAST_NIGHT =
+      new PersonRiskLevel(Level.HIGH, THURSDAY_NIGHT);
 
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
@@ -97,7 +104,7 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 
@@ -124,7 +131,7 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 
@@ -137,7 +144,7 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 
@@ -150,7 +157,7 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 
@@ -192,7 +199,7 @@ class RedemptionVerificationServiceTest {
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
     willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
         .given(riskLevels)
-        .isHighRisk(PERSONAL_CODE);
+        .riskLevel(PERSONAL_CODE);
 
     serviceAt(FRIDAY_NOON).process(request);
 
@@ -208,7 +215,7 @@ class RedemptionVerificationServiceTest {
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
     willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
         .given(riskLevels)
-        .isHighRisk(PERSONAL_CODE);
+        .riskLevel(PERSONAL_CODE);
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
@@ -224,7 +231,7 @@ class RedemptionVerificationServiceTest {
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
     willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
         .given(riskLevels)
-        .isHighRisk(PERSONAL_CODE);
+        .riskLevel(PERSONAL_CODE);
 
     serviceAt(FRIDAY_NOON).process(request);
 
@@ -239,7 +246,7 @@ class RedemptionVerificationServiceTest {
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
     willThrow(new RiskLevelUnavailableException("aml-service did not answer"))
         .given(riskLevels)
-        .isHighRisk(PERSONAL_CODE);
+        .riskLevel(PERSONAL_CODE);
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
@@ -263,7 +270,7 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
     var request = personRequest(requestId);
     request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(6 * 60));
 
@@ -280,7 +287,7 @@ class RedemptionVerificationServiceTest {
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
     given(kycCountryService.getCountries(2L)).willReturn(Optional.of(Countries.of("EE")));
     given(sanctionAndPepScreener.screeningOutcome(child, Countries.of("EE"))).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(childCode)).willReturn(false);
+    given(riskLevels.riskLevel(childCode)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
 
     service()
         .process(
@@ -302,7 +309,7 @@ class RedemptionVerificationServiceTest {
     given(sanctionAndPepScreener.recordedCitizenships(user)).willReturn(Countries.of("RU"));
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE", "RU")))
         .willReturn(CLEAR);
-    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    given(riskLevels.riskLevel(PERSONAL_CODE)).willReturn(NOT_HIGH_DECIDED_LAST_NIGHT);
 
     service().process(personRequest(requestId));
 

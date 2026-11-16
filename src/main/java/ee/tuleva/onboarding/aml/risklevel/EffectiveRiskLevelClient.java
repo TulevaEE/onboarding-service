@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import static ee.tuleva.onboarding.aml.risklevel.EffectiveRiskLevel.HIGH;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -19,12 +19,12 @@ class EffectiveRiskLevelClient {
   private final RestClient effectiveRiskLevelRestClient;
   private final AmlServiceProperties properties;
 
-  List<EffectiveRiskLevel> effectiveRiskLevels(String personalCode) {
+  List<EffectiveFamilyLevel> effectiveRiskLevels(String personalCode) {
     return effectiveRiskLevels("/v1/risk-levels/effective/{personalCode}", personalCode);
   }
 
-  List<EffectiveRiskLevel> effectiveCompanyRiskLevels(String registryCode) {
-    List<EffectiveRiskLevel> levels =
+  List<EffectiveFamilyLevel> effectiveCompanyRiskLevels(String registryCode) {
+    List<EffectiveFamilyLevel> levels =
         effectiveRiskLevels("/v1/risk-levels/effective/companies/{registryCode}", registryCode);
     if (levels.isEmpty()) {
       throw new UnusableRiskLevelAnswerException(
@@ -33,7 +33,7 @@ class EffectiveRiskLevelClient {
     return levels;
   }
 
-  private List<EffectiveRiskLevel> effectiveRiskLevels(String uriTemplate, String code) {
+  private List<EffectiveFamilyLevel> effectiveRiskLevels(String uriTemplate, String code) {
     String apiToken =
         properties
             .configuredApiToken()
@@ -62,15 +62,15 @@ class EffectiveRiskLevelClient {
     return body;
   }
 
-  private static List<EffectiveRiskLevel> toEffectiveRiskLevels(
+  private static List<EffectiveFamilyLevel> toEffectiveRiskLevels(
       EffectiveRiskLevelsResponse response) {
     List<@Nullable FamilyRiskLevel> families = required(response.families(), "families");
-    List<EffectiveRiskLevel> recognised =
+    List<EffectiveFamilyLevel> recognised =
         families.stream()
             .map(EffectiveRiskLevelClient::recognisedLevel)
             .flatMap(Optional::stream)
             .toList();
-    if (recognised.contains(HIGH)) {
+    if (recognised.stream().anyMatch(EffectiveFamilyLevel::isHigh)) {
       return recognised;
     }
     return IntStream.range(0, families.size())
@@ -78,22 +78,23 @@ class EffectiveRiskLevelClient {
         .toList();
   }
 
-  private static Optional<EffectiveRiskLevel> recognisedLevel(@Nullable FamilyRiskLevel family) {
+  private static Optional<EffectiveFamilyLevel> recognisedLevel(@Nullable FamilyRiskLevel family) {
     return Optional.ofNullable(family)
-        .map(FamilyRiskLevel::effective)
         .flatMap(
-            effective ->
+            answered ->
                 Arrays.stream(EffectiveRiskLevel.values())
-                    .filter(level -> level.name().equals(effective))
-                    .findFirst());
+                    .filter(level -> level.name().equals(answered.effective()))
+                    .findFirst()
+                    .map(level -> answered.with(level)));
   }
 
-  private static EffectiveRiskLevel toEffectiveRiskLevel(
+  private static EffectiveFamilyLevel toEffectiveRiskLevel(
       int index, @Nullable FamilyRiskLevel family) {
     String field = "families[" + index + "]";
-    String effective = required(required(family, field).effective(), field + ".effective");
+    FamilyRiskLevel answered = required(family, field);
+    String effective = required(answered.effective(), field + ".effective");
     try {
-      return EffectiveRiskLevel.valueOf(effective);
+      return answered.with(EffectiveRiskLevel.valueOf(effective));
     } catch (IllegalArgumentException e) {
       throw new UnusableRiskLevelAnswerException(
           "aml-service answered an unknown risk level: field=" + field + ".effective");
@@ -112,5 +113,11 @@ class EffectiveRiskLevelClient {
   record EffectiveRiskLevelsResponse(@Nullable List<@Nullable FamilyRiskLevel> families) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record FamilyRiskLevel(@Nullable String effective) {}
+  record FamilyRiskLevel(
+      @Nullable String family, @Nullable String effective, @Nullable Instant decidedAt) {
+
+    EffectiveFamilyLevel with(EffectiveRiskLevel level) {
+      return new EffectiveFamilyLevel(family, level, decidedAt);
+    }
+  }
 }

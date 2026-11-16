@@ -66,7 +66,8 @@ class RiskLevelsWiringTest {
         .run(
             context -> {
               assertThat(context).hasSingleBean(RiskLevels.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
+              assertThat(context.getBean(RiskLevels.class).riskLevel(PERSONAL_CODE).isHigh())
+                  .isTrue();
               assertThat(requestedPaths)
                   .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
             });
@@ -89,7 +90,7 @@ class RiskLevelsWiringTest {
     contextRunner()
         .run(
             context -> {
-              context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE);
+              context.getBean(RiskLevels.class).riskLevel(PERSONAL_CODE);
 
               assertThat(requestedPaths)
                   .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
@@ -106,7 +107,8 @@ class RiskLevelsWiringTest {
             context -> {
               assertThat(context).getBean(RiskLevels.class).isInstanceOf(DevRiskLevels.class);
               assertThat(context).doesNotHaveBean(EffectiveRiskLevelClient.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isFalse();
+              assertThat(context.getBean(RiskLevels.class).riskLevel(PERSONAL_CODE).isHigh())
+                  .isFalse();
               assertThat(context.getBean(RiskLevels.class).isHighRiskCompany(REGISTRY_CODE))
                   .isFalse();
               assertThat(requestedPaths).isEmpty();
@@ -121,7 +123,8 @@ class RiskLevelsWiringTest {
         .run(
             context -> {
               assertThat(context).getBean(RiskLevels.class).isInstanceOf(EffectiveRiskLevels.class);
-              assertThat(context.getBean(RiskLevels.class).isHighRisk(PERSONAL_CODE)).isTrue();
+              assertThat(context.getBean(RiskLevels.class).riskLevel(PERSONAL_CODE).isHigh())
+                  .isTrue();
               assertThat(requestedPaths)
                   .containsExactly("/v1/risk-levels/effective/" + PERSONAL_CODE);
             });

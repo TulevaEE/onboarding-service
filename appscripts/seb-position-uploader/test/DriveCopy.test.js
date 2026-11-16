@@ -9,7 +9,7 @@ const {
   saveThreadToDrive,
   saveReportToDrive,
   isOlderThanCurrentSource,
-  forgetOldReportSources,
+  forgetOldRecords,
   driveReportFamily,
   isSameDriveReport,
   isVersionedDriveName,
@@ -970,7 +970,7 @@ describe("the e-mail record per report type and date", () => {
       },
     });
 
-    forgetOldReportSources(PropertiesService.getScriptProperties(), new Date("2026-11-02T09:00:00Z"));
+    forgetOldRecords(PropertiesService.getScriptProperties(), new Date("2026-11-02T09:00:00Z"));
 
     expect(Object.keys(props).sort()).toEqual([
       "SLACK_WEBHOOK_URL",

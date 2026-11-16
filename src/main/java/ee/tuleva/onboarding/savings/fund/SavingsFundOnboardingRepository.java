@@ -35,14 +35,20 @@ public class SavingsFundOnboardingRepository {
   }
 
   public List<String> findPersonCodes(SavingsFundOnboardingStatus status, Instant changedBefore) {
+    return findCodes(PartyId.Type.PERSON, status, changedBefore);
+  }
+
+  private List<String> findCodes(
+      PartyId.Type type, SavingsFundOnboardingStatus status, Instant changedBefore) {
     return jdbcClient
         .sql(
             """
             SELECT code
             FROM savings_fund_onboarding
-            WHERE type = 'PERSON' AND status = :status AND updated_at < :changedBefore
+            WHERE type = :type AND status = :status AND updated_at < :changedBefore
             ORDER BY code
             """)
+        .param("type", type.name())
         .param("status", status.name())
         .param("changedBefore", Timestamp.from(changedBefore))
         .query(String.class)
@@ -53,16 +59,39 @@ public class SavingsFundOnboardingRepository {
   }
 
   @Transactional
-  public boolean holdRejectedPerson(String code, Instant rejectedBefore) {
+  public boolean changeStatus(
+      String code,
+      PartyId.Type type,
+      SavingsFundOnboardingStatus expected,
+      SavingsFundOnboardingStatus status) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE savings_fund_onboarding
+                SET status = :status, updated_at = :updatedAt
+                WHERE code = :code AND type = :type AND status = :expected
+                """)
+            .param("code", code)
+            .param("type", type.name())
+            .param("expected", expected.name())
+            .param("status", status.name())
+            .param("updatedAt", Timestamp.from(clock.instant()))
+            .update()
+        > 0;
+  }
+
+  @Transactional
+  public boolean holdRejected(String code, PartyId.Type type, Instant rejectedBefore) {
     return jdbcClient
             .sql(
                 """
                 UPDATE savings_fund_onboarding
                 SET status = 'ON_HOLD', updated_at = :updatedAt
-                WHERE code = :code AND type = 'PERSON' AND status = 'REJECTED'
+                WHERE code = :code AND type = :type AND status = 'REJECTED'
                   AND updated_at < :rejectedBefore
                 """)
             .param("code", code)
+            .param("type", type.name())
             .param("updatedAt", Timestamp.from(clock.instant()))
             .param("rejectedBefore", Timestamp.from(rejectedBefore))
             .update()

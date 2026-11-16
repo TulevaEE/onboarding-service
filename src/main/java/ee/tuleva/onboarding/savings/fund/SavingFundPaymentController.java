@@ -84,7 +84,7 @@ public class SavingFundPaymentController {
     Optional<SavingsFundOnboardingStatus> status =
         legalEntitySavingsFundOnboardingService.getOnboardingStatus(
             authenticatedPerson.getPersonalCode(), registryCode);
-    return Map.of("status", status);
+    return Map.of("status", status.map(SavingsFundOnboardingStatus::shownToTheSaver));
   }
 
   @Operation(summary = "Get user bank accounts used for deposits")

@@ -90,8 +90,8 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
 
   @Transactional
   public boolean holdForReview(User user, Instant rejectedBefore) {
-    if (!savingsFundOnboardingRepository.holdRejectedPerson(
-        user.getPersonalCode(), rejectedBefore)) {
+    if (!savingsFundOnboardingRepository.holdRejected(
+        user.getPersonalCode(), PERSON, rejectedBefore)) {
       return false;
     }
     log.info("Savings fund onboarding held for review again: userId={}", user.getId());

@@ -336,4 +336,34 @@ class CompanyOnboardingEventListenerTest {
     verify(companyRepresentationRightRepository, never()).save(any());
     verify(companyRepresentationRightRepository, never()).deleteByCompanyId(any());
   }
+
+  @Test
+  void replacesPartiesWhenOnlyAHighRiskIndicatorFailsSoAHeldCompanysBoardIsKnown() {
+    var existing =
+        Company.builder()
+            .id(java.util.UUID.randomUUID())
+            .registryCode("12345678")
+            .name("Test OÜ")
+            .build();
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(HIGH_RISK_NACE, false, Map.of()));
+    var event =
+        new KybCheckPerformedEvent(
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
+
+    listener.onKybCheckPerformed(event);
+
+    verify(companyPartyRepository).deleteByCompanyId(existing.getId());
+    verify(companyPartyRepository, atLeastOnce()).save(any());
+    verify(companyRepresentationRightRepository).deleteByCompanyId(existing.getId());
+  }
 }

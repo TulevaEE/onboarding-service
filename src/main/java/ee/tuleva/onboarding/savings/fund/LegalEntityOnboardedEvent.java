@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import ee.tuleva.onboarding.kyb.CompanyDto;
+import ee.tuleva.onboarding.kyb.RegistryCode;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.ApplicationEvent;
@@ -9,10 +9,12 @@ import org.springframework.context.ApplicationEvent;
 @NullMarked
 public class LegalEntityOnboardedEvent extends ApplicationEvent {
 
-  private final CompanyDto company;
+  private final OnboardedCompany company;
 
-  public LegalEntityOnboardedEvent(Object source, CompanyDto company) {
+  public LegalEntityOnboardedEvent(Object source, RegistryCode registryCode, String name) {
     super(source);
-    this.company = company;
+    this.company = new OnboardedCompany(registryCode, name);
   }
+
+  public record OnboardedCompany(RegistryCode registryCode, String name) {}
 }

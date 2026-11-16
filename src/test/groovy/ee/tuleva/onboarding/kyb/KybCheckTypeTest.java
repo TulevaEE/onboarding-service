@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.kyb;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class KybCheckTypeTest {
@@ -29,5 +30,19 @@ class KybCheckTypeTest {
     assertThat(SINGLE_BOARD_MEMBER_OWNERSHIP.isManuallyForceable()).isTrue();
     assertThat(COMPANY_SANCTION.isManuallyForceable()).isFalse();
     assertThat(COMPANY_PARTIES.isManuallyForceable()).isFalse();
+  }
+
+  @Test
+  void aHighRiskIndicatorHoldsAnOnboardingForReviewWhereAnEligibilityFailureRejectsIt() {
+    assertThat(
+            Arrays.stream(KybCheckType.values()).filter(KybCheckType::isHighRiskIndicator).toList())
+        .containsExactly(
+            SOLE_MEMBER_OWNERSHIP,
+            DUAL_MEMBER_OWNERSHIP,
+            SINGLE_BOARD_MEMBER_OWNERSHIP,
+            COMPANY_ACTIVE,
+            COMPANY_SANCTION,
+            COMPANY_PEP,
+            HIGH_RISK_NACE);
   }
 }

@@ -235,7 +235,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.2.0")
     testImplementation("io.github.codedabble-dev:java-snapshot-testing-spock:4.2.1")
-    testImplementation("io.github.codedabble-dev:java-snapshot-testing-junit5:4.2.1")
+    testImplementation("io.github.codedabble-dev:java-snapshot-testing-junit5:4.2.2")
 }
 
 dependencyManagement {

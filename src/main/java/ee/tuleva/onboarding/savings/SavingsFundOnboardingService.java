@@ -3,13 +3,16 @@ package ee.tuleva.onboarding.savings;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusAfter;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusFor;
 
 import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
+import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Assessment;
+import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Review;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
@@ -21,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -64,6 +68,22 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     if (newStatus == oldStatus) {
       return;
     }
+    changeStatus(user, newStatus);
+  }
+
+  @Transactional
+  public void applyReview(User user, Outcome outcome) {
+    SavingsFundOnboardingStatus oldStatus =
+        savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);
+    SavingsFundOnboardingStatus newStatus = statusAfter(new Review(oldStatus, outcome));
+    if (newStatus == null || newStatus == oldStatus) {
+      return;
+    }
+    log.info(
+        "Savings fund onboarding reviewed: userId={}, oldStatus={}, newStatus={}",
+        user.getId(),
+        oldStatus,
+        newStatus);
     changeStatus(user, newStatus);
   }
 

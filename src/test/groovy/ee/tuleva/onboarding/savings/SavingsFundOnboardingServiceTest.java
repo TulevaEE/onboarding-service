@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings;
 
+import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.COMPLETE;
+import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.REJECT;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
@@ -10,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
@@ -22,6 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -155,6 +159,84 @@ class SavingsFundOnboardingServiceTest {
     var kycCheck = new KycCheck(riskLevel, Map.of());
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void applyReview_completesAHeldOnboardingTheReviewerLetThrough() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(ON_HOLD));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.of(ON_HOLD));
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
+
+    verify(eventPublisher).publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user,
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                Map.of("oldStatus", ON_HOLD, "newStatus", COMPLETED)));
+  }
+
+  @Test
+  void applyReview_rejectsAHeldOnboardingTheReviewerRefused() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(ON_HOLD));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, REJECTED))
+        .willReturn(Optional.of(ON_HOLD));
+
+    savingsFundOnboardingService.applyReview(user, REJECT);
+
+    verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user,
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                Map.of("oldStatus", ON_HOLD, "newStatus", REJECTED)));
+  }
+
+  @Test
+  void applyReview_completesARejectedOnboardingTheReviewerLetThrough() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(REJECTED));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.of(REJECTED));
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
+
+    verify(eventPublisher).publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"REJECTED, REJECT", "PENDING, COMPLETE", "PENDING, REJECT", "COMPLETED, REJECT"})
+  void applyReview_changesNothingButAHeldOnboardingOrARejectedOneLetThrough(
+      SavingsFundOnboardingStatus current, Outcome outcome) {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(current));
+
+    savingsFundOnboardingService.applyReview(user, outcome);
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void applyReview_changesNothingWithoutAnOnboarding() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.empty());
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
 
     verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
     verifyNoInteractions(eventPublisher);

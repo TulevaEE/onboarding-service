@@ -14,7 +14,6 @@ class TkfVolumeEvaluatorSpec extends Specification {
   def evaluator = new TkfVolumeEvaluator()
 
   static final Instant FLOW = Instant.parse("2026-06-10T00:00:00Z")
-  static final Instant YEAR_FLOW = Instant.parse("2026-09-10T00:00:00Z")
 
   TkfVolumeAggregate aggregate(Map args) {
     new TkfVolumeAggregate(
@@ -24,9 +23,6 @@ class TkfVolumeEvaluatorSpec extends Specification {
         args.containsKey('lastDeposit') ? args.lastDeposit as Instant : FLOW,
         args.containsKey('lastRedemption') ? args.lastRedemption as Instant : FLOW,
         "2026-06",
-        args.depYear as BigDecimal,
-        YEAR_FLOW,
-        "2026",
         args.containsKey('inCrm') ? args.inCrm as boolean : true,
         args.existing as boolean,
         args.review as Instant,
@@ -34,40 +30,45 @@ class TkfVolumeEvaluatorSpec extends Specification {
   }
 
   @Unroll
-  def "classifies TKF volume (live dashboard rules): inCrm=#inCrm existing=#existing depMonth=#depMonth redMonth=#redMonth depYear=#depYear -> #expected"() {
+  def "classifies TKF volume (live dashboard rules): inCrm=#inCrm existing=#existing depMonth=#depMonth redMonth=#redMonth -> #expected"() {
     given:
     def agg = aggregate(
-        depMonth: depMonth, redMonth: redMonth, depYear: depYear,
-        existing: existing, inCrm: inCrm, review: null)
+        depMonth: depMonth, redMonth: redMonth, existing: existing, inCrm: inCrm, review: null)
 
     expect:
     evaluator.evaluate(agg).collect { [it.type(), it.direction()] } == expected
 
     where:
-    inCrm | existing | depMonth | redMonth | depYear   || expected
+    inCrm | existing | depMonth | redMonth || expected
     // 15k new client, deposits/month, >= (requires presence in CRM)
-    true  | false    | 15000.00 | 0.00     | 15000.00  || [[TKF_VOLUME_15K_NEW_CLIENT, IN]]
-    true  | false    | 14999.99 | 0.00     | 14999.99  || []
-    true  | true     | 15000.00 | 0.00     | 15000.00  || []
+    true  | false    | 15000.00 | 0.00     || [[TKF_VOLUME_15K_NEW_CLIENT, IN]]
+    true  | false    | 14999.99 | 0.00     || []
+    true  | true     | 15000.00 | 0.00     || []
     // not in CRM snapshot -> no 15k/30k (matches dashboard INNER JOIN, C1 limitation)
-    false | false    | 15000.00 | 0.00     | 15000.00  || []
+    false | false    | 15000.00 | 0.00     || []
     // 30k existing client, per direction, >=
-    true  | true     | 30000.00 | 0.00     | 30000.00  || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN]]
-    true  | true     | 0.00     | 30000.00 | 0.00      || [[TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
-    true  | true     | 29999.99 | 29999.99 | 0.00      || []
-    // 49k all clients, deposits-only, CALENDAR YEAR, strict > (no CRM requirement)
-    true  | true     | 0.00     | 0.00     | 49000.01  || [[TKF_VOLUME_49K_YEARLY, COMBINED]]
-    true  | true     | 0.00     | 0.00     | 49000.00  || []
-    false | false    | 0.00     | 0.00     | 49000.01  || [[TKF_VOLUME_49K_YEARLY, COMBINED]]
-    // new client, large monthly deposit also crossing 49k/year (m3: two separate alerts)
-    true  | false    | 50000.00 | 0.00     | 50000.00  || [[TKF_VOLUME_15K_NEW_CLIENT, IN], [TKF_VOLUME_49K_YEARLY, COMBINED]]
-    // existing client breaching both 30k directions and 49k
-    true  | true     | 31000.00 | 32000.00 | 70000.00  || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN], [TKF_VOLUME_30K_EXISTING_CLIENT, OUT], [TKF_VOLUME_49K_YEARLY, COMBINED]]
+    true  | true     | 30000.00 | 0.00     || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN]]
+    true  | true     | 0.00     | 30000.00 || [[TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
+    true  | true     | 29999.99 | 29999.99 || []
+  }
+
+  @Unroll
+  def "raises only the monthly alerts for monthly flows above 49k: existing=#existing depMonth=#depMonth redMonth=#redMonth -> #expected"() {
+    given:
+    def agg = aggregate(depMonth: depMonth, redMonth: redMonth, existing: existing, review: null)
+
+    expect:
+    evaluator.evaluate(agg).collect { [it.type(), it.direction()] } == expected
+
+    where:
+    existing | depMonth | redMonth || expected
+    false    | 50000.00 | 0.00     || [[TKF_VOLUME_15K_NEW_CLIENT, IN]]
+    true     | 50000.00 | 60000.00 || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN], [TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
   }
 
   def "carries window amount and window key on each alert"() {
     given:
-    def agg = aggregate(depMonth: 31000.00, redMonth: 32000.00, depYear: 70000.00, existing: true, review: null)
+    def agg = aggregate(depMonth: 31000.00, redMonth: 32000.00, existing: true, review: null)
 
     when:
     def alerts = evaluator.evaluate(agg)
@@ -81,16 +82,12 @@ class TkfVolumeEvaluatorSpec extends Specification {
       amount() == 32000.00
       windowKey() == "2026-06"
     }
-    with(alerts.find { it.type() == TKF_VOLUME_49K_YEARLY }) {
-      amount() == 70000.00
-      windowKey() == "2026"
-    }
   }
 
   @Unroll
   def "suppresses a monthly alert reviewed after the breaching deposit (review=#review -> #alertCount alerts)"() {
     given:
-    def agg = aggregate(depMonth: 31000.00, redMonth: 0.00, depYear: 0.00, existing: true, review: review)
+    def agg = aggregate(depMonth: 31000.00, redMonth: 0.00, existing: true, review: review)
 
     expect:
     evaluator.evaluate(agg).size() == alertCount
@@ -109,7 +106,7 @@ class TkfVolumeEvaluatorSpec extends Specification {
     def beforeReview = Instant.parse("2026-06-10T00:00:00Z")
     def afterReview = Instant.parse("2026-06-20T00:00:00Z")
     def agg = aggregate(
-        depMonth: 31000.00, redMonth: 31000.00, existing: true, depYear: 0.00,
+        depMonth: 31000.00, redMonth: 31000.00, existing: true,
         lastDeposit: dr ? beforeReview : afterReview,
         lastRedemption: rr ? beforeReview : afterReview,
         review: review)
@@ -123,42 +120,5 @@ class TkfVolumeEvaluatorSpec extends Specification {
     true  | false || [OUT]
     false | true  || [IN]
     true  | true  || []
-  }
-
-  def "alerts a 49k yearly breach with no current-month flow when not reviewed"() {
-    given:
-    def agg = new TkfVolumeAggregate(
-        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true, null, PERSON)
-
-    expect:
-    evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_49K_YEARLY]
-  }
-
-  def "suppresses a 49k yearly breach reviewed after the last deposit (no current-month flow)"() {
-    given:
-    def agg = new TkfVolumeAggregate(
-        "38001010000", 0.00, 0.00, null, null, "2026-06", 50000.00, YEAR_FLOW, "2026", true, true,
-        Instant.parse("2026-12-01T00:00:00Z"), PERSON)
-
-    expect:
-    evaluator.evaluate(agg).isEmpty()
-  }
-
-  def "evaluates a yearly-shape aggregate with null monthly fields without failing"() {
-    given:
-    def agg = new TkfVolumeAggregate(
-        "38001010000", null, null, null, null, null, 50000.00, YEAR_FLOW, "2026", true, true, null, PERSON)
-
-    expect:
-    evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_49K_YEARLY]
-  }
-
-  def "evaluates a monthly-shape aggregate with null yearly fields without failing"() {
-    given:
-    def agg = new TkfVolumeAggregate(
-        "38001010000", 16000.00, 0.00, FLOW, null, "2026-06", null, null, null, true, false, null, PERSON)
-
-    expect:
-    evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_15K_NEW_CLIENT]
   }
 }

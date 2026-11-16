@@ -5,9 +5,9 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Out
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.FREEZE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.HOLD_PAYOUT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.RETRY;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk.DECIDED_BEFORE_PEP_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk.HIGH;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.PEP_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.SANCTION_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.UNAVAILABLE;
 import static java.util.stream.Collectors.toCollection;
@@ -53,6 +53,7 @@ public final class RedemptionVerdict {
   public enum Risk {
     HIGH,
     NOT_HIGH,
+    DECIDED_BEFORE_PEP_HIT,
     UNAVAILABLE,
     NOT_ASKED
   }
@@ -69,7 +70,7 @@ public final class RedemptionVerdict {
       new EnumMap<>(
           Map.of(
               RedemptionHoldReason.SCREENING_UNAVAILABLE, RedemptionVerdict::screeningUnavailable,
-              RedemptionHoldReason.PEP, RedemptionVerdict::pep,
+              RedemptionHoldReason.PEP, RedemptionVerdict::riskDecidedBeforePepHit,
               RedemptionHoldReason.KYB_SCREENING_FAILED, RedemptionVerdict::kybScreeningFailed,
               RedemptionHoldReason.ONBOARDING_INCOMPLETE, RedemptionVerdict::onboardingIncomplete,
               RedemptionHoldReason.HIGH_RISK, RedemptionVerdict::highRisk,
@@ -85,8 +86,7 @@ public final class RedemptionVerdict {
     if (evidence.screening() == SANCTION_HIT) {
       return FREEZE;
     }
-    if (riskLevelUnavailable(evidence)
-        && !pep(evidence)
+    if (riskLevelNotYetUsable(evidence)
         && !kybScreeningFailed(evidence)
         && !onboardingIncomplete(evidence)) {
       return RETRY;
@@ -102,19 +102,14 @@ public final class RedemptionVerdict {
   }
 
   private static boolean anyHoldReason(Evidence evidence) {
-    return pep(evidence)
-        || kybScreeningFailed(evidence)
+    return kybScreeningFailed(evidence)
         || onboardingIncomplete(evidence)
         || highRisk(evidence)
-        || riskLevelUnavailable(evidence);
+        || riskLevelNotYetUsable(evidence);
   }
 
   private static boolean screeningUnavailable(Evidence evidence) {
     return evidence.screening() == UNAVAILABLE;
-  }
-
-  private static boolean pep(Evidence evidence) {
-    return evidence.screening() == PEP_HIT;
   }
 
   private static boolean kybScreeningFailed(Evidence evidence) {
@@ -129,7 +124,15 @@ public final class RedemptionVerdict {
     return evidence.risk() == HIGH;
   }
 
+  private static boolean riskLevelNotYetUsable(Evidence evidence) {
+    return riskLevelUnavailable(evidence) || riskDecidedBeforePepHit(evidence);
+  }
+
   private static boolean riskLevelUnavailable(Evidence evidence) {
     return evidence.risk() == Risk.UNAVAILABLE;
+  }
+
+  private static boolean riskDecidedBeforePepHit(Evidence evidence) {
+    return evidence.risk() == DECIDED_BEFORE_PEP_HIT;
   }
 }

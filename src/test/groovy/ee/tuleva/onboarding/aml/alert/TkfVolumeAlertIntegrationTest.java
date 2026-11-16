@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLIENT;
-import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_49K_YEARLY;
-import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.COMBINED;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.IN;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -89,11 +88,10 @@ class TkfVolumeAlertIntegrationTest {
   }
 
   @Test
-  void legalEntityLargeDeposit_alertsByRegistryCodeAsNewClient_isIdempotent() {
+  void legalEntityDepositAbove49k_alertsOnlyTheMonthlyNewClientLimitByRegistryCode_isIdempotent() {
     String registryCode = "12345678";
     BigDecimal amount = new BigDecimal("100000.99");
     String monthKey = LocalDate.now(clock).format(DateTimeFormatter.ofPattern("yyyy-MM"));
-    String yearKey = String.valueOf(LocalDate.now(clock).getYear());
 
     jdbcClient
         .sql(
@@ -113,18 +111,10 @@ class TkfVolumeAlertIntegrationTest {
 
     verify(notificationService, times(1))
         .sendMessage(
-            "AML alert: TKF_VOLUME_49K_YEARLY, code=12345678, amount=100000.99, ref=COMBINED/"
-                + yearKey,
-            AML);
-    verify(notificationService, times(1))
-        .sendMessage(
             "AML alert: TKF_VOLUME_15K_NEW_CLIENT, code=12345678, amount=100000.99, ref=IN/"
                 + monthKey,
             AML);
-    assertThat(
-            alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
-                registryCode, TKF_VOLUME_49K_YEARLY, COMBINED, yearKey))
-        .isTrue();
+    verifyNoMoreInteractions(notificationService);
     assertThat(
             alertRepository.existsByPersonalIdAndAlertTypeAndDirectionAndWindowKey(
                 registryCode, TKF_VOLUME_15K_NEW_CLIENT, IN, monthKey))

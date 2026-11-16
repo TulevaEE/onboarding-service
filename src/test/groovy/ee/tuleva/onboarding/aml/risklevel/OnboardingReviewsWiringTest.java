@@ -48,7 +48,10 @@ class OnboardingReviewsWiringTest {
 
   private ApplicationContextRunner contextRunner() {
     return new ApplicationContextRunner()
-        .withUserConfiguration(AmlServiceConfiguration.class, DevOnboardingReviews.class)
+        .withUserConfiguration(
+            AmlServiceConfiguration.class,
+            AmlServiceOnboardingReviewsConfiguration.class,
+            DevOnboardingReviews.class)
         .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
         .withPropertyValues(
             "aml-service.url=https://aml-service.test",

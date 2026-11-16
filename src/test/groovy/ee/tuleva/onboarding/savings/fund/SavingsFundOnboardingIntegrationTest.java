@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.COMPLETE;
+import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.REJECT;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
@@ -12,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Map;
@@ -34,6 +37,7 @@ class SavingsFundOnboardingIntegrationTest {
   @Autowired private SavingsFundOnboardingRepository repository;
   @Autowired private UserRepository userRepository;
   @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private SavingsFundOnboardingService savingsFundOnboardingService;
 
   private User user;
 
@@ -105,6 +109,40 @@ class SavingsFundOnboardingIntegrationTest {
     assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(ON_HOLD);
     assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
     assertThat(applicationEvents.stream(TrackableEvent.class)).isEmpty();
+  }
+
+  @Test
+  void applyReview_completesAHeldOnboardingTheReviewerLetThrough() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).hasSize(1);
+  }
+
+  @Test
+  void applyReview_rejectsAHeldOnboardingTheReviewerRefusedAndKeepsItRejected() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+
+    savingsFundOnboardingService.applyReview(user, REJECT);
+    savingsFundOnboardingService.applyReview(user, REJECT);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(REJECTED);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
+    assertThat(applicationEvents.stream(TrackableEvent.class))
+        .extracting(TrackableEvent::getData)
+        .containsExactly(Map.of("oldStatus", ON_HOLD, "newStatus", REJECTED));
+  }
+
+  @Test
+  void applyReview_leavesAnOnboardingWithoutAKycResultPending() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(PENDING);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
   }
 
   @Test

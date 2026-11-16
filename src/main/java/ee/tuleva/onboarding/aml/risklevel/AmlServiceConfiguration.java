@@ -36,7 +36,8 @@ class AmlServiceConfiguration {
           "aml-service API token is not configured, so every KYC survey submission fails, the"
               + " nightly risk level run fails, and every person and company redemption that"
               + " screening does not freeze is held, at its screening deadline at the latest, until"
-              + " it is: missing=api-token (AML_SERVICE_API_TOKEN)");
+              + " it is, and no savings fund onboarding held for review moves on:"
+              + " missing=api-token (AML_SERVICE_API_TOKEN)");
     }
   }
 

@@ -50,10 +50,20 @@ class TkfVolumeEvaluatorSpec extends Specification {
     true  | true     | 30000.00 | 0.00     || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN]]
     true  | true     | 0.00     | 30000.00 || [[TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
     true  | true     | 29999.99 | 29999.99 || []
-    // monthly deposits above 49k raise only the monthly alerts
-    true  | false    | 50000.00 | 0.00     || [[TKF_VOLUME_15K_NEW_CLIENT, IN]]
-    true  | true     | 31000.00 | 32000.00 || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN], [TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
-    false | false    | 50000.00 | 0.00     || []
+  }
+
+  @Unroll
+  def "raises only the monthly alerts for monthly flows above 49k: existing=#existing depMonth=#depMonth redMonth=#redMonth -> #expected"() {
+    given:
+    def agg = aggregate(depMonth: depMonth, redMonth: redMonth, existing: existing, review: null)
+
+    expect:
+    evaluator.evaluate(agg).collect { [it.type(), it.direction()] } == expected
+
+    where:
+    existing | depMonth | redMonth || expected
+    false    | 50000.00 | 0.00     || [[TKF_VOLUME_15K_NEW_CLIENT, IN]]
+    true     | 50000.00 | 60000.00 || [[TKF_VOLUME_30K_EXISTING_CLIENT, IN], [TKF_VOLUME_30K_EXISTING_CLIENT, OUT]]
   }
 
   def "carries window amount and window key on each alert"() {

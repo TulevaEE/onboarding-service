@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLI
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_30K_EXISTING_CLIENT;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.IN;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.OUT;
-import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,12 +12,6 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-/**
- * Mirrors the live TKF volume triggers in T1_ulevaatamist_vajavad.sql (issue #55, sisekord
- * 02.06.2026): #4 15k deposits/month for new clients (>=), #5 30k deposits OR redemptions/month for
- * existing clients evaluated per-direction (>=). An alert is suppressed when the client was
- * manually reviewed (TKF_RISK_LEVEL_OVERRIDE) after the breaching activity.
- */
 @Component
 public class TkfVolumeEvaluator {
 
@@ -38,10 +31,7 @@ public class TkfVolumeEvaluator {
         && !depositReviewed) {
       alerts.add(
           new TkfVolumeAlert(
-              TKF_VOLUME_15K_NEW_CLIENT,
-              IN,
-              requireNonNull(aggregate.depositsThisMonth()),
-              requireNonNull(aggregate.monthKey())));
+              TKF_VOLUME_15K_NEW_CLIENT, IN, aggregate.depositsThisMonth(), aggregate.monthKey()));
     }
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
@@ -51,8 +41,8 @@ public class TkfVolumeEvaluator {
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,
               IN,
-              requireNonNull(aggregate.depositsThisMonth()),
-              requireNonNull(aggregate.monthKey())));
+              aggregate.depositsThisMonth(),
+              aggregate.monthKey()));
     }
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
@@ -62,8 +52,8 @@ public class TkfVolumeEvaluator {
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,
               OUT,
-              requireNonNull(aggregate.redemptionsThisMonth()),
-              requireNonNull(aggregate.monthKey())));
+              aggregate.redemptionsThisMonth(),
+              aggregate.monthKey()));
     }
     return alerts;
   }
@@ -75,7 +65,7 @@ public class TkfVolumeEvaluator {
         && !breachingActivity.isAfter(lastManualReview);
   }
 
-  private static boolean atLeast(@Nullable BigDecimal amount, BigDecimal threshold) {
-    return amount != null && amount.compareTo(threshold) >= 0;
+  private static boolean atLeast(BigDecimal amount, BigDecimal threshold) {
+    return amount.compareTo(threshold) >= 0;
   }
 }

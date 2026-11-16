@@ -58,6 +58,16 @@ slow submission can still exceed Hikari's leak-detection threshold (a warning). 
 submission, with the survey and screenings already committed and no `KYC_CHECK` row; a 404 (no such
 user or no KYC survey) is not retried.
 
+A person's savings fund onboarding held for review (`ON_HOLD`), or rejected, moves on by the
+reviewer's decision recorded in aml-service. `OnboardingReviewJob` (savings module) asks
+`AmlServiceOnboardingReviews` every five minutes for `GET /v1/tkf-onboarding/outcomes`, the
+onboardings whose decisions are settled (`{"code", "type", "outcome"}`, `COMPLETE` or `REJECT`; the
+codes come in the body; only persons' are applied so far), and `SavingsFundOnboardingService.applyReview` moves a held one to `COMPLETED` or
+`REJECTED` and a rejected one to `COMPLETED` only, with the same events as a survey's completion.
+Anything else, such as a pending or completed onboarding, is left as it is. A failed read applies
+nothing and the next run asks again; one person's failure does not stop the others. In dev and
+staging `DevOnboardingReviews` answers no reviews.
+
 Staging runs no aml-service, so in the `dev` and `staging` profiles nothing asks it: the nightly job
 does not run, and the KYC check and the payout hold get a mock in its place. `DevKycChecker` passes
 every KYC check as `LOW`, its metadata saying nothing was assessed, and `DevRiskLevels` holds no

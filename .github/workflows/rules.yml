@@ -12,6 +12,7 @@ env:
     src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
     src/main/java/ee/tuleva/onboarding/aml/AmlService.java
     src/main/java/ee/tuleva/onboarding/aml/MandateAmlGate.java
+    src/main/java/ee/tuleva/onboarding/aml/OnboardingReview.java
     src/main/java/ee/tuleva/onboarding/aml/SanctionAndPepScreener.java
     src/main/java/ee/tuleva/onboarding/aml/ScheduledAmlCheckJob.java
     src/main/java/ee/tuleva/onboarding/aml/alert/TkfVolumeEvaluator.java
@@ -55,6 +56,7 @@ env:
     src/main/java/ee/tuleva/onboarding/savings/SavingsFundOnboardingStatus.java
     src/main/java/ee/tuleva/onboarding/savings/TkfOnboardingDecision.java
     src/main/java/ee/tuleva/onboarding/savings/TradeDay.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/OnboardingReviewJob.java
     src/main/java/ee/tuleva/onboarding/savings/fund/PaymentAcceptance.java
     src/main/java/ee/tuleva/onboarding/savings/fund/PaymentFactsCollector.java
     src/main/java/ee/tuleva/onboarding/savings/fund/PaymentVerificationService.java

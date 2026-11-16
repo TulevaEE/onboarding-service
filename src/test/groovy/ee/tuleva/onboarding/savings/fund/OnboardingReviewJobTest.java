@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.COMPLETE;
 import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.REJECT;
+import static ee.tuleva.onboarding.aml.OnboardingReview.PartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.aml.OnboardingReview.PartyType.PERSON;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -36,8 +38,8 @@ class OnboardingReviewJobTest {
     given(onboardingReviews.settled())
         .willReturn(
             List.of(
-                new OnboardingReview(completed.getPersonalCode(), COMPLETE),
-                new OnboardingReview(rejected.getPersonalCode(), REJECT)));
+                new OnboardingReview(completed.getPersonalCode(), PERSON, COMPLETE),
+                new OnboardingReview(rejected.getPersonalCode(), PERSON, REJECT)));
     given(userService.findByPersonalCode(completed.getPersonalCode()))
         .willReturn(Optional.of(completed));
     given(userService.findByPersonalCode(rejected.getPersonalCode()))
@@ -54,9 +56,9 @@ class OnboardingReviewJobTest {
     given(onboardingReviews.settled())
         .willReturn(
             List.of(
-                new OnboardingReview("38888888899", COMPLETE),
-                new OnboardingReview(completed.getPersonalCode(), COMPLETE),
-                new OnboardingReview(rejected.getPersonalCode(), REJECT)));
+                new OnboardingReview("38888888899", PERSON, COMPLETE),
+                new OnboardingReview(completed.getPersonalCode(), PERSON, COMPLETE),
+                new OnboardingReview(rejected.getPersonalCode(), PERSON, REJECT)));
     given(userService.findByPersonalCode("38888888899")).willReturn(Optional.empty());
     given(userService.findByPersonalCode(completed.getPersonalCode()))
         .willReturn(Optional.of(completed));
@@ -69,6 +71,17 @@ class OnboardingReviewJobTest {
     job.applySettledReviews();
 
     then(savingsFundOnboardingService).should().applyReview(rejected, REJECT);
+  }
+
+  @Test
+  void leavesACompanysReviewAlone() {
+    given(onboardingReviews.settled())
+        .willReturn(List.of(new OnboardingReview("12345678", LEGAL_ENTITY, COMPLETE)));
+
+    job.applySettledReviews();
+
+    then(userService).shouldHaveNoInteractions();
+    then(savingsFundOnboardingService).shouldHaveNoInteractions();
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import ee.tuleva.onboarding.aml.OnboardingReview;
 import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
+import ee.tuleva.onboarding.aml.OnboardingReview.PartyType;
 import ee.tuleva.onboarding.aml.OnboardingReviews;
 import java.util.Arrays;
 import java.util.List;
@@ -45,7 +46,8 @@ class AmlServiceOnboardingReviews implements OnboardingReviews {
         answer.stream().flatMap(review -> usable(review).stream()).toList();
     if (usable.size() < answer.size()) {
       log.error(
-          "aml-service answered settled onboarding reviews without a code or a known outcome,"
+          "aml-service answered settled onboarding reviews without a code or a known party type"
+              + " or outcome,"
               + " leaving them out: unusable={}, usable={}",
           answer.size() - usable.size(),
           usable.size());
@@ -64,16 +66,19 @@ class AmlServiceOnboardingReviews implements OnboardingReviews {
   }
 
   private static Optional<OnboardingReview> usable(@Nullable SettledReview review) {
-    if (review == null || review.personalCode() == null || review.outcome() == null) {
+    if (review == null || review.code() == null) {
       return Optional.empty();
     }
-    String personalCode = review.personalCode();
-    return Arrays.stream(Outcome.values())
-        .filter(outcome -> outcome.name().equals(review.outcome()))
-        .findFirst()
-        .map(outcome -> new OnboardingReview(personalCode, outcome));
+    String code = review.code();
+    Optional<PartyType> partyType = named(PartyType.values(), review.type());
+    return named(Outcome.values(), review.outcome())
+        .flatMap(outcome -> partyType.map(type -> new OnboardingReview(code, type, outcome)));
+  }
+
+  private static <E extends Enum<E>> Optional<E> named(E[] values, @Nullable String name) {
+    return Arrays.stream(values).filter(value -> value.name().equals(name)).findFirst();
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record SettledReview(@Nullable String personalCode, @Nullable String outcome) {}
+  record SettledReview(@Nullable String code, @Nullable String type, @Nullable String outcome) {}
 }

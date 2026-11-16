@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.aml.risklevel;
 
 import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.COMPLETE;
 import static ee.tuleva.onboarding.aml.OnboardingReview.Outcome.REJECT;
+import static ee.tuleva.onboarding.aml.OnboardingReview.PartyType.LEGAL_ENTITY;
+import static ee.tuleva.onboarding.aml.OnboardingReview.PartyType.PERSON;
 import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,15 +48,15 @@ class AmlServiceOnboardingReviewsTest {
         .andRespond(
             withSuccess(
                 """
-                [{"personalCode": "38888888888", "outcome": "COMPLETE"},
-                 {"personalCode": "48888888888", "outcome": "REJECT"}]
+                [{"code": "38888888888", "type": "PERSON", "outcome": "COMPLETE"},
+                 {"code": "12345678", "type": "LEGAL_ENTITY", "outcome": "REJECT"}]
                 """,
                 APPLICATION_JSON));
 
     assertThat(reviews(API_TOKEN).settled())
         .containsExactly(
-            new OnboardingReview("38888888888", COMPLETE),
-            new OnboardingReview("48888888888", REJECT));
+            new OnboardingReview("38888888888", PERSON, COMPLETE),
+            new OnboardingReview("12345678", LEGAL_ENTITY, REJECT));
     server.verify();
   }
 
@@ -82,21 +84,26 @@ class AmlServiceOnboardingReviewsTest {
   @ValueSource(
       strings = {
         "null",
-        "{\"outcome\": \"COMPLETE\"}",
-        "{\"personalCode\": \"38888888888\"}",
-        "{\"personalCode\": \"38888888888\", \"outcome\": null}",
-        "{\"personalCode\": \"38888888888\", \"outcome\": \"WAIT\"}"
+        "{\"type\": \"PERSON\", \"outcome\": \"COMPLETE\"}",
+        "{\"code\": \"38888888888\", \"type\": \"PERSON\"}",
+        "{\"code\": \"38888888888\", \"type\": \"PERSON\", \"outcome\": null}",
+        "{\"code\": \"38888888888\", \"type\": \"PERSON\", \"outcome\": \"WAIT\"}",
+        "{\"code\": \"38888888888\", \"outcome\": \"COMPLETE\"}",
+        "{\"code\": \"38888888888\", \"type\": \"TRUST\", \"outcome\": \"COMPLETE\"}"
       })
   void leavesOutAnUnusableReviewAndKeepsTheOthers(String unusable) {
     server
         .expect(once(), requestTo(OUTCOMES_URL))
         .andRespond(
             withSuccess(
-                "[" + unusable + ", {\"personalCode\": \"48888888888\", \"outcome\": \"REJECT\"}]",
+                "["
+                    + unusable
+                    + ", {\"code\": \"48888888888\", \"type\": \"PERSON\", \"outcome\":"
+                    + " \"REJECT\"}]",
                 APPLICATION_JSON));
 
     assertThat(reviews(API_TOKEN).settled())
-        .containsExactly(new OnboardingReview("48888888888", REJECT));
+        .containsExactly(new OnboardingReview("48888888888", PERSON, REJECT));
     server.verify();
   }
 

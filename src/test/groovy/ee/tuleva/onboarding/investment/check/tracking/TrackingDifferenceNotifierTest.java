@@ -694,6 +694,7 @@ class TrackingDifferenceNotifierTest {
             .cashDrag(BigDecimal.ZERO)
             .feeDrag(BigDecimal.ZERO)
             .residual(BigDecimal.ZERO)
+            .benchmarkNames(List.of("MSCI_EM", "MSCI_WORLD"))
             .build();
 
     notifier.notify(List.of(result));
@@ -701,7 +702,7 @@ class TrackingDifferenceNotifierTest {
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     var message = captor.getValue();
-    assertThat(message).contains("Holdings vs MSCI World/EM index");
+    assertThat(message).contains("Holdings vs their benchmarks: MSCI_EM, MSCI_WORLD.");
     assertThat(message).contains("check an outsized contribution for a stale price");
     assertThat(message).contains("IE00BFG1TM61").contains("IE00BKPTWY98");
     assertThat(message).contains("instrument").contains("index").contains("contributes");

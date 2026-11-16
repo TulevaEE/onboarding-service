@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -120,6 +121,42 @@ class BreachMessageFormatterTest {
         .doesNotContain("Action:")
         .doesNotContain("NAV bridge (EUR)")
         .doesNotContain("NAV residual");
+  }
+
+  @Test
+  void aHoldingsVsBenchmarkBreachNamesTheBenchmarksItsHoldingsWereComparedWith() {
+    var bondFund =
+        tuk75On20260901().toBuilder()
+            .fund(TUK00)
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(List.of())
+            .benchmarkNames(List.of("EUN4", "EUNA"))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(bondFund, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains(
+            "\n  Holdings vs their benchmarks: EUN4, EUNA. A holding and its benchmark can follow")
+        .doesNotContain("MSCI World/EM");
+  }
+
+  @Test
+  void aHoldingsVsBenchmarkBreachWithNoBenchmarkNamedStillSaysWhatItCompared() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(List.of())
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message)
+        .contains("\n  Holdings vs their benchmarks. A holding and its benchmark can follow")
+        .doesNotContain("MSCI World/EM");
   }
 
   @Test

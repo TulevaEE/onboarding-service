@@ -106,6 +106,15 @@ public class InstrumentReference {
     return sebPositionName != null ? sebPositionName : displayName;
   }
 
+  public String getShortName() {
+    var ticker = eodhdTicker;
+    if (ticker == null || ticker.isBlank() || ticker.startsWith(".")) {
+      return displayName;
+    }
+    var exchangeSuffix = ticker.indexOf('.');
+    return exchangeSuffix > 0 ? ticker.substring(0, exchangeSuffix) : ticker;
+  }
+
   public Optional<SettlementTerms> settlementTerms() {
     if (settlementCutoffTime == null
         || settlementCutoffZone == null

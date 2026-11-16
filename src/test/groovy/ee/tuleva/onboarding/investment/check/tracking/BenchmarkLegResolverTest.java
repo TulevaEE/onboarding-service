@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -66,6 +67,24 @@ class BenchmarkLegResolverTest {
     assertThat(resolver.resolve("LU0839970364", AFTER_EVERY_PAST_PERIOD))
         .map(BenchmarkProxy::storageKey)
         .contains("IE00BDBRDM35.XETR");
+  }
+
+  @Test
+  void anEquityHoldingsBenchmarkIsNamedByItsIndexSeriesOrItsProxyEtfsTicker() {
+    assertThat(
+            List.of("IE00BFG1TM61", "IE000I9HGDZ3", "IE000F60HVH9").stream()
+                .map(isin -> resolver.resolve(isin, AFTER_EVERY_PAST_PERIOD).orElseThrow().name())
+                .toList())
+        .containsExactly("MSCI_WORLD", "EUNL", "EUNL");
+  }
+
+  @Test
+  void aBondHoldingsBenchmarkIsNamedByItsProxyEtfsTickerRatherThanAnEquityIndex() {
+    assertThat(
+            List.of("LU0826455353", "LU0839970364").stream()
+                .map(isin -> resolver.resolve(isin, AFTER_EVERY_PAST_PERIOD).orElseThrow().name())
+                .toList())
+        .containsExactly("EUN4", "EUNA");
   }
 
   @Test

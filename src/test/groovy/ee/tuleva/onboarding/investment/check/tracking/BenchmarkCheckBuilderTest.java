@@ -9,11 +9,13 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
+import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.PastProxy;
@@ -252,11 +254,16 @@ class BenchmarkCheckBuilderTest {
   }
 
   private BenchmarkCheckBuilder builderOver(InstrumentReferenceService instruments) {
+    return builderOver(instruments, new BenchmarkLegResolver(instruments));
+  }
+
+  private BenchmarkCheckBuilder builderOver(
+      InstrumentReferenceService instruments, BenchmarkLegResolver resolver) {
     return new BenchmarkCheckBuilder(
         new TrackingDifferenceCalculator(parameterRepository),
         new BenchmarkPrices(
             fundValueProvider, new PriorityPriceProvider(fundValueProvider, instruments)),
-        new BenchmarkLegResolver(instruments),
+        resolver,
         consecutiveBreachTracker);
   }
 
@@ -321,6 +328,86 @@ class BenchmarkCheckBuilderTest {
 
     assertThat(result.benchmarkGapIsins()).isEmpty();
     assertThat(result.benchmarkGapWeight()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aBenchmarkModelCheckNamesOnlyTheBenchmarksItMeasuredAHoldingAgainst() {
+    var result =
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.50")),
+                    flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.30")),
+                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.20")))));
+
+    assertThat(result.benchmarkNames()).containsExactly(EMERGING_MARKETS_INDEX);
+  }
+
+  @Test
+  void aBenchmarkModelCheckNamesEachMeasuredBenchmarkOnceInOrder() {
+    var resolver = mock(BenchmarkLegResolver.class);
+    given(resolver.resolve(DEVELOPED_MARKETS_ISIN, CHECK_DATE))
+        .willReturn(Optional.of(new BenchmarkProxy(null, DEVELOPED_MARKETS_INDEX)));
+    given(resolver.resolve(EMERGING_MARKETS_ISIN, CHECK_DATE))
+        .willReturn(Optional.of(new BenchmarkProxy(null, EMERGING_MARKETS_INDEX)));
+    given(resolver.resolve(UNTRACKED_ISIN, CHECK_DATE))
+        .willReturn(Optional.of(new BenchmarkProxy(null, EMERGING_MARKETS_INDEX)));
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, CHECK_DATE))
+        .willReturn(Optional.of(price(DEVELOPED_MARKETS_INDEX, CHECK_DATE, "500.00")));
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, PREVIOUS_DATE))
+        .willReturn(Optional.of(price(DEVELOPED_MARKETS_INDEX, PREVIOUS_DATE, "500.00")));
+    var builderWithThreeLegs = builderOver(instruments(List.of()), resolver);
+
+    var result =
+        measured(
+            builderWithThreeLegs.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(DEVELOPED_MARKETS_ISIN, new BigDecimal("0.40")),
+                    flatHolding(EMERGING_MARKETS_ISIN, new BigDecimal("0.30")),
+                    flatHolding(UNTRACKED_ISIN, new BigDecimal("0.30")))));
+
+    assertThat(result.benchmarkNames())
+        .containsExactly(EMERGING_MARKETS_INDEX, DEVELOPED_MARKETS_INDEX);
+  }
+
+  @Test
+  void aBenchmarkModelCheckNamesTheBenchmarkItMeasuredEvenWhenTheMappingChangesAfterward() {
+    var changingResolver = mock(BenchmarkLegResolver.class);
+    given(changingResolver.resolve(EMERGING_MARKETS_ISIN, CHECK_DATE))
+        .willReturn(
+            Optional.of(new BenchmarkProxy(null, EMERGING_MARKETS_INDEX)),
+            Optional.of(new BenchmarkProxy(null, DEVELOPED_MARKETS_INDEX)));
+    var builderWithAChangingMapping = builderOver(instruments(List.of()), changingResolver);
+
+    var result =
+        measured(
+            builderWithAChangingMapping.buildBenchmarkModelCheck(
+                TUK75, CHECK_DATE, List.of(flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE))));
+
+    assertThat(result.benchmarkNames()).containsExactly(EMERGING_MARKETS_INDEX);
+  }
+
+  @Test
+  void aBenchmarkModelCheckDoesNotNameTheBenchmarkOfAnAllocationTheFundDoesNotHold() {
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, CHECK_DATE))
+        .willReturn(Optional.of(price(DEVELOPED_MARKETS_INDEX, CHECK_DATE, "500.00")));
+    given(fundValueProvider.getLatestValue(DEVELOPED_MARKETS_INDEX, PREVIOUS_DATE))
+        .willReturn(Optional.of(price(DEVELOPED_MARKETS_INDEX, PREVIOUS_DATE, "500.00")));
+
+    var result =
+        measured(
+            builder.buildBenchmarkModelCheck(
+                TUK75,
+                CHECK_DATE,
+                List.of(
+                    flatHolding(EMERGING_MARKETS_ISIN, BigDecimal.ONE),
+                    flatHolding(DEVELOPED_MARKETS_ISIN, BigDecimal.ZERO))));
+
+    assertThat(result.benchmarkNames()).containsExactly(EMERGING_MARKETS_INDEX);
   }
 
   @Test

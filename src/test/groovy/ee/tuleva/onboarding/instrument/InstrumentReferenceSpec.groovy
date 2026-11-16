@@ -139,6 +139,21 @@ class InstrumentReferenceSpec extends Specification {
     "all three"        | [:]
   }
 
+  @Unroll
+  def "getShortName is #expected for eodhd ticker #eodhdTicker"() {
+    expect:
+    instrument(eodhdTicker: eodhdTicker, displayName: "iShares Core MSCI World UCITS ETF").getShortName() == expected
+
+    where:
+    eodhdTicker     | expected
+    "EUNL.XETRA"    | "EUNL"
+    "WLXU.PA.EODHD" | "WLXU"
+    "EUNL"          | "EUNL"
+    ".XETRA"        | "iShares Core MSCI World UCITS ETF"
+    ""              | "iShares Core MSCI World UCITS ETF"
+    null            | "iShares Core MSCI World UCITS ETF"
+  }
+
   private static InstrumentReference instrument(Map props = [:]) {
     def inst = new InstrumentReference()
     props.each { key, value ->

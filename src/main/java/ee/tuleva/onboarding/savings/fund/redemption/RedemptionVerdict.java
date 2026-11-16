@@ -70,6 +70,7 @@ public final class RedemptionVerdict {
       new EnumMap<>(
           Map.of(
               RedemptionHoldReason.SCREENING_UNAVAILABLE, RedemptionVerdict::screeningUnavailable,
+              RedemptionHoldReason.PEP, RedemptionVerdict::riskDecidedBeforePepHit,
               RedemptionHoldReason.KYB_SCREENING_FAILED, RedemptionVerdict::kybScreeningFailed,
               RedemptionHoldReason.ONBOARDING_INCOMPLETE, RedemptionVerdict::onboardingIncomplete,
               RedemptionHoldReason.HIGH_RISK, RedemptionVerdict::highRisk,
@@ -85,7 +86,7 @@ public final class RedemptionVerdict {
     if (evidence.screening() == SANCTION_HIT) {
       return FREEZE;
     }
-    if (riskLevelUnavailable(evidence)
+    if (riskLevelNotYetUsable(evidence)
         && !kybScreeningFailed(evidence)
         && !onboardingIncomplete(evidence)) {
       return RETRY;
@@ -104,7 +105,7 @@ public final class RedemptionVerdict {
     return kybScreeningFailed(evidence)
         || onboardingIncomplete(evidence)
         || highRisk(evidence)
-        || riskLevelUnavailable(evidence);
+        || riskLevelNotYetUsable(evidence);
   }
 
   private static boolean screeningUnavailable(Evidence evidence) {
@@ -123,7 +124,15 @@ public final class RedemptionVerdict {
     return evidence.risk() == HIGH;
   }
 
+  private static boolean riskLevelNotYetUsable(Evidence evidence) {
+    return riskLevelUnavailable(evidence) || riskDecidedBeforePepHit(evidence);
+  }
+
   private static boolean riskLevelUnavailable(Evidence evidence) {
-    return evidence.risk() == Risk.UNAVAILABLE || evidence.risk() == DECIDED_BEFORE_PEP_HIT;
+    return evidence.risk() == Risk.UNAVAILABLE;
+  }
+
+  private static boolean riskDecidedBeforePepHit(Evidence evidence) {
+    return evidence.risk() == DECIDED_BEFORE_PEP_HIT;
   }
 }

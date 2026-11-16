@@ -29,8 +29,9 @@ level is high, and when the risk level is unavailable it is retried and then hel
 when its TKF level was assessed after the hit's check was recorded. The assessment time is the
 `createdAt` of an `OVERRIDDEN` override in force, which sets the level, and otherwise the batch
 decision's `decidedAt`: the computed level comes from a batch decision, and the hit counts only
-from the next one. Until then, and whenever there is no assessment time, the risk level counts as
-unavailable. `DevRiskLevels` counts its level as assessed now.
+from the next one. Until then, and whenever there is no assessment time, it is retried as an unavailable
+level and then held with `PEP`, not `RISK_LEVEL_UNAVAILABLE`, which stays for a level aml-service
+could not give. `DevRiskLevels` counts its level as assessed now.
 
 `EffectiveRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
 through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening

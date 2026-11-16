@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.RISK_LEVEL_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
@@ -157,6 +158,21 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
+  void process_personRequest_holdsAPepHitAsPepWhenAmlServiceGaveNoTkfDecisionTimeByTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(sanctionAndPepScreener.pepHitAt(user)).willReturn(Optional.of(WEDNESDAY_NOON));
+    given(riskLevels.riskLevel(PERSONAL_CODE))
+        .willReturn(new PersonRiskLevel(Level.NOT_HIGH, null));
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(PEP));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  @Test
   void process_personRequest_retriesAPepHitWhileAmlServiceGivesNoTkfDecisionTime() {
     var request = personRequest(UUID.randomUUID());
     var user = givenPersonWithCountries();
@@ -172,8 +188,7 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void
-      process_personRequest_holdsAPepHitAsRiskLevelUnavailableWhenNoTkfLevelDecidedAfterTheHitCameByTheDeadline() {
+  void process_personRequest_holdsAPepHitAsPepWhenNoTkfLevelAssessedAfterTheHitCameByTheDeadline() {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
@@ -182,7 +197,7 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, Set.of(RISK_LEVEL_UNAVAILABLE));
+    verify(holdService).holdPayout(requestId, Set.of(PEP));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(redemptionRequestRepository, never()).markVerificationAttempted(any(), any());
   }

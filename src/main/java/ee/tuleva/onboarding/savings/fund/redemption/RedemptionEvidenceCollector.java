@@ -155,7 +155,7 @@ class RedemptionEvidenceCollector {
   }
 
   private boolean pepHitIncludedIn(PersonRiskLevel level, User user) {
-    return sanctionAndPepScreener.pepHitAt(user).filter(level::tkfLevelIncludes).isPresent();
+    return sanctionAndPepScreener.pepHitAt(user).filter(level::accountsForPepHitAt).isPresent();
   }
 
   private Risk companyRisk(String registryCode) {

@@ -14,7 +14,7 @@ public record PersonRiskLevel(Level level, @Nullable Instant tkfAssessedAt) {
     return level == Level.HIGH;
   }
 
-  public boolean tkfLevelIncludes(Instant input) {
-    return tkfAssessedAt != null && tkfAssessedAt.isAfter(input);
+  public boolean accountsForPepHitAt(Instant pepHitAt) {
+    return isHigh() || tkfAssessedAt != null && tkfAssessedAt.isAfter(pepHitAt);
   }
 }

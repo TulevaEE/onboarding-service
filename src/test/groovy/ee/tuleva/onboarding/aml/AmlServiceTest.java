@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,6 +111,20 @@ class AmlServiceTest {
   }
 
   @Test
+  void addKycCheck_passesAMediumRiskCheck() {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.empty());
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(MEDIUM, Map.of("riskLevel", "MEDIUM")));
+
+    assertThat(result).hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
+  }
+
+  @Test
   void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
     given(
             amlCheckRepository
@@ -193,6 +208,20 @@ class AmlServiceTest {
 
     assertThat(result).isEmpty();
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+  }
+
+  @Test
+  void addKycCheck_persistsAMediumRiskRecheckEvenWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(MEDIUM, Map.of("riskLevel", "MEDIUM")));
+
+    assertThat(result).hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
   }
 
   @Test

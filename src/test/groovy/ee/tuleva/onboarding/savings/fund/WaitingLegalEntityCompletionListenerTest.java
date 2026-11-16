@@ -116,13 +116,13 @@ class WaitingLegalEntityCompletionListenerTest {
     verify(screener).screenLatest(FIRST_COMPANY);
   }
 
-  // Medium and high risk do not produce a successful aml_check, so nothing can have
-  // been unblocked and the registry must not be called.
   @Test
-  void doesNothingWhenTheRiskLevelIsMedium() {
+  void treatsMediumRiskAsVerified() {
+    when(repository.findPendingLegalEntityCodes()).thenReturn(List.of(FIRST_COMPANY));
+
     listener.onKycCheckPerformed(event(MEDIUM));
 
-    verifyNoInteractions(repository, screener, checkHistory);
+    verify(screener).screenLatest(FIRST_COMPANY);
   }
 
   @Test

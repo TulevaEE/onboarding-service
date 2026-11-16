@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
-import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
@@ -62,8 +61,7 @@ class WaitingLegalEntityCompletionListener {
   }
 
   private boolean isVerified(KycCheckPerformedEvent event) {
-    var riskLevel = event.getKycCheck().riskLevel();
-    return riskLevel == LOW || riskLevel == NONE;
+    return event.getKycCheck().riskLevel() != HIGH;
   }
 
   // Screening a company costs three registry round trips, so only the companies whose latest

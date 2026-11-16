@@ -10,7 +10,7 @@ class DevRiskLevelsTest {
 
   @Test
   void holdsNoPersonsPayout() {
-    assertThat(riskLevels.isHighRisk("38888888888")).isFalse();
+    assertThat(riskLevels.riskLevel("38888888888").isHigh()).isFalse();
   }
 
   @Test

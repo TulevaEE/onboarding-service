@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofSeconds;
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -30,6 +31,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.sun.net.httpserver.HttpServer;
+import ee.tuleva.onboarding.aml.PersonRiskLevel;
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.time.MutableClock;
 import java.io.IOException;
@@ -37,6 +39,7 @@ import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -92,7 +95,7 @@ class EffectiveRiskLevelsTest {
         .andExpect(header(ACCEPT, APPLICATION_JSON_VALUE))
         .andRespond(withSuccess(families(family("tkf", "LOW")), APPLICATION_JSON));
 
-    effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE);
+    effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE);
 
     server.verify();
   }
@@ -106,7 +109,7 @@ class EffectiveRiskLevelsTest {
             {"family": "tkf", "computed": "MEDIUM", "effective": "HIGH", "override": null}
             """));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isTrue();
   }
 
   @Test
@@ -119,21 +122,59 @@ class EffectiveRiskLevelsTest {
                           "createdAt": "2026-11-02T10:00:00Z"}}
             """));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE)).isFalse();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
   }
 
   @Test
   void notHighRiskWhenEveryFamilyIsEffectivelyLowOrMedium() {
     respond(families(family("third-pillar", "LOW"), family("tkf", "MEDIUM")));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE)).isFalse();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
+  }
+
+  @Test
+  void carriesTheTkfFamilysDecisionTime() {
+    respond(
+        families(
+            """
+            {"family": "third-pillar", "computed": "LOW", "decidedAt": "2026-11-15T02:45:00Z",
+             "effective": "LOW", "override": null}
+            """,
+            """
+            {"family": "tkf", "computed": "MEDIUM", "decidedAt": "2026-11-16T02:15:00Z",
+             "effective": "MEDIUM", "override": null}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, Instant.parse("2026-11-16T02:15:00Z")));
+  }
+
+  @Test
+  void carriesNoTkfDecisionTimeWhenAmlServiceAnswersWithoutOne() {
+    respond(families(family("third-pillar", "LOW"), family("tkf", "LOW")));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
+  }
+
+  @Test
+  void carriesNoTkfDecisionTimeWhenThePersonHasNoTkfLevel() {
+    respond(
+        families(
+            """
+            {"family": "third-pillar", "computed": "LOW", "decidedAt": "2026-11-15T02:45:00Z",
+             "effective": "LOW", "override": null}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, null));
   }
 
   @Test
   void notHighRiskWhenThePersonHasNoLevelInAnyFamily() {
     respond(families());
 
-    assertThat(effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE)).isFalse();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isFalse();
   }
 
   @ParameterizedTest
@@ -141,7 +182,7 @@ class EffectiveRiskLevelsTest {
   void highRiskWhenAnotherFamilyIsHighEvenIfThisOneIsUnusable(String unusableFamily) {
     respond(families(unusableFamily, family("tkf", "HIGH")));
 
-    assertThat(effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE).isHigh()).isTrue();
   }
 
   static Stream<Named<String>> unusableFamilies() {
@@ -216,7 +257,7 @@ class EffectiveRiskLevelsTest {
       ResponseCreator unanswered) {
     server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(unanswered);
 
-    assertThatThrownBy(() -> effectiveRiskLevels(API_TOKEN).isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class)
         .hasNoCause();
     server.verify();
@@ -264,7 +305,7 @@ class EffectiveRiskLevelsTest {
   @NullSource
   @ValueSource(strings = {"", "   "})
   void unavailableWithoutSendingARequestWhenNoApiTokenIsConfigured(@Nullable String apiToken) {
-    assertThatThrownBy(() -> effectiveRiskLevels(apiToken).isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels(apiToken).riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
     server.verify();
   }
@@ -274,12 +315,12 @@ class EffectiveRiskLevelsTest {
   void asksNoOneElseDuringTheCooldownAfterAmlServiceItselfFailed(ResponseCreator failingEveryone) {
     server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(failingEveryone);
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     clock.tick(29, SECONDS);
 
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(OTHER_PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(OTHER_PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class)
         .hasNoCause();
     server.verify();
@@ -294,10 +335,10 @@ class EffectiveRiskLevelsTest {
         .expect(once(), requestTo(OTHER_EFFECTIVE_URL))
         .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
 
-    assertThat(effectiveRiskLevels.isHighRisk(OTHER_PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.riskLevel(OTHER_PERSONAL_CODE).isHigh()).isTrue();
     server.verify();
   }
 
@@ -338,11 +379,11 @@ class EffectiveRiskLevelsTest {
                   properties),
               clock);
       var askedAt = System.nanoTime();
-      assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+      assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
           .isInstanceOf(RiskLevelUnavailableException.class);
       assertThat(Duration.ofNanos(System.nanoTime() - askedAt)).isLessThan(STALL.dividedBy(2));
 
-      assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(OTHER_PERSONAL_CODE))
+      assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(OTHER_PERSONAL_CODE))
           .isInstanceOf(RiskLevelUnavailableException.class);
       assertThat(requestedPaths).doesNotContain("/v1/risk-levels/effective/" + OTHER_PERSONAL_CODE);
     } finally {
@@ -366,12 +407,12 @@ class EffectiveRiskLevelsTest {
         .expect(once(), requestTo(OTHER_EFFECTIVE_URL))
         .andRespond(withSuccess(families(family("tkf", "HIGH")), APPLICATION_JSON));
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     clock.tick(30, SECONDS);
 
-    assertThat(effectiveRiskLevels.isHighRisk(OTHER_PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.riskLevel(OTHER_PERSONAL_CODE).isHigh()).isTrue();
     server.verify();
   }
 
@@ -438,7 +479,7 @@ class EffectiveRiskLevelsTest {
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     assertThat(effectiveRiskLevels.isHighRiskCompany(OTHER_REGISTRY_CODE)).isTrue();
-    assertThat(effectiveRiskLevels.isHighRisk(PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.riskLevel(PERSONAL_CODE).isHigh()).isTrue();
     server.verify();
   }
 
@@ -486,7 +527,7 @@ class EffectiveRiskLevelsTest {
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     assertThat(effectiveRiskLevels.isHighRiskCompany(OTHER_REGISTRY_CODE)).isTrue();
-    assertThat(effectiveRiskLevels.isHighRisk(PERSONAL_CODE)).isTrue();
+    assertThat(effectiveRiskLevels.riskLevel(PERSONAL_CODE).isHigh()).isTrue();
     server.verify();
   }
 
@@ -494,7 +535,7 @@ class EffectiveRiskLevelsTest {
   void asksForNoCompanyDuringTheCooldownAfterAmlServiceFailedForAPerson() {
     server.expect(once(), requestTo(EFFECTIVE_URL)).andRespond(withServerError());
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     clock.tick(29, SECONDS);
@@ -512,7 +553,7 @@ class EffectiveRiskLevelsTest {
         .expect(once(), requestTo(COMPANY_EFFECTIVE_URL))
         .andRespond(withSuccess(families(family("company", "HIGH")), APPLICATION_JSON));
     var effectiveRiskLevels = effectiveRiskLevels(API_TOKEN);
-    assertThatThrownBy(() -> effectiveRiskLevels.isHighRisk(PERSONAL_CODE))
+    assertThatThrownBy(() -> effectiveRiskLevels.riskLevel(PERSONAL_CODE))
         .isInstanceOf(RiskLevelUnavailableException.class);
 
     clock.tick(30, SECONDS);

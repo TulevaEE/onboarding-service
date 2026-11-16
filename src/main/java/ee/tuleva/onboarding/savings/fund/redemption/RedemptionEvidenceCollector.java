@@ -132,7 +132,7 @@ class RedemptionEvidenceCollector {
 
   private boolean partyIsHighRisk(RedemptionRequest request) {
     return switch (request.getPartyId().type()) {
-      case PERSON -> riskLevels.isHighRisk(request.getPartyId().code());
+      case PERSON -> riskLevels.riskLevel(request.getPartyId().code()).isHigh();
       case LEGAL_ENTITY -> riskLevels.isHighRiskCompany(request.getPartyId().code());
     };
   }

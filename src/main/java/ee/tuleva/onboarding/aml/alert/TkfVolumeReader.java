@@ -14,17 +14,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
-/**
- * Reads per-party TKF volume aggregates (persons and legal entities), mirroring the volume CTEs of
- * T1_ulevaatamist_vajavad.sql: deposits from saving_fund_payment (EUR, effected statuses) and
- * redemptions from ledger REDEMPTIONS entries whose transaction touches a TKF100 system account.
- * Emits one aggregate per (party, calendar month) for the current AND previous month (15k/30k), so
- * a breach that ages across a boundary is still caught up after a scheduler outage. Legal entities
- * are classified as present, new clients (so the 15k rule applies; the 30k existing-client rule
- * never does), as the person-keyed mv_crm has no rows for them. Window boundaries come from the
- * injected Clock zone, not the database clock. The TkfVolumeEvaluator applies the thresholds and
- * the override.
- */
 @Service
 @RequiredArgsConstructor
 public class TkfVolumeReader {

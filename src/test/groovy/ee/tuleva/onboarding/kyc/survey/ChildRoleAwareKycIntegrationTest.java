@@ -257,7 +257,7 @@ class ChildRoleAwareKycIntegrationTest {
   @Transactional(propagation = NOT_SUPPORTED)
   void parentActingAsChild_commitsTheSurveyAndBothScreeningsBeforeTheRiskAssessmentReadsThem()
       throws Exception {
-    testKycChecker.givenKycCheck(child.getId(), PENDING_REVIEW);
+    testKycChecker.givenKycCheck(child.getId(), MEDIUM_RISK);
     var committedWhenAssessed = new AtomicReference<CommittedAssessmentInputs>();
     testKycChecker.whenChecked(() -> committedWhenAssessed.set(committedAssessmentInputs()));
 
@@ -271,7 +271,7 @@ class ChildRoleAwareKycIntegrationTest {
   @Transactional(propagation = NOT_SUPPORTED)
   void parentActingAsChild_publishesOnlyTheNewerSurveysResultWhenItCommitsWhileTheOlderIsAssessed()
       throws Exception {
-    testKycChecker.givenKycCheck(child.getId(), PENDING_REVIEW);
+    testKycChecker.givenKycCheck(child.getId(), MEDIUM_RISK);
     var newerResult = new KycCheck(HIGH, Map.of("submission", "newer"));
     testKycChecker.whenChecked(
         () -> {
@@ -309,7 +309,7 @@ class ChildRoleAwareKycIntegrationTest {
     assertThat(applicationEvents.stream(KycCheckPerformedEvent.class)).isEmpty();
   }
 
-  private static final KycCheck PENDING_REVIEW = new KycCheck(MEDIUM, Map.of());
+  private static final KycCheck MEDIUM_RISK = new KycCheck(MEDIUM, Map.of());
 
   enum Assessed {
     INSIDE_A_TRANSACTION,

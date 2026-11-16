@@ -65,25 +65,46 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
-  void onKycCheckPerformed_mapsMediumRiskToPending() {
+  void onKycCheckPerformed_completesAMediumRiskOnboarding() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(PENDING);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(COMPLETED);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).hasSize(1);
   }
 
   @Test
-  void onKycCheckPerformed_mapsHighRiskToRejected() {
+  void onKycCheckPerformed_holdsAHighRiskOnboardingForReviewInsteadOfRejectingIt() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING);
 
     eventPublisher.publishEvent(event);
 
-    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(REJECTED);
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(ON_HOLD);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
+    assertThat(applicationEvents.stream(TrackableEvent.class))
+        .extracting(TrackableEvent::getData)
+        .containsExactly(Map.of("oldStatus", PENDING, "newStatus", ON_HOLD));
+  }
+
+  @Test
+  void onKycCheckPerformed_keepsAHeldOnboardingHeldWhenTheRepeatedSurveyComesOutLowRisk() {
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+    var event =
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
+
+    eventPublisher.publishEvent(event);
+
+    assertThat(repository.findStatus(user.getPersonalCode(), PERSON)).contains(ON_HOLD);
+    assertThat(applicationEvents.stream(SavingsFundOnboardingCompletedEvent.class)).isEmpty();
+    assertThat(applicationEvents.stream(TrackableEvent.class)).isEmpty();
   }
 
   @Test

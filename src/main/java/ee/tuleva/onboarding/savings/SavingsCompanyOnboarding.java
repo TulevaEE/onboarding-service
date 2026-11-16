@@ -20,7 +20,7 @@ class SavingsCompanyOnboarding implements CompanyOnboarding {
         .map(
             status ->
                 switch (status) {
-                  case PENDING -> State.PENDING;
+                  case PENDING, ON_HOLD -> State.PENDING;
                   case REJECTED -> State.REJECTED;
                   case COMPLETED -> State.COMPLETED;
                 });

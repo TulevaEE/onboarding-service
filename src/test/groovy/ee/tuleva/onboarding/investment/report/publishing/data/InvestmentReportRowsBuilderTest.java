@@ -166,21 +166,103 @@ class InvestmentReportRowsBuilderTest {
 
   @Test
   void formatCashAccountIdentifiesBanks() {
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("SEB deposit account").name())
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount("SEB deposit account", NAV_DATE).name())
         .isEqualTo("Arvelduskonto");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("SEB deposit account").institution())
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount("SEB deposit account", NAV_DATE)
+                .institution())
         .isEqualTo("AS SEB Pank");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("Swedbank current").institution())
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount("Swedbank current", NAV_DATE)
+                .institution())
         .isEqualTo("Swedbank AS");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("LHV savings").institution())
+    assertThat(InvestmentReportRowsBuilder.formatCashAccount("LHV savings", NAV_DATE).institution())
         .isEqualTo("AS LHV Pank");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("Unknown bank").name())
+    assertThat(InvestmentReportRowsBuilder.formatCashAccount("Unknown bank", NAV_DATE).name())
         .isEqualTo("Arvelduskonto");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("Luminor current").institution())
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount("Luminor current", NAV_DATE)
+                .institution())
         .isEqualTo("Luminor Bank AS");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount("Unknown bank").institution())
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount("Unknown bank", NAV_DATE).institution())
         .isEqualTo("Unknown bank");
-    assertThat(InvestmentReportRowsBuilder.formatCashAccount(null).institution()).isNull();
+    assertThat(InvestmentReportRowsBuilder.formatCashAccount(null, NAV_DATE).institution())
+        .isNull();
+  }
+
+  @Test
+  void theDepositaryIsAsSebPankUpToTheLastReportOf2026() {
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount(
+                    "Cash account in SEB Pank", LocalDate.of(2026, 12, 31))
+                .institution())
+        .isEqualTo("AS SEB Pank");
+  }
+
+  @Test
+  void theDepositaryIsSebBankAsFromTheFirstReportOf2027EvenWhileOurCashRowStillSaysSebPank() {
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount(
+                    "Cash account in SEB Pank", LocalDate.of(2027, 1, 1))
+                .institution())
+        .isEqualTo("SEB Bank AS");
+  }
+
+  @Test
+  void aCashRowNamedWithoutTheBankIsTheDepositaryNamedByTheReportDate() {
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount(
+                    "Cash account", LocalDate.of(2026, 12, 31))
+                .institution())
+        .isEqualTo("AS SEB Pank");
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount(
+                    " Cash Account ", LocalDate.of(2027, 1, 29))
+                .institution())
+        .isEqualTo("SEB Bank AS");
+  }
+
+  @Test
+  void aCashAccountAtAnotherBankKeepsThatBanksNameAfterTheRename() {
+    assertThat(
+            InvestmentReportRowsBuilder.formatCashAccount(
+                    "Cash account in Swedbank AS", LocalDate.of(2027, 1, 29))
+                .institution())
+        .isEqualTo("Swedbank AS");
+  }
+
+  @Test
+  void buildCashRowsNamesTheDepositaryByTheNavDateOfTheCashRow() {
+    var december =
+        NavReportViewFixture.create(
+            LocalDate.of(2026, 12, 31),
+            "TUK75",
+            "CASH",
+            "Cash account in SEB Pank",
+            null,
+            null,
+            null,
+            new BigDecimal("1000"));
+    var january =
+        NavReportViewFixture.create(
+            LocalDate.of(2027, 1, 29),
+            "TUK75",
+            "CASH",
+            "Cash account in SEB Pank",
+            null,
+            null,
+            null,
+            new BigDecimal("1000"));
+
+    var decemberRows =
+        builder.buildCashRows(List.of(december), BigDecimal.ZERO, new BigDecimal("6000"));
+    var januaryRows =
+        builder.buildCashRows(List.of(january), BigDecimal.ZERO, new BigDecimal("6000"));
+
+    assertThat(decemberRows.getFirst().institution()).isEqualTo("AS SEB Pank");
+    assertThat(januaryRows.getFirst().institution()).isEqualTo("SEB Bank AS");
   }
 
   private NavReportView navRow(

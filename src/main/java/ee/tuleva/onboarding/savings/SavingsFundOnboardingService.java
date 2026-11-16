@@ -64,6 +64,10 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     if (newStatus == oldStatus) {
       return;
     }
+    changeStatus(user, newStatus);
+  }
+
+  private void changeStatus(User user, SavingsFundOnboardingStatus newStatus) {
     SavingsFundOnboardingStatus previousStatus =
         savingsFundOnboardingRepository
             .saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus)

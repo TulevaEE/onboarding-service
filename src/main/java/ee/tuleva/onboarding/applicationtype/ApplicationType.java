@@ -13,6 +13,7 @@ public enum ApplicationType {
   PAYMENT("Sissemakse"), // 3rd pillar contribution payment,
   PAYMENT_RATE("Sissemaksete määra muutmine"), // 2nd pillar payment rate change
   REJOIN("Sissemaksete tasumise avaldus"), // 2nd pillar
+  STOP_CONTRIBUTIONS("Sissemaksete tasumisest vabastamise avaldus"), // 2nd pillar
   FUND_PENSION_OPENING("Fondipensioni avamise avaldus"),
   FUND_PENSION_OPENING_THIRD_PILLAR("Täiendava fondipensioni avamise avaldus"),
   PARTIAL_WITHDRAWAL("Osalise väljamakse avaldus II sambast"),

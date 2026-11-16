@@ -48,6 +48,7 @@ class UserControllerTest {
   @MockitoBean private UserService userService;
   @MockitoBean private UserContacts userContacts;
   @MockitoBean private SecondPillarPaymentRateService secondPillarPaymentRateService;
+  @MockitoBean private SecondPillarExits secondPillarExits;
 
   @TestConfiguration
   static class FixedClock {

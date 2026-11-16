@@ -97,11 +97,42 @@ class SavingsFundOnboardingServiceTest {
   void updateOnboardingStatusIfNeeded_doesNotPublishCompletedEventForNonCompletedStatus() {
     given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .willReturn(Optional.empty());
-    var kycCheck = new KycCheck(MEDIUM, Map.of());
+    var kycCheck = new KycCheck(HIGH, Map.of());
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
+    verify(savingsFundOnboardingRepository)
+        .saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+  }
+
+  @Test
+  void updateOnboardingStatusIfNeeded_completesAMediumRiskOnboarding() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(PENDING));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.of(PENDING));
+
+    savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
+        user, new KycCheck(MEDIUM, Map.of()));
+
+    verify(eventPublisher).publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+  }
+
+  @ParameterizedTest
+  @EnumSource(RiskLevel.class)
+  void updateOnboardingStatusIfNeeded_keepsAHeldOnboardingHeldWhateverTheNewRiskLevel(
+      RiskLevel riskLevel) {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(ON_HOLD));
+
+    savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
+        user, new KycCheck(riskLevel, Map.of()));
+
+    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test

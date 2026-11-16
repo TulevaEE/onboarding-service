@@ -19,6 +19,7 @@ const {
   isUsCopyName,
   convertSebCsvToUs,
   notifyDriveProblemOncePerDay,
+  dedupKeyFor,
 } = require("../src/Code");
 
 const POSITIONS = SOURCES.SEB.files[0];
@@ -2132,5 +2133,78 @@ describe("alerts never throw", () => {
     notifyDriveProblemOncePerDay("folder missing");
 
     expect(slack).toHaveLength(2);
+  });
+});
+
+describe("unmatched-attachment alerts", () => {
+  const alertRecord = (messageId) => dedupKeyFor(messageId, ["TULEVA_unknown_report.csv"]);
+  const alertsIn = (fakes) => fakes.slack.filter((text) => text.includes("Unmatched files:"));
+  const alertRecordsIn = (fakes) => Object.keys(fakes.props).filter((key) => key.startsWith("skipped_notified:"));
+  const withSlack = (threads, properties = {}) =>
+    installAppsScriptFakes({
+      properties: Object.assign(
+        { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+        properties,
+      ),
+      threads,
+    });
+  const unmatchedMessage = (id, date) => sebMessage(id, [fakeAttachment("TULEVA_unknown_report.csv", "x")], date);
+  const recentReport = (id) => sebMessage(id, [fakeAttachment("TULEVA_pos_raport_20261030.csv", "A;1\n")]);
+
+  test("an alert record is dropped once the alert is more than 45 days old, or when its time is unreadable", () => {
+    const { props } = installAppsScriptFakes({
+      properties: {
+        [alertRecord("18f0a00000000001")]: "2026-09-18T10:59:59.999Z",
+        [alertRecord("18f0a00000000002")]: "2026-09-18T11:00:00.000Z",
+        [alertRecord("18f0a00000000003")]: "muted",
+        SLACK_WEBHOOK_URL: "https://hooks.example/x",
+      },
+    });
+
+    forgetOldRecords(PropertiesService.getScriptProperties(), new Date("2026-11-02T11:00:00Z"));
+
+    expect(Object.keys(props).sort()).toEqual(["SLACK_WEBHOOK_URL", alertRecord("18f0a00000000002")]);
+  });
+
+  test("a recent e-mail with an unmatched attachment is alerted about once, and its record keeps the next run quiet", () => {
+    const fakes = withSlack([fakeThread([unmatchedMessage("18f0a00000000001", MORNING)], [])]);
+
+    processNewEmails();
+    processNewEmails();
+
+    expect(alertsIn(fakes)).toEqual([expect.stringContaining("TULEVA_unknown_report.csv")]);
+    expect(alertRecordsIn(fakes)).toHaveLength(1);
+  });
+
+  test("a run that records a report drops the old alert records, and the next run that brings the old e-mail back through a reply does not re-alert it", () => {
+    const thread = fakeThread([unmatchedMessage("18f0a00000000001", new Date("2026-09-01T08:45:00Z")), recentReport("18f0a00000000002")], []);
+    const fakes = withSlack([thread], {
+      [alertRecord("18f0a00000000001")]: "2026-09-01T09:00:00.000Z",
+      [alertRecord("18f0a00000000009")]: "2026-10-30T09:00:00.000Z",
+    });
+
+    processNewEmails();
+    processNewEmails();
+
+    expect(fakes.s3Keys).toEqual(["seb/2026-10-30_positions.csv"]);
+    expect(alertsIn(fakes)).toEqual([]);
+    expect(alertRecordsIn(fakes)).toEqual([alertRecord("18f0a00000000009")]);
+  });
+
+  test("an e-mail 30 days old, the longest catch-up window, is still alerted about", () => {
+    const fakes = withSlack([fakeThread([unmatchedMessage("18f0a00000000001", new Date("2026-10-03T11:00:00Z")), recentReport("18f0a00000000002")], [])]);
+
+    processNewEmails();
+
+    expect(alertsIn(fakes)).toEqual([expect.stringContaining("TULEVA_unknown_report.csv")]);
+  });
+
+  test("an e-mail older than 30 days is not alerted about", () => {
+    const fakes = withSlack([fakeThread([unmatchedMessage("18f0a00000000001", new Date("2026-10-03T10:59:59.999Z")), recentReport("18f0a00000000002")], [])]);
+
+    processNewEmails();
+
+    expect(alertsIn(fakes)).toEqual([]);
+    expect(alertRecordsIn(fakes)).toEqual([]);
   });
 });

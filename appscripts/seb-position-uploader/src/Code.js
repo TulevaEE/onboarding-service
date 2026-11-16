@@ -383,7 +383,7 @@ function notifyOnceForUnmatchedAttachments(messageId, sender, unmatchedFilenames
         ? "WARNING: Known sender with mixed matched (" + matchedCount + ") + unmatched attachments: "
         : "WARNING: Known sender but no attachments matched any pattern: ";
     Logger.log(logPrefix + "sender=" + sender + ", unmatched=" + unmatchedFilenames.join(",") + ", messageId=" + messageId);
-    notifySlack(formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, key));
+    if (!notifySlack(formatUnmatchedAttachmentAlert(sender, unmatchedFilenames, matchedCount, key))) return;
     props.setProperty(key, new Date().toISOString());
 }
 

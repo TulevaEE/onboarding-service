@@ -2124,6 +2124,24 @@ describe("alerts never throw", () => {
 
     expect(slack).toEqual([expect.stringContaining("folder missing")]);
   });
+  test.each([
+    ["a webhook error", new Error("timeout")],
+    ["a non-2xx answer", 503],
+  ])("after %s the next run tries the unmatched-attachment alert again", (name, failure) => {
+    const { slack, slackResponses } = installAppsScriptFakes({
+      properties: { AWS_ACCESS_KEY_ID: "test-key", AWS_SECRET_ACCESS_KEY: "test-secret", SLACK_WEBHOOK_URL: "https://hooks.example/x" },
+      threads: [fakeThread([sebMessage("18f0a00000000001", [fakeAttachment("TULEVA_unknown_report.csv", "x")])], [])],
+    });
+    slackResponses.push(failure);
+    const unmatchedAlerts = () => slack.filter((text) => text.includes("Unmatched files:"));
+
+    processNewEmails();
+    expect(unmatchedAlerts()).toEqual([]);
+    processNewEmails();
+    processNewEmails();
+
+    expect(unmatchedAlerts()).toEqual([expect.stringContaining("TULEVA_unknown_report.csv")]);
+  });
 
   test("a Drive problem alerts again on another day", () => {
     const { slack } = installAppsScriptFakes({ properties: { SLACK_WEBHOOK_URL: "https://hooks.example/x" } });

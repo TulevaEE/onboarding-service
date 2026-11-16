@@ -30,13 +30,6 @@ class AmlServiceConfiguration {
         amlServiceRestClient(builder, properties), amlServiceRetryTemplate(), properties);
   }
 
-  @Bean
-  AmlServiceOnboardingReviews amlServiceOnboardingReviews(
-      RestClient.Builder builder, AmlServiceProperties properties) {
-    return new AmlServiceOnboardingReviews(
-        amlServiceRestClient(builder, properties), amlServiceRetryTemplate(), properties);
-  }
-
   private static void warnOfWhatAMissingApiTokenStops(AmlServiceProperties properties) {
     if (properties.configuredApiToken().isEmpty()) {
       log.warn(

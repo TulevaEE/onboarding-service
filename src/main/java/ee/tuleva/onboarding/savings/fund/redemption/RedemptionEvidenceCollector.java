@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 
+import ee.tuleva.onboarding.aml.PersonRiskLevel;
 import ee.tuleva.onboarding.aml.RiskLevelUnavailableException;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
@@ -20,6 +21,7 @@ import ee.tuleva.onboarding.user.UserService;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -64,13 +66,15 @@ class RedemptionEvidenceCollector {
     allCountries.addAll(sanctionAndPepScreener.recordedCitizenships(user));
 
     Screening screening = Screening.of(sanctionAndPepScreener.screeningOutcome(user, allCountries));
-    return withRiskLevel(request, screening, Onboarding.NOT_CHECKED);
+    return withRiskLevel(
+        request, screening, Onboarding.NOT_CHECKED, () -> personRisk(request, user, screening));
   }
 
   private Evidence legalEntityEvidence(RedemptionRequest request) {
     var registryCode = request.getPartyId().code();
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
-      return withRiskLevel(request, Screening.NOT_REPEATED, Onboarding.COMPLETED);
+      return withRiskLevel(
+          request, Screening.NOT_REPEATED, Onboarding.COMPLETED, () -> companyRisk(registryCode));
     }
     Screening screening = reScreen(request, registryCode);
     Onboarding onboarding =
@@ -78,7 +82,7 @@ class RedemptionEvidenceCollector {
                 && savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
             ? Onboarding.COMPLETED
             : Onboarding.INCOMPLETE;
-    return withRiskLevel(request, screening, onboarding);
+    return withRiskLevel(request, screening, onboarding, () -> companyRisk(registryCode));
   }
 
   private Screening reScreen(RedemptionRequest request, String registryCode) {
@@ -106,21 +110,25 @@ class RedemptionEvidenceCollector {
   }
 
   private Evidence withRiskLevel(
-      RedemptionRequest request, Screening screening, Onboarding onboarding) {
-    Risk risk = screening.leavesTheRiskLevelUnasked() ? Risk.NOT_ASKED : riskLevel(request);
+      RedemptionRequest request,
+      Screening screening,
+      Onboarding onboarding,
+      Supplier<Risk> askedRisk) {
+    Risk risk =
+        screening.leavesTheRiskLevelUnasked() ? Risk.NOT_ASKED : riskLevel(request, askedRisk);
     return new Evidence(screening, risk, onboarding);
   }
 
-  private Risk riskLevel(RedemptionRequest request) {
+  private Risk riskLevel(RedemptionRequest request, Supplier<Risk> askedRisk) {
     try {
-      if (partyIsHighRisk(request)) {
+      Risk risk = askedRisk.get();
+      if (risk == Risk.HIGH) {
         log.info(
             "Redemption party is high risk: id={}, party={}",
             request.getId(),
             request.getPartyId());
-        return Risk.HIGH;
       }
-      return Risk.NOT_HIGH;
+      return risk;
     } catch (RiskLevelUnavailableException _) {
       log.warn(
           "Risk level unavailable: id={}, partyType={}",
@@ -130,10 +138,27 @@ class RedemptionEvidenceCollector {
     }
   }
 
-  private boolean partyIsHighRisk(RedemptionRequest request) {
-    return switch (request.getPartyId().type()) {
-      case PERSON -> riskLevels.isHighRisk(request.getPartyId().code());
-      case LEGAL_ENTITY -> riskLevels.isHighRiskCompany(request.getPartyId().code());
-    };
+  private Risk personRisk(RedemptionRequest request, User user, Screening screening) {
+    PersonRiskLevel level = riskLevels.riskLevel(request.getPartyId().code());
+    if (level.isHigh()) {
+      return Risk.HIGH;
+    }
+    if (screening == Screening.PEP_HIT && !pepHitIncludedIn(level, user)) {
+      log.info(
+          "Redemption party's TKF risk level was not decided after its PEP hit: id={},"
+              + " tkfAssessedAt={}",
+          request.getId(),
+          level.tkfAssessedAt());
+      return Risk.DECIDED_BEFORE_PEP_HIT;
+    }
+    return Risk.NOT_HIGH;
+  }
+
+  private boolean pepHitIncludedIn(PersonRiskLevel level, User user) {
+    return sanctionAndPepScreener.pepHitAt(user).filter(level::accountsForPepHitAt).isPresent();
+  }
+
+  private Risk companyRisk(String registryCode) {
+    return riskLevels.isHighRiskCompany(registryCode) ? Risk.HIGH : Risk.NOT_HIGH;
   }
 }

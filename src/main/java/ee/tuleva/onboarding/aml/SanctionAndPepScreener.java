@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.user.User;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +101,14 @@ public class SanctionAndPepScreener {
       return PEP_HIT;
     }
     return CLEAR;
+  }
+
+  public Optional<Instant> pepHitAt(Person person) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            person.getPersonalCode(), POLITICALLY_EXPOSED_PERSON_AUTO)
+        .filter(check -> !check.isSuccess())
+        .map(AmlCheck::getCreatedTime);
   }
 
   private Optional<Boolean> latestCheckResult(Person person, AmlCheckType type) {

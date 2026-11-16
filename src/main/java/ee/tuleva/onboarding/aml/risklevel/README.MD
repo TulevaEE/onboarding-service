@@ -8,7 +8,7 @@ fails (a refused run, an HTTP error, a timeout, a missing token or value) writes
 one whose write fails keeps the rows written before the failure. Either is reported as failed in
 the AML Slack channel, and the other family still runs.
 
-`EffectiveRiskLevels.isHighRisk`, which the redemption verification job asks before a payout, asks
+`EffectiveRiskLevels.riskLevel`, which the redemption verification job asks before a payout, asks
 aml-service's `GET /v1/risk-levels/effective/{personalCode}`, with the specialist's overrides and
 the related-persons chain applied; the person is high risk when any family's `effective` level is
 `HIGH`, even if another family's answer is unusable, and a person with no level in any family is
@@ -26,9 +26,11 @@ deadline, then holds the payout with `RISK_LEVEL_UNAVAILABLE`, which the AML cha
 with the request id. A PEP hit holds nothing on its own: its payout is held only when the risk
 level is high, and when the risk level is unavailable it is retried and then held with
 `RISK_LEVEL_UNAVAILABLE`, as for anyone else. A level that is not high counts for a PEP hit only
-when aml-service decided its TKF level (`decidedAt`) after the hit's check was recorded: the level
-comes from a batch decision, and the hit counts only from the next one. Until then, and whenever
-the answer carries no `decidedAt`, the risk level counts as unavailable.
+when its TKF level was assessed after the hit's check was recorded. The assessment time is the
+`createdAt` of an `OVERRIDDEN` override in force, which sets the level, and otherwise the batch
+decision's `decidedAt`: the computed level comes from a batch decision, and the hit counts only
+from the next one. Until then, and whenever there is no assessment time, the risk level counts as
+unavailable. `DevRiskLevels` counts its level as assessed now.
 
 `EffectiveRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
 through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening

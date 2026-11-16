@@ -64,7 +64,7 @@ class EffectiveRiskLevels implements RiskLevels {
         families.stream().anyMatch(EffectiveFamilyLevel::isHigh) ? HIGH : NOT_HIGH,
         families.stream()
             .filter(family -> TKF_FAMILY.equals(family.family()))
-            .map(EffectiveFamilyLevel::decidedAt)
+            .map(EffectiveFamilyLevel::assessedAt)
             .filter(Objects::nonNull)
             .findFirst()
             .orElse(null));

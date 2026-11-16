@@ -150,6 +150,36 @@ class EffectiveRiskLevelsTest {
   }
 
   @Test
+  void carriesTheManualLevelsTimeWhenATkfOverrideInForceSetsTheLevel() {
+    respond(
+        families(
+            """
+            {"family": "tkf", "computed": "HIGH", "decidedAt": "2026-11-16T02:15:00Z",
+             "effective": "LOW",
+             "override": {"outcome": "OVERRIDDEN", "level": "LOW",
+                          "createdAt": "2026-11-02T10:00:00Z"}}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, Instant.parse("2026-11-02T10:00:00Z")));
+  }
+
+  @Test
+  void carriesTheTkfDecisionTimeWhenTheOverrideInForceConfirmsTheComputedLevel() {
+    respond(
+        families(
+            """
+            {"family": "tkf", "computed": "MEDIUM", "decidedAt": "2026-11-16T02:15:00Z",
+             "effective": "MEDIUM",
+             "override": {"outcome": "CONFIRMED", "level": null,
+                          "createdAt": "2026-11-02T10:00:00Z"}}
+            """));
+
+    assertThat(effectiveRiskLevels(API_TOKEN).riskLevel(PERSONAL_CODE))
+        .isEqualTo(new PersonRiskLevel(NOT_HIGH, Instant.parse("2026-11-16T02:15:00Z")));
+  }
+
+  @Test
   void carriesNoTkfDecisionTimeWhenAmlServiceAnswersWithoutOne() {
     respond(families(family("third-pillar", "LOW"), family("tkf", "LOW")));
 

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.ON_HOLD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
@@ -154,6 +155,24 @@ class SavingFundPaymentControllerTest {
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":\"COMPLETED\"}"));
+  }
+
+  @Test
+  void getSavingsFundOnboardingStatus_showsAnOnboardingHeldForReviewAsPending() throws Exception {
+    var person = sampleAuthenticatedPersonAndMember().build();
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            person, null, List.of(new SimpleGrantedAuthority(USER)));
+
+    when(savingsFundOnboardingService.getOnboardingStatus(PartyId.from(person)))
+        .thenReturn(ON_HOLD);
+
+    mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"PENDING\"}"));
+    mvc.perform(get("/v1/savings/onboarding/status/person").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"status\":\"PENDING\"}"));
   }
 
   @Test

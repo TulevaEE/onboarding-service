@@ -61,7 +61,8 @@ public class SavingFundPaymentController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SavingsFundOnboardingStatus status =
         savingsFundOnboardingService.getOnboardingStatus(PartyId.from(authenticatedPerson));
-    return Map.of("status", Optional.ofNullable(status));
+    return Map.of(
+        "status", Optional.ofNullable(status).map(SavingsFundOnboardingStatus::shownToTheSaver));
   }
 
   @Operation(summary = "Get the natural person's savings fund onboarding status, ignoring role")
@@ -71,7 +72,8 @@ public class SavingFundPaymentController {
     SavingsFundOnboardingStatus status =
         savingsFundOnboardingService.getOnboardingStatus(
             new PartyId(PERSON, authenticatedPerson.getPersonalCode()));
-    return Map.of("status", Optional.ofNullable(status));
+    return Map.of(
+        "status", Optional.ofNullable(status).map(SavingsFundOnboardingStatus::shownToTheSaver));
   }
 
   @Operation(summary = "Get legal entity savings fund onboarding status by registry code")

@@ -23,8 +23,9 @@ means aml-service itself is failing, and it then throws without asking for
 `QUIET_AFTER_AML_SERVICE_FAILED`, so a hanging aml-service costs one timeout per quiet period rather
 than one per person. The verification job retries an unavailable risk level until the screening
 deadline, then holds the payout with `RISK_LEVEL_UNAVAILABLE`, which the AML channel hears about
-with the request id. A PEP hit is held at once with `PEP` and `RISK_LEVEL_UNAVAILABLE`, since its
-payout is held whatever aml-service would say.
+with the request id. A PEP hit holds nothing on its own: its payout is held only when the risk
+level is high, and when the risk level is unavailable it is retried and then held with
+`RISK_LEVEL_UNAVAILABLE`, as for anyone else.
 
 `EffectiveRiskLevels.isHighRiskCompany` asks the same of a company's payout, onboarded or not,
 through `GET /v1/risk-levels/effective/companies/{registryCode}`; a company whose KYB re-screening

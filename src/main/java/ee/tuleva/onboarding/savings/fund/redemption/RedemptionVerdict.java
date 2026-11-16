@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Out
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Outcome.RETRY;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Risk.HIGH;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.PEP_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.SANCTION_HIT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerdict.Screening.UNAVAILABLE;
 import static java.util.stream.Collectors.toCollection;
@@ -69,7 +68,6 @@ public final class RedemptionVerdict {
       new EnumMap<>(
           Map.of(
               RedemptionHoldReason.SCREENING_UNAVAILABLE, RedemptionVerdict::screeningUnavailable,
-              RedemptionHoldReason.PEP, RedemptionVerdict::pep,
               RedemptionHoldReason.KYB_SCREENING_FAILED, RedemptionVerdict::kybScreeningFailed,
               RedemptionHoldReason.ONBOARDING_INCOMPLETE, RedemptionVerdict::onboardingIncomplete,
               RedemptionHoldReason.HIGH_RISK, RedemptionVerdict::highRisk,
@@ -86,7 +84,6 @@ public final class RedemptionVerdict {
       return FREEZE;
     }
     if (riskLevelUnavailable(evidence)
-        && !pep(evidence)
         && !kybScreeningFailed(evidence)
         && !onboardingIncomplete(evidence)) {
       return RETRY;
@@ -102,8 +99,7 @@ public final class RedemptionVerdict {
   }
 
   private static boolean anyHoldReason(Evidence evidence) {
-    return pep(evidence)
-        || kybScreeningFailed(evidence)
+    return kybScreeningFailed(evidence)
         || onboardingIncomplete(evidence)
         || highRisk(evidence)
         || riskLevelUnavailable(evidence);
@@ -111,10 +107,6 @@ public final class RedemptionVerdict {
 
   private static boolean screeningUnavailable(Evidence evidence) {
     return evidence.screening() == UNAVAILABLE;
-  }
-
-  private static boolean pep(Evidence evidence) {
-    return evidence.screening() == PEP_HIT;
   }
 
   private static boolean kybScreeningFailed(Evidence evidence) {

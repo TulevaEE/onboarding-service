@@ -211,6 +211,20 @@ class AmlServiceTest {
   }
 
   @Test
+  void addKycCheck_persistsAMediumRiskRecheckEvenWhenRecentSuccessfulCheckExists() {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(MEDIUM, Map.of("riskLevel", "MEDIUM")));
+
+    assertThat(result).hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
+  }
+
+  @Test
   void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
     given(
             amlCheckRepository

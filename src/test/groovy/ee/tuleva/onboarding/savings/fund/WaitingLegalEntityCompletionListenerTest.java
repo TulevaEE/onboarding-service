@@ -125,9 +125,6 @@ class WaitingLegalEntityCompletionListenerTest {
     verify(screener).screenLatest(FIRST_COMPANY);
   }
 
-  // High risk does not produce a successful aml_check, so nothing can have been unblocked and the
-  // registry must not be called.
-
   @Test
   void doesNothingWhenTheRiskLevelIsHigh() {
     listener.onKycCheckPerformed(event(HIGH));

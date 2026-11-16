@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 import ee.tuleva.onboarding.aml.MandateAmlGate.RecentChecks;
@@ -114,10 +116,14 @@ public class AmlService {
             .success(kycCheck.riskLevel() != HIGH)
             .metadata(kycCheck.metadata())
             .build();
-    if (check.isSuccess() && latestCheckIsSuccessful(personalCode, KYC_CHECK)) {
+    if (isLowOrNoRisk(kycCheck) && latestCheckIsSuccessful(personalCode, KYC_CHECK)) {
       return Optional.empty();
     }
     return Optional.of(addCheck(check));
+  }
+
+  private static boolean isLowOrNoRisk(KycCheck kycCheck) {
+    return kycCheck.riskLevel() == LOW || kycCheck.riskLevel() == NONE;
   }
 
   public AmlCheck addCustodyRightCheck(

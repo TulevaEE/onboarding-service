@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.HIGH;
 import static ee.tuleva.onboarding.aml.PersonRiskLevel.Level.NOT_HIGH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,30 +12,37 @@ class PersonRiskLevelTest {
   private static final Instant PEP_HIT_AT = Instant.parse("2026-11-16T09:00:00Z");
 
   @Test
-  void aTkfLevelDecidedAfterAnInputIncludesIt() {
+  void aTkfLevelDecidedAfterAPepHitAccountsForIt() {
     var level = new PersonRiskLevel(NOT_HIGH, PEP_HIT_AT.plusSeconds(1));
 
-    assertThat(level.tkfLevelIncludes(PEP_HIT_AT)).isTrue();
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isTrue();
   }
 
   @Test
-  void aTkfLevelDecidedAtTheSameInstantAsAnInputDoesNotIncludeIt() {
+  void aTkfLevelDecidedAtTheSameInstantAsAPepHitDoesNotAccountForIt() {
     var level = new PersonRiskLevel(NOT_HIGH, PEP_HIT_AT);
 
-    assertThat(level.tkfLevelIncludes(PEP_HIT_AT)).isFalse();
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isFalse();
   }
 
   @Test
-  void aTkfLevelDecidedBeforeAnInputDoesNotIncludeIt() {
+  void aTkfLevelDecidedBeforeAPepHitDoesNotAccountForIt() {
     var level = new PersonRiskLevel(NOT_HIGH, PEP_HIT_AT.minusSeconds(1));
 
-    assertThat(level.tkfLevelIncludes(PEP_HIT_AT)).isFalse();
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isFalse();
   }
 
   @Test
-  void aTkfLevelWithoutADecisionTimeIncludesNoInput() {
+  void aTkfLevelWithoutADecisionTimeAccountsForNoPepHit() {
     var level = new PersonRiskLevel(NOT_HIGH, null);
 
-    assertThat(level.tkfLevelIncludes(PEP_HIT_AT)).isFalse();
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isFalse();
+  }
+
+  @Test
+  void aHighLevelAccountsForAPepHitWhenEverItWasDecided() {
+    var level = new PersonRiskLevel(HIGH, PEP_HIT_AT.minusSeconds(1));
+
+    assertThat(level.accountsForPepHitAt(PEP_HIT_AT)).isTrue();
   }
 }

@@ -41,7 +41,8 @@ record TrackingDifferenceResult(
     int escalationUncheckedDays,
     @Nullable ConsecutiveBreachInfo streakBefore,
     List<String> benchmarkGapIsins,
-    @Nullable BigDecimal benchmarkGapWeight) {
+    @Nullable BigDecimal benchmarkGapWeight,
+    @Nullable List<String> benchmarkNames) {
 
   boolean hasAnyBreach() {
     return breach() || navResidualBreach();

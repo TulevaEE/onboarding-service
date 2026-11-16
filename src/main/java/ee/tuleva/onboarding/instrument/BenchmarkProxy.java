@@ -18,6 +18,14 @@ public record BenchmarkProxy(
     return proxyInstrument == null;
   }
 
+  public String name() {
+    var instrument = proxyInstrument;
+    if (instrument == null) {
+      return requireNonNull(indexSeriesKey);
+    }
+    return instrument.getShortName();
+  }
+
   public String storageKey() {
     var instrument = proxyInstrument;
     if (instrument == null) {

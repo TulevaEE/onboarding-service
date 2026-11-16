@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -195,6 +196,7 @@ class BenchmarkCheckBuilder {
     var attributions = new ArrayList<SecurityAttribution>();
     var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
     var benchmarksWithoutPrices = new ArrayList<Map.Entry<SecurityData, String>>();
+    var weightByBenchmarkName = new TreeMap<String, BigDecimal>();
 
     for (var s : validSecurities) {
       var benchmark = benchmarkLegResolver.resolve(s.isin(), checkDate).orElse(null);
@@ -231,6 +233,7 @@ class BenchmarkCheckBuilder {
       totalWeightedReturn = totalWeightedReturn.add(weight.multiply(secReturn));
       totalWeightedBenchmarkReturn = totalWeightedBenchmarkReturn.add(weight.multiply(bmReturn));
       totalWeight = totalWeight.add(weight);
+      weightByBenchmarkName.merge(benchmark.name(), weight, BigDecimal::add);
       attributions.add(
           new SecurityAttribution(
               s.isin(),
@@ -299,6 +302,7 @@ class BenchmarkCheckBuilder {
             .residual(ZERO)
             .benchmarkGapIsins(isins(holdingsReportedAsBenchmarkGap))
             .benchmarkGapWeight(totalActualWeight(holdingsReportedAsBenchmarkGap))
+            .benchmarkNames(heldBenchmarkNames(weightByBenchmarkName))
             .build());
   }
 
@@ -314,6 +318,13 @@ class BenchmarkCheckBuilder {
     return heldWithoutBenchmarkPrices.isEmpty()
         ? new NothingToMeasure()
         : new NoHoldingMeasured(fund, checkDate, heldWithoutBenchmarkPrices);
+  }
+
+  private static List<String> heldBenchmarkNames(Map<String, BigDecimal> weightByBenchmarkName) {
+    return weightByBenchmarkName.entrySet().stream()
+        .filter(benchmark -> benchmark.getValue().signum() > 0)
+        .map(Map.Entry::getKey)
+        .toList();
   }
 
   private static List<String> isins(List<SecurityData> holdings) {

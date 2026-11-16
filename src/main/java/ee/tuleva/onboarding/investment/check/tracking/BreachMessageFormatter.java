@@ -54,8 +54,9 @@ class BreachMessageFormatter {
   private void appendActionHint() {
     if (result.checkType() == BENCHMARK_MODEL) {
       sb.append(
-          "\n  Holdings vs MSCI World/EM index. Regional/ESG spread is expected;"
-              + " check an outsized contribution for a stale price.");
+          "\n  %s A holding and its benchmark can follow different indexes, so some spread is"
+                  .formatted(benchmarksCompared())
+              + " normal; check an outsized contribution for a stale price.");
       return;
     }
     if (result.checkType() != MODEL_PORTFOLIO) {
@@ -85,6 +86,14 @@ class BreachMessageFormatter {
                 .formatted(formatAmount(flow.unexplained()))
             + " Check cash, units outstanding and the liability lines (payables, pending"
             + " redemptions).");
+  }
+
+  private String benchmarksCompared() {
+    var names = result.benchmarkNames();
+    if (names == null || names.isEmpty()) {
+      return "Holdings vs their benchmarks.";
+    }
+    return "Holdings vs their benchmarks: %s.".formatted(String.join(", ", names));
   }
 
   private void appendNavResidualBreachStatus() {

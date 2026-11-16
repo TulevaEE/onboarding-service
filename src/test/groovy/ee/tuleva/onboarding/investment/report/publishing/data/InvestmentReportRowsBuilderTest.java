@@ -6,6 +6,8 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.instrument.InstrumentReferenceFixture;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportRowsBuilder.CashAccountInfo;
+import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -196,73 +198,77 @@ class InvestmentReportRowsBuilderTest {
   void theDepositaryIsAsSebPankUpToTheLastReportOf2026() {
     assertThat(
             InvestmentReportRowsBuilder.formatCashAccount(
-                    "Cash account in SEB Pank", LocalDate.of(2026, 12, 31))
-                .institution())
-        .isEqualTo("AS SEB Pank");
+                "Cash account in SEB Pank", LocalDate.of(2026, 12, 31)))
+        .isEqualTo(new CashAccountInfo("Arvelduskonto", "AS SEB Pank"));
   }
 
   @Test
   void theDepositaryIsSebBankAsFromTheFirstReportOf2027EvenWhileOurCashRowStillSaysSebPank() {
     assertThat(
             InvestmentReportRowsBuilder.formatCashAccount(
-                    "Cash account in SEB Pank", LocalDate.of(2027, 1, 1))
-                .institution())
-        .isEqualTo("SEB Bank AS");
+                "Cash account in SEB Pank", LocalDate.of(2027, 1, 1)))
+        .isEqualTo(new CashAccountInfo("Arvelduskonto", "SEB Bank AS"));
   }
 
   @Test
   void aCashRowNamedWithoutTheBankIsTheDepositaryNamedByTheReportDate() {
     assertThat(
             InvestmentReportRowsBuilder.formatCashAccount(
-                    "Cash account", LocalDate.of(2026, 12, 31))
-                .institution())
-        .isEqualTo("AS SEB Pank");
+                "Cash account", LocalDate.of(2026, 12, 31)))
+        .isEqualTo(new CashAccountInfo("Arvelduskonto", "AS SEB Pank"));
     assertThat(
             InvestmentReportRowsBuilder.formatCashAccount(
-                    " Cash Account ", LocalDate.of(2027, 1, 29))
-                .institution())
-        .isEqualTo("SEB Bank AS");
+                " Cash Account ", LocalDate.of(2027, 1, 29)))
+        .isEqualTo(new CashAccountInfo("Arvelduskonto", "SEB Bank AS"));
   }
 
   @Test
   void aCashAccountAtAnotherBankKeepsThatBanksNameAfterTheRename() {
     assertThat(
             InvestmentReportRowsBuilder.formatCashAccount(
-                    "Cash account in Swedbank AS", LocalDate.of(2027, 1, 29))
-                .institution())
-        .isEqualTo("Swedbank AS");
+                "Cash account in Swedbank AS", LocalDate.of(2027, 1, 29)))
+        .isEqualTo(new CashAccountInfo("Arvelduskonto", "Swedbank AS"));
   }
 
   @Test
   void buildCashRowsNamesTheDepositaryByTheNavDateOfTheCashRow() {
-    var december =
-        NavReportViewFixture.create(
-            LocalDate.of(2026, 12, 31),
-            "TUK75",
-            "CASH",
-            "Cash account in SEB Pank",
-            null,
-            null,
-            null,
-            new BigDecimal("1000"));
-    var january =
-        NavReportViewFixture.create(
-            LocalDate.of(2027, 1, 29),
-            "TUK75",
-            "CASH",
-            "Cash account in SEB Pank",
-            null,
-            null,
-            null,
-            new BigDecimal("1000"));
+    var december = depositaryCashRowOn(LocalDate.of(2026, 12, 31));
+    var january = depositaryCashRowOn(LocalDate.of(2027, 1, 29));
 
     var decemberRows =
         builder.buildCashRows(List.of(december), BigDecimal.ZERO, new BigDecimal("6000"));
     var januaryRows =
         builder.buildCashRows(List.of(january), BigDecimal.ZERO, new BigDecimal("6000"));
 
-    assertThat(decemberRows.getFirst().institution()).isEqualTo("AS SEB Pank");
-    assertThat(januaryRows.getFirst().institution()).isEqualTo("SEB Bank AS");
+    assertThat(decemberRows).containsExactly(depositaryCashReportRow("AS SEB Pank"));
+    assertThat(januaryRows).containsExactly(depositaryCashReportRow("SEB Bank AS"));
+  }
+
+  private NavReportView depositaryCashRowOn(LocalDate navDate) {
+    return NavReportViewFixture.create(
+        navDate,
+        "TUK75",
+        "CASH",
+        "Cash account in SEB Pank",
+        null,
+        null,
+        null,
+        new BigDecimal("1000"));
+  }
+
+  private InvestmentReportRow depositaryCashReportRow(String institution) {
+    return new InvestmentReportRow(
+        "Arvelduskonto",
+        institution,
+        null,
+        "EE",
+        "EUR",
+        null,
+        null,
+        null,
+        new BigDecimal("1000"),
+        new BigDecimal("0.166667"),
+        null);
   }
 
   private NavReportView navRow(

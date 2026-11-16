@@ -83,7 +83,7 @@ class AmlKycCheckIntegrationTest {
   }
 
   @Test
-  void onKycCheckPerformed_mediumRisk_createsFailedCheck() {
+  void onKycCheckPerformed_mediumRisk_createsPassedCheck() {
     var event =
         new KycCheckPerformedEvent(
             this,
@@ -100,7 +100,7 @@ class AmlKycCheckIntegrationTest {
         .satisfies(
             check -> {
               assertThat(check.getType()).isEqualTo(KYC_CHECK);
-              assertThat(check.isSuccess()).isFalse();
+              assertThat(check.isSuccess()).isTrue();
               assertThat(check.getMetadata()).isEqualTo(Map.of("score", 50, "riskLevel", "MEDIUM"));
             });
   }

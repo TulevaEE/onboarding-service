@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_WAITING_RELATED;
 import static java.util.Locale.ENGLISH;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
@@ -9,6 +10,7 @@ import ee.tuleva.onboarding.auth.role.CompanyRoles;
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.HashMap;
@@ -44,21 +46,38 @@ public class LegalEntityApplicantEmailSender {
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = REQUIRES_NEW)
   public void onLegalEntityOnboarded(LegalEntityOnboardedEvent event) {
-    var registryCode = event.getCompany().registryCode().value();
+    var company = event.getCompany();
+    emailApplicant(company.registryCode().value(), company.name(), SAVINGS_FUND_COMPANY_ONBOARDED);
+  }
 
+  @Async
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  @Transactional(propagation = REQUIRES_NEW)
+  public void onLegalEntityWaitingForRelatedPersons(
+      LegalEntityWaitingForRelatedPersonsEvent event) {
+    emailApplicant(
+        event.registryCode().value(), event.name(), SAVINGS_FUND_COMPANY_WAITING_RELATED);
+  }
+
+  private void emailApplicant(String registryCode, String companyName, EmailType emailType) {
     try {
       var applicant = findApplicant(registryCode);
 
       if (applicant.isEmpty()) {
         log.warn(
-            "Cannot resolve the applicant, skipping the company onboarded email: registryCode={}",
-            registryCode);
+            "Cannot resolve the applicant, skipping the company email: registryCode={}, emailType={}",
+            registryCode,
+            emailType);
         return;
       }
 
-      send(applicant.get(), registryCode, event.getCompany().name());
+      send(applicant.get(), registryCode, companyName, emailType);
     } catch (RuntimeException e) {
-      log.error("Failed to send the company onboarded email: registryCode={}", registryCode, e);
+      log.error(
+          "Failed to send the company email: registryCode={}, emailType={}",
+          registryCode,
+          emailType,
+          e);
     }
   }
 
@@ -72,15 +91,16 @@ public class LegalEntityApplicantEmailSender {
     }
   }
 
-  private void send(User applicant, String registryCode, String companyName) {
+  private void send(User applicant, String registryCode, String companyName, EmailType emailType) {
     if (applicant.getEmail() == null) {
       log.warn(
-          "Applicant has no email, skipping the company onboarded email: userId={}",
-          applicant.getId());
+          "Applicant has no email, skipping the company email: userId={}, emailType={}",
+          applicant.getId(),
+          emailType);
       return;
     }
 
-    var templateName = SAVINGS_FUND_COMPANY_ONBOARDED.getTemplateName(localeOf(applicant));
+    var templateName = emailType.getTemplateName(localeOf(applicant));
     var mergeVars = new HashMap<String, Object>(getNameMergeVars(applicant));
     mergeVars.put("recipientName", companyName);
     companyRoles
@@ -95,10 +115,7 @@ public class LegalEntityApplicantEmailSender {
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    applicant,
-                    response.getId(),
-                    SAVINGS_FUND_COMPANY_ONBOARDED,
-                    response.getStatus()));
+                    applicant, response.getId(), emailType, response.getStatus()));
   }
 
   private Locale localeOf(User applicant) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_WAITING_RELATED;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -69,6 +70,10 @@ class LegalEntityApplicantEmailSenderTest {
 
   private LegalEntityOnboardedEvent event() {
     return new LegalEntityOnboardedEvent(this, company.registryCode(), company.name());
+  }
+
+  private LegalEntityWaitingForRelatedPersonsEvent waitingEvent() {
+    return new LegalEntityWaitingForRelatedPersonsEvent(company.registryCode(), company.name());
   }
 
   @Test
@@ -259,5 +264,70 @@ class LegalEntityApplicantEmailSenderTest {
 
     verify(emailPersistenceService)
         .save(applicant, "msg_1", SAVINGS_FUND_COMPANY_ONBOARDED, "sent");
+  }
+
+  @Test
+  void sendsTheWaitingEmailNamingTheCompanyToTheApplicant() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    var message = new MandrillMessage();
+    given(emailService.newMandrillMessage(any(), any(), any(), any())).willReturn(message);
+
+    sender.onLegalEntityWaitingForRelatedPersons(waitingEvent());
+
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_company_waiting_related_et",
+            Map.of(
+                "fname",
+                applicant.getFirstName(),
+                "lname",
+                applicant.getLastName(),
+                "recipientName",
+                "Mesila OÜ"),
+            List.of("savings_fund"));
+    verify(emailService).send(applicant, message, "savings_fund_company_waiting_related_et");
+  }
+
+  @Test
+  void sendsTheWaitingEmailInEnglishToAnApplicantWhoPrefersEnglish() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(openedAccounts.prefersEnglish("38888888888")).willReturn(true);
+    var message = new MandrillMessage();
+    given(emailService.newMandrillMessage(any(), any(), any(), any())).willReturn(message);
+
+    sender.onLegalEntityWaitingForRelatedPersons(waitingEvent());
+
+    verify(emailService).send(applicant, message, "savings_fund_company_waiting_related_en");
+  }
+
+  @Test
+  void recordsTheSentWaitingEmail() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
+    var status = mock(MandrillMessageStatus.class);
+    given(status.getId()).willReturn("msg_2");
+    given(status.getStatus()).willReturn("sent");
+    given(emailService.send(any(), any(), any())).willReturn(Optional.of(status));
+
+    sender.onLegalEntityWaitingForRelatedPersons(waitingEvent());
+
+    verify(emailPersistenceService)
+        .save(applicant, "msg_2", SAVINGS_FUND_COMPANY_WAITING_RELATED, "sent");
+  }
+
+  @Test
+  void survivesAFailingWaitingEmailSend() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
+    given(emailService.send(any(), any(), any()))
+        .willThrow(new IllegalStateException("Mandrill is down"));
+
+    assertThatCode(() -> sender.onLegalEntityWaitingForRelatedPersons(waitingEvent()))
+        .doesNotThrowAnyException();
+
+    verifyNoInteractions(emailPersistenceService);
   }
 }

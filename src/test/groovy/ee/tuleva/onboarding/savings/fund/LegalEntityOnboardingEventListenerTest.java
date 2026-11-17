@@ -26,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 class LegalEntityOnboardingEventListenerTest {
 
   private static final String APPLICANT = "38501010001";
+  private static final String OTHER_OWNER = "38001010001";
 
   private final SavingsFundOnboardingRepository repository =
       mock(SavingsFundOnboardingRepository.class);
@@ -634,6 +635,62 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
+  void publishesWaitingEventWhenANewCompanyStartsWaitingForAnotherRelatedPerson() {
+    var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()), waitingFor(OTHER_OWNER));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    assertThat(publishedEvents)
+        .containsExactly(
+            new LegalEntityWaitingForRelatedPersonsEvent(company.registryCode(), company.name()));
+  }
+
+  @Test
+  void publishesWaitingEventWhenAResubmittedRejectedCompanyStartsWaitingForAnotherRelatedPerson() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING))
+        .willReturn(Optional.of(REJECTED));
+    var checks = List.of(waitingFor(OTHER_OWNER));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    assertThat(publishedEvents)
+        .containsExactly(
+            new LegalEntityWaitingForRelatedPersonsEvent(company.registryCode(), company.name()));
+  }
+
+  @Test
+  void publishesNoWaitingEventWhenAConcurrentScreeningAlreadyQueuedTheCompany() {
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING))
+        .willReturn(Optional.of(PENDING));
+    var checks = List.of(waitingFor(OTHER_OWNER));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    assertThat(publishedEvents).isEmpty();
+  }
+
+  @Test
+  void publishesNoWaitingEventWhenOnlyTheApplicantHasYetToVerifyTheirIdentity() {
+    var checks = List.of(waitingFor(APPLICANT));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    assertThat(publishedEvents).isEmpty();
+  }
+
+  @Test
+  void publishesNoWaitingEventWhenTheCompanyWouldBeHeldForReviewOnceTheOtherPersonVerifies() {
+    var checks = List.of(new KybCheck(HIGH_RISK_NACE, false, Map.of()), waitingFor(OTHER_OWNER));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    assertThat(publishedEvents).isEmpty();
+  }
+
+  @Test
   void leavesAPendingCompanyAloneWhileRelatedPersonsAreStillMissing() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
     var checks =
@@ -658,6 +715,14 @@ class LegalEntityOnboardingEventListenerTest {
                     "previousSuccess", true,
                     "currentSuccess", false,
                     "metadataChanged", true))));
+  }
+
+  private static KybCheck waitingFor(String personalCode) {
+    return new KybCheck(
+        RELATED_PERSONS_KYC,
+        false,
+        RelatedPersonsKycMetadata.forIncompletePersons(
+            List.of(boardMemberOwner(personalCode, 50.0).kycStatus(KybKycStatus.UNKNOWN).build())));
   }
 
   private KybCheckPerformedEvent eventWith(List<KybCheck> checks, KybScreeningTrigger trigger) {

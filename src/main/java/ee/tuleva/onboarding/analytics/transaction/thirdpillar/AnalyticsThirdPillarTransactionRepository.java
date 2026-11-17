@@ -54,9 +54,6 @@ public interface AnalyticsThirdPillarTransactionRepository
   @Query("SELECT MAX(t.reportingDate) FROM AnalyticsThirdPillarTransaction t")
   Optional<LocalDate> findLatestReportingDate();
 
-  List<AnalyticsThirdPillarTransaction> findByReportingDateGreaterThanEqual(
-      LocalDate reportingDate);
-
   @Modifying
   @Query(
       "DELETE FROM AnalyticsThirdPillarTransaction t WHERE t.reportingDate BETWEEN :startDate AND :endDate")

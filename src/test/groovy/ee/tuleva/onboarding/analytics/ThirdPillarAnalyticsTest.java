@@ -46,17 +46,6 @@ class ThirdPillarAnalyticsTest {
   }
 
   @Test
-  void findsTransactionsReportedOnOrAfterTheGivenCutoff() {
-    var cutoff = LocalDate.of(2026, 1, 1);
-    var transaction = AnalyticsThirdPillarTransactionFixture.exampleTransaction();
-    given(transactionRepository.findByReportingDateGreaterThanEqual(cutoff))
-        .willReturn(List.of(transaction));
-
-    assertThat(thirdPillarAnalytics.findTransactionsReportedOnOrAfter(cutoff))
-        .containsExactly(transaction);
-  }
-
-  @Test
   void findsTheSaversOwnContributionsSinceTheGivenDate() {
     var from = LocalDate.of(2026, 7, 1);
     var contribution =

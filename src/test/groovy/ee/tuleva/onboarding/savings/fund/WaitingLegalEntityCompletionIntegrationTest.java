@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
@@ -26,6 +27,7 @@ import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
+import ee.tuleva.onboarding.kyb.KybScreeningTrigger;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyb.LegalForm;
 import ee.tuleva.onboarding.kyb.PersonalCode;
@@ -72,6 +74,8 @@ class WaitingLegalEntityCompletionIntegrationTest {
   private static final String HEALTHY_NAME = "Mesila OÜ";
   private static final String UNRELATED = "33333333";
   private static final String UNRELATED_NAME = "Sipelgas OÜ";
+  private static final String NEW = "44444444";
+  private static final String NEW_NAME = "Kimalane OÜ";
   private static final String APPLICANT = "40404049996";
   private static final String APPLICANT_EMAIL = "mesila@example.com";
   private static final String ANOTHER_BOARD_MEMBER = "38001010001";
@@ -212,6 +216,43 @@ class WaitingLegalEntityCompletionIntegrationTest {
             List.of("savings_fund"));
   }
 
+  @Test
+  void emailsTheApplicantWhenTheirNewCompanyOpensOnTheSpot() {
+    screen(NEW, SUBMISSION, new KybCheck(COMPANY_ACTIVE, true, Map.of()));
+
+    assertThat(savingsFundOnboardingRepository.findStatus(NEW, LEGAL_ENTITY)).contains(COMPLETED);
+    verify(emailService)
+        .newMandrillMessage(
+            APPLICANT_EMAIL,
+            TEMPLATE,
+            Map.of(
+                "fname",
+                applicant.getFirstName(),
+                "lname",
+                applicant.getLastName(),
+                "recipientName",
+                NEW_NAME,
+                "recipientAccountId",
+                companyRepository.findByRegistryCode(NEW).orElseThrow().getId().toString()),
+            List.of("savings_fund"));
+  }
+
+  private void screen(String registryCode, KybScreeningTrigger trigger, KybCheck check) {
+    eventPublisher.publishEvent(
+        new KybCheckPerformedEvent(
+            this,
+            new CompanyDto(
+                new RegistryCode(registryCode),
+                nameOf(registryCode),
+                List.of("62011"),
+                LegalForm.OÜ),
+            new PersonalCode(APPLICANT),
+            List.of(),
+            List.of(check),
+            List.of(),
+            trigger));
+  }
+
   private void preferEnglish(String personalCode) {
     jdbcClient
         .sql(
@@ -256,6 +297,7 @@ class WaitingLegalEntityCompletionIntegrationTest {
     return switch (registryCode) {
       case POISONED -> POISONED_NAME;
       case UNRELATED -> UNRELATED_NAME;
+      case NEW -> NEW_NAME;
       default -> HEALTHY_NAME;
     };
   }
@@ -278,7 +320,7 @@ class WaitingLegalEntityCompletionIntegrationTest {
   }
 
   private void cleanUp() {
-    var codes = List.of(POISONED, HEALTHY, UNRELATED);
+    var codes = List.of(POISONED, HEALTHY, UNRELATED, NEW);
     jdbcClient
         .sql("DELETE FROM aml_check WHERE personal_code = :personalCode")
         .param("personalCode", APPLICANT)

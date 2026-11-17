@@ -95,7 +95,7 @@ class LegalEntityOnboardingEventListener {
           event.getCompany().registryCode().value(),
           event.getPersonalCode().value(),
           previousStatus);
-      if (previousStatus == PENDING) {
+      if (opensForTheApplicant(previousStatus, event.getTrigger())) {
         eventPublisher.publishEvent(
             new LegalEntityOnboardedEvent(
                 this, event.getCompany().registryCode(), event.getCompany().name()));
@@ -128,6 +128,11 @@ class LegalEntityOnboardingEventListener {
           previousStatus,
           formatFailedChecks(event.getChecks()));
     }
+  }
+
+  private static boolean opensForTheApplicant(
+      @Nullable SavingsFundOnboardingStatus previousStatus, KybScreeningTrigger trigger) {
+    return previousStatus == PENDING || (trigger == SUBMISSION && previousStatus != COMPLETED);
   }
 
   private SavingsFundOnboardingStatus statusFor(

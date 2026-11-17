@@ -25,6 +25,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 class LegalEntityOnboardingEventListenerTest {
 
+  private static final String APPLICANT = "38501010001";
+
   private final SavingsFundOnboardingRepository repository =
       mock(SavingsFundOnboardingRepository.class);
   private final List<Object> publishedEvents = new ArrayList<>();
@@ -576,7 +578,7 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
-  void publishesNoOnboardedEventWhenACompanyCompletesWithoutEverHavingBeenPending() {
+  void publishesOnboardedEventWhenANewCompanyCompletesOnTheSpot() {
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -584,6 +586,35 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
+    assertThat(publishedEvents)
+        .singleElement(type(LegalEntityOnboardedEvent.class))
+        .returns(
+            new LegalEntityOnboardedEvent.OnboardedCompany(company.registryCode(), company.name()),
+            LegalEntityOnboardedEvent::getCompany);
+  }
+
+  @Test
+  void publishesOnboardedEventWhenARejectedCompanyCompletesOnResubmission() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+        .willReturn(Optional.of(REJECTED));
+    var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    assertThat(publishedEvents).singleElement(type(LegalEntityOnboardedEvent.class));
+  }
+
+  @Test
+  void publishesNoOnboardedEventWhenMonitoringReopensACompanyItHadRejected() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+        .willReturn(Optional.of(REJECTED));
+    var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
     assertThat(publishedEvents).isEmpty();
   }
 
@@ -631,6 +662,6 @@ class LegalEntityOnboardingEventListenerTest {
 
   private KybCheckPerformedEvent eventWith(List<KybCheck> checks, KybScreeningTrigger trigger) {
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode("38501010001"), relatedPersons, checks, List.of(), trigger);
+        this, company, new PersonalCode(APPLICANT), relatedPersons, checks, List.of(), trigger);
   }
 }

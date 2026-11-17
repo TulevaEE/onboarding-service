@@ -32,7 +32,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class LegalEntityOnboardedEmailSenderTest {
+class LegalEntityApplicantEmailSenderTest {
 
   private static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
@@ -43,8 +43,8 @@ class LegalEntityOnboardedEmailSenderTest {
   private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
   private final CompanyRoles companyRoles = mock(CompanyRoles.class);
 
-  private final LegalEntityOnboardedEmailSender sender =
-      new LegalEntityOnboardedEmailSender(
+  private final LegalEntityApplicantEmailSender sender =
+      new LegalEntityApplicantEmailSender(
           emailService, emailPersistenceService, userService, latestKybSurveyInputs, companyRoles);
 
   private final CompanyDto company =

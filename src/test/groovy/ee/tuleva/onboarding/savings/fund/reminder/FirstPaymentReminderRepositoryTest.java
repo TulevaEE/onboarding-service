@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
@@ -317,6 +318,18 @@ class FirstPaymentReminderRepositoryTest {
     accountOpened(SAVER, NOW.minus(10, DAYS));
     childOf(SAVER, CHILD);
     reminderSentTo(CHILD, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD);
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutChildAccountsWhoseReminderMandrillRejected() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    childOf(SAVER, CHILD);
+    reminderRejectedFor(CHILD, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD);
 
     var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
 
@@ -663,12 +676,20 @@ class FirstPaymentReminderRepositoryTest {
   }
 
   private void reminderSentTo(String personalCode, EmailType type) {
+    reminder(personalCode, type, SENT);
+  }
+
+  private void reminderRejectedFor(String personalCode, EmailType type) {
+    reminder(personalCode, type, EmailStatus.REJECTED);
+  }
+
+  private void reminder(String personalCode, EmailType type, EmailStatus status) {
     entityManager.persist(
         Email.builder()
             .personalCode(personalCode)
             .mandrillMessageId("message-" + personalCode)
             .type(type)
-            .status(SENT)
+            .status(status)
             .build());
   }
 

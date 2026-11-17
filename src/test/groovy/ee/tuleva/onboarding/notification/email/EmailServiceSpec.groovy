@@ -98,6 +98,28 @@ class EmailServiceSpec extends Specification {
     response == Optional.empty()
   }
 
+  def "attemptSend returns the answer when Mandrill rejects the message"() {
+    given:
+    def rejectedStatus = new MandrillMessageStatus()
+    rejectedStatus.status = "rejected"
+
+    when:
+    def response = service.attemptSend(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [rejectedStatus]
+    response == Optional.of(rejectedStatus)
+  }
+
+  def "attemptSend returns empty when Mandrill never answers"() {
+    when:
+    def response = service.attemptSend(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> { throw new IOException("connection reset") }
+    response == Optional.empty()
+  }
+
   def "Can cancel scheduled emails"() {
     given:
     String mandrillMessageId = "100"

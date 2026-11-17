@@ -98,17 +98,44 @@ class EmailServiceSpec extends Specification {
     response == Optional.empty()
   }
 
-  def "attemptSend returns the answer when Mandrill rejects the message"() {
+  def "attemptSend returns the answer when Mandrill refuses the recipient for good: #status #rejectReason"() {
     given:
-    def rejectedStatus = new MandrillMessageStatus()
-    rejectedStatus.status = "rejected"
+    def refusal = new MandrillMessageStatus()
+    refusal.status = status
+    refusal.reject_reason = rejectReason
 
     when:
     def response = service.attemptSend(user, message, templateName)
 
     then:
-    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [rejectedStatus]
-    response == Optional.of(rejectedStatus)
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [refusal]
+    response == Optional.of(refusal)
+
+    where:
+    status     | rejectReason
+    "rejected" | "hard-bounce"
+    "rejected" | "spam"
+    "rejected" | "unsub"
+    "rejected" | "custom"
+    "rejected" | "invalid"
+    "invalid"  | null
+  }
+
+  def "attemptSend returns empty when Mandrill's refusal can clear before the next attempt: #rejectReason"() {
+    given:
+    def refusal = new MandrillMessageStatus()
+    refusal.status = "rejected"
+    refusal.reject_reason = rejectReason
+
+    when:
+    def response = service.attemptSend(user, message, templateName)
+
+    then:
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [refusal]
+    response == Optional.empty()
+
+    where:
+    rejectReason << ["soft-bounce", "unsigned", "invalid-sender", "test-mode-limit", "rule", null]
   }
 
   def "attemptSend returns empty when Mandrill never answers"() {

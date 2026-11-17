@@ -65,7 +65,8 @@ class AdultAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+        .willReturn(Optional.of(response));
 
     sender.send(unpaid);
 
@@ -74,12 +75,28 @@ class AdultAccountOpenedEmailSenderTest {
   }
 
   @Test
+  void recordsARecipientMandrillRefusedSoTheNextRunDoesNotRetryThem() {
+    var message = new MandrillMessage();
+    var response = mandrillResponse("message-id", "rejected");
+    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
+        .willReturn(message);
+    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+        .willReturn(Optional.of(response));
+
+    sender.send(unpaid);
+
+    verify(emailPersistenceService)
+        .save(unpaid.holder(), "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON, "rejected");
+  }
+
+  @Test
   void survivesAFailureToRecordTheSentEmail() {
     var message = new MandrillMessage();
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+        .willReturn(Optional.of(response));
     given(emailPersistenceService.save(any(), any(), any(), any()))
         .willThrow(new RuntimeException("database is down"));
 
@@ -109,7 +126,8 @@ class AdultAccountOpenedEmailSenderTest {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(unpaid.holder(), message, TEMPLATE)).willReturn(Optional.empty());
+    given(emailService.attemptSend(unpaid.holder(), message, TEMPLATE))
+        .willReturn(Optional.empty());
 
     sender.send(unpaid);
 

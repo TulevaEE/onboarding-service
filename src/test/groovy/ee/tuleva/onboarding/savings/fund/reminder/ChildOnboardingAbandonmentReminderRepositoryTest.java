@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.kyc.survey.KycSurvey;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponse;
 import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
@@ -167,6 +168,22 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
     childAccountStarted(CHILD, NOW.minus(10, DAYS));
     childOf(PARENT, CHILD);
     emailSentTo(PARENT, SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD, NOW.minus(5, DAYS));
+
+    var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void doesNotRemindAParentAgainAfterMandrillRejectedTheirReminder() {
+    user(PARENT);
+    childAccountStarted(CHILD, NOW.minus(10, DAYS));
+    childOf(PARENT, CHILD);
+    email(
+        PARENT,
+        SAVINGS_FUND_ONBOARDING_ABANDONMENT_CHILD,
+        NOW.minus(5, DAYS),
+        EmailStatus.REJECTED);
 
     var reminders = repository.fetch(STARTED_FROM, STARTED_UNTIL);
 
@@ -366,13 +383,17 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   }
 
   private void emailSentTo(String personalCode, EmailType type, Instant sentAt) {
+    email(personalCode, type, sentAt, SENT);
+  }
+
+  private void email(String personalCode, EmailType type, Instant sentAt, EmailStatus status) {
     ClockHolder.setClock(Clock.fixed(sentAt, ZoneOffset.UTC));
     entityManager.persistAndFlush(
         Email.builder()
             .personalCode(personalCode)
             .mandrillMessageId("message-" + personalCode)
             .type(type)
-            .status(SENT)
+            .status(status)
             .build());
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }

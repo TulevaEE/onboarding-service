@@ -33,6 +33,8 @@ record MandrillRecipientStatuses(
 
   private static final Set<String> ACCEPTED_STATUSES = Set.of("sent", "queued", "scheduled");
   private static final Set<String> FAILED_STATUSES = Set.of("rejected", "invalid");
+  private static final Set<String> REJECT_REASONS_ABOUT_THE_RECIPIENT =
+      Set.of("hard-bounce", "spam", "unsub", "custom", "invalid");
 
   static MandrillRecipientStatuses of(MandrillMessage message, MandrillMessageStatus[] statuses) {
     Set<String> mainRecipients = mainAddressesOf(message);
@@ -110,6 +112,12 @@ record MandrillRecipientStatuses(
 
   static boolean hasFailed(MandrillMessageStatus status) {
     return status.getStatus() != null && FAILED_STATUSES.contains(status.getStatus());
+  }
+
+  static boolean refusesTheRecipientForGood(MandrillMessageStatus status) {
+    return "invalid".equals(status.getStatus())
+        || ("rejected".equals(status.getStatus())
+            && REJECT_REASONS_ABOUT_THE_RECIPIENT.contains(status.getRejectReason()));
   }
 
   private boolean isOnlyCopy(MandrillMessageStatus status) {

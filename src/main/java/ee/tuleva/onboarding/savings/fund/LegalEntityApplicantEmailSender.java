@@ -18,6 +18,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
@@ -39,6 +40,7 @@ public class LegalEntityApplicantEmailSender {
   private final CompanyRoles companyRoles;
   private final OpenedAccountRepository openedAccounts;
 
+  @Async
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = REQUIRES_NEW)
   public void onLegalEntityOnboarded(LegalEntityOnboardedEvent event) {

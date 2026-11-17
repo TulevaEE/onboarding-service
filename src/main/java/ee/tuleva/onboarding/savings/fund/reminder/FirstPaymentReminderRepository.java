@@ -113,13 +113,16 @@ class FirstPaymentReminderRepository {
   List<FirstPaymentReminder> fetchForChildren(Instant openedFrom, Instant openedUntil) {
     return window(
             jdbcClient.sql(
-                """
+                "WITH "
+                    + LANGUAGE_PREFERENCES
+                    + """
                 SELECT child.code AS account_code,
                        child_user.first_name || ' ' || child_user.last_name AS account_holder_name,
                        guardian.personal_code AS guardian_code,
                        guardian.first_name AS first_name,
                        guardian.last_name AS last_name,
-                       guardian.email AS email
+                       guardian.email AS email,
+                       language_preferences.language_preference AS language_preference
                 FROM savings_fund_onboarding child
                 JOIN (SELECT DISTINCT link.child_personal_code, link.parent_personal_code
                       FROM parent_child_link link
@@ -129,6 +132,8 @@ class FirstPaymentReminderRepository {
                   ON guardianship.child_personal_code = child.code
                 JOIN users guardian ON guardian.personal_code = guardianship.parent_personal_code
                 LEFT JOIN users child_user ON child_user.personal_code = child.code
+                LEFT JOIN language_preferences
+                  ON language_preferences.personal_id = guardian.personal_code
                 WHERE child.type = 'PERSON'
                   AND child.status = 'COMPLETED'
                   AND child.updated_at >= :openedFrom
@@ -274,7 +279,8 @@ class FirstPaymentReminderRepository {
         rs.getString("guardian_code"),
         rs.getString("first_name"),
         rs.getString("last_name"),
-        rs.getString("email"));
+        rs.getString("email"),
+        localeOf(rs.getString("language_preference")));
   }
 
   private Optional<FirstPaymentReminder> childReminder(ChildAccountGuardian guardian) {
@@ -287,7 +293,7 @@ class FirstPaymentReminderRepository {
                     guardian.firstName(),
                     guardian.lastName(),
                     guardian.email(),
-                    ESTONIAN,
+                    guardian.locale(),
                     SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
                     guardian.accountHolderName(),
                     accountId));
@@ -307,5 +313,6 @@ class FirstPaymentReminderRepository {
       String personalCode,
       String firstName,
       String lastName,
-      String email) {}
+      String email,
+      Locale locale) {}
 }

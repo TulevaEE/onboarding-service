@@ -324,17 +324,28 @@ class FirstPaymentReminderRepositoryTest {
   }
 
   @Test
-  void sendsTheChildReminderInEstonianWhateverTheGuardianPrefers() {
+  void sendsTheChildReminderInTheLanguageEachGuardianPrefers() {
     accountOpened(CHILD, NOW.minus(10, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
     accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
     languagePreference(ENGLISH_SPEAKING_SAVER, "ENG");
+    childOf(SAVER, CHILD);
     childOf(ENGLISH_SPEAKING_SAVER, CHILD);
 
     var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders)
-        .extracting(FirstPaymentReminder::locale, FirstPaymentReminder::emailType)
-        .containsExactly(tuple(Locale.of("et"), SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD));
+        .extracting(
+            FirstPaymentReminder::recipientEmail,
+            FirstPaymentReminder::locale,
+            FirstPaymentReminder::emailType)
+        .containsExactlyInAnyOrder(
+            tuple(
+                SAVER + "@example.com", Locale.of("et"), SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD),
+            tuple(
+                ENGLISH_SPEAKING_SAVER + "@example.com",
+                Locale.ENGLISH,
+                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD));
   }
 
   @Test

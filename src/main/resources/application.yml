@@ -281,8 +281,8 @@ transaction-registry:
     # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
     # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and broker cancellations, once per
     # confirmation and result. When false (shadow mode), outcomes are only recorded to the
-    # audit trail. On now that the registry holds the orders the confirmations match against.
-    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:true}
+    # audit trail. Off here: the production profile turns it on, staging stays in shadow mode.
+    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
@@ -602,3 +602,7 @@ third-pillar-payment-arrived:
   cron: "0 0 12 * * *"
   dry-run: false
   max-recipients: 200
+
+transaction-registry:
+  ft-confirmation:
+    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:true}

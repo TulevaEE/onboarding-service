@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
+import static java.util.Locale.ENGLISH;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.auth.role.CompanyRoles;
@@ -28,7 +29,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class LegalEntityApplicantEmailSender {
 
-  private static final Locale LOCALE = Locale.of("et");
+  private static final Locale ESTONIAN = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund");
 
   private final EmailService emailService;
@@ -36,6 +37,7 @@ public class LegalEntityApplicantEmailSender {
   private final UserService userService;
   private final LatestKybSurveyInputs latestKybSurveyInputs;
   private final CompanyRoles companyRoles;
+  private final OpenedAccountRepository openedAccounts;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = REQUIRES_NEW)
@@ -76,7 +78,7 @@ public class LegalEntityApplicantEmailSender {
       return;
     }
 
-    var templateName = SAVINGS_FUND_COMPANY_ONBOARDED.getTemplateName(LOCALE);
+    var templateName = SAVINGS_FUND_COMPANY_ONBOARDED.getTemplateName(localeOf(applicant));
     var mergeVars = new HashMap<String, Object>(getNameMergeVars(applicant));
     mergeVars.put("recipientName", companyName);
     companyRoles
@@ -95,5 +97,9 @@ public class LegalEntityApplicantEmailSender {
                     response.getId(),
                     SAVINGS_FUND_COMPANY_ONBOARDED,
                     response.getStatus()));
+  }
+
+  private Locale localeOf(User applicant) {
+    return openedAccounts.prefersEnglish(applicant.getPersonalCode()) ? ENGLISH : ESTONIAN;
   }
 }

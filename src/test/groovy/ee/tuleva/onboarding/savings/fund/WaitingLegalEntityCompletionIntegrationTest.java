@@ -38,6 +38,9 @@ import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -187,6 +190,42 @@ class WaitingLegalEntityCompletionIntegrationTest {
     verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any());
   }
 
+  @Test
+  void emailsTheApplicantInEnglishWhenTheyPreferEnglish() {
+    preferEnglish(APPLICANT);
+
+    performKycCheckInATransaction();
+
+    verify(emailService)
+        .newMandrillMessage(
+            APPLICANT_EMAIL,
+            "savings_fund_company_onboarded_en",
+            Map.of(
+                "fname",
+                applicant.getFirstName(),
+                "lname",
+                applicant.getLastName(),
+                "recipientName",
+                HEALTHY_NAME,
+                "recipientAccountId",
+                companyRepository.findByRegistryCode(HEALTHY).orElseThrow().getId().toString()),
+            List.of("savings_fund"));
+  }
+
+  private void preferEnglish(String personalCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO unit_owner (personal_id, language_preference, date_created, snapshot_date)
+            SELECT :personalCode, 'ENG', :dateCreated, COALESCE(MAX(snapshot_date), :today)
+            FROM unit_owner
+            """)
+        .param("personalCode", personalCode)
+        .param("dateCreated", Timestamp.from(Instant.parse("2026-11-17T00:00:00Z")))
+        .param("today", LocalDate.of(2026, 11, 17))
+        .update();
+  }
+
   private void performKycCheckInATransaction() {
     transactionTemplate.executeWithoutResult(
         status ->
@@ -242,6 +281,10 @@ class WaitingLegalEntityCompletionIntegrationTest {
     var codes = List.of(POISONED, HEALTHY, UNRELATED);
     jdbcClient
         .sql("DELETE FROM aml_check WHERE personal_code = :personalCode")
+        .param("personalCode", APPLICANT)
+        .update();
+    jdbcClient
+        .sql("DELETE FROM unit_owner WHERE personal_id = :personalCode")
         .param("personalCode", APPLICANT)
         .update();
     jdbcClient

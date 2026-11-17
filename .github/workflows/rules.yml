@@ -8,6 +8,22 @@ on:
 
 env:
   WATCHED: |
+    src/main/java/ee/tuleva/onboarding/accounting/GeneralLedgerSync.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoAccount.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoAccountMapper.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoBook.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoClient.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoFields.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoPartMapper.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoProperties.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoRow.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DirectoTransaction.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/Document.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/DocumentRow.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/ObjectCatalog.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/PayrollProtection.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/PayrollSummary.java
+    src/main/java/ee/tuleva/onboarding/accounting/directo/PersonalCodeChecksum.java
     src/main/java/ee/tuleva/onboarding/aml/AmlBatchScreener.java
     src/main/java/ee/tuleva/onboarding/aml/AmlCheckType.java
     src/main/java/ee/tuleva/onboarding/aml/AmlService.java
@@ -39,7 +55,9 @@ env:
     src/main/java/ee/tuleva/onboarding/investment/check/tracking/TrackingDifferenceNotifier.java
     src/main/java/ee/tuleva/onboarding/investment/fees/DepotFeeCalculator.java
     src/main/java/ee/tuleva/onboarding/investment/fees/FeeAccrualBuilder.java
+    src/main/java/ee/tuleva/onboarding/investment/fees/FeeChargedToFundPolicy.java
     src/main/java/ee/tuleva/onboarding/investment/fees/ManagementFeeCalculator.java
+    src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionAdminService.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/TransactionInputService.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/UnitReceivableReader.java
     src/main/java/ee/tuleva/onboarding/investment/transaction/UnsettledTradeReader.java
@@ -47,6 +65,10 @@ env:
     src/main/java/ee/tuleva/onboarding/investment/transaction/calculation/TradeCalculationEngine.java
     src/main/java/ee/tuleva/onboarding/kyb/screener/CompanySanctionScreener.java
     src/main/java/ee/tuleva/onboarding/kyc/KycCheck.java
+    src/main/java/ee/tuleva/onboarding/ledger/GeneralLedger.java
+    src/main/java/ee/tuleva/onboarding/ledger/GeneralLedgerAccount.java
+    src/main/java/ee/tuleva/onboarding/ledger/JournalEntryLine.java
+    src/main/java/ee/tuleva/onboarding/ledger/JournalEntryPart.java
     src/main/java/ee/tuleva/onboarding/ledger/NavFeeAccrualLedger.java
     src/main/java/ee/tuleva/onboarding/ledger/NavPositionLedger.java
     src/main/java/ee/tuleva/onboarding/savings/FundNavProvider.java
@@ -65,12 +87,14 @@ env:
     src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavAlertJob.java
     src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavDeadline.java
     src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavPublisher.java
+    src/main/java/ee/tuleva/onboarding/savings/fund/nav/NavRevision.java
     src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionHoldReason.java
     src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionPayoutValidator.java
     src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerdict.java
     src/main/java/ee/tuleva/onboarding/savings/fund/redemption/RedemptionVerificationService.java
     src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportCsvGenerator.java
     src/main/java/ee/tuleva/onboarding/savings/fund/report/TrusteeReportRow.java
+    src/main/resources/db/migration/V1_243__depot_fee_policy_and_tier_cutover.sql
     build.gradle.kts
     .github/workflows/rules.yml
 

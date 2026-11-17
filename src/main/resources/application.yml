@@ -278,12 +278,11 @@ transaction-registry:
     business-days-to-wait: 3
     alerts-from: 2026-10-01
   ft-confirmation:
-    # Whether onboarding-service is the authoritative FT-verification pipeline yet. While
-    # false (parallel run with GAS), the FT check runs in shadow mode: confirmations are
-    # verified and their outcomes recorded to the audit trail, but no alerts are sent —
-    # GAS remains the alerting authority. Flip to true at cutover (after retiring the GAS
-    # check) to start sending the Slack digest of ERROR/AMBIGUOUS/ORPHAN rows.
-    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
+    # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
+    # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and broker cancellations, once per
+    # confirmation and result. When false (shadow mode), outcomes are only recorded to the
+    # audit trail. On now that the registry holds the orders the confirmations match against.
+    registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:true}
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api

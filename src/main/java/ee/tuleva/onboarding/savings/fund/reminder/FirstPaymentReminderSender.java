@@ -41,7 +41,7 @@ class FirstPaymentReminderSender {
             reminder.recipientEmail(), templateName, mergeVars(reminder), TAGS);
 
     emailService
-        .send(reminder, message, templateName)
+        .attemptSend(reminder, message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(

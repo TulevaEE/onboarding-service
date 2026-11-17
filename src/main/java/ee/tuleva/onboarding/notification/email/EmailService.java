@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.notification.email;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MergeVarBucket;
+import static java.util.function.Predicate.not;
 
 import com.microtripit.mandrillapp.lutung.MandrillApi;
 import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
@@ -109,6 +110,17 @@ public class EmailService {
 
   public Optional<MandrillMessageStatus> send(
       Person person, MandrillMessage message, String templateName, @Nullable Instant sendAt) {
+    return attemptSend(person, message, templateName, sendAt)
+        .filter(not(MandrillRecipientStatuses::hasFailed));
+  }
+
+  public Optional<MandrillMessageStatus> attemptSend(
+      Person person, MandrillMessage message, String templateName) {
+    return attemptSend(person, message, templateName, null);
+  }
+
+  private Optional<MandrillMessageStatus> attemptSend(
+      Person person, MandrillMessage message, String templateName, @Nullable Instant sendAt) {
     if (mandrillApi == null) {
       log.warn(
           "Mandrill not initialised, not sending email for person: personalCode={}, sendAt={}, templateName={}",
@@ -147,7 +159,6 @@ public class EmailService {
             response.getStatus(),
             response.getRejectReason(),
             response.getId());
-        return Optional.empty();
       }
       return Optional.of(response);
 

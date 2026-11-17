@@ -29,7 +29,7 @@ class PersonOnboardingAbandonmentReminderSender {
         emailService.newMandrillMessage(reminder.email(), templateName, mergeVars(reminder), TAGS);
 
     emailService
-        .send(reminder.person(), message, templateName)
+        .attemptSend(reminder.person(), message, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(

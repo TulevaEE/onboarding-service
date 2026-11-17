@@ -26,7 +26,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 @NullMarked
 @RequiredArgsConstructor
-public class LegalEntityOnboardedEmailSender {
+public class LegalEntityApplicantEmailSender {
 
   private static final Locale LOCALE = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund");

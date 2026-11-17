@@ -42,10 +42,16 @@ class LegalEntityApplicantEmailSenderTest {
   private final UserService userService = mock(UserService.class);
   private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
   private final CompanyRoles companyRoles = mock(CompanyRoles.class);
+  private final OpenedAccountRepository openedAccounts = mock(OpenedAccountRepository.class);
 
   private final LegalEntityApplicantEmailSender sender =
       new LegalEntityApplicantEmailSender(
-          emailService, emailPersistenceService, userService, latestKybSurveyInputs, companyRoles);
+          emailService,
+          emailPersistenceService,
+          userService,
+          latestKybSurveyInputs,
+          companyRoles,
+          openedAccounts);
 
   private final CompanyDto company =
       new CompanyDto(new RegistryCode("12345678"), "Mesila OÜ", List.of("62011"), LegalForm.OÜ);
@@ -158,6 +164,21 @@ class LegalEntityApplicantEmailSenderTest {
             "savings_fund_company_onboarded_et",
             expectedMergeVars,
             List.of("savings_fund"));
+  }
+
+  @Test
+  void sendsTheCompanyOnboardedEmailInEnglishToAnApplicantWhoPrefersEnglish() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(openedAccounts.prefersEnglish("38888888888")).willReturn(true);
+    var message = new MandrillMessage();
+    given(
+            emailService.newMandrillMessage(
+                eq("mari@example.com"), eq("savings_fund_company_onboarded_en"), any(), any()))
+        .willReturn(message);
+
+    sender.onLegalEntityOnboarded(event());
+
+    verify(emailService).send(applicant, message, "savings_fund_company_onboarded_en");
   }
 
   @Test

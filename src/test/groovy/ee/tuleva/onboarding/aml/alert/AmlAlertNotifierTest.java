@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
-import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_15K_NEW_CLIENT;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
@@ -45,7 +44,7 @@ class AmlAlertNotifierTest {
     notifier.onAmlThresholdAlert(
         new AmlThresholdAlertEvent(
             this,
-            III_PILLAR_DEPOSIT_PERSON,
+            TKF_VOLUME_15K_NEW_CLIENT,
             "38001010000",
             new BigDecimal("6001.00"),
             "7",
@@ -53,7 +52,7 @@ class AmlAlertNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "AML alert: III_PILLAR_DEPOSIT_PERSON, userId=%s, amount=6001.00, ref=7"
+            "AML alert: TKF_VOLUME_15K_NEW_CLIENT, userId=%s, amount=6001.00, ref=7"
                 .formatted(user.getId()),
             AML);
   }
@@ -66,7 +65,7 @@ class AmlAlertNotifierTest {
     notifier.onAmlThresholdAlert(
         new AmlThresholdAlertEvent(
             this,
-            III_PILLAR_DEPOSIT_PERSON,
+            TKF_VOLUME_15K_NEW_CLIENT,
             "38001010000",
             new BigDecimal("6001.00"),
             "7",
@@ -74,7 +73,7 @@ class AmlAlertNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "AML alert: III_PILLAR_DEPOSIT_PERSON, userId=null, amount=6001.00, ref=7", AML);
+            "AML alert: TKF_VOLUME_15K_NEW_CLIENT, userId=null, amount=6001.00, ref=7", AML);
   }
 
   @Test
@@ -108,7 +107,7 @@ class AmlAlertNotifierTest {
                 notifier.onAmlThresholdAlert(
                     new AmlThresholdAlertEvent(
                         this,
-                        III_PILLAR_DEPOSIT_PERSON,
+                        TKF_VOLUME_15K_NEW_CLIENT,
                         "38001010000",
                         new BigDecimal("6001.00"),
                         "7",

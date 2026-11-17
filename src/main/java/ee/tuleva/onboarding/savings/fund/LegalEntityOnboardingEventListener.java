@@ -13,6 +13,7 @@ import static java.util.stream.Collectors.joining;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybScreeningTrigger;
+import ee.tuleva.onboarding.kyb.RelatedPersonsKycMetadata;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +54,7 @@ class LegalEntityOnboardingEventListener {
             .saveOnboardingStatus(registryCode, LEGAL_ENTITY, newStatus)
             .orElse(null);
 
-    announce(event, newStatus, previousStatus);
+    announce(event, newStatus, previousStatus, failedGateChecks);
   }
 
   private boolean keepsCompleted(List<KybCheck> failedGateChecks, KybCheckPerformedEvent event) {
@@ -88,7 +89,8 @@ class LegalEntityOnboardingEventListener {
   private void announce(
       KybCheckPerformedEvent event,
       SavingsFundOnboardingStatus newStatus,
-      @Nullable SavingsFundOnboardingStatus previousStatus) {
+      @Nullable SavingsFundOnboardingStatus previousStatus,
+      List<KybCheck> failedGateChecks) {
     if (newStatus == COMPLETED) {
       log.info(
           "Legal entity onboarding completed: registryCode={}, personalCode={}, oldStatus={}",
@@ -114,6 +116,11 @@ class LegalEntityOnboardingEventListener {
           event.getCompany().registryCode().value(),
           event.getPersonalCode().value(),
           previousStatus);
+      if (previousStatus != PENDING && waitsOnlyForSomebodyElse(failedGateChecks, event)) {
+        eventPublisher.publishEvent(
+            new LegalEntityWaitingForRelatedPersonsEvent(
+                event.getCompany().registryCode(), event.getCompany().name()));
+      }
     } else if (previousStatus == COMPLETED) {
       log.error(
           "Legal entity onboarding rejected after being completed: registryCode={}, personalCode={}, failedChecks={}",
@@ -133,6 +140,16 @@ class LegalEntityOnboardingEventListener {
   private static boolean opensForTheApplicant(
       @Nullable SavingsFundOnboardingStatus previousStatus, KybScreeningTrigger trigger) {
     return previousStatus == PENDING || (trigger == SUBMISSION && previousStatus != COMPLETED);
+  }
+
+  private static boolean waitsOnlyForSomebodyElse(
+      List<KybCheck> failedGateChecks, KybCheckPerformedEvent event) {
+    var applicant = event.getPersonalCode().value();
+    return failedGateChecks.stream().allMatch(check -> check.type() == RELATED_PERSONS_KYC)
+        && failedGateChecks.stream()
+            .map(RelatedPersonsKycMetadata::incompletePersonalCodes)
+            .flatMap(List::stream)
+            .anyMatch(personalCode -> !personalCode.equals(applicant));
   }
 
   private SavingsFundOnboardingStatus statusFor(

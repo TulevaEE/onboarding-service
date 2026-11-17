@@ -47,6 +47,7 @@ public enum EmailType {
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
   SAVINGS_FUND_COMPANY_ONBOARDED("savings_fund_company_onboarded"),
+  SAVINGS_FUND_COMPANY_WAITING_RELATED("savings_fund_company_waiting_related"),
 
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
 

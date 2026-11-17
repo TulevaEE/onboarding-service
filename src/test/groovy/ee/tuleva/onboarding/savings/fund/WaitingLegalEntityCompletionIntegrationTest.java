@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.KYB_RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
@@ -235,6 +236,37 @@ class WaitingLegalEntityCompletionIntegrationTest {
                 "recipientAccountId",
                 companyRepository.findByRegistryCode(NEW).orElseThrow().getId().toString()),
             List.of("savings_fund"));
+  }
+
+  @Test
+  void emailsTheApplicantOnceWhenTheirNewCompanyStartsWaitingForTheOtherShareholder() {
+    var waitingForShareholder =
+        new KybCheck(
+            RELATED_PERSONS_KYC,
+            false,
+            Map.of(
+                "incompletePersons",
+                List.of(Map.of("personalCode", ANOTHER_BOARD_MEMBER, "kycStatus", "UNKNOWN"))));
+
+    screen(NEW, SUBMISSION, waitingForShareholder);
+    screen(NEW, RESCREENING, waitingForShareholder);
+
+    assertThat(savingsFundOnboardingRepository.findStatus(NEW, LEGAL_ENTITY)).contains(PENDING);
+    verify(emailService)
+        .newMandrillMessage(
+            APPLICANT_EMAIL,
+            "savings_fund_company_waiting_related_et",
+            Map.of(
+                "fname",
+                applicant.getFirstName(),
+                "lname",
+                applicant.getLastName(),
+                "recipientName",
+                NEW_NAME,
+                "recipientAccountId",
+                companyRepository.findByRegistryCode(NEW).orElseThrow().getId().toString()),
+            List.of("savings_fund"));
+    verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any());
   }
 
   private void screen(String registryCode, KybScreeningTrigger trigger, KybCheck check) {

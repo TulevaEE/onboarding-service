@@ -80,7 +80,7 @@ class ChildAccountOpenedEmailSenderTest {
     var message = new MandrillMessage();
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.empty());
+    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.empty());
 
     sender.send(unpaidChild);
 
@@ -112,7 +112,7 @@ class ChildAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
     given(emailPersistenceService.save(any(), any(), any(), any()))
         .willThrow(new RuntimeException("database is down"));
 
@@ -170,12 +170,31 @@ class ChildAccountOpenedEmailSenderTest {
     var response = mandrillResponse("message-id", "sent");
     given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
         .willReturn(message);
-    given(emailService.send(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
 
     sender.send(unpaidChild);
 
     verify(emailPersistenceService)
         .save(unpaidChild.holder(), "message-id", SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD, "sent");
+  }
+
+  @Test
+  void recordsAParentMandrillRefusedSoTheNextRunDoesNotRetryThem() {
+    startedBy(PARENT_CODE, PARENT_LINK);
+    var message = new MandrillMessage();
+    var response = mandrillResponse("message-id", "rejected");
+    given(emailService.newMandrillMessage(eq("mari@example.com"), eq(TEMPLATE), any(), any()))
+        .willReturn(message);
+    given(emailService.attemptSend(parent, message, TEMPLATE)).willReturn(Optional.of(response));
+
+    sender.send(unpaidChild);
+
+    verify(emailPersistenceService)
+        .save(
+            unpaidChild.holder(),
+            "message-id",
+            SAVINGS_FUND_ONBOARDING_COMPLETED_CHILD,
+            "rejected");
   }
 
   @Test

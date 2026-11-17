@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
@@ -100,6 +101,15 @@ class OpenedAccountRepositoryTest {
     holder(ADULT, "Mari", "Tamm", "mari@example.com");
     opened(ADULT, IN_THE_WINDOW);
     emailSentAbout(ADULT, SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON);
+
+    assertThat(repository.fetch(OPENED_FROM, OPENED_UNTIL)).isEmpty();
+  }
+
+  @Test
+  void leavesOutAnAdultWhoseWelcomeEmailMandrillRejected() {
+    holder(ADULT, "Mari", "Tamm", "mari@example.com");
+    opened(ADULT, IN_THE_WINDOW);
+    email(ADULT, SAVINGS_FUND_ONBOARDING_COMPLETED_PERSON, EmailStatus.REJECTED);
 
     assertThat(repository.fetch(OPENED_FROM, OPENED_UNTIL)).isEmpty();
   }
@@ -247,12 +257,16 @@ class OpenedAccountRepositoryTest {
   }
 
   private void emailSentAbout(String accountCode, EmailType type) {
+    email(accountCode, type, SENT);
+  }
+
+  private void email(String accountCode, EmailType type, EmailStatus status) {
     entityManager.persist(
         Email.builder()
             .personalCode(accountCode)
             .mandrillMessageId("message-" + accountCode)
             .type(type)
-            .status(SENT)
+            .status(status)
             .build());
   }
 

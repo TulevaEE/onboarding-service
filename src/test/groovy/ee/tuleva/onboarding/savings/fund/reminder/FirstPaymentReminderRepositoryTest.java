@@ -462,6 +462,26 @@ class FirstPaymentReminderRepositoryTest {
   }
 
   @Test
+  void leavesOutApplicantsWhoseCompanyReminderMandrillRejected() {
+    companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
+    reminderRejectedFor(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_COMPANY);
+
+    var reminders = repository.fetchForCompanies(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutSaversWhoseReminderMandrillRejected() {
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    reminderRejectedFor(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
   void remindsTheApplicantAboutTheCompanyEvenAfterAPersonalReminder() {
     companyAccountOpened(COMPANY, SAVER, NOW.minus(10, DAYS));
     reminderSentTo(SAVER, SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);

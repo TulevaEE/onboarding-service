@@ -159,6 +159,9 @@ public class EmailService {
             response.getStatus(),
             response.getRejectReason(),
             response.getId());
+        return MandrillRecipientStatuses.refusesTheRecipientForGood(response)
+            ? Optional.of(response)
+            : Optional.empty();
       }
       return Optional.of(response);
 

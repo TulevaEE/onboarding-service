@@ -25,7 +25,6 @@ public class PortfolioCostBasisJob {
 
   private final Clock clock;
   private final PortfolioCostBasisService service;
-  private final CostBasisOversellAlerter oversellAlerter;
 
   @Scheduled(cron = "0 0 10 * * *", zone = TIMEZONE)
   @SchedulerLock(name = "PortfolioCostBasisJob", lockAtMostFor = "30m", lockAtLeastFor = "1m")
@@ -45,14 +44,6 @@ public class PortfolioCostBasisJob {
     for (TulevaFund fund : funds) {
       try {
         service.runForFundAndDate(fund, date);
-      } catch (CostBasisOversellException e) {
-        log.error(
-            "Cost-basis oversell, fund not updated: fundCode={}, date={}, error={}",
-            fund.getCode(),
-            date,
-            e.getMessage(),
-            e);
-        oversellAlerter.alert(fund, e);
       } catch (RuntimeException e) {
         log.error(
             "Failed to update cost basis: fundCode={}, date={}, error={}",

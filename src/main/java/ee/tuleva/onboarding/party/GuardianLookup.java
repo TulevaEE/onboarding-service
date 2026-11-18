@@ -51,6 +51,10 @@ public class GuardianLookup {
       joinColumns = @JoinColumn(name = "child_personal_code"))
   private Set<LookedUpGuardian> guardians;
 
+  int guardianCount() {
+    return (int) guardians.stream().map(LookedUpGuardian::guardianPersonalCode).distinct().count();
+  }
+
   static GuardianLookup of(
       String childPersonalCode, PopulationRegisterResult<List<Guardian>> answer, Instant at) {
     return new GuardianLookup(

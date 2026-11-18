@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
@@ -240,6 +241,64 @@ class MinorGuardianLookupServiceTest {
         .map(Class::forName)
         .flatExtracting(type -> List.of(type.getDeclaredMethods()))
         .noneMatch(method -> method.isAnnotationPresent(Scheduled.class));
+  }
+
+  @Test
+  void looksUpOneChildAgainReplacingWhatTheRegisterSaidBefore() {
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willReturn(
+            new PopulationRegisterResult<>(List.of(guardian(MOTHER, PROPERTY_CUSTODY)), MESSAGE_ID))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(guardian(FATHER, PROPERTY_CUSTODY), guardian(FATHER, PERSONAL_CUSTODY)),
+                MESSAGE_ID));
+
+    service.lookUpChild(REQUESTER, MINOR);
+    var guardians = service.lookUpChild(REQUESTER, MINOR);
+
+    assertThat(guardians).isEqualTo(new ChildGuardianLookup(1));
+    assertThat(repository.findById(MINOR).orElseThrow().getGuardians())
+        .containsExactlyInAnyOrder(
+            new LookedUpGuardian(FATHER, PROPERTY_CUSTODY),
+            new LookedUpGuardian(FATHER, PERSONAL_CUSTODY));
+    verify(heldLock, times(2)).unlock();
+  }
+
+  @Test
+  void refusesToLookUpSomeoneWhoIsNotAMinor() {
+    assertThatThrownBy(() -> service.lookUpChild(REQUESTER, TURNED_ADULT))
+        .isInstanceOf(NotAMinor.class);
+    verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void refusesAChildLookupWhileABatchHoldsTheLock() {
+    given(lock.acquire()).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.lookUpChild(REQUESTER, MINOR))
+        .isInstanceOf(MinorGuardianLookupAlreadyRunning.class);
+    verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void looksUpAChildOnceOnlyWhenAskedAtAnEvent() {
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willReturn(
+            new PopulationRegisterResult<>(
+                List.of(guardian(MOTHER, PROPERTY_CUSTODY)), MESSAGE_ID));
+
+    var first = service.lookUpChildOnce(REQUESTER, MINOR);
+    var again = service.lookUpChildOnce(REQUESTER, MINOR);
+
+    assertThat(first).contains(new ChildGuardianLookup(1));
+    assertThat(again).isEmpty();
+    verify(populationRegisterClient).fetchGuardians(REQUESTER, MINOR);
+  }
+
+  @Test
+  void looksUpNoAdultAtAnEvent() {
+    assertThat(service.lookUpChildOnce(REQUESTER, TURNED_ADULT)).isEmpty();
+    verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
   }
 
   private void holders(String... personalCodes) {

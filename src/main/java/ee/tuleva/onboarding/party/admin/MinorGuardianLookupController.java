@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party.admin;
 import static ee.tuleva.onboarding.party.MinorGuardianLookupService.PAUSE_BETWEEN_QUERIES;
 
 import ee.tuleva.onboarding.admin.AmlServiceTokenValidator;
+import ee.tuleva.onboarding.party.ChildGuardianLookup;
 import ee.tuleva.onboarding.party.MinorGuardianLookupRun;
 import ee.tuleva.onboarding.party.MinorGuardianLookupService;
 import jakarta.validation.Valid;
@@ -32,5 +33,15 @@ public class MinorGuardianLookupController {
     log.info("AML service started a minor guardian lookup: batchSize={}", request.batchSize());
     return minorGuardianLookupService.lookUpMinorThirdPillarHolders(
         request.requesterPersonalCode(), request.batchSize(), PAUSE_BETWEEN_QUERIES);
+  }
+
+  @PostMapping("/minor-guardian-lookups/child")
+  public ChildGuardianLookup lookUpOneChildsGuardians(
+      @RequestHeader("Authorization") String authorization,
+      @Valid @RequestBody ChildGuardianLookupRequest request) {
+
+    amlServiceTokenValidator.validate(authorization);
+    return minorGuardianLookupService.lookUpChild(
+        request.requesterPersonalCode(), request.childPersonalCode());
   }
 }

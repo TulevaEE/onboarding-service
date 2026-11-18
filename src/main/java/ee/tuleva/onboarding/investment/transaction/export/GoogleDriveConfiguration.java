@@ -13,18 +13,20 @@ class GoogleDriveConfiguration {
 
   @Bean
   @ConditionalOnProperty(name = "google-drive.enabled", havingValue = "true")
-  GoogleDriveTokenProvider googleDriveTokenProvider(GoogleDriveProperties properties, Clock clock) {
+  GoogleDriveTokenProvider googleDriveTokenProvider(
+      RestClient.Builder builder, GoogleDriveProperties properties, Clock clock) {
     return new GoogleDriveTokenProvider(
         properties.serviceAccountJson(),
-        RestClient.builder().baseUrl("https://oauth2.googleapis.com/token").build(),
+        builder.baseUrl("https://oauth2.googleapis.com/token").build(),
         clock);
   }
 
   @Bean
   @ConditionalOnProperty(name = "google-drive.enabled", havingValue = "true")
-  GoogleDriveClient googleDriveClient(GoogleDriveTokenProvider tokenProvider) {
+  GoogleDriveClient googleDriveClient(
+      RestClient.Builder builder, GoogleDriveTokenProvider tokenProvider) {
     return new GoogleDriveClient(
-        RestClient.builder()
+        builder
             .baseUrl("https://www.googleapis.com/drive/v3")
             .requestInterceptor(
                 (request, body, execution) -> {

@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 @Slf4j
 record EscalationRule(int notificationWorkingDay, BigDecimal netTdThreshold, boolean fallback) {
 
-  private static final TrackingCheckType SISEKORD_4_P_11_8_CHECK = MODEL_PORTFOLIO;
+  static final TrackingCheckType SISEKORD_4_P_11_8_CHECK = MODEL_PORTFOLIO;
   static final int SISEKORD_4_P_11_8_NOTIFICATION_WORKING_DAY = 4;
   static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
 

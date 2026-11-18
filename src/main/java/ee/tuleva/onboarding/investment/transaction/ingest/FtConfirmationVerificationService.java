@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -98,7 +99,9 @@ public class FtConfirmationVerificationService {
             e);
         String error = e.getMessage() == null ? e.toString() : e.getMessage();
         results.add(FtConfirmationBatchResult.failed(index, confirmation.isin(), error));
-        outcomes.add(new FtConfirmationOutcome(confirmation, unchecked(error)));
+        if (hasEveryTradeField(confirmation)) {
+          outcomes.add(new FtConfirmationOutcome(confirmation, unchecked(error)));
+        }
       }
     }
     digest.publish(outcomes);
@@ -173,6 +176,16 @@ public class FtConfirmationVerificationService {
       FtVerificationStatus priceStatus,
       Map<String, String> details) {
     return new FtConfirmationResult(quantityStatus, priceStatus, Map.copyOf(details));
+  }
+
+  private static boolean hasEveryTradeField(FtConfirmation confirmation) {
+    return Stream.of(
+            confirmation.fund(),
+            confirmation.isin(),
+            confirmation.tradeDate(),
+            confirmation.quantity(),
+            confirmation.grossPrice())
+        .allMatch(Objects::nonNull);
   }
 
   private static FtConfirmationResult unchecked(String error) {

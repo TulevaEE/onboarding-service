@@ -820,6 +820,24 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void verifyAll_malformedRow_staysOutOfTheDigestSoTheOtherRowsAreStillSent() {
+    TransactionOrder order = order(new BigDecimal("40432"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(executionRepository.findAllByOrderId(order.getId()))
+        .willReturn(List.of(execution(new BigDecimal("40432"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    FtConfirmation withoutQuantity =
+        new FtConfirmation(TUK75, ISIN, TRADE_DATE, null, new BigDecimal("10.09"));
+    FtConfirmation valid = confirmation();
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE).verifyAll(List.of(withoutQuantity, valid), "ops");
+
+    assertThat(results.get(0).result()).isNull();
+    verify(digest).publish(List.of(new FtConfirmationOutcome(valid, results.get(1).result())));
+  }
+
+  @Test
   void verifyAll_replacementThatCannotBeChecked_isStillSentWhileItsCancellationIsReplaced() {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));

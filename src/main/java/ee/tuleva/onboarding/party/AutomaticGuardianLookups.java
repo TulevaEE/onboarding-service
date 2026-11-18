@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static java.util.function.Predicate.not;
 
-import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotSynchronized;
+import ee.tuleva.onboarding.analytics.UnitOwnerSnapshotSynchronized;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import java.time.Clock;

@@ -76,6 +76,50 @@ class R16FlowCalculationServiceTest {
   }
 
   @Test
+  void thisMonthsFlowsComeFromThePaymentMonthOfTheDateNotFromTheNewestR16() {
+    given(
+            summaryRepository.findTopByReportTypeAndReportDateAndFundOrderByIdDesc(
+                R16_FORECASTED_PAYMENTS, LocalDate.of(2026, 6, 1), TUK75))
+        .willReturn(
+            Optional.of(
+                EpisReportSummary.builder()
+                    .reportId(1L)
+                    .reportType(R16_FORECASTED_PAYMENTS)
+                    .reportDate(LocalDate.of(2026, 6, 1))
+                    .fund(TUK75)
+                    .fundIsin(TUK75.getIsin())
+                    .data(
+                        Map.of(
+                            "fondimaksedUnits",
+                            1000,
+                            "uhekordsedUnits",
+                            500,
+                            "paymentMonth",
+                            "2026-06"))
+                    .build()));
+    givenNav("0.80");
+
+    assertThat(service.calculateThisMonthsFlows(TUK75, AS_OF_DATE))
+        .get()
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new R16FundFlow(
+                TUK75,
+                new BigDecimal("1000"),
+                new BigDecimal("500"),
+                new BigDecimal("1200"),
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 15),
+                LocalDate.of(2026, 6, 8)));
+  }
+
+  @Test
+  void noFlowsThisMonthWhenThisMonthsR16HasNoRowForTheFund() {
+    assertThat(service.calculateThisMonthsFlows(TUK75, AS_OF_DATE)).isEmpty();
+  }
+
+  @Test
   void emptyWhenNoR16SummaryExists() {
     assertThat(service.calculateFlows(TUK75, AS_OF_DATE)).isEmpty();
   }

@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSI
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,6 +20,7 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -33,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -56,6 +59,7 @@ class TransactionAdminServiceTest {
   @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionPreparationService preparationService;
   @Mock private TransactionBatchFinalizer batchFinalizer;
+  @Mock private TradePrepInputGateNotifier inputGateNotifier;
 
   @InjectMocks private TransactionAdminService service;
 
@@ -122,6 +126,45 @@ class TransactionAdminServiceTest {
     assertThat(response.status()).isEqualTo(CALCULATED);
     assertThat(response.batchId()).isEqualTo(10L);
     assertThat(response.orders()).containsExactly(TransactionOrderResponse.from(order));
+  }
+
+  @Test
+  void createAndProcess_postsTheGateStopOnlyAfterTheCommandHasBeenProcessed() {
+    var stop = stopped(TUK75);
+    given(preparationService.processCommand(any())).willReturn(stop);
+
+    TransactionCommandResponse response =
+        service.createAndProcess(
+            new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
+            "admin");
+
+    InOrder inOrder = inOrder(preparationService, inputGateNotifier);
+    then(preparationService).should(inOrder).processCommand(any());
+    then(inputGateNotifier).should(inOrder).notifyStopped(List.of(stop));
+    assertThat(response.orders()).isEmpty();
+  }
+
+  @Test
+  void createAndProcessAll_postsOneMessageWithEveryFundTheGatesStoppedAndNoneThatMadeADraft() {
+    var tuk75 = stopped(TUK75);
+    var tuk00 = stopped(TUK00);
+    given(preparationService.processCommand(any()))
+        .willAnswer(
+            invocation ->
+                switch (invocation.<TransactionCommand>getArgument(0).getFund()) {
+                  case TUK75 -> tuk75;
+                  case TUK00 -> tuk00;
+                  default -> new ProcessCommandResult(batch(10L, DRAFT), List.of());
+                });
+
+    service.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin", Map.of());
+
+    then(inputGateNotifier).should().notifyStopped(List.of(tuk75, tuk00));
+  }
+
+  private static CommandOutcome.StoppedByInputGates stopped(TulevaFund fund) {
+    return new CommandOutcome.StoppedByInputGates(
+        fund, AS_OF_DATE, List.of(new InputGateFailure.NoR45Loaded(AS_OF_DATE)));
   }
 
   @Test
@@ -208,7 +251,7 @@ class TransactionAdminServiceTest {
             invocation -> {
               TransactionCommand command = invocation.getArgument(0);
               command.setStatus(FAILED);
-              return null;
+              return new CommandOutcome.Failed();
             })
         .given(preparationService)
         .processCommand(any());
@@ -235,7 +278,7 @@ class TransactionAdminServiceTest {
               TransactionCommand command = invocation.getArgument(0);
               command.setStatus(FAILED);
               command.setErrorMessage("No positions found");
-              return null;
+              return new CommandOutcome.Failed();
             })
         .given(preparationService)
         .processCommand(any());

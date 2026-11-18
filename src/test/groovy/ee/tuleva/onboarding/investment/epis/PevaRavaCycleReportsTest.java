@@ -6,30 +6,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-class PevaRavaCycleEntityTest {
+class PevaRavaCycleReportsTest {
 
   @Test
   void aCycleWithNeitherReportLinkedMissesBoth() {
-    assertThat(PevaRavaCycleEntity.builder().build().missingReports())
+    assertThat(new PevaRavaCycleReports(null, null).missingReports())
         .containsExactly(R17_PEVA, R21_RAVA);
   }
 
   @Test
   void aCycleWithOnlyR21LinkedMissesR17() {
-    assertThat(PevaRavaCycleEntity.builder().r21ReportId(2L).build().missingReports())
-        .containsExactly(R17_PEVA);
+    assertThat(new PevaRavaCycleReports(null, 2L).missingReports()).containsExactly(R17_PEVA);
   }
 
   @Test
   void aCycleWithOnlyR17LinkedMissesR21() {
-    assertThat(PevaRavaCycleEntity.builder().r17ReportId(1L).build().missingReports())
-        .containsExactly(R21_RAVA);
+    assertThat(new PevaRavaCycleReports(1L, null).missingReports()).containsExactly(R21_RAVA);
   }
 
   @Test
   void aCycleWithBothReportsLinkedMissesNothing() {
-    assertThat(
-            PevaRavaCycleEntity.builder().r17ReportId(1L).r21ReportId(2L).build().missingReports())
-        .isEmpty();
+    assertThat(new PevaRavaCycleReports(1L, 2L).missingReports()).isEmpty();
   }
 }

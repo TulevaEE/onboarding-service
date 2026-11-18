@@ -68,12 +68,15 @@ var SOURCES = {
             {
                 // Flow Traders names the confirmation PDF by allocation id,
                 // e.g. "MID9DSWsDs-00.pdf" (confirmed against live FT email, 2026-08).
+                // A cancellation can carry the same name as the confirmation it cancels,
+                // so the key also holds the e-mail's Gmail id and neither overwrites the other.
                 pattern: /^(MID\w+-\d+)\.pdf$/i,
                 s3Prefix: "ft-confirmations/",
                 s3Suffix: ".pdf",
                 binary: true,
                 contentType: "application/pdf",
-                keyFromCapture: true
+                keyFromCapture: true,
+                keyPerEmail: true
             }
         ]
     },
@@ -428,7 +431,7 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
     var attachments = message.getAttachments();
     var counts = { uploaded: 0, handled: 0 };
     var emailSource = emailSourceOf(message);
-    var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
+    var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments, emailSource);
 
     for (var k = 0; k < attachments.length; k++) {
         var attachment = attachments[k];
@@ -436,7 +439,7 @@ function uploadMatchingAttachments(message, source, newestUploaded) {
 
         var result = getFileConfigAndDate(source, filename);
         if (result) {
-            var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+            var s3Key = s3KeyFor(result, emailSource);
             var datedReport = !result.fileConfig.keyFromCapture;
             if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                 Logger.log("S3 upload skipped, the e-mail also has the report without the _US ending: file=" + filename + ", key=" + s3Key + ", messageId=" + emailSource.id);
@@ -473,11 +476,11 @@ function isSebUsCopyBesideItsPlainReport(fileConfig, filename, s3Key, keysWithAP
     return Boolean(fileConfig.driveKeyword) && isUsCopyName(nameWithoutTheSendersVersionSuffix(filename)) && keysWithAPlainAttachment.indexOf(s3Key) !== -1;
 }
 
-function keysOfAttachmentsWithoutUsEnding(source, attachments) {
+function keysOfAttachmentsWithoutUsEnding(source, attachments, emailSource) {
     var keys = [];
     attachments.forEach(function (attachment) {
         var result = getFileConfigAndDate(source, attachment.getName());
-        if (result && !isUsCopyName(nameWithoutTheSendersVersionSuffix(attachment.getName()))) keys.push(result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix);
+        if (result && !isUsCopyName(nameWithoutTheSendersVersionSuffix(attachment.getName()))) keys.push(s3KeyFor(result, emailSource));
     });
     return keys;
 }
@@ -1135,6 +1138,11 @@ function getFileConfigAndDate(source, filename) {
     return null;
 }
 
+function s3KeyFor(result, emailSource) {
+    var stem = result.fileConfig.keyPerEmail ? result.keyStem + "_" + emailSource.id : result.keyStem;
+    return result.fileConfig.s3Prefix + stem + result.fileConfig.s3Suffix;
+}
+
 function formatDateFromCapture(ymd) {
     return ymd.substring(0, 4) + "-" + ymd.substring(4, 6) + "-" + ymd.substring(6, 8);
 }
@@ -1332,12 +1340,12 @@ function dryRunThread(thread) {
         }
 
         var attachments = message.getAttachments();
-        var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments);
+        var keysWithAPlainAttachment = keysOfAttachmentsWithoutUsEnding(source, attachments, emailSourceOf(message));
         for (var k = 0; k < attachments.length; k++) {
             var filename = attachments[k].getName();
             var result = getFileConfigAndDate(source, filename);
             if (result) {
-                var s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
+                var s3Key = s3KeyFor(result, emailSourceOf(message));
                 if (isSebUsCopyBesideItsPlainReport(result.fileConfig, filename, s3Key, keysWithAPlainAttachment)) {
                     Logger.log("    -> Would SKIP: " + filename + ", the e-mail also has the report without the _US ending");
                     continue;
@@ -1373,6 +1381,7 @@ if (typeof module !== "undefined" && module.exports) {
         getSourceForSender,
         getSourceForMessage,
         getFileConfigAndDate,
+        s3KeyFor,
         isMessageWithinWindow,
         shouldProcessMessage,
         parseUploadCountFromLabelNames,

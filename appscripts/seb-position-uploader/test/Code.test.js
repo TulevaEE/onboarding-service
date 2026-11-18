@@ -3,6 +3,7 @@ const {
   getSourceForSender,
   getSourceForMessage,
   getFileConfigAndDate,
+  s3KeyFor,
   isMessageWithinWindow,
   shouldProcessMessage,
   parseUploadCountFromLabelNames,
@@ -170,6 +171,7 @@ describe("getFileConfigAndDate — FT filenames", () => {
 });
 
 describe("getFileConfigAndDate — S3 key regression (CSV feeds stay date-based)", () => {
+  const EMAIL = { date: "2026-11-02T08:45:00.000Z", id: "18f0a0000000000a" };
   test("SEB filename still produces its exact date-based key", () => {
     const result = getFileConfigAndDate(SOURCES.SEB, "TULEVA_pos_raport_20260409.csv");
     const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
@@ -180,10 +182,20 @@ describe("getFileConfigAndDate — S3 key regression (CSV feeds stay date-based)
     const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
     expect(s3Key).toBe("portfolio/2026-04-09.csv");
   });
-  test("FT filename produces the allocation-id-based key", () => {
+  test("FT filename produces a key of the allocation id and the e-mail's Gmail id", () => {
     const result = getFileConfigAndDate(SOURCES.FT, "MID9BlFbos-00.pdf");
-    const s3Key = result.fileConfig.s3Prefix + result.keyStem + result.fileConfig.s3Suffix;
-    expect(s3Key).toBe("ft-confirmations/MID9BlFbos-00.pdf");
+    expect(s3KeyFor(result, EMAIL)).toBe("ft-confirmations/MID9BlFbos-00_18f0a0000000000a.pdf");
+  });
+  test("SEB and Swedbank keys do not carry the e-mail's Gmail id", () => {
+    expect(s3KeyFor(getFileConfigAndDate(SOURCES.SEB, "TULEVA_pos_raport_20260409.csv"), EMAIL)).toBe(
+      "seb/2026-04-09_positions.csv"
+    );
+    expect(s3KeyFor(getFileConfigAndDate(SOURCES.SWEDBANK, "TULEVA_PORTFOLIO_20260409.csv"), EMAIL)).toBe(
+      "portfolio/2026-04-09.csv"
+    );
+    expect(s3KeyFor(getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf"), EMAIL)).toBe(
+      "seb-confirmations/DLA1234567-001.pdf"
+    );
   });
   test("SEB trade confirmation filename produces the trade-reference-based key", () => {
     const result = getFileConfigAndDate(SOURCES.SEB_CONFIRMATION, "DLA1234567-001.pdf");

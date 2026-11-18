@@ -48,10 +48,7 @@ public class CostBasisCalculator {
                 ? BigDecimal.ZERO
                 : totalCost.divide(qty, AVG_UNIT_COST_SCALE, RoundingMode.HALF_UP);
         if (execQty.compareTo(qty) > 0) {
-          throw new IllegalStateException(
-              String.format(
-                  "Cost-basis oversell: fund=%s, isin=%s, asOfDate=%s, heldQty=%s, sellQty=%s",
-                  fundIsin, instrumentIsin, asOfDate, qty, execQty));
+          throw new CostBasisOversellException(fundIsin, instrumentIsin, asOfDate, qty, execQty);
         }
         totalCost = totalCost.subtract(avgBefore.multiply(execQty));
         qty = qty.subtract(execQty);

@@ -108,10 +108,11 @@ class CostBasisCalculatorSpec extends Specification {
         result.deltaQuantity.compareTo(new BigDecimal("-1000")) == 0
     }
 
-    def "SELL: over-sell fails the control instead of clamping"() {
+    def "SELL: over-sell fails the control instead of clamping and names the units held and sold"() {
         given:
         def prior = Optional.of(new PriorPosition(new BigDecimal("100"), new BigDecimal("10.00")))
         def execs = [
+                new ExecutionEvent(TransactionType.BUY, new BigDecimal("20"), new BigDecimal("11.00"), BigDecimal.ZERO),
                 new ExecutionEvent(TransactionType.SELL, new BigDecimal("500"), new BigDecimal("12.00"), BigDecimal.ZERO)
         ]
 
@@ -119,7 +120,12 @@ class CostBasisCalculatorSpec extends Specification {
         calculator.calculate(prior, execs, FUND_ISIN, INSTRUMENT_ISIN, DATE)
 
         then:
-        thrown(IllegalStateException)
+        def oversell = thrown(CostBasisOversellException)
+        oversell.fundIsin == FUND_ISIN
+        oversell.instrumentIsin == INSTRUMENT_ISIN
+        oversell.asOfDate == DATE
+        oversell.heldQuantity == 120
+        oversell.sellQuantity == 500
     }
 
     def "new ISIN: no prior, first BUY sets initial state"() {

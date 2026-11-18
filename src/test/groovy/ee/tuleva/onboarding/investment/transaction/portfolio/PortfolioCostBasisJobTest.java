@@ -6,9 +6,11 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -28,6 +30,7 @@ class PortfolioCostBasisJobTest {
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
   @Mock private PortfolioCostBasisService service;
+  @Mock private CostBasisOversellAlerter oversellAlerter;
 
   @InjectMocks private PortfolioCostBasisJob job;
 
@@ -50,6 +53,30 @@ class PortfolioCostBasisJobTest {
     verify(service).runForFundAndDate(TUK00, TODAY);
     verify(service).runForFundAndDate(TUV100, TODAY);
     verify(service).runForFundAndDate(TKF100, TODAY);
+  }
+
+  @Test
+  void run_alertsAnOversellAndCarriesOnWithTheOtherFunds() {
+    CostBasisOversellException oversell =
+        new CostBasisOversellException(
+            TUK75.getIsin(), "IE00BFNM3G45", TODAY, new BigDecimal("100"), new BigDecimal("150"));
+    willThrow(oversell).given(service).runForFundAndDate(TUK75, TODAY);
+
+    job.run();
+
+    verify(oversellAlerter).alert(TUK75, oversell);
+    verify(service).runForFundAndDate(TUK00, TODAY);
+    verify(service).runForFundAndDate(TUV100, TODAY);
+    verify(service).runForFundAndDate(TKF100, TODAY);
+  }
+
+  @Test
+  void run_doesNotAlertAnOversellForAFailureOfAnotherKind() {
+    willThrow(new RuntimeException("boom")).given(service).runForFundAndDate(TUK75, TODAY);
+
+    job.run();
+
+    verifyNoInteractions(oversellAlerter);
   }
 
   @Test

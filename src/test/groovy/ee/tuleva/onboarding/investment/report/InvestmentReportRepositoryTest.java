@@ -41,6 +41,21 @@ class InvestmentReportRepositoryTest {
   }
 
   @Test
+  void
+      findLatestReportDateBefore_returnsOnlyTheDateOfTheNewestEarlierReportOfThatProviderAndType() {
+    save(SEB, POSITIONS, LocalDate.of(2026, 1, 12));
+    save(SEB, POSITIONS, LocalDate.of(2026, 1, 14));
+    save(SEB, POSITIONS, LocalDate.of(2026, 1, 15));
+    save(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 1, 14));
+    save(SWEDBANK, POSITIONS, LocalDate.of(2026, 1, 14));
+
+    assertThat(repository.findLatestReportDateBefore(SEB, POSITIONS, LocalDate.of(2026, 1, 15)))
+        .contains(LocalDate.of(2026, 1, 14));
+    assertThat(repository.findLatestReportDateBefore(SEB, POSITIONS, LocalDate.of(2026, 1, 12)))
+        .isEmpty();
+  }
+
+  @Test
   void existsByProviderAndReportTypeAndReportDate_returnsTrueWhenExists() {
     repository.save(
         InvestmentReport.builder()
@@ -140,5 +155,15 @@ class InvestmentReportRepositoryTest {
     List<InvestmentReport> result = repository.findAll();
 
     assertThat(result).extracting(InvestmentReport::getProvider).containsExactly(SWEDBANK, SEB);
+  }
+
+  private void save(ReportProvider provider, ReportType reportType, LocalDate reportDate) {
+    repository.save(
+        InvestmentReport.builder()
+            .provider(provider)
+            .reportType(reportType)
+            .reportDate(reportDate)
+            .createdAt(Instant.now())
+            .build());
   }
 }

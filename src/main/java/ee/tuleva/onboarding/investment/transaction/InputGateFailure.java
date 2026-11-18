@@ -8,30 +8,43 @@ import ee.tuleva.onboarding.investment.report.ReportType;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 sealed interface InputGateFailure {
 
   String slackLine();
 
-  record StalePositionReport(@Nullable LocalDate latestReportDate, LocalDate requiredReportDate)
+  record StalePositionReport(LocalDate latestReportDate, LocalDate requiredReportDate)
       implements InputGateFailure {
 
     @Override
     public String slackLine() {
-      String found = latestReportDate == null ? "puudub" : "on " + latestReportDate;
-      return "SEB positsiooniraport %s, vaja %s: küsi %s raport SEB-lt"
-          .formatted(found, requiredReportDate, requiredReportDate);
+      return "SEB positsiooniraport on %s, vaja %s: küsi %s raport SEB-lt"
+          .formatted(latestReportDate, requiredReportDate, requiredReportDate);
     }
   }
 
-  record MissingR45(LocalDate reportDate, @Nullable LocalDate latestReportDate)
-      implements InputGateFailure {
+  record MissingPositionReport(LocalDate requiredReportDate) implements InputGateFailure {
 
     @Override
     public String slackLine() {
-      String latest = latestReportDate == null ? "" : " (viimane %s)".formatted(latestReportDate);
-      return "R45 %s puudub%s: lae R45 EPIS-ist".formatted(reportDate, latest);
+      return "SEB positsiooniraport puudub, vaja %s: küsi %s raport SEB-lt"
+          .formatted(requiredReportDate, requiredReportDate);
+    }
+  }
+
+  record MissingR45(LocalDate reportDate, LocalDate latestReportDate) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "R45 %s puudub (viimane %s): lae R45 EPIS-ist".formatted(reportDate, latestReportDate);
+    }
+  }
+
+  record NoR45Loaded(LocalDate reportDate) implements InputGateFailure {
+
+    @Override
+    public String slackLine() {
+      return "R45 %s puudub: lae R45 EPIS-ist".formatted(reportDate);
     }
   }
 

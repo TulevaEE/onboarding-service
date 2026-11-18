@@ -1512,7 +1512,7 @@ class TrackingDifferenceNotifierTest {
                 message ->
                     assertThat(message)
                         .startsWith(
-                            "⚠️ TD NOTICE — HOLDINGS VS BENCHMARKS\n\n"
+                            "⚠️ TD NOTICE — NO SISEKORD LIMIT\n\n"
                                 + "⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
                         .doesNotContain("🛑")),
             eq(INVESTMENT));
@@ -1540,6 +1540,47 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aHoldingsVsIndexBreachBesideAModelPortfolioWithinLimitsStillOpensAsANotice() {
+    var modelPortfolioWithinLimits = result(false, 0, ZERO);
+    var benchmarkModel =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(modelPortfolioWithinLimits, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("⚠️ TD NOTICE — NO SISEKORD LIMIT\n")
+                        .doesNotContain("🛑")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aHoldingsVsIndexBreachBesideALateModelPortfolioEscalationOpensAsABreachRatherThanANotice() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var lateModelPortfolioNotice = cleanDayEnding(threeDayStreak("0.0060", false));
+    var benchmarkModel =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(lateModelPortfolioNotice, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith(
+                            "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n🛑 TD BREACH DETECTED\n")
+                        .contains("\n⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03")
+                        .doesNotContain("TD NOTICE")),
+            eq(INVESTMENT));
+  }
+
+  @Test
   void aHoldingsVsIndexBreachOnTheFourthDayOfAStreakIsANoticeButNotAnEscalation() {
     givenTheNotificationFallsDueOnWorkingDay(4);
     var fourthBreachDay =
@@ -1553,7 +1594,7 @@ class TrackingDifferenceNotifierTest {
             assertArg(
                 message ->
                     assertThat(message)
-                        .startsWith("⚠️ TD NOTICE — HOLDINGS VS BENCHMARKS\n")
+                        .startsWith("⚠️ TD NOTICE — NO SISEKORD LIMIT\n")
                         .contains("⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
                         .doesNotContain("TD ESCALATION")
                         .doesNotContain("consecutive days")),

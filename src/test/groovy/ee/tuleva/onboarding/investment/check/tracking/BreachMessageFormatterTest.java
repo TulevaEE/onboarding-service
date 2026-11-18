@@ -177,6 +177,16 @@ class BreachMessageFormatterTest {
   }
 
   @Test
+  void aFundVsIndexBreachOpensAsANoticeSinceTheSisekordSetsItNoLimitEither() {
+    var benchmark = tuk75On20260901().toBuilder().checkType(BENCHMARK).build();
+
+    var message =
+        new BreachMessageFormatter(benchmark, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message).startsWith("\n⚠️ [TUK75] BENCHMARK 2026-09-01: TD=");
+  }
+
+  @Test
   void aModelPortfolioBreachOpensAsABreachSinceTheSisekordSetsItALimit() {
     var message =
         new BreachMessageFormatter(tuk75On20260901(), false, RedemptionCycleHint.ordinaryDay())

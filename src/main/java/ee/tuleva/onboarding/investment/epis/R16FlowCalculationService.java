@@ -36,20 +36,24 @@ public class R16FlowCalculationService {
 
     BigDecimal nav = ownFundNavProvider.latestNav(fund, asOfDate);
     BigDecimal totalOutflowEur = fondimaksedUnits.add(uhekordsedUnits).multiply(nav);
-
-    LocalDate paymentDeadline =
-        estonianCalendar.nextOrSameBusinessDay(paymentMonth.atDay(PAYMENT_DEADLINE_DAY_OF_MONTH));
-    LocalDate sellByDate =
-        estonianCalendar.subtractBusinessDays(
-            paymentDeadline, SELL_BY_BUSINESS_DAYS_BEFORE_DEADLINE);
+    R16PaymentDates dates = paymentDates(paymentMonth);
 
     return new R16FundFlow(
         fund,
         fondimaksedUnits,
         uhekordsedUnits,
         totalOutflowEur,
-        paymentMonth.atDay(1),
-        paymentDeadline,
-        sellByDate);
+        dates.paymentMonth(),
+        dates.paymentDeadline(),
+        dates.sellByDate());
+  }
+
+  public R16PaymentDates paymentDates(YearMonth paymentMonth) {
+    LocalDate paymentDeadline =
+        estonianCalendar.nextOrSameBusinessDay(paymentMonth.atDay(PAYMENT_DEADLINE_DAY_OF_MONTH));
+    LocalDate sellByDate =
+        estonianCalendar.subtractBusinessDays(
+            paymentDeadline, SELL_BY_BUSINESS_DAYS_BEFORE_DEADLINE);
+    return new R16PaymentDates(paymentMonth.atDay(1), paymentDeadline, sellByDate);
   }
 }

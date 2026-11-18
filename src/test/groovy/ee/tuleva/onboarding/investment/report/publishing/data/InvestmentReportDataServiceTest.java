@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.investment.report.publishing.data;
 
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -511,7 +514,7 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
-  void findNavDatesForAllFundsReturnsAvailableDates() {
+  void findNavDatesReturnsTheDatesOfTheFundsAskedForThatHaveOne() {
     given(
             navReportRepository.findLatestPublishedNavDate(
                 "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
@@ -529,7 +532,7 @@ class InvestmentReportDataServiceTest {
                 "TKF100", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
         .willReturn(null);
 
-    var result = service.findNavDatesForAllFunds(MARCH_2026);
+    var result = service.findNavDates(List.of(TUK75, TUK00, TUV100, TKF100), MARCH_2026);
 
     assertThat(result).hasSize(3);
     assertThat(result).containsKeys("TUK75", "TUK00", "TUV100");

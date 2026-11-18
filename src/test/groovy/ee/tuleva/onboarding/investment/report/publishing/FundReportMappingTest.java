@@ -17,13 +17,13 @@ class FundReportMappingTest {
   }
 
   @Test
-  void allReturnsFourMappings() {
-    assertThat(FundReportMapping.all()).hasSize(4);
+  void everyFundHasAReportMapping() {
+    assertThat(FundReportMapping.values()).hasSize(4);
   }
 
   @Test
   void pageSlugsPointAtThePagesThatCarryTheAcfReportField() {
-    assertThat(FundReportMapping.all())
+    assertThat(FundReportMapping.values())
         .extracting(FundReportMapping::pageSlug)
         .containsExactly(
             "tuleva-maailma-aktsiate-pensionifond",
@@ -59,6 +59,20 @@ class FundReportMappingTest {
   void buildPdfFilenameFormatsSingleDigitMonth() {
     var filename = FundReportMapping.TUK00.buildPdfFilename(YearMonth.of(2026, 1));
     assertThat(filename).contains("2026-01.pdf");
+  }
+
+  @Test
+  void reportPeriodLinkedByReadsTheMonthFromTheUrlsDecodedFilename() {
+    assertThat(
+            FundReportMapping.TUK00.reportPeriodLinkedBy(
+                "https://tuleva.ee/wp-content/uploads/2026/10/"
+                    + "Tuleva-Maailma-V%C3%B5lakirjade-Pensionifondi-investeeringute-aruanne-2026-09-1.pdf"))
+        .contains(YearMonth.of(2026, 9));
+    assertThat(
+            FundReportMapping.TUK75.reportPeriodLinkedBy(
+                "https://tuleva.ee/wp-content/uploads/2026/10/"
+                    + "tuleva-maailma-volakirjade-pensionifondi-investeeringute-aruanne-2026-09.pdf"))
+        .isEmpty();
   }
 
   @Test

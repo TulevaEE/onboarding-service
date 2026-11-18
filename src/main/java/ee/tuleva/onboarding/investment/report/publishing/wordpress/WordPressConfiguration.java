@@ -4,8 +4,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 
+import java.net.ConnectException;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
+import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,6 +28,20 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties(WordPressProperties.class)
 class WordPressConfiguration {
 
+  static final List<Class<? extends Throwable>> NEVER_REACHED_WORDPRESS =
+      List.of(ConnectException.class, HttpConnectTimeoutException.class);
+  private static final Duration FIRST_RETRY_DELAY = ofMillis(500);
+
+  private final Duration firstRetryDelay;
+
+  WordPressConfiguration() {
+    this(FIRST_RETRY_DELAY);
+  }
+
+  WordPressConfiguration(Duration firstRetryDelay) {
+    this.firstRetryDelay = firstRetryDelay;
+  }
+
   @Bean
   @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
   WordPressMediaClient wordPressMediaClient(WordPressProperties properties) {
@@ -35,13 +53,16 @@ class WordPressConfiguration {
           missingProperties);
     }
     return new WordPressMediaClient(
-        authenticatedRestClient(properties), wordPressRetryTemplate(), missingProperties);
+        authenticatedRestClient(properties),
+        retryingTransientFailures(),
+        retryingRequestsThatNeverReachedWordPress(),
+        missingProperties);
   }
 
   @Bean
   WordPressPageReader wordPressPageReader(WordPressProperties properties) {
     return new WordPressPageReader(
-        wordPressRestClientBuilder(properties).build(), wordPressRetryTemplate());
+        wordPressRestClientBuilder(properties).build(), retryingTransientFailures());
   }
 
   private static RestClient authenticatedRestClient(WordPressProperties properties) {
@@ -74,16 +95,19 @@ class WordPressConfiguration {
     return Base64.getEncoder().encodeToString(credentials.getBytes(UTF_8));
   }
 
-  private RetryTemplate wordPressRetryTemplate() {
-    var policy =
+  RetryTemplate retryingTransientFailures() {
+    return retrying(
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)
-            .excludes(HttpClientErrorException.class)
-            .maxRetries(2)
-            .delay(ofMillis(500))
-            .multiplier(2)
-            .maxDelay(ofSeconds(2))
-            .build();
-    return new RetryTemplate(policy);
+            .excludes(HttpClientErrorException.class));
+  }
+
+  RetryTemplate retryingRequestsThatNeverReachedWordPress() {
+    return retrying(RetryPolicy.builder().includes(NEVER_REACHED_WORDPRESS));
+  }
+
+  private RetryTemplate retrying(RetryPolicy.Builder failures) {
+    return new RetryTemplate(
+        failures.maxRetries(2).delay(firstRetryDelay).multiplier(2).maxDelay(ofSeconds(2)).build());
   }
 }

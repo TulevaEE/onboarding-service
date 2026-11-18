@@ -72,6 +72,6 @@ class WordPressSlugSpec extends Specification {
     mapping.reportPeriodNamedBy(WordPressSlug.of(mapping.buildPdfFilename(september))) == Optional.of(september)
 
     where:
-    mapping << FundReportMapping.all()
+    mapping << FundReportMapping.values()
   }
 }

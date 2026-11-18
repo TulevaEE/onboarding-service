@@ -1499,7 +1499,48 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
-  void aHoldingsVsIndexBreachOnTheFourthDayOfAStreakIsABreachButNotAnEscalation() {
+  void aHoldingsVsIndexBreachAloneOpensAsANoticeSinceTheSisekordSetsItNoLimit() {
+    var benchmarkModel =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith(
+                            "⚠️ TD NOTICE — HOLDINGS VS BENCHMARKS\n\n"
+                                + "⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
+                        .doesNotContain("🛑")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void
+      aHoldingsVsIndexBreachBesideAModelPortfolioBreachOpensAsABreachWithEachLineMarkedByItsLimit() {
+    var modelPortfolio = result(true, 1, new BigDecimal("0.0015"));
+    var benchmarkModel = modelPortfolio.toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(modelPortfolio, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith(
+                            "🛑 TD BREACH DETECTED\n\n🛑 [TUK75] MODEL_PORTFOLIO 2026-04-03")
+                        .contains("\n⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03")
+                        .doesNotContain("TD NOTICE")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void aHoldingsVsIndexBreachOnTheFourthDayOfAStreakIsANoticeButNotAnEscalation() {
     givenTheNotificationFallsDueOnWorkingDay(4);
     var fourthBreachDay =
         result(true, 4, new BigDecimal("0.0060")).toBuilder().checkType(BENCHMARK_MODEL).build();
@@ -1512,8 +1553,8 @@ class TrackingDifferenceNotifierTest {
             assertArg(
                 message ->
                     assertThat(message)
-                        .startsWith("🛑 TD BREACH DETECTED\n")
-                        .contains("[TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
+                        .startsWith("⚠️ TD NOTICE — HOLDINGS VS BENCHMARKS\n")
+                        .contains("⚠️ [TUK75] BENCHMARK_MODEL 2026-04-03: TD=+0.15%")
                         .doesNotContain("TD ESCALATION")
                         .doesNotContain("consecutive days")),
             eq(INVESTMENT));
@@ -1799,8 +1840,26 @@ class TrackingDifferenceNotifierTest {
             """
             🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
             earlier days, not today's check
-              🛑 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 2 consecutive days
+              ⚠️ 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 2 consecutive days
               🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void
+      theGapFillSummaryMarksARewrittenHoldingsVsIndexBreachAsANoticeSinceTheSisekordSetsItNoLimit() {
+    var benchmarkModel =
+        result(true, 1, new BigDecimal("0.0015")).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notifyGapFillSummary(gapFill(benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              ⚠️ 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 1 consecutive days""",
             INVESTMENT);
   }
 

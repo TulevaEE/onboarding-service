@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
@@ -318,9 +319,12 @@ class TrackingDifferenceNotifier {
   private String formatAlerts(List<Verdict> verdicts) {
     var message = new StringBuilder();
     verdicts.forEach(verdict -> message.append(formatAlert(verdict)));
-    if (verdicts.stream().anyMatch(Verdict::breached)) {
-      message.insert(0, "🛑 TD BREACH DETECTED\n");
-    }
+    verdicts.stream()
+        .filter(Verdict::breached)
+        .map(Verdict::result)
+        .map(TrackingDifferenceResult::breachSeverity)
+        .max(naturalOrder())
+        .ifPresent(mostSevere -> message.insert(0, mostSevere.headline() + "\n"));
     if (verdicts.stream().anyMatch(Verdict::escalation)) {
       message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
     }

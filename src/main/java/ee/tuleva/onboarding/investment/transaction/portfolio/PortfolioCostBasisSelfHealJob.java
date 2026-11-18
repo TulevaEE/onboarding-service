@@ -28,6 +28,7 @@ public class PortfolioCostBasisSelfHealJob {
   private final Clock clock;
   private final PortfolioCostBasisService service;
   private final PortfolioBaselineRepository baselineRepository;
+  private final CostBasisOversellAlerter oversellAlerter;
 
   @Scheduled(cron = "0 30 2 * * *", zone = TIMEZONE)
   @SchedulerLock(
@@ -58,6 +59,15 @@ public class PortfolioCostBasisSelfHealJob {
       }
       try {
         service.rebuildRange(fund, from, to);
+      } catch (CostBasisOversellException e) {
+        log.error(
+            "Self-heal stopped at a cost-basis oversell: fundCode={}, from={}, to={}, error={}",
+            fund.getCode(),
+            from,
+            to,
+            e.getMessage(),
+            e);
+        oversellAlerter.alert(fund, e);
       } catch (RuntimeException e) {
         log.error(
             "Self-heal failed: fundCode={}, from={}, to={}, error={}",

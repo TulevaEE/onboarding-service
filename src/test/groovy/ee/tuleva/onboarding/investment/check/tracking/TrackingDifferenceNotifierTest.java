@@ -1431,6 +1431,27 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aHoldingsVsIndexCleanDayEndingAThreeDayStreakIsNotNotifiedLate() {
+    givenTheNotificationFallsDueOnWorkingDay(4);
+    var cleanDay =
+        cleanDayEnding(threeDayStreak("0.0060", false)).toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .build();
+
+    notifier.notify(List.of(cleanDay));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("✅ TUK75 TD check completed: within limits")
+                        .doesNotContain("TD ESCALATION")),
+            eq(INVESTMENT));
+  }
+
+  @Test
   void aBackfillThatRewroteNothingSaysTheStoredEventsKeptTheirOldDefinition() {
     notifier.notifyBackfillSummary(7, List.of());
 

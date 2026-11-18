@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
+import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
 import ee.tuleva.onboarding.savings.fund.notification.SanctionedPaymentFrozenEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
@@ -91,7 +92,7 @@ public class PaymentVerificationService {
         case RETURN_NOT_A_CLIENT -> Optional.of(notClient);
         case RETURN_NAME_MISMATCH -> Optional.of(nameMismatch);
         case RETURN_NOT_ONBOARDED -> Optional.of(notOnboarded);
-        case FREEZE, RETRY, VERIFY -> Optional.empty();
+        case FREEZE, FREEZE_INSTEAD_OF_RETURN, RETRY, VERIFY -> Optional.empty();
       };
     }
   }
@@ -121,6 +122,7 @@ public class PaymentVerificationService {
     switch (outcome) {
       case VERIFY -> verify(payment, partyId, remitterPartyId, facts);
       case FREEZE -> freeze(payment, partyId, facts);
+      case FREEZE_INSTEAD_OF_RETURN -> freezeInsteadOfReturn(payment, partyId, facts);
       case RETRY ->
           log.warn(
               "Sanction screening unavailable, payment stays received: paymentId={}",
@@ -141,6 +143,23 @@ public class PaymentVerificationService {
   private void freeze(SavingFundPayment payment, PartyId partyId, Payment facts) {
     log.info("Payment frozen on a sanctions hit: paymentId={}", payment.getId());
     savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit(facts));
+    holdFrozen(payment);
+  }
+
+  private void freezeInsteadOfReturn(
+      SavingFundPayment payment, PartyId namedAccount, Payment facts) {
+    log.info(
+        "Payment frozen instead of returned on a payer sanctions hit: paymentId={}, namedAccount={},"
+            + " returnReason={}",
+        payment.getId(),
+        namedAccount,
+        VerificationMessages.forType(namedAccount.type())
+            .reason(outcome(facts.withPayerScreening(Screening.NOT_CHECKED)))
+            .orElseThrow());
+    holdFrozen(payment);
+  }
+
+  private void holdFrozen(SavingFundPayment payment) {
     savingFundPaymentRepository.changeStatus(payment.getId(), FROZEN);
     recordUnattributed(payment);
     applicationEventPublisher.publishEvent(

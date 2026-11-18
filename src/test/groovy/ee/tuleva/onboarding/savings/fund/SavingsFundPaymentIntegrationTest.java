@@ -511,6 +511,42 @@ class SavingsFundPaymentIntegrationTest {
   }
 
   @Test
+  void sanctionedPayersPaymentThatWouldBeReturned_isFrozenWithoutAPartyInsteadOfReturned() {
+    givenEveryScreeningHitsASanction();
+    persistXmlMessage(
+        createPaymentFromJuriTammXml(
+            "test-sanctioned-payer", "2025092909000-10", "Payment for 48806046007"),
+        NOW);
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    var paymentId = paymentRepository.findByExternalId("2025092909000-10").orElseThrow().getId();
+    ownedPaymentIds.add(paymentId);
+
+    paymentVerificationJob.runJob();
+    savingsFundReservationJob.runJob();
+    issuingJob.runJob();
+
+    var payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(FROZEN);
+    assertThat(payment.getPartyId()).isNull();
+    assertThat(payment.getReturnReason()).isNull();
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(paymentAmount);
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+  }
+
+  private void givenEveryScreeningHitsASanction() {
+    var hit = JSON.createObjectNode().put("id", "sanction-match").put("match", true);
+    hit.set(
+        "properties",
+        JSON.createObjectNode().set("topics", JSON.createArrayNode().add("sanction")));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(new MatchResponse(JSON.createArrayNode().add(hit), JSON.createObjectNode()));
+  }
+
+  @Test
   void deferredReturnMatcher_createsBounceback_whenUnattributedPaymentExists() {
     var differentUser =
         userRepository.save(

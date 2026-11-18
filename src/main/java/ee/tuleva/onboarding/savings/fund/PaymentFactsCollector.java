@@ -20,7 +20,6 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.HOLDE
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter.NO_CODE;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.outcome;
 
-import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
@@ -33,8 +32,6 @@ import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Payment;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Remitter;
 import ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Screening;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -48,8 +45,7 @@ class PaymentFactsCollector {
   private final NameMatcher nameMatcher;
   private final PartyResolver partyResolver;
   private final ParentChildLinkService parentChildLinkService;
-  private final UserRepository userRepository;
-  private final SanctionAndPepScreener sanctionAndPepScreener;
+  private final PaymentPartyScreener paymentPartyScreener;
 
   Payment collect(
       SavingFundPayment payment,
@@ -59,43 +55,42 @@ class PaymentFactsCollector {
     var facts =
         Payment.identified(FOUND)
             .withRemitter(remitter(remitterPartyId, payment.getRemitterName(), partyId));
-    if (alreadyReturned(facts)) {
+    if (!alreadyDecided(facts)) {
+      facts = facts.withMinor(minor(partyIdFromDescription, partyId, payment));
+    }
+    Optional<Party> party =
+        alreadyDecided(facts) ? Optional.empty() : partyResolver.resolve(partyId);
+    facts = withPartyAndOnboarding(facts, party, partyId, payment);
+    var unitHolderName = party.map(Party::name).orElse(payment.getRemitterName());
+    var payerName = facts.remitter() == HOLDER ? unitHolderName : payment.getRemitterName();
+    facts = facts.withPayerScreening(payerScreening(remitterPartyId, payerName));
+    if (alreadyDecided(facts) || facts.remitter() == HOLDER) {
       return facts;
     }
-    facts = facts.withMinor(minor(partyIdFromDescription, partyId, payment));
-    if (alreadyReturned(facts)) {
+    return facts.withScreening(paymentPartyScreener.screen(partyId, unitHolderName));
+  }
+
+  private Payment withPartyAndOnboarding(
+      Payment facts, Optional<Party> party, PartyId partyId, SavingFundPayment payment) {
+    if (alreadyDecided(facts)) {
       return facts;
     }
-    Optional<Party> party = partyResolver.resolve(partyId);
-    facts =
+    var withParty =
         facts.withParty(client(party), party.map(p -> name(p, payment)).orElse(Name.NOT_CHECKED));
-    if (alreadyReturned(facts)) {
-      return facts;
+    if (alreadyDecided(withParty)) {
+      return withParty;
     }
-    facts =
-        facts.withOnboarding(
-            savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
-    if (alreadyReturned(facts)) {
-      return facts;
-    }
-    return facts.withScreening(screening(partyId));
+    return withParty.withOnboarding(
+        savingsFundOnboardingService.isOnboardingCompleted(partyId) ? COMPLETED : INCOMPLETE);
   }
 
-  private Screening screening(PartyId partyId) {
-    return switch (partyId.type()) {
-      case PERSON -> Screening.of(sanctionAndPepScreener.screeningOutcome(unitHolder(partyId)));
-      case LEGAL_ENTITY -> Screening.NOT_CHECKED;
-    };
+  private Screening payerScreening(Optional<PartyId> remitterPartyId, @Nullable String payerName) {
+    return remitterPartyId
+        .map(payer -> paymentPartyScreener.screen(payer, payerName))
+        .orElse(Screening.NOT_CHECKED);
   }
 
-  private User unitHolder(PartyId partyId) {
-    return userRepository
-        .findByPersonalCode(partyId.code())
-        .orElseThrow(
-            () -> new IllegalStateException("Payment party user not found: party=" + partyId));
-  }
-
-  private static boolean alreadyReturned(Payment facts) {
+  private static boolean alreadyDecided(Payment facts) {
     return outcome(facts) != VERIFY;
   }
 

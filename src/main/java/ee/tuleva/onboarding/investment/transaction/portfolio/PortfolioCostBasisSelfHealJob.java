@@ -17,6 +17,7 @@ import net.javacrumbs.shedlock.core.LockConfiguration;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,26 +31,34 @@ public class PortfolioCostBasisSelfHealJob {
 
   static final int SELF_HEAL_DAYS = 14;
   static final String LOCK_NAME = "PortfolioCostBasisSelfHealJob";
-  private static final Duration LOCK_AT_MOST_FOR = Duration.ofHours(1);
+  static final String LOCK_AT_MOST_FOR = "PT1H";
 
   private final Clock clock;
   private final PortfolioCostBasisService service;
   private final PortfolioBaselineRepository baselineRepository;
   private final CostBasisOversellAlerter oversellAlerter;
-  private final LockProvider lockProvider;
+  private final ObjectProvider<LockProvider> lockProviders;
 
   @Scheduled(cron = "0 30 2 * * *", zone = TIMEZONE)
-  @SchedulerLock(name = LOCK_NAME, lockAtMostFor = "1h", lockAtLeastFor = "1m")
+  @SchedulerLock(name = LOCK_NAME, lockAtMostFor = LOCK_AT_MOST_FOR, lockAtLeastFor = "PT1M")
   public void run() {
     rebuildTheSelfHealWindow();
   }
 
   @EventListener(RunPortfolioCostBasisSelfHealRequested.class)
   void onPortfolioCostBasisSelfHealRequested() {
+    LockProvider lockProvider = lockProviders.getIfAvailable();
+    if (lockProvider == null) {
+      throw new IllegalStateException(
+          "Portfolio cost-basis self-heal refused to run unlocked: no ShedLock LockProvider on"
+              + " this node (scheduling.enabled=false), lockName="
+              + LOCK_NAME);
+    }
     SimpleLock lock =
         lockProvider
             .lock(
-                new LockConfiguration(clock.instant(), LOCK_NAME, LOCK_AT_MOST_FOR, Duration.ZERO))
+                new LockConfiguration(
+                    clock.instant(), LOCK_NAME, Duration.parse(LOCK_AT_MOST_FOR), Duration.ZERO))
             .orElseThrow(
                 () ->
                     new JobBusyException(
@@ -74,34 +83,43 @@ public class PortfolioCostBasisSelfHealJob {
         to,
         funds.size());
     for (TulevaFund fund : funds) {
-      if (baselineRepository.findByFundIsin(fund.getIsin()).isEmpty()) {
-        continue;
-      }
-      LocalDate fundFrom =
-          oversellAlerter.earliestOpenOversell(fund).filter(from::isAfter).orElse(from);
-      try {
-        service.rebuildRange(fund, fundFrom, to);
-        oversellAlerter.clearResolved(fund, fundFrom, to);
-      } catch (CostBasisOversellException e) {
-        log.error(
-            "Self-heal stopped at a cost-basis oversell: fundCode={}, from={}, to={}, error={}",
-            fund.getCode(),
-            fundFrom,
-            to,
-            e.getMessage(),
-            e);
-        oversellAlerter.clearResolved(fund, fundFrom, e.getAsOfDate().minusDays(1));
-        oversellAlerter.recordFound(fund, e);
-      } catch (RuntimeException e) {
-        log.error(
-            "Self-heal failed: fundCode={}, from={}, to={}, error={}",
-            fund.getCode(),
-            fundFrom,
-            to,
-            e.getMessage(),
-            e);
-      }
+      baselineRepository
+          .findByFundIsin(fund.getIsin())
+          .ifPresent(baseline -> rebuild(fund, baseline, from, to));
     }
     oversellAlerter.postPending();
+  }
+
+  private void rebuild(TulevaFund fund, PortfolioBaseline baseline, LocalDate from, LocalDate to) {
+    boolean replaysFromTheBaseline = oversellAlerter.hasOpenOversell(fund);
+    LocalDate fundFrom =
+        replaysFromTheBaseline ? earlierOf(from, baseline.getBaselineDate().plusDays(1)) : from;
+    try {
+      service.rebuildRange(fund, fundFrom, to);
+      if (replaysFromTheBaseline) {
+        oversellAlerter.clearOpen(fund);
+      }
+    } catch (CostBasisOversellException e) {
+      log.error(
+          "Self-heal stopped at a cost-basis oversell: fundCode={}, from={}, to={}, error={}",
+          fund.getCode(),
+          fundFrom,
+          to,
+          e.getMessage(),
+          e);
+      oversellAlerter.recordFound(fund, e);
+    } catch (RuntimeException e) {
+      log.error(
+          "Self-heal failed: fundCode={}, from={}, to={}, error={}",
+          fund.getCode(),
+          fundFrom,
+          to,
+          e.getMessage(),
+          e);
+    }
+  }
+
+  private static LocalDate earlierOf(LocalDate first, LocalDate second) {
+    return first.isBefore(second) ? first : second;
   }
 }

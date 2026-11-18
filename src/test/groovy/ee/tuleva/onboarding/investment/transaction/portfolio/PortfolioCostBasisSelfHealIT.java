@@ -34,11 +34,12 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
+import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -61,6 +62,7 @@ class PortfolioCostBasisSelfHealIT {
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private ObjectProvider<LockProvider> lockProviders;
 
   private final List<Long> seededBatchIds = new ArrayList<>();
   private final List<Long> seededOrderIds = new ArrayList<>();
@@ -111,14 +113,13 @@ class PortfolioCostBasisSelfHealIT {
 
   @Test
   @Transactional(propagation = NOT_SUPPORTED)
-  void
-      aSaleLargerThanTheKnownPositionRollsTheFundBackIsPostedOnceAndClearsWhenCorrectedAfterItsWindow() {
-    LocalDate tradeDate = LocalDate.of(2026, 5, 1);
+  void anOversellRollsTheFundBackIsPostedOnceAndClearsWhenAnEarlierBuyIsAddedAfterItsWindow() {
+    LocalDate saleDate = LocalDate.of(2026, 5, 3);
+    LocalDate windowPastTheSale = saleDate.plusDays(20);
     try {
       seedBaseline();
-      TransactionExecution sale =
-          seedExecutionOnDate(SELL, tradeDate, "150000.0000", "12.00000000");
-      Clock clock = Clock.fixed(Instant.parse("2026-05-02T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
+      seedExecutionOnDate(SELL, saleDate, "150000.0000", "12.00000000");
+      Clock clock = Clock.fixed(Instant.parse("2026-05-04T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
       RecordingNotificationService notifications = new RecordingNotificationService();
       PortfolioCostBasisSelfHealJob job =
           new PortfolioCostBasisSelfHealJob(
@@ -126,62 +127,59 @@ class PortfolioCostBasisSelfHealIT {
               service,
               baselineRepository,
               new CostBasisOversellAlerter(auditEventRepository, notifications, clock),
-              lockConfiguration -> Optional.empty());
+              lockProviders);
 
-      job.runForRange(tradeDate, tradeDate);
-      job.runForRange(tradeDate, tradeDate);
+      job.runForRange(saleDate, saleDate);
+      job.runForRange(saleDate, saleDate);
+      job.runForRange(windowPastTheSale, windowPastTheSale);
 
-      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, tradeDate)).isEmpty();
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, saleDate)).isEmpty();
       assertThat(notifications.sent())
           .containsExactly(
               new Sent(
-                  """
-                  🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
-                  Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
-                  Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu""",
+                  "🔴 TUK75 soetusmaksumus 03.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev"
+                      + " positsioon 100000\n"
+                      + "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on"
+                      + " parandamata\n"
+                      + "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu",
                   INVESTMENT));
       assertThat(auditEventRepository.findByEventType(OVERSELL_FOUND))
           .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
           .containsExactly(
               tuple(
-                  "TUK75 IE00BFNM3G45 2026-05-01",
+                  "TUK75 IE00BFNM3G45 2026-05-03",
                   Map.of(
                       "fund", "TUK75",
                       "instrumentIsin", INSTRUMENT_ISIN,
-                      "asOfDate", "2026-05-01",
+                      "asOfDate", "2026-05-03",
                       "heldQuantity", "100000",
                       "sellQuantity", "150000")));
 
-      LocalDate windowPastTheSale = tradeDate.plusDays(20);
+      seedExecutionOnDate(BUY, saleDate.minusDays(1), "60000.0000", "11.00000000");
+      job.runForRange(windowPastTheSale, windowPastTheSale);
       job.runForRange(windowPastTheSale, windowPastTheSale);
 
-      assertThat(notifications.sent()).hasSize(1);
-
-      sale.setExecutedQuantity(new BigDecimal("90000.0000"));
-      executionRepository.save(sale);
-      job.runForRange(windowPastTheSale, windowPastTheSale);
-
-      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, tradeDate))
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, saleDate))
           .extracting(PortfolioCostBasis::getQuantity)
           .containsExactly(new BigDecimal("10000.0000"));
       assertThat(notifications.sent())
           .extracting(Sent::message)
-          .last()
-          .isEqualTo(
-              "✅ TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
+          .containsExactly(
+              notifications.sent().getFirst().message(),
+              "✅ TUK75 soetusmaksumus 03.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
                   + " soetusmaksumus on ümber arvutatud");
     } finally {
-      deleteCommittedRows(tradeDate);
+      deleteCommittedRows(windowPastTheSale);
     }
   }
 
-  private void deleteCommittedRows(LocalDate tradeDate) {
+  private void deleteCommittedRows(LocalDate lastDateRebuilt) {
     auditEventRepository.deleteAll(
         Stream.of(OVERSELL_FOUND, OVERSELL_CLEARED, OVERSELL_POSTED)
             .flatMap(type -> auditEventRepository.findByEventType(type).stream())
             .toList());
-    tradeDate
-        .datesUntil(tradeDate.plusDays(21))
+    BASELINE_DATE
+        .datesUntil(lastDateRebuilt.plusDays(1))
         .forEach(
             date ->
                 costBasisRepository.deleteAll(

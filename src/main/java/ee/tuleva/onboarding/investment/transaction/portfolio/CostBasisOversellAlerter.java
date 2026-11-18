@@ -68,29 +68,9 @@ class CostBasisOversellAlerter {
     }
   }
 
-  void clearResolved(TulevaFund fund, LocalDate from, LocalDate to) {
+  boolean hasOpenOversell(TulevaFund fund) {
     try {
-      openOversells().stream()
-          .filter(found -> fund.getCode().equals(found.getPayload().get(FUND)))
-          .filter(found -> asOfDate(found).filter(date -> isWithin(date, from, to)).isPresent())
-          .forEach(found -> save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found)));
-    } catch (RuntimeException e) {
-      log.error(
-          "Resolved cost-basis oversells not cleared, next self-heal retries: fundCode={},"
-              + " error={}",
-          fund.getCode(),
-          e.getMessage(),
-          e);
-    }
-  }
-
-  Optional<LocalDate> earliestOpenOversell(TulevaFund fund) {
-    try {
-      return openOversells().stream()
-          .filter(found -> fund.getCode().equals(found.getPayload().get(FUND)))
-          .map(CostBasisOversellAlerter::asOfDate)
-          .flatMap(Optional::stream)
-          .min(Comparator.naturalOrder());
+      return openOversells().stream().anyMatch(found -> isOf(fund, found));
     } catch (RuntimeException e) {
       log.error(
           "Open cost-basis oversells unreadable, self-heal keeps its window: fundCode={},"
@@ -98,7 +78,22 @@ class CostBasisOversellAlerter {
           fund.getCode(),
           e.getMessage(),
           e);
-      return Optional.empty();
+      return false;
+    }
+  }
+
+  void clearOpen(TulevaFund fund) {
+    try {
+      openOversells().stream()
+          .filter(found -> isOf(fund, found))
+          .forEach(found -> save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found)));
+    } catch (RuntimeException e) {
+      log.error(
+          "Resolved cost-basis oversells not cleared, next self-heal replays and retries:"
+              + " fundCode={}, error={}",
+          fund.getCode(),
+          e.getMessage(),
+          e);
     }
   }
 
@@ -203,8 +198,8 @@ class CostBasisOversellAlerter {
     return OVERSELL_FOUND.equals(state.getEventType());
   }
 
-  private static boolean isWithin(LocalDate date, LocalDate from, LocalDate to) {
-    return !date.isBefore(from) && !date.isAfter(to);
+  private static boolean isOf(TulevaFund fund, TransactionAuditEvent found) {
+    return fund.getCode().equals(found.getPayload().get(FUND));
   }
 
   private static Optional<LocalDate> asOfDate(TransactionAuditEvent state) {

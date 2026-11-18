@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOve
 import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,8 +66,7 @@ class CostBasisOversellAlerterTest {
     given(auditEventRepository.findByEventType(OVERSELL_FOUND))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    assertThatCode(() -> alerter.clearResolved(TUK75, TRADE_DATE, TRADE_DATE))
-        .doesNotThrowAnyException();
+    assertThatCode(() -> alerter.clearOpen(TUK75)).doesNotThrowAnyException();
   }
 
   @Test
@@ -109,14 +109,11 @@ class CostBasisOversellAlerterTest {
   }
 
   @Test
-  void anEventWithAnUnreadableDateIsNotClearedAndDoesNotStopClearingTheOthers() {
+  void anUnreadableAlertHistoryKeepsTheSelfHealOnItsWindow() {
     given(auditEventRepository.findByEventType(OVERSELL_FOUND))
-        .willReturn(List.of(found(1L, "not a date"), found(2L, "2026-05-04")));
-    given(auditEventRepository.findByEventType(OVERSELL_CLEARED)).willReturn(List.of());
+        .willThrow(new IllegalStateException("database unavailable"));
 
-    alerter.clearResolved(TUK75, TRADE_DATE, TRADE_DATE.plusDays(5));
-
-    verify(auditEventRepository, times(1)).save(any());
+    assertThat(alerter.hasOpenOversell(TUK75)).isFalse();
   }
 
   private static TransactionAuditEvent found(long id, String asOfDate) {

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics.transaction.unitowner;
+package ee.tuleva.onboarding.analytics;
 
 import java.time.LocalDate;
 

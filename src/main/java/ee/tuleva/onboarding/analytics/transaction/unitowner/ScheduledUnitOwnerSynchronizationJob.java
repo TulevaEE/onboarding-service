@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.unitowner;
 
+import ee.tuleva.onboarding.analytics.UnitOwnerSnapshotSynchronized;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.DayOfWeek;
 import java.time.LocalDate;

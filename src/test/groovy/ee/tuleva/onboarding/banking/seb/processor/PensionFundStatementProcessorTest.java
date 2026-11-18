@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -228,6 +229,42 @@ class PensionFundStatementProcessorTest {
             WARNING,
             externalReference.toString(),
             "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=TUK75, amount=100.00, bookingDate=2025-10-01, externalReference="
+                + externalReference);
+  }
+
+  @Test
+  void
+      managementCompanyDebitNotStatedAsAManagementFee_landsInSuspenseAndIsRecordedAsAFindingToBookByHand() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("-50.00"),
+            "BR tasud TUK75",
+            "Tuleva Fondid AS",
+            "EE001234567890123488",
+            "ICDT");
+    given(classifier.classify(entry))
+        .willReturn(new PensionFundEntryClassifier.UnrecognisedManagementCompanyDebit());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TUK75),
+            eq(new BigDecimal("-50.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(
+                new UnclassifiedEntryDetails(
+                    "Tuleva Fondid AS", "EE001234567890123488", "BR tasud TUK75", "ICDT")));
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
+    var externalReference = UUID.nameUUIDFromBytes((TUK75_IBAN + ":entry-ref-1").getBytes(UTF_8));
+    verify(paymentCheckService)
+        .record(
+            UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT,
+            WARNING,
+            externalReference.toString(),
+            "debit not stated as a management fee is held in suspense, book it with a ledger adjustment: fund=TUK75, amount=-50.00, bookingDate=2025-10-01, externalReference="
                 + externalReference);
   }
 

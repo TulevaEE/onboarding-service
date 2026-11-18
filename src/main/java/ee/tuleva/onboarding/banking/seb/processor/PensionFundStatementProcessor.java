@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -133,6 +134,15 @@ public class PensionFundStatementProcessor {
               bookingDate,
               UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
               "credit not stated as a rebate or kickback");
+      case PensionFundEntryClassifier.UnrecognisedManagementCompanyDebit() ->
+          holdManagementCompanyEntryForBookingByHand(
+              entry,
+              account,
+              amount,
+              externalReference,
+              bookingDate,
+              UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT,
+              "debit not stated as a management fee");
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
               fund, amount.negate(), externalReference, entry.remittanceInformation(), bookingDate);

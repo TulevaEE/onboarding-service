@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Reg
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.TradeSettlement
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Unclassified
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit
+import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.UnrecognisedManagementCompanyDebit
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry
 import ee.tuleva.onboarding.banking.statement.TransactionType
 import ee.tuleva.onboarding.instrument.InstrumentReference
@@ -90,7 +91,10 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company BlackRock fees passed on as a rebate" | entry("ESCT", 38531.70, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud TUK75") | new ManagementFeeRebate()
     "management company BlackRock fees split across whitespace" | entry("ESCT", 38531.70, "Tuleva Fondid AS", OTHER_IBAN, "BR  tasud\nTUK75") | new ManagementFeeRebate()
     "management company damage compensation goes to suspense" | entry("ESCT", 7178.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile") | new UnrecognisedManagementCompanyCredit()
-    "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
+    "management company debit not stated as a management fee goes to suspense" | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud") | new UnrecognisedManagementCompanyDebit()
+    "management fee payment in capitals"     | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 VALITSEMISTASU 02/2026") | new ManagementFeePayment()
+    "management company debit without remittance goes to suspense" | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, null) | new UnrecognisedManagementCompanyDebit()
+    "management company debit for another expense goes to suspense" | entry("ICDT", -250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kulude hüvitamine") | new UnrecognisedManagementCompanyDebit()
     "management company book credit not stated as a rebate goes to suspense" | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Ülekanne fondile") | new UnrecognisedManagementCompanyCredit()
     "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement("DLA0695877", new BigDecimal("59145"), 33.295)
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()

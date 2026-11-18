@@ -207,6 +207,27 @@ class TradePrepInputGatesIT {
   }
 
   @Test
+  void tuv100IsNotAskedForR16WhileTheR45ThatCouldExcuseItIsMissing() {
+    positionReport(TUV100, TUESDAY);
+    r45(TUESDAY);
+
+    assertThat(gates.failures(TUV100, WEDNESDAY))
+        .containsExactly(new MissingR45(WEDNESDAY, TUESDAY));
+  }
+
+  @Test
+  void tuk75IsStillAskedForR16WhileTheR45IsMissingBecauseNoR45CanExcuseIt() {
+    positionReport(TUK75, TUESDAY);
+    r45(TUESDAY);
+
+    assertThat(gates.failures(TUK75, WEDNESDAY))
+        .containsExactly(
+            new MissingR45(WEDNESDAY, TUESDAY),
+            new MissingR16(
+                YearMonth.of(2026, 11), LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 9)));
+  }
+
+  @Test
   void theSavingsFundNeedsNoEpisReports() {
     positionReport(TKF100, TUESDAY);
 

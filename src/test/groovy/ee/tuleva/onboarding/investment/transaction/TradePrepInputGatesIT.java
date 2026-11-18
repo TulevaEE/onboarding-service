@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.context.annotation.FilterType.REGEX;
@@ -49,6 +50,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +99,7 @@ class TradePrepInputGatesIT {
   @MockitoBean OperationsNotificationService notificationService;
 
   @Autowired TradePrepInputGates gates;
+  @Autowired R16OutflowReader r16OutflowReader;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired EpisReportSummaryRepository summaryRepository;
@@ -299,6 +302,42 @@ class TradePrepInputGatesIT {
   }
 
   @Test
+  void anOlderR45CannotExcuseTuv100FromThisMonthsR16WhenTheTradeDatesR45CarriesNoPayouts() {
+    positionReport(TUV100, TUESDAY);
+    Long olderR45 = r45(LocalDate.of(2026, 11, 13));
+    summaryRepository.save(
+        summary(
+            olderR45,
+            R45,
+            LocalDate.of(2026, 11, 13),
+            TUV100,
+            Map.of(
+                "inflowEur", 0,
+                "outflowEur", 0,
+                "netEur", 0,
+                "redRowSettlementDates", List.of("2026-11-17"))));
+    r45(WEDNESDAY, TUK75);
+
+    assertThat(gates.failures(TUV100, WEDNESDAY))
+        .containsExactly(
+            new MissingR16(
+                YearMonth.of(2026, 11), LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 9)));
+  }
+
+  @Test
+  void tradePrepCountsTheSameMonthsR16TheGateChecksEvenWhenNextMonthsIsAlreadyLoaded() {
+    LocalDate thursday = LocalDate.of(2026, 11, 12);
+    r16(YearMonth.of(2026, 11), TUK75, 1000);
+    r16(YearMonth.of(2026, 12), TUK75, 7000);
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), thursday))
+        .willReturn(Optional.of(LocalDate.of(2026, 11, 11)));
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), LocalDate.of(2026, 11, 11)))
+        .willReturn(Optional.of(new BigDecimal("2.00000")));
+
+    assertThat(r16OutflowReader.read(TUK75, thursday)).isEqualByComparingTo("2000");
+  }
+
+  @Test
   void aFundWhoseInputsPassIsNeitherStoppedNorPostedToSlack() {
     positionReport(TKF100, TUESDAY);
     TransactionCommand command =
@@ -358,6 +397,10 @@ class TradePrepInputGatesIT {
   }
 
   private void r16(YearMonth paymentMonth, TulevaFund fundWithRows) {
+    r16(paymentMonth, fundWithRows, 0);
+  }
+
+  private void r16(YearMonth paymentMonth, TulevaFund fundWithRows, int fondimaksedUnits) {
     Long reportId = reportOf(R16_FORECASTED_PAYMENTS, paymentMonth.atDay(3));
     summaryRepository.save(
         summary(
@@ -366,9 +409,12 @@ class TradePrepInputGatesIT {
             paymentMonth.atDay(1),
             fundWithRows,
             Map.of(
-                "fondimaksedUnits", 0,
-                "uhekordsedUnits", 0,
-                "paymentMonth", paymentMonth.toString())));
+                "fondimaksedUnits",
+                fondimaksedUnits,
+                "uhekordsedUnits",
+                0,
+                "paymentMonth",
+                paymentMonth.toString())));
   }
 
   private void cycleWithReports(Long r17ReportId, Long r21ReportId) {

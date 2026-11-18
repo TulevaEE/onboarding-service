@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -25,14 +27,34 @@ public class R16PhaseCalculator {
     if (flow == null) {
       return IGNORE;
     }
-    return phaseFor(flow.fund(), flow.paymentDates(), today);
+    return phase(
+        flow.fund(),
+        flow.paymentDates(),
+        today,
+        () -> r45ReportService.getLatestRedRowSettlementDates(TUV100));
   }
 
-  public R16Phase phaseFor(TulevaFund fund, R16PaymentDates dates, LocalDate today) {
+  public R16Phase tradePrepPhaseFor(TulevaFund fund, R16PaymentDates dates, LocalDate asOfDate) {
+    return phase(
+        fund, dates, asOfDate, () -> r45ReportService.getRedRowSettlementDatesOn(TUV100, asOfDate));
+  }
+
+  public boolean isSuppressedByR45(R16FundFlow flow) {
+    return isSuppressedByR45(
+        flow.fund(),
+        flow.paymentMonth(),
+        () -> r45ReportService.getLatestRedRowSettlementDates(TUV100));
+  }
+
+  private R16Phase phase(
+      TulevaFund fund,
+      R16PaymentDates dates,
+      LocalDate today,
+      Supplier<List<LocalDate>> r45RedRowSettlementDates) {
     if (today.isAfter(dates.paymentMonth().withDayOfMonth(PAYMENT_WINDOW_END_DAY))) {
       return IGNORE;
     }
-    if (isSuppressedByR45(fund, dates.paymentMonth())) {
+    if (isSuppressedByR45(fund, dates.paymentMonth(), r45RedRowSettlementDates)) {
       return IGNORE;
     }
     if (today.isBefore(dates.sellByDate())) {
@@ -44,17 +66,14 @@ public class R16PhaseCalculator {
     return BUFFERED;
   }
 
-  public boolean isSuppressedByR45(R16FundFlow flow) {
-    return isSuppressedByR45(flow.fund(), flow.paymentMonth());
-  }
-
-  private boolean isSuppressedByR45(TulevaFund fund, LocalDate paymentMonth) {
+  private static boolean isSuppressedByR45(
+      TulevaFund fund, LocalDate paymentMonth, Supplier<List<LocalDate>> r45RedRowSettlementDates) {
     if (fund != TUV100) {
       return false;
     }
     LocalDate windowStart = paymentMonth.withDayOfMonth(R45_OVERLAP_WINDOW_START_DAY);
     LocalDate windowEnd = paymentMonth.withDayOfMonth(PAYMENT_WINDOW_END_DAY);
-    return r45ReportService.getLatestRedRowSettlementDates(TUV100).stream()
+    return r45RedRowSettlementDates.get().stream()
         .anyMatch(date -> !date.isBefore(windowStart) && !date.isAfter(windowEnd));
   }
 }

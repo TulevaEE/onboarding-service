@@ -29,6 +29,13 @@ public class R16FlowCalculationService {
         .map(summary -> toFlow(fund, summary, asOfDate));
   }
 
+  public Optional<R16FundFlow> calculateThisMonthsFlows(TulevaFund fund, LocalDate asOfDate) {
+    return summaryRepository
+        .findTopByReportTypeAndReportDateAndFundOrderByIdDesc(
+            R16_FORECASTED_PAYMENTS, YearMonth.from(asOfDate).atDay(1), fund)
+        .map(summary -> toFlow(fund, summary, asOfDate));
+  }
+
   private R16FundFlow toFlow(TulevaFund fund, EpisReportSummary summary, LocalDate asOfDate) {
     BigDecimal fondimaksedUnits = number(summary.getData(), "fondimaksedUnits");
     BigDecimal uhekordsedUnits = number(summary.getData(), "uhekordsedUnits");

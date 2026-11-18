@@ -155,6 +155,13 @@ public class R45ReportService {
         .orElse(List.of());
   }
 
+  public List<LocalDate> getRedRowSettlementDatesOn(TulevaFund fund, LocalDate reportDate) {
+    return summaryRepository
+        .findTopByReportTypeAndReportDateAndFundOrderByIdDesc(R45, reportDate, fund)
+        .map(summary -> dates(summary.getData(), "redRowSettlementDates"))
+        .orElse(List.of());
+  }
+
   private Optional<EpisReportSummary> latestSummary(TulevaFund fund) {
     return summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R45, fund);
   }

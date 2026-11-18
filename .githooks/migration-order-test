@@ -36,9 +36,15 @@ setup_repo() {
   git update-ref refs/remotes/origin/master HEAD
 }
 
-# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output>
+# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output> [unexpected output]
 expect_hook_result() {
-  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5
+  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5 unexpected_output=${6:-}
+  if [ -n "$unexpected_output" ] && printf '%s' "$output" | grep -qF "$unexpected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output mentions: $unexpected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
   if [ "$actual" -ne "$expected" ]; then
     failed=$((failed + 1))
     echo "FAIL: $description (expected exit $expected, got $actual)"
@@ -141,17 +147,18 @@ push_check "pre-push blocks personal data" \
 push_check "pre-push blocks personal data beside a numbering warning" \
   1 "Push aborted"           V1_2__clash.sql "$PII_FIXTURE_ID_CODE"
 
-# A branch the merge base cannot place is scanned commit by commit, leaving out
-# whatever a remote ref already carries. Each setup runs after setup_repo,
-# leaves the branch to push checked out as feature and, when the remote already
-# holds that branch, sets REMOTE_SHA to its tip there.
+# pre-push scans every commit the push publishes that the remote being pushed
+# to does not hold yet. Each setup runs after setup_repo and leaves the branch to
+# push checked out as feature. It may set REMOTE_SHA (the branch's tip on the
+# remote), PUSH_REMOTE (the remote argument git passes the hook) or PUSH_REF and
+# PUSH_SHA (a ref other than the checked-out branch).
 commit_fixture() {
   printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >"$1"
   git add -A && git commit --quiet -m "$2" >/dev/null 2>&1
 }
 
 commit_clean_code() {
-  echo "class Feature {}" >Feature.java
+  echo "class ${1:-Feature} {}" >"${1:-Feature}.java"
   git add -A && git commit --quiet -m feature >/dev/null 2>&1
 }
 
@@ -182,14 +189,24 @@ personal_data_without_origin_master() {
   commit_fixture Fixture.java feature
 }
 
-clean_branch_with_master_only_on_the_remote() {
+master_reachable_only_by_fetching_it() {
   commit_fixture Published.java "long since public"
   git init --quiet --bare "$TMP/origin.git"
-  git remote add origin "$TMP/origin.git"
-  git -c core.hooksPath=/dev/null push --quiet origin master
+  git -c core.hooksPath=/dev/null push --quiet "$TMP/origin.git" master
   git update-ref -d refs/remotes/origin/master
+  PUSH_REMOTE="$TMP/origin.git"
   git checkout --quiet -b feature
+}
+
+clean_branch_with_master_only_on_the_remote() {
+  master_reachable_only_by_fetching_it
   commit_clean_code
+}
+
+clashing_migration_with_master_only_on_the_remote() {
+  master_reachable_only_by_fetching_it
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__clash.sql"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
 }
 
 published_orphan_branch() {
@@ -208,10 +225,50 @@ personal_data_on_published_orphan_branch() {
   commit_fixture Another.java feature
 }
 
+orphan_branch_already_on_a_backup_remote() {
+  orphan_branch_carrying_personal_data
+  git update-ref refs/remotes/backup/feature HEAD
+}
+
 nothing_on_top_of_master_carrying_personal_data() {
   commit_fixture Published.java "long since public"
   git update-ref refs/remotes/origin/master HEAD
   git checkout --quiet -b feature
+}
+
+personal_data_added_then_removed() {
+  git checkout --quiet -b feature
+  commit_fixture Fixture.java "add it"
+  git rm --quiet Fixture.java && git commit --quiet -m "remove it" >/dev/null 2>&1
+}
+
+merge_introducing_personal_data_of_its_own() {
+  git checkout --quiet -b side
+  commit_clean_code Side
+  git checkout --quiet master
+  git checkout --quiet -b feature
+  commit_clean_code
+  git merge --quiet --no-ff --no-commit side >/dev/null 2>&1
+  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >Fixture.java
+  git add -A && git commit --quiet -m "merge side" >/dev/null 2>&1
+}
+
+branch_merging_in_master_that_gained_personal_data() {
+  git checkout --quiet -b feature
+  commit_clean_code
+  git checkout --quiet master
+  commit_fixture Published.java "long since public"
+  git update-ref refs/remotes/origin/master HEAD
+  git checkout --quiet feature
+  git merge --quiet --no-ff -m "merge master" master >/dev/null 2>&1
+}
+
+tag_of_a_tree_carrying_a_clashing_migration() {
+  git checkout --quiet -b feature
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__clash.sql"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  PUSH_REF=refs/tags/tree
+  PUSH_SHA=$(git rev-parse 'HEAD^{tree}')
 }
 
 force_colour_output() {
@@ -219,11 +276,38 @@ force_colour_output() {
   git config color.diff always
 }
 
-personal_data_on_a_branch_of_master_with_colour_forced() {
-  force_colour_output
+use_an_external_diff_that_prints_nothing() {
+  printf '#!/bin/sh\nexit 0\n' >"$TMP/quiet-diff"
+  chmod +x "$TMP/quiet-diff"
+  git config diff.external "$TMP/quiet-diff"
+}
+
+hide_java_behind_a_textconv_filter() {
+  mkdir -p .git/info
+  echo '*.java diff=hidden' >.git/info/attributes
+  git config diff.hidden.textconv true
+}
+
+drop_the_diff_prefixes() {
+  git config diff.noprefix true
+}
+
+use_mnemonic_diff_prefixes() {
+  git config diff.mnemonicPrefix true
+}
+
+# personal_data_on_a_branch_of_master <user diff setting>
+personal_data_on_a_branch_of_master() {
+  "$1"
   git checkout --quiet -b feature
   commit_fixture Fixture.java feature
 }
+
+personal_data_on_a_branch_of_master_with_colour_forced() { personal_data_on_a_branch_of_master force_colour_output; }
+personal_data_on_a_branch_of_master_behind_an_external_diff() { personal_data_on_a_branch_of_master use_an_external_diff_that_prints_nothing; }
+personal_data_on_a_branch_of_master_behind_a_textconv_filter() { personal_data_on_a_branch_of_master hide_java_behind_a_textconv_filter; }
+personal_data_on_a_branch_of_master_without_diff_prefixes() { personal_data_on_a_branch_of_master drop_the_diff_prefixes; }
+personal_data_on_a_branch_of_master_with_mnemonic_prefixes() { personal_data_on_a_branch_of_master use_mnemonic_diff_prefixes; }
 
 orphan_branch_carrying_personal_data_with_colour_forced() {
   force_colour_output
@@ -242,19 +326,22 @@ branch_whose_base_blob_is_missing() {
   rm -f ".git/objects/${blob:0:2}/${blob:2}"
 }
 
-# branch_push_check <description> <expected exit> <expected output|-> <branch setup>
+# branch_push_check <description> <expected exit> <expected output|-> <branch setup> [unexpected output]
 branch_push_check() {
-  local description=$1 expected=$2 expected_output=$3 branch_setup=$4
+  local description=$1 expected=$2 expected_output=$3 branch_setup=$4 unexpected_output=${5:-}
   rm -rf "$TMP/origin.git"
   setup_repo
   REMOTE_SHA=0000000000000000000000000000000000000000
+  PUSH_REMOTE=origin
+  PUSH_REF=refs/heads/feature
+  PUSH_SHA=""
   "$branch_setup"
+  [ -n "$PUSH_SHA" ] || PUSH_SHA=$(git rev-parse HEAD)
   local output actual
-  output=$(printf 'refs/heads/feature %s refs/heads/feature %s\n' \
-    "$(git rev-parse HEAD)" "$REMOTE_SHA" |
-    "$PRE_PUSH" origin "$TMP/remote" 2>&1)
+  output=$(printf '%s %s %s %s\n' "$PUSH_REF" "$PUSH_SHA" "$PUSH_REF" "$REMOTE_SHA" |
+    "$PRE_PUSH" "$PUSH_REMOTE" "$TMP/remote" 2>&1)
   actual=$?
-  expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output"
+  expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output" "$unexpected_output"
 }
 
 SCANNER_FINDING="Personal data detected"
@@ -267,16 +354,36 @@ branch_push_check "pre-push without origin/master scans the commits the push pub
   1 "$SCANNER_FINDING" personal_data_without_origin_master
 branch_push_check "pre-push fetches master when origin/master is missing" \
   0 - clean_branch_with_master_only_on_the_remote
+branch_push_check "pre-push checks migrations against the master it fetched" \
+  0 "V1_2__clash.sql" clashing_migration_with_master_only_on_the_remote
 branch_push_check "pre-push leaves what a branch without a merge base already published alone" \
   0 - clean_commit_on_published_orphan_branch
 branch_push_check "pre-push scans the new commits of a branch without a merge base" \
   1 "$SCANNER_FINDING" personal_data_on_published_orphan_branch
+branch_push_check "pre-push does not count another remote as having published a branch" \
+  1 "$SCANNER_FINDING" orphan_branch_already_on_a_backup_remote
 branch_push_check "pre-push lets a new branch with nothing on top of master through" \
   0 - nothing_on_top_of_master_carrying_personal_data
+branch_push_check "pre-push scans a commit whose data a later commit removes" \
+  1 "$SCANNER_FINDING" personal_data_added_then_removed
+branch_push_check "pre-push scans what a merge introduces of its own" \
+  1 "$SCANNER_FINDING" merge_introducing_personal_data_of_its_own
+branch_push_check "pre-push does not re-present master when master is merged in" \
+  0 - branch_merging_in_master_that_gained_personal_data
+branch_push_check "pre-push skips a tag of something other than a commit" \
+  0 - tag_of_a_tree_carrying_a_clashing_migration "V1_2__clash.sql"
 branch_push_check "pre-push scans a branch of master when the user forces colour output" \
   1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_with_colour_forced
 branch_push_check "pre-push scans an orphan branch when the user forces colour output" \
   1 "$SCANNER_FINDING" orphan_branch_carrying_personal_data_with_colour_forced
+branch_push_check "pre-push scans past a configured external diff" \
+  1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_behind_an_external_diff
+branch_push_check "pre-push scans past a textconv filter" \
+  1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_behind_a_textconv_filter
+branch_push_check "pre-push names the file when diff prefixes are switched off" \
+  1 "Fixture.java:1" personal_data_on_a_branch_of_master_without_diff_prefixes
+branch_push_check "pre-push names the file under mnemonic diff prefixes" \
+  1 "Fixture.java:1" personal_data_on_a_branch_of_master_with_mnemonic_prefixes
 branch_push_check "pre-push says it could not compute the push instead of reporting personal data" \
   1 "could not compute what this push adds: ref=refs/heads/feature" branch_whose_base_blob_is_missing
 
@@ -285,10 +392,11 @@ branch_push_check "pre-push says it could not compute the push instead of report
 # which is the failing-formatter path, reached by the same `! ./gradlew` branch
 # a real formatting complaint takes.
 #
-# commit_check <description> <expected exit> <expected output> <id code|->
+# commit_check <description> <expected exit> <expected output> <id code|-> [user diff setting]
 commit_check() {
-  local description=$1 expected=$2 expected_output=$3 idcode=$4
+  local description=$1 expected=$2 expected_output=$3 idcode=$4 diff_setting=${5:-}
   setup_repo
+  [ -n "$diff_setting" ] && "$diff_setting"
   git checkout --quiet -b feature
   [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
   echo "select 1;" >"$MIGRATION_DIR/V1_3__new.sql"
@@ -303,6 +411,14 @@ commit_check "pre-commit warns about formatting instead of blocking" \
   0 "not blocking the commit" -
 commit_check "pre-commit blocks personal data" \
   1 -                         "$PII_FIXTURE_ID_CODE"
+commit_check "pre-commit scans when the user forces colour output" \
+  1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" force_colour_output
+commit_check "pre-commit scans past a configured external diff" \
+  1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" use_an_external_diff_that_prints_nothing
+commit_check "pre-commit scans past a textconv filter" \
+  1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" hide_java_behind_a_textconv_filter
+commit_check "pre-commit names the file when diff prefixes are switched off" \
+  1 "Fixture.java:1"          "$PII_FIXTURE_ID_CODE" drop_the_diff_prefixes
 
 echo ""
 if [ "$failed" -eq 0 ]; then

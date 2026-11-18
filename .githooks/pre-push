@@ -17,35 +17,39 @@ REMOTE=${1:-origin}
 ADDED=$(mktemp)
 trap 'rm -f "$ADDED"' EXIT
 
+# The scan reads patches, so none of the user's diff settings may reshape them:
+# colour, an external diff or a textconv filter would leave pii-scan nothing to
+# match, and a missing a/ b/ prefix would hide the file name.
+SCAN_PATCH=(-p --root --format= --no-color --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/)
+# A merge is scanned for what it introduces beyond re-merging its parents: its
+# own lines are published too, while merging master in brings nothing new.
+SCAN_PATCH+=(--diff-merges=remerge)
+
 # A single-branch clone, a pruned ref or a remote not named origin leaves the
-# default branch unresolved, so fetch master from the remote being pushed to.
+# default branch unresolved, so fetch master from the remote being pushed to,
+# without ever stopping to ask for credentials.
 if git rev-parse --verify -q "$DEFAULT_BRANCH^{commit}" >/dev/null; then
   compare_ref=$DEFAULT_BRANCH
-elif git fetch --no-tags --quiet "$REMOTE" master </dev/null 2>/dev/null; then
+elif GIT_TERMINAL_PROMPT=0 \
+  GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config core.sshCommand || echo ssh)} -o BatchMode=yes" \
+  git fetch --no-tags --quiet "$REMOTE" master </dev/null 2>/dev/null; then
   compare_ref=$(git rev-parse FETCH_HEAD)
 else
   compare_ref=""
 fi
 
-# Without a merge base (an orphan branch, a shallow boundary, no default branch
-# to compare against) a push publishes exactly the commits no remote ref
-# already carries: all of an orphan, none of master's history.
-unpublished_commits() {
+# Every commit this push publishes that the remote being pushed to does not
+# hold yet, one by one. A net diff would miss data one commit adds and a later
+# one removes, though the push still publishes both. Only the target remote's
+# refs count as published: a backup remote's are private.
+published_commits() {
   local local_sha=$1 remote_sha=$2
-  local published=(--remotes)
+  local on_remote=(--remotes="$REMOTE")
+  [ -n "$compare_ref" ] && on_remote+=("$compare_ref")
   if [ "$remote_sha" != "$UNBORN" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
-    published+=("$remote_sha")
+    on_remote+=("$remote_sha")
   fi
-  git log --no-color -p --root --format= --no-merges "$local_sha" --not "${published[@]}"
-}
-
-added_lines() {
-  local base=$1 local_sha=$2 remote_sha=$3
-  if [ -n "$base" ]; then
-    git diff --no-color "$base..$local_sha"
-  else
-    unpublished_commits "$local_sha" "$remote_sha"
-  fi
+  git log "${SCAN_PATCH[@]}" "$local_sha" --not "${on_remote[@]}"
 }
 
 pii_status=0
@@ -53,16 +57,7 @@ unscanned_status=0
 migration_status=0
 while read -r local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$UNBORN" ] && continue
-
-  # Compare against the merge base with the default branch, never against the
-  # remote tip of this branch. Merging master in would otherwise re-present
-  # every file master already carries as newly added, and the push would be
-  # blocked by data that is long since public.
-  base=""
-  [ -n "$compare_ref" ] && base=$(git merge-base "$compare_ref" "$local_sha" 2>/dev/null)
-
-  # Nothing on top of the default branch publishes nothing new.
-  [ "$base" = "$local_sha" ] && continue
+  git cat-file -e "$local_sha^{commit}" 2>/dev/null || continue
 
   # The allowlists come from the pushed revision itself, so only an allowlist
   # entry that is being published can exempt an IBAN or ID code being
@@ -70,7 +65,7 @@ while read -r local_ref local_sha _remote_ref remote_sha; do
   PII_IBAN_ALLOW_SOURCE=$(git show "$local_sha:.githooks/pii-iban-allow" 2>/dev/null || true)
   PII_IDCODE_ALLOW_SOURCE=$(git show "$local_sha:.githooks/pii-idcode-allow" 2>/dev/null || true)
   export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
-  if added_lines "$base" "$local_sha" "$remote_sha" >"$ADDED"; then
+  if published_commits "$local_sha" "$remote_sha" >"$ADDED"; then
     "$HOOK_DIR/pii-scan" <"$ADDED" || pii_status=1
   else
     echo "🛑 Push aborted: could not compute what this push adds: ref=$local_ref"
@@ -81,7 +76,8 @@ while read -r local_ref local_sha _remote_ref remote_sha; do
   # Early notice, not a verdict: which versions are free is decided by whatever
   # merges first, so only the merge queue's migration-order run can settle it.
   # Blocking here would buy nothing and cost the PII scan.
-  "$HOOK_DIR/migration-order" "$local_sha" || migration_status=1
+  MIGRATION_ORDER_BASE="${MIGRATION_ORDER_BASE:-$compare_ref}" \
+    "$HOOK_DIR/migration-order" "$local_sha" || migration_status=1
 done
 
 if [ "$migration_status" -ne 0 ]; then

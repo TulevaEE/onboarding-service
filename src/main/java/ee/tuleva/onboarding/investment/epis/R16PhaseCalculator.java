@@ -39,6 +39,10 @@ public class R16PhaseCalculator {
         fund, dates, asOfDate, () -> r45ReportService.getRedRowSettlementDatesOn(TUV100, asOfDate));
   }
 
+  public boolean knowsTradePrepPhaseOf(TulevaFund fund, LocalDate asOfDate) {
+    return fund != TUV100 || r45ReportService.hasReportOn(asOfDate);
+  }
+
   public boolean isSuppressedByR45(R16FundFlow flow) {
     return isSuppressedByR45(
         flow.fund(),

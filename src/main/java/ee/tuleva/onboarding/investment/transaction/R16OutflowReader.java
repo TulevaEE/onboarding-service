@@ -49,7 +49,7 @@ class R16OutflowReader {
   }
 
   Optional<InputGateFailure> missingR16(TulevaFund fund, LocalDate asOfDate) {
-    if (!R16_FUNDS.contains(fund)) {
+    if (!R16_FUNDS.contains(fund) || !r16PhaseCalculator.knowsTradePrepPhaseOf(fund, asOfDate)) {
       return Optional.empty();
     }
     YearMonth paymentMonth = YearMonth.from(asOfDate);

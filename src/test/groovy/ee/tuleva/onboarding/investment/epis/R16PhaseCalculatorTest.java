@@ -117,6 +117,15 @@ class R16PhaseCalculatorTest {
     verify(r45ReportService, never()).getLatestRedRowSettlementDates(TUV100);
   }
 
+  @Test
+  void tradePrepCannotTellTuv100sR16PhaseWithoutTheTradeDatesR45() {
+    given(r45ReportService.hasReportOn(LocalDate.of(2026, 6, 10))).willReturn(true);
+
+    assertThat(calculator.knowsTradePrepPhaseOf(TUV100, LocalDate.of(2026, 6, 10))).isTrue();
+    assertThat(calculator.knowsTradePrepPhaseOf(TUV100, LocalDate.of(2026, 6, 11))).isFalse();
+    assertThat(calculator.knowsTradePrepPhaseOf(TUK75, LocalDate.of(2026, 6, 11))).isTrue();
+  }
+
   private R16FundFlow flow(TulevaFund fund) {
     return new R16FundFlow(
         fund,

@@ -56,17 +56,13 @@ class PensionFundStatementProcessorIT {
 
     assertThat(balance(MANAGEMENT_FEE)).isEqualByComparingTo(new BigDecimal("1234.56"));
     assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("50.00"));
-    assertThat(findings())
-        .extracting(PaymentCheckEvent::getCheckType, PaymentCheckEvent::getSeverity)
-        .containsExactly(tuple(UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT, WARNING));
-  }
-
-  private List<PaymentCheckEvent> findings() {
-    return paymentCheckEventRepository
-        .findByCheckTypeAndExternalKey(
-            UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT, externalReferenceOf("other-04"))
-        .stream()
-        .toList();
+    assertThat(paymentCheckEventRepository.findAll())
+        .extracting(
+            PaymentCheckEvent::getCheckType,
+            PaymentCheckEvent::getSeverity,
+            PaymentCheckEvent::getExternalKey)
+        .containsExactly(
+            tuple(UNRECOGNISED_MANAGEMENT_COMPANY_DEBIT, WARNING, externalReferenceOf("other-04")));
   }
 
   private static String externalReferenceOf(String externalId) {

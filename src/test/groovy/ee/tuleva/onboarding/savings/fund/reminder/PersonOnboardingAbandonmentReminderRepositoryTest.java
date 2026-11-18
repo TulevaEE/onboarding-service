@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -178,9 +179,9 @@ class PersonOnboardingAbandonmentReminderRepositoryTest {
     viewed(SAVER, PERSON_SURVEY, NOW.minus(10, DAYS));
     viewed(OTHER_SAVER, PERSON_SURVEY, NOW.minus(10, DAYS));
     viewed(THIRD_SAVER, PERSON_SURVEY, NOW.minus(10, DAYS));
-    onboardingRepository.saveOnboardingStatus(SAVER, PERSON, COMPLETED);
-    onboardingRepository.saveOnboardingStatus(OTHER_SAVER, PERSON, PENDING);
-    onboardingRepository.saveOnboardingStatus(THIRD_SAVER, PERSON, REJECTED);
+    onboardingRepository.saveOnboardingStatus(SAVER, PERSON, COMPLETED, KYC_CHECK);
+    onboardingRepository.saveOnboardingStatus(OTHER_SAVER, PERSON, PENDING, KYC_CHECK);
+    onboardingRepository.saveOnboardingStatus(THIRD_SAVER, PERSON, REJECTED, KYC_CHECK);
 
     var reminders = repository.fetch(VIEWED_FROM, VIEWED_UNTIL);
 
@@ -432,7 +433,7 @@ class PersonOnboardingAbandonmentReminderRepositoryTest {
   }
 
   private void childAccountTouched(String childCode, Instant touchedAt) {
-    onboardingRepository.saveOnboardingStatus(childCode, PERSON, PENDING);
+    onboardingRepository.saveOnboardingStatus(childCode, PERSON, PENDING, KYC_CHECK);
     jdbcClient
         .sql("UPDATE savings_fund_onboarding SET updated_at = :touchedAt WHERE code = :code")
         .param("touchedAt", Timestamp.from(touchedAt))

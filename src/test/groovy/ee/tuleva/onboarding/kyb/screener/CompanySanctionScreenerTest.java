@@ -6,12 +6,14 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.totalOwnershipOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.aml.sanctions.ScreenedCompany;
 import ee.tuleva.onboarding.kyb.*;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +129,19 @@ class CompanySanctionScreenerTest {
     var pepCheck = results.stream().filter(c -> c.type() == COMPANY_PEP).findFirst();
     assertThat(pepCheck).isPresent();
     assertThat(pepCheck.get().success()).isTrue();
+  }
+
+  @Test
+  void aCompanyKnownOnlyByItsNameAndCodeIsMatchedByThem() {
+    var company = new ScreenedCompany("MAASIKAS OÜ", "12345678");
+    given(sanctionCheckService.matchCompany(company))
+        .willReturn(responseWithMatch("sanction", "ee"));
+
+    var results = screener.screen(company);
+
+    assertThat(results)
+        .extracting(KybCheck::type, KybCheck::success)
+        .containsExactly(tuple(COMPANY_SANCTION, false), tuple(COMPANY_PEP, true));
   }
 
   private KybCompanyData companyData() {

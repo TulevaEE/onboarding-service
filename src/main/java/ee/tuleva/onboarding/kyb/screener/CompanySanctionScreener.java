@@ -26,10 +26,11 @@ public class CompanySanctionScreener implements KybScreener {
   @Override
   public List<KybCheck> screen(KybCompanyData companyData) {
     var company = companyData.company();
-    var response =
-        sanctionCheckService.matchCompany(
-            new ScreenedCompany(company.name(), company.registryCode().value()));
+    return screen(new ScreenedCompany(company.name(), company.registryCode().value()));
+  }
 
+  public List<KybCheck> screen(ScreenedCompany company) {
+    var response = sanctionCheckService.matchCompany(company);
     return List.of(sanctionCheck(response), pepCheck(response));
   }
 

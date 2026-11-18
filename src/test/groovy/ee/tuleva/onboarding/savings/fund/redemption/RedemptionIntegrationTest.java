@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -127,7 +128,7 @@ class RedemptionIntegrationTest {
     testParty = new PartyId(PartyId.Type.PERSON, testUser.getPersonalCode());
     testAuthenticatedPerson = authenticatedPersonFromUser(testUser).build();
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        testUser.getPersonalCode(), PartyId.Type.PERSON, COMPLETED);
+        testUser.getPersonalCode(), PartyId.Type.PERSON, COMPLETED, KYC_CHECK);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(VALID_IBAN);
   }
@@ -639,7 +640,7 @@ class RedemptionIntegrationTest {
             .relationshipType(BOARD_MEMBER)
             .build());
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED, KYB_CHECK);
     setupPartyDepositIban(
         new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode),
         companyIban,
@@ -698,7 +699,7 @@ class RedemptionIntegrationTest {
             .build());
 
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED, KYB_CHECK);
     var leParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
     setupPartyDepositIban(leParty, companyIban, companyName, registryCode);
     setupPartyWithFundUnits(leParty, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
@@ -766,7 +767,7 @@ class RedemptionIntegrationTest {
             .relationshipType(BOARD_MEMBER)
             .build());
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED);
+        registryCode, PartyId.Type.LEGAL_ENTITY, COMPLETED, KYB_CHECK);
 
     var leParty = new PartyId(PartyId.Type.LEGAL_ENTITY, registryCode);
     setupPartyDepositIban(leParty, companyIban, companyName, registryCode);

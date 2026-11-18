@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -122,9 +123,11 @@ class WaitingLegalEntityCompletionIntegrationTest {
     applicant =
         userRepository.save(
             sampleUserNonMember().id(null).personalCode(APPLICANT).email(APPLICANT_EMAIL).build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(POISONED, LEGAL_ENTITY, PENDING);
-    savingsFundOnboardingRepository.saveOnboardingStatus(HEALTHY, LEGAL_ENTITY, PENDING);
-    savingsFundOnboardingRepository.saveOnboardingStatus(UNRELATED, LEGAL_ENTITY, PENDING);
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        POISONED, LEGAL_ENTITY, PENDING, KYB_CHECK);
+    savingsFundOnboardingRepository.saveOnboardingStatus(HEALTHY, LEGAL_ENTITY, PENDING, KYB_CHECK);
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        UNRELATED, LEGAL_ENTITY, PENDING, KYB_CHECK);
     awaitKycOf(POISONED, APPLICANT);
     awaitKycOf(HEALTHY, APPLICANT);
     awaitKycOf(UNRELATED, ANOTHER_BOARD_MEMBER);

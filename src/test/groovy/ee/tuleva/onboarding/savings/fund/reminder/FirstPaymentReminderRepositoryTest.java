@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -565,7 +566,7 @@ class FirstPaymentReminderRepositoryTest {
   private void companyStatusChanged(
       String registryCode, SavingsFundOnboardingStatus status, Instant changedAt) {
     ClockHolder.setClock(Clock.fixed(changedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, status);
+    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, status, KYB_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
@@ -581,7 +582,7 @@ class FirstPaymentReminderRepositoryTest {
     boardMember(company, applicantPersonalCode);
     companySurvey(registryCode, applicantPersonalCode, openedAt.minus(1, DAYS));
     ClockHolder.setClock(Clock.fixed(openedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, COMPLETED);
+    onboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, COMPLETED, KYB_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
     return company;
   }
@@ -656,7 +657,7 @@ class FirstPaymentReminderRepositoryTest {
 
   private void accountStarted(String personalCode, Instant startedAt) {
     ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(personalCode, PERSON, PENDING);
+    onboardingRepository.saveOnboardingStatus(personalCode, PERSON, PENDING, KYC_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
@@ -672,7 +673,7 @@ class FirstPaymentReminderRepositoryTest {
             .active(true)
             .build());
     ClockHolder.setClock(Clock.fixed(openedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(personalCode, PERSON, COMPLETED);
+    onboardingRepository.saveOnboardingStatus(personalCode, PERSON, COMPLETED, KYC_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 

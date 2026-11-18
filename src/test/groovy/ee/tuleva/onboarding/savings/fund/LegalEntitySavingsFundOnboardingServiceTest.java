@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.ON_HOLD;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -91,7 +92,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(ON_HOLD));
     given(
             savingsFundOnboardingRepository.changeStatus(
-                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, COMPLETED))
+                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, COMPLETED, AML_SERVICE_REVIEW))
         .willReturn(true);
     given(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
         .willReturn(
@@ -115,7 +116,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(ON_HOLD));
     given(
             savingsFundOnboardingRepository.changeStatus(
-                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, REJECTED))
+                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, REJECTED, AML_SERVICE_REVIEW))
         .willReturn(true);
 
     service.applyReview(SAMPLE_REGISTRY_CODE, REJECT);
@@ -129,7 +130,7 @@ class LegalEntitySavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(ON_HOLD));
     given(
             savingsFundOnboardingRepository.changeStatus(
-                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, COMPLETED))
+                SAMPLE_REGISTRY_CODE, LEGAL_ENTITY, ON_HOLD, COMPLETED, AML_SERVICE_REVIEW))
         .willReturn(false);
 
     service.applyReview(SAMPLE_REGISTRY_CODE, COMPLETE);
@@ -145,7 +146,9 @@ class LegalEntitySavingsFundOnboardingServiceTest {
     service.applyReview(SAMPLE_REGISTRY_CODE, COMPLETE);
     service.applyReview(SAMPLE_REGISTRY_CODE, REJECT);
 
-    then(savingsFundOnboardingRepository).should(never()).changeStatus(any(), any(), any(), any());
+    then(savingsFundOnboardingRepository)
+        .should(never())
+        .changeStatus(any(), any(), any(), any(), any());
     then(eventPublisher).shouldHaveNoInteractions();
   }
 }

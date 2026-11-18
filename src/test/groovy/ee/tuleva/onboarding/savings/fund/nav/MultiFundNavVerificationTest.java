@@ -251,7 +251,7 @@ class MultiFundNavVerificationTest {
           Map.entry("LU1291099718", "EEUX.XETRA"),
           Map.entry("LU1291106356", "PAC.XETRA"),
           Map.entry("LU1291102447", "EJAP.XETRA"),
-          Map.entry("IE000F60HVH9", "USAS.PA.EODHD"),
+          Map.entry("IE000F60HVH9", "IE000F60HVH9.XPAR"),
           Map.entry("IE00BFG1TM61", "IE00BFG1TM61.EUFUND"),
           Map.entry("IE0009FT4LX4", "IE0009FT4LX4.EUFUND"),
           Map.entry("IE00BKPTWY98", "IE00BKPTWY98.EUFUND"),
@@ -259,6 +259,10 @@ class MultiFundNavVerificationTest {
           Map.entry("IE0031080751", "IE0031080751.EUFUND"),
           Map.entry("LU0839970364", "LU0839970364.EUFUND"),
           Map.entry("IE0005032192", "IE0005032192.EUFUND"));
+
+  private static String providerOf(String storageKey) {
+    return storageKey.endsWith(".XPAR") ? "EURONEXT" : "EODHD";
+  }
 
   private void insertPricesFromCsv(FundNavCsvData data) {
     Instant updatedAt = data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
@@ -268,8 +272,9 @@ class MultiFundNavVerificationTest {
           if (ticker != null) {
             entityManager
                 .createNativeQuery(
-                    "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
+                    "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, :provider, :updatedAt)")
                 .setParameter("key", ticker)
+                .setParameter("provider", providerOf(ticker))
                 .setParameter("date", data.navDate)
                 .setParameter("value", price)
                 .setParameter("updatedAt", java.sql.Timestamp.from(updatedAt))

@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrum
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -342,24 +343,62 @@ class PriorityPriceProviderTest {
   }
 
   @Test
-  void resolve_euronextOnlyHasAnOlderClose_fallsBackToEodhdForTheDate() {
+  void resolve_euronextCloseLateForTheDate_usesThePreviousEuronextCloseNotTheEodhdLastTrade() {
     InstrumentReference instrument = givenKnown(EURONEXT_ETF);
     String euronextKey = instrument.getEuronextParisStorageKey().orElseThrow();
     String eodhdTicker = instrument.getEodhdTicker();
+    FundValue previousEuronextClose =
+        new FundValue(euronextKey, OLDER_DATE, new BigDecimal("48.00"), "EURONEXT", null);
 
-    when(fundValueProvider.getLatestValue(euronextKey, DATE))
-        .thenReturn(
-            Optional.of(
-                new FundValue(euronextKey, OLDER_DATE, new BigDecimal("48.00"), "EURONEXT", null)));
-    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
-        .thenReturn(
+    given(fundValueProvider.getLatestValue(euronextKey, DATE))
+        .willReturn(Optional.of(previousEuronextClose));
+    given(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .willReturn(
             Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("47.93"), "EODHD", null)));
 
     Optional<FundValue> result = provider.resolve(GAGH_ISIN, DATE);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().provider()).isEqualTo("EODHD");
-    assertThat(result.get().date()).isEqualTo(DATE);
+    assertThat(result).contains(previousEuronextClose);
+  }
+
+  @Test
+  void resolve_parisListingWithOnlyAnEodhdLastTrade_resolvesNoPrice() {
+    InstrumentReference instrument = givenKnown(EURONEXT_ETF);
+    String euronextKey = instrument.getEuronextParisStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    given(fundValueProvider.getLatestValue(euronextKey, DATE)).willReturn(Optional.empty());
+    given(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .willReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("47.93"), "EODHD", null)));
+    given(fundValueProvider.getLatestValue(instrument.getYahooTicker(), DATE))
+        .willReturn(Optional.empty());
+
+    Optional<FundValue> result = provider.resolve(GAGH_ISIN, DATE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void resolve_parisListingWithAnotherCloseForTheDate_usesThatCloseNotTheEodhdLastTrade() {
+    InstrumentReference instrument = givenKnown(EURONEXT_ETF);
+    String euronextKey = instrument.getEuronextParisStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+    String yahooTicker = instrument.getYahooTicker();
+    FundValue yahooClose = new FundValue(yahooTicker, DATE, new BigDecimal("47.95"), "YAHOO", null);
+
+    given(fundValueProvider.getLatestValue(euronextKey, DATE))
+        .willReturn(
+            Optional.of(
+                new FundValue(euronextKey, OLDER_DATE, new BigDecimal("48.00"), "EURONEXT", null)));
+    given(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .willReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("47.93"), "EODHD", null)));
+    given(fundValueProvider.getLatestValue(yahooTicker, DATE)).willReturn(Optional.of(yahooClose));
+
+    Optional<FundValue> result = provider.resolve(GAGH_ISIN, DATE);
+
+    assertThat(result).contains(yahooClose);
   }
 
   @Test

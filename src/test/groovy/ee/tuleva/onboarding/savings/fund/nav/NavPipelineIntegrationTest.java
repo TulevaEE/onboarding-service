@@ -64,6 +64,7 @@ import org.springframework.transaction.annotation.Transactional;
 class NavPipelineIntegrationTest {
 
   static final Path NAV_CSV_DIR = Path.of("src/test/resources/nav-test-data");
+  private static final String EURONEXT_PARIS_LISTED_ETF = "IE000F60HVH9";
 
   @Autowired InvestmentReportService investmentReportService;
   @Autowired SebFundPositionParser sebFundPositionParser;
@@ -118,10 +119,14 @@ class NavPipelineIntegrationTest {
       assertThat(result.navPerUnit()).isPositive();
       assertThat(storedSecurityPricing(navData.navDate))
           .isNotEmpty()
-          .containsExactlyInAnyOrderElementsOf(eodhdPricingOfTheHeldSecurities(result));
+          .containsExactlyInAnyOrderElementsOf(expectedPricingOfTheHeldSecurities(result));
     } finally {
       ClockHolder.setDefaultClock();
     }
+  }
+
+  private static String expectedPriceSource(String isin) {
+    return isin.equals(EURONEXT_PARIS_LISTED_ETF) ? "EURONEXT" : "EODHD";
   }
 
   private record SecurityPricing(String isin, LocalDate priceDate, String priceSource) {}
@@ -144,11 +149,14 @@ class NavPipelineIntegrationTest {
         .list();
   }
 
-  private static List<SecurityPricing> eodhdPricingOfTheHeldSecurities(
+  private static List<SecurityPricing> expectedPricingOfTheHeldSecurities(
       NavCalculationResult result) {
     return result.securitiesDetail().stream()
         .filter(detail -> detail.units().signum() != 0 || detail.marketValue().signum() != 0)
-        .map(detail -> new SecurityPricing(detail.isin(), detail.priceDate(), "EODHD"))
+        .map(
+            detail ->
+                new SecurityPricing(
+                    detail.isin(), detail.priceDate(), expectedPriceSource(detail.isin())))
         .toList();
   }
 
@@ -831,10 +839,11 @@ class NavPipelineIntegrationTest {
         Instant updatedAt = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
         entityManager
             .createNativeQuery(
-                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
+                "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, :provider, :updatedAt)")
             .setParameter("key", parts[0])
             .setParameter("date", priceDate)
             .setParameter("value", new BigDecimal(parts[2]))
+            .setParameter("provider", parts[3])
             .setParameter("updatedAt", Timestamp.from(updatedAt))
             .executeUpdate();
       }

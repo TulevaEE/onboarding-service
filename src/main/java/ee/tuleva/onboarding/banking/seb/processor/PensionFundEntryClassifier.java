@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
-import static ee.tuleva.onboarding.banking.ManagementCompanies.isManagementFeeDescription;
-
+import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
@@ -23,6 +22,7 @@ public class PensionFundEntryClassifier {
 
   private final TradeSettlementParser tradeSettlementParser;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final ManagementCompanies managementCompanies;
 
   public sealed interface Classification
       permits InterestReceived,
@@ -100,8 +100,7 @@ public class PensionFundEntryClassifier {
     if (details == null) {
       return new Unclassified("subFamilyCode=" + code);
     }
-    var name = details.getName();
-    if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
+    if (managementCompanies.isManagementCompany(details.getName())) {
       return entry.amount().signum() < 0
           ? managementCompanyDebit(entry.remittanceInformation())
           : managementCompanyCredit(entry.remittanceInformation());
@@ -118,8 +117,8 @@ public class PensionFundEntryClassifier {
     return new Unclassified("unknown counterparty");
   }
 
-  private static Classification managementCompanyDebit(@Nullable String remittanceInformation) {
-    return isManagementFeeDescription(remittanceInformation)
+  private Classification managementCompanyDebit(@Nullable String remittanceInformation) {
+    return managementCompanies.isManagementFeeDescription(remittanceInformation)
         ? new ManagementFeePayment()
         : new UnrecognisedManagementCompanyDebit();
   }
@@ -148,7 +147,7 @@ public class PensionFundEntryClassifier {
 
   private static boolean isKickbackBooking(String code, BankStatementEntry entry) {
     return "BOOK".equals(code)
-        && entry.amount().signum() > 0
+        && entry.amount().signum() >= 0
         && isKickback(entry.remittanceInformation());
   }
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor
 
+import ee.tuleva.onboarding.banking.ManagementCompanies
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration
@@ -55,7 +56,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     }
   }
   def classifier = new PensionFundEntryClassifier(
-      new TradeSettlementParser(instrumentReferenceService), configuration)
+      new TradeSettlementParser(instrumentReferenceService), configuration,
+      new ManagementCompanies(configuration))
 
   @Unroll
   def "classifies #description"() {
@@ -104,6 +106,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "detail-less kickback debit goes to suspense" | entry("BOOK", -4370.58, null, null, "Management fee kickback VP00001") | new Unclassified("subFamilyCode=BOOK")
     "management company kickback debit goes to suspense" | entry("BOOK", -100.00, "Tuleva Fondid AS", OTHER_IBAN, "Kickback 02/2026") | new UnrecognisedManagementCompanyDebit()
+    "kickback debit from another counterparty goes to suspense" | entry("BOOK", -4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new Unclassified("unknown counterparty")
+    "zero-amount kickback booking stays a rebate" | entry("BOOK", 0.00, null, null, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
     "management company zero amount not stated as a rebate goes to suspense" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne") | new UnrecognisedManagementCompanyCredit()
     "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()

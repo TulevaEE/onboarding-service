@@ -24,8 +24,12 @@ MIGRATION_DIRS=(src/main/resources/db/migration src/main/java/db/migration)
 BASE_REF=${MIGRATION_ORDER_BASE:-origin/master}
 HEAD_REF=${1:-HEAD}
 
+# The fallback fetch runs inside a hook, so it must never stop to ask for
+# credentials.
 if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null 2>&1; then
-  if git fetch --no-tags --quiet origin master 2>/dev/null; then
+  if GIT_TERMINAL_PROMPT=0 \
+    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config core.sshCommand || echo ssh)} -o BatchMode=yes" \
+    git fetch --no-tags --quiet origin master </dev/null 2>/dev/null; then
     BASE_REF=FETCH_HEAD
   else
     echo "migration-order: cannot resolve $BASE_REF, skipping" >&2

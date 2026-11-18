@@ -41,3 +41,6 @@
 66003229972
 66112229833
 39802077017
+# A second checksum-valid minor beside 61506150006, a repo fixture public on master since
+# July 2026 (EpisServiceIntegrationSpec); needed where two minors are looked up in order.
+61508110000

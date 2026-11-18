@@ -17,6 +17,10 @@ public record Guardian(
     @Nullable String lastName) {
 
   public boolean grantsAssetManagement() {
-    return custodyType == PROPERTY_CUSTODY && custodyValidity == VALID && personStatus == ALIVE;
+    return custodyType == PROPERTY_CUSTODY && holdsCustody();
+  }
+
+  public boolean holdsCustody() {
+    return custodyValidity == VALID && personStatus == ALIVE;
   }
 }

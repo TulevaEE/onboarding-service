@@ -33,7 +33,7 @@ public class TransactionPreparationService {
   private final Clock clock;
 
   @Transactional(isolation = REPEATABLE_READ)
-  public @Nullable ProcessCommandResult processCommand(TransactionCommand command) {
+  public CommandOutcome processCommand(TransactionCommand command) {
     @Nullable FundTransactionInput input = null;
     @Nullable TransactionBatch batch = null;
     try {
@@ -86,15 +86,20 @@ public class TransactionPreparationService {
 
       return new ProcessCommandResult(batch, orders);
 
-    } catch (TradePrepInputGateException e) {
-      log.warn("Command stopped by input gates: id={}, reason={}", command.getId(), e.getMessage());
-      markFailed(command, input, batch, e);
-      return null;
     } catch (RuntimeException e) {
-      log.error("Command processing failed: id={}", command.getId(), e);
+      CommandOutcome outcome = loggedOutcomeOf(command, e);
       markFailed(command, input, batch, e);
-      return null;
+      return outcome;
     }
+  }
+
+  private static CommandOutcome loggedOutcomeOf(TransactionCommand command, RuntimeException e) {
+    if (e instanceof TradePrepInputGateException stopped) {
+      log.warn("Command stopped by input gates: id={}, reason={}", command.getId(), e.getMessage());
+      return stopped.stop();
+    }
+    log.error("Command processing failed: id={}", command.getId(), e);
+    return new CommandOutcome.Failed();
   }
 
   private void markFailed(

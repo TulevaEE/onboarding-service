@@ -114,7 +114,7 @@ class TransactionPipelineIntegrationTest {
   void processCommand_rebalanceMode_createsExpectedOrders() {
     var command = createCommand(REBALANCE);
 
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
 
     assertThat(result).isNotNull();
     assertThat(result.batch().getStatus()).isEqualTo(DRAFT);
@@ -146,7 +146,7 @@ class TransactionPipelineIntegrationTest {
   void processCommand_buyMode_producesNoOrdersWhenCashBelowReserve() {
     var command = createCommand(BUY, new BigDecimal("120000.00"));
 
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
 
     assertThat(result).isNotNull();
     List<TransactionOrder> orders = result.orders();
@@ -183,7 +183,7 @@ class TransactionPipelineIntegrationTest {
   @Test
   void finalizeConfirmedBatch_generatesExportsAndSetsStatusToSent() {
     var command = createCommand(REBALANCE);
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
     entityManager.flush();
 
     var batch = result.batch();
@@ -381,7 +381,7 @@ class TransactionPipelineIntegrationTest {
 
   private TransactionBatch runFullPipeline() {
     var command = createCommand(REBALANCE);
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
     entityManager.flush();
 
     var batch = result.batch();
@@ -398,7 +398,7 @@ class TransactionPipelineIntegrationTest {
   void processCommand_withACashOverride_storesItsCommentOnTheCommandAndInTheCompletedAuditEvent() {
     var command = createCommand(BUY, new BigDecimal("120000.00"));
 
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
     entityManager.flush();
     entityManager.clear();
 
@@ -416,9 +416,11 @@ class TransactionPipelineIntegrationTest {
   @Test
   void
       processCommand_rebalanceWithAnInstrumentExcluded_givesItsShareToTheOthersAndTradesTheSameNet() {
-    var withoutExclusion = preparationService.processCommand(createCommand(REBALANCE));
+    var withoutExclusion =
+        (ProcessCommandResult) preparationService.processCommand(createCommand(REBALANCE));
     var withExclusion =
-        preparationService.processCommand(createCommand(REBALANCE, Set.of(EXCLUDED_ISIN)));
+        (ProcessCommandResult)
+            preparationService.processCommand(createCommand(REBALANCE, Set.of(EXCLUDED_ISIN)));
 
     assertThat(withoutExclusion).isNotNull();
     assertThat(withExclusion).isNotNull();
@@ -437,7 +439,7 @@ class TransactionPipelineIntegrationTest {
   void processCommand_withAnInstrumentExcluded_storesItOnTheCommandAndInTheCompletedAuditEvent() {
     var command = createCommand(REBALANCE, Set.of(EXCLUDED_ISIN));
 
-    var result = preparationService.processCommand(command);
+    var result = (ProcessCommandResult) preparationService.processCommand(command);
     entityManager.flush();
     entityManager.clear();
 
@@ -468,7 +470,7 @@ class TransactionPipelineIntegrationTest {
 
     var result = preparationService.processCommand(command);
 
-    assertThat(result).isNull();
+    assertThat(result).isEqualTo(new CommandOutcome.Failed());
     assertThat(command.getStatus()).isEqualTo(FAILED);
     assertThat(command.getBatchId()).isNull();
     assertThat(auditEventRepository.findAll())

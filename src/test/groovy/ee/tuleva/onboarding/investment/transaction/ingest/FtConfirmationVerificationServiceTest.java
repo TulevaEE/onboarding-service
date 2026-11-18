@@ -72,6 +72,7 @@ class FtConfirmationVerificationServiceTest {
   @Mock private FtConfirmationDigest digest;
 
   private FtConfirmationVerificationService service(Instant now) {
+    Clock clock = Clock.fixed(now, ZoneOffset.UTC);
     return new FtConfirmationVerificationService(
         orderRepository,
         executionRepository,
@@ -79,8 +80,9 @@ class FtConfirmationVerificationServiceTest {
         new PriceValidator(),
         new Target2Calendar(),
         auditRecorder,
+        new FtCancellationCheck(new Target2Calendar(), auditRecorder, clock),
         digest,
-        Clock.fixed(now, ZoneOffset.UTC));
+        clock);
   }
 
   @Test

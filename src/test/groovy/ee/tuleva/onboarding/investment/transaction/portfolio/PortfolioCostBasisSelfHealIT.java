@@ -4,11 +4,15 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_ALERTED;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -16,13 +20,15 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepositor
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import ee.tuleva.onboarding.investment.transaction.portfolio.RecordingNotificationService.Sent;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +44,6 @@ class PortfolioCostBasisSelfHealIT {
 
   private static final String FUND_ISIN = TUK75.getIsin();
   private static final String INSTRUMENT_ISIN = "IE00BFNM3G45";
-  private static final String ISIN_BOUGHT_AFTER_THE_BASELINE = "IE000I9HGDZ3";
   private static final LocalDate BASELINE_DATE = LocalDate.of(2026, 4, 30);
 
   @Autowired private PortfolioCostBasisService service;
@@ -47,6 +52,7 @@ class PortfolioCostBasisSelfHealIT {
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
   @Autowired private TransactionExecutionRepository executionRepository;
+  @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
 
   @BeforeEach
@@ -93,42 +99,41 @@ class PortfolioCostBasisSelfHealIT {
   }
 
   @Test
-  void rebuildFromBaselineCarriesAPositionBoughtBeforeTheSelfHealWindowIntoASellInsideIt() {
+  void aSaleLargerThanTheKnownPositionStopsTheRebuildAndIsPostedToTheInvestmentChannelOnce() {
     seedBaseline();
-    seedExecutionOnDate(ISIN_BOUGHT_AFTER_THE_BASELINE, BUY, LocalDate.of(2026, 5, 4), "8000.0000");
-    LocalDate sellDate = LocalDate.of(2026, 6, 10);
-    seedExecutionOnDate(ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, sellDate, "5279.0000");
-    LocalDate today = LocalDate.of(2026, 6, 15);
+    LocalDate tradeDate = LocalDate.of(2026, 5, 1);
+    seedExecutionOnDate(SELL, tradeDate, "150000.0000", "12.00000000");
+    Clock clock = Clock.fixed(Instant.parse("2026-05-02T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
+    RecordingNotificationService notifications = new RecordingNotificationService();
+    PortfolioCostBasisSelfHealJob job =
+        new PortfolioCostBasisSelfHealJob(
+            clock,
+            service,
+            baselineRepository,
+            new CostBasisOversellAlerter(auditEventRepository, notifications, clock));
 
-    jobOn(today).rebuildFromBaseline();
+    job.runForRange(tradeDate, tradeDate);
+    job.runForRange(tradeDate, tradeDate);
 
-    assertThat(
-            costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
-                FUND_ISIN, ISIN_BOUGHT_AFTER_THE_BASELINE, sellDate))
-        .get()
-        .returns(new BigDecimal("2721.0000"), PortfolioCostBasis::getQuantity);
-    assertThat(
-            costBasisRepository.findByFundIsinAndInstrumentIsinAndAsOfDate(
-                FUND_ISIN, INSTRUMENT_ISIN, BASELINE_DATE.plusDays(1)))
-        .get()
-        .returns(new BigDecimal("100000.0000"), PortfolioCostBasis::getQuantity);
-  }
-
-  @Test
-  void rebuildFromBaselineFailsTheTriggerWhileTheHistoryStillLacksTheBuyBehindASell() {
-    seedBaseline();
-    seedExecutionOnDate(
-        ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, LocalDate.of(2026, 6, 10), "5279.0000");
-
-    assertThatThrownBy(() -> jobOn(LocalDate.of(2026, 6, 15)).rebuildFromBaseline())
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  private PortfolioCostBasisSelfHealJob jobOn(LocalDate today) {
-    ZoneId tallinn = ZoneId.of("Europe/Tallinn");
-    Clock clock = Clock.fixed(today.atStartOfDay(tallinn).toInstant(), tallinn);
-    return new PortfolioCostBasisSelfHealJob(
-        clock, service, baselineRepository, configuration -> Optional.of(() -> {}));
+    assertThat(notifications.sent())
+        .containsExactly(
+            new Sent(
+                """
+                🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
+                Fondi soetusmaksumus ei sisalda seda müüki, kuni see on parandamata
+                Leia puuduv ost või vale müügikogus tehinguregistris või algpositsioonis ja paranda see""",
+                INVESTMENT));
+    assertThat(auditEventRepository.findByEventType(OVERSELL_ALERTED))
+        .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
+        .containsExactly(
+            tuple(
+                "TUK75 IE00BFNM3G45 2026-05-01",
+                Map.of(
+                    "fund", "TUK75",
+                    "instrumentIsin", INSTRUMENT_ISIN,
+                    "asOfDate", "2026-05-01",
+                    "heldQuantity", "100000",
+                    "sellQuantity", "150000")));
   }
 
   private void seedBaseline() {
@@ -149,15 +154,10 @@ class PortfolioCostBasisSelfHealIT {
   }
 
   private void seedBuyOnDate(LocalDate date, String qty, String price) {
-    seedExecutionOnDate(INSTRUMENT_ISIN, BUY, date, qty, price);
+    seedExecutionOnDate(BUY, date, qty, price);
   }
 
-  private void seedExecutionOnDate(String isin, TransactionType type, LocalDate date, String qty) {
-    seedExecutionOnDate(isin, type, date, qty, "10.00000000");
-  }
-
-  private void seedExecutionOnDate(
-      String isin, TransactionType type, LocalDate date, String qty, String price) {
+  private void seedExecutionOnDate(TransactionType side, LocalDate date, String qty, String price) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
     TransactionOrder order =
@@ -165,8 +165,8 @@ class PortfolioCostBasisSelfHealIT {
             TransactionOrder.builder()
                 .batch(batch)
                 .fund(TUK75)
-                .instrumentIsin(isin)
-                .transactionType(type)
+                .instrumentIsin(INSTRUMENT_ISIN)
+                .transactionType(side)
                 .instrumentType(ETF)
                 .orderQuantity(new BigDecimal(qty))
                 .orderVenue(SEB)

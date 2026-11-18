@@ -60,33 +60,40 @@ class CostBasisOversellAlerter {
       }
     } catch (RuntimeException e) {
       log.error(
-          "Cost-basis oversell not recorded, next self-heal finds it again: dedupKey={},"
-              + " error={}",
+          "Cost-basis oversell not recorded, posting it directly: dedupKey={}, error={}",
           dedupKey,
+          e.getMessage(),
+          e);
+      send(foundMessage(payload, oversell.getAsOfDate()), dedupKey);
+      return;
+    }
+    clearOpenBefore(fund, oversell.getAsOfDate());
+  }
+
+  private void clearOpenBefore(TulevaFund fund, LocalDate stoppedAt) {
+    try {
+      openOversellsOf(fund)
+          .filter(found -> asOfDate(found).filter(date -> date.isBefore(stoppedAt)).isPresent())
+          .forEach(this::clear);
+    } catch (RuntimeException e) {
+      log.error(
+          "Oversells the replay got past not cleared, next self-heal retries: fundCode={},"
+              + " error={}",
+          fund.getCode(),
           e.getMessage(),
           e);
     }
   }
 
   boolean hasOpenOversell(TulevaFund fund) {
-    try {
-      return openOversells().stream().anyMatch(found -> isOf(fund, found));
-    } catch (RuntimeException e) {
-      log.error(
-          "Open cost-basis oversells unreadable, self-heal keeps its window: fundCode={},"
-              + " error={}",
-          fund.getCode(),
-          e.getMessage(),
-          e);
-      return false;
-    }
+    return openOversellsOf(fund).findAny().isPresent();
   }
 
-  void clearOpen(TulevaFund fund) {
+  void clearOpen(TulevaFund fund, LocalDate rebuiltTo) {
     try {
-      openOversells().stream()
-          .filter(found -> isOf(fund, found))
-          .forEach(found -> save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found)));
+      openOversellsOf(fund)
+          .filter(found -> asOfDate(found).filter(date -> !date.isAfter(rebuiltTo)).isPresent())
+          .forEach(this::clear);
     } catch (RuntimeException e) {
       log.error(
           "Resolved cost-basis oversells not cleared, next self-heal replays and retries:"
@@ -95,6 +102,14 @@ class CostBasisOversellAlerter {
           e.getMessage(),
           e);
     }
+  }
+
+  private Stream<TransactionAuditEvent> openOversellsOf(TulevaFund fund) {
+    return openOversells().stream().filter(found -> isOf(fund, found));
+  }
+
+  private void clear(TransactionAuditEvent found) {
+    save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found));
   }
 
   void postPending() {
@@ -251,20 +266,19 @@ class CostBasisOversellAlerter {
   }
 
   private static String message(TransactionAuditEvent state, LocalDate asOfDate) {
-    Map<String, Object> payload = state.getPayload();
-    String subject =
-        payload.get(FUND)
-            + " soetusmaksumus "
-            + DATE.format(asOfDate)
-            + ": "
-            + payload.get(INSTRUMENT_ISIN);
-    if (!isFound(state)) {
-      return "✅ " + subject + " müük ei ületa enam positsiooni, soetusmaksumus on ümber arvutatud";
+    if (isFound(state)) {
+      return foundMessage(state.getPayload(), asOfDate);
     }
+    return "✅ "
+        + subject(state.getPayload(), asOfDate)
+        + " müük ei ületa enam positsiooni, soetusmaksumus on ümber arvutatud";
+  }
+
+  private static String foundMessage(Map<String, Object> payload, LocalDate asOfDate) {
     return String.join(
         "\n",
         "🔴 "
-            + subject
+            + subject(payload, asOfDate)
             + " müük "
             + payload.get(SELL_QUANTITY)
             + " ühikut, teadaolev positsioon "
@@ -272,6 +286,14 @@ class CostBasisOversellAlerter {
         "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata",
         "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine"
             + " ümberarvutus parandab ülejäänu");
+  }
+
+  private static String subject(Map<String, Object> payload, LocalDate asOfDate) {
+    return payload.get(FUND)
+        + " soetusmaksumus "
+        + DATE.format(asOfDate)
+        + ": "
+        + payload.get(INSTRUMENT_ISIN);
   }
 
   private static String plain(BigDecimal quantity) {

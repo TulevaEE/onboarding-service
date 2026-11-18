@@ -105,9 +105,9 @@ class CostBasisOversellAlerterIT {
   }
 
   @Test
-  void anOversellOnAnotherDateIsItsOwnAlert() {
-    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+  void anOversellOnAnEarlierDateIsItsOwnAlert() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE.plusDays(1), "100000", "150000"));
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
 
     assertThat(notifications.sent()).hasSize(2);
@@ -132,7 +132,7 @@ class CostBasisOversellAlerterIT {
   void aFailedPostHoldsBackTheLaterAlertsSoTheyArePostedInOrder() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
-    alerter.clearOpen(TUK75);
+    alerter.clearOpen(TUK75, TRADE_DATE);
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "90000", "150000"));
     notifications.failNext();
     alerter.postPending();
@@ -153,9 +153,9 @@ class CostBasisOversellAlerterIT {
   void anOpenOversellIsClearedOnceTheFundsReplaySucceeds() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
-    alerter.clearOpen(TUK75);
+    alerter.clearOpen(TUK75, TRADE_DATE);
     alerter.postPending();
-    alerter.clearOpen(TUK75);
+    alerter.clearOpen(TUK75, TRADE_DATE);
     alerter.postPending();
 
     assertThat(notifications.sent())
@@ -173,7 +173,7 @@ class CostBasisOversellAlerterIT {
   @Test
   void anotherFundsReplayDoesNotClearIt() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
-    alerter.clearOpen(TUK00);
+    alerter.clearOpen(TUK00, TRADE_DATE);
 
     assertThat(auditEventRepository.findByEventType(OVERSELL_CLEARED)).isEmpty();
   }
@@ -182,7 +182,7 @@ class CostBasisOversellAlerterIT {
   void anOversellFoundAgainAfterItWasClearedIsPostedAgain() {
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
-    alerter.clearOpen(TUK75);
+    alerter.clearOpen(TUK75, TRADE_DATE);
     alerter.postPending();
     alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
     alerter.postPending();
@@ -199,9 +199,36 @@ class CostBasisOversellAlerterIT {
     assertThat(alerter.hasOpenOversell(TUK75)).isTrue();
     assertThat(alerter.hasOpenOversell(TUK00)).isFalse();
 
-    alerter.clearOpen(TUK75);
+    alerter.clearOpen(TUK75, TRADE_DATE);
 
     assertThat(alerter.hasOpenOversell(TUK75)).isFalse();
+  }
+
+  @Test
+  void anOversellDatedAfterTheRebuiltRangeStaysOpen() {
+    alerter.recordFound(TUK75, oversell(TRADE_DATE.plusDays(5), "100000", "150000"));
+    alerter.clearOpen(TUK75, TRADE_DATE);
+
+    assertThat(alerter.hasOpenOversell(TUK75)).isTrue();
+  }
+
+  @Test
+  void anOversellTheReplayGotPastIsClearedWhenALaterOneStopsIt() {
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.postPending();
+    alerter.recordFound(TUK75, oversell(TRADE_DATE.plusDays(10), "80000", "90000"));
+    alerter.postPending();
+
+    assertThat(auditEventRepository.findByEventType(OVERSELL_CLEARED))
+        .extracting(TransactionAuditEvent::getDedupKey)
+        .containsExactly("TUK75 IE00BFNM3G45 2026-05-01");
+    assertThat(notifications.sent())
+        .extracting(Sent::message)
+        .satisfiesExactly(
+            first -> assertThat(first).isEqualTo(FOUND_MESSAGE),
+            second -> assertThat(second).startsWith("🔴 TUK75 soetusmaksumus 11.05.2026:"),
+            third -> assertThat(third).isEqualTo(CLEARED_MESSAGE));
+    assertThat(alerter.hasOpenOversell(TUK75)).isTrue();
   }
 
   private static CostBasisOversellException oversell(

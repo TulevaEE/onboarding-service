@@ -8,6 +8,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.*
 
 class PevaRavaPeriodServiceSpec extends Specification {
@@ -56,6 +57,25 @@ class PevaRavaPeriodServiceSpec extends Specification {
       LocalDate.of(2026, 8, 21), LocalDate.of(2026, 8, 26), true, false)
     period.timelineFor(TUK00) == new FundCycleTimeline(
       LocalDate.of(2026, 8, 13), LocalDate.of(2026, 8, 24), true, true)
+  }
+
+  @Unroll
+  def "#fund counts the cycle's flows on #today: #counts"() {
+    expect:
+    service.getCurrentPeriod(LocalDate.parse(today)).map { it.countsFlowsOf(fund) }.orElse(false) == counts
+
+    where:
+    today        | fund   | counts
+    "2026-07-30" | TUK00  | false
+    "2026-08-12" | TUK00  | false
+    "2026-08-13" | TUK00  | true
+    "2026-08-20" | TUK75  | false
+    "2026-08-21" | TUK75  | true
+    "2026-09-03" | TUK75  | true
+    "2026-09-03" | TUK00  | true
+    "2026-09-04" | TUK75  | false
+    "2026-09-04" | TUK00  | false
+    "2026-08-21" | TUV100 | false
   }
 
   def "current period covers from lock date until next cycle lock date"() {

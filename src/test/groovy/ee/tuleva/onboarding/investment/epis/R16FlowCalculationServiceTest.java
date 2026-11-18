@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,14 @@ class R16FlowCalculationServiceTest {
 
     assertThat(flow.paymentDeadline()).isEqualTo(LocalDate.of(2026, 8, 17));
     assertThat(flow.sellByDate()).isEqualTo(LocalDate.of(2026, 8, 10));
+  }
+
+  @Test
+  void paymentDatesOfAMonthNeedNoR16Summary() {
+    assertThat(service.paymentDates(YearMonth.of(2026, 8)))
+        .isEqualTo(
+            new R16PaymentDates(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 17), LocalDate.of(2026, 8, 10)));
   }
 
   @Test

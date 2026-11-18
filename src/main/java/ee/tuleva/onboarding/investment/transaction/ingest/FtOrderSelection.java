@@ -28,6 +28,18 @@ record FtOrderSelection(TransactionOrder order, boolean ambiguous, int matchCoun
     return new FtOrderSelection(oldest(candidates), true, candidates.size());
   }
 
+  static List<TransactionOrder> liveOrders(List<TransactionOrder> candidates) {
+    return candidates.stream().filter(order -> !order.isCancelledOrDiscarded()).toList();
+  }
+
+  static boolean matchesOnlyAWithdrawnOrder(
+      FtConfirmation confirmation,
+      List<TransactionOrder> candidates,
+      List<TransactionOrder> liveOrders) {
+    return liveOrders.stream().noneMatch(order -> matchesQuantity(order, confirmation))
+        && candidates.stream().anyMatch(order -> matchesQuantity(order, confirmation));
+  }
+
   static boolean matchesQuantity(TransactionOrder order, FtConfirmation confirmation) {
     return hasQuantity(order, confirmation.quantity());
   }

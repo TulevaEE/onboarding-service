@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -10,7 +9,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlowService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
-import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
@@ -268,16 +266,11 @@ public class TransactionInputService {
     if (!PEVA_RAVA_FUNDS.contains(fund)) {
       return ZERO;
     }
-    Optional<PevaRavaPeriod> period =
-        pevaRavaPeriodService.getCurrentPeriod(asOfDate).filter(p -> p.phase() != DONE);
-    if (period.isEmpty()) {
-      return ZERO;
-    }
-    FundCycleTimeline timeline = period.get().timelineFor(fund);
-    if (!timeline.dActive()) {
-      return ZERO;
-    }
-    return getPevaRavaLiquidity(fund, asOfDate, timeline);
+    return pevaRavaPeriodService
+        .getCurrentPeriod(asOfDate)
+        .filter(period -> period.countsFlowsOf(fund))
+        .map(period -> getPevaRavaLiquidity(fund, asOfDate, period.timelineFor(fund)))
+        .orElse(ZERO);
   }
 
   private BigDecimal getPevaRavaLiquidity(

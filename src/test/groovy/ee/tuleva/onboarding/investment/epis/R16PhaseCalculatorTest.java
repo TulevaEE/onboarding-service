@@ -82,6 +82,29 @@ class R16PhaseCalculatorTest {
     assertThat(calculator.isSuppressedByR45(flow(TUK75))).isFalse();
   }
 
+  @Test
+  void phaseOfAMonthWithoutR16DataFollowsTheSamePaymentDates() {
+    var june =
+        new R16PaymentDates(
+            LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 8));
+
+    assertThat(calculator.phaseFor(TUK75, june, LocalDate.of(2026, 6, 5))).isEqualTo(VISIBLE);
+    assertThat(calculator.phaseFor(TUK75, june, LocalDate.of(2026, 6, 8))).isEqualTo(ACTIVE);
+    assertThat(calculator.phaseFor(TUK75, june, LocalDate.of(2026, 6, 15))).isEqualTo(BUFFERED);
+    assertThat(calculator.phaseFor(TUK75, june, LocalDate.of(2026, 6, 21))).isEqualTo(IGNORE);
+  }
+
+  @Test
+  void tuv100MonthWithoutR16DataIsSuppressedByR45RedRowsInSixteenToTwentyWindow() {
+    given(r45ReportService.getLatestRedRowSettlementDates(TUV100))
+        .willReturn(List.of(LocalDate.of(2026, 6, 17)));
+    var june =
+        new R16PaymentDates(
+            LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 8));
+
+    assertThat(calculator.phaseFor(TUV100, june, LocalDate.of(2026, 6, 10))).isEqualTo(IGNORE);
+  }
+
   private R16FundFlow flow(TulevaFund fund) {
     return new R16FundFlow(
         fund,

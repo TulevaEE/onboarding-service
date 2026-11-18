@@ -52,6 +52,7 @@ import org.mockito.quality.Strictness;
 class SebFundConfirmationVerificationServiceTest {
 
   private static final String ISIN = "IE00BKPTWY98";
+  private static final String ISIN_WITH_ITS_OWN_TOLERANCE = "ZZ0000000001";
   private static final String REFERENCE = "DLA1234567";
   private static final LocalDate RECEIVED = LocalDate.of(2026, 1, 5);
   private static final LocalDate PRICING = LocalDate.of(2026, 1, 6);
@@ -70,7 +71,9 @@ class SebFundConfirmationVerificationServiceTest {
     given(reportService.getReport(eq(SEB), eq(PENDING_TRANSACTIONS), any()))
         .willReturn(Optional.empty());
     given(priceResolver.resolve(eq(ISIN), any())).willReturn(Optional.of(noPrice()));
-    given(parameterRepository.findLatestValue(eq(SEB_FUND_CONFIRMATION_NAV_TOLERANCE), any()))
+    given(
+            parameterRepository.findLatestValueForIsinOrGlobal(
+                eq(SEB_FUND_CONFIRMATION_NAV_TOLERANCE), any(), any()))
         .willReturn(new BigDecimal("0.004"));
     given(registryCheck.compare(any())).willReturn(RegistryComparison.NOT_IN_REGISTRY);
   }
@@ -223,13 +226,34 @@ class SebFundConfirmationVerificationServiceTest {
   void verify_judgesThePriceAgainstTheToleranceInForceOnThePricingDate() {
     reportOn(PRICING, pendingRow("1000", "12.34567890", "12345.68", VALUE));
     navOn(PRICING, "12.2456");
-    given(parameterRepository.findLatestValue(SEB_FUND_CONFIRMATION_NAV_TOLERANCE, PRICING))
+    given(
+            parameterRepository.findLatestValueForIsinOrGlobal(
+                eq(SEB_FUND_CONFIRMATION_NAV_TOLERANCE), any(), eq(PRICING)))
         .willReturn(new BigDecimal("0.009"));
 
     SebFundConfirmationResult result = service.verify(confirmation("12.345678901"));
 
     assertThat(result.navStatus()).isEqualTo(WITHIN_TOLERANCE);
     assertThat(result.deviationPercent()).isEqualByComparingTo("0.8173");
+  }
+
+  @Test
+  void verify_judgesEachPriceAgainstTheToleranceSetForItsOwnUnderlyingFund() {
+    navOn(ISIN, PRICING, "12.2456");
+    navOn(ISIN_WITH_ITS_OWN_TOLERANCE, PRICING, "12.2456");
+    given(
+            parameterRepository.findLatestValueForIsinOrGlobal(
+                SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN_WITH_ITS_OWN_TOLERANCE, PRICING))
+        .willReturn(new BigDecimal("0.009"));
+
+    SebFundConfirmationResult withItsOwnTolerance =
+        service.verify(confirmation(ISIN_WITH_ITS_OWN_TOLERANCE, "12.345678901", PRICING));
+    SebFundConfirmationResult onTheDefault = service.verify(confirmation("12.345678901"));
+
+    assertThat(withItsOwnTolerance.deviationPercent()).isEqualByComparingTo("0.8173");
+    assertThat(withItsOwnTolerance.navStatus()).isEqualTo(WITHIN_TOLERANCE);
+    assertThat(onTheDefault.deviationPercent()).isEqualByComparingTo("0.8173");
+    assertThat(onTheDefault.navStatus()).isEqualTo(FAR_FROM_NAV);
   }
 
   @Test
@@ -292,13 +316,18 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   private static SebFundConfirmation confirmation(String price, LocalDate pricingDate) {
+    return confirmation(ISIN, price, pricingDate);
+  }
+
+  private static SebFundConfirmation confirmation(
+      String isin, String price, LocalDate pricingDate) {
     return new SebFundConfirmation(
         TUK75,
         REFERENCE,
         Instant.parse("2026-01-05T09:48:17Z"),
         pricingDate,
         VALUE,
-        ISIN,
+        isin,
         BUY,
         new BigDecimal("1000.00"),
         new BigDecimal(price),
@@ -335,14 +364,18 @@ class SebFundConfirmationVerificationServiceTest {
   }
 
   private void navOn(LocalDate date, String nav) {
-    given(priceResolver.resolve(ISIN, date))
+    navOn(ISIN, date, nav);
+  }
+
+  private void navOn(String isin, LocalDate date, String nav) {
+    given(priceResolver.resolve(isin, date))
         .willReturn(
             Optional.of(
                 ResolvedPrice.builder()
                     .usedPrice(new BigDecimal(nav))
                     .validationStatus(OK)
                     .priceDate(date)
-                    .storageKey(ISIN + ".BLACKROCK")
+                    .storageKey(isin + ".BLACKROCK")
                     .build()));
   }
 

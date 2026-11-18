@@ -81,7 +81,7 @@ class SebFundConfirmationVerificationService {
         reportStatus(confirmation, row, differences),
         differences,
         registryCheck.compare(confirmation),
-        navStatus(deviation, confirmation.pricingDate()),
+        navStatus(deviation, confirmation.isin(), confirmation.pricingDate()),
         nav.orElse(null),
         deviation,
         navDatesAfterReceipt > properties.maxNavDatesAfterReceipt() ? LATE : ON_TIME,
@@ -169,21 +169,21 @@ class SebFundConfirmationVerificationService {
         .setScale(PERCENT_SCALE, HALF_UP);
   }
 
-  private NavStatus navStatus(@Nullable BigDecimal deviation, LocalDate pricingDate) {
+  private NavStatus navStatus(@Nullable BigDecimal deviation, String isin, LocalDate pricingDate) {
     if (deviation == null) {
       return today()
               .isAfter(pricingDate.plusDays(DAYS_A_PUBLISHED_NAV_CAN_STILL_REACH_THE_PRICE_DATA))
           ? NOT_PUBLISHED
           : NOT_PUBLISHED_YET;
     }
-    return deviation.abs().compareTo(navTolerancePercent(pricingDate)) > 0
+    return deviation.abs().compareTo(navTolerancePercent(isin, pricingDate)) > 0
         ? FAR_FROM_NAV
         : WITHIN_TOLERANCE;
   }
 
-  private BigDecimal navTolerancePercent(LocalDate pricingDate) {
+  private BigDecimal navTolerancePercent(String isin, LocalDate pricingDate) {
     return parameterRepository
-        .findLatestValue(SEB_FUND_CONFIRMATION_NAV_TOLERANCE, pricingDate)
+        .findLatestValueForIsinOrGlobal(SEB_FUND_CONFIRMATION_NAV_TOLERANCE, isin, pricingDate)
         .multiply(HUNDRED);
   }
 

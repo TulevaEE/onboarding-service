@@ -150,6 +150,39 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
+  void run_judgesAPriceByTheDefaultToleranceWhenOnlyAnotherUnderlyingFundHasItsOwn() {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_parameter (parameter_name, isin, effective_date, numeric_value)
+            VALUES (:name, :isin, :effectiveDate, :value)
+            """)
+        .param("name", NAV_TOLERANCE)
+        .param("isin", "ZZ0000000001")
+        .param("effectiveDate", LocalDate.of(2026, 1, 1))
+        .param("value", new BigDecimal("0.009"))
+        .update();
+    seedTwoTradesAndANavBelowTheConfirmedPrice();
+
+    job.run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            SEB fonditehingute kinnitused
+
+            TUK75 IE00BKPTWY98 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81%
+            Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
+            Kontrolli hinda SEB-lt ja fondivalitseja lehelt
+
+            TUK75 IE00BKPTWY98 ost 05.01.2026: SEB tehingukinnitust pole 2 tööpäeva järel
+            Tehing DLA0000002 on SEB ootel tehingute raportis, kogus 1000
+            Kontrolli funds@ postkasti ja küsi kinnitust SEB-lt""",
+            INVESTMENT);
+  }
+
+  @Test
   void run_doesNotRepeatAlertsItHasAlreadySent() {
     seedTwoTradesAndANavBelowTheConfirmedPrice();
 
@@ -327,7 +360,7 @@ class SebFundConfirmationImportJobIT {
             SEB fonditehingute kinnitused
 
             SEB tehingukinnituste kontroll jäi pooleli: tehingu DLA0000001 kontroll
-            Põhjus: No investment parameter found: parameter=SEB_FUND_CONFIRMATION_NAV_TOLERANCE, fund=GLOBAL, asOf=2026-01-06
+            Põhjus: No investment parameter found: parameter=SEB_FUND_CONFIRMATION_NAV_TOLERANCE, fund=GLOBAL, isin=IE00BKPTWY98, asOf=2026-01-06
             Teavita IT-d ja kontrolli seda osa seni käsitsi""",
             INVESTMENT);
   }

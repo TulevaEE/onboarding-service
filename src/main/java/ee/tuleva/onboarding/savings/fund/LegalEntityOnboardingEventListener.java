@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.ON_HOLD;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.KYB_CHECK;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
@@ -51,7 +52,7 @@ class LegalEntityOnboardingEventListener {
 
     var previousStatus =
         savingsFundOnboardingRepository
-            .saveOnboardingStatus(registryCode, LEGAL_ENTITY, newStatus)
+            .saveOnboardingStatus(registryCode, LEGAL_ENTITY, newStatus, KYB_CHECK)
             .orElse(null);
 
     announce(event, newStatus, previousStatus, failedGateChecks);

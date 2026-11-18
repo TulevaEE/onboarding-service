@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.time.ZoneOffset.UTC;
@@ -279,7 +280,8 @@ class SavingsFundNotificationCommitIntegrationTest {
                 .email("riina.raha@example.com")
                 .active(true)
                 .build());
-    onboardingRepository.saveOnboardingStatus(REDEEMER_CODE, PartyId.Type.PERSON, COMPLETED);
+    onboardingRepository.saveOnboardingStatus(
+        REDEEMER_CODE, PartyId.Type.PERSON, COMPLETED, KYC_CHECK);
     holdFundUnits();
     depositFrom(REDEMPTION_IBAN, redeemer);
     return redeemer;

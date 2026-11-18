@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -144,7 +145,8 @@ class UnattributedPaymentAttributionServiceIntegrationTest {
   private PartyId onboardedParty() {
     userRepository.save(
         User.builder().firstName("Annika").lastName("Tamm").personalCode(PERSONAL_CODE).build());
-    onboardingRepository.saveOnboardingStatus(PERSONAL_CODE, PartyId.Type.PERSON, COMPLETED);
+    onboardingRepository.saveOnboardingStatus(
+        PERSONAL_CODE, PartyId.Type.PERSON, COMPLETED, KYC_CHECK);
     return new PartyId(PartyId.Type.PERSON, PERSONAL_CODE);
   }
 

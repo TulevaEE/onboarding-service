@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusAfter;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.AML_SERVICE_REVIEW;
 
 import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
 import ee.tuleva.onboarding.company.BoardMembershipService;
@@ -50,7 +51,8 @@ public class LegalEntitySavingsFundOnboardingService {
     if (oldStatus == null
         || newStatus == null
         || newStatus == oldStatus
-        || !onboardingRepository.changeStatus(registryCode, LEGAL_ENTITY, oldStatus, newStatus)) {
+        || !onboardingRepository.changeStatus(
+            registryCode, LEGAL_ENTITY, oldStatus, newStatus, AML_SERVICE_REVIEW)) {
       return;
     }
     log.info(

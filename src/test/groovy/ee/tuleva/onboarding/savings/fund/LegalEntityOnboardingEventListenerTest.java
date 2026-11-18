@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.ON_HOLD;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,7 +51,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK);
   }
 
   @Test
@@ -62,7 +63,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -75,7 +76,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK);
   }
 
   @Test
@@ -88,7 +89,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK);
   }
 
   @Test
@@ -101,7 +102,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -115,7 +116,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -129,7 +130,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -143,7 +144,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -157,7 +158,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -170,7 +171,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD, KYB_CHECK);
   }
 
   @Test
@@ -183,7 +184,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD, KYB_CHECK);
     assertThat(publishedEvents).isEmpty();
   }
 
@@ -197,7 +198,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD, KYB_CHECK);
   }
 
   @Test
@@ -209,7 +210,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -221,7 +222,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   @Test
@@ -234,7 +235,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -245,7 +246,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -257,7 +258,7 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(
         eventWith(List.of(new KybCheck(COMPANY_STRUCTURE, false, Map.of())), SUBMISSION));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -267,7 +268,7 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(
         eventWith(List.of(new KybCheck(HIGH_RISK_NACE, false, Map.of())), RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -277,7 +278,7 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(
         eventWith(List.of(new KybCheck(HIGH_RISK_NACE, false, Map.of())), SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD, KYB_CHECK);
   }
 
   @Test
@@ -304,7 +305,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -317,7 +318,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -344,7 +345,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -372,7 +373,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -400,7 +401,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   @Test
@@ -413,7 +414,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, ON_HOLD, KYB_CHECK);
   }
 
   @Test
@@ -426,7 +427,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   @Test
@@ -438,7 +439,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   @Test
@@ -450,7 +451,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   @Test
@@ -463,7 +464,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   // An account that is already open losing a related person's verification is an
@@ -478,7 +479,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
   }
 
   // Monitoring must not heal a rejection on its own: only a fresh survey submission clears the
@@ -493,7 +494,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   // The mirror image: the applicant fixed what got them rejected and submitted again, so the
@@ -508,7 +509,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   // Submitting is blocked for a completed company, so this cannot happen through the survey; the
@@ -523,8 +524,8 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
-    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
+    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   // The company was open, monitoring demoted it, and the next monitoring run must not walk it
@@ -541,8 +542,9 @@ class LegalEntityOnboardingEventListenerTest {
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, times(1)).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
-    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository, times(1))
+        .saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED, KYB_CHECK);
+    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
   }
 
   @Test
@@ -555,13 +557,13 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK);
   }
 
   @Test
   void publishesOnboardedEventWhenAPendingCompanyCompletes() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK))
         .willReturn(Optional.of(PENDING));
     var checks =
         List.of(
@@ -597,7 +599,7 @@ class LegalEntityOnboardingEventListenerTest {
   @Test
   void publishesOnboardedEventWhenARejectedCompanyCompletesOnResubmission() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK))
         .willReturn(Optional.of(REJECTED));
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
 
@@ -609,20 +611,20 @@ class LegalEntityOnboardingEventListenerTest {
   @Test
   void publishesNoOnboardedEventWhenMonitoringReopensACompanyItHadRejected() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK))
         .willReturn(Optional.of(REJECTED));
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK);
     assertThat(publishedEvents).isEmpty();
   }
 
   @Test
   void publishesNoOnboardedEventWhenAnotherRelatedPersonAlreadyCompletedTheCompany() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED, KYB_CHECK))
         .willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
@@ -648,7 +650,7 @@ class LegalEntityOnboardingEventListenerTest {
   @Test
   void publishesWaitingEventWhenAResubmittedRejectedCompanyStartsWaitingForAnotherRelatedPerson() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK))
         .willReturn(Optional.of(REJECTED));
     var checks = List.of(waitingFor(OTHER_OWNER));
 
@@ -661,7 +663,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void publishesNoWaitingEventWhenAConcurrentScreeningAlreadyQueuedTheCompany() {
-    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING))
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK))
         .willReturn(Optional.of(PENDING));
     var checks = List.of(waitingFor(OTHER_OWNER));
 
@@ -676,7 +678,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
     assertThat(publishedEvents).isEmpty();
   }
 
@@ -686,7 +688,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
-    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING, KYB_CHECK);
     assertThat(publishedEvents).isEmpty();
   }
 
@@ -700,7 +702,7 @@ class LegalEntityOnboardingEventListenerTest {
 
     listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 
   private static KybCheck dataChangedFor(KybCheckType changedCheck) {

@@ -9,12 +9,15 @@ import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.OnboardingStatusChanges.Change;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.util.Map;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +42,7 @@ class SavingsFundOnboardingIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private SavingsFundOnboardingService savingsFundOnboardingService;
+  @Autowired private JdbcClient jdbcClient;
 
   private User user;
 
@@ -70,7 +75,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_completesAMediumRiskOnboarding() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(MEDIUM, Map.of()), PERSONAL_ONBOARDING);
@@ -83,7 +88,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_holdsAHighRiskOnboardingForReviewInsteadOfRejectingIt() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING);
@@ -99,7 +104,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_keepsAHeldOnboardingHeldWhenTheRepeatedSurveyComesOutLowRisk() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
@@ -112,8 +117,22 @@ class SavingsFundOnboardingIntegrationTest {
   }
 
   @Test
+  void keepsWhatChangedTheStatusOfAnOnboardingHeldByItsKycCheckAndCompletedByTheReview() {
+    eventPublisher.publishEvent(
+        new KycCheckPerformedEvent(
+            this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING));
+
+    savingsFundOnboardingService.applyReview(user, COMPLETE);
+
+    assertThat(new OnboardingStatusChanges(jdbcClient).of(user.getPersonalCode(), PERSON))
+        .extracting(Change::oldStatus, Change::newStatus, Change::reason)
+        .containsExactly(
+            tuple(null, ON_HOLD, KYC_CHECK), tuple(ON_HOLD, COMPLETED, AML_SERVICE_REVIEW));
+  }
+
+  @Test
   void applyReview_completesAHeldOnboardingTheReviewerLetThrough() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD, KYC_CHECK);
 
     savingsFundOnboardingService.applyReview(user, COMPLETE);
 
@@ -123,7 +142,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void applyReview_rejectsAHeldOnboardingTheReviewerRefusedAndKeepsItRejected() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD, KYC_CHECK);
 
     savingsFundOnboardingService.applyReview(user, REJECT);
     savingsFundOnboardingService.applyReview(user, REJECT);
@@ -137,7 +156,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void applyReview_leavesAnOnboardingWithoutAKycResultPending() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING, KYC_CHECK);
 
     savingsFundOnboardingService.applyReview(user, COMPLETE);
 
@@ -147,7 +166,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_doesNotUpdateIfAlreadyCompleted() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), PERSONAL_ONBOARDING);
@@ -159,7 +178,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_keepsRejectedWhenTheRepeatedSurveyComesOutLowRisk() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), PERSONAL_ONBOARDING);
@@ -198,7 +217,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_identityOnly_leavesExistingPendingUnchanged() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, PENDING, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), IDENTITY_ONLY);
@@ -210,7 +229,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_identityOnly_leavesExistingRejectedUnchanged() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, REJECTED, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(LOW, Map.of()), IDENTITY_ONLY);
@@ -222,7 +241,7 @@ class SavingsFundOnboardingIntegrationTest {
 
   @Test
   void onKycCheckPerformed_identityOnly_leavesExistingCompletedUnchanged() {
-    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
+    repository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
     var event =
         new KycCheckPerformedEvent(
             this, user.getPersonalCode(), new KycCheck(HIGH, Map.of()), IDENTITY_ONLY);

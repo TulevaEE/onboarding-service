@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static java.math.BigDecimal.ONE;
@@ -74,7 +75,7 @@ class SebRedemptionIntegrationTest {
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());
     testParty = new PartyId(PERSON, testUser.getPersonalCode());
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        testUser.getPersonalCode(), PERSON, COMPLETED);
+        testUser.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
     setupUserWithFundUnits(new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     setupUserDepositIban(SEB_DEPOSIT_IBAN);
   }

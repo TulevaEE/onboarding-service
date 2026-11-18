@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -217,7 +218,7 @@ class OpenedAccountRepositoryTest {
 
   private void status(String code, SavingsFundOnboardingStatus status, Instant changedAt) {
     ClockHolder.setClock(Clock.fixed(changedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(code, PERSON, status);
+    onboardingRepository.saveOnboardingStatus(code, PERSON, status, KYC_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 

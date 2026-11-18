@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -359,7 +360,7 @@ class ChildOnboardingAbandonmentReminderRepositoryTest {
   private void childAccount(
       String childCode, SavingsFundOnboardingStatus status, Instant startedAt) {
     ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
-    onboardingRepository.saveOnboardingStatus(childCode, PERSON, status);
+    onboardingRepository.saveOnboardingStatus(childCode, PERSON, status, KYC_CHECK);
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
     jdbcClient
         .sql("UPDATE savings_fund_onboarding SET created_at = :startedAt WHERE code = :code")

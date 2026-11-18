@@ -236,8 +236,16 @@ public class InstrumentDataValidator {
   private boolean hasAnyPrice(InstrumentReference instrument, LocalDate date) {
     return hasPrice(instrument.getXetraStorageKey(), date)
         || hasPrice(instrument.getEuronextParisStorageKey(), date)
-        || hasPrice(instrument.getEodhdStorageKey(), date)
+        || hasPrice(eodhdStorageKeyUsedForPricing(instrument), date)
         || hasPrice(Optional.ofNullable(instrument.getYahooTicker()), date);
+  }
+
+  // A Paris-listed ETF is priced at the Euronext close, never at EODHD's last trade.
+  private Optional<String> eodhdStorageKeyUsedForPricing(InstrumentReference instrument) {
+    if (instrument.getEuronextParisStorageKey().isPresent()) {
+      return Optional.empty();
+    }
+    return instrument.getEodhdStorageKey();
   }
 
   private boolean hasPrice(Optional<String> storageKey, LocalDate date) {

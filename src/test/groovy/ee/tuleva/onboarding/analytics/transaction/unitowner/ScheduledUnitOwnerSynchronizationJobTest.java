@@ -23,6 +23,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,6 +31,7 @@ class ScheduledUnitOwnerSynchronizationJobTest {
 
   @Mock private UnitOwnerSynchronizer unitOwnerSynchronizer;
   @Mock private UnitOwnerRepository unitOwnerRepository;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private ScheduledUnitOwnerSynchronizationJob job;
 
@@ -58,6 +60,25 @@ class ScheduledUnitOwnerSynchronizationJobTest {
     LocalDate actualSnapshotDate = snapshotDateCaptor.getValue();
     assertThat(actualSnapshotDate).isEqualTo(expectedSnapshotDate);
     verifyNoMoreInteractions(unitOwnerSynchronizer);
+  }
+
+  @Test
+  void runDailySync_announcesTheNewSnapshot() {
+    job.runDailySync();
+
+    verify(eventPublisher)
+        .publishEvent(new UnitOwnerSnapshotSynchronized(LocalDate.now(TestClockHolder.clock)));
+  }
+
+  @Test
+  void runDailySync_announcesNoSnapshot_whenSynchronizationFails() {
+    doThrow(new RuntimeException("Sync failed!"))
+        .when(unitOwnerSynchronizer)
+        .sync(any(LocalDate.class));
+
+    job.runDailySync();
+
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test

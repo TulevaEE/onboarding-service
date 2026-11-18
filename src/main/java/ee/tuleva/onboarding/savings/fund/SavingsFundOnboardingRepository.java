@@ -99,12 +99,14 @@ public class SavingsFundOnboardingRepository {
                 .sql(
                     """
                     UPDATE savings_fund_onboarding
-                    SET status = 'ON_HOLD', updated_at = :updatedAt
-                    WHERE code = :code AND type = :type AND status = 'REJECTED'
+                    SET status = :status, updated_at = :updatedAt
+                    WHERE code = :code AND type = :type AND status = :expected
                       AND updated_at < :rejectedBefore
                     """)
                 .param("code", code)
                 .param("type", type.name())
+                .param("expected", REJECTED.name())
+                .param("status", ON_HOLD.name())
                 .param("updatedAt", Timestamp.from(changedAt))
                 .param("rejectedBefore", Timestamp.from(rejectedBefore))
                 .update()
@@ -138,6 +140,19 @@ public class SavingsFundOnboardingRepository {
   public Optional<SavingsFundOnboardingStatus> findStatus(String code, PartyId.Type type) {
     return jdbcClient
         .sql("SELECT status FROM savings_fund_onboarding WHERE code = :code AND type = :type")
+        .param("code", code)
+        .param("type", type.name())
+        .query(String.class)
+        .optional()
+        .map(SavingsFundOnboardingStatus::valueOf);
+  }
+
+  private Optional<SavingsFundOnboardingStatus> findStatusForUpdate(
+      String code, PartyId.Type type) {
+    return jdbcClient
+        .sql(
+            "SELECT status FROM savings_fund_onboarding WHERE code = :code AND type = :type"
+                + " FOR UPDATE")
         .param("code", code)
         .param("type", type.name())
         .query(String.class)
@@ -217,7 +232,7 @@ public class SavingsFundOnboardingRepository {
         .query((rs, rowNum) -> 0)
         .optional();
 
-    var previousStatus = findStatus(code, type);
+    var previousStatus = findStatusForUpdate(code, type);
     Instant changedAt = clock.instant();
 
     int updated =

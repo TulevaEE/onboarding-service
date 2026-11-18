@@ -392,15 +392,15 @@ branch_push_check "pre-push says it could not compute the push instead of report
 # which is the failing-formatter path, reached by the same `! ./gradlew` branch
 # a real formatting complaint takes.
 #
-# commit_check <description> <expected exit> <expected output> <id code|-> [user diff setting]
+# commit_check <description> <expected exit> <expected output> <id code|-> [step after staging]
 commit_check() {
-  local description=$1 expected=$2 expected_output=$3 idcode=$4 diff_setting=${5:-}
+  local description=$1 expected=$2 expected_output=$3 idcode=$4 after_staging=${5:-}
   setup_repo
-  [ -n "$diff_setting" ] && "$diff_setting"
   git checkout --quiet -b feature
   [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
   echo "select 1;" >"$MIGRATION_DIR/V1_3__new.sql"
   git add -A
+  [ -n "$after_staging" ] && "$after_staging"
   local output actual
   output=$("$PRE_COMMIT" 2>&1)
   actual=$?
@@ -419,6 +419,15 @@ commit_check "pre-commit scans past a textconv filter" \
   1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" hide_java_behind_a_textconv_filter
 commit_check "pre-commit names the file when diff prefixes are switched off" \
   1 "Fixture.java:1"          "$PII_FIXTURE_ID_CODE" drop_the_diff_prefixes
+
+lose_the_staged_blob() {
+  local blob
+  blob=$(git rev-parse :Fixture.java)
+  rm -f ".git/objects/${blob:0:2}/${blob:2}" Fixture.java
+}
+
+commit_check "pre-commit says it could not compute the commit instead of passing it" \
+  1 "could not compute what this commit adds" "$PII_FIXTURE_ID_CODE" lose_the_staged_blob
 
 echo ""
 if [ "$failed" -eq 0 ]; then

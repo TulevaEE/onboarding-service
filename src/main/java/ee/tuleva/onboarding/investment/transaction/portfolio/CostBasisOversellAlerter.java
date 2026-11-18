@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
-import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.SELF_HEAL_DAYS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
@@ -15,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,7 +72,7 @@ class CostBasisOversellAlerter {
     try {
       openOversells().stream()
           .filter(found -> fund.getCode().equals(found.getPayload().get(FUND)))
-          .filter(found -> isWithin(asOfDate(found), from, to))
+          .filter(found -> asOfDate(found).filter(date -> isWithin(date, from, to)).isPresent())
           .forEach(found -> save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found)));
     } catch (RuntimeException e) {
       log.error(
@@ -84,10 +84,30 @@ class CostBasisOversellAlerter {
     }
   }
 
+  Optional<LocalDate> earliestOpenOversell(TulevaFund fund) {
+    try {
+      return openOversells().stream()
+          .filter(found -> fund.getCode().equals(found.getPayload().get(FUND)))
+          .map(CostBasisOversellAlerter::asOfDate)
+          .flatMap(Optional::stream)
+          .min(Comparator.naturalOrder());
+    } catch (RuntimeException e) {
+      log.error(
+          "Open cost-basis oversells unreadable, self-heal keeps its window: fundCode={},"
+              + " error={}",
+          fund.getCode(),
+          e.getMessage(),
+          e);
+      return Optional.empty();
+    }
+  }
+
   void postPending() {
     try {
       for (TransactionAuditEvent state : unposted()) {
-        if (!send(message(state), dedupKey(state)) || !recordPosted(state)) {
+        Optional<String> message = render(state);
+        if (message.isPresent()
+            && (!send(message.get(), dedupKey(state)) || !recordPosted(state))) {
           return;
         }
       }
@@ -187,8 +207,21 @@ class CostBasisOversellAlerter {
     return !date.isBefore(from) && !date.isAfter(to);
   }
 
-  private static LocalDate asOfDate(TransactionAuditEvent state) {
-    return LocalDate.parse(String.valueOf(state.getPayload().get(AS_OF_DATE)));
+  private static Optional<LocalDate> asOfDate(TransactionAuditEvent state) {
+    try {
+      return Optional.of(LocalDate.parse(String.valueOf(state.getPayload().get(AS_OF_DATE))));
+    } catch (DateTimeParseException e) {
+      log.error(
+          "Cost-basis oversell event has no readable date, skipped: eventId={}, error={}",
+          state.getId(),
+          e.getMessage(),
+          e);
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<String> render(TransactionAuditEvent state) {
+    return asOfDate(state).map(asOfDate -> message(state, asOfDate));
   }
 
   private static String dedupKey(TransactionAuditEvent state) {
@@ -222,9 +255,8 @@ class CostBasisOversellAlerter {
     return payload;
   }
 
-  private static String message(TransactionAuditEvent state) {
+  private static String message(TransactionAuditEvent state, LocalDate asOfDate) {
     Map<String, Object> payload = state.getPayload();
-    LocalDate asOfDate = asOfDate(state);
     String subject =
         payload.get(FUND)
             + " soetusmaksumus "
@@ -243,12 +275,8 @@ class CostBasisOversellAlerter {
             + " ühikut, teadaolev positsioon "
             + payload.get(HELD_QUANTITY),
         "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata",
-        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see hiljemalt "
-            + DATE.format(lastDayTheSelfHealStillRecalculates(asOfDate)));
-  }
-
-  private static LocalDate lastDayTheSelfHealStillRecalculates(LocalDate asOfDate) {
-    return asOfDate.plusDays(SELF_HEAL_DAYS - 1L);
+        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine"
+            + " ümberarvutus parandab ülejäänu");
   }
 
   private static String plain(BigDecimal quantity) {

@@ -34,6 +34,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,7 +111,8 @@ class PortfolioCostBasisSelfHealIT {
 
   @Test
   @Transactional(propagation = NOT_SUPPORTED)
-  void aSaleLargerThanTheKnownPositionRollsTheFundBackIsPostedOnceAndClearsWhenCorrected() {
+  void
+      aSaleLargerThanTheKnownPositionRollsTheFundBackIsPostedOnceAndClearsWhenCorrectedAfterItsWindow() {
     LocalDate tradeDate = LocalDate.of(2026, 5, 1);
     try {
       seedBaseline();
@@ -123,7 +125,8 @@ class PortfolioCostBasisSelfHealIT {
               clock,
               service,
               baselineRepository,
-              new CostBasisOversellAlerter(auditEventRepository, notifications, clock));
+              new CostBasisOversellAlerter(auditEventRepository, notifications, clock),
+              lockConfiguration -> Optional.empty());
 
       job.runForRange(tradeDate, tradeDate);
       job.runForRange(tradeDate, tradeDate);
@@ -135,7 +138,7 @@ class PortfolioCostBasisSelfHealIT {
                   """
                   🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
                   Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
-                  Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see hiljemalt 14.05.2026""",
+                  Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu""",
                   INVESTMENT));
       assertThat(auditEventRepository.findByEventType(OVERSELL_FOUND))
           .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
@@ -149,9 +152,14 @@ class PortfolioCostBasisSelfHealIT {
                       "heldQuantity", "100000",
                       "sellQuantity", "150000")));
 
+      LocalDate windowPastTheSale = tradeDate.plusDays(20);
+      job.runForRange(windowPastTheSale, windowPastTheSale);
+
+      assertThat(notifications.sent()).hasSize(1);
+
       sale.setExecutedQuantity(new BigDecimal("90000.0000"));
       executionRepository.save(sale);
-      job.runForRange(tradeDate, tradeDate);
+      job.runForRange(windowPastTheSale, windowPastTheSale);
 
       assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, tradeDate))
           .extracting(PortfolioCostBasis::getQuantity)
@@ -163,17 +171,22 @@ class PortfolioCostBasisSelfHealIT {
               "✅ TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
                   + " soetusmaksumus on ümber arvutatud");
     } finally {
-      deleteCommittedRows();
+      deleteCommittedRows(tradeDate);
     }
   }
 
-  private void deleteCommittedRows() {
+  private void deleteCommittedRows(LocalDate tradeDate) {
     auditEventRepository.deleteAll(
         Stream.of(OVERSELL_FOUND, OVERSELL_CLEARED, OVERSELL_POSTED)
             .flatMap(type -> auditEventRepository.findByEventType(type).stream())
             .toList());
-    costBasisRepository.deleteAll();
-    baselineRepository.deleteAll();
+    tradeDate
+        .datesUntil(tradeDate.plusDays(21))
+        .forEach(
+            date ->
+                costBasisRepository.deleteAll(
+                    costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, date)));
+    baselineRepository.findByFundIsin(FUND_ISIN).ifPresent(baselineRepository::delete);
     executionRepository.deleteAllById(seededExecutionIds);
     orderRepository.deleteAllById(seededOrderIds);
     batchRepository.deleteAllById(seededBatchIds);
@@ -203,6 +216,7 @@ class PortfolioCostBasisSelfHealIT {
       TransactionType side, LocalDate date, String qty, String price) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
+    seededBatchIds.add(batch.getId());
     TransactionOrder order =
         orderRepository.save(
             TransactionOrder.builder()
@@ -216,6 +230,7 @@ class PortfolioCostBasisSelfHealIT {
                 .orderTimestamp(date.atStartOfDay().toInstant(ZoneOffset.UTC))
                 .orderUuid(UUID.randomUUID())
                 .build());
+    seededOrderIds.add(order.getId());
 
     TransactionExecution exec =
         TransactionExecution.builder()
@@ -231,8 +246,6 @@ class PortfolioCostBasisSelfHealIT {
             .reportedDate(date)
             .build();
     TransactionExecution saved = executionRepository.saveAndFlush(exec);
-    seededBatchIds.add(batch.getId());
-    seededOrderIds.add(order.getId());
     seededExecutionIds.add(saved.getId());
     return saved;
   }

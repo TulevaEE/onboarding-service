@@ -14,10 +14,10 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.context.annotation.FilterType.REGEX;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -39,6 +39,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
+import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
@@ -107,6 +108,7 @@ class TradePrepInputGatesIT {
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;
   @Autowired R45ReportService r45Report;
+  @Autowired TradePrepInputGateNotifier notifier;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired EpisReportSummaryRepository summaryRepository;
@@ -374,33 +376,65 @@ class TradePrepInputGatesIT {
   }
 
   @Test
-  void aFundWhoseInputsPassIsNeitherStoppedNorPostedToSlack() {
+  void aFundWhoseInputsPassIsNotStopped() {
     positionReport(TKF100, TUESDAY);
     TransactionCommand command =
         TransactionCommand.builder().id(8L).fund(TKF100).asOfDate(WEDNESDAY).build();
 
-    gates.verify(command);
-
-    verifyNoInteractions(notificationService);
+    assertThatCode(() -> gates.verify(command)).doesNotThrowAnyException();
   }
 
   @Test
-  void stoppingAFundPostsWhatIsMissingAndWhatToDoToTheInvestmentChannel() {
+  void aStoppedFundCarriesItsFailuresBackAndItsMessageSaysWhatIsMissingAndWhatToDo() {
     positionReport(TUK75, LocalDate.of(2026, 11, 16));
     r45(TUESDAY);
     r16(YearMonth.of(2026, 11), TUK75);
     TransactionCommand command =
         TransactionCommand.builder().id(7L).fund(TUK75).asOfDate(WEDNESDAY).build();
+    var stop =
+        new StoppedByInputGates(
+            TUK75,
+            WEDNESDAY,
+            List.of(
+                new StalePositionReport(LocalDate.of(2026, 11, 16), TUESDAY),
+                new MissingR45(WEDNESDAY, TUESDAY)));
 
-    assertThatThrownBy(() -> gates.verify(command)).isInstanceOf(TradePrepInputGateException.class);
+    assertThatThrownBy(() -> gates.verify(command))
+        .isInstanceOfSatisfying(
+            TradePrepInputGateException.class,
+            stopped -> assertThat(stopped.stop()).isEqualTo(stop));
+
+    notifier.notifyStopped(List.of(stop));
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TUK75 tehingute mustandit ei tehtud (2026-11-18). Käivita ettevalmistus uuesti, kui sisend on korras:
+            SEB positsiooniraport on 2026-11-16, vaja 2026-11-17: küsi 2026-11-17 raport SEB-lt
+            R45 2026-11-18 puudub (viimane 2026-11-17): lae R45 EPIS-ist\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void aBatchStoppedByOneMissingR45SaysItOnceAndNamesFundsOnlyOnTheirOwnLines() {
+    LocalDate tradeDate = LocalDate.of(2026, 12, 22);
+    LocalDate previousWorkingDay = LocalDate.of(2026, 12, 21);
+    List.of(TUK75, TUK00, TUV100).forEach(fund -> positionReport(fund, previousWorkingDay));
+    r45(previousWorkingDay);
+
+    notifier.notifyStopped(
+        List.of(TUK75, TUK00, TUV100).stream()
+            .map(fund -> new StoppedByInputGates(fund, tradeDate, gates.failures(fund, tradeDate)))
+            .toList());
 
     verify(notificationService)
         .sendMessage(
             """
-            🔴 TUK75 tehingute mustandit ei tehtud (2026-11-18). Käivita ettevalmistus uuesti, \
-            kui sisend on korras:
-            SEB positsiooniraport on 2026-11-16, vaja 2026-11-17: küsi 2026-11-17 raport SEB-lt
-            R45 2026-11-18 puudub (viimane 2026-11-17): lae R45 EPIS-ist""",
+            🔴 Tehingute mustandit ei tehtud (2026-12-22): TUK75, TUK00, TUV100. Käivita ettevalmistus uuesti, kui sisend on korras:
+            R45 2026-12-22 puudub (viimane 2026-12-21): lae R45 EPIS-ist
+            TUK75: R17 ja R21 puuduvad (PEVA/RAVA täitmine 2027-01-04, vood arvesse alates 2026-12-22): lae EPIS-ist
+            TUK00: R17 ja R21 puuduvad (PEVA/RAVA täitmine 2027-01-04, vood arvesse alates 2026-12-14): lae EPIS-ist\
+            """,
             INVESTMENT);
   }
 

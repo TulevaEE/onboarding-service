@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
+import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
@@ -34,15 +35,13 @@ class TradePrepInputGates {
   private final PevaRavaPeriodService pevaRavaPeriodService;
   private final PevaRavaCycleRepository pevaRavaCycleRepository;
   private final R16OutflowReader r16OutflowReader;
-  private final TradePrepInputGateNotifier notifier;
 
   void verify(TransactionCommand command) {
     List<InputGateFailure> failures = failures(command.getFund(), command.getAsOfDate());
-    if (failures.isEmpty()) {
-      return;
+    if (!failures.isEmpty()) {
+      throw new TradePrepInputGateException(
+          new StoppedByInputGates(command.getFund(), command.getAsOfDate(), failures));
     }
-    notifier.notifyStopped(command.getFund(), command.getAsOfDate(), failures);
-    throw new TradePrepInputGateException(command.getFund(), command.getAsOfDate(), failures);
   }
 
   List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate) {

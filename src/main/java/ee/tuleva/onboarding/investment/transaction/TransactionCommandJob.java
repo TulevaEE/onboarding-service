@@ -3,8 +3,11 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
 
 import ee.tuleva.onboarding.investment.event.RunTransactionCommandRequested;
+import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -24,6 +27,7 @@ public class TransactionCommandJob {
   private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
   private final TransactionBatchFinalizer batchFinalizer;
+  private final TradePrepInputGateNotifier inputGateNotifier;
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
@@ -47,11 +51,14 @@ public class TransactionCommandJob {
 
     log.info("Found pending commands: count={}", commands.size());
 
+    List<StoppedByInputGates> stops = new ArrayList<>();
     for (var command : commands) {
       command.setStatus(CommandStatus.PROCESSING);
       commandRepository.save(command);
       try {
-        preparationService.processCommand(command);
+        if (preparationService.processCommand(command) instanceof StoppedByInputGates stop) {
+          stops.add(stop);
+        }
       } catch (Exception e) {
         log.error("Unexpected error processing command: id={}", command.getId(), e);
         command.setStatus(CommandStatus.FAILED);
@@ -60,6 +67,7 @@ public class TransactionCommandJob {
         commandRepository.save(command);
       }
     }
+    inputGateNotifier.notifyStopped(stops);
   }
 
   void finalizeConfirmedBatches() {

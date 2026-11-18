@@ -4,6 +4,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -36,10 +37,17 @@ class TransactionAdminService {
   private final TransactionAuditEventRepository auditEventRepository;
   private final TransactionPreparationService preparationService;
   private final TransactionBatchFinalizer batchFinalizer;
+  private final TradePrepInputGateNotifier inputGateNotifier;
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
       CreateTransactionCommandRequest request, String actor) {
+    ProcessedCommand processed = process(request, actor);
+    inputGateNotifier.notifyStopped(processed.stops());
+    return processed.response();
+  }
+
+  private ProcessedCommand process(CreateTransactionCommandRequest request, String actor) {
     TransactionCommand command = TransactionCommand.requested(request, actor);
     commandRepository.save(command);
     log.info(
@@ -48,9 +56,16 @@ class TransactionAdminService {
         command.getFund(),
         command.getMode(),
         command.getAsOfDate());
-    @Nullable ProcessCommandResult result = preparationService.processCommand(command);
-    List<TransactionOrder> orders = result == null ? List.of() : result.orders();
-    return TransactionCommandResponse.from(command, orders, snapshotOf(command));
+    CommandOutcome outcome = preparationService.processCommand(command);
+    return new ProcessedCommand(
+        TransactionCommandResponse.from(command, outcome.orders(), snapshotOf(command)), outcome);
+  }
+
+  private record ProcessedCommand(TransactionCommandResponse response, CommandOutcome outcome) {
+
+    List<StoppedByInputGates> stops() {
+      return outcome instanceof StoppedByInputGates stop ? List.of(stop) : List.of();
+    }
   }
 
   @Nullable
@@ -74,14 +89,18 @@ class TransactionAdminService {
               + ", cashFunds="
               + cashOverrides.keySet());
     }
-    return targetFunds.stream()
-        .map(
-            fund ->
-                createAndProcess(
-                    new CreateTransactionCommandRequest(
-                        fund, mode, asOfDate, null, cashOverrides.get(fund), null),
-                    actor))
-        .toList();
+    List<ProcessedCommand> processed =
+        targetFunds.stream()
+            .map(
+                fund ->
+                    process(
+                        new CreateTransactionCommandRequest(
+                            fund, mode, asOfDate, null, cashOverrides.get(fund), null),
+                        actor))
+            .toList();
+    inputGateNotifier.notifyStopped(
+        processed.stream().flatMap(command -> command.stops().stream()).toList());
+    return processed.stream().map(ProcessedCommand::response).toList();
   }
 
   Optional<TransactionCommandResponse> getCommand(Long id) {

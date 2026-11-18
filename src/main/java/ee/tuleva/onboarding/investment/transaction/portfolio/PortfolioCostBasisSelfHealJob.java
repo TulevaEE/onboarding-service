@@ -31,7 +31,7 @@ public class PortfolioCostBasisSelfHealJob {
 
   static final int SELF_HEAL_DAYS = 14;
   static final String LOCK_NAME = "PortfolioCostBasisSelfHealJob";
-  static final String LOCK_AT_MOST_FOR = "PT1H";
+  static final String LOCK_AT_MOST_FOR = "PT6H";
 
   private final Clock clock;
   private final PortfolioCostBasisService service;
@@ -91,13 +91,15 @@ public class PortfolioCostBasisSelfHealJob {
   }
 
   private void rebuild(TulevaFund fund, PortfolioBaseline baseline, LocalDate from, LocalDate to) {
-    boolean replaysFromTheBaseline = oversellAlerter.hasOpenOversell(fund);
-    LocalDate fundFrom =
-        replaysFromTheBaseline ? earlierOf(from, baseline.getBaselineDate().plusDays(1)) : from;
+    LocalDate fundFrom = from;
     try {
+      boolean replaysFromTheBaseline = oversellAlerter.hasOpenOversell(fund);
+      if (replaysFromTheBaseline) {
+        fundFrom = earlierOf(from, baseline.getBaselineDate().plusDays(1));
+      }
       service.rebuildRange(fund, fundFrom, to);
       if (replaysFromTheBaseline) {
-        oversellAlerter.clearOpen(fund);
+        oversellAlerter.clearOpen(fund, to);
       }
     } catch (CostBasisOversellException e) {
       log.error(

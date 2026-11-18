@@ -3,9 +3,10 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_CLEARED;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
 import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -54,11 +55,19 @@ class CostBasisOversellAlerterTest {
   }
 
   @Test
-  void anUnreadableAlertHistoryWhileRecordingDoesNotStopTheRun() {
+  void anOversellThatCannotBeRecordedIsPostedDirectly() {
     given(auditEventRepository.findByEventTypeAndDedupKey(anyString(), anyString()))
         .willThrow(new IllegalStateException("database unavailable"));
 
     assertThatCode(() -> alerter.recordFound(TUK75, OVERSELL)).doesNotThrowAnyException();
+
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
+            Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
+            Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu""",
+            INVESTMENT);
   }
 
   @Test
@@ -66,7 +75,7 @@ class CostBasisOversellAlerterTest {
     given(auditEventRepository.findByEventType(OVERSELL_FOUND))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    assertThatCode(() -> alerter.clearOpen(TUK75)).doesNotThrowAnyException();
+    assertThatCode(() -> alerter.clearOpen(TUK75, TRADE_DATE)).doesNotThrowAnyException();
   }
 
   @Test
@@ -109,11 +118,12 @@ class CostBasisOversellAlerterTest {
   }
 
   @Test
-  void anUnreadableAlertHistoryKeepsTheSelfHealOnItsWindow() {
+  void anUnreadableAlertHistoryIsNotReadAsNoOpenOversell() {
     given(auditEventRepository.findByEventType(OVERSELL_FOUND))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    assertThat(alerter.hasOpenOversell(TUK75)).isFalse();
+    assertThatThrownBy(() -> alerter.hasOpenOversell(TUK75))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   private static TransactionAuditEvent found(long id, String asOfDate) {

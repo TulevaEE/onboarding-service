@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -78,7 +79,7 @@ class PortfolioCostBasisSelfHealJobTest {
     inOrder.verify(oversellAlerter).recordFound(TUK75, oversell);
     inOrder.verify(service).rebuildRange(TUK00, WINDOW_START, TODAY);
     inOrder.verify(oversellAlerter).postPending();
-    verify(oversellAlerter, never()).clearOpen(any());
+    verify(oversellAlerter, never()).clearOpen(any(), any());
   }
 
   @Test
@@ -90,7 +91,7 @@ class PortfolioCostBasisSelfHealJobTest {
     job.run();
 
     verify(service).rebuildRange(TUK75, baselineDate.plusDays(1), TODAY);
-    verify(oversellAlerter).clearOpen(TUK75);
+    verify(oversellAlerter).clearOpen(TUK75, TODAY);
   }
 
   @Test
@@ -104,7 +105,7 @@ class PortfolioCostBasisSelfHealJobTest {
     job.run();
 
     verify(oversellAlerter).recordFound(TUK75, oversell);
-    verify(oversellAlerter, never()).clearOpen(any());
+    verify(oversellAlerter, never()).clearOpen(any(), any());
   }
 
   @Test
@@ -128,23 +129,44 @@ class PortfolioCostBasisSelfHealJobTest {
     job.run();
 
     verify(oversellAlerter, never()).recordFound(any(), any());
-    verify(oversellAlerter, never()).clearOpen(any());
+    verify(oversellAlerter, never()).clearOpen(any(), any());
     verify(oversellAlerter).postPending();
   }
 
   @Test
-  void aManualSelfHealRunsUnderTheScheduledRunsLockAndReleasesIt() {
+  void aManualSelfHealRunsUnderTheScheduledRunsLockAndReleasesItOnlyAfterPosting() {
     AtomicBoolean released = new AtomicBoolean();
     given(lockProviders.getIfAvailable()).willReturn(lockProvider);
     given(lockProvider.lock(argThat(configuration -> configuration.getName().equals(LOCK_NAME))))
         .willReturn(Optional.of(() -> released.set(true)));
     givenBaselinesFor(TODAY, TUK75);
+    willAnswer(
+            invocation -> {
+              assertThat(released).isFalse();
+              return null;
+            })
+        .given(oversellAlerter)
+        .postPending();
 
     job.onPortfolioCostBasisSelfHealRequested();
 
-    verify(service).rebuildRange(TUK75, WINDOW_START, TODAY);
-    verify(oversellAlerter).postPending();
+    InOrder inOrder = inOrder(lockProvider, service, oversellAlerter);
+    inOrder.verify(lockProvider).lock(any());
+    inOrder.verify(service).rebuildRange(TUK75, WINDOW_START, TODAY);
+    inOrder.verify(oversellAlerter).postPending();
     assertThat(released).isTrue();
+  }
+
+  @Test
+  void run_skipsAFundWhoseOversellHistoryCannotBeReadAndCarriesOnWithTheOthers() {
+    givenBaselinesFor(TODAY, TUK75, TUK00);
+    given(oversellAlerter.hasOpenOversell(TUK75))
+        .willThrow(new IllegalStateException("database unavailable"));
+
+    job.run();
+
+    verify(service, never()).rebuildRange(TUK75, WINDOW_START, TODAY);
+    verify(service).rebuildRange(TUK00, WINDOW_START, TODAY);
   }
 
   @Test

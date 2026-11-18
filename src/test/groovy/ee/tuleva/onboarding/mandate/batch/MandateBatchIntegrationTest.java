@@ -17,6 +17,7 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_RE
 import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_REJOIN_CANCELLATION;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.user.UserContactDetailsTestFixture.withContactDetails;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -502,9 +503,7 @@ class MandateBatchIntegrationTest {
         .isOk();
     var batch = Streamable.of(mandateBatchRepository.findAll()).toList().getFirst();
     var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
-    signer.setEmail("rejoiner@example.com");
-    signer.setPhoneNumber("+37255555555");
-    userRepository.save(signer);
+    userRepository.save(withContactDetails(signer, "rejoiner@example.com", "+37255555555"));
     given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
         .willReturn(new byte[] {1, 2, 3});
 
@@ -558,9 +557,7 @@ class MandateBatchIntegrationTest {
             });
     var batch = createRejoinBatch();
     var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
-    signer.setEmail(null);
-    signer.setPhoneNumber(null);
-    userRepository.save(signer);
+    userRepository.save(withContactDetails(signer, null, null));
     given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
         .willReturn(new byte[] {1, 2, 3});
 
@@ -837,9 +834,7 @@ class MandateBatchIntegrationTest {
 
   private void signWithMobileId(Long mandateId) {
     var signer = userRepository.findByPersonalCode(samplePerson().getPersonalCode()).orElseThrow();
-    signer.setEmail("rejoiner@example.com");
-    signer.setPhoneNumber("+37255555555");
-    userRepository.save(signer);
+    userRepository.save(withContactDetails(signer, "rejoiner@example.com", "+37255555555"));
     given(signatureService.getSignedFile(any(MobileIdSignatureSession.class), any()))
         .willReturn(new byte[] {1, 2, 3});
 

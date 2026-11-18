@@ -19,11 +19,13 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
 @Entity
+@DynamicUpdate
 @Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor
@@ -40,8 +42,11 @@ public class User implements Person, Emailable, Serializable {
 
   @ValidPersonalCode private String personalCode;
 
-  @Email private @Nullable String email;
+  @Email
+  @Setter(AccessLevel.PACKAGE)
+  private @Nullable String email;
 
+  @Setter(AccessLevel.PACKAGE)
   private @Nullable String phoneNumber;
 
   @NotBlank private String firstName;

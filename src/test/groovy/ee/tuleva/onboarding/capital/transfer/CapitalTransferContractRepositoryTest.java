@@ -47,12 +47,13 @@ class CapitalTransferContractRepositoryTest {
   }
 
   private User createUser(String personalCode, String firstName, String lastName, String email) {
-    User user = new User();
-    user.setPersonalCode(personalCode);
-    user.setFirstName(firstName);
-    user.setLastName(lastName);
-    user.setEmail(email);
-    return entityManager.persist(user);
+    return entityManager.persist(
+        User.builder()
+            .personalCode(personalCode)
+            .firstName(firstName)
+            .lastName(lastName)
+            .email(email)
+            .build());
   }
 
   private Member createMember(User user, int memberNumber) {

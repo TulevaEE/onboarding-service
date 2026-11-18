@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.HIGH;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
+import static ee.tuleva.onboarding.user.UserContactDetailsTestFixture.withContactDetails;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -401,9 +402,7 @@ class KycSurveyControllerIntegrationTest {
 
   @Test
   void getIdentity_completesFromSurveyAloneForUserWithoutContactDetailsOnFile() throws Exception {
-    user.setEmail(null);
-    user.setPhoneNumber(null);
-    userRepository.save(user);
+    user = userRepository.save(withContactDetails(user, null, null));
 
     String companyFlowIdentitySurvey =
         """

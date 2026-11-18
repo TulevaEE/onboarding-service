@@ -46,11 +46,12 @@ class KybSurveyRepositoryTest {
   }
 
   private User createUser(String personalCode) {
-    var user = new User();
-    user.setPersonalCode(personalCode);
-    user.setFirstName("Jaan");
-    user.setLastName("Tamm");
-    user.setEmail("jaan.tamm@example.com");
-    return entityManager.persist(user);
+    return entityManager.persist(
+        User.builder()
+            .personalCode(personalCode)
+            .firstName("Jaan")
+            .lastName("Tamm")
+            .email("jaan.tamm@example.com")
+            .build());
   }
 }

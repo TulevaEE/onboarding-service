@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.user.member.Member
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -8,6 +9,11 @@ import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.transaction.IllegalTransactionStateException
 import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
+
+import java.sql.Timestamp
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
@@ -183,6 +189,39 @@ class UserRepositorySpec extends Specification {
     lockedUser.email == "concurrent@example.com"
     lockedUser.getMember().map { it.id } == Optional.of(member.id)
     lockedUser.getMember().map { it.memberNumber } == Optional.of(234)
+  }
+
+  def "saving a change to another column leaves contact details another session committed in place"() {
+    given:
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-11-18T10:00:00Z"), ZoneOffset.UTC))
+    def user = entityManager.persistAndFlush(User.builder()
+        .firstName("Test")
+        .lastName("Person")
+        .personalCode("38812121215")
+        .email("old@example.com")
+        .phoneNumber("+37255555555")
+        .build())
+    jdbcClient.sql("UPDATE users SET email = 'concurrent@example.com', phone_number = '+37251111111' WHERE id = :id")
+        .param("id", user.id)
+        .update()
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-11-18T11:00:00Z"), ZoneOffset.UTC))
+
+    when:
+    user.firstName = "Renamed"
+    repository.save(user)
+    entityManager.flush()
+
+    then:
+    jdbcClient.sql("SELECT first_name, email, phone_number, updated_date FROM users WHERE id = :id")
+        .param("id", user.id)
+        .query({ rs, rowNum ->
+          [rs.getString("first_name"), rs.getString("email"), rs.getString("phone_number"),
+           rs.getTimestamp("updated_date").toInstant()]
+        })
+        .single() == ["Renamed", "concurrent@example.com", "+37251111111", Instant.parse("2026-11-18T11:00:00Z")]
+
+    cleanup:
+    ClockHolder.setDefaultClock()
   }
 
 }

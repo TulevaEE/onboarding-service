@@ -1,15 +1,20 @@
 package ee.tuleva.onboarding.fund.statistics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import java.lang.reflect.Method;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronExpression;
 
 class PensionFundStatisticsScheduledUpdateTest {
+
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final PensionFundStatisticsService pensionFundStatisticsService =
       mock(PensionFundStatisticsService.class);
@@ -17,24 +22,34 @@ class PensionFundStatisticsScheduledUpdateTest {
       new PensionFundStatisticsScheduledUpdate(pensionFundStatisticsService);
 
   @Test
-  void refreshesAtTheTopOfEveryWeekdayHour() throws NoSuchMethodException {
-    Scheduled scheduled = scheduledMethod("refresh").getAnnotation(Scheduled.class);
-
-    assertThat(scheduled.cron()).isEqualTo("0 0 * * * MON-FRI");
+  void hourlyRefreshRunsAtTheTopOfTheNextWeekdayHour() throws NoSuchMethodException {
+    assertThat(nextRun("refresh", tallinn(2026, 11, 18, 10, 5)))
+        .isEqualTo(tallinn(2026, 11, 18, 11, 0));
+    assertThat(nextRun("refresh", tallinn(2026, 11, 21, 10, 5)))
+        .isEqualTo(tallinn(2026, 11, 23, 0, 0));
   }
 
   @Test
-  void refreshesAgainAt1617TallinnTimeSoTheThirdPillarNavSebEntersBy1615IsOnTheFundPageBy1630()
+  void afternoonRefreshRunsAt1617TallinnTimeSoTheThirdPillarNavEnteredBy1615IsOnTheFundPageBy1630()
       throws NoSuchMethodException {
-    Scheduled scheduled =
-        scheduledMethod("refreshAfterThirdPillarNavDeadline").getAnnotation(Scheduled.class);
-
-    assertThat(scheduled.cron()).isEqualTo("0 17 16 * * MON-FRI");
-    assertThat(scheduled.zone()).isEqualTo("Europe/Tallinn");
+    assertThat(nextRun("refreshAfterThirdPillarNavDeadline", tallinn(2026, 11, 18, 16, 15)))
+        .isEqualTo(tallinn(2026, 11, 18, 16, 17));
   }
 
   @Test
-  void theAfternoonRefreshHasItsOwnShortLock() throws NoSuchMethodException {
+  void afternoonRefreshStaysAt1617TallinnTimeInSummer() throws NoSuchMethodException {
+    assertThat(nextRun("refreshAfterThirdPillarNavDeadline", tallinn(2026, 7, 15, 16, 15)))
+        .isEqualTo(tallinn(2026, 7, 15, 16, 17));
+  }
+
+  @Test
+  void afternoonRefreshSkipsTheWeekend() throws NoSuchMethodException {
+    assertThat(nextRun("refreshAfterThirdPillarNavDeadline", tallinn(2026, 11, 20, 16, 18)))
+        .isEqualTo(tallinn(2026, 11, 23, 16, 17));
+  }
+
+  @Test
+  void afternoonRefreshHasItsOwnShortLock() throws NoSuchMethodException {
     SchedulerLock hourly = scheduledMethod("refresh").getAnnotation(SchedulerLock.class);
     SchedulerLock afternoon =
         scheduledMethod("refreshAfterThirdPillarNavDeadline").getAnnotation(SchedulerLock.class);
@@ -48,14 +63,27 @@ class PensionFundStatisticsScheduledUpdateTest {
   void hourlyRefreshUpdatesTheCachedStatistics() {
     scheduledUpdate.refresh();
 
-    verify(pensionFundStatisticsService).refreshCachedStatistics();
+    then(pensionFundStatisticsService).should().refreshCachedStatistics();
   }
 
   @Test
   void afternoonRefreshUpdatesTheCachedStatistics() {
     scheduledUpdate.refreshAfterThirdPillarNavDeadline();
 
-    verify(pensionFundStatisticsService).refreshCachedStatistics();
+    then(pensionFundStatisticsService).should().refreshCachedStatistics();
+  }
+
+  private static ZonedDateTime nextRun(String methodName, ZonedDateTime after)
+      throws NoSuchMethodException {
+    Scheduled scheduled = scheduledMethod(methodName).getAnnotation(Scheduled.class);
+    ZoneId zone = scheduled.zone().isEmpty() ? after.getZone() : ZoneId.of(scheduled.zone());
+    return CronExpression.parse(scheduled.cron())
+        .next(after.withZoneSameInstant(zone))
+        .withZoneSameInstant(TALLINN);
+  }
+
+  private static ZonedDateTime tallinn(int year, int month, int day, int hour, int minute) {
+    return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, TALLINN);
   }
 
   private static Method scheduledMethod(String name) throws NoSuchMethodException {

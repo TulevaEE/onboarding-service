@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.banking.ManagementCompanies.isManagementFeeDescription;
+
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
@@ -28,6 +30,7 @@ public class PensionFundEntryClassifier {
           BankAdjustment,
           ManagementFeeRebate,
           UnrecognisedManagementCompanyCredit,
+          UnrecognisedManagementCompanyDebit,
           ManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
@@ -44,6 +47,8 @@ public class PensionFundEntryClassifier {
   public record ManagementFeeRebate() implements Classification {}
 
   public record UnrecognisedManagementCompanyCredit() implements Classification {}
+
+  public record UnrecognisedManagementCompanyDebit() implements Classification {}
 
   public record ManagementFeePayment() implements Classification {}
 
@@ -98,7 +103,7 @@ public class PensionFundEntryClassifier {
     var name = details.getName();
     if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
       return entry.amount().signum() < 0
-          ? new ManagementFeePayment()
+          ? managementCompanyDebit(entry.remittanceInformation())
           : managementCompanyCredit(entry.remittanceInformation());
     }
     if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
@@ -111,6 +116,12 @@ public class PensionFundEntryClassifier {
       return new BankFee();
     }
     return new Unclassified("unknown counterparty");
+  }
+
+  private static Classification managementCompanyDebit(@Nullable String remittanceInformation) {
+    return isManagementFeeDescription(remittanceInformation)
+        ? new ManagementFeePayment()
+        : new UnrecognisedManagementCompanyDebit();
   }
 
   private static Classification managementCompanyCredit(@Nullable String remittanceInformation) {

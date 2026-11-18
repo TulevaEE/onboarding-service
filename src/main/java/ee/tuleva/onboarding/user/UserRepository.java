@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.CrudRepository;
 
-public interface UserRepository extends CrudRepository<User, Long> {
+public interface UserRepository extends CrudRepository<User, Long>, UserLocking {
 
   @NotNull
   Optional<User> findByPersonalCode(@NotNull String personalCode);

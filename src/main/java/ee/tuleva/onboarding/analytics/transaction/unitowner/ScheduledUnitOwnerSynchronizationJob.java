@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
 
   private final UnitOwnerSynchronizer unitOwnerSynchronizer;
   private final UnitOwnerRepository unitOwnerRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Scheduled(cron = "0 30 4 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -44,6 +46,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
           e);
       return;
     }
+    eventPublisher.publishEvent(new UnitOwnerSnapshotSynchronized(snapshotDate));
     pruneOldSnapshots(snapshotDate);
   }
 

@@ -44,3 +44,6 @@
 # A second checksum-valid minor beside 61506150006, a repo fixture public on master since
 # July 2026 (EpisServiceIntegrationSpec); needed where two minors are looked up in order.
 61508110000
+# A third checksum-valid minor, a repo fixture public on master (ChildRoleAwareKycIntegrationTest);
+# needed where the automatic guardian lookups tell three minors apart.
+61603140009

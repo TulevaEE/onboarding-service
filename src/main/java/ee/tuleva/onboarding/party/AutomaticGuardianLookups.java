@@ -1,0 +1,133 @@
+package ee.tuleva.onboarding.party;
+
+import static java.util.function.Predicate.not;
+
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotSynchronized;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+public class AutomaticGuardianLookups {
+
+  static final int MAX_PER_RUN = 50;
+
+  private static final PersonalCodeValidator PERSONAL_CODES = new PersonalCodeValidator();
+
+  private final MinorGuardianLookupService minorGuardianLookupService;
+  private final AutomaticGuardianLookupCandidates candidates;
+  private final GuardianLookupRepository guardianLookupRepository;
+  private final Clock clock;
+  private final @Nullable String requester;
+  private final Duration pause;
+
+  @Autowired
+  AutomaticGuardianLookups(
+      MinorGuardianLookupService minorGuardianLookupService,
+      AutomaticGuardianLookupCandidates candidates,
+      GuardianLookupRepository guardianLookupRepository,
+      Clock clock,
+      @Value("${guardian-lookup.automatic-requester:#{@populationRegisterMember.memberCode()}}")
+          @Nullable String requester,
+      @Value("${guardian-lookup.automatic-pause:PT1S}") Duration pause) {
+    this.minorGuardianLookupService = minorGuardianLookupService;
+    this.candidates = candidates;
+    this.guardianLookupRepository = guardianLookupRepository;
+    this.clock = clock;
+    this.requester = requester == null || requester.isBlank() ? null : requester;
+    this.pause = pause;
+  }
+
+  public void lookUpOnce(String childPersonalCode) {
+    if (requester == null) {
+      logSkipped();
+      return;
+    }
+    try {
+      minorGuardianLookupService
+          .lookUpChildOnce(requester, childPersonalCode)
+          .ifPresent(lookup -> log.info("Automatic guardian lookup of one child done"));
+    } catch (RuntimeException e) {
+      logFailure(e);
+    }
+  }
+
+  @Async
+  @EventListener(UnitOwnerSnapshotSynchronized.class)
+  public void onUnitOwnerSnapshot() {
+    lookUpNewHoldersAndPayouts();
+  }
+
+  void lookUpNewHoldersAndPayouts() {
+    if (requester == null) {
+      logSkipped();
+      return;
+    }
+    List<String> children = candidates();
+    log.info("Starting automatic guardian lookups: children={}", children.size());
+    int lookedUp = 0;
+    int failed = 0;
+    for (String child : children) {
+      try {
+        minorGuardianLookupService.lookUpChildOnce(requester, child);
+        lookedUp++;
+      } catch (RuntimeException e) {
+        failed++;
+        logFailure(e);
+      }
+      if (!pauseBetweenQueries()) {
+        break;
+      }
+    }
+    log.info(
+        "Finished automatic guardian lookups: children={}, lookedUp={}, failed={}",
+        children.size(),
+        lookedUp,
+        failed);
+  }
+
+  List<String> candidates() {
+    LocalDate today = LocalDate.now(clock);
+    Set<String> lookedUp = Set.copyOf(guardianLookupRepository.findAllChildPersonalCodes());
+    return candidates.firstSeenHoldersAndRecentThirdPillarPayouts().stream()
+        .filter(PERSONAL_CODES::isValid)
+        .filter(code -> PersonalCode.isMinor(code, today))
+        .filter(not(lookedUp::contains))
+        .distinct()
+        .sorted()
+        .limit(MAX_PER_RUN)
+        .toList();
+  }
+
+  private static void logFailure(RuntimeException e) {
+    log.error(
+        "Automatic guardian lookup failed, the child is asked again at the next event: {}",
+        RegisterFailure.of(e));
+  }
+
+  private static void logSkipped() {
+    log.info("Automatic guardian lookup skipped, no requester configured");
+  }
+
+  private boolean pauseBetweenQueries() {
+    try {
+      Thread.sleep(pause);
+      return true;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
+  }
+}

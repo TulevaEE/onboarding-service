@@ -49,7 +49,7 @@ class PriorityPriceProviderIntegrationTest {
   }
 
   @Test
-  void fallsBackToEodhdWhenEuronextHasNoCloseForTheDate() {
+  void usesThePreviousEuronextCloseWhenEuronextHasNoCloseForTheDateYet() {
     fundValueRepository.saveAll(
         List.of(
             new FundValue(
@@ -66,9 +66,9 @@ class PriorityPriceProviderIntegrationTest {
     assertThat(resolved)
         .hasValueSatisfying(
             price -> {
-              assertThat(price.provider()).isEqualTo("EODHD");
-              assertThat(price.value()).isEqualByComparingTo("5.080");
-              assertThat(price.date()).isEqualTo(PRICE_DATE);
+              assertThat(price.provider()).isEqualTo("EURONEXT");
+              assertThat(price.value()).isEqualByComparingTo("5.094");
+              assertThat(price.date()).isEqualTo(PRICE_DATE.minusDays(3));
             });
   }
 }

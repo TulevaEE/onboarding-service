@@ -41,7 +41,7 @@ class R16OutflowReader {
     if (!R16_FUNDS.contains(fund)) {
       return ZERO;
     }
-    Optional<R16FundFlow> flow = r16FlowCalculationService.calculateFlows(fund, asOfDate);
+    Optional<R16FundFlow> flow = r16FlowCalculationService.calculateThisMonthsFlows(fund, asOfDate);
     if (flow.isEmpty()) {
       return ZERO;
     }
@@ -54,7 +54,7 @@ class R16OutflowReader {
     }
     YearMonth paymentMonth = YearMonth.from(asOfDate);
     R16PaymentDates dates = r16FlowCalculationService.paymentDates(paymentMonth);
-    if (!countsOutflow(r16PhaseCalculator.phaseFor(fund, dates, asOfDate))
+    if (!countsOutflow(r16PhaseCalculator.tradePrepPhaseFor(fund, dates, asOfDate))
         || r16FlowCalculationService.isLoaded(paymentMonth)) {
       return Optional.empty();
     }
@@ -62,7 +62,8 @@ class R16OutflowReader {
   }
 
   private BigDecimal outflow(R16FundFlow flow, LocalDate asOfDate) {
-    return switch (r16PhaseCalculator.phaseFor(flow, asOfDate)) {
+    return switch (r16PhaseCalculator.tradePrepPhaseFor(
+        flow.fund(), flow.paymentDates(), asOfDate)) {
       case ACTIVE -> flow.totalOutflowEur().abs();
       case BUFFERED -> bufferedOutflow(flow.totalOutflowEur(), asOfDate);
       case IGNORE, VISIBLE -> ZERO;

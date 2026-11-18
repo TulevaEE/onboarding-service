@@ -308,6 +308,34 @@ class R45ReportServiceTest {
   }
 
   @Test
+  void redRowSettlementDatesOnADayComeFromThatDaysR45() {
+    given(
+            summaryRepository.findTopByReportTypeAndReportDateAndFundOrderByIdDesc(
+                R45, TODAY, TUV100))
+        .willReturn(
+            Optional.of(
+                summary(
+                    TUV100,
+                    Map.of(
+                        "inflowEur",
+                        0,
+                        "outflowEur",
+                        400.00,
+                        "netEur",
+                        -400.00,
+                        "redRowSettlementDates",
+                        List.of("2026-08-18")))));
+
+    assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY))
+        .containsExactly(LocalDate.of(2026, 8, 18));
+  }
+
+  @Test
+  void noRedRowSettlementDatesOnADayWhoseR45HasNoRowForTheFund() {
+    assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY)).isEmpty();
+  }
+
+  @Test
   void getLatestRedRowSettlementDatesIsEmptyWithoutR45Summary() {
     assertThat(service.getLatestRedRowSettlementDates(TUV100)).isEmpty();
   }

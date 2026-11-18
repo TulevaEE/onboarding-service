@@ -107,7 +107,7 @@ class OcfPublicationAdminControllerTest {
       """
       {"fund": "TUK75", "month": "2026-10", "version": 2, "validFrom": "2026-11-01",
        "calculationFingerprint": "%s",
-       "publishedOcf": 0.00450000, "publishedIn": "KID 01.11.2026",
+       "publishedOcf": 0.00450000, "publishedDecimals": 2, "publishedIn": "KID 01.11.2026",
        "publishedBy": "portfolio-manager", "basisReason": "the monthly estimate"}
       """
           .formatted(A_FINGERPRINT);
@@ -250,7 +250,7 @@ class OcfPublicationAdminControllerTest {
   @Test
   void previewWithTheGatewaysOpsTokenShowsTheFigureAndTheExceptionThatWouldBePublished()
       throws Exception {
-    given(ocfPublicationService.preview(TUK75, OCTOBER, NOVEMBER_1)).willReturn(PREVIEW);
+    given(ocfPublicationService.preview(TUK75, OCTOBER, NOVEMBER_1, 2)).willReturn(PREVIEW);
 
     mockMvc
         .perform(
@@ -260,7 +260,8 @@ class OcfPublicationAdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"fund": "TUK75", "month": "2026-10", "validFrom": "2026-11-01"}
+                    {"fund": "TUK75", "month": "2026-10", "validFrom": "2026-11-01",
+                     "publishedDecimals": 2}
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.version").value(2))
@@ -281,6 +282,7 @@ class OcfPublicationAdminControllerTest {
                     A_FINGERPRINT,
                     NOVEMBER_1,
                     new BigDecimal("0.00450000"),
+                    2,
                     "KID 01.11.2026",
                     "portfolio-manager",
                     "the monthly estimate")))
@@ -330,6 +332,51 @@ class OcfPublicationAdminControllerTest {
                     """
                         .formatted(A_FINGERPRINT)))
         .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(ocfPublicationService);
+  }
+
+  @Test
+  void aPublicationMustSayHowTheKidPrintsItWithOneToFourDecimals() throws Exception {
+    for (var decimals : new String[] {"0", "5", "null"}) {
+      mockMvc
+          .perform(
+              post("/admin/ocf-publications")
+                  .with(csrf())
+                  .header("X-Admin-Token", "ops-token")
+                  .contentType(APPLICATION_JSON)
+                  .content(
+                      """
+                      {"fund": "TUK75", "month": "2026-10", "version": 2,
+                       "validFrom": "2026-11-01", "calculationFingerprint": "%s",
+                       "publishedOcf": 0.00450000, "publishedDecimals": %s,
+                       "publishedIn": "KID 01.11.2026", "publishedBy": "portfolio-manager",
+                       "basisReason": "the monthly estimate"}
+                      """
+                          .formatted(A_FINGERPRINT, decimals)))
+          .andExpect(status().isBadRequest());
+    }
+
+    verifyNoInteractions(ocfPublicationService);
+  }
+
+  @Test
+  void aPreviewMustSayHowTheKidPrintsTheFigureWithOneToFourDecimals() throws Exception {
+    for (var decimals : new String[] {"0", "5", "null"}) {
+      mockMvc
+          .perform(
+              post("/admin/ocf-publications/preview")
+                  .with(csrf())
+                  .header("X-Admin-Token", "ops-token")
+                  .contentType(APPLICATION_JSON)
+                  .content(
+                      """
+                      {"fund": "TUK75", "month": "2026-10", "validFrom": "2026-11-01",
+                       "publishedDecimals": %s}
+                      """
+                          .formatted(decimals)))
+          .andExpect(status().isBadRequest());
+    }
 
     verifyNoInteractions(ocfPublicationService);
   }
@@ -427,7 +474,7 @@ class OcfPublicationAdminControllerTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
-                    {"fund": "TUK75", "validFrom": "2026-11-01"}
+                    {"fund": "TUK75", "validFrom": "2026-11-01", "publishedDecimals": 2}
                     """))
         .andExpect(status().isBadRequest());
 

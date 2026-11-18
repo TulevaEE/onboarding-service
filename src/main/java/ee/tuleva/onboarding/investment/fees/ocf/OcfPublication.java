@@ -55,7 +55,7 @@ record OcfPublication(
         request.fund().getCode(),
         request.validFrom(),
         publishedOcf,
-        PublishedPrecision.of(request.fund()).decimals(),
+        request.publishedDecimals(),
         MONTHLY_ESTIMATE,
         request.basisReason(),
         snapshot.storedId(),

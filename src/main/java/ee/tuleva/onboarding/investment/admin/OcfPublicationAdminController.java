@@ -12,6 +12,8 @@ import ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationRequest;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfPublicationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -36,7 +38,10 @@ public class OcfPublicationAdminController {
   public record CalculationRequest(@NotNull TulevaFund fund, @NotNull YearMonth month) {}
 
   public record PreviewRequest(
-      @NotNull TulevaFund fund, @NotNull YearMonth month, @NotNull LocalDate validFrom) {}
+      @NotNull TulevaFund fund,
+      @NotNull YearMonth month,
+      @NotNull LocalDate validFrom,
+      @NotNull @Min(1) @Max(4) Integer publishedDecimals) {}
 
   @PostMapping("/calculation")
   public OcfCalculationPreview calculation(
@@ -66,7 +71,8 @@ public class OcfPublicationAdminController {
   public OcfPublicationPreview preview(
       @RequestHeader("X-Admin-Token") String token, @Valid @RequestBody PreviewRequest request) {
     tokenValidator.validateWithOpsAccess(token);
-    return ocfPublicationService.preview(request.fund(), request.month(), request.validFrom());
+    return ocfPublicationService.preview(
+        request.fund(), request.month(), request.validFrom(), request.publishedDecimals());
   }
 
   @PostMapping

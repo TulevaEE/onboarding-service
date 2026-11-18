@@ -472,7 +472,7 @@ class OcfCalculationServiceIT {
 
   private void publish(OcfSnapshot snapshot, String publishedBy) {
     var month = YearMonth.from(snapshot.snapshotMonth());
-    var preview = publicationService.preview(TUK75, month, OCTOBER_1);
+    var preview = publicationService.preview(TUK75, month, OCTOBER_1, 2);
     publicationService.publish(
         new OcfPublicationRequest(
             TUK75,
@@ -481,6 +481,7 @@ class OcfCalculationServiceIT {
             preview.calculationFingerprint(),
             OCTOBER_1,
             preview.publishedOcf(),
+            preview.publishedDecimals(),
             PUBLISHED_IN,
             publishedBy,
             "the monthly estimate"));

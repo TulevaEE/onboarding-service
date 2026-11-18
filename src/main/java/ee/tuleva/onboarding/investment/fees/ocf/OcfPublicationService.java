@@ -28,9 +28,10 @@ public class OcfPublicationService {
   private final OcfPublicationRepository publicationRepository;
   private final OcfExceptionRepository exceptionRepository;
 
-  public OcfPublicationPreview preview(TulevaFund fund, YearMonth month, LocalDate validFrom) {
+  public OcfPublicationPreview preview(
+      TulevaFund fund, YearMonth month, LocalDate validFrom, int publishedDecimals) {
     refuseUnlessAfterTheMonth(fund, month, validFrom);
-    return preview(fund, calculationVersions.latest(fund, month), validFrom);
+    return preview(fund, calculationVersions.latest(fund, month), validFrom, publishedDecimals);
   }
 
   public OcfPublicationPreview publish(OcfPublicationRequest request) {
@@ -55,15 +56,20 @@ public class OcfPublicationService {
     }
     log.info(
         "OCF published from a calculation: fund={}, month={}, version={}, validFrom={},"
-            + " publishedOcf={}, publishedIn={}, complete={}",
+            + " publishedOcf={}, publishedDecimals={}, publishedIn={}, complete={}",
         fund.getCode(),
         request.month(),
         request.version(),
         request.validFrom(),
         publishedOcf,
+        request.publishedDecimals(),
         request.publishedIn(),
         snapshot.complete());
-    return preview(fund, calculationVersions.unchanged(request), request.validFrom());
+    return preview(
+        fund,
+        calculationVersions.unchanged(request),
+        request.validFrom(),
+        request.publishedDecimals());
   }
 
   public KidFigure publishGiven(OcfGivenPublicationRequest request) {
@@ -90,10 +96,10 @@ public class OcfPublicationService {
   }
 
   private OcfPublicationPreview preview(
-      TulevaFund fund, OcfSnapshot snapshot, LocalDate validFrom) {
+      TulevaFund fund, OcfSnapshot snapshot, LocalDate validFrom, int publishedDecimals) {
     var fee = managementFeeOn(fund, validFrom);
     var publishedOcf = publishedOcf(snapshot, fee);
-    var precision = PublishedPrecision.of(fund);
+    var precision = new PublishedPrecision(publishedDecimals);
     return new OcfPublicationPreview(
         fund.getCode(),
         YearMonth.from(snapshot.snapshotMonth()),

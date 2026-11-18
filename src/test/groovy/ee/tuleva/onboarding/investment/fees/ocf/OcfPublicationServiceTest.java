@@ -121,24 +121,39 @@ class OcfPublicationServiceTest {
 
   private static OcfPublicationRequest request(
       OcfSnapshot previewed, BigDecimal publishedOcf, String publishedBy) {
+    return request(TUK75, previewed, publishedOcf, 2, publishedBy);
+  }
+
+  private static OcfPublicationRequest request(
+      TulevaFund fund,
+      OcfSnapshot previewed,
+      BigDecimal publishedOcf,
+      int publishedDecimals,
+      String publishedBy) {
     return new OcfPublicationRequest(
-        TUK75,
+        fund,
         OCTOBER,
         2,
         OcfCalculationFingerprint.of(previewed),
         NOVEMBER_1,
         publishedOcf,
+        publishedDecimals,
         "KID 01.11.2026",
         publishedBy,
         "the monthly estimate");
   }
 
   private static OcfPublication publicationOf(String publishedBy) {
+    return publicationOf(TUK75, 2, publishedBy);
+  }
+
+  private static OcfPublication publicationOf(
+      TulevaFund fund, int publishedDecimals, String publishedBy) {
     return new OcfPublication(
-        "TUK75",
+        fund.getCode(),
         NOVEMBER_1,
         PUBLISHED_OCF,
-        2,
+        publishedDecimals,
         MONTHLY_ESTIMATE,
         "the monthly estimate",
         42L,
@@ -152,8 +167,17 @@ class OcfPublicationServiceTest {
 
   private static OcfPublicationPreview previewOf(
       OcfSnapshot snapshot, @Nullable KidFigure kidBefore, @Nullable ExceptionDecision exception) {
+    return previewOf(snapshot, new BigDecimal("0.45"), 2, kidBefore, exception);
+  }
+
+  private static OcfPublicationPreview previewOf(
+      OcfSnapshot snapshot,
+      BigDecimal publishedOcfPercent,
+      int publishedDecimals,
+      @Nullable KidFigure kidBefore,
+      @Nullable ExceptionDecision exception) {
     return new OcfPublicationPreview(
-        "TUK75",
+        snapshot.fundCode(),
         OCTOBER,
         2,
         snapshot.complete(),
@@ -164,8 +188,8 @@ class OcfPublicationServiceTest {
         NOVEMBER_1,
         FEE_ON_THE_PUBLICATION_DATE,
         PUBLISHED_OCF,
-        new BigDecimal("0.45"),
-        2,
+        publishedOcfPercent,
+        publishedDecimals,
         kidBefore,
         exception,
         snapshot.publishedAt() != null);
@@ -179,7 +203,7 @@ class OcfPublicationServiceTest {
     given(publicationRepository.findInForceOn("TUK75", NOVEMBER_1.minusDays(1)))
         .willReturn(Optional.of(KID_BEFORE));
 
-    var preview = service.preview(TUK75, OCTOBER, NOVEMBER_1);
+    var preview = service.preview(TUK75, OCTOBER, NOVEMBER_1, 2);
 
     assertThat(preview).isEqualTo(previewOf(snapshot(true, null), KID_BEFORE, null));
   }
@@ -192,43 +216,54 @@ class OcfPublicationServiceTest {
     given(exceptionRepository.findForTheCurrentCalculation(snapshot(false, null)))
         .willReturn(Optional.of(EXCEPTION));
 
-    var preview = service.preview(TUK75, OCTOBER, NOVEMBER_1);
+    var preview = service.preview(TUK75, OCTOBER, NOVEMBER_1, 2);
 
     assertThat(preview).isEqualTo(previewOf(snapshot(false, null), null, EXCEPTION));
   }
 
   @Test
-  void theSavingsFundPreviewShowsThePublishedFigureAtOneDecimal() {
+  void theSavingsFundPreviewShowsThePublishedFigureAtTheTwoDecimalsItsKidPrints() {
     given(ocfSnapshotRepository.findByFundAndMonth("TKF100", OCTOBER.atDay(1)))
         .willReturn(Optional.of(snapshot(TKF100, COMPLETE_CHECKS, null)));
     givenTheFeeOnThePublicationDate(TKF100);
 
-    var preview = service.preview(TKF100, OCTOBER, NOVEMBER_1);
+    var preview = service.preview(TKF100, OCTOBER, NOVEMBER_1, 2);
+
+    assertThat(preview).isEqualTo(previewOf(snapshot(TKF100, COMPLETE_CHECKS, null), null, null));
+  }
+
+  @Test
+  void thePreviewShowsThePublishedFigureAtOneDecimalWhenTheKidPrintsOne() {
+    given(ocfSnapshotRepository.findByFundAndMonth("TUK75", OCTOBER.atDay(1)))
+        .willReturn(Optional.of(snapshot(true, null)));
+    givenTheFeeOnThePublicationDate();
+
+    var preview = service.preview(TUK75, OCTOBER, NOVEMBER_1, 1);
 
     assertThat(preview)
-        .isEqualTo(
-            new OcfPublicationPreview(
-                "TKF100",
-                OCTOBER,
-                2,
-                true,
-                COMPLETE_CHECKS,
-                OcfCalculationFingerprint.of(snapshot(TKF100, COMPLETE_CHECKS, null)),
-                CALCULATED_OCF,
-                FEE_IN_THE_CALCULATION,
-                NOVEMBER_1,
-                FEE_ON_THE_PUBLICATION_DATE,
-                PUBLISHED_OCF,
-                new BigDecimal("0.5"),
-                1,
-                null,
-                null,
-                false));
+        .isEqualTo(previewOf(snapshot(true, null), new BigDecimal("0.5"), 1, null, null));
+  }
+
+  @Test
+  void aSavingsFundFigurePublishedFromACalculationIsRecordedAtTheTwoDecimalsItsKidPrints() {
+    var snapshot = snapshot(TKF100, COMPLETE_CHECKS, null);
+    var published = snapshot(TKF100, COMPLETE_CHECKS, Instant.EPOCH);
+    given(ocfSnapshotRepository.findVersion("TKF100", OCTOBER.atDay(1), 2))
+        .willReturn(Optional.of(snapshot), Optional.of(published));
+    givenTheFeeOnThePublicationDate(TKF100);
+    given(publicationRepository.recordFromCalculation(any(), any())).willReturn(true);
+
+    var answer = service.publish(request(TKF100, snapshot, PUBLISHED_OCF, 2, "portfolio-manager"));
+
+    then(publicationRepository)
+        .should()
+        .recordFromCalculation(snapshot, publicationOf(TKF100, 2, "portfolio-manager"));
+    assertThat(answer).isEqualTo(previewOf(published, null, null));
   }
 
   @Test
   void aMonthWithoutACalculationCannotBePreviewed() {
-    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, NOVEMBER_1))
+    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, NOVEMBER_1, 2))
         .isInstanceOf(OcfPublicationRefusedException.class);
   }
 
@@ -237,7 +272,7 @@ class OcfPublicationServiceTest {
     given(ocfSnapshotRepository.findByFundAndMonth("TUK75", OCTOBER.atDay(1)))
         .willReturn(Optional.of(snapshot(true, null)));
 
-    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, NOVEMBER_1))
+    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, NOVEMBER_1, 2))
         .isInstanceOf(OcfPublicationRefusedException.class);
   }
 
@@ -346,7 +381,7 @@ class OcfPublicationServiceTest {
   void aFigureCannotTakeEffectInsideTheMonthItWasCalculatedFor() {
     var lastDayOfTheMonth = OCTOBER.atEndOfMonth();
 
-    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, lastDayOfTheMonth))
+    assertThatThrownBy(() -> service.preview(TUK75, OCTOBER, lastDayOfTheMonth, 2))
         .isInstanceOf(OcfPublicationRefusedException.class);
     assertThatThrownBy(
             () ->
@@ -358,6 +393,7 @@ class OcfPublicationServiceTest {
                         OcfCalculationFingerprint.of(snapshot(true, null)),
                         lastDayOfTheMonth,
                         PUBLISHED_OCF,
+                        2,
                         "KID 31.10.2026",
                         "portfolio-manager",
                         "the monthly estimate")))

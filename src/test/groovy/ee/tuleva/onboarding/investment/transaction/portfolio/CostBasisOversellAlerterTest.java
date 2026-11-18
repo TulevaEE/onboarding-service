@@ -93,6 +93,32 @@ class CostBasisOversellAlerterTest {
     verify(notificationService, times(1)).sendMessage(anyString(), any());
   }
 
+  @Test
+  void anEventWithAnUnreadableDateIsSkippedAndTheOtherAlertsArePosted() {
+    given(auditEventRepository.findByEventType(OVERSELL_POSTED)).willReturn(List.of());
+    given(auditEventRepository.findByEventType(OVERSELL_FOUND))
+        .willReturn(List.of(found(1L, "not a date"), found(2L, "2026-05-04")));
+    given(auditEventRepository.findByEventType(OVERSELL_CLEARED)).willReturn(List.of());
+
+    alerter.postPending();
+
+    verify(notificationService, times(1)).sendMessage(anyString(), any());
+    verify(notificationService)
+        .sendMessage(
+            org.mockito.ArgumentMatchers.startsWith("🔴 TUK75 soetusmaksumus 04.05.2026:"), any());
+  }
+
+  @Test
+  void anEventWithAnUnreadableDateIsNotClearedAndDoesNotStopClearingTheOthers() {
+    given(auditEventRepository.findByEventType(OVERSELL_FOUND))
+        .willReturn(List.of(found(1L, "not a date"), found(2L, "2026-05-04")));
+    given(auditEventRepository.findByEventType(OVERSELL_CLEARED)).willReturn(List.of());
+
+    alerter.clearResolved(TUK75, TRADE_DATE, TRADE_DATE.plusDays(5));
+
+    verify(auditEventRepository, times(1)).save(any());
+  }
+
   private static TransactionAuditEvent found(long id, String asOfDate) {
     return TransactionAuditEvent.builder()
         .id(id)

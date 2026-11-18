@@ -11,6 +11,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
+import static java.time.format.DateTimeFormatter.ofPattern;
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -51,6 +53,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,6 +103,7 @@ class TradePrepInputGatesIT {
 
   @Autowired TradePrepInputGates gates;
   @Autowired R16OutflowReader r16OutflowReader;
+  @Autowired R45ReportService r45Report;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired EpisReportSummaryRepository summaryRepository;
@@ -283,20 +287,9 @@ class TradePrepInputGatesIT {
   }
 
   @Test
-  void doesNotAskTuv100ForR16WhenTheR45AlreadyCarriesTheMonthsThirdPillarPayouts() {
+  void doesNotAskTuv100ForR16WhenTheTradeDatesR45AlreadyCarriesTheMonthsThirdPillarPayouts() {
     positionReport(TUV100, TUESDAY);
-    Long r45 = r45(WEDNESDAY);
-    summaryRepository.save(
-        summary(
-            r45,
-            R45,
-            WEDNESDAY,
-            TUV100,
-            Map.of(
-                "inflowEur", 0,
-                "outflowEur", 0,
-                "netEur", 0,
-                "redRowSettlementDates", List.of("2026-11-17"))));
+    ingestR45(WEDNESDAY, "RED;EE3600001707;0.90000;0;300.00;19.11.2026");
 
     assertThat(gates.failures(TUV100, WEDNESDAY)).isEmpty();
   }
@@ -304,19 +297,8 @@ class TradePrepInputGatesIT {
   @Test
   void anOlderR45CannotExcuseTuv100FromThisMonthsR16WhenTheTradeDatesR45CarriesNoPayouts() {
     positionReport(TUV100, TUESDAY);
-    Long olderR45 = r45(LocalDate.of(2026, 11, 13));
-    summaryRepository.save(
-        summary(
-            olderR45,
-            R45,
-            LocalDate.of(2026, 11, 13),
-            TUV100,
-            Map.of(
-                "inflowEur", 0,
-                "outflowEur", 0,
-                "netEur", 0,
-                "redRowSettlementDates", List.of("2026-11-17"))));
-    r45(WEDNESDAY, TUK75);
+    ingestR45(LocalDate.of(2026, 11, 13), "RED;EE3600001707;0.90000;0;300.00;17.11.2026");
+    ingestR45(WEDNESDAY, "SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 
     assertThat(gates.failures(TUV100, WEDNESDAY))
         .containsExactly(
@@ -325,14 +307,22 @@ class TradePrepInputGatesIT {
   }
 
   @Test
+  void anIngestedR45WhoseTuv100PayoutsHaveAllSettledStillExcusesTuv100FromThisMonthsR16() {
+    positionReport(TUV100, TUESDAY);
+    ingestR45(WEDNESDAY, "RED;EE3600001707;0.90000;0;300.00;17.11.2026");
+    r16(YearMonth.of(2026, 11), TUV100, 1000);
+    givenNav(TUV100, WEDNESDAY, "2.00000");
+
+    assertThat(gates.failures(TUV100, WEDNESDAY)).isEmpty();
+    assertThat(r16OutflowReader.read(TUV100, WEDNESDAY)).isZero();
+  }
+
+  @Test
   void tradePrepCountsTheSameMonthsR16TheGateChecksEvenWhenNextMonthsIsAlreadyLoaded() {
     LocalDate thursday = LocalDate.of(2026, 11, 12);
     r16(YearMonth.of(2026, 11), TUK75, 1000);
     r16(YearMonth.of(2026, 12), TUK75, 7000);
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), thursday))
-        .willReturn(Optional.of(LocalDate.of(2026, 11, 11)));
-    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), LocalDate.of(2026, 11, 11)))
-        .willReturn(Optional.of(new BigDecimal("2.00000")));
+    givenNav(TUK75, thursday, "2.00000");
 
     assertThat(r16OutflowReader.read(TUK75, thursday)).isEqualByComparingTo("2000");
   }
@@ -368,6 +358,38 @@ class TradePrepInputGatesIT {
             INVESTMENT);
   }
 
+  private void givenNav(TulevaFund fund, LocalDate asOfDate, String nav) {
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), asOfDate))
+        .willReturn(Optional.of(asOfDate.minusDays(1)));
+    given(fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), asOfDate.minusDays(1)))
+        .willReturn(Optional.of(new BigDecimal(nav)));
+  }
+
+  private void ingestR45(LocalDate reportDate, String... rows) {
+    r45Report.processAndStore(storedR45(reportDate, rows));
+  }
+
+  private Long storedR45(LocalDate reportDate, String... rows) {
+    String csv =
+        Stream.concat(
+                Stream.of(
+                    "Tehtud: %s;;;;;".formatted(reportDate.format(ofPattern("dd.MM.yyyy"))),
+                    ";;;;;",
+                    "Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev"),
+                Stream.of(rows))
+            .collect(joining("\n", "", "\n"));
+    return reportRepository
+        .save(
+            InvestmentReport.builder()
+                .provider(EPIS)
+                .reportType(R45)
+                .reportDate(reportDate)
+                .rawData(List.of(Map.of("csv", csv)))
+                .createdAt(Instant.now())
+                .build())
+        .getId();
+  }
+
   private void positionReport(TulevaFund fund, LocalDate navDate) {
     fundPositionRepository.save(
         FundPosition.builder()
@@ -382,8 +404,8 @@ class TradePrepInputGatesIT {
             .build());
   }
 
-  private Long r45(LocalDate reportDate, TulevaFund... fundsWithRows) {
-    Long reportId = reportOf(R45, reportDate);
+  private void r45(LocalDate reportDate, TulevaFund... fundsWithRows) {
+    Long reportId = storedR45(reportDate);
     for (TulevaFund fund : fundsWithRows) {
       summaryRepository.save(
           summary(
@@ -393,7 +415,6 @@ class TradePrepInputGatesIT {
               fund,
               Map.of("inflowEur", 0, "outflowEur", 0, "netEur", 0)));
     }
-    return reportId;
   }
 
   private void r16(YearMonth paymentMonth, TulevaFund fundWithRows) {

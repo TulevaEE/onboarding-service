@@ -35,6 +35,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
@@ -173,11 +174,12 @@ class ContactChangeHistoryIntegrationTest {
   }
 
   @Test
-  void aChangeThatFailsWhenCommittedLeavesNeitherTheUserNorAnyHistoryOrAuditChanged() {
+  void aChangeThatFailsWhenCommittedAfterItsHistoryAndAuditWereWrittenRollsThemBackWithTheUser() {
     assertThatThrownBy(
             () -> userService.changeContactDetails(PERSONAL_CODE, "not-an-email", "+37255555555"))
-        .isInstanceOf(RuntimeException.class);
+        .isInstanceOf(TransactionSystemException.class);
 
+    assertThat(applicationEvents.stream(ContactDetailsChanged.class)).hasSize(1);
     assertThat(storedContactDetails())
         .isEqualTo(new StoredContactDetails("old@example.com", "+37255555555"));
     assertThat(contactChanges.of(user.getId())).isEmpty();

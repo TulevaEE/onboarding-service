@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawa
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH;
+import static ee.tuleva.onboarding.user.UserContactDetailsTestFixture.withContactDetails;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -137,8 +138,7 @@ class MissedMandateBatchEmailsTest {
 
   @Test
   void skipsABatchWhoseOwnerHasNoEmailToSendItTo() {
-    owner.setEmail(null);
-    owner = entityManager.merge(owner);
+    owner = entityManager.merge(withContactDetails(owner, null, owner.getPhoneNumber()));
     batch(SIGNED, TWO_DAYS_AGO, true);
 
     assertThat(missedMandateBatchEmails.find(7)).isEmpty();

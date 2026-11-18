@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.MEDIUM;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -170,6 +171,6 @@ class WaitingLegalEntityCompletionListenerTest {
 
     listener.onKycCheckPerformed(event(LOW));
 
-    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any(), any());
   }
 }

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -48,7 +49,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(PENDING));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK))
         .willReturn(Optional.of(PENDING));
     var kycCheck = new KycCheck(LOW, Map.of());
 
@@ -69,7 +70,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(PENDING));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK))
         .willReturn(Optional.of(COMPLETED));
     var kycCheck = new KycCheck(LOW, Map.of());
 
@@ -85,7 +86,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.empty());
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK))
         .willReturn(Optional.empty());
     var kycCheck = new KycCheck(NONE, Map.of());
 
@@ -107,7 +108,7 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
     verify(savingsFundOnboardingRepository)
-        .saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD);
+        .saveOnboardingStatus(user.getPersonalCode(), PERSON, ON_HOLD, KYC_CHECK);
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
   }
 
@@ -117,7 +118,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(PENDING));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK))
         .willReturn(Optional.of(PENDING));
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
@@ -136,7 +137,8 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(
         user, new KycCheck(riskLevel, Map.of()));
 
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(savingsFundOnboardingRepository, never())
+        .saveOnboardingStatus(any(), any(), any(), any());
     verifyNoInteractions(eventPublisher);
   }
 
@@ -161,7 +163,8 @@ class SavingsFundOnboardingServiceTest {
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(savingsFundOnboardingRepository, never())
+        .saveOnboardingStatus(any(), any(), any(), any());
     verifyNoInteractions(eventPublisher);
   }
 
@@ -171,7 +174,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(ON_HOLD));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, AML_SERVICE_REVIEW))
         .willReturn(Optional.of(ON_HOLD));
 
     savingsFundOnboardingService.applyReview(user, COMPLETE);
@@ -191,7 +194,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(ON_HOLD));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, REJECTED))
+                user.getPersonalCode(), PERSON, REJECTED, AML_SERVICE_REVIEW))
         .willReturn(Optional.of(ON_HOLD));
 
     savingsFundOnboardingService.applyReview(user, REJECT);
@@ -211,7 +214,7 @@ class SavingsFundOnboardingServiceTest {
         .willReturn(Optional.of(REJECTED));
     given(
             savingsFundOnboardingRepository.saveOnboardingStatus(
-                user.getPersonalCode(), PERSON, COMPLETED))
+                user.getPersonalCode(), PERSON, COMPLETED, AML_SERVICE_REVIEW))
         .willReturn(Optional.of(REJECTED));
 
     savingsFundOnboardingService.applyReview(user, COMPLETE);
@@ -234,7 +237,8 @@ class SavingsFundOnboardingServiceTest {
 
     savingsFundOnboardingService.applyReview(user, outcome);
 
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(savingsFundOnboardingRepository, never())
+        .saveOnboardingStatus(any(), any(), any(), any());
     verifyNoInteractions(eventPublisher);
   }
 
@@ -245,7 +249,8 @@ class SavingsFundOnboardingServiceTest {
 
     savingsFundOnboardingService.applyReview(user, COMPLETE);
 
-    verify(savingsFundOnboardingRepository, never()).saveOnboardingStatus(any(), any(), any());
+    verify(savingsFundOnboardingRepository, never())
+        .saveOnboardingStatus(any(), any(), any(), any());
     verifyNoInteractions(eventPublisher);
   }
 
@@ -254,7 +259,7 @@ class SavingsFundOnboardingServiceTest {
     var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
     given(
             savingsFundOnboardingRepository.holdRejected(
-                user.getPersonalCode(), PERSON, rejectedBefore))
+                user.getPersonalCode(), PERSON, rejectedBefore, ONBOARDING_RULE_RERUN))
         .willReturn(true);
 
     assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isTrue();
@@ -273,7 +278,7 @@ class SavingsFundOnboardingServiceTest {
     var rejectedBefore = Instant.parse("2026-11-16T22:00:00Z");
     given(
             savingsFundOnboardingRepository.holdRejected(
-                user.getPersonalCode(), PERSON, rejectedBefore))
+                user.getPersonalCode(), PERSON, rejectedBefore, ONBOARDING_RULE_RERUN))
         .willReturn(false);
 
     assertThat(savingsFundOnboardingService.holdForReview(user, rejectedBefore)).isFalse();
@@ -303,6 +308,6 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent("60001019906");
 
     verify(savingsFundOnboardingRepository)
-        .insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
+        .insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING, CHILD_ONBOARDING_STARTED);
   }
 }

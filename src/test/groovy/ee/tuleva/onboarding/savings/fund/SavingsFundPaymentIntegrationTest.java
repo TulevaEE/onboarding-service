@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,7 +121,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        testUser.getPersonalCode(), PERSON, COMPLETED);
+        testUser.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
 
     // Delete any existing NAV values for savings fund to ensure test isolation
     jdbcClient
@@ -522,7 +523,7 @@ class SavingsFundPaymentIntegrationTest {
                 .build());
 
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), PERSON, COMPLETED);
+        differentUser.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
 
     // Step 1: Process incoming payment with mismatched personal code
     var xml = createUnverifiablePaymentXml();
@@ -618,7 +619,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Mark this user as onboarded to savings fund
     savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), PERSON, COMPLETED);
+        differentUser.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
 
     // Given - XML message with payment that cannot be verified (wrong personal code)
     var xml = createUnverifiablePaymentXml();
@@ -707,7 +708,7 @@ class SavingsFundPaymentIntegrationTest {
             .email("mari.tamm@example.com")
             .phoneNumber("+372 5555 7777")
             .build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(childCode, PERSON, COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(childCode, PERSON, COMPLETED, KYC_CHECK);
     parentChildLinkRepository.save(
         ParentChildLink.builder()
             .parentPersonalCode(testUser.getPersonalCode())
@@ -755,7 +756,7 @@ class SavingsFundPaymentIntegrationTest {
             .email("mari.maasikas@example.com")
             .phoneNumber("+372 5555 8888")
             .build());
-    savingsFundOnboardingRepository.saveOnboardingStatus(minorCode, PERSON, COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(minorCode, PERSON, COMPLETED, KYC_CHECK);
 
     persistXmlMessage(
         createPaymentFromJuriTammXml("test-gift", "2025092909000-3", "Kingitus " + minorCode), NOW);

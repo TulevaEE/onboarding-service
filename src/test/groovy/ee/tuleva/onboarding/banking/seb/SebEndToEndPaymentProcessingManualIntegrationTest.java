@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -351,7 +352,8 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
                 .phoneNumber("+372 5555 0000")
                 .build());
 
-    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), PERSON, COMPLETED);
+    savingsFundOnboardingRepository.saveOnboardingStatus(
+        user.getPersonalCode(), PERSON, COMPLETED, KYC_CHECK);
     System.out.println("Created test user: personalCode=" + personalCode);
   }
 

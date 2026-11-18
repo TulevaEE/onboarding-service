@@ -5,6 +5,10 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusAfter;
 import static ee.tuleva.onboarding.savings.TkfOnboardingDecision.statusFor;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.AML_SERVICE_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.CHILD_ONBOARDING_STARTED;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.KYC_CHECK;
+import static ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason.ONBOARDING_RULE_RERUN;
 
 import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
 import ee.tuleva.onboarding.aml.OnboardingReview.Outcome;
@@ -13,6 +17,7 @@ import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Assessment;
 import ee.tuleva.onboarding.savings.TkfOnboardingDecision.Review;
+import ee.tuleva.onboarding.savings.fund.OnboardingStatusChangeReason;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
@@ -55,7 +60,7 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
   public void seedPersonOnboardingIfAbsent(String personalCode) {
     boolean inserted =
         savingsFundOnboardingRepository.insertOnboardingStatusIfAbsent(
-            personalCode, PERSON, PENDING);
+            personalCode, PERSON, PENDING, CHILD_ONBOARDING_STARTED);
     if (inserted) {
       log.info("Seeded savings fund onboarding: personalCode={}, status={}", personalCode, PENDING);
     }
@@ -69,7 +74,7 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     if (newStatus == oldStatus) {
       return;
     }
-    changeStatus(user, newStatus);
+    changeStatus(user, newStatus, KYC_CHECK);
   }
 
   @Transactional
@@ -85,13 +90,13 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
         user.getId(),
         oldStatus,
         newStatus);
-    changeStatus(user, newStatus);
+    changeStatus(user, newStatus, AML_SERVICE_REVIEW);
   }
 
   @Transactional
   public boolean holdForReview(User user, Instant rejectedBefore) {
     if (!savingsFundOnboardingRepository.holdRejected(
-        user.getPersonalCode(), PERSON, rejectedBefore)) {
+        user.getPersonalCode(), PERSON, rejectedBefore, ONBOARDING_RULE_RERUN)) {
       return false;
     }
     log.info("Savings fund onboarding held for review again: userId={}", user.getId());
@@ -103,10 +108,11 @@ public class SavingsFundOnboardingService implements SavingsOnboardingCompletion
     return true;
   }
 
-  private void changeStatus(User user, SavingsFundOnboardingStatus newStatus) {
+  private void changeStatus(
+      User user, SavingsFundOnboardingStatus newStatus, OnboardingStatusChangeReason reason) {
     SavingsFundOnboardingStatus previousStatus =
         savingsFundOnboardingRepository
-            .saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus)
+            .saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus, reason)
             .orElse(null);
     if (newStatus == COMPLETED && previousStatus != COMPLETED) {
       eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));

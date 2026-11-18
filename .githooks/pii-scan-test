@@ -121,6 +121,25 @@ out=$(printf -- '--- a/.githooks/pii-idcode-allow\n+++ b/.githooks/pii-idcode-al
 if [ $? -eq 0 ]; then echo "ok    id-code allow-file growth carries its own exemption"; else
   echo "FAIL  id-code allow-file growth carries its own exemption: expected clean"; failures=$((failures + 1)); fi
 
+# A file header only counts outside a hunk, so an added line that reads like
+# one cannot switch the scan over to this exempt file.
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,2 @@\n+++ b/.githooks/pii-scan-test\n+String c = "38903112710";\n' \
+  | "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    added line cannot pose as a file header"; else
+  echo "FAIL  added line cannot pose as a file header: expected a finding"; failures=$((failures + 1)); fi
+
+# Git quotes a path it cannot print as is. A quoted header still starts a new
+# file, so the exemption of the file before it does not carry over.
+out=$(printf -- 'diff --git a/.githooks/pii-scan-test b/.githooks/pii-scan-test\n--- a/.githooks/pii-scan-test\n+++ b/.githooks/pii-scan-test\n@@ -0,0 +1,1 @@\n+x\ndiff --git "a/we\\"ird.java" "b/we\\"ird.java"\n--- /dev/null\n+++ "b/we\\"ird.java"\n@@ -0,0 +1,1 @@\n+String c = "38903112710";\n' \
+  | "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    quoted path ends the exempt file"; else
+  echo "FAIL  quoted path ends the exempt file: expected a finding"; failures=$((failures + 1)); fi
+
+# diff.suppressBlankEmpty prints an empty context line as an empty line.
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -1,1 +1,2 @@\n\n+String c = "38903112710";\n' | "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    empty context line stays inside the hunk"; else
+  echo "FAIL  empty context line stays inside the hunk: expected a finding"; failures=$((failures + 1)); fi
+
 if [ "$failures" -ne 0 ]; then
   echo ""
   echo "$failures pii-scan self-test failure(s)"

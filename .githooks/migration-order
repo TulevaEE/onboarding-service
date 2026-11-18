@@ -11,26 +11,32 @@
 #   - no version claimed twice
 #   - no gap above master's highest version (house style is contiguous)
 #
-#   migration-order [ref]     check ref (default HEAD) against origin/master
+#   migration-order [ref]     check ref (default HEAD) against the remote's master
 #
-# MIGRATION_ORDER_BASE overrides the branch compared against.
+# MIGRATION_ORDER_REMOTE names the remote (default origin) whose master is
+# compared against, and fetched when there is no tracking ref for it.
+# MIGRATION_ORDER_BASE overrides the branch compared against; "none" means the
+# caller already found there is no master to compare against.
 
 set -uo pipefail
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Flyway loads SQL and Java migrations off one version sequence, so a check that
 # reads only one of the two directories cannot see a collision between them —
 # listing the SQL directory alone is how V1_275 was taken twice.
 MIGRATION_DIRS=(src/main/resources/db/migration src/main/java/db/migration)
-BASE_REF=${MIGRATION_ORDER_BASE:-origin/master}
+REMOTE=${MIGRATION_ORDER_REMOTE:-origin}
+BASE_REF=${MIGRATION_ORDER_BASE:-refs/remotes/$REMOTE/master}
 HEAD_REF=${1:-HEAD}
 
-# The fallback fetch runs inside a hook, so it must never stop to ask for
-# credentials.
+if [ "$BASE_REF" = none ]; then
+  echo "migration-order: no master to compare against, skipping" >&2
+  exit 0
+fi
+
 if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null 2>&1; then
-  if GIT_TERMINAL_PROMPT=0 \
-    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config core.sshCommand || echo ssh)} -o BatchMode=yes" \
-    git fetch --no-tags --quiet origin master </dev/null 2>/dev/null; then
-    BASE_REF=FETCH_HEAD
+  if fetched=$("$HOOK_DIR/fetch-master" "$REMOTE"); then
+    BASE_REF=$fetched
   else
     echo "migration-order: cannot resolve $BASE_REF, skipping" >&2
     exit 0

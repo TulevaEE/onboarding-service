@@ -144,13 +144,30 @@ sub personal_email {
 # applies.
 my %EXEMPT_PATH = map { $_ => 1 } ('.githooks/pii-scan-test');
 
+# Inside a hunk its header's line counts decide what each line is, so an added
+# line that reads like a file header is still an added line. Outside one, every
+# file starts afresh at its "diff" line, and a header git had to quote still
+# names a new file: neither can leave the previous file's exemption in force.
 my (@findings, $file, $line);
+my ($old_left, $new_left) = (0, 0);
 while (my $raw = <STDIN>) {
-  if ($raw =~ m{^\+\+\+ [ab]/(.*)$}) { $file = $1; next }
+  if ($old_left > 0 || $new_left > 0) {
+    my $mark = substr($raw, 0, 1);
+    if ($mark eq '\\') { next }
+    if ($mark eq ' ' || $raw eq "\n") { $old_left--; $new_left--; $line++; next }
+    if ($mark eq '-') { $old_left--; next }
+    if ($mark ne '+') { ($old_left, $new_left) = (0, 0); redo }
+    $new_left--;
+  } else {
+    if ($raw =~ /^diff /) { undef $file; next }
+    if ($raw =~ m{^\+\+\+ (?:"[ab]/(.*)"|[ab]/(.*))$}) { $file = $1 // $2; next }
+    if ($raw =~ /^\@\@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? \@\@/) {
+      ($old_left, $line, $new_left) = ($1 // 1, $2 - 1, $3 // 1);
+      next;
+    }
+    next unless $raw =~ /^\+/ && $raw !~ /^\+\+\+ /;
+  }
   next if defined $file && $EXEMPT_PATH{$file};
-  if ($raw =~ /^\@\@ .*?\+(\d+)/)    { $line = $1 - 1; next }
-  if ($raw =~ /^ /)                  { $line++; next }
-  next unless $raw =~ /^\+/ && $raw !~ /^\+\+\+/;
   $line++;
 
   my $content = substr($raw, 1);

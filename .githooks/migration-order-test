@@ -36,6 +36,24 @@ setup_repo() {
   git update-ref refs/remotes/origin/master HEAD
 }
 
+# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output>
+expect_hook_result() {
+  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5
+  if [ "$actual" -ne "$expected" ]; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output does not mention: $expected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  passed=$((passed + 1))
+}
+
 # check <description> <expected exit> <migration file>...
 check() {
   local description=$1 expected=$2
@@ -46,16 +64,10 @@ check() {
     echo "select 1;" >"$MIGRATION_DIR/$file"
   done
   git add -A && git commit --quiet --allow-empty -m feature >/dev/null 2>&1
-  local output
+  local output actual
   output=$(MIGRATION_ORDER_BASE=base-master "$HOOK" HEAD 2>&1)
-  local actual=$?
-  if [ "$actual" -eq "$expected" ]; then
-    passed=$((passed + 1))
-  else
-    failed=$((failed + 1))
-    echo "FAIL: $description (expected exit $expected, got $actual)"
-    echo "$output" | sed 's/^/      /'
-  fi
+  actual=$?
+  expect_hook_result "$description" "$expected" - "$actual" "$output"
 }
 
 # Master's highest version can live in the Java directory: Flyway reads both off
@@ -71,16 +83,10 @@ java_check() {
   git checkout --quiet -b feature
   echo "select 1;" >"$MIGRATION_DIR/$file"
   git add -A && git commit --quiet -m feature >/dev/null 2>&1
-  local output
+  local output actual
   output=$(MIGRATION_ORDER_BASE=base-master "$HOOK" HEAD 2>&1)
-  local actual=$?
-  if [ "$actual" -eq "$expected" ]; then
-    passed=$((passed + 1))
-  else
-    failed=$((failed + 1))
-    echo "FAIL: $description (expected exit $expected, got $actual)"
-    echo "$output" | sed 's/^/      /'
-  fi
+  actual=$?
+  expect_hook_result "$description" "$expected" - "$actual" "$output"
 }
 
 java_check "sql clashing with master's java migration"  1 V1_3__clash.sql
@@ -107,24 +113,6 @@ check "same version claimed twice"          1 V1_3__new.sql V1_3__other.sql
 # exports an empty allowlist and the code below reads as a finding there. It may
 # stand in this file because this repository's own allowlist carries it.
 PII_FIXTURE_ID_CODE=38812121215
-
-# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output>
-expect_hook_result() {
-  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5
-  if [ "$actual" -ne "$expected" ]; then
-    failed=$((failed + 1))
-    echo "FAIL: $description (expected exit $expected, got $actual)"
-    echo "$output" | sed 's/^/      /'
-    return
-  fi
-  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
-    failed=$((failed + 1))
-    echo "FAIL: $description (output does not mention: $expected_output)"
-    echo "$output" | sed 's/^/      /'
-    return
-  fi
-  passed=$((passed + 1))
-}
 
 # push_check <description> <expected exit> <expected output> <migration|-> <id code|->
 push_check() {
@@ -153,46 +141,124 @@ push_check "pre-push blocks personal data" \
 push_check "pre-push blocks personal data beside a numbering warning" \
   1 "Push aborted"           V1_2__clash.sql "$PII_FIXTURE_ID_CODE"
 
-orphan_branch_carrying_personal_data() {
-  git checkout --quiet --orphan feature
-  git rm -r -f --quiet -- .
-  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >Fixture.java
-  git add -A && git commit --quiet -m orphan >/dev/null 2>&1
+# A branch the merge base cannot place is scanned commit by commit, leaving out
+# whatever a remote ref already carries. Each setup runs after setup_repo,
+# leaves the branch to push checked out as feature and, when the remote already
+# holds that branch, sets REMOTE_SHA to its tip there.
+commit_fixture() {
+  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >"$1"
+  git add -A && git commit --quiet -m "$2" >/dev/null 2>&1
 }
 
-branch_without_default_branch_ref() {
-  git update-ref -d refs/remotes/origin/master
-  git checkout --quiet -b feature
-  echo "select 1;" >"$MIGRATION_DIR/V1_3__new.sql"
+commit_clean_code() {
+  echo "class Feature {}" >Feature.java
   git add -A && git commit --quiet -m feature >/dev/null 2>&1
 }
 
-branch_with_nothing_on_top_of_master_carrying_personal_data() {
-  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >Fixture.java
-  git add -A && git commit --quiet -m "long since public" >/dev/null 2>&1
+start_orphan_branch() {
+  git checkout --quiet --orphan feature
+  git rm -r -f --quiet -- .
+}
+
+orphan_branch_carrying_personal_data() {
+  start_orphan_branch
+  commit_fixture Fixture.java orphan
+}
+
+master_published_only_under_another_remote_ref() {
+  commit_fixture Published.java "long since public"
+  git update-ref -d refs/remotes/origin/master
+  git update-ref refs/remotes/origin/other-branch HEAD
+  git checkout --quiet -b feature
+}
+
+clean_branch_without_origin_master() {
+  master_published_only_under_another_remote_ref
+  commit_clean_code
+}
+
+personal_data_without_origin_master() {
+  master_published_only_under_another_remote_ref
+  commit_fixture Fixture.java feature
+}
+
+clean_branch_with_master_only_on_the_remote() {
+  commit_fixture Published.java "long since public"
+  git init --quiet --bare "$TMP/origin.git"
+  git remote add origin "$TMP/origin.git"
+  git -c core.hooksPath=/dev/null push --quiet origin master
+  git update-ref -d refs/remotes/origin/master
+  git checkout --quiet -b feature
+  commit_clean_code
+}
+
+published_orphan_branch() {
+  start_orphan_branch
+  commit_fixture Fixture.java "already on the remote"
+  REMOTE_SHA=$(git rev-parse HEAD)
+}
+
+clean_commit_on_published_orphan_branch() {
+  published_orphan_branch
+  commit_clean_code
+}
+
+personal_data_on_published_orphan_branch() {
+  published_orphan_branch
+  commit_fixture Another.java feature
+}
+
+nothing_on_top_of_master_carrying_personal_data() {
+  commit_fixture Published.java "long since public"
   git update-ref refs/remotes/origin/master HEAD
   git checkout --quiet -b feature
 }
 
-# new_branch_check <description> <expected exit> <expected output> <branch setup>
-new_branch_check() {
+branch_whose_base_blob_is_missing() {
+  echo "first" >Shared.java
+  git add -A && git commit --quiet -m shared >/dev/null 2>&1
+  git update-ref refs/remotes/origin/master HEAD
+  local blob
+  blob=$(git rev-parse HEAD:Shared.java)
+  git checkout --quiet -b feature
+  echo "second" >Shared.java
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  rm -f ".git/objects/${blob:0:2}/${blob:2}"
+}
+
+# branch_push_check <description> <expected exit> <expected output|-> <branch setup>
+branch_push_check() {
   local description=$1 expected=$2 expected_output=$3 branch_setup=$4
+  rm -rf "$TMP/origin.git"
   setup_repo
+  REMOTE_SHA=0000000000000000000000000000000000000000
   "$branch_setup"
   local output actual
   output=$(printf 'refs/heads/feature %s refs/heads/feature %s\n' \
-    "$(git rev-parse HEAD)" 0000000000000000000000000000000000000000 |
+    "$(git rev-parse HEAD)" "$REMOTE_SHA" |
     "$PRE_PUSH" origin "$TMP/remote" 2>&1)
   actual=$?
   expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output"
 }
 
-new_branch_check "pre-push scans the whole tree of a new orphan branch" \
-  1 "Push aborted"                 orphan_branch_carrying_personal_data
-new_branch_check "pre-push blocks a push it cannot compare against origin/master" \
-  1 "git fetch origin master"      branch_without_default_branch_ref
-new_branch_check "pre-push lets a new branch with nothing on top of master through" \
-  0 -                              branch_with_nothing_on_top_of_master_carrying_personal_data
+SCANNER_FINDING="Personal data detected"
+
+branch_push_check "pre-push scans every commit of a new orphan branch" \
+  1 "$SCANNER_FINDING" orphan_branch_carrying_personal_data
+branch_push_check "pre-push without origin/master leaves history another remote ref carries alone" \
+  0 - clean_branch_without_origin_master
+branch_push_check "pre-push without origin/master scans the commits the push publishes" \
+  1 "$SCANNER_FINDING" personal_data_without_origin_master
+branch_push_check "pre-push fetches master when origin/master is missing" \
+  0 - clean_branch_with_master_only_on_the_remote
+branch_push_check "pre-push leaves what a branch without a merge base already published alone" \
+  0 - clean_commit_on_published_orphan_branch
+branch_push_check "pre-push scans the new commits of a branch without a merge base" \
+  1 "$SCANNER_FINDING" personal_data_on_published_orphan_branch
+branch_push_check "pre-push lets a new branch with nothing on top of master through" \
+  0 - nothing_on_top_of_master_carrying_personal_data
+branch_push_check "pre-push says it could not compute the push instead of reporting personal data" \
+  1 "could not compute what this push adds: ref=refs/heads/feature" branch_whose_base_blob_is_missing
 
 # pre-commit weighs its two checks the same way pre-push does. The throwaway
 # repository has no Gradle wrapper, so spotlessCheck cannot succeed there —

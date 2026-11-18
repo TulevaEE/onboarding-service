@@ -34,7 +34,7 @@ class CostBasisOversellAlerterIT {
       """
       🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
       Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
-      Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see hiljemalt 14.05.2026""";
+      Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see; öine ümberarvutus parandab ülejäänu""";
   private static final String CLEARED_MESSAGE =
       "✅ TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
           + " soetusmaksumus on ümber arvutatud";
@@ -198,6 +198,23 @@ class CostBasisOversellAlerterIT {
     assertThat(notifications.sent())
         .extracting(Sent::message)
         .containsExactly(FOUND_MESSAGE, CLEARED_MESSAGE, FOUND_MESSAGE);
+  }
+
+  @Test
+  void theEarliestOpenOversellOfAFundIsWhereItsSelfHealHasToReachBackTo() {
+    alerter.recordFound(TUK75, oversell(TRADE_DATE.plusDays(3), "100000", "150000"));
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.recordFound(TUK00, oversell(TRADE_DATE.minusDays(5), "100000", "150000"));
+
+    assertThat(alerter.earliestOpenOversell(TUK75)).contains(TRADE_DATE);
+  }
+
+  @Test
+  void aClearedOversellNoLongerHoldsTheSelfHealBack() {
+    alerter.recordFound(TUK75, oversell(TRADE_DATE, "100000", "150000"));
+    alerter.clearResolved(TUK75, TRADE_DATE, TRADE_DATE);
+
+    assertThat(alerter.earliestOpenOversell(TUK75)).isEmpty();
   }
 
   private static CostBasisOversellException oversell(

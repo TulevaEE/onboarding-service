@@ -120,9 +120,7 @@ public class R45ReportService {
   }
 
   public Optional<LocalDate> latestReportDateBefore(LocalDate date) {
-    return reportRepository
-        .findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(EPIS, R45, date)
-        .map(InvestmentReport::getReportDate);
+    return reportRepository.findLatestReportDateBefore(EPIS, R45, date);
   }
 
   public Map<TulevaFund, R45Result> getFlowsOn(LocalDate reportDate) {

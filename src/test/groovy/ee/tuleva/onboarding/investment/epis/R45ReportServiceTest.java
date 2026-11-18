@@ -308,30 +308,35 @@ class R45ReportServiceTest {
   }
 
   @Test
-  void redRowSettlementDatesOnADayComeFromThatDaysR45() {
-    given(
-            summaryRepository.findTopByReportTypeAndReportDateAndFundOrderByIdDesc(
-                R45, TODAY, TUV100))
+  void redRowSettlementDatesOnADayComeFromThatDaysR45EvenWhenEveryRowHasSettled() {
+    given(reportRepository.findByProviderAndReportTypeAndReportDate(EPIS, R45, TODAY))
         .willReturn(
             Optional.of(
-                summary(
-                    TUV100,
-                    Map.of(
-                        "inflowEur",
-                        0,
-                        "outflowEur",
-                        400.00,
-                        "netEur",
-                        -400.00,
-                        "redRowSettlementDates",
-                        List.of("2026-08-18")))));
+                InvestmentReport.builder()
+                    .id(REPORT_ID)
+                    .provider(EPIS)
+                    .reportType(R45)
+                    .reportDate(TODAY)
+                    .rawData(
+                        List.of(
+                            Map.of(
+                                "csv",
+                                """
+                                Tehtud: 14.08.2026;;;;;
+                                ;;;;;
+                                Tehingu liik;ISIN;NAV;Osakuid;Summa;Täitmise kuupäev
+                                RED;EE3600001707;0.90000;0;300.00;13.08.2026
+                                RED;EE3600001707;0.90000;0;100.00;18.08.2026
+                                RED;EE3600109435;0.80000;0;500.00;18.08.2026
+                                """)))
+                    .build()));
 
     assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY))
-        .containsExactly(LocalDate.of(2026, 8, 18));
+        .containsExactly(LocalDate.of(2026, 8, 13), LocalDate.of(2026, 8, 18));
   }
 
   @Test
-  void noRedRowSettlementDatesOnADayWhoseR45HasNoRowForTheFund() {
+  void noRedRowSettlementDatesOnADayWithoutAnR45() {
     assertThat(service.getRedRowSettlementDatesOn(TUV100, TODAY)).isEmpty();
   }
 

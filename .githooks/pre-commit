@@ -30,7 +30,7 @@ export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
 # patch that cannot be produced stops the commit rather than scanning nothing.
 STAGED=$(mktemp)
 trap 'rm -f "$STAGED"' EXIT
-if ! git diff --cached --no-color --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ >"$STAGED"; then
+if ! "$(dirname "${BASH_SOURCE[0]}")/scan-patch" staged >"$STAGED"; then
     echo "🛑 Commit aborted: could not compute what this commit adds."
     exit 1
 fi

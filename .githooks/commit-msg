@@ -1,0 +1,20 @@
+#!/bin/bash
+# The message is published with the commit, so it is scanned like an added file.
+# Below git's scissors line sits the diff `commit -v` shows for reference:
+# pre-commit has scanned it already and git discards it.
+
+set -uo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The allowlists come from the index, as in pre-commit, so only a STAGED
+# allowlist entry can exempt an IBAN or ID code.
+PII_IBAN_ALLOW_SOURCE=$(git show :.githooks/pii-iban-allow 2>/dev/null || true)
+PII_IDCODE_ALLOW_SOURCE=$(git show :.githooks/pii-idcode-allow 2>/dev/null || true)
+export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
+
+if ! message=$(sed '/^# -* >8 -*$/,$d' "$1"); then
+  echo "🛑 Commit aborted: could not read the commit message: file=$1"
+  exit 1
+fi
+printf '%s\n' "$message" | "$HOOK_DIR/scan-patch" message COMMIT_MSG | "$HOOK_DIR/pii-scan"

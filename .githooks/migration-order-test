@@ -13,6 +13,8 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$HOOK_DIR/migration-order"
 PRE_PUSH="$HOOK_DIR/pre-push"
 PRE_COMMIT="$HOOK_DIR/pre-commit"
+COMMIT_MSG_HOOK="$HOOK_DIR/commit-msg"
+FETCH_MASTER="$HOOK_DIR/fetch-master"
 MIGRATION_DIR=src/main/resources/db/migration
 JAVA_MIGRATION_DIR=src/main/java/db/migration
 TMP=$(mktemp -d)
@@ -36,15 +38,9 @@ setup_repo() {
   git update-ref refs/remotes/origin/master HEAD
 }
 
-# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output> [unexpected output]
+# expect_hook_result <description> <expected exit> <expected output|-> <actual exit> <output>
 expect_hook_result() {
-  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5 unexpected_output=${6:-}
-  if [ -n "$unexpected_output" ] && printf '%s' "$output" | grep -qF "$unexpected_output"; then
-    failed=$((failed + 1))
-    echo "FAIL: $description (output mentions: $unexpected_output)"
-    echo "$output" | sed 's/^/      /'
-    return
-  fi
+  local description=$1 expected=$2 expected_output=$3 actual=$4 output=$5
   if [ "$actual" -ne "$expected" ]; then
     failed=$((failed + 1))
     echo "FAIL: $description (expected exit $expected, got $actual)"
@@ -263,12 +259,79 @@ branch_merging_in_master_that_gained_personal_data() {
   git merge --quiet --no-ff -m "merge master" master >/dev/null 2>&1
 }
 
-tag_of_a_tree_carrying_a_clashing_migration() {
+tag_of_a_tree() {
   git checkout --quiet -b feature
-  echo "select 1;" >"$MIGRATION_DIR/V1_2__clash.sql"
-  git add -A && git commit --quiet -m feature >/dev/null 2>&1
   PUSH_REF=refs/tags/tree
   PUSH_SHA=$(git rev-parse 'HEAD^{tree}')
+}
+
+annotated_tag_with_personal_data_in_its_message() {
+  git tag -a release -m "Owner $PII_FIXTURE_ID_CODE" master
+  PUSH_REF=refs/tags/release
+  PUSH_SHA=$(git rev-parse refs/tags/release)
+}
+
+personal_data_in_a_commit_message() {
+  git checkout --quiet -b feature
+  echo "class Feature {}" >Feature.java
+  git add -A && git commit --quiet -m "Owner $PII_FIXTURE_ID_CODE" >/dev/null 2>&1
+}
+
+octopus_merge_introducing_personal_data_of_its_own() {
+  git checkout --quiet -b side-one
+  commit_clean_code SideOne
+  git checkout --quiet master
+  git checkout --quiet -b side-two
+  commit_clean_code SideTwo
+  git checkout --quiet master
+  git checkout --quiet -b feature
+  git merge --quiet --no-ff --no-commit side-one side-two >/dev/null 2>&1
+  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >Fixture.java
+  git add -A && git commit --quiet -m "merge sides" >/dev/null 2>&1
+}
+
+private_mirror_ahead_of_the_remote_pushed_to() {
+  git update-ref refs/remotes/github/master HEAD
+  commit_fixture Private.java "only on the private mirror"
+  git update-ref refs/remotes/origin/master HEAD
+  git checkout --quiet -b feature
+  commit_clean_code
+  PUSH_REMOTE=github
+}
+
+local_branch_named_origin_master_carrying_personal_data() {
+  git checkout --quiet -b origin/master
+  commit_fixture Fixture.java "never pushed"
+  git checkout --quiet -b feature
+  commit_clean_code
+}
+
+clashing_migration_without_any_master() {
+  master_published_only_under_another_remote_ref
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__clash.sql"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+}
+
+personal_data_under_a_path_beside_the_scanner_test() {
+  git checkout --quiet -b feature
+  mkdir -p .githooks
+  echo "check 'vector' clean 'x'" >.githooks/pii-scan-test
+  printf 'String owner = "%s";\n' "$PII_FIXTURE_ID_CODE" >"$1"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+}
+
+personal_data_under_a_non_ascii_path_beside_the_scanner_test() {
+  personal_data_under_a_path_beside_the_scanner_test Ärireg.java
+}
+
+personal_data_under_a_quoted_path_beside_the_scanner_test() {
+  personal_data_under_a_path_beside_the_scanner_test 'we"ird.java'
+}
+
+binary_file_on_a_branch_of_master() {
+  git checkout --quiet -b feature
+  printf 'PNG\000\377\376\200\n\001\002' >image.bin
+  git add -A && git commit --quiet -m image >/dev/null 2>&1
 }
 
 force_colour_output() {
@@ -286,6 +349,11 @@ hide_java_behind_a_textconv_filter() {
   mkdir -p .git/info
   echo '*.java diff=hidden' >.git/info/attributes
   git config diff.hidden.textconv true
+}
+
+mark_java_as_binary() {
+  mkdir -p .git/info
+  echo '*.java -diff' >.git/info/attributes
 }
 
 drop_the_diff_prefixes() {
@@ -308,6 +376,7 @@ personal_data_on_a_branch_of_master_behind_an_external_diff() { personal_data_on
 personal_data_on_a_branch_of_master_behind_a_textconv_filter() { personal_data_on_a_branch_of_master hide_java_behind_a_textconv_filter; }
 personal_data_on_a_branch_of_master_without_diff_prefixes() { personal_data_on_a_branch_of_master drop_the_diff_prefixes; }
 personal_data_on_a_branch_of_master_with_mnemonic_prefixes() { personal_data_on_a_branch_of_master use_mnemonic_diff_prefixes; }
+personal_data_on_a_branch_of_master_marked_binary() { personal_data_on_a_branch_of_master mark_java_as_binary; }
 
 orphan_branch_carrying_personal_data_with_colour_forced() {
   force_colour_output
@@ -326,9 +395,9 @@ branch_whose_base_blob_is_missing() {
   rm -f ".git/objects/${blob:0:2}/${blob:2}"
 }
 
-# branch_push_check <description> <expected exit> <expected output|-> <branch setup> [unexpected output]
+# branch_push_check <description> <expected exit> <expected output|-> <branch setup>
 branch_push_check() {
-  local description=$1 expected=$2 expected_output=$3 branch_setup=$4 unexpected_output=${5:-}
+  local description=$1 expected=$2 expected_output=$3 branch_setup=$4
   rm -rf "$TMP/origin.git"
   setup_repo
   REMOTE_SHA=0000000000000000000000000000000000000000
@@ -341,7 +410,7 @@ branch_push_check() {
   output=$(printf '%s %s %s %s\n' "$PUSH_REF" "$PUSH_SHA" "$PUSH_REF" "$REMOTE_SHA" |
     "$PRE_PUSH" "$PUSH_REMOTE" "$TMP/remote" 2>&1)
   actual=$?
-  expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output" "$unexpected_output"
+  expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output"
 }
 
 SCANNER_FINDING="Personal data detected"
@@ -370,8 +439,28 @@ branch_push_check "pre-push scans what a merge introduces of its own" \
   1 "$SCANNER_FINDING" merge_introducing_personal_data_of_its_own
 branch_push_check "pre-push does not re-present master when master is merged in" \
   0 - branch_merging_in_master_that_gained_personal_data
-branch_push_check "pre-push skips a tag of something other than a commit" \
-  0 - tag_of_a_tree_carrying_a_clashing_migration "V1_2__clash.sql"
+branch_push_check "pre-push stops a tag of something other than a commit" \
+  1 "could not compute what this push adds: ref=refs/tags/tree" tag_of_a_tree
+branch_push_check "pre-push scans an annotated tag's message" \
+  1 "TAG_MSG" annotated_tag_with_personal_data_in_its_message
+branch_push_check "pre-push scans the messages of the commits it publishes" \
+  1 "COMMIT_MSG" personal_data_in_a_commit_message
+branch_push_check "pre-push scans what an octopus merge introduces of its own" \
+  1 "$SCANNER_FINDING" octopus_merge_introducing_personal_data_of_its_own
+branch_push_check "pre-push compares against master on the remote being pushed to" \
+  1 "$SCANNER_FINDING" private_mirror_ahead_of_the_remote_pushed_to
+branch_push_check "pre-push is not fooled by a local branch named origin/master" \
+  1 "$SCANNER_FINDING" local_branch_named_origin_master_carrying_personal_data
+branch_push_check "pre-push tells migration-order there is no master instead of letting it fetch" \
+  0 "no master to compare against" clashing_migration_without_any_master
+branch_push_check "pre-push scans a file marked -diff" \
+  1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_marked_binary
+branch_push_check "pre-push names a non-ASCII path beside a change to the scanner test" \
+  1 "Ärireg.java:1" personal_data_under_a_non_ascii_path_beside_the_scanner_test
+branch_push_check "pre-push scans a quoted path beside a change to the scanner test" \
+  1 "$SCANNER_FINDING" personal_data_under_a_quoted_path_beside_the_scanner_test
+branch_push_check "pre-push reads a binary file without the scanner failing" \
+  0 - binary_file_on_a_branch_of_master
 branch_push_check "pre-push scans a branch of master when the user forces colour output" \
   1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_with_colour_forced
 branch_push_check "pre-push scans an orphan branch when the user forces colour output" \
@@ -419,6 +508,8 @@ commit_check "pre-commit scans past a textconv filter" \
   1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" hide_java_behind_a_textconv_filter
 commit_check "pre-commit names the file when diff prefixes are switched off" \
   1 "Fixture.java:1"          "$PII_FIXTURE_ID_CODE" drop_the_diff_prefixes
+commit_check "pre-commit scans a file marked -diff" \
+  1 "$SCANNER_FINDING"        "$PII_FIXTURE_ID_CODE" mark_java_as_binary
 
 lose_the_staged_blob() {
   local blob
@@ -428,6 +519,94 @@ lose_the_staged_blob() {
 
 commit_check "pre-commit says it could not compute the commit instead of passing it" \
   1 "could not compute what this commit adds" "$PII_FIXTURE_ID_CODE" lose_the_staged_blob
+
+# The message is published with the commit, so commit-msg scans it like an added
+# file. Below git's scissors line sits the diff `commit -v` shows, which
+# pre-commit has scanned already and git discards.
+#
+# message_check <description> <expected exit> <expected output|-> <message line>...
+message_check() {
+  local description=$1 expected=$2 expected_output=$3
+  shift 3
+  setup_repo
+  printf '%s\n' "$@" >"$TMP/COMMIT_EDITMSG"
+  local output actual
+  output=$("$COMMIT_MSG_HOOK" "$TMP/COMMIT_EDITMSG" 2>&1)
+  actual=$?
+  expect_hook_result "$description" "$expected" "$expected_output" "$actual" "$output"
+}
+
+message_check "commit-msg blocks personal data in the message" \
+  1 "$SCANNER_FINDING" "Owner $PII_FIXTURE_ID_CODE"
+message_check "commit-msg lets a clean message through" \
+  0 - "Add the feature" "" "Explains why."
+message_check "commit-msg leaves the diff below the scissors line to pre-commit" \
+  0 - "Add the feature" "# ------------------------ >8 ------------------------" \
+  "+String owner = \"$PII_FIXTURE_ID_CODE\";"
+
+# The hooks fetch master without anyone at the keyboard, so the fetch must never
+# prompt. A recording ssh shows how git was told to run it, and fails so that
+# no network is ever reached.
+make_ssh_recorder() {
+  printf '#!/bin/sh\necho "args: $* prompt=${GIT_TERMINAL_PROMPT:-unset}" >>"%s"\nexit 1\n' \
+    "$TMP/ssh-calls" >"$TMP/record-ssh"
+  chmod +x "$TMP/record-ssh"
+}
+
+ssh_from_core_ssh_command() { git config core.sshCommand "$TMP/record-ssh"; }
+ssh_from_git_ssh_command() { export GIT_SSH_COMMAND="$TMP/record-ssh"; }
+ssh_from_git_ssh() { export GIT_SSH="$TMP/record-ssh"; }
+
+# ssh_check <description> <contains|lacks> <text> <ssh setup>
+ssh_check() {
+  local description=$1 verdict=$2 text=$3 ssh_setup=$4
+  setup_repo
+  rm -f "$TMP/ssh-calls"
+  make_ssh_recorder
+  (
+    unset GIT_SSH GIT_SSH_COMMAND
+    "$ssh_setup"
+    "$FETCH_MASTER" ssh://example.invalid/repo.git >/dev/null 2>&1
+  )
+  local calls actual=1
+  calls=$(cat "$TMP/ssh-calls" 2>/dev/null)
+  if [ -n "$calls" ]; then
+    case "$verdict" in
+      contains) printf '%s' "$calls" | grep -qF -- "$text" && actual=0 ;;
+      lacks) printf '%s' "$calls" | grep -qF -- "$text" || actual=0 ;;
+    esac
+  fi
+  expect_hook_result "$description" 0 - "$actual" "ssh calls: ${calls:-none}"
+}
+
+ssh_check "fetch-master runs the user's ssh command in batch mode" \
+  contains "BatchMode=yes" ssh_from_core_ssh_command
+ssh_check "fetch-master never lets git prompt for credentials" \
+  contains "prompt=0" ssh_from_core_ssh_command
+ssh_check "fetch-master leaves a GIT_SSH_COMMAND the user set alone" \
+  lacks "BatchMode" ssh_from_git_ssh_command
+ssh_check "fetch-master leaves a GIT_SSH the user set alone" \
+  lacks "BatchMode" ssh_from_git_ssh
+
+# Run on its own, migration-order fetches master from the remote it is told
+# about rather than from whatever origin happens to be.
+migration_order_remote_check() {
+  setup_repo
+  rm -rf "$TMP/origin.git"
+  git init --quiet --bare "$TMP/origin.git"
+  git -c core.hooksPath=/dev/null push --quiet "$TMP/origin.git" master
+  git update-ref -d refs/remotes/origin/master
+  git checkout --quiet -b feature
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__clash.sql"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  local output actual
+  output=$(MIGRATION_ORDER_REMOTE="$TMP/origin.git" "$HOOK" HEAD 2>&1)
+  actual=$?
+  expect_hook_result "migration-order fetches master from the remote it is given" \
+    1 "V1_2__clash.sql" "$actual" "$output"
+}
+
+migration_order_remote_check
 
 echo ""
 if [ "$failed" -eq 0 ]; then

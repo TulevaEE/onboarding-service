@@ -1,0 +1,18 @@
+#!/bin/bash
+# fetch-master <remote>: fetches <remote>'s master and prints its commit id.
+#
+# Hooks call this with nobody at the keyboard, so it must never stop to ask for
+# credentials: no terminal prompt, nothing on stdin, and ssh in batch mode on
+# top of the user's own ssh command. A GIT_SSH or GIT_SSH_COMMAND the user set
+# is theirs to keep, so batch mode is only added when neither is set.
+
+set -uo pipefail
+
+export GIT_TERMINAL_PROMPT=0
+if [ -z "${GIT_SSH:-}" ] && [ -z "${GIT_SSH_COMMAND:-}" ]; then
+  GIT_SSH_COMMAND="$(git config core.sshCommand || echo ssh) -o BatchMode=yes"
+  export GIT_SSH_COMMAND
+fi
+
+git fetch --no-tags --quiet "$1" master </dev/null 2>/dev/null &&
+  git rev-parse --verify -q 'FETCH_HEAD^{commit}'

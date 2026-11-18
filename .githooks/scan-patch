@@ -1,0 +1,72 @@
+#!/bin/bash
+# Writes the patch pii-scan reads. Every caller produces it here, so none of the
+# user's settings can reshape it: colour, an external diff, a textconv filter or
+# a -diff attribute would each leave the scanner nothing to match, and a quoted
+# or prefix-less path would leave it a file it cannot name.
+#
+#   scan-patch staged                   what the index adds over HEAD
+#   scan-patch published <tip> <rev>... every commit <tip> brings that the
+#                                       revisions after it do not hold, with
+#                                       its message and, for a tag, the tag's
+#   scan-patch message <name>           stdin as the added lines of <name>
+#
+# Messages come out as added lines of synthetic COMMIT_MSG and TAG_MSG files,
+# so the scanner reads them like any other addition.
+
+set -uo pipefail
+
+PATCH=(--text --no-color --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/)
+
+scan_git() { git -c core.quotePath=false "$@"; }
+
+message() {
+  local name=$1 text
+  text=$(cat) || return 1
+  printf 'diff --git a/%s b/%s\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%s @@\n' \
+    "$name" "$name" "$name" "$(printf '%s\n' "$text" | wc -l | tr -d ' ')"
+  printf '%s\n' "$text" | sed 's/^/+/'
+}
+
+tag_messages() {
+  local object=$1 type
+  type=$(git cat-file -t "$object") || return 1
+  while [ "$type" = tag ]; do
+    git cat-file tag "$object" | sed '1,/^$/d' |
+      message "TAG_MSG of $(git rev-parse --short "$object")" || return 1
+    object=$(git cat-file tag "$object" | sed -n '1s/^object //p')
+    type=$(git cat-file -t "$object") || return 1
+  done
+}
+
+# A merge is scanned for what it introduces beyond re-merging its parents, so
+# its own lines are read while merging master in brings nothing new. Git cannot
+# re-merge an octopus, so one is read against its first parent; that also
+# re-presents whatever it merged in, which only makes the scan stricter.
+commit_patch() {
+  local commit=$1 parents
+  parents=$(git show -s --format=%P "$commit" | wc -w | tr -d ' ') || return 1
+  if [ "$parents" -gt 2 ]; then
+    scan_git diff "${PATCH[@]}" "$commit^1" "$commit"
+  else
+    scan_git log -1 -p --root --format= --diff-merges=remerge "${PATCH[@]}" "$commit"
+  fi
+}
+
+published() {
+  local tip=$1 commits commit
+  shift
+  tag_messages "$tip" || return 1
+  commits=$(git rev-list "$tip" "$@") || return 1
+  for commit in $commits; do
+    git log -1 --format=%B "$commit" |
+      message "COMMIT_MSG of $(git rev-parse --short "$commit")" || return 1
+    commit_patch "$commit" || return 1
+  done
+}
+
+case "${1:-}" in
+  staged) scan_git diff --cached "${PATCH[@]}" ;;
+  published) shift && published "$@" ;;
+  message) message "$2" ;;
+  *) echo "usage: scan-patch staged | published <tip> <rev>... | message <name>" >&2; exit 2 ;;
+esac

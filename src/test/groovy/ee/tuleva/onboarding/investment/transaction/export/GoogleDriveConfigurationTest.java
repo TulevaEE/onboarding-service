@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.investment.transaction.export.GoogleServiceAccountFixture.serviceAccountJson;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,10 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -100,6 +98,27 @@ class GoogleDriveConfigurationTest {
             });
   }
 
+  @Test
+  @Timeout(value = 10, unit = SECONDS, threadMode = ThreadMode.SEPARATE_THREAD)
+  void givesUpOnAGoogleDriveUploadThatDoesNotAnswerWithinTheReadTimeout() {
+    contextRunner(Map.of(TOKEN_HOST, tokenServerUri(), DRIVE_HOST, unresponsiveServerUri()))
+        .run(
+            context -> {
+              var driveClient = context.getBean(GoogleDriveClient.class);
+
+              Throwable thrown =
+                  catchThrowable(
+                      () ->
+                          driveClient.uploadFile(
+                              "folder", "orders.csv", "isin,qty".getBytes(UTF_8)));
+
+              assertThat(thrown)
+                  .isInstanceOf(ResourceAccessException.class)
+                  .hasRootCauseInstanceOf(SocketTimeoutException.class);
+              assertThat(tokenRequests).hasValue(1);
+            });
+  }
+
   private ApplicationContextRunner contextRunner(Map<String, URI> redirects) {
     return new ApplicationContextRunner()
         .withUserConfiguration(GoogleDriveConfiguration.class)
@@ -112,7 +131,7 @@ class GoogleDriveConfigurationTest {
         .withBean(RestClientCustomizer.class, () -> redirecting(redirects))
         .withPropertyValues(
             "google-drive.enabled=true",
-            "google-drive.service-account-json=" + syntheticServiceAccountJson(),
+            "google-drive.service-account-json=" + serviceAccountJson(),
             "google-drive.root-folder-id=root",
             "spring.http.clients.connect-timeout=500ms",
             "spring.http.clients.read-timeout=250ms");
@@ -148,25 +167,5 @@ class GoogleDriveConfigurationTest {
 
   private URI tokenServerUri() {
     return URI.create("http://127.0.0.1:" + tokenServer.getAddress().getPort());
-  }
-
-  private static String syntheticServiceAccountJson() {
-    var privateKey = Base64.getEncoder().encodeToString(generatedPrivateKey());
-    var json =
-        "{\"client_email\":\"test@project.iam.gserviceaccount.com\",\"private_key\":\"-----BEGIN"
-            + " PRIVATE KEY-----"
-            + privateKey
-            + "-----END PRIVATE KEY-----\"}";
-    return Base64.getEncoder().encodeToString(json.getBytes(UTF_8));
-  }
-
-  private static byte[] generatedPrivateKey() {
-    try {
-      var generator = KeyPairGenerator.getInstance("RSA");
-      generator.initialize(2048);
-      return generator.generateKeyPair().getPrivate().getEncoded();
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
   }
 }

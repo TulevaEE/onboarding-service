@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 class GoogleDriveTokenProvider {
 
   private static final String DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-  private static final String TOKEN_URI = "https://oauth2.googleapis.com/token";
+  static final String TOKEN_URI = "https://oauth2.googleapis.com/token";
   private static final long TOKEN_LIFETIME_SECONDS = 3600;
   private static final long REFRESH_MARGIN_SECONDS = 60;
 

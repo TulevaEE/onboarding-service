@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Minor.NOT_NAME
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Name.DIFFERS;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Onboarding.INCOMPLETE;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.FREEZE;
+import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.FREEZE_INSTEAD_OF_RETURN;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.RETRY;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.RETURN_CODE_MISMATCH;
 import static ee.tuleva.onboarding.savings.fund.PaymentAcceptance.Outcome.RETURN_COMPANY_PAYING_FOR_SOMEONE_ELSE;
@@ -31,6 +32,7 @@ public final class PaymentAcceptance {
     RETURN_NAME_MISMATCH,
     RETURN_NOT_ONBOARDED,
     FREEZE,
+    FREEZE_INSTEAD_OF_RETURN,
     RETRY,
     VERIFY
   }
@@ -98,6 +100,7 @@ public final class PaymentAcceptance {
       Client client,
       Name name,
       Onboarding onboarding,
+      Screening payerScreening,
       Screening screening) {
 
     static Payment identified(Code code) {
@@ -108,33 +111,62 @@ public final class PaymentAcceptance {
           Client.NOT_CHECKED,
           Name.NOT_CHECKED,
           Onboarding.NOT_CHECKED,
+          Screening.NOT_CHECKED,
           Screening.NOT_CHECKED);
     }
 
     Payment withRemitter(Remitter remitter) {
-      return new Payment(code, remitter, minor, client, name, onboarding, screening);
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withMinor(Minor minor) {
-      return new Payment(code, remitter, minor, client, name, onboarding, screening);
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withParty(Client client, Name name) {
-      return new Payment(code, remitter, minor, client, name, onboarding, screening);
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withOnboarding(Onboarding onboarding) {
-      return new Payment(code, remitter, minor, client, name, onboarding, screening);
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
+    }
+
+    Payment withPayerScreening(Screening payerScreening) {
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
 
     Payment withScreening(Screening screening) {
-      return new Payment(code, remitter, minor, client, name, onboarding, screening);
+      return new Payment(
+          code, remitter, minor, client, name, onboarding, payerScreening, screening);
     }
   }
 
   private PaymentAcceptance() {}
 
   public static Outcome outcome(Payment payment) {
+    var withoutScreening = outcomeWithoutScreening(payment);
+    return switch (payment.payerScreening()) {
+      case SANCTION_HIT -> withoutScreening == VERIFY ? FREEZE : FREEZE_INSTEAD_OF_RETURN;
+      case UNAVAILABLE -> RETRY;
+      case CLEAR, PEP_HIT, NOT_CHECKED ->
+          withoutScreening == VERIFY ? unitHolderScreeningOutcome(payment) : withoutScreening;
+    };
+  }
+
+  private static Outcome unitHolderScreeningOutcome(Payment payment) {
+    return switch (payment.screening()) {
+      case SANCTION_HIT -> FREEZE;
+      case UNAVAILABLE -> RETRY;
+      case CLEAR, PEP_HIT, NOT_CHECKED -> VERIFY;
+    };
+  }
+
+  private static Outcome outcomeWithoutScreening(Payment payment) {
     if (payment.code() == MISSING) {
       return RETURN_UNIDENTIFIED;
     }
@@ -153,11 +185,7 @@ public final class PaymentAcceptance {
     if (payment.onboarding() == INCOMPLETE) {
       return RETURN_NOT_ONBOARDED;
     }
-    return switch (payment.screening()) {
-      case SANCTION_HIT -> FREEZE;
-      case UNAVAILABLE -> RETRY;
-      case CLEAR, PEP_HIT, NOT_CHECKED -> VERIFY;
-    };
+    return VERIFY;
   }
 
   private static boolean companyPaysIntoAnotherAccount(Payment payment) {

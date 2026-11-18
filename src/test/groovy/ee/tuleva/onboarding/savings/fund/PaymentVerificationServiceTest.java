@@ -12,14 +12,20 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
+import ee.tuleva.onboarding.kyb.CompanySanctionCheck;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
@@ -40,6 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -68,6 +75,7 @@ class PaymentVerificationServiceTest {
               new PartyLookup(LEGAL_ENTITY, companyRepository::findByRegistryCode)));
   ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
   SanctionAndPepScreener sanctionAndPepScreener = mock(SanctionAndPepScreener.class);
+  CompanySanctionCheck companySanctionCheck = mock(CompanySanctionCheck.class);
 
   PaymentVerificationService service =
       new PaymentVerificationService(
@@ -80,12 +88,14 @@ class PaymentVerificationServiceTest {
               new NameMatcher(),
               partyResolver,
               parentChildLinkService,
-              userRepository,
-              sanctionAndPepScreener));
+              new PaymentPartyScreener(
+                  sanctionAndPepScreener, companySanctionCheck, userRepository)));
 
   @BeforeEach
-  void unitHoldersScreenClear() {
+  void everyoneScreensClear() {
     given(sanctionAndPepScreener.screeningOutcome(any(User.class))).willReturn(CLEAR);
+    given(sanctionAndPepScreener.screeningOutcome(any(Person.class), anySet())).willReturn(CLEAR);
+    given(companySanctionCheck.screeningOutcome(anyString(), any())).willReturn(CLEAR);
   }
 
   @Test
@@ -152,17 +162,259 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_onboardedCompany_isVerifiedWithoutRescreening() {
-    var payment = createPayment("14118923", "company 14118923");
-    var company = Company.builder().registryCode("14118923").name("Tuleva AS").build();
-    given(companyRepository.findByRegistryCode("14118923")).willReturn(Optional.of(company));
-    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
-        .willReturn(true);
+  void process_onboardedCompanyPayingIntoItsOwnAccount_isScreenedByItsRegisteredNameAndVerified() {
+    var payment = givenAnOnboardedCompanyPayingIntoItsOwnAccount();
+
+    service.process(payment);
+
+    verify(companySanctionCheck).screeningOutcome("14118923", "Tuleva AS");
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoInteractions(sanctionAndPepScreener);
+  }
+
+  @Test
+  void process_sanctionedCompanyPayingIntoItsOwnAccount_isFrozenInsteadOfVerified() {
+    var payment = givenAnOnboardedCompanyPayingIntoItsOwnAccount();
+    given(companySanctionCheck.screeningOutcome("14118923", "Tuleva AS")).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+    verifyNoMoreInteractions(savingsFundLedger);
+    verify(applicationEventPublisher)
+        .publishEvent(new SanctionedPaymentFrozenEvent(payment.getId(), payment.getAmount()));
+    verifyNoMoreInteractions(applicationEventPublisher);
+  }
+
+  @Test
+  void process_politicallyExposedCompanyPayingIntoItsOwnAccount_isVerified() {
+    var payment = givenAnOnboardedCompanyPayingIntoItsOwnAccount();
+    given(companySanctionCheck.screeningOutcome("14118923", "Tuleva AS")).willReturn(PEP_HIT);
 
     service.process(payment);
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
-    verifyNoInteractions(sanctionAndPepScreener);
+  }
+
+  @Test
+  void process_companyScreeningUnavailable_paymentStaysReceivedForTheNextRun() {
+    var payment = givenAnOnboardedCompanyPayingIntoItsOwnAccount();
+    given(companySanctionCheck.screeningOutcome("14118923", "Tuleva AS")).willReturn(UNAVAILABLE);
+
+    service.process(payment);
+
+    verifyNoInteractions(savingFundPaymentRepository, savingsFundLedger, applicationEventPublisher);
+  }
+
+  @Test
+  void process_sanctionedCompanyPayingWithoutItsCodeIntoItsOwnAccount_isFrozen() {
+    var payment =
+        createPayment(null, "company 12345678").toBuilder().remitterName("MAASIKAS OÜ").build();
+    var company = Company.builder().registryCode("12345678").name("Maasikas OÜ").build();
+    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(company));
+    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "12345678")))
+        .willReturn(true);
+    given(companySanctionCheck.screeningOutcome("12345678", "Maasikas OÜ"))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "12345678"), false);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_sanctionedCompanyPayingIntoAPersonsAccount_isFrozenInsteadOfReturned() {
+    var payment =
+        createPayment("12345678", "for user 48806046007").toBuilder()
+            .remitterName("MAASIKAS OÜ")
+            .build();
+    given(companySanctionCheck.screeningOutcome("12345678", "MAASIKAS OÜ"))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void process_sanctionedPersonPayingIntoAnotherAdultsAccount_isFrozenInsteadOfReturned() {
+    var payment = createPayment("37508295796", "for user 48806046007");
+    given(
+            sanctionAndPepScreener.screeningOutcome(
+                new PersonImpl("37508295796", "PÄRT", "ÕLEKÕRS"), Set.of()))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void process_sanctionedPayerWhoIsNotAClient_isFrozenInsteadOfReturned() {
+    var payment = createPayment("37508295796", "to user 37508295796");
+    given(
+            sanctionAndPepScreener.screeningOutcome(
+                new PersonImpl("37508295796", "PÄRT", "ÕLEKÕRS"), Set.of()))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    assertFrozenWithoutAnAccountInsteadOfReturned(payment);
+  }
+
+  @Test
+  void process_payerScreeningUnavailableForAPaymentThatWouldBeReturned_paymentStaysReceived() {
+    var payment = createPayment("37508295796", "for user 48806046007");
+    given(sanctionAndPepScreener.screeningOutcome(any(Person.class), anySet()))
+        .willReturn(UNAVAILABLE);
+
+    service.process(payment);
+
+    verifyNoInteractions(savingFundPaymentRepository, savingsFundLedger, applicationEventPublisher);
+  }
+
+  @Test
+  void process_payerScreenedWithTheCitizenshipsRecordedForThem() {
+    var payer = new PersonImpl("37508295796", "PÄRT", "ÕLEKÕRS");
+    var payment = createPayment("37508295796", "for user 48806046007");
+    var citizenships = Set.of(Country.builder().countryCode("FI").build());
+    given(sanctionAndPepScreener.recordedCitizenships(payer)).willReturn(citizenships);
+    given(sanctionAndPepScreener.screeningOutcome(payer, citizenships)).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+  }
+
+  @Test
+  void process_payerWhoIsNotAUserIsScreenedByAllButTheLastWordOfTheirNameAsTheFirstName() {
+    var payment =
+        createPayment("37508295796", "for user 48806046007").toBuilder()
+            .remitterName(" MARI  ANN MAASIKAS ")
+            .build();
+    given(
+            sanctionAndPepScreener.screeningOutcome(
+                new PersonImpl("37508295796", "MARI ANN", "MAASIKAS"), Set.of()))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+  }
+
+  @Test
+  void process_payerWhoIsNotAUserNamedSurnameFirstWithAComma_isScreenedByTheWordsOfTheName() {
+    var payment =
+        createPayment("37508295796", "for user 48806046007").toBuilder()
+            .remitterName("ÕLEKÕRS, PÄRT")
+            .build();
+    given(
+            sanctionAndPepScreener.screeningOutcome(
+                new PersonImpl("37508295796", "ÕLEKÕRS", "PÄRT"), Set.of()))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+  }
+
+  @Test
+  void process_payerWhoIsNotAUserWithoutAFirstAndLastName_paymentStaysReceived() {
+    var payment =
+        createPayment("37508295796", "for user 48806046007").toBuilder()
+            .remitterName("ÕLEKÕRS")
+            .build();
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener, never()).screeningOutcome(any(Person.class), anySet());
+    verifyNoInteractions(savingFundPaymentRepository, savingsFundLedger, applicationEventPublisher);
+  }
+
+  @Test
+  void process_payerWhoIsNotAUserWithoutAName_paymentStaysReceived() {
+    var payment =
+        createPayment("37508295796", "for user 48806046007").toBuilder().remitterName(null).build();
+
+    service.process(payment);
+
+    verifyNoInteractions(savingFundPaymentRepository, savingsFundLedger, applicationEventPublisher);
+  }
+
+  @Test
+  void process_sanctionedUnrelatedAdultPayingIntoAChildsAccount_isFrozenForTheChild() {
+    var payment = createPayment("37508295796", "for user 61506150006");
+    givenAnOnboardedChild("61506150006");
+    given(
+            sanctionAndPepScreener.screeningOutcome(
+                new PersonImpl("37508295796", "PÄRT", "ÕLEKÕRS"), Set.of()))
+        .willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), true);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_sanctionedGuardianPayingForAChild_isFrozenForTheChild() {
+    var guardianCode = "38812121215";
+    var childCode = "61506150006";
+    var payment = createPayment(guardianCode, "for child " + childCode);
+    var guardian = givenAnOnboardedUser(guardianCode);
+    givenAnOnboardedChild(childCode);
+    given(parentChildLinkService.isGuardian(guardianCode, childCode)).willReturn(true);
+    given(sanctionAndPepScreener.screeningOutcome(guardian)).willReturn(SANCTION_HIT);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode), true);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_holderPayingIntoTheirOwnAccount_isScreenedOnceAsThePayer() {
+    var payment = createPayment("37508295796", "to user 37508295796");
+    var user = givenAnOnboardedUser("37508295796");
+
+    service.process(payment);
+
+    verify(sanctionAndPepScreener).screeningOutcome(user);
+    verify(sanctionAndPepScreener, never()).screeningOutcome(any(Person.class), anySet());
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+  }
+
+  private SavingFundPayment givenAnOnboardedCompanyPayingIntoItsOwnAccount() {
+    var company = Company.builder().registryCode("14118923").name("Tuleva AS").build();
+    given(companyRepository.findByRegistryCode("14118923")).willReturn(Optional.of(company));
+    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923")))
+        .willReturn(true);
+    return createPayment("14118923", "company 14118923").toBuilder()
+        .remitterName("TULEVA AS")
+        .build();
+  }
+
+  private void assertFrozenWithoutAnAccountInsteadOfReturned(SavingFundPayment payment) {
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), FROZEN);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+    verifyNoMoreInteractions(savingsFundLedger);
+    verify(applicationEventPublisher)
+        .publishEvent(new SanctionedPaymentFrozenEvent(payment.getId(), payment.getAmount()));
+    verifyNoMoreInteractions(applicationEventPublisher);
   }
 
   private User givenAnOnboardedUser(String personalCode) {

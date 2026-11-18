@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURN
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,6 +20,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -44,6 +48,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 class PaymentVerificationNotificationIntegrationTest {
@@ -69,8 +74,16 @@ class PaymentVerificationNotificationIntegrationTest {
 
   @MockitoBean private EmailService emailService;
   @MockitoBean private OperationsNotificationService notificationService;
+  @MockitoBean private PepAndSanctionCheckService pepAndSanctionCheckService;
 
   private final List<UUID> createdPaymentIds = new ArrayList<>();
+
+  @BeforeEach
+  void payersScreenClear() {
+    var json = JsonMapper.builder().build();
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(new MatchResponse(json.createArrayNode(), json.createObjectNode()));
+  }
 
   @BeforeEach
   @AfterEach

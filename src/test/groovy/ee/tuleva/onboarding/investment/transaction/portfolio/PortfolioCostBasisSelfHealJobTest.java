@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCos
 import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.SELF_HEAL_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -23,8 +24,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.javacrumbs.shedlock.core.LockProvider;
-import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -32,133 +33,123 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 @ExtendWith(MockitoExtension.class)
 class PortfolioCostBasisSelfHealJobTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 18);
+  private static final LocalDate WINDOW_START = TODAY.minusDays(SELF_HEAL_DAYS);
 
   @Spy private Clock clock = Clock.fixed(TODAY.atStartOfDay(TALLINN).toInstant(), TALLINN);
 
   @Mock private PortfolioCostBasisService service;
   @Mock private PortfolioBaselineRepository baselineRepository;
   @Mock private CostBasisOversellAlerter oversellAlerter;
+  @Mock private ObjectProvider<LockProvider> lockProviders;
   @Mock private LockProvider lockProvider;
-  @Mock private SimpleLock lock;
 
   @InjectMocks private PortfolioCostBasisSelfHealJob job;
 
   @Test
   void run_rebuildsLastFourteenDaysForFundsWithBaseline() {
-    PortfolioBaseline baseline =
-        PortfolioBaseline.builder().fundIsin(TUK75.getIsin()).baselineDate(TODAY).build();
-    given(baselineRepository.findByFundIsin(TUK75.getIsin())).willReturn(Optional.of(baseline));
-    for (TulevaFund fund : TulevaFund.values()) {
-      if (fund != TUK75) {
-        given(baselineRepository.findByFundIsin(fund.getIsin())).willReturn(Optional.empty());
-      }
-    }
+    givenBaselinesFor(TODAY, TUK75);
 
     job.run();
 
-    verify(service).rebuildRange(TUK75, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
+    verify(service).rebuildRange(TUK75, WINDOW_START, TODAY);
     for (TulevaFund fund : TulevaFund.values()) {
       if (fund != TUK75) {
-        verify(service, never()).rebuildRange(fund, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
+        verify(service, never()).rebuildRange(fund, WINDOW_START, TODAY);
       }
     }
   }
 
   @Test
-  void onPortfolioCostBasisSelfHealRequested_triggersRun() {
-    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-    PortfolioBaseline baseline =
-        PortfolioBaseline.builder().fundIsin(TUK75.getIsin()).baselineDate(TODAY).build();
-    given(baselineRepository.findByFundIsin(TUK75.getIsin())).willReturn(Optional.of(baseline));
-    for (TulevaFund fund : TulevaFund.values()) {
-      if (fund != TUK75) {
-        given(baselineRepository.findByFundIsin(fund.getIsin())).willReturn(Optional.empty());
-      }
-    }
-
-    job.onPortfolioCostBasisSelfHealRequested();
-
-    verify(service).rebuildRange(TUK75, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
-  }
-
-  @Test
-  void run_clearsTheOversellsDatedBeforeTheOneThatStoppedTheRebuild() {
-    givenBaselinesFor(TUK75);
-    LocalDate from = TODAY.minusDays(SELF_HEAL_DAYS);
-    LocalDate stoppedAt = TODAY.minusDays(3);
-    CostBasisOversellException oversell =
-        new CostBasisOversellException(
-            TUK75.getIsin(),
-            "IE00BFNM3G45",
-            stoppedAt,
-            new BigDecimal("100"),
-            new BigDecimal("150"));
-    willThrow(oversell).given(service).rebuildRange(TUK75, from, TODAY);
-
-    job.run();
-
-    verify(oversellAlerter).clearResolved(TUK75, from, stoppedAt.minusDays(1));
-  }
-
-  @Test
-  void run_recordsAnOversellClearsTheFundsThatRebuiltAndPostsOnce() {
-    givenBaselinesFor(TUK75, TUK00);
-    LocalDate from = TODAY.minusDays(SELF_HEAL_DAYS);
-    CostBasisOversellException oversell =
-        new CostBasisOversellException(
-            TUK75.getIsin(), "IE00BFNM3G45", from, new BigDecimal("100"), new BigDecimal("150"));
-    willThrow(oversell).given(service).rebuildRange(TUK75, from, TODAY);
+  void run_recordsAnOversellCarriesOnWithTheOtherFundsAndPostsOnceAtTheEnd() {
+    givenBaselinesFor(TODAY, TUK75, TUK00);
+    CostBasisOversellException oversell = oversell(WINDOW_START);
+    willThrow(oversell).given(service).rebuildRange(TUK75, WINDOW_START, TODAY);
 
     job.run();
 
     InOrder inOrder = inOrder(service, oversellAlerter);
-    inOrder.verify(oversellAlerter).clearResolved(TUK75, from, from.minusDays(1));
     inOrder.verify(oversellAlerter).recordFound(TUK75, oversell);
-    inOrder.verify(service).rebuildRange(TUK00, from, TODAY);
-    inOrder.verify(oversellAlerter).clearResolved(TUK00, from, TODAY);
+    inOrder.verify(service).rebuildRange(TUK00, WINDOW_START, TODAY);
     inOrder.verify(oversellAlerter).postPending();
-    verify(oversellAlerter, never()).clearResolved(TUK75, from, TODAY);
+    verify(oversellAlerter, never()).clearOpen(any());
+  }
+
+  @Test
+  void run_replaysAFundFromItsBaselineWhileItHasAnOpenOversellAndClearsItWhenTheReplaySucceeds() {
+    LocalDate baselineDate = TODAY.minusDays(100);
+    givenBaselinesFor(baselineDate, TUK75);
+    given(oversellAlerter.hasOpenOversell(TUK75)).willReturn(true);
+
+    job.run();
+
+    verify(service).rebuildRange(TUK75, baselineDate.plusDays(1), TODAY);
+    verify(oversellAlerter).clearOpen(TUK75);
+  }
+
+  @Test
+  void run_keepsAnOversellOpenWhenTheReplayStillStopsAtAnOversell() {
+    LocalDate baselineDate = TODAY.minusDays(100);
+    givenBaselinesFor(baselineDate, TUK75);
+    given(oversellAlerter.hasOpenOversell(TUK75)).willReturn(true);
+    CostBasisOversellException oversell = oversell(TODAY.minusDays(40));
+    willThrow(oversell).given(service).rebuildRange(TUK75, baselineDate.plusDays(1), TODAY);
+
+    job.run();
+
+    verify(oversellAlerter).recordFound(TUK75, oversell);
+    verify(oversellAlerter, never()).clearOpen(any());
+  }
+
+  @Test
+  void run_keepsItsWindowWhenTheBaselineIsInsideIt() {
+    givenBaselinesFor(TODAY.minusDays(3), TUK75);
+    given(oversellAlerter.hasOpenOversell(TUK75)).willReturn(true);
+
+    job.run();
+
+    verify(service).rebuildRange(TUK75, WINDOW_START, TODAY);
   }
 
   @Test
   void run_neitherRecordsNorClearsAnOversellForAFailureOfAnotherKind() {
-    givenBaselinesFor(TUK75);
-    LocalDate from = TODAY.minusDays(SELF_HEAL_DAYS);
+    givenBaselinesFor(TODAY, TUK75);
+    given(oversellAlerter.hasOpenOversell(TUK75)).willReturn(true);
     willThrow(new IllegalStateException("Execution refers to missing order: orderId=1"))
         .given(service)
-        .rebuildRange(TUK75, from, TODAY);
+        .rebuildRange(TUK75, WINDOW_START, TODAY);
 
     job.run();
 
     verify(oversellAlerter, never()).recordFound(any(), any());
-    verify(oversellAlerter, never()).clearResolved(any(), any(), any());
+    verify(oversellAlerter, never()).clearOpen(any());
     verify(oversellAlerter).postPending();
   }
 
   @Test
   void aManualSelfHealRunsUnderTheScheduledRunsLockAndReleasesIt() {
-    given(lockProvider.lock(any())).willReturn(Optional.of(lock));
-    givenBaselinesFor(TUK75);
+    AtomicBoolean released = new AtomicBoolean();
+    given(lockProviders.getIfAvailable()).willReturn(lockProvider);
+    given(lockProvider.lock(argThat(configuration -> configuration.getName().equals(LOCK_NAME))))
+        .willReturn(Optional.of(() -> released.set(true)));
+    givenBaselinesFor(TODAY, TUK75);
 
     job.onPortfolioCostBasisSelfHealRequested();
 
-    InOrder inOrder = inOrder(lockProvider, service, oversellAlerter, lock);
-    inOrder
-        .verify(lockProvider)
-        .lock(argThat(configuration -> configuration.getName().equals(LOCK_NAME)));
-    inOrder.verify(service).rebuildRange(TUK75, TODAY.minusDays(SELF_HEAL_DAYS), TODAY);
-    inOrder.verify(oversellAlerter).postPending();
-    inOrder.verify(lock).unlock();
+    verify(service).rebuildRange(TUK75, WINDOW_START, TODAY);
+    verify(oversellAlerter).postPending();
+    assertThat(released).isTrue();
   }
 
   @Test
   void aManualSelfHealWhileTheScheduledRunHoldsTheLockIsLeftForTheNextPoll() {
+    given(lockProviders.getIfAvailable()).willReturn(lockProvider);
     given(lockProvider.lock(any())).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> job.onPortfolioCostBasisSelfHealRequested())
@@ -168,29 +159,19 @@ class PortfolioCostBasisSelfHealJobTest {
   }
 
   @Test
-  void run_reachesBackToTheEarliestOpenOversellUntilItIsCleared() {
-    givenBaselinesFor(TUK75);
-    LocalDate openOversell = TODAY.minusDays(SELF_HEAL_DAYS + 20);
-    given(oversellAlerter.earliestOpenOversell(TUK75)).willReturn(Optional.of(openOversell));
+  void aManualSelfHealOnANodeWithoutLocksRefusesToRunUnlocked() {
+    assertThatThrownBy(() -> job.onPortfolioCostBasisSelfHealRequested())
+        .isInstanceOf(IllegalStateException.class);
 
-    job.run();
-
-    verify(service).rebuildRange(TUK75, openOversell, TODAY);
-    verify(oversellAlerter).clearResolved(TUK75, openOversell, TODAY);
+    verifyNoInteractions(service, oversellAlerter);
   }
 
-  @Test
-  void run_keepsItsWindowWhenTheOpenOversellIsInsideIt() {
-    givenBaselinesFor(TUK75);
-    LocalDate from = TODAY.minusDays(SELF_HEAL_DAYS);
-    given(oversellAlerter.earliestOpenOversell(TUK75)).willReturn(Optional.of(TODAY.minusDays(2)));
-
-    job.run();
-
-    verify(service).rebuildRange(TUK75, from, TODAY);
+  private static CostBasisOversellException oversell(LocalDate asOfDate) {
+    return new CostBasisOversellException(
+        TUK75.getIsin(), "IE00BFNM3G45", asOfDate, new BigDecimal("100"), new BigDecimal("150"));
   }
 
-  private void givenBaselinesFor(TulevaFund... fundsWithBaseline) {
+  private void givenBaselinesFor(LocalDate baselineDate, TulevaFund... fundsWithBaseline) {
     List<TulevaFund> withBaseline = List.of(fundsWithBaseline);
     for (TulevaFund fund : TulevaFund.values()) {
       given(baselineRepository.findByFundIsin(fund.getIsin()))
@@ -199,7 +180,7 @@ class PortfolioCostBasisSelfHealJobTest {
                   ? Optional.of(
                       PortfolioBaseline.builder()
                           .fundIsin(fund.getIsin())
-                          .baselineDate(TODAY)
+                          .baselineDate(baselineDate)
                           .build())
                   : Optional.empty());
     }

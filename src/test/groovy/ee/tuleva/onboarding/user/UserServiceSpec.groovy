@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.user.MemberCreatedEvent
+import ee.tuleva.onboarding.user.contact.ContactChangeRecorder
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
@@ -16,7 +17,8 @@ class UserServiceSpec extends Specification {
   def userRepository = Mock(UserRepository)
   def memberRepository = Mock(MemberRepository)
   def applicationEventPublisher = Mock(ApplicationEventPublisher)
-  def service = new UserService(userRepository, memberRepository, applicationEventPublisher)
+  def contactChangeRecorder = Mock(ContactChangeRecorder)
+  def service = new UserService(userRepository, memberRepository, applicationEventPublisher, contactChangeRecorder)
 
   @Shared
   String personalCodeSample = "somePersonalCode"
@@ -80,27 +82,58 @@ class UserServiceSpec extends Specification {
     thrown(IllegalStateException)
   }
 
-  def "changes user email and phone number based on personal code"() {
+  def "changes user email and phone number of the user locked for update"() {
     given:
-    def user = sampleUser().build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
-    userRepository.save(user) >> user
-    def newEmail = "new@example.com"
-    userRepository.findByEmail(newEmail) >> Optional.empty()
+    def user = sampleUser().email("old@example.com").phoneNumber("+37255555555").build()
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
+    userRepository.findByEmail("new@example.com") >> Optional.empty()
 
     when:
-    def updatedUser = service.changeContactDetails(user.personalCode, newEmail, "555555")
+    def updatedUser = service.changeContactDetails(user.personalCode, "new@example.com", "+37251111111")
 
     then:
-    updatedUser.email == newEmail
-    updatedUser.phoneNumber == "555555"
+    1 * userRepository.save(user) >> user
+
+    then:
+    1 * contactChangeRecorder.recordSelfServiceChange(user, "old@example.com", "+37255555555")
+    updatedUser.email == "new@example.com"
+    updatedUser.phoneNumber == "+37251111111"
   }
 
-  def "changing contact details to an e-mail of another user throws a clear exception"() {
+  def "locks the user before looking up whether the e-mail is taken so the user is not read unlocked first"() {
+    given:
+    def user = sampleUser().email("old@example.com").phoneNumber("+37255555555").build()
+    userRepository.save(user) >> user
+
+    when:
+    service.changeContactDetails(user.personalCode, "old@example.com", "+37251111111")
+
+    then:
+    1 * userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
+
+    then:
+    1 * userRepository.findByEmail("old@example.com") >> Optional.of(user)
+  }
+
+  def "stores the phone number as submitted, also when it is blank"() {
+    given:
+    def user = sampleUser().email("old@example.com").phoneNumber("+37255555555").build()
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
+    userRepository.findByEmail("old@example.com") >> Optional.of(user)
+    userRepository.save(user) >> user
+
+    when:
+    def updatedUser = service.changeContactDetails(user.personalCode, "old@example.com", "")
+
+    then:
+    updatedUser.phoneNumber == ""
+    1 * contactChangeRecorder.recordSelfServiceChange(user, "old@example.com", "+37255555555")
+  }
+
+  def "changing contact details to an e-mail of another user throws a clear exception and records nothing"() {
     given:
     def user = sampleUser().build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
-    userRepository.save(user) >> user
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
 
     def userWithExistingEmail = simpleUser().build()
     def newEmail = userWithExistingEmail.email
@@ -111,11 +144,13 @@ class UserServiceSpec extends Specification {
 
     then:
     thrown(DuplicateEmailException)
+    0 * userRepository.save(_)
+    0 * contactChangeRecorder._
   }
 
   def "throws when changing contact details of a user that does not exist"() {
     given:
-    userRepository.findByPersonalCode(personalCodeSample) >> Optional.empty()
+    userRepository.lockForUpdate(personalCodeSample) >> Optional.empty()
     userRepository.findByEmail("new@example.com") >> Optional.empty()
 
     when:
@@ -124,12 +159,13 @@ class UserServiceSpec extends Specification {
     then:
     def exception = thrown(RuntimeException)
     exception.class == RuntimeException
+    0 * contactChangeRecorder._
   }
 
   def "fills in missing email and phone number based on personal code"() {
     given:
     def user = sampleUser().email(null).phoneNumber(null).build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
     def newEmail = "new@example.com"
     userRepository.findByEmail(newEmail) >> Optional.empty()
@@ -138,6 +174,7 @@ class UserServiceSpec extends Specification {
     def updatedUser = service.fillMissingContactDetails(user.personalCode, Optional.of(newEmail), "555555")
 
     then:
+    0 * contactChangeRecorder._
     updatedUser.email == newEmail
     updatedUser.phoneNumber == "555555"
   }
@@ -145,7 +182,7 @@ class UserServiceSpec extends Specification {
   def "fills in only the phone number when no email is given"() {
     given:
     def user = sampleUser().email(null).phoneNumber(null).build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
 
     when:
@@ -159,7 +196,7 @@ class UserServiceSpec extends Specification {
   def "filling in an e-mail of another user throws a clear exception"() {
     given:
     def user = sampleUser().email(null).phoneNumber(null).build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
 
     def userWithExistingEmail = simpleUser().build()
     def newEmail = userWithExistingEmail.email
@@ -172,9 +209,26 @@ class UserServiceSpec extends Specification {
     thrown(DuplicateEmailException)
   }
 
+  def "leaves a user who already has contact details untouched when filling them in"() {
+    given:
+    def user = sampleUser().email(null).phoneNumber("+37255555555").build()
+    userRepository.lockForUpdate(user.personalCode) >> Optional.of(user)
+
+    when:
+    def returnedUser = service.fillMissingContactDetails(user.personalCode, Optional.of("new@example.com"), "+37251111111")
+
+    then:
+    returnedUser == user
+    user.email == null
+    user.phoneNumber == "+37255555555"
+    0 * userRepository.save(_)
+    0 * userRepository.findByEmail(_)
+    0 * contactChangeRecorder._
+  }
+
   def "throws when filling in contact details of a user that does not exist"() {
     given:
-    userRepository.findByPersonalCode(personalCodeSample) >> Optional.empty()
+    userRepository.lockForUpdate(personalCodeSample) >> Optional.empty()
 
     when:
     service.fillMissingContactDetails(personalCodeSample, Optional.empty(), null)

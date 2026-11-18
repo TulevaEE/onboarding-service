@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.user.contact.ContactChangeRecorder;
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
@@ -11,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +22,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final MemberRepository memberRepository;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final ContactChangeRecorder contactChangeRecorder;
 
   public Optional<User> getById(Long userId) {
     return userRepository.findById(userId);
@@ -47,34 +50,48 @@ public class UserService {
     }
   }
 
+  @Transactional
   public User changeContactDetails(
       String personalCode, String email, @Nullable String phoneNumber) {
-    return updateContactDetails(personalCode, Optional.of(email), phoneNumber);
+    User user = lockedUser(personalCode);
+    String oldEmail = user.getEmail();
+    String oldPhoneNumber = user.getPhoneNumber();
+    throwIfEmailTaken(personalCode, Optional.of(email));
+    User savedUser = setContactDetails(user, email, phoneNumber);
+    contactChangeRecorder.recordSelfServiceChange(savedUser, oldEmail, oldPhoneNumber);
+    return savedUser;
   }
 
+  @Transactional
   public User fillMissingContactDetails(
       String personalCode, Optional<String> email, @Nullable String phoneNumber) {
-    return updateContactDetails(personalCode, email, phoneNumber);
+    User user = lockedUser(personalCode);
+    if (user.hasContactDetails()) {
+      log.info("User contact details already filled in, leaving them: userId={}", user.getId());
+      return user;
+    }
+    throwIfEmailTaken(personalCode, email);
+    return setContactDetails(user, email.orElse(null), phoneNumber);
   }
 
-  private User updateContactDetails(
-      String personalCode, Optional<String> email, @Nullable String phoneNumber) {
+  private User lockedUser(String personalCode) {
+    return userRepository.lockForUpdate(personalCode).orElseThrow(UserService::userDoesNotExist);
+  }
+
+  private void throwIfEmailTaken(String personalCode, Optional<String> email) {
     if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();
     }
+  }
 
-    User user =
-        findByPersonalCode(personalCode)
-            .map(
-                existingUser -> {
-                  existingUser.setEmail(email.orElse(null));
-                  existingUser.setPhoneNumber(phoneNumber);
-                  return existingUser;
-                })
-            .orElseThrow(() -> new RuntimeException("User does not exist"));
+  private static RuntimeException userDoesNotExist() {
+    return new RuntimeException("User does not exist");
+  }
 
-    log.info("Updating user: userId={}", user.getId());
-
+  private User setContactDetails(User user, @Nullable String email, @Nullable String phoneNumber) {
+    user.setEmail(email);
+    user.setPhoneNumber(phoneNumber);
+    log.info("Updating user contact details: userId={}", user.getId());
     return save(user);
   }
 

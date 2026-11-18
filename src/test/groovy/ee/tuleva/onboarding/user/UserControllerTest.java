@@ -11,9 +11,11 @@ import static ee.tuleva.onboarding.user.UserContactsFixture.contributionPeriod;
 import static java.time.ZoneOffset.UTC;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,12 +28,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -176,6 +181,61 @@ class UserControllerTest {
                     """
             {"secondPillarContributions": null}
             """));
+  }
+
+  @Test
+  void patchMe_changesTheContactDetailsOfTheLoggedInPersonToTheRequestedOnes() throws Exception {
+    var user = sampleUserNonMember().email("new@example.com").phoneNumber("+37251111111").build();
+    AuthenticatedPerson person = authenticatedPersonFromUser(user).build();
+    given(
+            userService.changeContactDetails(
+                user.getPersonalCode(), "new@example.com", "+37251111111"))
+        .willReturn(user);
+
+    mvc.perform(
+            patch("/v1/me")
+                .with(csrf())
+                .with(
+                    authentication(
+                        new UsernamePasswordAuthenticationToken(
+                            person, null, List.of(new SimpleGrantedAuthority(USER)))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"email": "new@example.com", "phoneNumber": "+37251111111"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email", is("new@example.com")))
+        .andExpect(jsonPath("$.phoneNumber", is("+37251111111")));
+
+    then(userService)
+        .should()
+        .changeContactDetails(user.getPersonalCode(), "new@example.com", "+37251111111");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "   "})
+  void patchMe_rejectsABlankEmailWithoutChangingTheContactDetails(String blankEmail)
+      throws Exception {
+    var user = sampleUserNonMember().build();
+    AuthenticatedPerson person = authenticatedPersonFromUser(user).build();
+
+    mvc.perform(
+            patch("/v1/me")
+                .with(csrf())
+                .with(
+                    authentication(
+                        new UsernamePasswordAuthenticationToken(
+                            person, null, List.of(new SimpleGrantedAuthority(USER)))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"email": "%s", "phoneNumber": "+37255555555"}
+                    """
+                        .formatted(blankEmail)))
+        .andExpect(status().isBadRequest());
+
+    then(userService).shouldHaveNoInteractions();
   }
 
   private ResultActions me(List<SecondPillarContributionPeriod> contributionPeriods)

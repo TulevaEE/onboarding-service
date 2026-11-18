@@ -15,8 +15,7 @@ public class InvestmentParameterRepository {
   private final JdbcClient jdbcClient;
 
   public BigDecimal findLatestValue(InvestmentParameter parameter, LocalDate asOf) {
-    return findLatestValueIfPresent(parameter, asOf)
-        .orElseThrow(() -> missing(parameter, "fund=GLOBAL", asOf));
+    return findLatestValueIfPresent(parameter, asOf).orElseThrow(() -> missing(parameter, asOf));
   }
 
   public Optional<BigDecimal> findLatestValueIfPresent(
@@ -42,7 +41,7 @@ public class InvestmentParameterRepository {
   public BigDecimal findLatestValue(
       InvestmentParameter parameter, TulevaFund fund, LocalDate asOf) {
     return findLatestValueIfPresent(parameter, fund, asOf)
-        .orElseThrow(() -> missing(parameter, "fund=" + fund.name(), asOf));
+        .orElseThrow(() -> missing(parameter, fund, asOf));
   }
 
   public Optional<BigDecimal> findLatestValueIfPresent(
@@ -68,6 +67,13 @@ public class InvestmentParameterRepository {
 
   public BigDecimal findLatestValueForIsinOrGlobal(
       InvestmentParameter parameter, String isin, LocalDate asOf) {
+    return findLatestIsinValueIfPresent(parameter, isin, asOf)
+        .or(() -> findLatestValueIfPresent(parameter, asOf))
+        .orElseThrow(() -> missing(parameter, isin, asOf));
+  }
+
+  private Optional<BigDecimal> findLatestIsinValueIfPresent(
+      InvestmentParameter parameter, String isin, LocalDate asOf) {
     return jdbcClient
         .sql(
             """
@@ -75,20 +81,33 @@ public class InvestmentParameterRepository {
             FROM investment_parameter
             WHERE parameter_name = :name
               AND fund_code IS NULL
-              AND (isin = :isin OR isin IS NULL)
+              AND isin = :isin
               AND effective_date <= :asOf
-            ORDER BY CASE WHEN isin IS NULL THEN 1 ELSE 0 END, effective_date DESC, id DESC
+            ORDER BY effective_date DESC, id DESC
             LIMIT 1
             """)
         .param("name", parameter.name())
         .param("isin", isin)
         .param("asOf", asOf)
         .query(BigDecimal.class)
-        .optional()
-        .orElseThrow(() -> missing(parameter, "fund=GLOBAL, isin=" + isin, asOf));
+        .optional();
+  }
+
+  private static IllegalStateException missing(InvestmentParameter parameter, LocalDate asOf) {
+    return missingIn(parameter, "fund=GLOBAL", asOf);
   }
 
   private static IllegalStateException missing(
+      InvestmentParameter parameter, TulevaFund fund, LocalDate asOf) {
+    return missingIn(parameter, "fund=" + fund.name(), asOf);
+  }
+
+  private static IllegalStateException missing(
+      InvestmentParameter parameter, String isin, LocalDate asOf) {
+    return missingIn(parameter, "fund=GLOBAL, isin=" + isin, asOf);
+  }
+
+  private static IllegalStateException missingIn(
       InvestmentParameter parameter, String scope, LocalDate asOf) {
     return new IllegalStateException(
         "No investment parameter found: parameter=" + parameter + ", " + scope + ", asOf=" + asOf);

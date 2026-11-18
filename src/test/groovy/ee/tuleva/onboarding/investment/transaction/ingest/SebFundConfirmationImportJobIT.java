@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
+import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -45,6 +47,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,6 +71,7 @@ class SebFundConfirmationImportJobIT {
   private static final String ISIN = "IE00BKPTWY98";
   private static final String NAV_STORAGE_KEY = ISIN + ".BLACKROCK";
   private static final String NAV_TOLERANCE = "SEB_FUND_CONFIRMATION_NAV_TOLERANCE";
+  private static final String ISIN_WITH_ITS_OWN_TOLERANCE = "ZZ0000000001";
   private static final Instant NOW = Instant.parse("2026-01-08T10:00:00Z");
   private static final SebFundConfirmationProperties PROPERTIES =
       new SebFundConfirmationProperties(2, 2, LocalDate.of(2026, 1, 5));
@@ -150,18 +154,33 @@ class SebFundConfirmationImportJobIT {
   }
 
   @Test
-  void run_judgesAPriceByTheDefaultToleranceWhenOnlyAnotherUnderlyingFundHasItsOwn() {
-    jdbcClient
-        .sql(
+  void run_judgesAPriceByItsUnderlyingFundsOwnToleranceWhenOneIsSet() {
+    insertToleranceFor(ISIN_WITH_ITS_OWN_TOLERANCE, "0.009");
+
+    jobConfirmingATradeInTheFundWithItsOwnTolerance().run();
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void run_judgesTheSamePriceByTheDefaultToleranceUntilTheUnderlyingFundHasItsOwn() {
+    jobConfirmingATradeInTheFundWithItsOwnTolerance().run();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
             """
-            INSERT INTO investment_parameter (parameter_name, isin, effective_date, numeric_value)
-            VALUES (:name, :isin, :effectiveDate, :value)
-            """)
-        .param("name", NAV_TOLERANCE)
-        .param("isin", "ZZ0000000001")
-        .param("effectiveDate", LocalDate.of(2026, 1, 1))
-        .param("value", new BigDecimal("0.009"))
-        .update();
+            SEB fonditehingute kinnitused
+
+            TUK75 ZZ0000000001 ost 06.01.2026: hind 12.4 erineb fondi NAV-ist 12.3 +0.81%
+            Tehing DLA0000001, SEB sai korralduse 05.01.2026 11:48
+            Kontrolli hinda SEB-lt ja fondivalitseja lehelt""",
+            INVESTMENT);
+  }
+
+  @Test
+  void run_judgesAPriceByTheDefaultToleranceWhenOnlyAnotherUnderlyingFundHasItsOwn() {
+    insertToleranceFor(ISIN_WITH_ITS_OWN_TOLERANCE, "0.009");
     seedTwoTradesAndANavBelowTheConfirmedPrice();
 
     job.run();
@@ -472,7 +491,45 @@ class SebFundConfirmationImportJobIT {
             INVESTMENT);
   }
 
+  private SebFundConfirmationImportJob jobConfirmingATradeInTheFundWithItsOwnTolerance() {
+    Map<String, List<String>> fields = fieldsForFirstTrade();
+    fields.put("ISIN kood", List.of(ISIN_WITH_ITS_OWN_TOLERANCE));
+    s3Holds("seb-confirmations/DLA0000001-001.pdf", confirmation(fields));
+    LocalDate pricingDate = LocalDate.of(2026, 1, 6);
+    PositionPriceResolver navs = mock(PositionPriceResolver.class);
+    given(navs.resolve(any(), any())).willReturn(Optional.empty());
+    given(navs.resolve(ISIN_WITH_ITS_OWN_TOLERANCE, pricingDate))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("12.3000"))
+                    .validationStatus(OK)
+                    .priceDate(pricingDate)
+                    .storageKey(ISIN_WITH_ITS_OWN_TOLERANCE + ".BLACKROCK")
+                    .build()));
+    return jobWith(PROPERTIES, navs);
+  }
+
+  private void insertToleranceFor(String isin, String value) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_parameter (parameter_name, isin, effective_date, numeric_value)
+            VALUES (:name, :isin, :effectiveDate, :value)
+            """)
+        .param("name", NAV_TOLERANCE)
+        .param("isin", isin)
+        .param("effectiveDate", LocalDate.of(2026, 1, 1))
+        .param("value", new BigDecimal(value))
+        .update();
+  }
+
   private SebFundConfirmationImportJob jobWith(SebFundConfirmationProperties properties) {
+    return jobWith(properties, priceResolver);
+  }
+
+  private SebFundConfirmationImportJob jobWith(
+      SebFundConfirmationProperties properties, PositionPriceResolver navs) {
     Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
     SebFundConfirmationAuditRecorder auditRecorder =
         new SebFundConfirmationAuditRecorder(auditEventRepository, clock);
@@ -482,7 +539,7 @@ class SebFundConfirmationImportJobIT {
         new SebFundConfirmationVerificationService(
             reportService,
             extractor,
-            priceResolver,
+            navs,
             parameterRepository,
             new SebFundConfirmationRegistryCheck(
                 executionRepository, orderRepository, new ReportedQuantityNormalizer()),

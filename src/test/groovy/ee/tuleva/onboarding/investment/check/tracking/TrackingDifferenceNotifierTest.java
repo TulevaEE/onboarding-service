@@ -482,11 +482,15 @@ class TrackingDifferenceNotifierTest {
   void withinLimitsFlagsAFundMeasuredAgainstAnOutOfDateIndexPriceAndNamesTheHolding() {
     notifier.notify(List.of(withinLimitsAgainstAStaleProxyPrice()));
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue())
-        .startsWith("⚠️ TUK75 TD check completed: within limits")
-        .contains(STALE_PROXY_PRICE_WARNING);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("⚠️ TUK75 TD check completed: within limits")
+                        .containsOnlyOnce(STALE_PROXY_PRICE_WARNING)),
+            eq(INVESTMENT));
   }
 
   @Test
@@ -496,11 +500,15 @@ class TrackingDifferenceNotifierTest {
 
     notifier.notify(List.of(withinLimitsAgainstAStaleProxyPrice(), otherFundBreach));
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue())
-        .startsWith("🛑 TD BREACH DETECTED\n")
-        .contains(STALE_PROXY_PRICE_WARNING);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .startsWith("🛑 TD BREACH DETECTED\n")
+                        .containsOnlyOnce(STALE_PROXY_PRICE_WARNING)),
+            eq(INVESTMENT));
   }
 
   @Test
@@ -508,11 +516,15 @@ class TrackingDifferenceNotifierTest {
     notifier.notifyGapFillSummary(
         gapFill(withinLimitsAgainstAStaleProxyPrice(), result(false, 0, ZERO)));
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue())
-        .contains("No breach on any of them.")
-        .contains(STALE_PROXY_PRICE_WARNING);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .contains("No breach on any of them.")
+                        .containsOnlyOnce(STALE_PROXY_PRICE_WARNING)),
+            eq(INVESTMENT));
   }
 
   @Test
@@ -520,11 +532,15 @@ class TrackingDifferenceNotifierTest {
     notifier.notifyBackfillSummary(
         7, List.of(withinLimitsAgainstAStaleProxyPrice(), result(false, 0, ZERO)));
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue())
-        .contains("TUK75 BENCHMARK_MODEL: 1 check dates")
-        .contains(STALE_PROXY_PRICE_WARNING);
+    then(notificationService)
+        .should()
+        .sendMessage(
+            assertArg(
+                message ->
+                    assertThat(message)
+                        .contains("TUK75 BENCHMARK_MODEL: 1 check dates")
+                        .containsOnlyOnce(STALE_PROXY_PRICE_WARNING)),
+            eq(INVESTMENT));
   }
 
   private static final String STALE_PROXY_PRICE_WARNING =

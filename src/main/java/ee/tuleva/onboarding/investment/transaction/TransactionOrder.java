@@ -92,4 +92,8 @@ public class TransactionOrder {
       createdAt = clock().instant();
     }
   }
+
+  public boolean isCancelledOrDiscarded() {
+    return orderStatus == OrderStatus.CANCELLED || orderStatus == OrderStatus.DISCARDED;
+  }
 }

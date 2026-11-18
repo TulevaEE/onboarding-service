@@ -1,11 +1,17 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.NOTHING_TO_CANCEL;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_REPLACEMENT;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.REPLACED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.VOIDED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -57,6 +63,30 @@ class FtConfirmationDigestTest {
   }
 
   @Test
+  void confirmationThatCouldNotBeChecked_isSentWithItsError() {
+    digest(true).publish(List.of(unchecked(outcome(OK, OK))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT confirmation could not be checked: fund=TUK75, isin=IE000F60HVH9,"
+                + " tradeDate=2026-06-08, quantity=40434, error=price source down",
+            INVESTMENT);
+  }
+
+  @Test
+  void cancellationThatCouldNotBeChecked_saysSoInsteadOfThatNoNewConfirmationCame() {
+    digest(true).publish(List.of(unchecked(cancellationOutcome(CANCELLED))));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT confirmation could not be checked: fund=TUK75, isin=IE000F60HVH9,"
+                + " tradeDate=2026-06-08, quantity=40434, error=price source down",
+            INVESTMENT);
+  }
+
+  @Test
   void ambiguousRow_whenRegistryAuthoritative_isSent() {
     digest(true).publish(List.of(outcome(AMBIGUOUS, AMBIGUOUS)));
 
@@ -81,15 +111,44 @@ class FtConfirmationDigestTest {
   }
 
   @Test
-  void cancellationRow_whenRegistryAuthoritative_isSentAsCancellationLine() {
-    digest(true).publish(List.of(outcome(CANCELLED, CANCELLED)));
+  void cancellationWithNoNewConfirmation_whenRegistryAuthoritative_isSentAsCancellationLine() {
+    digest(true).publish(List.of(cancellationOutcome(CANCELLED)));
 
     verify(notificationService)
         .sendMessage(
             "FT confirmation check: 1 issue(s) need attention\n"
-                + "FT broker cancellation: fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08,"
-                + " quantity=40434 — verify and cancel in registry",
+                + "FT cancelled a trade and sent no new confirmation of the same quantity:"
+                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — check with FT;"
+                + " if the trade did not happen, cancel the order in the registry",
             INVESTMENT);
+  }
+
+  @Test
+  void cancellationMatchingSeveralOrders_isStillSentAsACancellationLine() {
+    digest(true).publish(List.of(cancellationOutcome(AMBIGUOUS)));
+
+    verify(notificationService)
+        .sendMessage(
+            "FT confirmation check: 1 issue(s) need attention\n"
+                + "FT cancelled a trade and sent no new confirmation of the same quantity:"
+                + " fund=TUK75, isin=IE000F60HVH9, tradeDate=2026-06-08, quantity=40434"
+                + " — check with FT;"
+                + " if the trade did not happen, cancel the order in the registry",
+            INVESTMENT);
+  }
+
+  @Test
+  void ftCorrections_voidedReplacedPendingOrWithNothingToCancel_areNotSent() {
+    digest(true)
+        .publish(
+            List.of(
+                outcome(VOIDED, VOIDED),
+                outcome(REPLACED, REPLACED),
+                outcome(PENDING_REPLACEMENT, PENDING_REPLACEMENT),
+                outcome(NOTHING_TO_CANCEL, NOTHING_TO_CANCEL)));
+
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -173,6 +232,27 @@ class FtConfirmationDigestTest {
         .doesNotThrowAnyException();
 
     verify(auditRecorder, never()).recordAlerted(any(), any());
+  }
+
+  private static FtConfirmationOutcome cancellationOutcome(FtVerificationStatus status) {
+    FtConfirmation cancellation =
+        new FtConfirmation(
+            TUK75,
+            ISIN,
+            TRADE_DATE,
+            new BigDecimal("40434"),
+            new BigDecimal("10.09"),
+            CANCELLATION,
+            "FT-ACC");
+    return new FtConfirmationOutcome(
+        cancellation, new FtConfirmationResult(status, status, Map.of()));
+  }
+
+  private static FtConfirmationOutcome unchecked(FtConfirmationOutcome outcome) {
+    return new FtConfirmationOutcome(
+        outcome.confirmation(),
+        new FtConfirmationResult(
+            UNCHECKED, UNCHECKED, Map.of("verificationError", "price source down")));
   }
 
   private static FtConfirmationOutcome outcome(

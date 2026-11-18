@@ -1,14 +1,20 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
+import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.NORMAL;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ERROR;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.IGNORED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.NOTHING_TO_CANCEL;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.OK;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.ORPHAN;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_EXECUTION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_NAV;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.PENDING_REPLACEMENT;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.REPLACED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.VOIDED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
@@ -29,6 +35,7 @@ import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationBatchResult;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -41,6 +48,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -96,6 +104,36 @@ class FtConfirmationVerificationServiceTest {
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
+  }
+
+  @Test
+  void confirmationForAnOrderCancelledInTheRegistry_isAnOrphan() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    order.setOrderStatus(OrderStatus.CANCELLED);
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
+    assertThat(result.priceStatus()).isEqualTo(ORPHAN);
+  }
+
+  @Test
+  void confirmationMatchingALiveOrderAndOneCancelledInTheRegistry_isCheckedAgainstTheLiveOne() {
+    TransactionOrder cancelledOrder = order(10L, new BigDecimal("40434"));
+    cancelledOrder.setOrderStatus(OrderStatus.CANCELLED);
+    TransactionOrder liveOrder = order(42L, new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN))
+        .willReturn(List.of(cancelledOrder, liveOrder));
+    given(executionRepository.findAllByOrderId(42L))
+        .willReturn(List.of(execution(new BigDecimal("40434"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(OK);
+    assertThat(result.priceStatus()).isEqualTo(OK);
+    assertThat(result.details()).containsEntry("orderUuid", ORDER_UUID.toString());
   }
 
   @Test
@@ -360,17 +398,152 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void cancellationConfirmation_marksMatchingTradeCancelled_noMismatchError() {
+  void cancellationWithNoNewConfirmationAfterTheNextBusinessDay_returnsCancelled() {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    givenCancellationFirstSeenOn(TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(cancellationConfirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(CANCELLED);
     assertThat(result.priceStatus()).isEqualTo(CANCELLED);
     assertThat(result.details())
         .containsEntry("orderUuid", ORDER_UUID.toString())
+        .containsEntry("cancellationSignature", ISIN + "|FT-ACC|" + TRADE_DATE + "|10.09")
+        .containsEntry("replacementMissing", "no new confirmation by 2026-06-09");
+  }
+
+  @Test
+  void cancellationFirstSeenDaysAfterTheTrade_waitsUntilTheNextBusinessDayAfterItArrived() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    givenCancellationFirstSeenOn(LocalDate.of(2026, 6, 10));
+
+    FtConfirmationResult result =
+        service(Instant.parse("2026-06-11T08:00:00Z")).verify(cancellationConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(PENDING_REPLACEMENT);
+    assertThat(result.details()).containsEntry("replacementPendingUntil", "2026-06-11");
+  }
+
+  @Test
+  void verifyAll_anotherTradeThatDay_doesNotHideACancellationWithNoNewConfirmation() {
+    TransactionOrder cancelledOrder = order(42L, new BigDecimal("40434"));
+    TransactionOrder otherOrder = order(10L, new BigDecimal("250"));
+    given(orderRepository.findByInstrumentIsin(ISIN))
+        .willReturn(List.of(cancelledOrder, otherOrder));
+    given(executionRepository.findAllByOrderId(10L))
+        .willReturn(List.of(execution(new BigDecimal("250"))));
+    givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE);
+    givenCancellationFirstSeenOn(TRADE_DATE);
+    FtConfirmation otherTrade =
+        new FtConfirmation(
+            TUK75,
+            ISIN,
+            TRADE_DATE,
+            new BigDecimal("250"),
+            new BigDecimal("10.09"),
+            NORMAL,
+            "FT-ACC");
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(
+                List.of(
+                    confirmationOnFtAccount(new BigDecimal("10.09")),
+                    cancellationConfirmation(),
+                    otherTrade),
+                "ops");
+
+    assertThat(results.get(0).result().quantityStatus()).isEqualTo(VOIDED);
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(CANCELLED);
+    assertThat(results.get(1).result().details()).containsEntry("orderUuid", ORDER_UUID.toString());
+    assertThat(results.get(2).result().quantityStatus()).isEqualTo(OK);
+  }
+
+  @Test
+  void cancellationWithNoNewConfirmationYet_waitsUntilTheEndOfTheNextBusinessDay() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    givenCancellationFirstSeenOn(TRADE_DATE);
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(PENDING_REPLACEMENT);
+    assertThat(result.priceStatus()).isEqualTo(PENDING_REPLACEMENT);
+    assertThat(result.details()).containsEntry("replacementPendingUntil", "2026-06-09");
+  }
+
+  @Test
+  void verifyAll_cancellationFollowedByANewConfirmation_returnsReplaced_evenAfterTheDeadline() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("10.12"), TRADE_DATE);
+    FtConfirmation newConfirmation = confirmationOnFtAccount(new BigDecimal("10.12"));
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(List.of(cancellationConfirmation(), newConfirmation), "ops");
+
+    assertThat(results.get(0).result().quantityStatus()).isEqualTo(REPLACED);
+    assertThat(results.get(0).result().priceStatus()).isEqualTo(REPLACED);
+    assertThat(results.get(0).result().details()).containsEntry("orderUuid", ORDER_UUID.toString());
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(OK);
+    assertThat(results.get(1).result().priceStatus()).isEqualTo(OK);
+  }
+
+  @Test
+  void verifyAll_cancellationWithANewConfirmationForEachMatchingOrder_isReplaced() {
+    TransactionOrder first = order(10L, new BigDecimal("40434"));
+    TransactionOrder second = order(42L, new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(
+                List.of(
+                    cancellationConfirmation(),
+                    confirmationOnFtAccount(new BigDecimal("10.12")),
+                    confirmationOnFtAccount(new BigDecimal("10.13"))),
+                "ops");
+
+    assertThat(results.get(0).result().quantityStatus()).isEqualTo(REPLACED);
+  }
+
+  @Test
+  void verifyAll_confirmationFtLaterCancelled_returnsVoided_withoutCheckingItsQuantityOrPrice() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    FtConfirmation cancelledConfirmation = confirmationOnFtAccount(new BigDecimal("10.09"));
+    givenCancellationFirstSeenOn(TRADE_DATE);
+
+    List<FtConfirmationBatchResult> results =
+        service(DAY_AFTER_TRADE)
+            .verifyAll(List.of(cancelledConfirmation, cancellationConfirmation()), "ops");
+
+    FtConfirmationResult voided = results.get(0).result();
+    assertThat(voided.quantityStatus()).isEqualTo(VOIDED);
+    assertThat(voided.priceStatus()).isEqualTo(VOIDED);
+    assertThat(voided.details())
+        .containsEntry("orderUuid", ORDER_UUID.toString())
         .containsEntry("cancellationSignature", ISIN + "|FT-ACC|" + TRADE_DATE + "|10.09");
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(PENDING_REPLACEMENT);
+    verifyNoInteractions(executionRepository, positionPriceResolver);
+    verify(auditRecorder).recordOutcome(order, cancelledConfirmation, voided, "ops");
+  }
+
+  @Test
+  void verifyAll_confirmationFtCancelledOnAnAccountWithNoOrder_isVoidedNotOrphan() {
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
+    FtConfirmation cancelledConfirmation = confirmationOnFtAccount(new BigDecimal("10.09"));
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(List.of(cancelledConfirmation, cancellationConfirmation()), "ops");
+
+    assertThat(results.get(0).result().quantityStatus()).isEqualTo(VOIDED);
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
+    verify(auditRecorder)
+        .recordOutcome(null, cancelledConfirmation, results.get(0).result(), "ops");
   }
 
   @Test
@@ -378,6 +551,7 @@ class FtConfirmationVerificationServiceTest {
     TransactionOrder order = order(new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
     FtConfirmation confirmation = cancellationConfirmation();
+    givenCancellationFirstSeenOn(TRADE_DATE);
 
     FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation);
 
@@ -385,12 +559,13 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void cancellationConfirmation_multipleMatchingOrders_returnsAmbiguous_notCancelled() {
+  void cancellationWithNoNewConfirmation_multipleMatchingOrders_returnsAmbiguous_notCancelled() {
     TransactionOrder first = order(10L, new BigDecimal("40434"));
     TransactionOrder second = order(42L, new BigDecimal("40434"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(first, second));
+    givenCancellationFirstSeenOn(TRADE_DATE);
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(cancellationConfirmation());
 
     assertThat(result.quantityStatus()).isEqualTo(AMBIGUOUS);
     assertThat(result.priceStatus()).isEqualTo(AMBIGUOUS);
@@ -398,13 +573,87 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
-  void cancellationConfirmation_orderNotFound_returnsOrphan() {
+  void cancellationWithNoOrderInTheRegistry_returnsNothingToCancel() {
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of());
+    FtConfirmation confirmation = cancellationConfirmation();
 
-    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(cancellationConfirmation());
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(confirmation);
 
-    assertThat(result.quantityStatus()).isEqualTo(ORPHAN);
-    assertThat(result.priceStatus()).isEqualTo(ORPHAN);
+    assertThat(result.quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
+    assertThat(result.priceStatus()).isEqualTo(NOTHING_TO_CANCEL);
+    verify(auditRecorder).recordOutcome(null, confirmation, result, "admin");
+  }
+
+  @Test
+  void cancellationNeedingAction_clearsOnceTheOrderIsCancelledInTheRegistry() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    order.setOrderStatus(OrderStatus.CANCELLED);
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+
+    FtConfirmationResult result = service(TWO_DAYS_AFTER_TRADE).verify(cancellationConfirmation());
+
+    assertThat(result.quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
+    assertThat(result.priceStatus()).isEqualTo(NOTHING_TO_CANCEL);
+  }
+
+  @Test
+  void verifyAll_cancellationOfAnOrderCancelledInTheRegistry_isNotMovedOntoAnotherLiveTrade() {
+    TransactionOrder cancelledOrder = order(42L, new BigDecimal("40434"));
+    cancelledOrder.setOrderStatus(OrderStatus.CANCELLED);
+    TransactionOrder otherOrder = order(10L, new BigDecimal("250"));
+    given(orderRepository.findByInstrumentIsin(ISIN))
+        .willReturn(List.of(cancelledOrder, otherOrder));
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(
+                List.of(cancellationConfirmation(), otherTrade(new BigDecimal("10.09"))), "ops");
+
+    FtConfirmationResult result = results.get(0).result();
+    assertThat(result.quantityStatus()).isEqualTo(NOTHING_TO_CANCEL);
+    assertThat(result.details()).doesNotContainKey("orderUuid");
+  }
+
+  @Test
+  void verifyAll_cancellationMatchingACancelledOrder_stillAlertsWhileALiveOrderHasNoConfirmation() {
+    TransactionOrder cancelledOrder = order(42L, new BigDecimal("40434"));
+    cancelledOrder.setOrderStatus(OrderStatus.CANCELLED);
+    TransactionOrder liveOrder = order(10L, new BigDecimal("41000"));
+    given(orderRepository.findByInstrumentIsin(ISIN))
+        .willReturn(List.of(cancelledOrder, liveOrder));
+    givenCancellationFirstSeenOn(TRADE_DATE);
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(
+                List.of(
+                    confirmationOnFtAccount(new BigDecimal("10.09")), cancellationConfirmation()),
+                "ops");
+
+    FtConfirmationResult result = results.get(1).result();
+    assertThat(result.quantityStatus()).isEqualTo(CANCELLED);
+    assertThat(result.details()).doesNotContainKey("orderUuid");
+  }
+
+  @Test
+  void verifyAll_anotherTradeConfirmedTwiceAtDifferentPrices_doesNotReplaceTheCancelledTrade() {
+    TransactionOrder cancelledOrder = order(42L, new BigDecimal("40434"));
+    TransactionOrder otherOrder = order(10L, new BigDecimal("250"));
+    given(orderRepository.findByInstrumentIsin(ISIN))
+        .willReturn(List.of(cancelledOrder, otherOrder));
+    givenCancellationFirstSeenOn(TRADE_DATE);
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(
+                List.of(
+                    confirmationOnFtAccount(new BigDecimal("10.09")),
+                    cancellationConfirmation(),
+                    otherTrade(new BigDecimal("10.09")),
+                    otherTrade(new BigDecimal("10.10"))),
+                "ops");
+
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(CANCELLED);
   }
 
   @Test
@@ -558,6 +807,41 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void verifyAll_rowThatThrows_isPassedToTheDigestAsUnchecked() {
+    given(orderRepository.findByInstrumentIsin("BAD")).willThrow(new RuntimeException("boom"));
+    FtConfirmation bad =
+        new FtConfirmation(TUK75, "BAD", TRADE_DATE, new BigDecimal("1"), new BigDecimal("1"));
+
+    service(DAY_AFTER_TRADE).verifyAll(List.of(bad), "ops");
+
+    verify(digest).publish(List.of(new FtConfirmationOutcome(bad, unchecked("boom"))));
+  }
+
+  @Test
+  void verifyAll_replacementThatCannotBeChecked_isStillSentWhileItsCancellationIsReplaced() {
+    TransactionOrder order = order(new BigDecimal("40434"));
+    given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
+    given(positionPriceResolver.resolve(ISIN, TRADE_DATE))
+        .willThrow(new RuntimeException("price source down"));
+    FtConfirmation original = confirmationOnFtAccount(new BigDecimal("10.09"));
+    FtConfirmation cancellation = cancellationConfirmation();
+    FtConfirmation replacement = confirmationOnFtAccount(new BigDecimal("10.12"));
+
+    List<FtConfirmationBatchResult> results =
+        service(TWO_DAYS_AFTER_TRADE)
+            .verifyAll(List.of(original, cancellation, replacement), "ops");
+
+    assertThat(results.get(0).result().quantityStatus()).isEqualTo(VOIDED);
+    assertThat(results.get(1).result().quantityStatus()).isEqualTo(REPLACED);
+    verify(digest)
+        .publish(
+            List.of(
+                new FtConfirmationOutcome(original, results.get(0).result()),
+                new FtConfirmationOutcome(cancellation, results.get(1).result()),
+                new FtConfirmationOutcome(replacement, unchecked("price source down"))));
+  }
+
+  @Test
   void verifyAll_passesEveryVerifiedOutcomeToDigest() {
     TransactionOrder order = order(new BigDecimal("40432"));
     given(orderRepository.findByInstrumentIsin(ISIN)).willReturn(List.of(order));
@@ -594,6 +878,24 @@ class FtConfirmationVerificationServiceTest {
 
   private FtConfirmation confirmation(BigDecimal quantity, BigDecimal grossPrice) {
     return new FtConfirmation(TUK75, ISIN, TRADE_DATE, quantity, grossPrice);
+  }
+
+  private void givenCancellationFirstSeenOn(LocalDate firstSeen) {
+    given(auditRecorder.firstSeenOn(cancellationConfirmation())).willReturn(firstSeen);
+  }
+
+  private static FtConfirmationResult unchecked(String error) {
+    return new FtConfirmationResult(UNCHECKED, UNCHECKED, Map.of("verificationError", error));
+  }
+
+  private FtConfirmation otherTrade(BigDecimal grossPrice) {
+    return new FtConfirmation(
+        TUK75, ISIN, TRADE_DATE, new BigDecimal("250"), grossPrice, NORMAL, "FT-ACC");
+  }
+
+  private FtConfirmation confirmationOnFtAccount(BigDecimal grossPrice) {
+    return new FtConfirmation(
+        TUK75, ISIN, TRADE_DATE, new BigDecimal("40434"), grossPrice, NORMAL, "FT-ACC");
   }
 
   private FtConfirmation cancellationConfirmation() {

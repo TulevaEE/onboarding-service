@@ -279,9 +279,11 @@ transaction-registry:
     alerts-from: 2026-10-01
   ft-confirmation:
     # Whether onboarding-service alerts on FT confirmations. When true, FtConfirmationDigest
-    # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and broker cancellations, once per
-    # confirmation and result. When false (shadow mode), outcomes are only recorded to the
-    # audit trail. Off here: the production profile turns it on, staging stays in shadow mode.
+    # sends a Slack digest of ERROR/AMBIGUOUS/ORPHAN rows and of FT cancellations still
+    # without a new confirmation of the same quantity after the next business day (CANCELLED,
+    # or AMBIGUOUS when several orders match), once per confirmation and result. When false
+    # (shadow mode), outcomes are only recorded to the audit trail. Off here: the production
+    # profile turns it on, staging stays in shadow mode.
     registry-authoritative: ${TRANSACTION_REGISTRY_FT_CONFIRMATION_REGISTRY_AUTHORITATIVE:false}
 
 payment-provider:

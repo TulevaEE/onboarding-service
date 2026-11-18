@@ -57,6 +57,38 @@ class FtConfirmationS3SourceTest {
   }
 
   @Test
+  void list_readsEveryPageOfTheListing_notJustTheFirstThousandKeys() {
+    given(
+            s3Client.listObjectsV2(
+                ListObjectsV2Request.builder()
+                    .bucket("tuleva-investment-reports")
+                    .prefix("ft-confirmations/")
+                    .build()))
+        .willReturn(
+            ListObjectsV2Response.builder()
+                .contents(S3Object.builder().key("ft-confirmations/a.pdf").build())
+                .isTruncated(true)
+                .nextContinuationToken("page-2")
+                .build());
+    given(
+            s3Client.listObjectsV2(
+                ListObjectsV2Request.builder()
+                    .bucket("tuleva-investment-reports")
+                    .prefix("ft-confirmations/")
+                    .continuationToken("page-2")
+                    .build()))
+        .willReturn(
+            ListObjectsV2Response.builder()
+                .contents(S3Object.builder().key("ft-confirmations/b.pdf").build())
+                .isTruncated(false)
+                .build());
+
+    List<String> keys = source.list();
+
+    assertThat(keys).containsExactly("ft-confirmations/a.pdf", "ft-confirmations/b.pdf");
+  }
+
+  @Test
   void list_excludesThePrefixPlaceholderKeyItself() {
     given(s3Client.listObjectsV2(any(ListObjectsV2Request.class)))
         .willReturn(

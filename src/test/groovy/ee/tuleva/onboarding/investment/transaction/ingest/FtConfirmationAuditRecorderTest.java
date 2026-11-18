@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -176,6 +177,37 @@ class FtConfirmationAuditRecorderTest {
                         "details", Map.of("orphanReason", "no matching order")))
                 .createdAt(NOW)
                 .build());
+  }
+
+  @Test
+  void firstSeenOn_isTheDayTheConfirmationWasFirstVerified() {
+    TransactionAuditEvent first = priorEvent("PENDING_EXECUTION", "PENDING_NAV");
+    first.setCreatedAt(Instant.parse("2026-06-08T16:05:00Z"));
+    TransactionAuditEvent later = priorEvent("OK", "OK");
+    later.setCreatedAt(Instant.parse("2026-06-09T08:00:00Z"));
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
+        .willReturn(List.of(later, first));
+
+    assertThat(recorder().firstSeenOn(confirmation())).isEqualTo(LocalDate.parse("2026-06-08"));
+  }
+
+  @Test
+  void firstSeenOn_countsTheDayInTheClocksZone() {
+    TransactionAuditEvent lateEvening = priorEvent("PENDING_EXECUTION", "PENDING_NAV");
+    lateEvening.setCreatedAt(Instant.parse("2026-06-08T22:30:00Z"));
+    given(auditEventRepository.findByEventTypeAndDedupKey("FT_CONFIRMATION_VERIFIED", DEDUP_KEY))
+        .willReturn(List.of(lateEvening));
+    FtConfirmationAuditRecorder tallinnRecorder =
+        new FtConfirmationAuditRecorder(
+            auditEventRepository, Clock.fixed(NOW, ZoneId.of("Europe/Tallinn")));
+
+    assertThat(tallinnRecorder.firstSeenOn(confirmation()))
+        .isEqualTo(LocalDate.parse("2026-06-09"));
+  }
+
+  @Test
+  void firstSeenOn_neverVerified_isToday() {
+    assertThat(recorder().firstSeenOn(confirmation())).isEqualTo(LocalDate.parse("2026-06-09"));
   }
 
   @Test

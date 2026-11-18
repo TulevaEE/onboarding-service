@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,30 @@ public class MinorGuardianLookupService {
     } finally {
       held.unlock();
     }
+  }
+
+  public ChildGuardianLookup lookUpChild(String requesterPersonalCode, String childPersonalCode) {
+    if (!PersonalCode.isMinor(childPersonalCode, LocalDate.now(clock))) {
+      throw new NotAMinor();
+    }
+    SimpleLock held = lock.acquire().orElseThrow(MinorGuardianLookupAlreadyRunning::new);
+    try {
+      GuardianLookup lookup = lookUp(requesterPersonalCode, childPersonalCode);
+      log.info("Looked up one minor's guardians: guardians={}", lookup.guardianCount());
+      return new ChildGuardianLookup(lookup.guardianCount());
+    } finally {
+      held.unlock();
+    }
+  }
+
+  public Optional<ChildGuardianLookup> lookUpChildOnce(
+      String requesterPersonalCode, String childPersonalCode) {
+    if (!PERSONAL_CODES.isValid(childPersonalCode)
+        || !PersonalCode.isMinor(childPersonalCode, LocalDate.now(clock))
+        || guardianLookupRepository.existsById(childPersonalCode)) {
+      return Optional.empty();
+    }
+    return Optional.of(lookUpChild(requesterPersonalCode, childPersonalCode));
   }
 
   private MinorGuardianLookupRun lookUpOneBatch(
@@ -101,8 +126,8 @@ public class MinorGuardianLookupService {
         .toList();
   }
 
-  private void lookUp(String requesterPersonalCode, String childPersonalCode) {
-    guardianLookupRepository.save(
+  private GuardianLookup lookUp(String requesterPersonalCode, String childPersonalCode) {
+    return guardianLookupRepository.save(
         GuardianLookup.of(
             childPersonalCode,
             populationRegisterClient.fetchGuardians(requesterPersonalCode, childPersonalCode),

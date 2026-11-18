@@ -10,9 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AmlServiceTokenValidator;
+import ee.tuleva.onboarding.party.ChildGuardianLookup;
 import ee.tuleva.onboarding.party.MinorGuardianLookupAlreadyRunning;
 import ee.tuleva.onboarding.party.MinorGuardianLookupRun;
 import ee.tuleva.onboarding.party.MinorGuardianLookupService;
+import ee.tuleva.onboarding.party.NotAMinor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -110,6 +112,72 @@ class MinorGuardianLookupControllerTest {
     }
 
     verifyNoInteractions(minorGuardianLookupService);
+  }
+
+  @Test
+  void looksUpOneChildAsTheRequesterAndSaysHowManyCustodyHoldersTheRegisterNamed()
+      throws Exception {
+    given(minorGuardianLookupService.lookUpChild(REQUESTER, "61506150006"))
+        .willReturn(new ChildGuardianLookup(2));
+
+    mockMvc
+        .perform(
+            post(PATH + "/child")
+                .with(csrf())
+                .header("Authorization", "Bearer aml-service-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "childPersonalCode": "61506150006"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.guardians").value(2));
+  }
+
+  @Test
+  void refusesAChildLookupWithoutTheTokenOrAValidChildCode() throws Exception {
+    mockMvc
+        .perform(
+            post(PATH + "/child")
+                .with(csrf())
+                .header("Authorization", "Bearer someone-else")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "childPersonalCode": "61506150006"}
+                    """))
+        .andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(
+            post(PATH + "/child")
+                .with(csrf())
+                .header("Authorization", "Bearer aml-service-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "childPersonalCode": "38888888888"}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(minorGuardianLookupService);
+  }
+
+  @Test
+  void answersUnprocessableForSomeoneWhoIsNotAMinor() throws Exception {
+    given(minorGuardianLookupService.lookUpChild(REQUESTER, "60001019906"))
+        .willThrow(new NotAMinor());
+
+    mockMvc
+        .perform(
+            post(PATH + "/child")
+                .with(csrf())
+                .header("Authorization", "Bearer aml-service-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"requesterPersonalCode": "38812121215", "childPersonalCode": "60001019906"}
+                    """))
+        .andExpect(status().isUnprocessableEntity());
   }
 
   @Test

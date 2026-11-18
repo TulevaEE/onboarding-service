@@ -201,8 +201,9 @@ jobs:
           name: Check added lines for personal data
           command: |
             git fetch --no-tags origin master
-            BASE=$(git merge-base FETCH_HEAD HEAD)
-            git diff "$BASE"..HEAD | .githooks/pii-scan
+            git log -p --root --format= --no-color --no-ext-diff --no-textconv \
+              --src-prefix=a/ --dst-prefix=b/ --diff-merges=remerge \
+              HEAD --not FETCH_HEAD | .githooks/pii-scan
 
   migration-order:
     docker:

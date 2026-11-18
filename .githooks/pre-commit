@@ -26,7 +26,9 @@ echo "🕵️ Checking for personal data..."
 PII_IBAN_ALLOW_SOURCE=$(git show :.githooks/pii-iban-allow 2>/dev/null || true)
 PII_IDCODE_ALLOW_SOURCE=$(git show :.githooks/pii-idcode-allow 2>/dev/null || true)
 export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
-if ! git diff --cached | "$(dirname "${BASH_SOURCE[0]}")/pii-scan"; then
+# None of the user's diff settings may reshape the patch the scan reads.
+if ! git diff --cached --no-color --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ \
+    | "$(dirname "${BASH_SOURCE[0]}")/pii-scan"; then
     exit 1
 fi
 echo "✅ No personal data found."

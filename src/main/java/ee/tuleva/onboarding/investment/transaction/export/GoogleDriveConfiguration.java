@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static ee.tuleva.onboarding.investment.transaction.export.GoogleDriveTokenProvider.TOKEN_URI;
+
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,9 +18,7 @@ class GoogleDriveConfiguration {
   GoogleDriveTokenProvider googleDriveTokenProvider(
       RestClient.Builder builder, GoogleDriveProperties properties, Clock clock) {
     return new GoogleDriveTokenProvider(
-        properties.serviceAccountJson(),
-        builder.baseUrl("https://oauth2.googleapis.com/token").build(),
-        clock);
+        properties.serviceAccountJson(), builder.baseUrl(TOKEN_URI).build(), clock);
   }
 
   @Bean

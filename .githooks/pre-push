@@ -36,13 +36,13 @@ unpublished_commits() {
   if [ "$remote_sha" != "$UNBORN" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
     published+=("$remote_sha")
   fi
-  git log -p --root --format= --no-merges "$local_sha" --not "${published[@]}"
+  git log --no-color -p --root --format= --no-merges "$local_sha" --not "${published[@]}"
 }
 
 added_lines() {
   local base=$1 local_sha=$2 remote_sha=$3
   if [ -n "$base" ]; then
-    git diff "$base..$local_sha"
+    git diff --no-color "$base..$local_sha"
   else
     unpublished_commits "$local_sha" "$remote_sha"
   fi

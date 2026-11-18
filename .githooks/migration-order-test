@@ -214,6 +214,22 @@ nothing_on_top_of_master_carrying_personal_data() {
   git checkout --quiet -b feature
 }
 
+force_colour_output() {
+  git config color.ui always
+  git config color.diff always
+}
+
+personal_data_on_a_branch_of_master_with_colour_forced() {
+  force_colour_output
+  git checkout --quiet -b feature
+  commit_fixture Fixture.java feature
+}
+
+orphan_branch_carrying_personal_data_with_colour_forced() {
+  force_colour_output
+  orphan_branch_carrying_personal_data
+}
+
 branch_whose_base_blob_is_missing() {
   echo "first" >Shared.java
   git add -A && git commit --quiet -m shared >/dev/null 2>&1
@@ -257,6 +273,10 @@ branch_push_check "pre-push scans the new commits of a branch without a merge ba
   1 "$SCANNER_FINDING" personal_data_on_published_orphan_branch
 branch_push_check "pre-push lets a new branch with nothing on top of master through" \
   0 - nothing_on_top_of_master_carrying_personal_data
+branch_push_check "pre-push scans a branch of master when the user forces colour output" \
+  1 "$SCANNER_FINDING" personal_data_on_a_branch_of_master_with_colour_forced
+branch_push_check "pre-push scans an orphan branch when the user forces colour output" \
+  1 "$SCANNER_FINDING" orphan_branch_carrying_personal_data_with_colour_forced
 branch_push_check "pre-push says it could not compute the push instead of reporting personal data" \
   1 "could not compute what this push adds: ref=refs/heads/feature" branch_whose_base_blob_is_missing
 

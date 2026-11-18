@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
+
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
 import java.math.BigDecimal;
@@ -30,7 +32,7 @@ public class TransactionPreparationService {
   private final TradePrepInputGates inputGates;
   private final Clock clock;
 
-  @Transactional
+  @Transactional(isolation = REPEATABLE_READ)
   public @Nullable ProcessCommandResult processCommand(TransactionCommand command) {
     @Nullable FundTransactionInput input = null;
     @Nullable TransactionBatch batch = null;

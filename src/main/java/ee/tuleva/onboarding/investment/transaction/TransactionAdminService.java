@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.investment.transaction.CommandOutcome.StoppedByInputGates;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -38,6 +39,7 @@ class TransactionAdminService {
   private final TransactionPreparationService preparationService;
   private final TransactionBatchFinalizer batchFinalizer;
   private final TradePrepInputGateNotifier inputGateNotifier;
+  private final EntityManager entityManager;
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
@@ -48,6 +50,7 @@ class TransactionAdminService {
   }
 
   private ProcessedCommand process(CreateTransactionCommandRequest request, String actor) {
+    forgetEntitiesAnEarlierCommandOfThisRequestLoaded();
     TransactionCommand command = TransactionCommand.requested(request, actor);
     commandRepository.save(command);
     log.info(
@@ -59,6 +62,10 @@ class TransactionAdminService {
     CommandOutcome outcome = preparationService.processCommand(command);
     return new ProcessedCommand(
         TransactionCommandResponse.from(command, outcome.orders(), snapshotOf(command)), outcome);
+  }
+
+  private void forgetEntitiesAnEarlierCommandOfThisRequestLoaded() {
+    entityManager.clear();
   }
 
   private record ProcessedCommand(TransactionCommandResponse response, CommandOutcome outcome) {

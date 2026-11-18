@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.epis.PevaRavaCycleEntity;
+import ee.tuleva.onboarding.investment.epis.PevaRavaCycleReports;
 import ee.tuleva.onboarding.investment.epis.PevaRavaCycleRepository;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriod;
 import ee.tuleva.onboarding.investment.epis.PevaRavaPeriodService;
@@ -82,8 +82,8 @@ class TradePrepInputGates {
       TulevaFund fund, PevaRavaPeriod period) {
     List<ReportType> missing =
         pevaRavaCycleRepository
-            .findByExecDate(period.cycle().execDate())
-            .map(PevaRavaCycleEntity::missingReports)
+            .findReportsByExecDate(period.cycle().execDate())
+            .map(PevaRavaCycleReports::missingReports)
             .orElse(List.of(R17_PEVA, R21_RAVA));
     if (missing.isEmpty()) {
       return Optional.empty();

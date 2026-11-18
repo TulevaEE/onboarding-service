@@ -197,14 +197,8 @@ class PevaRavaFlowServiceTest {
     PevaRavaCycle cycle = new PevaRavaCycle(LOCK_DATE, EXEC_DATE);
     given(periodService.getCurrentPeriod(AS_OF_DATE))
         .willReturn(Optional.of(new PevaRavaPeriod(PevaRavaPhase.ACTIVE, cycle, null, null)));
-    PevaRavaCycleEntity entity =
-        PevaRavaCycleEntity.builder()
-            .lockDate(LOCK_DATE)
-            .execDate(EXEC_DATE)
-            .r17ReportId(r17ReportId)
-            .r21ReportId(r21ReportId)
-            .build();
-    given(cycleRepository.findByExecDate(EXEC_DATE)).willReturn(Optional.of(entity));
+    given(cycleRepository.findReportsByExecDate(EXEC_DATE))
+        .willReturn(Optional.of(new PevaRavaCycleReports(r17ReportId, r21ReportId)));
   }
 
   private void givenSummaries(TulevaFund fund, Map<String, Object> r17Data, int ravaUnits) {

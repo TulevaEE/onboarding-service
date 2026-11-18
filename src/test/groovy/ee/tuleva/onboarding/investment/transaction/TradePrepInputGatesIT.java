@@ -46,6 +46,7 @@ import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositio
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -108,6 +109,7 @@ class TradePrepInputGatesIT {
   @Autowired InvestmentReportRepository reportRepository;
   @Autowired EpisReportSummaryRepository summaryRepository;
   @Autowired PevaRavaCycleRepository cycleRepository;
+  @Autowired EntityManager entityManager;
 
   @BeforeEach
   void startFromNoStoredReportsOrPositions() {
@@ -250,6 +252,27 @@ class TradePrepInputGatesIT {
     cycleWithReports(
         reportOf(R17_PEVA, LocalDate.of(2026, 12, 3)),
         reportOf(R21_RAVA, LocalDate.of(2026, 12, 4)));
+
+    assertThat(gates.failures(TUK00, monday)).isEmpty();
+  }
+
+  @Test
+  void aCycleLinkMadeAfterAnEarlierFundLoadedTheCycleIsSeenByTheNextFundInTheSameRequest() {
+    LocalDate monday = LocalDate.of(2026, 12, 21);
+    positionReport(TUK00, LocalDate.of(2026, 12, 18));
+    r45(monday);
+    cycleWithReports(reportOf(R17_PEVA, LocalDate.of(2026, 12, 3)), null);
+    assertThat(gates.failures(TUK00, monday))
+        .containsExactly(
+            new MissingPevaRavaReports(
+                List.of(R21_RAVA), DECEMBER_EXECUTION_CYCLE_DATE, TUK00_COUNTS_FROM));
+
+    entityManager
+        .createNativeQuery(
+            "UPDATE peva_rava_cycle SET r21_report_id = :r21 WHERE exec_date = :exec")
+        .setParameter("r21", reportOf(R21_RAVA, LocalDate.of(2026, 12, 4)))
+        .setParameter("exec", DECEMBER_EXECUTION_CYCLE_DATE)
+        .executeUpdate();
 
     assertThat(gates.failures(TUK00, monday)).isEmpty();
   }

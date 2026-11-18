@@ -50,12 +50,12 @@ public class PevaRavaFlowService {
   }
 
   private Optional<PevaRavaFlows> calculateFlows(TulevaFund fund, LocalDate asOfDate) {
-    Optional<PevaRavaCycleEntity> activeCycle = activeCycle(asOfDate);
+    Optional<PevaRavaCycleReports> activeCycle = activeCycleReports(asOfDate);
     if (activeCycle.isEmpty()) {
       return Optional.empty();
     }
-    Optional<EpisReportSummary> r17 = summaryForReport(activeCycle.get().getR17ReportId(), fund);
-    Optional<EpisReportSummary> r21 = summaryForReport(activeCycle.get().getR21ReportId(), fund);
+    Optional<EpisReportSummary> r17 = summaryForReport(activeCycle.get().r17ReportId(), fund);
+    Optional<EpisReportSummary> r21 = summaryForReport(activeCycle.get().r21ReportId(), fund);
     if (r17.isEmpty() && r21.isEmpty()) {
       return Optional.empty();
     }
@@ -121,10 +121,10 @@ public class PevaRavaFlowService {
     }
   }
 
-  private Optional<PevaRavaCycleEntity> activeCycle(LocalDate asOfDate) {
+  private Optional<PevaRavaCycleReports> activeCycleReports(LocalDate asOfDate) {
     return periodService
         .getCurrentPeriod(asOfDate)
-        .flatMap(period -> cycleRepository.findByExecDate(period.cycle().execDate()));
+        .flatMap(period -> cycleRepository.findReportsByExecDate(period.cycle().execDate()));
   }
 
   private Optional<EpisReportSummary> summaryForReport(@Nullable Long reportId, TulevaFund fund) {

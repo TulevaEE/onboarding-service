@@ -12,7 +12,9 @@ import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
@@ -60,7 +62,10 @@ class TradePrepInputGates {
     if (latest.filter(date -> !date.isBefore(required)).isPresent()) {
       return Optional.empty();
     }
-    return Optional.of(new StalePositionReport(latest.orElse(null), required));
+    return Optional.of(
+        latest
+            .<InputGateFailure>map(date -> new StalePositionReport(date, required))
+            .orElseGet(() -> new MissingPositionReport(required)));
   }
 
   private Optional<InputGateFailure> r45(TulevaFund fund, LocalDate asOfDate) {
@@ -68,7 +73,10 @@ class TradePrepInputGates {
       return Optional.empty();
     }
     return Optional.of(
-        new MissingR45(asOfDate, r45ReportService.latestReportDateBefore(asOfDate).orElse(null)));
+        r45ReportService
+            .latestReportDateBefore(asOfDate)
+            .<InputGateFailure>map(latest -> new MissingR45(asOfDate, latest))
+            .orElseGet(() -> new NoR45Loaded(asOfDate)));
   }
 
   private Optional<InputGateFailure> pevaRavaReports(TulevaFund fund, LocalDate asOfDate) {

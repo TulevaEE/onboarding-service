@@ -7,8 +7,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
-import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -28,13 +29,13 @@ class InputGateFailureTest {
 
   @Test
   void aFundWithoutAnyPositionReportSaysItIsMissing() {
-    assertThat(new StalePositionReport(null, LocalDate.of(2026, 11, 17)).slackLine())
+    assertThat(new MissingPositionReport(LocalDate.of(2026, 11, 17)).slackLine())
         .isEqualTo("SEB positsiooniraport puudub, vaja 2026-11-17: küsi 2026-11-17 raport SEB-lt");
   }
 
   @Test
   void aMissingR45WithoutAnEarlierOneLeavesTheLatestOut() {
-    assertThat(new MissingR45(LocalDate.of(2026, 11, 18), null).slackLine())
+    assertThat(new NoR45Loaded(LocalDate.of(2026, 11, 18)).slackLine())
         .isEqualTo("R45 2026-11-18 puudub: lae R45 EPIS-ist");
   }
 

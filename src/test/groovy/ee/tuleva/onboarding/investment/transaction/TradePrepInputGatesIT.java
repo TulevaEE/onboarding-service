@@ -40,8 +40,10 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPevaRavaReports;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingPositionReport;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR45;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.NoR45Loaded;
 import ee.tuleva.onboarding.investment.transaction.InputGateFailure.StalePositionReport;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
@@ -167,7 +169,7 @@ class TradePrepInputGatesIT {
     r16(YearMonth.of(2026, 11), TUK75);
 
     assertThat(gates.failures(TUK75, WEDNESDAY))
-        .containsExactly(new StalePositionReport(null, TUESDAY));
+        .containsExactly(new MissingPositionReport(TUESDAY));
   }
 
   @Test
@@ -201,7 +203,7 @@ class TradePrepInputGatesIT {
     positionReport(TUV100, TUESDAY);
     r16(YearMonth.of(2026, 11), TUV100);
 
-    assertThat(gates.failures(TUV100, WEDNESDAY)).containsExactly(new MissingR45(WEDNESDAY, null));
+    assertThat(gates.failures(TUV100, WEDNESDAY)).containsExactly(new NoR45Loaded(WEDNESDAY));
   }
 
   @Test

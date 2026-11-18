@@ -950,6 +950,8 @@ class TransactionPreparationServiceTest {
                 TUK75,
                 LocalDate.of(2026, 11, 18),
                 List.of(
+                    new InputGateFailure.StalePositionReport(
+                        LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 17)),
                     new InputGateFailure.MissingR45(
                         LocalDate.of(2026, 11, 18), LocalDate.of(2026, 11, 17)))))
         .given(inputGates)
@@ -959,6 +961,11 @@ class TransactionPreparationServiceTest {
 
     assertThat(result).isNull();
     assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getErrorMessage())
+        .isEqualTo(
+            "Trade prep inputs missing or stale, no DRAFT made: fund=TUK75, asOfDate=2026-11-18:"
+                + " SEB positsiooniraport on 2026-11-13, vaja 2026-11-17: küsi 2026-11-17 raport"
+                + " SEB-lt; R45 2026-11-18 puudub (viimane 2026-11-17): lae R45 EPIS-ist");
     assertThat(command.getBatchId()).isNull();
     assertThat(command.getProcessedAt()).isEqualTo(Instant.parse("2026-11-18T08:00:00Z"));
     verifyNoInteractions(inputService, calculationEngine, batchRepository, orderRepository);

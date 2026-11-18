@@ -50,6 +50,6 @@ class UserDetailsUpdaterSpec extends Specification {
     service.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, person, grantType, tokens))
 
     then:
-    1 * userService.updateUser(user.personalCode, Optional.of(contactSummary.email()), contactSummary.phoneNumber())
+    1 * userService.fillMissingContactDetails(user.personalCode, Optional.of(contactSummary.email()), contactSummary.phoneNumber())
   }
 }

@@ -159,7 +159,7 @@ class UserControllerSpec extends BaseControllerSpec {
     def samplePaymentRates = new PaymentRates(2, 6)
 
     1 * userService
-        .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
+        .changeContactDetails(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
         updatedUser
     1 * userContacts.update(updatedUser, updatedUser.email, updatedUser.phoneNumber, command.address) >>
         contactSummary
@@ -197,7 +197,7 @@ class UserControllerSpec extends BaseControllerSpec {
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
 
     1 * userService
-        .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
+        .changeContactDetails(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
         updatedUser
     0 * userContacts.update(_, _, _, _)
 
@@ -234,7 +234,7 @@ class UserControllerSpec extends BaseControllerSpec {
             .contentType(MediaType.APPLICATION_JSON))
 
     then:
-    0 * userService.updateUser(*_)
+    0 * userService.changeContactDetails(*_)
     performCall.andExpect(status().isBadRequest())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.errors', hasSize(1)))

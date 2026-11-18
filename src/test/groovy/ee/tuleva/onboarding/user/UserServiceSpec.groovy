@@ -80,23 +80,23 @@ class UserServiceSpec extends Specification {
     thrown(IllegalStateException)
   }
 
-  def "can update user email and phone number based on personal code"() {
+  def "changes user email and phone number based on personal code"() {
     given:
     def user = sampleUser().build()
     userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
-    def newEmail = "erko@risthein.ee"
+    def newEmail = "new@example.com"
     userRepository.findByEmail(newEmail) >> Optional.empty()
 
     when:
-    def updatedUser = service.updateUser(user.personalCode, Optional.of(newEmail), "555555")
+    def updatedUser = service.changeContactDetails(user.personalCode, newEmail, "555555")
 
     then:
     updatedUser.email == newEmail
     updatedUser.phoneNumber == "555555"
   }
 
-  def "will get a clear exception when duplicate e-mail"() {
+  def "changing contact details to an e-mail of another user throws a clear exception"() {
     given:
     def user = sampleUser().build()
     userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
@@ -107,18 +107,77 @@ class UserServiceSpec extends Specification {
     userRepository.findByEmail(newEmail) >> Optional.of(userWithExistingEmail)
 
     when:
-    service.updateUser(user.personalCode, Optional.of(newEmail), "555555")
+    service.changeContactDetails(user.personalCode, newEmail, "555555")
 
     then:
     thrown(DuplicateEmailException)
   }
 
-  def "throws when updating a user that does not exist"() {
+  def "throws when changing contact details of a user that does not exist"() {
+    given:
+    userRepository.findByPersonalCode(personalCodeSample) >> Optional.empty()
+    userRepository.findByEmail("new@example.com") >> Optional.empty()
+
+    when:
+    service.changeContactDetails(personalCodeSample, "new@example.com", null)
+
+    then:
+    def exception = thrown(RuntimeException)
+    exception.class == RuntimeException
+  }
+
+  def "fills in missing email and phone number based on personal code"() {
+    given:
+    def user = sampleUser().email(null).phoneNumber(null).build()
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.save(user) >> user
+    def newEmail = "new@example.com"
+    userRepository.findByEmail(newEmail) >> Optional.empty()
+
+    when:
+    def updatedUser = service.fillMissingContactDetails(user.personalCode, Optional.of(newEmail), "555555")
+
+    then:
+    updatedUser.email == newEmail
+    updatedUser.phoneNumber == "555555"
+  }
+
+  def "fills in only the phone number when no email is given"() {
+    given:
+    def user = sampleUser().email(null).phoneNumber(null).build()
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.save(user) >> user
+
+    when:
+    def updatedUser = service.fillMissingContactDetails(user.personalCode, Optional.empty(), "555555")
+
+    then:
+    updatedUser.email == null
+    updatedUser.phoneNumber == "555555"
+  }
+
+  def "filling in an e-mail of another user throws a clear exception"() {
+    given:
+    def user = sampleUser().email(null).phoneNumber(null).build()
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+
+    def userWithExistingEmail = simpleUser().build()
+    def newEmail = userWithExistingEmail.email
+    userRepository.findByEmail(newEmail) >> Optional.of(userWithExistingEmail)
+
+    when:
+    service.fillMissingContactDetails(user.personalCode, Optional.of(newEmail), "555555")
+
+    then:
+    thrown(DuplicateEmailException)
+  }
+
+  def "throws when filling in contact details of a user that does not exist"() {
     given:
     userRepository.findByPersonalCode(personalCodeSample) >> Optional.empty()
 
     when:
-    service.updateUser(personalCodeSample, Optional.empty(), null)
+    service.fillMissingContactDetails(personalCodeSample, Optional.empty(), null)
 
     then:
     def exception = thrown(RuntimeException)

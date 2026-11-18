@@ -36,6 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionPreparationServiceTest {
@@ -918,6 +920,17 @@ class TransactionPreparationServiceTest {
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
     verify(commandRepository).save(command);
+  }
+
+  @Test
+  void processCommand_readsTheGatesAndEveryInputFromOneSnapshotSoAReuploadMidRunCannotMixVersions()
+      throws NoSuchMethodException {
+    Transactional transactional =
+        TransactionPreparationService.class
+            .getMethod("processCommand", TransactionCommand.class)
+            .getAnnotation(Transactional.class);
+
+    assertThat(transactional.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
   }
 
   @Test

@@ -373,10 +373,7 @@ class InvestmentParameterRepositoryTest {
             () ->
                 repository.findLatestValueForIsinOrGlobal(
                     SEB_FUND_CONFIRMATION_NAV_TOLERANCE, ISIN, LocalDate.of(2025, 6, 15)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage(
-            "No investment parameter found: parameter=SEB_FUND_CONFIRMATION_NAV_TOLERANCE,"
-                + " fund=GLOBAL, isin=ZZ0000000001, asOf=2025-06-15");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   private void insert(

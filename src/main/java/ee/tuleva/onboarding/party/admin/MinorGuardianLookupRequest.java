@@ -9,7 +9,7 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public record MinorGuardianLookupRequest(
     @ValidPersonalCode String requesterPersonalCode,
-    @NotNull @Min(1) @Max(MinorGuardianLookupRequest.MAX_BATCH_SIZE) Integer batchSize) {
+    @NotNull @Min(1) @Max(MAX_BATCH_SIZE) Integer batchSize) {
 
   static final int MAX_BATCH_SIZE = 1000;
 }

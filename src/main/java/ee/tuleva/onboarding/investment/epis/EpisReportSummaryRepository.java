@@ -19,6 +19,9 @@ public interface EpisReportSummaryRepository extends JpaRepository<EpisReportSum
 
   List<EpisReportSummary> findByReportId(Long reportId);
 
+  List<EpisReportSummary> findByReportTypeAndReportDate(
+      ReportType reportType, LocalDate reportDate);
+
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query("delete from EpisReportSummary s where s.reportId = :reportId")
   void deleteByReportId(@Param("reportId") Long reportId);

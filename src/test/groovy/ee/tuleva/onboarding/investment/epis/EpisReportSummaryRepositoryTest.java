@@ -74,6 +74,19 @@ class EpisReportSummaryRepositoryTest {
     assertThat(latest).isEmpty();
   }
 
+  @Test
+  void findByReportTypeAndReportDate_returnsOnlyThatDaysRowsOfThatType() {
+    Long yesterdaysR45 = saveInvestmentReport(R45, LocalDate.of(2026, 6, 9));
+    Long todaysR45 = saveInvestmentReport(R45, LocalDate.of(2026, 6, 10));
+    Long todaysR17 = saveInvestmentReport(R17_PEVA, LocalDate.of(2026, 6, 10));
+    repository.save(summary(yesterdaysR45, R45, LocalDate.of(2026, 6, 9)));
+    EpisReportSummary today = repository.save(summary(todaysR45, R45, LocalDate.of(2026, 6, 10)));
+    repository.save(summary(todaysR17, R17_PEVA, LocalDate.of(2026, 6, 10)));
+
+    assertThat(repository.findByReportTypeAndReportDate(R45, LocalDate.of(2026, 6, 10)))
+        .containsExactly(today);
+  }
+
   private EpisReportSummary summary(Long reportId, ReportType reportType, LocalDate reportDate) {
     return EpisReportSummary.builder()
         .reportId(reportId)

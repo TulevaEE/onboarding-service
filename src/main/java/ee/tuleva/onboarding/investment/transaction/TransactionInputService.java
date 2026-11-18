@@ -111,7 +111,7 @@ public class TransactionInputService {
     BigDecimal r16 = r16OutflowReader.read(fund, asOfDate);
     liabilities = liabilities.add(r16);
 
-    BigDecimal r45Net = getR45Net(fund);
+    BigDecimal r45Net = getR45Net(fund, asOfDate);
     liabilities = liabilities.add(ZERO.max(r45Net.negate()));
 
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
@@ -282,14 +282,14 @@ public class TransactionInputService {
     return timeline.sellByReached() ? flows.tradeBufferedLiquidity() : flows.liquidityRequired();
   }
 
-  private BigDecimal getR45Net(TulevaFund fund) {
-    if (r45ReportService.getIncompleteFunds().contains(fund)) {
+  private BigDecimal getR45Net(TulevaFund fund, LocalDate asOfDate) {
+    if (r45ReportService.getIncompleteFundsOn(asOfDate).contains(fund)) {
       throw new IllegalStateException(
           "R45 summary incomplete: fund="
               + fund
               + ", reason=unvalued R45 rows missing NAV, action=supply NAV and reprocess R45");
     }
-    return Optional.ofNullable(r45ReportService.getLatestFlows().get(fund))
+    return Optional.ofNullable(r45ReportService.getFlowsOn(asOfDate).get(fund))
         .map(R45Result::netEur)
         .orElse(ZERO);
   }

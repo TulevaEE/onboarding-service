@@ -23,6 +23,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -60,6 +61,7 @@ class TransactionAdminServiceTest {
   @Mock private TransactionPreparationService preparationService;
   @Mock private TransactionBatchFinalizer batchFinalizer;
   @Mock private TradePrepInputGateNotifier inputGateNotifier;
+  @Mock private EntityManager entityManager;
 
   @InjectMocks private TransactionAdminService service;
 
@@ -165,6 +167,22 @@ class TransactionAdminServiceTest {
   private static CommandOutcome.StoppedByInputGates stopped(TulevaFund fund) {
     return new CommandOutcome.StoppedByInputGates(
         fund, AS_OF_DATE, List.of(new InputGateFailure.NoR45Loaded(AS_OF_DATE)));
+  }
+
+  @Test
+  void createAndProcessAll_startsEveryFundsCommandFromAnEmptyPersistenceContext() {
+    given(preparationService.processCommand(any()))
+        .willReturn(new ProcessCommandResult(batch(10L, DRAFT), List.of()));
+
+    service.createAndProcessAll(List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin", Map.of());
+
+    InOrder inOrder = inOrder(entityManager, commandRepository, preparationService);
+    then(entityManager).should(inOrder).clear();
+    then(commandRepository).should(inOrder).save(any());
+    then(preparationService).should(inOrder).processCommand(any());
+    then(entityManager).should(inOrder).clear();
+    then(commandRepository).should(inOrder).save(any());
+    then(preparationService).should(inOrder).processCommand(any());
   }
 
   @Test

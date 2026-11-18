@@ -63,10 +63,17 @@ public class PriorityPriceProvider {
         .filter(Optional::isPresent)
         .map(Optional::get)
         .filter(fundValue -> fundValue.value().compareTo(ZERO) != 0)
+        .filter(fundValue -> !isEodhdLastTradeOfAParisListing(instrument, fundValue))
         .filter(fundValue -> !fundValue.date().isBefore(earliestAllowed))
         .max(
             Comparator.comparing(FundValue::date)
                 .thenComparing(fundValue -> providerPriority(fundValue.provider())));
+  }
+
+  private static boolean isEodhdLastTradeOfAParisListing(
+      InstrumentReference instrument, FundValue fundValue) {
+    return instrument.getEuronextParisStorageKey().isPresent()
+        && instrument.getEodhdStorageKey().filter(fundValue.key()::equals).isPresent();
   }
 
   private Optional<FundValue> fetchLatestValue(

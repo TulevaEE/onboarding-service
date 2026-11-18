@@ -324,10 +324,11 @@ class NavCalculationIntegrationTest {
       Instant updatedAt = priceDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
       entityManager
           .createNativeQuery(
-              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, 'EODHD', :updatedAt)")
+              "INSERT INTO index_values (key, date, value, provider, updated_at) VALUES (:key, :date, :value, :provider, :updatedAt)")
           .setParameter("key", parts[0])
           .setParameter("date", priceDate)
           .setParameter("value", new BigDecimal(parts[2]))
+          .setParameter("provider", parts[3])
           .setParameter("updatedAt", java.sql.Timestamp.from(updatedAt))
           .executeUpdate();
     }

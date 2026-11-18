@@ -39,9 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 class SebPriceVsNavCheckIT {
 
   private static final String ISIN = "IE000F60HVH9";
-  // AMUNDI_USA_SCREENED EODHD storage key (PositionPriceResolver resolves ISIN -> ticker).
-  private static final String STORAGE_KEY = "USAS.PA.EODHD";
-  private static final String PROVIDER = "EODHD";
+  private static final String STORAGE_KEY = "IE000F60HVH9.XPAR";
+  private static final String PROVIDER = "EURONEXT";
   private static final LocalDate TRADE_DATE = LocalDate.of(2026, 5, 11);
   private static final Instant TRADE_INSTANT = Instant.parse("2026-05-11T10:26:04Z");
   private static final Instant PRICE_UPDATED_AT = Instant.parse("2026-05-11T18:00:00Z");

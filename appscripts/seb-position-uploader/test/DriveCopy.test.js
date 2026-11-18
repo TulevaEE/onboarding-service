@@ -2026,21 +2026,37 @@ describe("S3 and Drive keep the newest e-mail of each report date", () => {
     expect(JSON.parse(fakes.props["report_source:seb/2026-10-20_positions.csv"]).id).toBe("18f0a00000000001");
   });
 
-  test("Flow Traders confirmations, named by allocation id, keep no e-mail record", () => {
+  const flowTradersEmail = (id, bytes) => ({
+    ...noRecipients,
+    getId: () => id,
+    getDate: () => MORNING,
+    getFrom: () => "Flow Traders <" + SOURCES.FT.senders[0] + ">",
+    getAttachments: () => [{ getName: () => "MID9DSWsDs-00.pdf", getBytes: () => bytes }],
+  });
+
+  test("Flow Traders confirmations, named by allocation id and e-mail, keep no e-mail record", () => {
     const drive = fakeDrive();
-    const confirmation = {
-      ...noRecipients,
-      getId: () => "18f0a00000000003",
-      getDate: () => MORNING,
-      getFrom: () => "Flow Traders <" + SOURCES.FT.senders[0] + ">",
-      getAttachments: () => [{ getName: () => "MID9DSWsDs-00.pdf", getBytes: () => [37, 80, 68, 70] }],
-    };
-    const fakes = fakesWith(drive, [fakeThread([confirmation], [])]);
+    const fakes = fakesWith(drive, [fakeThread([flowTradersEmail("18f0a00000000003", [37, 80, 68, 70])], [])]);
 
     processNewEmails();
 
-    expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00.pdf"]);
+    expect(fakes.s3Keys).toEqual(["ft-confirmations/MID9DSWsDs-00_18f0a00000000003.pdf"]);
     expect(Object.keys(fakes.props).filter((k) => k.startsWith("report_source:"))).toEqual([]);
+  });
+
+  test("a Flow Traders cancellation named like the confirmation it cancels does not overwrite it", () => {
+    const drive = fakeDrive();
+    const fakes = fakesWith(drive, [
+      fakeThread([flowTradersEmail("18f0a00000000005", [67, 65, 78])], []),
+      fakeThread([flowTradersEmail("18f0a00000000004", [84, 82, 68])], []),
+    ]);
+
+    processNewEmails();
+
+    expect(fakes.s3Bodies).toEqual({
+      "ft-confirmations/MID9DSWsDs-00_18f0a00000000005.pdf": "67,65,78",
+      "ft-confirmations/MID9DSWsDs-00_18f0a00000000004.pdf": "84,82,68",
+    });
   });
 });
 

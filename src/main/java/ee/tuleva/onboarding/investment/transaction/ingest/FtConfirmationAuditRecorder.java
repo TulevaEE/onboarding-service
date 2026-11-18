@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
@@ -9,9 +10,11 @@ import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
@@ -52,6 +55,17 @@ class FtConfirmationAuditRecorder {
     return true;
   }
 
+  LocalDate firstSeenOn(FtConfirmation confirmation) {
+    return auditEventRepository
+        .findByEventTypeAndDedupKey(FT_CONFIRMATION_VERIFIED, dedupKey(confirmation))
+        .stream()
+        .map(TransactionAuditEvent::getCreatedAt)
+        .filter(Objects::nonNull)
+        .min(naturalOrder())
+        .map(verifiedAt -> LocalDate.ofInstant(verifiedAt, clock.getZone()))
+        .orElseGet(() -> LocalDate.now(clock));
+  }
+
   boolean alreadyAlerted(FtConfirmation confirmation, FtConfirmationResult result) {
     return auditEventRepository
         .findByEventTypeAndDedupKey(FT_CONFIRMATION_ALERTED, dedupKey(confirmation))
@@ -84,7 +98,7 @@ class FtConfirmationAuditRecorder {
         .map(event -> statusPair(event.getPayload()));
   }
 
-  private static String dedupKey(FtConfirmation confirmation) {
+  static String dedupKey(FtConfirmation confirmation) {
     return String.join(
         "|",
         confirmation.fund().name(),

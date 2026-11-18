@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
@@ -74,10 +75,22 @@ class FtConfirmationDigest {
   private static String describe(FtConfirmationOutcome outcome) {
     FtConfirmation confirmation = outcome.confirmation();
     FtConfirmationResult result = outcome.result();
-    if (result.isCancellation()) {
+    if (result.quantityStatus() == UNCHECKED) {
       return String.format(
-          "FT broker cancellation: fund=%s, isin=%s, tradeDate=%s, quantity=%s"
-              + " — verify and cancel in registry",
+          "FT confirmation could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
+              + " error=%s",
+          confirmation.fund().name(),
+          confirmation.isin(),
+          confirmation.tradeDate(),
+          confirmation.quantity().toPlainString(),
+          result.details().get("verificationError"));
+    }
+    if (confirmation.isCancellation()) {
+      return String.format(
+          "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"
+              + " isin=%s, tradeDate=%s,"
+              + " quantity=%s — check with FT; if the trade did not happen, cancel the order in"
+              + " the registry",
           confirmation.fund().name(),
           confirmation.isin(),
           confirmation.tradeDate(),

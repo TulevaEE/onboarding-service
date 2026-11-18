@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.epis.SummaryData.dates;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
@@ -112,6 +113,16 @@ public class R45ReportService {
       latestSummary(fund).ifPresent(summary -> flows.put(fund, toResult(summary)));
     }
     return flows;
+  }
+
+  public boolean hasReportOn(LocalDate reportDate) {
+    return reportRepository.existsByProviderAndReportTypeAndReportDate(EPIS, R45, reportDate);
+  }
+
+  public Optional<LocalDate> latestReportDateBefore(LocalDate date) {
+    return reportRepository
+        .findTopByProviderAndReportTypeAndReportDateLessThanOrderByReportDateDesc(EPIS, R45, date)
+        .map(InvestmentReport::getReportDate);
   }
 
   public Map<TulevaFund, R45Result> getFlowsOn(LocalDate reportDate) {

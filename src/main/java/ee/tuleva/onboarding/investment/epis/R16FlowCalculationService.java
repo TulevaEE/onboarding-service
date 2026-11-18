@@ -48,6 +48,11 @@ public class R16FlowCalculationService {
         dates.sellByDate());
   }
 
+  public boolean isLoaded(YearMonth paymentMonth) {
+    return summaryRepository.existsByReportTypeAndReportDate(
+        R16_FORECASTED_PAYMENTS, paymentMonth.atDay(1));
+  }
+
   public R16PaymentDates paymentDates(YearMonth paymentMonth) {
     LocalDate paymentDeadline =
         estonianCalendar.nextOrSameBusinessDay(paymentMonth.atDay(PAYMENT_DEADLINE_DAY_OF_MONTH));

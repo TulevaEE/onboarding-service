@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
+import static ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisSelfHealJob.SELF_HEAL_DAYS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.maxBy;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
@@ -9,9 +13,15 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,40 +31,121 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class CostBasisOversellAlerter {
 
-  static final String OVERSELL_ALERTED = "COST_BASIS_OVERSELL_ALERTED";
+  static final String OVERSELL_FOUND = "COST_BASIS_OVERSELL_FOUND";
+  static final String OVERSELL_CLEARED = "COST_BASIS_OVERSELL_CLEARED";
+  static final String OVERSELL_POSTED = "COST_BASIS_OVERSELL_POSTED";
+
   private static final String SYSTEM_ACTOR = "system";
+  private static final String FUND = "fund";
+  private static final String INSTRUMENT_ISIN = "instrumentIsin";
+  private static final String AS_OF_DATE = "asOfDate";
+  private static final String HELD_QUANTITY = "heldQuantity";
+  private static final String SELL_QUANTITY = "sellQuantity";
+  private static final String EVENT_ID = "eventId";
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final Comparator<TransactionAuditEvent> RECORDING_ORDER =
+      comparing(TransactionAuditEvent::getId);
 
   private final TransactionAuditEventRepository auditEventRepository;
   private final OperationsNotificationService notificationService;
   private final Clock clock;
 
-  void alert(TulevaFund fund, CostBasisOversellException oversell) {
-    String dedupKey = dedupKey(fund, oversell);
-    Map<String, Object> payload = payload(fund, oversell);
-    if (alreadyAlerted(dedupKey, payload) || !send(message(fund, oversell), dedupKey)) {
-      return;
-    }
-    record(dedupKey, payload);
-  }
-
-  private boolean alreadyAlerted(String dedupKey, Map<String, Object> payload) {
+  void recordFound(TulevaFund fund, CostBasisOversellException oversell) {
+    String dedupKey =
+        dedupKey(fund.getCode(), oversell.getInstrumentIsin(), oversell.getAsOfDate().toString());
+    Map<String, Object> payload = foundPayload(fund, oversell);
     try {
-      return auditEventRepository.findByEventTypeAndDedupKey(OVERSELL_ALERTED, dedupKey).stream()
-          .max(
-              comparing(TransactionAuditEvent::getCreatedAt)
-                  .thenComparing(TransactionAuditEvent::getId))
-          .map(TransactionAuditEvent::getPayload)
-          .filter(payload::equals)
-          .isPresent();
+      if (latestState(dedupKey).filter(state -> isTheSameOversell(state, payload)).isEmpty()) {
+        save(OVERSELL_FOUND, dedupKey, payload);
+      }
     } catch (RuntimeException e) {
       log.error(
-          "Cost-basis oversell alert history unreadable, alerting again: dedupKey={}, error={}",
+          "Cost-basis oversell not recorded, next self-heal finds it again: dedupKey={},"
+              + " error={}",
           dedupKey,
+          e.getMessage(),
+          e);
+    }
+  }
+
+  void clearResolved(TulevaFund fund, LocalDate from, LocalDate to) {
+    try {
+      openOversells().stream()
+          .filter(found -> fund.getCode().equals(found.getPayload().get(FUND)))
+          .filter(found -> isWithin(asOfDate(found), from, to))
+          .forEach(found -> save(OVERSELL_CLEARED, dedupKey(found), clearedPayload(found)));
+    } catch (RuntimeException e) {
+      log.error(
+          "Resolved cost-basis oversells not cleared, next self-heal retries: fundCode={},"
+              + " error={}",
+          fund.getCode(),
+          e.getMessage(),
+          e);
+    }
+  }
+
+  void postPending() {
+    try {
+      for (TransactionAuditEvent state : unposted()) {
+        if (!send(message(state), dedupKey(state)) || !recordPosted(state)) {
+          return;
+        }
+      }
+    } catch (RuntimeException e) {
+      log.error(
+          "Cost-basis oversell alerts unreadable, next self-heal retries: error={}",
+          e.getMessage(),
+          e);
+    }
+  }
+
+  private boolean recordPosted(TransactionAuditEvent state) {
+    try {
+      save(OVERSELL_POSTED, dedupKey(state), Map.of(EVENT_ID, String.valueOf(state.getId())));
+      return true;
+    } catch (RuntimeException e) {
+      log.error(
+          "Cost-basis oversell alert sent but not recorded, it may repeat: dedupKey={},"
+              + " error={}",
+          dedupKey(state),
           e.getMessage(),
           e);
       return false;
     }
+  }
+
+  private Optional<TransactionAuditEvent> latestState(String dedupKey) {
+    return Stream.concat(
+            auditEventRepository.findByEventTypeAndDedupKey(OVERSELL_FOUND, dedupKey).stream(),
+            auditEventRepository.findByEventTypeAndDedupKey(OVERSELL_CLEARED, dedupKey).stream())
+        .max(RECORDING_ORDER);
+  }
+
+  private List<TransactionAuditEvent> openOversells() {
+    return stateEvents()
+        .collect(groupingBy(CostBasisOversellAlerter::dedupKey, maxBy(RECORDING_ORDER)))
+        .values()
+        .stream()
+        .flatMap(Optional::stream)
+        .filter(CostBasisOversellAlerter::isFound)
+        .toList();
+  }
+
+  private List<TransactionAuditEvent> unposted() {
+    Set<String> postedEventIds =
+        auditEventRepository.findByEventType(OVERSELL_POSTED).stream()
+            .map(posted -> String.valueOf(posted.getPayload().get(EVENT_ID)))
+            .collect(toSet());
+    return stateEvents()
+        .filter(state -> !postedEventIds.contains(String.valueOf(state.getId())))
+        .sorted(RECORDING_ORDER)
+        .toList();
+  }
+
+  private Stream<TransactionAuditEvent> stateEvents() {
+    return Stream.concat(
+        auditEventRepository.findByEventType(OVERSELL_FOUND).stream(),
+        auditEventRepository.findByEventType(OVERSELL_CLEARED).stream());
   }
 
   private boolean send(String message, String dedupKey) {
@@ -63,8 +154,8 @@ class CostBasisOversellAlerter {
       return true;
     } catch (RuntimeException e) {
       log.error(
-          "Failed to send cost-basis oversell alert to Slack, next run retries: dedupKey={},"
-              + " error={}",
+          "Failed to send cost-basis oversell alert to Slack, next self-heal retries:"
+              + " dedupKey={}, error={}",
           dedupKey,
           e.getMessage(),
           e);
@@ -72,54 +163,92 @@ class CostBasisOversellAlerter {
     }
   }
 
-  private void record(String dedupKey, Map<String, Object> payload) {
-    try {
-      auditEventRepository.save(
-          TransactionAuditEvent.builder()
-              .eventType(OVERSELL_ALERTED)
-              .dedupKey(dedupKey)
-              .actor(SYSTEM_ACTOR)
-              .payload(payload)
-              .createdAt(clock.instant())
-              .build());
-    } catch (RuntimeException e) {
-      log.error(
-          "Cost-basis oversell alert sent but not recorded, it may repeat: dedupKey={}, error={}",
-          dedupKey,
-          e.getMessage(),
-          e);
-    }
+  private void save(String eventType, String dedupKey, Map<String, Object> payload) {
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .eventType(eventType)
+            .dedupKey(dedupKey)
+            .actor(SYSTEM_ACTOR)
+            .payload(payload)
+            .createdAt(clock.instant())
+            .build());
   }
 
-  private static String dedupKey(TulevaFund fund, CostBasisOversellException oversell) {
-    return fund.getCode() + " " + oversell.getInstrumentIsin() + " " + oversell.getAsOfDate();
+  private static boolean isTheSameOversell(
+      TransactionAuditEvent state, Map<String, Object> payload) {
+    return isFound(state) && payload.equals(state.getPayload());
   }
 
-  private static Map<String, Object> payload(TulevaFund fund, CostBasisOversellException oversell) {
+  private static boolean isFound(TransactionAuditEvent state) {
+    return OVERSELL_FOUND.equals(state.getEventType());
+  }
+
+  private static boolean isWithin(LocalDate date, LocalDate from, LocalDate to) {
+    return !date.isBefore(from) && !date.isAfter(to);
+  }
+
+  private static LocalDate asOfDate(TransactionAuditEvent state) {
+    return LocalDate.parse(String.valueOf(state.getPayload().get(AS_OF_DATE)));
+  }
+
+  private static String dedupKey(TransactionAuditEvent state) {
+    Map<String, Object> payload = state.getPayload();
+    return dedupKey(
+        String.valueOf(payload.get(FUND)),
+        String.valueOf(payload.get(INSTRUMENT_ISIN)),
+        String.valueOf(payload.get(AS_OF_DATE)));
+  }
+
+  private static String dedupKey(String fundCode, String instrumentIsin, String asOfDate) {
+    return fundCode + " " + instrumentIsin + " " + asOfDate;
+  }
+
+  private static Map<String, Object> foundPayload(
+      TulevaFund fund, CostBasisOversellException oversell) {
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("fund", fund.getCode());
-    payload.put("instrumentIsin", oversell.getInstrumentIsin());
-    payload.put("asOfDate", oversell.getAsOfDate().toString());
-    payload.put("heldQuantity", plain(oversell.getHeldQuantity()));
-    payload.put("sellQuantity", plain(oversell.getSellQuantity()));
+    payload.put(FUND, fund.getCode());
+    payload.put(INSTRUMENT_ISIN, oversell.getInstrumentIsin());
+    payload.put(AS_OF_DATE, oversell.getAsOfDate().toString());
+    payload.put(HELD_QUANTITY, plain(oversell.getHeldQuantity()));
+    payload.put(SELL_QUANTITY, plain(oversell.getSellQuantity()));
     return payload;
   }
 
-  private static String message(TulevaFund fund, CostBasisOversellException oversell) {
+  private static Map<String, Object> clearedPayload(TransactionAuditEvent found) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put(FUND, found.getPayload().get(FUND));
+    payload.put(INSTRUMENT_ISIN, found.getPayload().get(INSTRUMENT_ISIN));
+    payload.put(AS_OF_DATE, found.getPayload().get(AS_OF_DATE));
+    return payload;
+  }
+
+  private static String message(TransactionAuditEvent state) {
+    Map<String, Object> payload = state.getPayload();
+    LocalDate asOfDate = asOfDate(state);
+    String subject =
+        payload.get(FUND)
+            + " soetusmaksumus "
+            + DATE.format(asOfDate)
+            + ": "
+            + payload.get(INSTRUMENT_ISIN);
+    if (!isFound(state)) {
+      return "✅ " + subject + " müük ei ületa enam positsiooni, soetusmaksumus on ümber arvutatud";
+    }
     return String.join(
         "\n",
         "🔴 "
-            + fund.getCode()
-            + " soetusmaksumus "
-            + DATE.format(oversell.getAsOfDate())
-            + ": "
-            + oversell.getInstrumentIsin()
+            + subject
             + " müük "
-            + plain(oversell.getSellQuantity())
+            + payload.get(SELL_QUANTITY)
             + " ühikut, teadaolev positsioon "
-            + plain(oversell.getHeldQuantity()),
-        "Fondi soetusmaksumus ei sisalda seda müüki, kuni see on parandamata",
-        "Leia puuduv ost või vale müügikogus tehinguregistris või algpositsioonis ja paranda see");
+            + payload.get(HELD_QUANTITY),
+        "Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata",
+        "Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see hiljemalt "
+            + DATE.format(lastDayTheSelfHealStillRecalculates(asOfDate)));
+  }
+
+  private static LocalDate lastDayTheSelfHealStillRecalculates(LocalDate asOfDate) {
+    return asOfDate.plusDays(SELF_HEAL_DAYS - 1L);
   }
 
   private static String plain(BigDecimal quantity) {

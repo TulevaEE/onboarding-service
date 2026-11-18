@@ -4,11 +4,14 @@ import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_ALERTED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_CLEARED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
@@ -28,8 +31,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +60,10 @@ class PortfolioCostBasisSelfHealIT {
   @Autowired private TransactionExecutionRepository executionRepository;
   @Autowired private TransactionAuditEventRepository auditEventRepository;
   @Autowired private EntityManager entityManager;
+
+  private final List<Long> seededBatchIds = new ArrayList<>();
+  private final List<Long> seededOrderIds = new ArrayList<>();
+  private final List<Long> seededExecutionIds = new ArrayList<>();
 
   @BeforeEach
   void clean() {
@@ -99,41 +109,74 @@ class PortfolioCostBasisSelfHealIT {
   }
 
   @Test
-  void aSaleLargerThanTheKnownPositionStopsTheRebuildAndIsPostedToTheInvestmentChannelOnce() {
-    seedBaseline();
+  @Transactional(propagation = NOT_SUPPORTED)
+  void aSaleLargerThanTheKnownPositionRollsTheFundBackIsPostedOnceAndClearsWhenCorrected() {
     LocalDate tradeDate = LocalDate.of(2026, 5, 1);
-    seedExecutionOnDate(SELL, tradeDate, "150000.0000", "12.00000000");
-    Clock clock = Clock.fixed(Instant.parse("2026-05-02T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
-    RecordingNotificationService notifications = new RecordingNotificationService();
-    PortfolioCostBasisSelfHealJob job =
-        new PortfolioCostBasisSelfHealJob(
-            clock,
-            service,
-            baselineRepository,
-            new CostBasisOversellAlerter(auditEventRepository, notifications, clock));
+    try {
+      seedBaseline();
+      TransactionExecution sale =
+          seedExecutionOnDate(SELL, tradeDate, "150000.0000", "12.00000000");
+      Clock clock = Clock.fixed(Instant.parse("2026-05-02T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
+      RecordingNotificationService notifications = new RecordingNotificationService();
+      PortfolioCostBasisSelfHealJob job =
+          new PortfolioCostBasisSelfHealJob(
+              clock,
+              service,
+              baselineRepository,
+              new CostBasisOversellAlerter(auditEventRepository, notifications, clock));
 
-    job.runForRange(tradeDate, tradeDate);
-    job.runForRange(tradeDate, tradeDate);
+      job.runForRange(tradeDate, tradeDate);
+      job.runForRange(tradeDate, tradeDate);
 
-    assertThat(notifications.sent())
-        .containsExactly(
-            new Sent(
-                """
-                🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
-                Fondi soetusmaksumus ei sisalda seda müüki, kuni see on parandamata
-                Leia puuduv ost või vale müügikogus tehinguregistris või algpositsioonis ja paranda see""",
-                INVESTMENT));
-    assertThat(auditEventRepository.findByEventType(OVERSELL_ALERTED))
-        .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
-        .containsExactly(
-            tuple(
-                "TUK75 IE00BFNM3G45 2026-05-01",
-                Map.of(
-                    "fund", "TUK75",
-                    "instrumentIsin", INSTRUMENT_ISIN,
-                    "asOfDate", "2026-05-01",
-                    "heldQuantity", "100000",
-                    "sellQuantity", "150000")));
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, tradeDate)).isEmpty();
+      assertThat(notifications.sent())
+          .containsExactly(
+              new Sent(
+                  """
+                  🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
+                  Fondi soetusmaksumus on sellest päevast alates vale, kuni see on parandamata
+                  Leia puuduv ost või vale müügikogus tehinguregistris ja paranda see hiljemalt 14.05.2026""",
+                  INVESTMENT));
+      assertThat(auditEventRepository.findByEventType(OVERSELL_FOUND))
+          .extracting(TransactionAuditEvent::getDedupKey, TransactionAuditEvent::getPayload)
+          .containsExactly(
+              tuple(
+                  "TUK75 IE00BFNM3G45 2026-05-01",
+                  Map.of(
+                      "fund", "TUK75",
+                      "instrumentIsin", INSTRUMENT_ISIN,
+                      "asOfDate", "2026-05-01",
+                      "heldQuantity", "100000",
+                      "sellQuantity", "150000")));
+
+      sale.setExecutedQuantity(new BigDecimal("90000.0000"));
+      executionRepository.save(sale);
+      job.runForRange(tradeDate, tradeDate);
+
+      assertThat(costBasisRepository.findByFundIsinAndAsOfDate(FUND_ISIN, tradeDate))
+          .extracting(PortfolioCostBasis::getQuantity)
+          .containsExactly(new BigDecimal("10000.0000"));
+      assertThat(notifications.sent())
+          .extracting(Sent::message)
+          .last()
+          .isEqualTo(
+              "✅ TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük ei ületa enam positsiooni,"
+                  + " soetusmaksumus on ümber arvutatud");
+    } finally {
+      deleteCommittedRows();
+    }
+  }
+
+  private void deleteCommittedRows() {
+    auditEventRepository.deleteAll(
+        Stream.of(OVERSELL_FOUND, OVERSELL_CLEARED, OVERSELL_POSTED)
+            .flatMap(type -> auditEventRepository.findByEventType(type).stream())
+            .toList());
+    costBasisRepository.deleteAll();
+    baselineRepository.deleteAll();
+    executionRepository.deleteAllById(seededExecutionIds);
+    orderRepository.deleteAllById(seededOrderIds);
+    batchRepository.deleteAllById(seededBatchIds);
   }
 
   private void seedBaseline() {
@@ -149,15 +192,15 @@ class PortfolioCostBasisSelfHealIT {
             .quantity(new BigDecimal("100000.0000"))
             .avgUnitCost(new BigDecimal("10.00000000"))
             .build());
-    baselineRepository.save(baseline);
-    entityManager.flush();
+    baselineRepository.saveAndFlush(baseline);
   }
 
   private void seedBuyOnDate(LocalDate date, String qty, String price) {
     seedExecutionOnDate(BUY, date, qty, price);
   }
 
-  private void seedExecutionOnDate(TransactionType side, LocalDate date, String qty, String price) {
+  private TransactionExecution seedExecutionOnDate(
+      TransactionType side, LocalDate date, String qty, String price) {
     TransactionBatch batch =
         batchRepository.save(TransactionBatch.builder().fund(TUK75).createdBy("test").build());
     TransactionOrder order =
@@ -187,7 +230,10 @@ class PortfolioCostBasisSelfHealIT {
             .source("SEB_OOTEL")
             .reportedDate(date)
             .build();
-    executionRepository.save(exec);
-    entityManager.flush();
+    TransactionExecution saved = executionRepository.saveAndFlush(exec);
+    seededBatchIds.add(batch.getId());
+    seededOrderIds.add(order.getId());
+    seededExecutionIds.add(saved.getId());
+    return saved;
   }
 }

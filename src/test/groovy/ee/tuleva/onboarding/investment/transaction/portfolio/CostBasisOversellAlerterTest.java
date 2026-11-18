@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction.portfolio;
 
-import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_ALERTED;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_CLEARED;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_FOUND;
+import static ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisOversellAlerter.OVERSELL_POSTED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEventRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -16,6 +20,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +33,12 @@ class CostBasisOversellAlerterTest {
 
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-05-02T00:30:00Z"), ZoneId.of("Europe/Tallinn"));
+  private static final LocalDate TRADE_DATE = LocalDate.of(2026, 5, 1);
   private static final CostBasisOversellException OVERSELL =
       new CostBasisOversellException(
           TUK75.getIsin(),
           "IE00BFNM3G45",
-          LocalDate.of(2026, 5, 1),
+          TRADE_DATE,
           new BigDecimal("100000"),
           new BigDecimal("150000"));
 
@@ -46,30 +53,58 @@ class CostBasisOversellAlerterTest {
   }
 
   @Test
-  void anUnreadableAlertHistoryStillPostsTheOversell() {
-    given(
-            auditEventRepository.findByEventTypeAndDedupKey(
-                OVERSELL_ALERTED, "TUK75 IE00BFNM3G45 2026-05-01"))
+  void anUnreadableAlertHistoryWhileRecordingDoesNotStopTheRun() {
+    given(auditEventRepository.findByEventTypeAndDedupKey(anyString(), anyString()))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    alerter.alert(TUK75, OVERSELL);
-
-    verify(notificationService)
-        .sendMessage(
-            """
-            🔴 TUK75 soetusmaksumus 01.05.2026: IE00BFNM3G45 müük 150000 ühikut, teadaolev positsioon 100000
-            Fondi soetusmaksumus ei sisalda seda müüki, kuni see on parandamata
-            Leia puuduv ost või vale müügikogus tehinguregistris või algpositsioonis ja paranda see""",
-            INVESTMENT);
+    assertThatCode(() -> alerter.recordFound(TUK75, OVERSELL)).doesNotThrowAnyException();
   }
 
   @Test
-  void aPostedOversellThatCannotBeRecordedDoesNotStopTheRun() {
+  void anUnreadableAlertHistoryWhileClearingDoesNotStopTheRun() {
+    given(auditEventRepository.findByEventType(OVERSELL_FOUND))
+        .willThrow(new IllegalStateException("database unavailable"));
+
+    assertThatCode(() -> alerter.clearResolved(TUK75, TRADE_DATE, TRADE_DATE))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void anUnreadableAlertHistoryWhilePostingDoesNotStopTheRun() {
+    given(auditEventRepository.findByEventType(OVERSELL_POSTED))
+        .willThrow(new IllegalStateException("database unavailable"));
+
+    assertThatCode(() -> alerter.postPending()).doesNotThrowAnyException();
+
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aPostedAlertThatCannotBeRecordedHoldsBackTheRestSoTheOrderIsKept() {
+    given(auditEventRepository.findByEventType(OVERSELL_POSTED)).willReturn(List.of());
+    given(auditEventRepository.findByEventType(OVERSELL_FOUND))
+        .willReturn(List.of(found(1L, "2026-05-01"), found(2L, "2026-05-04")));
+    given(auditEventRepository.findByEventType(OVERSELL_CLEARED)).willReturn(List.of());
     given(auditEventRepository.save(any()))
         .willThrow(new IllegalStateException("database unavailable"));
 
-    assertThatCode(() -> alerter.alert(TUK75, OVERSELL)).doesNotThrowAnyException();
+    assertThatCode(() -> alerter.postPending()).doesNotThrowAnyException();
 
-    verify(notificationService).sendMessage(anyString(), any());
+    verify(notificationService, times(1)).sendMessage(anyString(), any());
+  }
+
+  private static TransactionAuditEvent found(long id, String asOfDate) {
+    return TransactionAuditEvent.builder()
+        .id(id)
+        .eventType(OVERSELL_FOUND)
+        .dedupKey("TUK75 IE00BFNM3G45 " + asOfDate)
+        .payload(
+            Map.of(
+                "fund", "TUK75",
+                "instrumentIsin", "IE00BFNM3G45",
+                "asOfDate", asOfDate,
+                "heldQuantity", "100000",
+                "sellQuantity", "150000"))
+        .build();
   }
 }

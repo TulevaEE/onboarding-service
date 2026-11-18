@@ -160,6 +160,32 @@ class BreachMessageFormatterTest {
   }
 
   @Test
+  void aHoldingsVsBenchmarkBreachOpensAsANoticeSinceTheSisekordSetsItNoLimit() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(List.of())
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message)
+        .startsWith("\n⚠️ [TUK75] BENCHMARK_MODEL 2026-09-01: TD=")
+        .doesNotContain("🛑");
+  }
+
+  @Test
+  void aModelPortfolioBreachOpensAsABreachSinceTheSisekordSetsItALimit() {
+    var message =
+        new BreachMessageFormatter(tuk75On20260901(), false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message).startsWith("\n🛑 [TUK75] MODEL_PORTFOLIO 2026-09-01: TD=");
+  }
+
+  @Test
   void saysSoWhenNoHoldingMovedInPriceEither() {
     var frozen =
         tuk75On20260901().toBuilder()

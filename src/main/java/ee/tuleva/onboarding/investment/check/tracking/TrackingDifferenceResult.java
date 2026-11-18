@@ -47,4 +47,8 @@ record TrackingDifferenceResult(
   boolean hasAnyBreach() {
     return breach() || navResidualBreach();
   }
+
+  BreachSeverity breachSeverity() {
+    return BreachSeverity.of(checkType);
+  }
 }

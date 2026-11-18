@@ -67,8 +67,9 @@ final class GapFillSummaryFormatter {
   }
 
   private static String formatBreach(TrackingDifferenceResult result) {
-    return "\n  🛑 %s %s %s: TD=%s%%, %d consecutive days"
+    return "\n  %s %s %s %s: TD=%s%%, %d consecutive days"
         .formatted(
+            result.breachSeverity().icon(),
             result.checkDate(),
             result.fund().getCode(),
             result.checkType(),

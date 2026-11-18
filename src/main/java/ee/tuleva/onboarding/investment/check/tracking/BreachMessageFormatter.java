@@ -40,8 +40,9 @@ class BreachMessageFormatter {
 
   private void appendHeader() {
     sb.append(
-        "\n🛑 [%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
+        "\n%s [%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
             .formatted(
+                result.breachSeverity().icon(),
                 result.fund(),
                 result.checkType(),
                 result.checkDate(),

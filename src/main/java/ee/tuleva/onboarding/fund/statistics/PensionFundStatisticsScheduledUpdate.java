@@ -21,4 +21,13 @@ public class PensionFundStatisticsScheduledUpdate {
   public void refresh() {
     pensionFundStatisticsService.refreshCachedStatistics();
   }
+
+  @Scheduled(cron = "0 17 16 * * MON-FRI", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "PensionFundStatisticsScheduledUpdate_refreshAfterThirdPillarNavDeadline",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "1m")
+  public void refreshAfterThirdPillarNavDeadline() {
+    pensionFundStatisticsService.refreshCachedStatistics();
+  }
 }

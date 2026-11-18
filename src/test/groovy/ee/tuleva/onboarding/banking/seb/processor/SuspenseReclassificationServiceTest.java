@@ -120,6 +120,24 @@ class SuspenseReclassificationServiceTest {
   }
 
   @Test
+  void reclassify_leavesAManagerBookDebitStatedAsAKickbackInSuspense() {
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("-100.00"),
+        randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new UnclassifiedEntryDetails(
+            "Tuleva Fondid AS", "EE001234567890123488", "Kickback 02/2026", "BOOK"));
+
+    var result = service.reclassify(TUK75);
+
+    assertThat(result).isEqualTo(new SuspenseReclassificationService.ReclassificationResult(0, 1));
+    assertThat(balance(SystemAccount.MANAGEMENT_FEE_REBATE)).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(balance(UNCLASSIFIED_BANK_ENTRY)).isEqualByComparingTo(new BigDecimal("100.00"));
+  }
+
+  @Test
   void reclassify_movesAManagerDebitStatedAsAManagementFeeOutOfSuspense() {
     parkManagerEntry("-742.34", "TUK75 valitsemistasu 02/2026");
 

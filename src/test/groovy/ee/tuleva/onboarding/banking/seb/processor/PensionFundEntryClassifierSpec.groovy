@@ -102,6 +102,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "legacy bank service invoice"            | entry("ESCT", -140.00, "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3")       | new BankFee()
     "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
+    "detail-less kickback debit goes to suspense" | entry("BOOK", -4370.58, null, null, "Management fee kickback VP00001") | new Unclassified("subFamilyCode=BOOK")
+    "management company kickback debit goes to suspense" | entry("BOOK", -100.00, "Tuleva Fondid AS", OTHER_IBAN, "Kickback 02/2026") | new UnrecognisedManagementCompanyDebit()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
     "management company zero amount not stated as a rebate goes to suspense" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne") | new UnrecognisedManagementCompanyCredit()
     "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()

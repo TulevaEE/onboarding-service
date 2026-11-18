@@ -147,7 +147,9 @@ public class PensionFundEntryClassifier {
   }
 
   private static boolean isKickbackBooking(String code, BankStatementEntry entry) {
-    return "BOOK".equals(code) && isKickback(entry.remittanceInformation());
+    return "BOOK".equals(code)
+        && entry.amount().signum() > 0
+        && isKickback(entry.remittanceInformation());
   }
 
   private static boolean isKickback(@Nullable String remittanceInformation) {

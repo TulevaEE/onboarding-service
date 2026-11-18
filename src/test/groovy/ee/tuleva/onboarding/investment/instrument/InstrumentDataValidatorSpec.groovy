@@ -312,6 +312,25 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
   }
 
+  def "does not count EODHD's last trade as a price day for a Paris-listed ETF, which is never priced at it"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(active: true, isin: isin1, eodhdTicker: "USAS.PA.EODHD"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+    fundValueProvider.getValueForDate("USAS.PA.EODHD", _ as LocalDate) >> Optional.of(Mock(FundValue))
+    fundValueProvider.getValueForDate(_ as String, _ as LocalDate) >> Optional.empty()
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
+  }
+
   def "no price history check when effective date is today or past"() {
     given:
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]

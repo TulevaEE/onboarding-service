@@ -48,6 +48,18 @@ class InstrumentReferenceSpec extends Specification {
     instrument(eodhdListed: true, eodhdTicker: null).getEodhdStorageKey() == Optional.empty()
   }
 
+  def "getEodhdPricingStorageKey is the EODHD key for an instrument not listed on Euronext Paris"() {
+    expect:
+    instrument(eodhdListed: true, eodhdTicker: "EUNL.XETRA").getEodhdPricingStorageKey() ==
+        Optional.of("EUNL.XETRA")
+  }
+
+  def "getEodhdPricingStorageKey is empty for a Paris-listed ETF, which is priced at the Euronext close"() {
+    expect:
+    instrument(isin: "FR0013209921", eodhdListed: true, eodhdTicker: "WLXU.PA.EODHD")
+        .getEodhdPricingStorageKey() == Optional.empty()
+  }
+
   def "getXetraStorageKey returns ISIN.XETR for Xetra instruments"() {
     expect:
     instrument(isin: "IE00B4L5Y983", eodhdTicker: "EUNL.XETRA").getXetraStorageKey() ==

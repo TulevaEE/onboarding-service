@@ -63,6 +63,13 @@ public class InstrumentReference {
     return Optional.empty();
   }
 
+  public Optional<String> getEodhdPricingStorageKey() {
+    if (getEuronextParisStorageKey().isPresent()) {
+      return Optional.empty();
+    }
+    return getEodhdStorageKey();
+  }
+
   public Optional<String> getXetraStorageKey() {
     if (eodhdTicker != null && eodhdTicker.endsWith(".XETRA")) {
       return Optional.of(isin + ".XETR");

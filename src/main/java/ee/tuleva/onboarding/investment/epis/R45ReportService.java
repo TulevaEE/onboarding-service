@@ -109,23 +109,33 @@ public class R45ReportService {
   public Map<TulevaFund, R45Result> getLatestFlows() {
     Map<TulevaFund, R45Result> flows = new LinkedHashMap<>();
     for (TulevaFund fund : TulevaFund.values()) {
-      latestSummary(fund)
-          .ifPresent(
-              summary ->
-                  flows.put(
-                      fund,
-                      new R45Result(
-                          number(summary.getData(), "inflowEur"),
-                          number(summary.getData(), "outflowEur"),
-                          number(summary.getData(), "netEur"))));
+      latestSummary(fund).ifPresent(summary -> flows.put(fund, toResult(summary)));
     }
     return flows;
   }
 
-  public List<TulevaFund> getIncompleteFunds() {
-    return Arrays.stream(TulevaFund.values())
-        .filter(fund -> latestSummary(fund).map(summary -> !summary.getComplete()).orElse(false))
+  public Map<TulevaFund, R45Result> getFlowsOn(LocalDate reportDate) {
+    Map<TulevaFund, R45Result> flows = new LinkedHashMap<>();
+    summariesOn(reportDate).forEach(summary -> flows.put(summary.getFund(), toResult(summary)));
+    return flows;
+  }
+
+  public List<TulevaFund> getIncompleteFundsOn(LocalDate reportDate) {
+    return summariesOn(reportDate).stream()
+        .filter(summary -> !summary.getComplete())
+        .map(EpisReportSummary::getFund)
         .toList();
+  }
+
+  private List<EpisReportSummary> summariesOn(LocalDate reportDate) {
+    return summaryRepository.findByReportTypeAndReportDate(R45, reportDate);
+  }
+
+  private static R45Result toResult(EpisReportSummary summary) {
+    return new R45Result(
+        number(summary.getData(), "inflowEur"),
+        number(summary.getData(), "outflowEur"),
+        number(summary.getData(), "netEur"));
   }
 
   public List<LocalDate> getLatestRedRowSettlementDates(TulevaFund fund) {

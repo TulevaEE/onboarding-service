@@ -225,7 +225,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -255,7 +255,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -859,7 +859,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetOutflow_addsAbsoluteNetToLiabilities() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -876,7 +876,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetInflow_addsNothingToInvestableCash() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -893,7 +893,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45DataMissingForFund_addsNothing() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -904,7 +904,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45SummaryIncomplete_throwsToBlockTradeSizing() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getIncompleteFunds()).willReturn(List.of(TUV100));
+    given(r45ReportService.getIncompleteFundsOn(AS_OF_DATE)).willReturn(List.of(TUV100));
 
     assertThatThrownBy(() -> service.gatherInput(TUV100, AS_OF_DATE, Map.of()))
         .isInstanceOf(IllegalStateException.class)
@@ -914,7 +914,7 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_r45NetOutflowCombinesWithManualAdjustments() {
     stubEmptyBaseline(TUV100);
-    given(r45ReportService.getLatestFlows())
+    given(r45ReportService.getFlowsOn(AS_OF_DATE))
         .willReturn(
             Map.of(
                 TUV100,
@@ -1065,7 +1065,7 @@ class TransactionInputServiceTest {
                 fundIsinRow("Total receivables of unsettled transactions", "20000"),
                 fundIsinRow("Receivables of outstanding units", "8000"),
                 custodianRow(RECEIVABLES, "Other receivables", "500")));
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(DAY_AFTER_THE_REPORT)).willReturn(Map.of());
     givenRegistrarReceiptsAfterTheReport(TUV100, "8000");
 
     var result = service.gatherInput(TUV100, DAY_AFTER_THE_REPORT, Map.of());
@@ -1414,7 +1414,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1462,7 +1462,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1499,7 +1499,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+    given(r45ReportService.getFlowsOn(AS_OF_DATE)).willReturn(Map.of());
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 

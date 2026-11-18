@@ -258,6 +258,35 @@ class R45ReportServiceTest {
   }
 
   @Test
+  void flowsOnADayComeOnlyFromThatDaysReport() {
+    given(summaryRepository.findByReportTypeAndReportDate(R45, TODAY))
+        .willReturn(
+            List.of(
+                summary(
+                    TUK75, Map.of("inflowEur", 1500.00, "outflowEur", 500.00, "netEur", 1000.00))));
+
+    Map<TulevaFund, R45Result> flows = service.getFlowsOn(TODAY);
+
+    assertThat(flows).containsOnlyKeys(TUK75);
+    assertThat(flows.get(TUK75))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new R45Result(
+                new BigDecimal("1500.0"), new BigDecimal("500.0"), new BigDecimal("1000.0")));
+  }
+
+  @Test
+  void incompleteFundsOnADayAreTheFundsWhoseRowsInThatDaysReportCouldNotBeValued() {
+    EpisReportSummary incomplete = summary(TUV100, Map.of("netEur", 0));
+    incomplete.setComplete(false);
+    given(summaryRepository.findByReportTypeAndReportDate(R45, TODAY))
+        .willReturn(List.of(summary(TUK75, Map.of("netEur", 0)), incomplete));
+
+    assertThat(service.getIncompleteFundsOn(TODAY)).containsExactly(TUV100);
+  }
+
+  @Test
   void getLatestRedRowSettlementDatesReturnsDatesForFund() {
     given(summaryRepository.findTopByReportTypeAndFundOrderByReportDateDescIdDesc(R45, TUV100))
         .willReturn(

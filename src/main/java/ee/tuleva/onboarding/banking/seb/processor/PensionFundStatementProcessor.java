@@ -8,6 +8,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckType;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
@@ -123,20 +124,15 @@ public class PensionFundStatementProcessor {
               account.ledgerAccount(),
               bookingDate,
               entry.remittanceInformation());
-      case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit() -> {
-        log.warn(
-            "Management company credit not stated as a rebate, held in suspense: account={}, externalId={}, amount={}",
-            account,
-            entry.externalId(),
-            entry.amount());
-        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
-        paymentCheckService.record(
-            UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
-            WARNING,
-            externalReference.toString(),
-            "credit not stated as a rebate or kickback is held in suspense, book it with a ledger adjustment: fund=%s, amount=%s, bookingDate=%s, externalReference=%s"
-                .formatted(fund.getCode(), amount.toPlainString(), bookingDate, externalReference));
-      }
+      case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit() ->
+          holdManagementCompanyEntryForBookingByHand(
+              entry,
+              account,
+              amount,
+              externalReference,
+              bookingDate,
+              UNRECOGNISED_MANAGEMENT_COMPANY_CREDIT,
+              "credit not stated as a rebate or kickback");
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
               fund, amount.negate(), externalReference, entry.remittanceInformation(), bookingDate);
@@ -175,6 +171,35 @@ public class PensionFundStatementProcessor {
                 .formatted(fund.getCode(), entry.subFamilyCode(), reason));
       }
     }
+  }
+
+  private void holdManagementCompanyEntryForBookingByHand(
+      BankStatementEntry entry,
+      BankAccount account,
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate,
+      PaymentCheckType checkType,
+      String whatIsHeld) {
+    var fund = account.fund();
+    log.warn(
+        "Management company entry held in suspense: checkType={}, account={}, externalId={}, amount={}",
+        checkType,
+        account,
+        entry.externalId(),
+        entry.amount());
+    recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
+    paymentCheckService.record(
+        checkType,
+        WARNING,
+        externalReference.toString(),
+        "%s is held in suspense, book it with a ledger adjustment: fund=%s, amount=%s, bookingDate=%s, externalReference=%s"
+            .formatted(
+                whatIsHeld,
+                fund.getCode(),
+                amount.toPlainString(),
+                bookingDate,
+                externalReference));
   }
 
   private void recordInSuspense(

@@ -5,18 +5,26 @@
 #
 # Only pii-scan fails the push. Git offers one --no-verify for the whole hook,
 # so every further blocker here doubles as a reason to switch the PII scan off
-# with it; anything CI can still catch afterwards only warns.
+# with it; anything CI can still catch afterwards only warns. A missing default
+# branch blocks too, because without it there is nothing to scan against.
 
 set -uo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNBORN=0000000000000000000000000000000000000000
+EMPTY_TREE=$(git hash-object -t tree /dev/null)
 DEFAULT_BRANCH=origin/master
 
 pii_status=0
+default_branch_status=0
 migration_status=0
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$UNBORN" ] && continue
+
+  if ! git rev-parse --verify -q "$DEFAULT_BRANCH" >/dev/null; then
+    default_branch_status=1
+    continue
+  fi
 
   # Compare against the merge base with the default branch, never against the
   # remote tip of this branch. Merging master in would otherwise re-present
@@ -24,11 +32,15 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   # blocked by data that is long since public.
   base=$(git merge-base "$DEFAULT_BRANCH" "$local_sha" 2>/dev/null) || base=""
 
-  if [ -z "$base" ] || [ "$base" = "$local_sha" ]; then
-    # No shared history, or nothing on top of the default branch: fall back to
-    # whatever this push actually adds.
+  if [ "$base" = "$local_sha" ]; then
+    # Nothing on top of the default branch: fall back to whatever this push
+    # actually adds.
     [ "$remote_sha" = "$UNBORN" ] && continue
     base=$remote_sha
+  elif [ -z "$base" ]; then
+    # No shared history: a new branch publishes its whole tree, an existing one
+    # whatever this push adds to it.
+    if [ "$remote_sha" = "$UNBORN" ]; then base=$EMPTY_TREE; else base=$remote_sha; fi
   fi
 
   # The allowlists come from the pushed revision itself, so only an allowlist
@@ -58,4 +70,10 @@ if [ "$pii_status" -ne 0 ]; then
   echo ""
 fi
 
-exit $pii_status
+if [ "$default_branch_status" -ne 0 ]; then
+  echo "🛑 Push aborted: $DEFAULT_BRANCH is missing, so the PII scan has nothing"
+  echo "   to compare against. Run git fetch origin master first, then push again."
+  echo ""
+fi
+
+exit $((pii_status | default_branch_status))

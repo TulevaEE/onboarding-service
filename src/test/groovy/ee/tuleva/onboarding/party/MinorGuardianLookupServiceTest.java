@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.S
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static java.time.Duration.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -27,14 +28,23 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @DataJpaTest
+@ExtendWith(OutputCaptureExtension.class)
 class MinorGuardianLookupServiceTest {
 
   private static final String REQUESTER = "38001085718";
@@ -54,16 +64,20 @@ class MinorGuardianLookupServiceTest {
   private final ThirdPillarAnalytics thirdPillarAnalytics = mock(ThirdPillarAnalytics.class);
   private final PopulationRegisterClient populationRegisterClient =
       mock(PopulationRegisterClient.class);
+  private final MinorGuardianLookupLock lock = mock(MinorGuardianLookupLock.class);
+  private final SimpleLock heldLock = mock(SimpleLock.class);
 
   private MinorGuardianLookupService service;
 
   @BeforeEach
   void setUp() {
+    given(lock.acquire()).willReturn(Optional.of(heldLock));
     service =
         new MinorGuardianLookupService(
             thirdPillarAnalytics,
             populationRegisterClient,
             repository,
+            lock,
             Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
@@ -180,6 +194,52 @@ class MinorGuardianLookupServiceTest {
 
     assertThat(run).isEqualTo(new MinorGuardianLookupRun(1, 1, 1));
     assertThat(repository.findAllChildPersonalCodes()).containsExactly(MINOR);
+  }
+
+  @Test
+  void refusesToStartWhileAnotherLookupHoldsTheLock() {
+    holders(MINOR);
+    given(lock.acquire()).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.lookUpMinorThirdPillarHolders(REQUESTER, 10, ZERO))
+        .isInstanceOf(MinorGuardianLookupAlreadyRunning.class);
+    verify(populationRegisterClient, never()).fetchGuardians(anyString(), anyString());
+  }
+
+  @Test
+  void releasesTheLockWhenTheRunEndsEvenIfTheRegisterIsUnavailable() {
+    holders(MINOR);
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willThrow(new PopulationRegisterUnavailable("down", new RuntimeException()));
+
+    service.lookUpMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    verify(heldLock).unlock();
+  }
+
+  @Test
+  void logsNoPersonalCodeOfTheChildrenOrTheRequester(CapturedOutput output) {
+    holders(MINOR, OTHER_MINOR);
+    given(populationRegisterClient.fetchGuardians(REQUESTER, MINOR))
+        .willThrow(new PopulationRegisterException("no person"));
+    given(populationRegisterClient.fetchGuardians(REQUESTER, OTHER_MINOR))
+        .willThrow(new PopulationRegisterUnavailable("down", new RuntimeException()));
+
+    service.lookUpMinorThirdPillarHolders(REQUESTER, 10, ZERO);
+
+    assertThat(output.getAll()).doesNotContain(MINOR, OTHER_MINOR, REQUESTER);
+  }
+
+  @Test
+  void runsOnlyWhenStartedByHandNeverOnASchedule() {
+    var scanner = new ClassPathScanningCandidateComponentProvider(false);
+    scanner.addIncludeFilter((reader, factory) -> true);
+
+    assertThat(scanner.findCandidateComponents("ee.tuleva.onboarding.party"))
+        .extracting(BeanDefinition::getBeanClassName)
+        .map(Class::forName)
+        .flatExtracting(type -> List.of(type.getDeclaredMethods()))
+        .noneMatch(method -> method.isAnnotationPresent(Scheduled.class));
   }
 
   private void holders(String... personalCodes) {

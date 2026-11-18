@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -22,36 +23,55 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MinorGuardianLookupService {
 
+  public static final Duration PAUSE_BETWEEN_QUERIES = Duration.ofMillis(200);
+
   private static final PersonalCodeValidator PERSONAL_CODES = new PersonalCodeValidator();
 
   private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final PopulationRegisterClient populationRegisterClient;
   private final GuardianLookupRepository guardianLookupRepository;
+  private final MinorGuardianLookupLock lock;
   private final Clock clock;
 
   public MinorGuardianLookupRun lookUpMinorThirdPillarHolders(
       String requesterPersonalCode, int batchSize, Duration pause) {
+    SimpleLock held = lock.acquire().orElseThrow(MinorGuardianLookupAlreadyRunning::new);
+    try {
+      return lookUpOneBatch(requesterPersonalCode, batchSize, pause);
+    } finally {
+      held.unlock();
+    }
+  }
+
+  private MinorGuardianLookupRun lookUpOneBatch(
+      String requesterPersonalCode, int batchSize, Duration pause) {
     List<String> notLookedUp = minorHoldersNotLookedUp();
+    List<String> batch = notLookedUp.subList(0, Math.min(batchSize, notLookedUp.size()));
     log.info(
         "Starting minor guardian lookup: notLookedUp={}, batchSize={}",
         notLookedUp.size(),
         batchSize);
     int lookedUp = 0;
     int failed = 0;
-    for (String childPersonalCode :
-        notLookedUp.subList(0, Math.min(batchSize, notLookedUp.size()))) {
+    for (int position = 1; position <= batch.size(); position++) {
       try {
-        lookUp(requesterPersonalCode, childPersonalCode);
+        lookUp(requesterPersonalCode, batch.get(position - 1));
         lookedUp++;
       } catch (PopulationRegisterUnavailable e) {
         log.error(
-            "Population register unavailable, stopping minor guardian lookup: childCode={}",
-            childPersonalCode,
-            e);
+            "Population register unavailable, stopping minor guardian lookup: position={},"
+                + " batch={}, error={}",
+            position,
+            batch.size(),
+            e.getClass().getSimpleName());
         failed++;
         break;
       } catch (RuntimeException e) {
-        log.error("Minor guardian lookup failed: childCode={}", childPersonalCode, e);
+        log.error(
+            "Minor guardian lookup failed: position={}, batch={}, error={}",
+            position,
+            batch.size(),
+            e.getClass().getSimpleName());
         failed++;
       }
       if (!pauseBetweenQueries(pause)) {

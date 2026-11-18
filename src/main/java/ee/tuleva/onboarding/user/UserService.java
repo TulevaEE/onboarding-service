@@ -47,7 +47,17 @@ public class UserService {
     }
   }
 
-  public User updateUser(
+  public User changeContactDetails(
+      String personalCode, String email, @Nullable String phoneNumber) {
+    return updateContactDetails(personalCode, Optional.of(email), phoneNumber);
+  }
+
+  public User fillMissingContactDetails(
+      String personalCode, Optional<String> email, @Nullable String phoneNumber) {
+    return updateContactDetails(personalCode, email, phoneNumber);
+  }
+
+  private User updateContactDetails(
       String personalCode, Optional<String> email, @Nullable String phoneNumber) {
     if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();

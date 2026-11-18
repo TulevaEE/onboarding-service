@@ -73,7 +73,7 @@ public class UserDetailsUpdater {
       }
 
       log.info("User contact details missing. Filling them in from the user's contact record");
-      userService.updateUser(person.getPersonalCode(), email, phoneNumber);
+      userService.fillMissingContactDetails(person.getPersonalCode(), email, phoneNumber);
     }
   }
 }

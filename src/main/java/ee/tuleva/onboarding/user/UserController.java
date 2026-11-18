@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
-import java.util.Optional;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
@@ -62,8 +61,8 @@ public class UserController {
     }
 
     User user =
-        userService.updateUser(
-            authenticatedPerson.getPersonalCode(), Optional.of(cmd.email()), cmd.phoneNumber());
+        userService.changeContactDetails(
+            authenticatedPerson.getPersonalCode(), cmd.email(), cmd.phoneNumber());
 
     if (cmd.address() != null) {
       ContactSummary contactSummary =

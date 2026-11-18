@@ -1,11 +1,8 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
-import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.investment.report.ReportType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -18,8 +15,6 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -58,17 +53,6 @@ public class PevaRavaCycleEntity {
   private Instant createdAt;
 
   private Instant updatedAt;
-
-  public List<ReportType> missingReports() {
-    List<ReportType> missing = new ArrayList<>();
-    if (r17ReportId == null) {
-      missing.add(R17_PEVA);
-    }
-    if (r21ReportId == null) {
-      missing.add(R21_RAVA);
-    }
-    return List.copyOf(missing);
-  }
 
   static PevaRavaCycleEntity forCycle(PevaRavaCycle cycle) {
     return PevaRavaCycleEntity.builder()

@@ -27,6 +27,7 @@ public class TransactionPreparationService {
   private final TransactionCommandRepository commandRepository;
   private final TransactionOrderFactory orderFactory;
   private final SettlementTimingWarningService settlementTimingWarningService;
+  private final TradePrepInputGates inputGates;
   private final Clock clock;
 
   @Transactional
@@ -40,6 +41,7 @@ public class TransactionPreparationService {
           command.getFund(),
           command.getMode());
 
+      inputGates.verify(command);
       input = gatherInput(command);
       input = input.excluding(command.getExcludeIsins());
 
@@ -82,23 +84,35 @@ public class TransactionPreparationService {
 
       return new ProcessCommandResult(batch, orders);
 
+    } catch (TradePrepInputGateException e) {
+      log.warn("Command stopped by input gates: id={}, reason={}", command.getId(), e.getMessage());
+      markFailed(command, input, batch, e);
+      return null;
     } catch (RuntimeException e) {
       log.error("Command processing failed: id={}", command.getId(), e);
-      command.setStatus(CommandStatus.FAILED);
-      command.setErrorMessage(e.getMessage());
-      command.setProcessedAt(Instant.now(clock));
-      commandRepository.save(command);
-      auditEventRepository.save(
-          TransactionAuditEvent.builder()
-              .batch(batch)
-              .eventType("CALCULATION_FAILED")
-              .dedupKey(String.valueOf(command.getId()))
-              .actor(actorOf(command))
-              .createdAt(Instant.now(clock))
-              .payload(failedPayload(command, input, e))
-              .build());
+      markFailed(command, input, batch, e);
       return null;
     }
+  }
+
+  private void markFailed(
+      TransactionCommand command,
+      @Nullable FundTransactionInput input,
+      @Nullable TransactionBatch batch,
+      RuntimeException e) {
+    command.setStatus(CommandStatus.FAILED);
+    command.setErrorMessage(e.getMessage());
+    command.setProcessedAt(Instant.now(clock));
+    commandRepository.save(command);
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .batch(batch)
+            .eventType("CALCULATION_FAILED")
+            .dedupKey(String.valueOf(command.getId()))
+            .actor(actorOf(command))
+            .createdAt(Instant.now(clock))
+            .payload(failedPayload(command, input, e))
+            .build());
   }
 
   private FundTransactionInput gatherInput(TransactionCommand command) {

@@ -12,10 +12,14 @@ import static java.math.RoundingMode.CEILING;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.R16FlowCalculationService;
 import ee.tuleva.onboarding.investment.epis.R16FundFlow;
+import ee.tuleva.onboarding.investment.epis.R16PaymentDates;
+import ee.tuleva.onboarding.investment.epis.R16Phase;
 import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
+import ee.tuleva.onboarding.investment.transaction.InputGateFailure.MissingR16;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -44,11 +48,31 @@ class R16OutflowReader {
     return outflow(flow.get(), asOfDate);
   }
 
+  Optional<InputGateFailure> missingR16(TulevaFund fund, LocalDate asOfDate) {
+    if (!R16_FUNDS.contains(fund)) {
+      return Optional.empty();
+    }
+    YearMonth paymentMonth = YearMonth.from(asOfDate);
+    R16PaymentDates dates = r16FlowCalculationService.paymentDates(paymentMonth);
+    if (!countsOutflow(r16PhaseCalculator.phaseFor(fund, dates, asOfDate))
+        || r16FlowCalculationService.isLoaded(paymentMonth)) {
+      return Optional.empty();
+    }
+    return Optional.of(new MissingR16(paymentMonth, dates.paymentDeadline(), dates.sellByDate()));
+  }
+
   private BigDecimal outflow(R16FundFlow flow, LocalDate asOfDate) {
     return switch (r16PhaseCalculator.phaseFor(flow, asOfDate)) {
       case ACTIVE -> flow.totalOutflowEur().abs();
       case BUFFERED -> bufferedOutflow(flow.totalOutflowEur(), asOfDate);
       case IGNORE, VISIBLE -> ZERO;
+    };
+  }
+
+  private static boolean countsOutflow(R16Phase phase) {
+    return switch (phase) {
+      case ACTIVE, BUFFERED -> true;
+      case IGNORE, VISIBLE -> false;
     };
   }
 

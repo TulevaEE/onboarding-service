@@ -12,6 +12,7 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -47,6 +48,7 @@ class TransactionPreparationServiceTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private SettlementTimingWarningService settlementTimingWarningService;
+  @Mock private TradePrepInputGates inputGates;
   @Mock private Clock clock;
 
   private TransactionPreparationService service;
@@ -64,6 +66,7 @@ class TransactionPreparationServiceTest {
             commandRepository,
             orderFactory,
             settlementTimingWarningService,
+            inputGates,
             clock);
   }
 
@@ -915,6 +918,47 @@ class TransactionPreparationServiceTest {
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
     verify(commandRepository).save(command);
+  }
+
+  @Test
+  void processCommand_whenAnInputGateStopsTheFund_failsWithoutGatheringInputOrMakingADraft() {
+    var command =
+        TransactionCommand.builder()
+            .id(17L)
+            .fund(TUK75)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 11, 18))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    given(clock.instant()).willReturn(Instant.parse("2026-11-18T08:00:00Z"));
+    willThrow(
+            new TradePrepInputGateException(
+                TUK75,
+                LocalDate.of(2026, 11, 18),
+                List.of(
+                    new InputGateFailure.MissingR45(
+                        LocalDate.of(2026, 11, 18), LocalDate.of(2026, 11, 17)))))
+        .given(inputGates)
+        .verify(command);
+
+    var result = service.processCommand(command);
+
+    assertThat(result).isNull();
+    assertThat(command.getStatus()).isEqualTo(FAILED);
+    assertThat(command.getBatchId()).isNull();
+    assertThat(command.getProcessedAt()).isEqualTo(Instant.parse("2026-11-18T08:00:00Z"));
+    verifyNoInteractions(inputService, calculationEngine, batchRepository, orderRepository);
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event ->
+                    "CALCULATION_FAILED".equals(event.getEventType())
+                        && event.getBatch() == null
+                        && TradePrepInputGateException.class
+                            .getName()
+                            .equals(event.getPayload().get("exceptionClass"))
+                        && !event.getPayload().containsKey("input")));
   }
 
   @Test

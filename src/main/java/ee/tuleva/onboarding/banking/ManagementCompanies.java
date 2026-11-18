@@ -24,7 +24,7 @@ public class ManagementCompanies {
         && isManagementFeeDescription(debit.description());
   }
 
-  public static boolean isManagementFeeDescription(@Nullable String description) {
+  public boolean isManagementFeeDescription(@Nullable String description) {
     return description != null
         && description.toLowerCase(Locale.ROOT).contains(MANAGEMENT_FEE_DESCRIPTION);
   }

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatch;
@@ -21,6 +22,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -112,10 +114,21 @@ class PortfolioCostBasisSelfHealIT {
         .returns(new BigDecimal("100000.0000"), PortfolioCostBasis::getQuantity);
   }
 
+  @Test
+  void rebuildFromBaselineFailsTheTriggerWhileTheHistoryStillLacksTheBuyBehindASell() {
+    seedBaseline();
+    seedExecutionOnDate(
+        ISIN_BOUGHT_AFTER_THE_BASELINE, SELL, LocalDate.of(2026, 6, 10), "5279.0000");
+
+    assertThatThrownBy(() -> jobOn(LocalDate.of(2026, 6, 15)).rebuildFromBaseline())
+        .isInstanceOf(IllegalStateException.class);
+  }
+
   private PortfolioCostBasisSelfHealJob jobOn(LocalDate today) {
     ZoneId tallinn = ZoneId.of("Europe/Tallinn");
     Clock clock = Clock.fixed(today.atStartOfDay(tallinn).toInstant(), tallinn);
-    return new PortfolioCostBasisSelfHealJob(clock, service, baselineRepository);
+    return new PortfolioCostBasisSelfHealJob(
+        clock, service, baselineRepository, configuration -> Optional.of(() -> {}));
   }
 
   private void seedBaseline() {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.user;
 
 import static ee.tuleva.onboarding.user.NameChangeSource.ADMIN;
 import static ee.tuleva.onboarding.user.NameChangeSource.POPULATION_REGISTER;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 import ee.tuleva.onboarding.auth.GrantType;
 import org.jspecify.annotations.Nullable;
@@ -17,10 +18,6 @@ public record NameChangeBasis(NameChangeSource source, @Nullable String document
   }
 
   public static NameChangeBasis admin(@Nullable String documentReference) {
-    return new NameChangeBasis(ADMIN, blankToNull(documentReference));
-  }
-
-  private static @Nullable String blankToNull(@Nullable String value) {
-    return value == null || value.isBlank() ? null : value.strip();
+    return new NameChangeBasis(ADMIN, trimToNull(documentReference));
   }
 }

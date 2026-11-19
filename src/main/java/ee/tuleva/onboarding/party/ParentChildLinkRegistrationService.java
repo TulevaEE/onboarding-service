@@ -167,6 +167,7 @@ public class ParentChildLinkRegistrationService {
             .firstName(formatted(firstName))
             .lastName(formatted(lastName))
             .active(true)
-            .build());
+            .build(),
+        nameBasis);
   }
 }

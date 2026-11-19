@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.user.name;
 
 import ee.tuleva.onboarding.user.NameChangeBasis;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 public record NameChange(
-    String oldFirstName,
-    String oldLastName,
+    @Nullable String oldFirstName,
+    @Nullable String oldLastName,
     String newFirstName,
     String newLastName,
     NameChangeBasis basis,

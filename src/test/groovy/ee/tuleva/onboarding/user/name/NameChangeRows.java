@@ -9,8 +9,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 public record NameChangeRows(JdbcClient jdbcClient) {
 
   public record Row(
-      String oldFirstName,
-      String oldLastName,
+      @Nullable String oldFirstName,
+      @Nullable String oldLastName,
       String newFirstName,
       String newLastName,
       NameChangeSource source,

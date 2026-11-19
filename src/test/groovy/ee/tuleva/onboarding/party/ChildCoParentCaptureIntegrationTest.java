@@ -9,12 +9,14 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.populationregister.Guardian;
 import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.name.NameChangeRows;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -29,6 +31,7 @@ class ChildCoParentCaptureIntegrationTest {
   @Autowired private ApplicationEventPublisher applicationEventPublisher;
   @Autowired private ParentChildLinkRepository parentChildLinkRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private JdbcClient jdbcClient;
 
   @MockitoBean private CustodyVerificationService custodyVerificationService;
 
@@ -38,7 +41,13 @@ class ChildCoParentCaptureIntegrationTest {
         .findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
             CO_PARENT, CHILD, LEGAL_REPRESENTATIVE)
         .ifPresent(parentChildLinkRepository::delete);
-    userRepository.findByPersonalCode(CHILD).ifPresent(userRepository::delete);
+    userRepository
+        .findByPersonalCode(CHILD)
+        .ifPresent(
+            child -> {
+              new NameChangeRows(jdbcClient).deleteOf(child.getIdOrThrow());
+              userRepository.delete(child);
+            });
   }
 
   // The listener fires AFTER_COMMIT, where a REQUIRED transaction would join the already-committed

@@ -49,9 +49,13 @@ public class User implements Person, Emailable, Serializable {
   @Setter(AccessLevel.PACKAGE)
   private @Nullable String phoneNumber;
 
-  @NotBlank private String firstName;
+  @NotBlank
+  @Setter(AccessLevel.PACKAGE)
+  private String firstName;
 
-  @NotBlank private String lastName;
+  @NotBlank
+  @Setter(AccessLevel.PACKAGE)
+  private String lastName;
 
   @NotNull private Instant createdDate;
 

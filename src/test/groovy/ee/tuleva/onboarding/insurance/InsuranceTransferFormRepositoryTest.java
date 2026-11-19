@@ -97,10 +97,8 @@ class InsuranceTransferFormRepositoryTest {
   }
 
   private User user(String personalCode) {
-    User user = new User();
+    User user = User.builder().firstName("Jaan").lastName("Õunapuu").build();
     user.setPersonalCode(personalCode);
-    user.setFirstName("Jaan");
-    user.setLastName("Õunapuu");
     return entityManager.persist(user);
   }
 }

@@ -35,9 +35,6 @@ public class UserDetailsUpdater {
         event.getTimestamp(),
         person.getPersonalCode());
 
-    if (userService.findByPersonalCode(person.getPersonalCode()).isEmpty()) {
-      return;
-    }
     userService.changeName(
         person.getPersonalCode(),
         formatted(person.getFirstName()),

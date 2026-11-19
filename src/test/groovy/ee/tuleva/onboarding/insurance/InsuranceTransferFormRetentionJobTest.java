@@ -28,10 +28,8 @@ class InsuranceTransferFormRetentionJobTest {
   @BeforeEach
   void setUp() {
     job = new InsuranceTransferFormRetentionJob(repository, Clock.fixed(NOW, ZoneOffset.UTC));
-    User user = new User();
+    User user = User.builder().firstName("Jaan").lastName("Õunapuu").build();
     user.setPersonalCode("38001085718");
-    user.setFirstName("Jaan");
-    user.setLastName("Õunapuu");
     userId = entityManager.persist(user).getId();
   }
 

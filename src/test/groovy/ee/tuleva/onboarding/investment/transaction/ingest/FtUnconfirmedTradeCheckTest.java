@@ -290,6 +290,38 @@ class FtUnconfirmedTradeCheckTest {
   }
 
   @Test
+  void ftConfirmationAndItsWaitingCancellation_confirmOnlyOneOfTwoTradesOfThatQuantity() {
+    TransactionOrder first = order("1000");
+    TransactionOrder second = order("1000");
+    givenOrders(first, second);
+    givenExecutions(execution(first, "1000", "20.40"), execution(second, "1000", "20.40"));
+    givenClosingPrice("20.40");
+    givenCancellationFirstSeenOn(LocalDate.of(2026, 6, 10));
+
+    check(TWO_DAYS_AFTER_TRADE)
+        .check(
+            List.of(confirmation("1000", "20.40"), confirmation("1000", "20.40", CANCELLATION)),
+            ACTOR);
+
+    verify(digest)
+        .publish(
+            List.of(
+                trade(
+                    first,
+                    "1000",
+                    "20.4",
+                    new FtConfirmationResult(CONFIRMED, CONFIRMED, Map.of())),
+                trade(
+                    second,
+                    "1000",
+                    "20.4",
+                    new FtConfirmationResult(
+                        UNCONFIRMED,
+                        OK,
+                        Map.of("confirmationDueBy", "2026-06-09", "referencePrice", "20.40")))));
+  }
+
+  @Test
   void ftConfirmationCancelledAndSentAgain_confirmsTheTrade() {
     TransactionOrder order = order("1000");
     givenOrders(order);

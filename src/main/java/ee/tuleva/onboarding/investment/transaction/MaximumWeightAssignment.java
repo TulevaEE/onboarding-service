@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-final class MaximumWeightAssignment {
+public final class MaximumWeightAssignment {
 
   private final long[][] weights;
   private final int rows;
@@ -26,7 +26,7 @@ final class MaximumWeightAssignment {
     this.previousColumn = new int[size + 1];
   }
 
-  static Map<Integer, Integer> columnsOfRows(long[][] weights, int columns) {
+  public static Map<Integer, Integer> columnsOfRows(long[][] weights, int columns) {
     var assignment = new MaximumWeightAssignment(weights, columns);
     for (var row = 1; row <= assignment.size; row++) {
       assignment.assign(row);

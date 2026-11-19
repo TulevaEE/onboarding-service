@@ -62,7 +62,11 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@TestPropertySource(properties = "transaction-registry.ft-confirmation.alerts-from=2026-01-15")
+@TestPropertySource(
+    properties = {
+      "transaction-registry.ft-confirmation.alerts-from=2026-01-15",
+      "transaction-registry.ft-confirmation.unconfirmed-lookback-days=36500"
+    })
 @Transactional
 class FtConfirmationImportJobIT {
 
@@ -462,6 +466,21 @@ class FtConfirmationImportJobIT {
 
     assertThat(latestStatuses(CANCELLATION_KEY)).containsExactly("CANCELLED", "CANCELLED");
     assertThat(latestStatuses(tradeKey(order))).first().isEqualTo("UNCONFIRMED");
+  }
+
+  @Test
+  void run_tradeSentToSebRatherThanFt_isNotLookedAtForAnFtConfirmation() {
+    TransactionOrder order = registerOrderExecuted("2500");
+    order.setOrderVenue(OrderVenue.SEB);
+    orderRepository.save(order);
+    s3Holds(Map.of());
+
+    job.run();
+
+    assertThat(
+            auditEventRepository.findByEventTypeAndDedupKey(
+                FT_CONFIRMATION_VERIFIED, tradeKey(order)))
+        .isEmpty();
   }
 
   private static String tradeKey(TransactionOrder order) {

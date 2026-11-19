@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,8 @@ class RegistryResponseScreeningIntegrationTest {
   private static final Map<String, String> NS = Map.of("ar", "http://arireg.x-road.eu/producer/");
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-10-19T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
+  private static final CompanyRelationships NO_RELATIONSHIPS =
+      new CompanyRelationships(List.of(), LocalDate.now(CLOCK));
 
   private MockWebServiceServer registry;
   private LegalEntityScreener legalEntityScreener;
@@ -111,7 +114,7 @@ class RegistryResponseScreeningIntegrationTest {
   }
 
   private List<KybCheck> ownershipChecks() {
-    var relationships = legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE);
+    var relationships = legalEntityScreener.fetchRelationships(REGISTRY_CODE);
     var checks =
         legalEntityScreener
             .validate(REGISTRY_CODE, new PersonalCode("38501010002"), null, relationships)
@@ -129,7 +132,7 @@ class RegistryResponseScreeningIntegrationTest {
   private KybCheck activityCheck() {
     var checks =
         legalEntityScreener
-            .validate(REGISTRY_CODE, new PersonalCode("38501010002"), null, List.of())
+            .validate(REGISTRY_CODE, new PersonalCode("38501010002"), null, NO_RELATIONSHIPS)
             .checks();
     registry.verify();
     return checks.stream()

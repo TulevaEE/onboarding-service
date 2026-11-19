@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ariregister;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.kyb.CompanyRelationships;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -28,7 +29,7 @@ class AriregisterClientSmokeTest {
             System.getenv("ARIREGISTER_PASSWORD"));
 
     var client = new AriregisterClient(template, properties);
-    var relationships = client.getActiveCompanyRelationships("14118923", LocalDate.now());
+    var relationships = client.getCompanyRelationships("14118923");
 
     assertThat(relationships).isNotEmpty();
     relationships.forEach(
@@ -81,7 +82,7 @@ class AriregisterClientSmokeTest {
                 r.endDate(),
                 r.ownershipPercent()));
 
-    var active = client.getActiveCompanyRelationships("14243947", today);
+    var active = new CompanyRelationships(relationships, today).active();
     System.out.println(
         "Active ("
             + active.size()

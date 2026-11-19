@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
+import ee.tuleva.onboarding.kyb.CompanyRelationships;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener.ValidationResult;
@@ -27,6 +28,7 @@ import ee.tuleva.onboarding.kyb.SelfCertification;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,11 +78,16 @@ class KybSurveyServiceTest {
         .naceCode("6630");
   }
 
+  private static CompanyRelationships registered(List<CompanyRelationship> relationships) {
+    return new CompanyRelationships(relationships, LocalDate.of(2026, 3, 27));
+  }
+
   private void stubInitialValidation(
       List<CompanyRelationship> relationships, CompanyDetail detail, List<KybCheck> checks) {
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
     when(legalEntityScreener.validate(
-            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), null, relationships))
+            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), null, registered(relationships)))
         .thenReturn(new ValidationResult(detail, checks));
   }
 
@@ -138,7 +145,8 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
@@ -232,7 +240,8 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
 
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
@@ -246,7 +255,8 @@ class KybSurveyServiceTest {
     var surveyResponse = sampleSurveyResponse();
     when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
     var relationships = sampleRelationships();
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -255,7 +265,11 @@ class KybSurveyServiceTest {
     verify(kybSurveyRepository).save(any(KybSurvey.class));
     verify(legalEntityScreener)
         .screen(
-            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships, SUBMISSION);
+            REGISTRY_CODE,
+            new PersonalCode(PERSONAL_CODE),
+            selfCert,
+            registered(relationships),
+            SUBMISSION);
   }
 
   @Test
@@ -276,7 +290,8 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
@@ -286,8 +301,8 @@ class KybSurveyServiceTest {
 
   @Test
   void submit_doesNotSaveOrScreenWhenOnboardingIsBlocked() {
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
-        .thenReturn(sampleRelationships());
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(sampleRelationships()));
     willThrow(new OnboardingNotAllowedException(REGISTRY_CODE, ONBOARDING_PENDING))
         .given(onboardingGate)
         .verifyOnboardingAllowed(REGISTRY_CODE, PERSONAL_CODE);
@@ -318,7 +333,8 @@ class KybSurveyServiceTest {
                 new BigDecimal("100.00"),
                 "Osaluse kaudu",
                 "EST"));
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(relationships));
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
@@ -331,8 +347,8 @@ class KybSurveyServiceTest {
     var selfCert = new SelfCertification(true, true, true);
     var surveyResponse = sampleSurveyResponse();
     when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
-        .thenReturn(sampleRelationships());
+    when(legalEntityScreener.fetchRelationships(REGISTRY_CODE))
+        .thenReturn(registered(sampleRelationships()));
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -33,9 +33,10 @@ class KybCompanyDataMapper {
   KybCompanyData toKybCompanyData(
       CompanyDetail detail,
       PersonalCode personalCode,
-      List<CompanyRelationship> relationships,
+      CompanyRelationships registered,
       BeneficialOwners beneficialOwners,
       @Nullable SelfCertification selfCertification) {
+    var relationships = registered.active();
 
     var status =
         detail

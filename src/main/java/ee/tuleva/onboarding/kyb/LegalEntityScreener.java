@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
-import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -25,19 +24,19 @@ public class LegalEntityScreener {
   private final RelatedPersonsSanctionScreener relatedPersonsSanctionScreener;
   private final Clock clock;
 
-  public List<CompanyRelationship> fetchActiveRelationships(String registryCode) {
-    return ariregisterClient
-        .getActiveCompanyRelationships(registryCode, LocalDate.now(clock))
-        .stream()
-        .filter(relationship -> RELATED_PERSON_ROLES.contains(relationship.roleCode()))
-        .toList();
+  public CompanyRelationships fetchRelationships(String registryCode) {
+    return new CompanyRelationships(
+        ariregisterClient.getCompanyRelationships(registryCode).stream()
+            .filter(relationship -> RELATED_PERSON_ROLES.contains(relationship.roleCode()))
+            .toList(),
+        LocalDate.now(clock));
   }
 
   public List<KybCheck> screen(
       String registryCode,
       PersonalCode personalCode,
       SelfCertification selfCertification,
-      List<CompanyRelationship> relationships,
+      CompanyRelationships relationships,
       KybScreeningTrigger trigger) {
     var detail = fetchCompanyDetail(registryCode);
     var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);
@@ -49,7 +48,7 @@ public class LegalEntityScreener {
 
   public List<KybCheck> screenLatest(String registryCode) {
     var surveyInputs = latestKybSurveyInputs.findByRegistryCode(registryCode);
-    var relationships = fetchActiveRelationships(registryCode);
+    var relationships = fetchRelationships(registryCode);
     return screen(
         registryCode,
         surveyInputs.personalCode(),
@@ -61,7 +60,7 @@ public class LegalEntityScreener {
   public void screenRelatedPersons(String registryCode) {
     relatedPersonsSanctionScreener.screen(
         registryCode,
-        fetchActiveRelationships(registryCode),
+        fetchRelationships(registryCode).active(),
         ariregisterClient.getBeneficialOwners(registryCode));
   }
 
@@ -69,7 +68,7 @@ public class LegalEntityScreener {
       String registryCode,
       PersonalCode personalCode,
       @Nullable SelfCertification selfCertification,
-      List<CompanyRelationship> relationships) {
+      CompanyRelationships relationships) {
     var detail = fetchCompanyDetail(registryCode);
     var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);
     var data =

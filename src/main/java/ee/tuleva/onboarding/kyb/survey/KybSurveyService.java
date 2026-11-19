@@ -38,7 +38,7 @@ class KybSurveyService {
         registryCode,
         personalCode);
 
-    List<CompanyRelationship> relationships;
+    CompanyRelationships relationships;
     try {
       relationships = fetchAndVerifyBoardMember(registryCode, personalCode);
     } catch (NotBoardMemberException e) {
@@ -54,7 +54,7 @@ class KybSurveyService {
 
     return buildLegalEntityData(
         result.detail(),
-        relationships,
+        relationships.active(),
         result.checks(),
         personalCode,
         onboardingGate.getOnboardingError(registryCode));
@@ -66,7 +66,7 @@ class KybSurveyService {
 
     log.info("Submitting KYB survey: registryCode={}, personalCode={}", registryCode, personalCode);
 
-    List<CompanyRelationship> relationships;
+    CompanyRelationships relationships;
     try {
       relationships = fetchAndVerifyBoardMember(registryCode, personalCode);
     } catch (NotBoardMemberException e) {
@@ -91,12 +91,11 @@ class KybSurveyService {
         registryCode, new PersonalCode(personalCode), selfCertification, relationships, SUBMISSION);
   }
 
-  private List<CompanyRelationship> fetchAndVerifyBoardMember(
-      String registryCode, String personalCode) {
-    var relationships = legalEntityScreener.fetchActiveRelationships(registryCode);
+  private CompanyRelationships fetchAndVerifyBoardMember(String registryCode, String personalCode) {
+    var relationships = legalEntityScreener.fetchRelationships(registryCode);
 
     boolean isBoardMember =
-        relationships.stream()
+        relationships.active().stream()
             .anyMatch(
                 r ->
                     BOARD_MEMBER_ROLES.contains(r.roleCode())

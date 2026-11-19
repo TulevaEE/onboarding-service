@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -20,8 +21,10 @@ class TradePrepPositionGate {
 
   private final PositionReconciliation positionReconciliation;
 
-  List<InputGateFailure> differencesFromPositionReport(TulevaFund fund, LocalDate positionDate) {
-    return switch (positionReconciliation.againstPositionReport(fund, positionDate)) {
+  List<InputGateFailure> differencesFromPositionReport(
+      TulevaFund fund, LocalDate positionDate, Set<String> excludedIsins) {
+    return switch (positionReconciliation.againstPositionReport(
+        fund, positionDate, excludedIsins)) {
       case Compared compared ->
           compared.differences().stream()
               .<InputGateFailure>map(

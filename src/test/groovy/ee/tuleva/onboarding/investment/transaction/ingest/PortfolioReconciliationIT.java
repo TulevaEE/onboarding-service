@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -161,7 +162,7 @@ class PortfolioReconciliationIT {
     seedPositionReport(ISIN_B, "500.400000");
     seedNavReport(ISIN_A, new BigDecimal("1000.0000"));
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF))
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
         .usingRecursiveComparison()
         .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
         .isEqualTo(

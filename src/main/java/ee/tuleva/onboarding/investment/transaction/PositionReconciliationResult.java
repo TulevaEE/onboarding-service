@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public sealed interface PositionReconciliationResult {
 
@@ -13,5 +14,6 @@ public sealed interface PositionReconciliationResult {
 
   record ReportRowsWithoutQuantity(List<String> isins) implements PositionReconciliationResult {}
 
-  record HoldingDifference(String isin, BigDecimal registryQuantity, BigDecimal reportQuantity) {}
+  record HoldingDifference(
+      String isin, @Nullable BigDecimal registryQuantity, @Nullable BigDecimal reportQuantity) {}
 }

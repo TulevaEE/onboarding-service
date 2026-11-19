@@ -101,6 +101,24 @@ class InputGateFailureTest {
   }
 
   @Test
+  void aHoldingOneSideDoesNotListSaysItIsMissingThereInsteadOfShowingZero() {
+    assertThat(
+            new HoldingMismatch(
+                    "IE00BFG1TM61", LocalDate.of(2026, 11, 17), new BigDecimal("5.0000"), null)
+                .slackLine())
+        .isEqualTo(
+            "IE00BFG1TM61: registris 5, SEB raportis puudub (2026-11-17): kontrolli registri"
+                + " tehinguid");
+    assertThat(
+            new HoldingMismatch(
+                    "IE00BFG1TM61", LocalDate.of(2026, 11, 17), null, new BigDecimal("40"))
+                .slackLine())
+        .isEqualTo(
+            "IE00BFG1TM61: registris puudub, SEB raportis 40 (2026-11-17): kontrolli registri"
+                + " tehinguid");
+  }
+
+  @Test
   void aRegistryWithoutHoldingsSaysWhereTheyComeFrom() {
     assertThat(new NoRegistryHoldings(LocalDate.of(2026, 11, 17)).slackLine())
         .isEqualTo(

@@ -335,10 +335,7 @@ class TrackingDifferenceNotifier {
 
   private static BreachSeverity mostSevereAlert(List<Verdict> verdicts) {
     return BreachSeverity.mostSevereOf(
-        verdicts.stream()
-            .filter(Verdict::alerts)
-            .map(Verdict::result)
-            .map(TrackingDifferenceResult::breachSeverity));
+        verdicts.stream().filter(Verdict::alerts).map(Verdict::result).map(BreachSeverity::of));
   }
 
   private String formatAlert(Verdict verdict) {

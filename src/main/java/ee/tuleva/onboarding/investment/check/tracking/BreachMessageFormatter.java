@@ -42,7 +42,7 @@ class BreachMessageFormatter {
     sb.append(
         "\n%s [%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
             .formatted(
-                result.breachSeverity().icon(),
+                BreachSeverity.of(result).icon(),
                 result.fund(),
                 result.checkType(),
                 result.checkDate(),

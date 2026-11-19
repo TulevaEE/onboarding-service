@@ -9,6 +9,8 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -74,6 +76,29 @@ class TransactionCommandJobTest {
     var inOrder = inOrder(preparationService, inputGateNotifier);
     inOrder.verify(preparationService).processCommand(tuv100);
     inOrder.verify(inputGateNotifier).notifyStopped(List.of(tuk75Stop, tuk00Stop));
+  }
+
+  @Test
+  void processCommands_stillPostsTheStopsAlreadyMadeWhenALaterCommandCannotBeSaved() {
+    var tuk75 = pending(1L, TUK75);
+    var tuk00 = pending(2L, TUK00);
+    var tuk75Stop =
+        new CommandOutcome.StoppedByInputGates(
+            TUK75, AS_OF_DATE, List.of(new InputGateFailure.NoR45Loaded(AS_OF_DATE)));
+    when(commandRepository.findByStatus(PENDING)).thenReturn(List.of(tuk75, tuk00));
+    when(preparationService.processCommand(tuk75)).thenReturn(tuk75Stop);
+    when(commandRepository.save(any()))
+        .thenAnswer(
+            invocation -> {
+              if (invocation.getArgument(0) == tuk00) {
+                throw new IllegalStateException("Database unavailable");
+              }
+              return invocation.getArgument(0);
+            });
+
+    assertThatThrownBy(job::processCommands).isInstanceOf(IllegalStateException.class);
+
+    verify(inputGateNotifier).notifyStopped(List.of(tuk75Stop));
   }
 
   private static final LocalDate AS_OF_DATE = LocalDate.of(2026, 11, 18);

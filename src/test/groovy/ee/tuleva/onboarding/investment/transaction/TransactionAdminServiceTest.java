@@ -147,6 +147,24 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void createAndProcessAll_stillPostsTheStopsAlreadyMadeWhenALaterFundsCommandCannotBeSaved() {
+    var tuk75 = stopped(TUK75);
+    given(preparationService.processCommand(any())).willReturn(tuk75);
+    willAnswer(invocation -> invocation.getArgument(0))
+        .willThrow(new IllegalStateException("Database unavailable"))
+        .given(commandRepository)
+        .save(any());
+
+    assertThatThrownBy(
+            () ->
+                service.createAndProcessAll(
+                    List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin", Map.of()))
+        .isInstanceOf(IllegalStateException.class);
+
+    then(inputGateNotifier).should().notifyStopped(List.of(tuk75));
+  }
+
+  @Test
   void createAndProcessAll_postsOneMessageWithEveryFundTheGatesStoppedAndNoneThatMadeADraft() {
     var tuk75 = stopped(TUK75);
     var tuk00 = stopped(TUK00);

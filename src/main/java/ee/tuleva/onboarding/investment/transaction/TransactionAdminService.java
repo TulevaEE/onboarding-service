@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -44,12 +45,25 @@ class TransactionAdminService {
 
   TransactionCommandResponse createAndProcess(
       CreateTransactionCommandRequest request, String actor) {
-    ProcessedCommand processed = process(request, actor);
-    inputGateNotifier.notifyStopped(processed.stops());
-    return processed.response();
+    return createAndProcessEach(List.of(request), actor).getFirst();
   }
 
-  private ProcessedCommand process(CreateTransactionCommandRequest request, String actor) {
+  private List<TransactionCommandResponse> createAndProcessEach(
+      List<CreateTransactionCommandRequest> requests, String actor) {
+    List<StoppedByInputGates> stops = new ArrayList<>();
+    List<TransactionCommandResponse> responses = new ArrayList<>();
+    try {
+      for (CreateTransactionCommandRequest request : requests) {
+        responses.add(createAndProcessOne(request, actor, stops));
+      }
+      return List.copyOf(responses);
+    } finally {
+      inputGateNotifier.notifyStopped(stops);
+    }
+  }
+
+  private TransactionCommandResponse createAndProcessOne(
+      CreateTransactionCommandRequest request, String actor, List<StoppedByInputGates> stops) {
     forgetEntitiesAnEarlierCommandOfThisRequestLoaded();
     TransactionCommand command = TransactionCommand.requested(request, actor);
     commandRepository.save(command);
@@ -60,19 +74,14 @@ class TransactionAdminService {
         command.getMode(),
         command.getAsOfDate());
     CommandOutcome outcome = preparationService.processCommand(command);
-    return new ProcessedCommand(
-        TransactionCommandResponse.from(command, outcome.orders(), snapshotOf(command)), outcome);
+    if (outcome instanceof StoppedByInputGates stop) {
+      stops.add(stop);
+    }
+    return TransactionCommandResponse.from(command, outcome.orders(), snapshotOf(command));
   }
 
   private void forgetEntitiesAnEarlierCommandOfThisRequestLoaded() {
     entityManager.clear();
-  }
-
-  private record ProcessedCommand(TransactionCommandResponse response, CommandOutcome outcome) {
-
-    List<StoppedByInputGates> stops() {
-      return outcome instanceof StoppedByInputGates stop ? List.of(stop) : List.of();
-    }
   }
 
   @Nullable
@@ -96,18 +105,14 @@ class TransactionAdminService {
               + ", cashFunds="
               + cashOverrides.keySet());
     }
-    List<ProcessedCommand> processed =
+    return createAndProcessEach(
         targetFunds.stream()
             .map(
                 fund ->
-                    process(
-                        new CreateTransactionCommandRequest(
-                            fund, mode, asOfDate, null, cashOverrides.get(fund), null),
-                        actor))
-            .toList();
-    inputGateNotifier.notifyStopped(
-        processed.stream().flatMap(command -> command.stops().stream()).toList());
-    return processed.stream().map(ProcessedCommand::response).toList();
+                    new CreateTransactionCommandRequest(
+                        fund, mode, asOfDate, null, cashOverrides.get(fund), null))
+            .toList(),
+        actor);
   }
 
   Optional<TransactionCommandResponse> getCommand(Long id) {

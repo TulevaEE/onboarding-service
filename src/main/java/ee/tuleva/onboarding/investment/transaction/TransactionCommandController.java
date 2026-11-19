@@ -31,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class TransactionCommandController {
 
   private final TransactionAdminService adminService;
+  private final TransactionCommandRunner commandRunner;
   private final AdminTokenAuthenticator authenticator;
 
   @PostMapping("/transaction-commands")
@@ -47,7 +48,7 @@ public class TransactionCommandController {
         request.asOfDate(),
         actor);
 
-    return adminService.createAndProcess(request, actor);
+    return commandRunner.createAndProcess(request, actor);
   }
 
   @PostMapping("/transaction-commands/batch")
@@ -64,7 +65,7 @@ public class TransactionCommandController {
         request.asOfDate(),
         actor);
 
-    return adminService.createAndProcessAll(
+    return commandRunner.createAndProcessAll(
         request.funds(),
         request.mode(),
         request.asOfDate(),

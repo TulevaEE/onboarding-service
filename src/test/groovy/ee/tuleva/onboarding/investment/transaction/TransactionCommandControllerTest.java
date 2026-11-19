@@ -56,6 +56,7 @@ class TransactionCommandControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private TransactionAdminService adminService;
+  @MockitoBean private TransactionCommandRunner commandRunner;
 
   private static TransactionOrderResponse orderResponse() {
     return orderResponse(OrderType.MOC);
@@ -109,7 +110,7 @@ class TransactionCommandControllerTest {
   @Test
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
-            adminService.createAndProcess(
+            commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(
                     TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), null, null),
                 "shared-admin-token"))
@@ -142,7 +143,7 @@ class TransactionCommandControllerTest {
   @Test
   void createCommand_passesAdminActorToService() throws Exception {
     given(
-            adminService.createAndProcess(
+            commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
                 "operator-7"))
         .willReturn(commandResponse());
@@ -159,7 +160,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService)
+    then(commandRunner)
         .should()
         .createAndProcess(
             new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, null, null),
@@ -170,7 +171,7 @@ class TransactionCommandControllerTest {
   void createCommand_passesCashOverrideAndItsCommentToService() throws Exception {
     var cash = new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15");
     given(
-            adminService.createAndProcess(
+            commandRunner.createAndProcess(
                 new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
                 "shared-admin-token"))
         .willReturn(commandResponse());
@@ -188,7 +189,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService)
+    then(commandRunner)
         .should()
         .createAndProcess(
             new CreateTransactionCommandRequest(TUK75, REBALANCE, AS_OF_DATE, null, cash, null),
@@ -200,7 +201,7 @@ class TransactionCommandControllerTest {
     var request =
         new CreateTransactionCommandRequest(
             TUK75, REBALANCE, AS_OF_DATE, null, null, Set.of("IE00BFG1TM61", "IE00BMDBMY19"));
-    given(adminService.createAndProcess(request, "shared-admin-token"))
+    given(commandRunner.createAndProcess(request, "shared-admin-token"))
         .willReturn(commandResponse());
 
     mockMvc
@@ -216,7 +217,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService).should().createAndProcess(request, "shared-admin-token");
+    then(commandRunner).should().createAndProcess(request, "shared-admin-token");
   }
 
   @Test
@@ -234,7 +235,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -252,7 +253,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -270,7 +271,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -287,7 +288,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -305,7 +306,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -323,7 +324,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -341,7 +342,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -360,14 +361,14 @@ class TransactionCommandControllerTest {
                         .formatted("x".repeat(501))))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
   void createCommands_passesEachFundsCashOverrideAndCommentToService() throws Exception {
     var cash = Map.of(TUK75, new CashOverride(new BigDecimal("40000"), "Gateway balance at 10:15"));
     given(
-            adminService.createAndProcessAll(
+            commandRunner.createAndProcessAll(
                 List.of(TUK75), REBALANCE, AS_OF_DATE, "shared-admin-token", cash))
         .willReturn(List.of(commandResponse()));
 
@@ -384,7 +385,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService)
+    then(commandRunner)
         .should()
         .createAndProcessAll(List.of(TUK75), REBALANCE, AS_OF_DATE, "shared-admin-token", cash);
   }
@@ -404,7 +405,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -422,7 +423,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -440,7 +441,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isBadRequest());
 
-    then(adminService).shouldHaveNoInteractions();
+    then(commandRunner).shouldHaveNoInteractions();
   }
 
   @Test
@@ -491,7 +492,7 @@ class TransactionCommandControllerTest {
   @Test
   void createCommandBatch_processesRequestedFunds() throws Exception {
     given(
-            adminService.createAndProcessAll(
+            commandRunner.createAndProcessAll(
                 List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "shared-admin-token", Map.of()))
         .willReturn(
             List.of(
@@ -528,7 +529,7 @@ class TransactionCommandControllerTest {
   @Test
   void createCommandBatch_withoutFunds_processesAllFunds() throws Exception {
     given(
-            adminService.createAndProcessAll(
+            commandRunner.createAndProcessAll(
                 null, REBALANCE, AS_OF_DATE, "shared-admin-token", Map.of()))
         .willReturn(List.of(commandResponse()));
 

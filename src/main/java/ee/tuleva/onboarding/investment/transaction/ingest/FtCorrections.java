@@ -40,7 +40,9 @@ record FtCorrections(List<FtConfirmation> confirmations) {
             .filter(
                 confirmation ->
                     confirmation.isCancellation()
-                        ? awaitingReplacement.test(confirmation)
+                        ? confirmations.stream()
+                                .noneMatch(other -> other.isCancelledBy(confirmation))
+                            && awaitingReplacement.test(confirmation)
                         : confirmations.stream()
                             .filter(confirmation::isCancelledBy)
                             .allMatch(awaitingReplacement)));

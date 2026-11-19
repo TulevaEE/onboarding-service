@@ -292,7 +292,7 @@ class FtCorrectionsTest {
     FtCorrections corrections = FtCorrections.among(List.of(first, cancellation));
 
     assertThat(corrections.standingConfirmations(awaitingReplacement -> true))
-        .containsExactly(first, cancellation);
+        .containsExactly(first);
   }
 
   @Test

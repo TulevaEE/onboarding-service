@@ -137,6 +137,18 @@ class FtCorrectionsTest {
   }
 
   @Test
+  void cancellationOfAQuantityThatCollidesWithAnotherOrder_isNotCoveredByThatOrdersConfirmation() {
+    FtConfirmation wrongQuantity = confirmation(NORMAL, "2000", "20.40");
+    FtConfirmation itsCancellation = confirmation(CANCELLATION, "2000", "20.40");
+    FtConfirmation otherOrders = confirmation(NORMAL, "2000", "20.20");
+    FtCorrections corrections =
+        FtCorrections.among(List.of(wrongQuantity, itsCancellation, otherOrders));
+
+    assertThat(corrections.newConfirmationsCoverEveryOrder(itsCancellation, orders("1000", "2000")))
+        .isFalse();
+  }
+
+  @Test
   void anotherOrdersConfirmation_isNotLentToTheCancelledTrade() {
     FtConfirmation between = confirmation(NORMAL, "1001", "20.40");
     FtConfirmation itsCancellation = confirmation(CANCELLATION, "1001", "20.40");

@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
 record FtExecutedTrade(
@@ -18,7 +19,7 @@ record FtExecutedTrade(
     LocalDate tradeDate,
     UUID orderUuid,
     BigDecimal executedQuantity,
-    BigDecimal sebPrice,
+    @Nullable BigDecimal sebPrice,
     FtConfirmationResult result)
     implements FtCheckOutcome {
 
@@ -37,7 +38,9 @@ record FtExecutedTrade(
     facts.put("tradeDate", tradeDate.toString());
     facts.put("orderUuid", orderUuid.toString());
     facts.put("executedQuantity", executedQuantity.toPlainString());
-    facts.put("sebPrice", sebPrice.toPlainString());
+    if (sebPrice != null) {
+      facts.put("sebPrice", sebPrice.toPlainString());
+    }
     return facts;
   }
 
@@ -51,7 +54,7 @@ record FtExecutedTrade(
         isin,
         tradeDate,
         executedQuantity.toPlainString(),
-        sebPrice.toPlainString(),
+        sebPrice == null ? "none" : sebPrice.toPlainString(),
         priceResult());
   }
 

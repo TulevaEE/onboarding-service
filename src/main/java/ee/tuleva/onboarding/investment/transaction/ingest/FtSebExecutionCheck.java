@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.investment.transaction.FtVerificationStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -54,9 +55,13 @@ class FtSebExecutionCheck {
 
   private FtVerificationStatus checkPrice(
       TransactionOrder order, SebExecutedTotal executed, Map<String, String> details) {
+    BigDecimal sebPrice = executed.averagePrice();
+    if (sebPrice == null) {
+      details.put("verificationError", "SEB reported no price for the trade");
+      return UNCHECKED;
+    }
     try {
-      return priceCheck.check(
-          order.getInstrumentIsin(), tradeDate(order), executed.averagePrice(), details);
+      return priceCheck.check(order.getInstrumentIsin(), tradeDate(order), sebPrice, details);
     } catch (RuntimeException e) {
       log.error(
           "SEB price of an FT trade without a confirmation could not be checked: orderUuid={},"

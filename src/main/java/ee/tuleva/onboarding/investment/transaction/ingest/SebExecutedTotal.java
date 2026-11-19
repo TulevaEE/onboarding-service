@@ -12,9 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
-record SebExecutedTotal(BigDecimal quantity, BigDecimal averagePrice) {
+record SebExecutedTotal(BigDecimal quantity, @Nullable BigDecimal averagePrice) {
 
   static Map<Long, SebExecutedTotal> byOrderId(List<TransactionExecution> executions) {
     return executions.stream()
@@ -24,25 +25,28 @@ record SebExecutedTotal(BigDecimal quantity, BigDecimal averagePrice) {
 
   private static SebExecutedTotal of(List<Fill> fills) {
     BigDecimal quantity = fills.stream().map(Fill::quantity).reduce(ZERO, BigDecimal::add);
-    BigDecimal consideration =
-        fills.stream().map(Fill::consideration).reduce(ZERO, BigDecimal::add);
+    List<BigDecimal> considerations =
+        fills.stream().map(Fill::consideration).flatMap(Optional::stream).toList();
+    if (considerations.size() < fills.size()) {
+      return new SebExecutedTotal(quantity, null);
+    }
+    BigDecimal consideration = considerations.stream().reduce(ZERO, BigDecimal::add);
     return new SebExecutedTotal(
         quantity, consideration.divide(quantity, DECIMAL64).stripTrailingZeros());
   }
 
-  private record Fill(Long orderId, BigDecimal quantity, BigDecimal price) {
+  private record Fill(Long orderId, BigDecimal quantity, @Nullable BigDecimal price) {
 
     static Optional<Fill> of(TransactionExecution execution) {
       BigDecimal quantity = execution.getExecutedQuantity();
-      BigDecimal price = execution.getUnitPrice();
-      if (quantity == null || price == null || quantity.signum() <= 0) {
+      if (quantity == null || quantity.signum() <= 0) {
         return Optional.empty();
       }
-      return Optional.of(new Fill(execution.getOrderId(), quantity, price));
+      return Optional.of(new Fill(execution.getOrderId(), quantity, execution.getUnitPrice()));
     }
 
-    BigDecimal consideration() {
-      return quantity.multiply(price);
+    Optional<BigDecimal> consideration() {
+      return Optional.ofNullable(price).map(quantity::multiply);
     }
   }
 }

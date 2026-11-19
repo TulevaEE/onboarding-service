@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.rebalance;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.WARNING;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -104,6 +105,40 @@ class ModelRebalanceCheckJobTest {
   }
 
   @Test
+  void theCloseOfTheWindowANewerModelSuperseded_isAnnouncedWhenOwedAndAnOpenOneIsNot() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(rebalanceWindows.supersededBy(warningWindow())).willReturn(Optional.of(closedWindow()));
+    given(announcements.isOwed(warningWindow())).willReturn(true);
+    given(announcements.isOwed(closedWindow())).willReturn(true);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("✅ TUV100 mudelportfell alates 01.06.2026"), eq(INVESTMENT), eq(INFO));
+    then(announcements).should().recordAnnounced(eq(closedWindow()), any());
+  }
+
+  @Test
+  void aSupersededWindowThatNeverClosed_sendsNothingForItself() {
+    given(rebalanceWindows.current(any(), eq(MONDAY))).willReturn(Optional.empty());
+    given(rebalanceWindows.current(TUV100, MONDAY)).willReturn(Optional.of(warningWindow()));
+    given(rebalanceWindows.supersededBy(warningWindow()))
+        .willReturn(Optional.of(warningWindowOf(LocalDate.of(2026, 6, 1))));
+    given(announcements.isOwed(any())).willReturn(true);
+
+    jobOn(MONDAY).checkRebalanceWindows();
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            startsWith("⚠️ TUV100 mudelportfell alates 01.10.2026"), eq(INVESTMENT), eq(WARNING));
+    then(notificationService).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void aPublicHoliday_checksNothingAndSendsNothing() {
     jobOn(CHRISTMAS_EVE).checkRebalanceWindows();
 
@@ -117,10 +152,29 @@ class ModelRebalanceCheckJobTest {
         rebalanceWindows, announcements, notificationService, estonianCalendar, clock);
   }
 
-  private static RebalanceWindow warningWindow() {
+  private static RebalanceWindow closedWindow() {
     return new RebalanceWindow(
         TUV100,
-        LocalDate.of(2026, 10, 1),
+        LocalDate.of(2026, 6, 1),
+        LocalDate.of(2026, 9, 30),
+        new BigDecimal("0.05"),
+        Set.of("IE00BFG1TM61"),
+        Set.of("IE00BFG1TM61"),
+        LocalDate.of(2026, 9, 29),
+        List.of(),
+        LocalDate.of(2026, 9, 29),
+        new RebalanceDeadlines(
+            LocalDate.of(2026, 7, 1), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1)));
+  }
+
+  private static RebalanceWindow warningWindow() {
+    return warningWindowOf(LocalDate.of(2026, 10, 1));
+  }
+
+  private static RebalanceWindow warningWindowOf(LocalDate modelEffectiveDate) {
+    return new RebalanceWindow(
+        TUV100,
+        modelEffectiveDate,
         MONDAY,
         new BigDecimal("0.05"),
         Set.of("IE00BFG1TM61"),

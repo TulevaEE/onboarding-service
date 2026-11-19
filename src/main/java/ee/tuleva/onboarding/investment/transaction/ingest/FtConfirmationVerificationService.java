@@ -68,7 +68,7 @@ public class FtConfirmationVerificationService {
   public List<FtConfirmationBatchResult> verifyAll(
       List<FtConfirmation> confirmations, String actor) {
     List<FtConfirmationBatchResult> results = new ArrayList<>();
-    List<FtConfirmationOutcome> outcomes = new ArrayList<>();
+    List<FtCheckOutcome> outcomes = new ArrayList<>();
     FtCorrections corrections = FtCorrections.among(confirmations);
     for (int index = 0; index < confirmations.size(); index++) {
       FtConfirmation confirmation = confirmations.get(index);
@@ -110,7 +110,8 @@ public class FtConfirmationVerificationService {
       return;
     }
     boolean recorded =
-        auditRecorder.recordOutcome(computed.order(), confirmation, computed.result(), actor);
+        auditRecorder.recordOutcome(
+            computed.order(), new FtConfirmationOutcome(confirmation, computed.result()), actor);
     if (recorded) {
       log.info(
           "FT confirmation verified: isin={}, tradeDate={}, type={}, quantityStatus={}, priceStatus={}",

@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.UNCHECKED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
-import ee.tuleva.onboarding.investment.transaction.FtConfirmationResult;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -31,16 +28,15 @@ class FtConfirmationDigest {
     this.registryAuthoritative = registryAuthoritative;
   }
 
-  void publish(List<FtConfirmationOutcome> outcomes) {
+  void publish(List<FtCheckOutcome> outcomes) {
     if (!registryAuthoritative) {
       return;
     }
-    List<FtConfirmationOutcome> unalerted =
+    List<FtCheckOutcome> unalerted =
         outcomes.stream()
             .filter(outcome -> outcome.result().isActionable())
             .distinct()
-            .filter(
-                outcome -> !auditRecorder.alreadyAlerted(outcome.confirmation(), outcome.result()))
+            .filter(outcome -> !auditRecorder.alreadyAlerted(outcome))
             .toList();
     if (unalerted.isEmpty()) {
       return;
@@ -48,8 +44,7 @@ class FtConfirmationDigest {
     if (!send(buildMessage(unalerted))) {
       return;
     }
-    unalerted.forEach(
-        outcome -> auditRecorder.recordAlerted(outcome.confirmation(), outcome.result()));
+    unalerted.forEach(auditRecorder::recordAlerted);
   }
 
   private boolean send(String message) {
@@ -62,59 +57,13 @@ class FtConfirmationDigest {
     }
   }
 
-  private static String buildMessage(List<FtConfirmationOutcome> actionable) {
+  private static String buildMessage(List<FtCheckOutcome> actionable) {
     StringBuilder message = new StringBuilder();
     message
         .append("FT confirmation check: ")
         .append(actionable.size())
         .append(" issue(s) need attention");
-    actionable.forEach(outcome -> message.append('\n').append(describe(outcome)));
+    actionable.forEach(outcome -> message.append('\n').append(outcome.describe()));
     return message.toString();
-  }
-
-  private static String describe(FtConfirmationOutcome outcome) {
-    FtConfirmation confirmation = outcome.confirmation();
-    FtConfirmationResult result = outcome.result();
-    if (result.quantityStatus() == UNCHECKED) {
-      return String.format(
-          "FT confirmation could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s,"
-              + " error=%s",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString(),
-          result.details().get("verificationError"));
-    }
-    if (result.isOnlyThePriceMissing()) {
-      return String.format(
-          "FT price could not be checked: fund=%s, isin=%s, tradeDate=%s, quantity=%s, price=%s"
-              + " — no closing price for the trade date by the end of %s; check the price against"
-              + " the official close by hand",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString(),
-          confirmation.grossPrice().toPlainString(),
-          result.details().get("closingPriceDueBy"));
-    }
-    if (confirmation.isCancellation()) {
-      return String.format(
-          "FT cancelled a trade and sent no new confirmation of the same quantity: fund=%s,"
-              + " isin=%s, tradeDate=%s,"
-              + " quantity=%s — check with FT; if the trade did not happen, cancel the order in"
-              + " the registry",
-          confirmation.fund().name(),
-          confirmation.isin(),
-          confirmation.tradeDate(),
-          confirmation.quantity().toPlainString());
-    }
-    return String.format(
-        "FT issue: fund=%s, isin=%s, tradeDate=%s, quantity=%s, quantityStatus=%s, priceStatus=%s",
-        confirmation.fund().name(),
-        confirmation.isin(),
-        confirmation.tradeDate(),
-        confirmation.quantity().toPlainString(),
-        result.quantityStatus(),
-        result.priceStatus());
   }
 }

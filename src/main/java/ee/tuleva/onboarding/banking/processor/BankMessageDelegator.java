@@ -12,14 +12,8 @@ import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
-import java.io.StringReader;
 import java.time.Clock;
 import java.time.ZoneId;
-import java.util.Optional;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -51,9 +45,7 @@ public class BankMessageDelegator {
 
   private void processMessage(BankingMessage message) {
     try {
-      var messageName =
-          extractMessageName(extractNamespace(message.getRawResponse()).orElseThrow());
-      var messageType = BankMessageType.fromXmlType(messageName);
+      var messageType = BankMessageType.ofMessage(message.getRawResponse());
       message.setMessageType(messageType);
 
       var bankStatement =
@@ -87,37 +79,5 @@ public class BankMessageDelegator {
       case HISTORIC_STATEMENT ->
           bankStatementExtractor.extractFromHistoricStatement(rawResponse, timezone);
     };
-  }
-
-  private String extractMessageName(String namespace) {
-    return namespace.substring(namespace.lastIndexOf(':') + 1);
-  }
-
-  private Optional<String> extractNamespace(String xml) {
-    if (xml == null || xml.isBlank()) {
-      throw new IllegalArgumentException("XML string cannot be null or empty");
-    }
-
-    try {
-      XMLStreamReader reader =
-          XMLInputFactory.newInstance().createXMLStreamReader(new StringReader(xml));
-
-      try {
-        while (reader.hasNext()) {
-          int event = reader.next();
-          if (event == XMLStreamConstants.START_ELEMENT) {
-            String namespace = reader.getNamespaceURI();
-            return (namespace != null && !namespace.isEmpty())
-                ? Optional.of(namespace)
-                : Optional.empty();
-          }
-        }
-        throw new IllegalArgumentException("No root element found in XML");
-      } finally {
-        reader.close();
-      }
-    } catch (XMLStreamException e) {
-      throw new IllegalArgumentException("Failed to parse XML: " + e.getMessage(), e);
-    }
   }
 }

@@ -1,12 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +42,7 @@ class PortfolioReconciliationIT {
   @Autowired private PortfolioCostBasisRepository costBasisRepository;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private TestEventRecorder recorder;
+  @Autowired private FundPositionRepository fundPositionRepository;
 
   @BeforeEach
   void cleanRecorderAndData() {
@@ -144,6 +151,41 @@ class PortfolioReconciliationIT {
     var skipped = recorder.skippedEvents.get(0);
     assertThat(skipped.theirQuantities()).isEmpty();
     assertThat(skipped.ourQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
+  }
+
+  @Test
+  void againstThePositionReport_comparesTheRegistryWithTheSebReportRowsOfThatDate() {
+    seedCostBasis(ISIN_A, "1000.0000");
+    seedCostBasis(ISIN_B, "500.0000");
+    seedPositionReport(ISIN_A, "990.000000");
+    seedPositionReport(ISIN_B, "500.400000");
+    seedNavReport(ISIN_A, new BigDecimal("1000.0000"));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF))
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            new Compared(
+                List.of(
+                    new HoldingDifference(ISIN_A, new BigDecimal("1000"), new BigDecimal("990")))));
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).isEmpty();
+  }
+
+  private void seedPositionReport(String isin, String quantity) {
+    fundPositionRepository.save(
+        FundPosition.builder()
+            .navDate(AS_OF)
+            .fund(TUK75)
+            .accountType(SECURITY)
+            .accountName(isin)
+            .accountId(isin)
+            .quantity(new BigDecimal(quantity))
+            .marketValue(BigDecimal.ONE)
+            .currency("EUR")
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .build());
   }
 
   private void seedCostBasis(String isin, String quantity) {

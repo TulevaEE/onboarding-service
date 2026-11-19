@@ -1,7 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNullElse;
+
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliation;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.Compared;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.HoldingDifference;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.RegistryHasNoHoldings;
+import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.ReportHasNoSecurities;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -22,13 +33,14 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PortfolioReconciliationService {
+public class PortfolioReconciliationService implements PositionReconciliation {
 
   private static final BigDecimal DEFAULT_TOLERANCE = BigDecimal.ONE;
 
   private final PortfolioCostBasisService costBasisService;
   private final NavReportPositionLookup navReportLookup;
   private final ApplicationEventPublisher eventPublisher;
+  private final FundPositionRepository fundPositionRepository;
 
   @Value("${transaction-registry.portfolio-reconciliation.tolerance:1.0}")
   private BigDecimal tolerance = DEFAULT_TOLERANCE;
@@ -43,29 +55,14 @@ public class PortfolioReconciliationService {
       return;
     }
 
-    Set<String> allIsins = new TreeSet<>();
-    allIsins.addAll(ourQuantities.keySet());
-    allIsins.addAll(theirQuantities.keySet());
-
-    List<MismatchEntry> mismatches = new ArrayList<>();
-    for (String isin : allIsins) {
-      BigDecimal ourQty = ourQuantities.get(isin);
-      BigDecimal theirQty = theirQuantities.get(isin);
-      BigDecimal ourEffective = ourQty == null ? BigDecimal.ZERO : ourQty;
-      BigDecimal theirEffective = theirQty == null ? BigDecimal.ZERO : theirQty;
-      BigDecimal delta = ourEffective.subtract(theirEffective);
-
-      if (isMismatch(ourQty, theirQty, delta)) {
-        mismatches.add(new MismatchEntry(isin, ourQty, theirQty, delta));
-      }
-    }
+    List<MismatchEntry> mismatches = mismatchesBetween(ourQuantities, theirQuantities);
 
     if (mismatches.isEmpty()) {
       log.info(
           "Portfolio reconciliation OK: fundCode={}, asOfDate={}, isinCount={}",
           fund.getCode(),
           asOfDate,
-          allIsins.size());
+          isinsOf(ourQuantities, theirQuantities).size());
       return;
     }
 
@@ -76,6 +73,70 @@ public class PortfolioReconciliationService {
         mismatches.size());
     eventPublisher.publishEvent(
         new PortfolioReconciliationMismatchEvent(fund, asOfDate, mismatches));
+  }
+
+  @Override
+  public PositionReconciliationResult againstPositionReport(
+      TulevaFund fund, LocalDate positionDate) {
+    Map<String, BigDecimal> registry = readOurQuantities(fund, positionDate);
+    Map<String, BigDecimal> report = readPositionReportQuantities(fund, positionDate);
+    if (registry.isEmpty() && !report.isEmpty()) {
+      return new RegistryHasNoHoldings();
+    }
+    if (report.isEmpty() && !registry.isEmpty()) {
+      return new ReportHasNoSecurities();
+    }
+    return new Compared(
+        mismatchesBetween(registry, report).stream()
+            .map(PortfolioReconciliationService::toDifference)
+            .toList());
+  }
+
+  private List<MismatchEntry> mismatchesBetween(
+      Map<String, BigDecimal> ourQuantities, Map<String, BigDecimal> theirQuantities) {
+    List<MismatchEntry> mismatches = new ArrayList<>();
+    for (String isin : isinsOf(ourQuantities, theirQuantities)) {
+      BigDecimal ourQty = ourQuantities.get(isin);
+      BigDecimal theirQty = theirQuantities.get(isin);
+      BigDecimal ourEffective = ourQty == null ? ZERO : ourQty;
+      BigDecimal theirEffective = theirQty == null ? ZERO : theirQty;
+      BigDecimal delta = ourEffective.subtract(theirEffective);
+
+      if (isMismatch(ourQty, theirQty, delta)) {
+        mismatches.add(new MismatchEntry(isin, ourQty, theirQty, delta));
+      }
+    }
+    return mismatches;
+  }
+
+  private static Set<String> isinsOf(
+      Map<String, BigDecimal> ourQuantities, Map<String, BigDecimal> theirQuantities) {
+    Set<String> allIsins = new TreeSet<>();
+    allIsins.addAll(ourQuantities.keySet());
+    allIsins.addAll(theirQuantities.keySet());
+    return allIsins;
+  }
+
+  private static HoldingDifference toDifference(MismatchEntry mismatch) {
+    return new HoldingDifference(
+        mismatch.isin(),
+        requireNonNullElse(mismatch.ourQuantity(), ZERO),
+        requireNonNullElse(mismatch.theirQuantity(), ZERO));
+  }
+
+  private Map<String, BigDecimal> readPositionReportQuantities(TulevaFund fund, LocalDate date) {
+    Map<String, BigDecimal> quantities = new HashMap<>();
+    fundPositionRepository
+        .findByNavDateAndFundAndAccountType(date, fund, SECURITY)
+        .forEach(
+            position -> {
+              String isin = position.getAccountId();
+              BigDecimal quantity = position.getQuantity();
+              if (isin != null && quantity != null) {
+                quantities.merge(isin, quantity, BigDecimal::add);
+              }
+            });
+    return quantities;
   }
 
   private void skip(

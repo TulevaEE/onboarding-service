@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -131,7 +132,7 @@ class TradePrepSnapshotIT {
 
     tradePrep.executeWithoutResult(
         status -> {
-          assertThat(gates.failures(TUV100, TRADE_DATE)).isEmpty();
+          assertThat(gates.failures(TUV100, TRADE_DATE, Set.of())).isEmpty();
 
           reuploadInItsOwnTransaction("SUB;EE3600109435;0.80000;0;1500.00;19.11.2026");
 

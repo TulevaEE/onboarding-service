@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 sealed interface InputGateFailure {
 
@@ -83,17 +84,20 @@ sealed interface InputGateFailure {
   }
 
   record HoldingMismatch(
-      String isin, LocalDate positionDate, BigDecimal registryQuantity, BigDecimal reportQuantity)
+      String isin,
+      LocalDate positionDate,
+      @Nullable BigDecimal registryQuantity,
+      @Nullable BigDecimal reportQuantity)
       implements InputGateFailure {
 
     @Override
     public String slackLine() {
       return "%s: registris %s, SEB raportis %s (%s): kontrolli registri tehinguid"
-          .formatted(isin, plain(registryQuantity), plain(reportQuantity), positionDate);
+          .formatted(isin, shown(registryQuantity), shown(reportQuantity), positionDate);
     }
 
-    private static String plain(BigDecimal quantity) {
-      return quantity.stripTrailingZeros().toPlainString();
+    private static String shown(@Nullable BigDecimal quantity) {
+      return quantity == null ? "puudub" : quantity.stripTrailingZeros().toPlainString();
     }
   }
 

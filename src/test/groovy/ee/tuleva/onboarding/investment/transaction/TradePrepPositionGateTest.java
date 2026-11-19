@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.investment.transaction.PositionReconciliationResult.
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,14 +35,14 @@ class TradePrepPositionGateTest {
 
   @Test
   void eachHoldingTheRegistryAndTheSebReportDisagreeOnIsALine() {
-    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE))
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(
             new Compared(
                 List.of(
                     new HoldingDifference("A", new BigDecimal("1000"), new BigDecimal("990")),
                     new HoldingDifference("B", ZERO, new BigDecimal("40")))));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
         .containsExactly(
             new HoldingMismatch("A", POSITION_DATE, new BigDecimal("1000"), new BigDecimal("990")),
             new HoldingMismatch("B", POSITION_DATE, ZERO, new BigDecimal("40")));
@@ -49,29 +50,38 @@ class TradePrepPositionGateTest {
 
   @Test
   void aRegistryOrReportWithoutHoldingsIsOneLineNotOnePerHolding() {
-    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE))
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new RegistryHasNoHoldings(), new ReportHasNoSecurities());
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
         .containsExactly(new NoRegistryHoldings(POSITION_DATE));
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
         .containsExactly(new NoReportSecurities(POSITION_DATE));
   }
 
   @Test
   void securitiesWithoutAQuantityAreOneLineNamingThem() {
-    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE))
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new ReportRowsWithoutQuantity(List.of("A", "B")));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE))
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of()))
         .containsExactly(new UnquantifiedReportHoldings(POSITION_DATE, List.of("A", "B")));
   }
 
   @Test
+  void aHoldingMissingFromOneSideKeepsThatSideMissing() {
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of("X")))
+        .willReturn(new Compared(List.of(new HoldingDifference("A", new BigDecimal("5"), null))));
+
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of("X")))
+        .containsExactly(new HoldingMismatch("A", POSITION_DATE, new BigDecimal("5"), null));
+  }
+
+  @Test
   void matchingHoldingsPass() {
-    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE))
+    given(positionReconciliation.againstPositionReport(TKF100, POSITION_DATE, Set.of()))
         .willReturn(new Compared(List.of()));
 
-    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE)).isEmpty();
+    assertThat(gates.differencesFromPositionReport(TKF100, POSITION_DATE, Set.of())).isEmpty();
   }
 }

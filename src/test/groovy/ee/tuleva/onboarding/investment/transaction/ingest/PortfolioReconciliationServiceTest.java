@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
-import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -367,15 +368,15 @@ class PortfolioReconciliationServiceTest {
                 reportRow(ISIN_B, "199.500000"),
                 reportRow(ISIN_D, "40.000000")));
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF))
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
         .usingRecursiveComparison()
         .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
         .isEqualTo(
             new Compared(
                 List.of(
-                    new HoldingDifference(ISIN_C, new BigDecimal("300"), ZERO),
+                    new HoldingDifference(ISIN_C, new BigDecimal("300"), null),
                     new HoldingDifference(ISIN_A, new BigDecimal("1000"), new BigDecimal("990")),
-                    new HoldingDifference(ISIN_D, ZERO, new BigDecimal("40")))));
+                    new HoldingDifference(ISIN_D, null, new BigDecimal("40")))));
     verifyNoInteractions(eventPublisher, navReportLookup);
   }
 
@@ -385,7 +386,8 @@ class PortfolioReconciliationServiceTest {
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
         .willReturn(List.of(reportRow(ISIN_A, "990.000000")));
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new RegistryHasNoHoldings());
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new RegistryHasNoHoldings());
   }
 
   @Test
@@ -395,7 +397,8 @@ class PortfolioReconciliationServiceTest {
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
         .willReturn(List.of());
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new ReportHasNoSecurities());
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new ReportHasNoSecurities());
   }
 
   @Test
@@ -404,7 +407,8 @@ class PortfolioReconciliationServiceTest {
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
         .willReturn(List.of());
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF)).isEqualTo(new Compared(List.of()));
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
   }
 
   @Test
@@ -429,8 +433,56 @@ class PortfolioReconciliationServiceTest {
                     .marketValue(BigDecimal.ONE)
                     .build()));
 
-    assertThat(service.againstPositionReport(TUK75, AS_OF))
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
         .isEqualTo(new ReportRowsWithoutQuantity(List.of(ISIN_B)));
+  }
+
+  @Test
+  void againstThePositionReport_anInstrumentAtZeroOnOneSideAndAbsentOnTheOtherIsNoDifference() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "1000.0000"), costBasis(ISIN_B, "0.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_A, "1000.000000"), reportRow(ISIN_C, "0.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
+  }
+
+  @Test
+  void againstThePositionReport_soldOutRowsOnOneSideAndNothingOnTheOtherAreNoDifference() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "0.0000")));
+    given(costBasisService.snapshotForFundAndDate(TUK00, AS_OF)).willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK00, SECURITY))
+        .willReturn(List.of(reportRow(ISIN_B, "0.000000")));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
+    assertThat(service.againstPositionReport(TUK00, AS_OF, Set.of()))
+        .isEqualTo(new Compared(List.of()));
+  }
+
+  @Test
+  void againstThePositionReport_leavesExcludedInstrumentsOutOfBothSides() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "1000.0000"), costBasis(ISIN_B, "500.0000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(AS_OF, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                reportRow(ISIN_A, "1000.000000"),
+                FundPosition.builder()
+                    .navDate(AS_OF)
+                    .fund(TUK75)
+                    .accountType(SECURITY)
+                    .accountName(ISIN_B)
+                    .accountId(ISIN_B)
+                    .marketValue(BigDecimal.ONE)
+                    .build()));
+
+    assertThat(service.againstPositionReport(TUK75, AS_OF, Set.of(ISIN_B)))
+        .isEqualTo(new Compared(List.of()));
   }
 
   private static FundPosition reportRow(String isin, String quantity) {

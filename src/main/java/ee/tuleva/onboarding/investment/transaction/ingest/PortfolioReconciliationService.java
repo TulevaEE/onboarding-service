@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
-import static java.util.Objects.requireNonNullElse;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
 import ee.tuleva.onboarding.investment.transaction.PositionReconciliation;
@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -80,25 +81,53 @@ public class PortfolioReconciliationService implements PositionReconciliation {
 
   @Override
   public PositionReconciliationResult againstPositionReport(
-      TulevaFund fund, LocalDate positionDate) {
+      TulevaFund fund, LocalDate positionDate, Set<String> excludedIsins) {
     List<FundPosition> reportRows =
-        fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, fund, SECURITY);
+        fundPositionRepository
+            .findByNavDateAndFundAndAccountType(positionDate, fund, SECURITY)
+            .stream()
+            .filter(position -> isNotExcluded(position, excludedIsins))
+            .toList();
     List<String> unquantified = securitiesWithoutQuantity(reportRows);
     if (!unquantified.isEmpty()) {
       return new ReportRowsWithoutQuantity(unquantified);
     }
-    Map<String, BigDecimal> registry = readOurQuantities(fund, positionDate);
-    Map<String, BigDecimal> report = quantitiesByIsin(reportRows);
-    if (registry.isEmpty() && !report.isEmpty()) {
+    Map<String, BigDecimal> registry = new HashMap<>(readOurQuantities(fund, positionDate));
+    registry.keySet().removeAll(excludedIsins);
+    Map<String, BigDecimal> report = SecurityQuantities.byIsin(reportRows);
+    if (holdsNothing(registry) && !holdsNothing(report)) {
       return new RegistryHasNoHoldings();
     }
-    if (report.isEmpty() && !registry.isEmpty()) {
+    if (holdsNothing(report) && !holdsNothing(registry)) {
       return new ReportHasNoSecurities();
     }
     return new Compared(
-        mismatchesBetween(registry, report).stream()
-            .map(PortfolioReconciliationService::toDifference)
+        isinsOf(registry, report).stream()
+            .filter(isin -> differsBeyondTolerance(registry.get(isin), report.get(isin)))
+            .map(isin -> new HoldingDifference(isin, registry.get(isin), report.get(isin)))
             .toList());
+  }
+
+  private static boolean holdsNothing(Map<String, BigDecimal> quantities) {
+    return quantities.values().stream().allMatch(quantity -> quantity.signum() == 0);
+  }
+
+  private static boolean isNotExcluded(FundPosition position, Set<String> excludedIsins) {
+    String isin = position.getAccountId();
+    return isin == null || !excludedIsins.contains(isin);
+  }
+
+  private boolean differsBeyondTolerance(
+      @Nullable BigDecimal registryQuantity, @Nullable BigDecimal reportQuantity) {
+    return heldUnits(registryQuantity)
+            .subtract(heldUnits(reportQuantity))
+            .abs()
+            .compareTo(tolerance)
+        > 0;
+  }
+
+  private static BigDecimal heldUnits(@Nullable BigDecimal quantity) {
+    return quantity == null ? ZERO : quantity;
   }
 
   private List<MismatchEntry> mismatchesBetween(
@@ -126,13 +155,6 @@ public class PortfolioReconciliationService implements PositionReconciliation {
     return allIsins;
   }
 
-  private static HoldingDifference toDifference(MismatchEntry mismatch) {
-    return new HoldingDifference(
-        mismatch.isin(),
-        requireNonNullElse(mismatch.ourQuantity(), ZERO),
-        requireNonNullElse(mismatch.theirQuantity(), ZERO));
-  }
-
   private static List<String> securitiesWithoutQuantity(List<FundPosition> reportRows) {
     return reportRows.stream()
         .filter(position -> position.getQuantity() == null)
@@ -141,19 +163,6 @@ public class PortfolioReconciliationService implements PositionReconciliation {
         .distinct()
         .sorted()
         .toList();
-  }
-
-  private static Map<String, BigDecimal> quantitiesByIsin(List<FundPosition> reportRows) {
-    Map<String, BigDecimal> quantities = new HashMap<>();
-    reportRows.forEach(
-        position -> {
-          String isin = position.getAccountId();
-          BigDecimal quantity = position.getQuantity();
-          if (isin != null && quantity != null) {
-            quantities.merge(isin, quantity, BigDecimal::add);
-          }
-        });
-    return quantities;
   }
 
   private void skip(

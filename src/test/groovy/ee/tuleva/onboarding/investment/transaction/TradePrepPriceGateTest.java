@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,7 +48,7 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.of(ResolvedPrice.builder().validationStatus(NO_PRICE_DATA).build()));
     givenPrice("IN_BOTH", "25.00");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE))
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of()))
         .contains(new MissingPrices(List.of("HELD_UNKNOWN_INSTRUMENT", "MODEL_NO_PRICE_DATA")));
   }
 
@@ -56,7 +58,7 @@ class TradePrepPriceGateTest {
     givenModel();
     givenPrice("ZERO_PRICE", "0");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE))
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of()))
         .contains(new MissingPrices(List.of("ZERO_PRICE")));
   }
 
@@ -66,7 +68,27 @@ class TradePrepPriceGateTest {
         .willReturn(Optional.empty());
     givenModel(model("SOLD_OUT_OF_THE_MODEL", "0"));
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE)).isEmpty();
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
+  }
+
+  @Test
+  void anExcludedInstrumentNeedsNoPrice() {
+    givenHeld("EXCLUDED");
+    givenModel(model("EXCLUDED", "1"));
+
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of("EXCLUDED"))).isEmpty();
+  }
+
+  @Test
+  void aHoldingTheSebReportListsAtZeroNeedsNoPrice() {
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, TRADE_DATE))
+        .willReturn(Optional.of(POSITION_DATE));
+    given(positionAssembler.assemble(TKF100, POSITION_DATE, PendingOrderImpact.none()))
+        .willReturn(
+            List.of(new PositionSnapshot("SOLD_OUT", ZERO, new BigDecimal("0.000000"), null)));
+    givenModel();
+
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
   }
 
   @Test
@@ -75,7 +97,7 @@ class TradePrepPriceGateTest {
     givenModel(model("HELD_PRICED", "1"));
     givenPrice("HELD_PRICED", "100.00");
 
-    assertThat(gates.missingPrices(TKF100, TRADE_DATE)).isEmpty();
+    assertThat(gates.missingPrices(TKF100, TRADE_DATE, Set.of())).isEmpty();
   }
 
   private void givenHeld(String... isins) {

@@ -630,6 +630,84 @@ class TransactionPipelineIntegrationTest {
             INVESTMENT);
   }
 
+  @Test
+  void anInstrumentSoldOutOfTheFundAtZeroInOneSourceAndAbsentFromTheOtherMakesADraft() {
+    registryRow("IE00BFNM3G45", "0.0000");
+    sebSecurityRow("IE0009FT4LX4", "0.000000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+  }
+
+  @Test
+  void aHoldingTheSebReportDoesNotListSaysItIsMissingThereInsteadOfShowingZero() {
+    registryRow("IE00BFNM3G45", "5.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(TKF100, REBALANCE, TEST_DATE, null, null, null),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(FAILED);
+    verify(notificationService)
+        .sendMessage(
+            """
+            🔴 TKF100 tehingute mustandit ei tehtud (2026-02-10). Käivita ettevalmistus uuesti, kui sisend on korras:
+            IE00BFNM3G45: registris 5, SEB raportis puudub (2026-02-10): kontrolli registri tehinguid\
+            """,
+            INVESTMENT);
+  }
+
+  @Test
+  void anExcludedInstrumentWithNoPriceAndARegistryMismatchStillLetsTheFundMakeADraft() {
+    jdbcClient.sql("DELETE FROM index_values WHERE key = 'PAC.DE'").update();
+    registryQuantity("LU1291106356", "10010.0000");
+
+    var response =
+        commandRunner.createAndProcess(
+            new CreateTransactionCommandRequest(
+                TKF100, REBALANCE, TEST_DATE, null, null, Set.of("LU1291106356")),
+            "operator");
+
+    assertThat(response.status()).isEqualTo(CALCULATED);
+    assertThat(response.excludeIsins()).containsExactly("LU1291106356");
+  }
+
+  private void registryRow(String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_portfolio_cost_basis
+              (fund_isin, instrument_isin, as_of_date, quantity, avg_unit_cost, total_cost, source)
+            VALUES (:fundIsin, :isin, :asOfDate, :quantity, 0, 0, 'TEST')
+            """)
+        .param("fundIsin", TKF100.getIsin())
+        .param("isin", isin)
+        .param("asOfDate", TEST_DATE)
+        .param("quantity", new BigDecimal(quantity))
+        .update();
+  }
+
+  private void sebSecurityRow(String isin, String quantity) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fund_position
+              (nav_date, fund_code, account_type, account_name, account_id, quantity,
+               market_price, market_value, currency, created_at)
+            VALUES (:navDate, 'TKF100', 'SECURITY', :isin, :isin, :quantity, 0, 0, 'EUR',
+               CURRENT_TIMESTAMP)
+            """)
+        .param("navDate", TEST_DATE)
+        .param("isin", isin)
+        .param("quantity", new BigDecimal(quantity))
+        .update();
+  }
+
   private void registryQuantity(String isin, String quantity) {
     jdbcClient
         .sql(

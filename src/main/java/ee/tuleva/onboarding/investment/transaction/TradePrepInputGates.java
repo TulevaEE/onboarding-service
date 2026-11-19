@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -39,14 +40,15 @@ class TradePrepInputGates {
   private final TradePrepPositionGate positionGate;
 
   void verify(TransactionCommand command) {
-    List<InputGateFailure> failures = failures(command.getFund(), command.getAsOfDate());
+    List<InputGateFailure> failures =
+        failures(command.getFund(), command.getAsOfDate(), command.getExcludeIsins());
     if (!failures.isEmpty()) {
       throw new TradePrepInputGateException(
           new StoppedByInputGates(command.getFund(), command.getAsOfDate(), failures));
     }
   }
 
-  List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate) {
+  List<InputGateFailure> failures(TulevaFund fund, LocalDate asOfDate, Set<String> excludedIsins) {
     LocalDate requiredReportDate = publicHolidays.previousWorkingDay(asOfDate);
     Optional<LocalDate> latestReportDate =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
@@ -62,14 +64,16 @@ class TradePrepInputGates {
                     .orElseGet(() -> new MissingPositionReport(requiredReportDate)));
     Stream<InputGateFailure> holdingDifferences =
         currentReportDate.stream()
-            .flatMap(date -> positionGate.differencesFromPositionReport(fund, date).stream());
+            .flatMap(
+                date ->
+                    positionGate.differencesFromPositionReport(fund, date, excludedIsins).stream());
     return Stream.concat(
             Stream.of(
                     positionReport,
                     r45(fund, asOfDate),
                     pevaRavaReports(fund, asOfDate),
                     r16OutflowReader.missingR16(fund, asOfDate),
-                    priceGate.missingPrices(fund, asOfDate))
+                    priceGate.missingPrices(fund, asOfDate, excludedIsins))
                 .flatMap(Optional::stream),
             holdingDifferences)
         .toList();
